@@ -1,0 +1,12 @@
+
+
+*.py[cod]
+
+.ipynb_checkpoints/
+
+
+*.org
+
+old/
+
+*.ipynb
