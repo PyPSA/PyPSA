@@ -1,14 +1,15 @@
 
-
-#In this example the network is built up by hand...
-
 # coding: utf-8
 
 # In[1]:
 
+# make the code as Python 3 compatible as possible                                                                       
+from __future__ import print_function, division
+
 import pypsa
 
-import datetime,pandas
+import datetime
+import pandas as pd
 
 import networkx as nx
 
@@ -25,18 +26,18 @@ network = pypsa.Network()
 
 T = 10
 
-network.index = [datetime.datetime(2015,1,1) + datetime.timedelta(hours=i) for i in range(T)]
+network.index = pd.to_datetime([datetime.datetime(2015,1,1) + datetime.timedelta(hours=i) for i in range(T)])
 
 network.i = network.index[0]
 
-print network
-print network.index
-print network.i
+print("network:",network)
+print("index:",network.index)
+print("current snapshot:",network.i)
 
 
-# In[10]:
+# In[3]:
 
-#Build buses
+#The network is two three-node AC networks connected by 2 point-to-point DC links
 
 #building block
 n = 3
@@ -44,70 +45,112 @@ n = 3
 #copies
 c = 2
 
-network.buses = [network.add("Bus",i) for i in range(n*c)]
 
-network.lines = [network.add("Line",i) for i in range(n*c)]
+#add buses
+for i in range(n*c):
+    network.add("Bus",i,v_nom="380")
+
+#add lines
+for i in range(n*c):
+    network.add("Line",i,
+                bus0=network.buses[str(i)],
+                bus1=network.buses[str(n*(i // n)+ (i+1) % n)],
+                x=np.random.random(),
+                s_nom=1500)
+
+#add HVDC lines
+for i in range(2):
+    network.add("TransportLink","TL %d" % (i),
+                bus0=network.buses[str(i)],
+                bus1=network.buses[str(3+i)],
+                p_nom=1000)
     
+
+#add loads
+for i in range(n*c):
+    network.add("Load",i,bus=network.buses[str(i)])
+
+#add some generators
+for i in range(n*c):
+    #gas generator
+    network.add("Generator","Gas %d" % (i),bus=network.buses[str(i)],p_nom=100,source="gas",dispatch="flexible")
+    #wind generator
+    network.add("Generator","Wind %d" % (i),bus=network.buses[str(i)],p_nom=100,source="wind",dispatch="variable")
+
+
+# In[4]:
+
+print(network.loads)
+print(network.generators)
+
+
+# In[5]:
+
+l = next(network.loads.itervalues())
+
+print(l.p)
+
+
+# In[6]:
+
+#now attach some time series
+  
+network.load_series = pd.DataFrame(index = network.index,
+                                       columns = [load_name for load_name in network.loads],
+                                       data = 100*np.random.rand(len(network.index), len(network.loads)))
+
+for load in network.loads.itervalues():
+    load.p_set = network.load_series[load.name]
+
     
-for i,line in enumerate(network.lines):
-    line.bus0 = network.buses[i]
-    line.bus1 = network.buses[n*(i // n)+ (i+1) % n]
+
+wind_generators = filter(lambda g: g.source=="wind",network.generators.itervalues())
+
+network.wind_series = pd.DataFrame(index = network.index,
+                                       columns = [gen.name for gen in wind_generators],
+                                       data = 100*np.random.rand(len(network.index), len(wind_generators)))
+
+
+for generator in wind_generators:
+    generator.p_set = network.wind_series[generator.name]
+    generator.p_max = network.wind_series[generator.name]
     
-network.branches = network.lines
+gas_generators = filter(lambda g: g.source=="gas",network.generators.itervalues())
 
-#add loads with random values
+for generator in gas_generators:
+    generator.p_set = pd.Series([1.]*len(network.index),network.index)
 
-network.loads = [network.add("Load",i) for i in range(n*c)]
-
-for i,load in enumerate(network.loads):
-    load.bus = network.buses[i]
-    load.bus.loads = [load]
-    
-network.load_series = pandas.DataFrame(index = network.index,
-                                       columns = [load.name for load in network.loads],
-                                       data = -100*np.random.rand(len(network.index), len(network.loads)))
-for load in network.loads:
-    load.p_set_series = network.load_series[load.name]
-    
-#add generators
-
-network.generators = [network.add("Generator",i) for i in range(n*c)]
-
-for i,generator in enumerate(network.generators):
-    generator.bus = network.buses[i]
-    generator.bus.generators =  [generator]
-    generator.p_nom = 100
-    generator.source = "gas"
-    generator.dispatch = "flexible"
+for transport_link in network.transport_links.itervalues():
+    transport_link.p_set = pd.Series(index = network.index, data=(200*np.random.rand(len(network.index))-100))
 
 
-# In[11]:
-
-generator.p_nom
-
-
-# In[12]:
+# In[7]:
 
 network.build_graph()
 
 
-# In[13]:
+# In[8]:
 
 network.determine_network_topology()
 
 
-# In[14]:
+# In[9]:
 
-network.sub_networks
-
-
-for sn in network.sub_networks:
-    print "\nsub network",sn,"contains:"
-    print "buses:",sn.buses
-    print "branches:",sn.branches
+print(network.sub_networks)
 
 
-# In[15]:
+# In[10]:
 
-sn = network.sub_networks[0]
-sn.pf()
+network.lpf(network.index[3])
+
+
+# In[12]:
+
+for g in network.generators.itervalues():
+    print(g,g.p_set[network.i],g.p[network.i])
+
+
+# In[11]:
+
+
+

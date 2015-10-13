@@ -13,9 +13,13 @@ network = generateeurope.build_entsoe(spatial_zoom=hundred_nodes)
 results_folder = time_stamp + scenario_name
 
 
-network.lopf(solver="Gurobi",options=["IBM"],index_set=representative_hours)
+model = network.lopf(index_set=representative_hours)
 
-network.save_results()
+#at this point can add custom constraints
+
+model.solve(solver="Gurobi",options=["IBM"])
+
+network.save_results(result_folder)
 
 
 network.perform_standard_analysis()

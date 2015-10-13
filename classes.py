@@ -1,6 +1,6 @@
 
 
-## Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS),...
+## Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -20,69 +20,28 @@
 Grid calculation library.
 """
 
+
 # make the code as Python 3 compatible as possible
-#from __future__ import print_function, division
-
-
+from __future__ import print_function, division
 
 
 __version__ = "0.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
-
-
-
 import networkx as nx
-
 import numpy as np
-
-import pf
-
-
-#Some descriptors to control variables - idea is to do type checking
-#and in future facilitate interface with Database / GUI
-
-class Float(object):
-    """A descriptor to manage floats."""
-
-    def __init__(self,default=0.0):
-        self.default = default
-        #should be changed to a weakly-referenced dictionary
-        self.values = dict()
-
-    def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
-
-    def __set__(self,obj,val):
-        try:
-            self.values[obj] = float(val)
-        except:
-            print "could not convert",val,"to a float"
-            self.val = self.default
-            return
-
-class String(object):
-    """A descriptor to manage strings."""
-
-    def __init__(self,default="",restricted=None):
-        self.default = default
-        self.restricted = restricted
-        self.values = dict()
+import pandas as pd
+from .descriptors import Float,String
+from collections import OrderedDict
 
 
-    def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
 
-    def __set__(self,obj,val):
-        try:
-            self.values[obj] = str(val)
-        except:
-            print "could not convert",val,"to a string"
-            return
-        if self.restricted is not None:
-            if self.values[obj] not in self.restricted:
-                print val,"not in list of acceptable entries:",self.restricted
+
+def build_series(obj,dtype=float,default=0.0):
+    """Defines default series value."""
+    return pd.Series(index=obj.network.index,data=[default]*len(obj.network.index),dtype=dtype)
+        
 
 
 
@@ -96,33 +55,33 @@ class Basic(object):
 
 class Common(Basic):
     """Common to all objects inside Network object."""
-
     network = None
+
 
 
 class Bus(Common):
     """Electrically fundamental node where x-port objects attach."""
 
-    p = Float()
-    q = Float()
-    v_nom = Float()
-    v_mag = Float()
-    v_deg = Float()
-    v_set = Float()
+    list_name = "buses"
 
+    v_nom = Float()
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #2-d location data (e.g. longitude and latitude)
     x = Float()
     y = Float()
 
-    loads = None
+    def __init__(self,network):
 
-    generators = None
+        self.network = network
 
-    def __init__(self):
-        self.loads = []
-        self.generators = []
+        self.loads = OrderedDict()
+        self.generators = OrderedDict()
+        self.p = build_series(self)
+        self.q = build_series(self)
+        self.v_mag = build_series(self,default=1)
+        self.v_ang = build_series(self)
+        self.v_set = build_series(self,default=1)
 
 
 class SubStation(Common):
@@ -137,11 +96,19 @@ class OnePort(Common):
     
     bus = None
 
-    p = Float()
-    q = Float()
+    sign = Float(1)
+
+    def __init__(self,network):
+
+        self.network = network
+
+        self.p = build_series(self)
+        self.q = build_series(self)
 
 
 class Generator(OnePort):
+
+    list_name = "generators"
 
     dispatch = String(default="flexible",restricted=["variable","flexible","inflexible"])
 
@@ -150,15 +117,6 @@ class Generator(OnePort):
 
     #rated power
     p_nom = Float()
-    
-    #can change e.g. due to weather conditions
-    p_max = Float()
-
-    p_min = Float()
-
-    #operator's intended dispatch
-    p_set = Float()
-    q_set = Float()
 
     technical_potential = Float()
 
@@ -166,32 +124,61 @@ class Generator(OnePort):
 
     marginal_cost = Float()
 
-    def __init__(self):
-        pass
+    def __init__(self,network):
+
+        super(self.__class__, self).__init__(network)
+
+        #can change e.g. due to weather conditions
+        self.p_max = build_series(self)
+        self.p_min = build_series(self)
+
+        #operator's intended dispatch
+        self.p_set = build_series(self)
+        self.q_set = build_series(self)
+
+
 
 class Load(OnePort):
-    p_set = Float()
-    q_set = Float()
+    """PQ load."""
+
+    list_name = "loads"
+
+    #set sign convention for powers opposite to generator
+    sign = Float(-1)
+
+    def __init__(self,network):
+        super(self.__class__, self).__init__(network)
+
+        self.p_set = build_series(self)
+        self.q_set = build_series(self)
 
 
 class Branch(Common):
     """Object which attaches to two buses (e.g. line or 2-winding transformer)."""
 
+    list_name = "branches"
+
     bus0 = None
     bus1 = None
-
-    p0 = Float()
-    p1 = Float()
-    
-    q0 = Float()
-    q1 = Float()
-
 
     capital_cost = Float()
 
 
+    def __init__(self,network):
+
+        self.network = network
+
+        self.p0 = build_series(self)
+        self.p1 = build_series(self)
+
+        self.q0 = build_series(self)
+        self.q1 = build_series(self)
+
+
 class Line(Branch):
     """Lines include distribution and transmission lines, overhead lines and cables."""
+
+    list_name = "lines"
 
     #series impedance z = r + jx in Ohm
     r = Float()
@@ -206,32 +193,58 @@ class Line(Branch):
 
     s_nom = Float()
 
-class Transformer2W(Branch):
+
+    def __init__(self,network):
+        super(self.__class__, self).__init__(network)
+
+
+class Transformer(Branch):
     """2-winding transformer."""
+
+    list_name = "transformers"
 
     x_pu = Float()
 
     s_nom = Float()
 
+    def __init__(self,network):
+        super(self.__class__, self).__init__(network)
+
+
 
 class Converter(Branch):
     """Bus 0 is AC, bus 1 is DC."""
-    p_set = Float()
+
+    list_name = "converters"
 
     p_nom = Float()
+
+
+    def __init__(self,network):
+        super(self.__class__, self).__init__(network)
+
+        self.p_set = build_series(self)
 
 class TransportLink(Branch):
     """Controllable link between two buses - can be used for a transport
     power flow model OR as a simplified version of point-to-point DC
     connection.
     """
-    p_set = Float()
+
+    list_name = "transport_links"
+
+    p_nom = Float()
+
+    def __init__(self,network):
+        super(self.__class__, self).__init__(network)
+
+        self.p_set = build_series(self)
 
 
 class ThreePort(Common):
     """Placeholder for 3-winding transformers."""
 
-class Transformer3W(ThreePort):
+class ThreeTransformer(ThreePort):
     pass
 
 class LineType(Common):
@@ -245,60 +258,76 @@ class Network(Basic):
     """Network of buses and branches."""
 
     #a list of scenarios/times
-    index = None
+    index = ["now"]
 
     #the current scenario/time - if None, then default values obj.attr
     #are used; if not None, the values are picked from
     #obj.attr_series[i])
-    i = None
+    i = "now"
 
-    #lists for all the different object types - perhaps not so elegant
-    buses = None
+    def __init__(self,import_file_name=None,**kwargs):
 
-    branches = None
+        self.sub_networks = OrderedDict()
 
-    graph = None
+        self.buses = OrderedDict()
 
-    converters = None
+        self.loads = OrderedDict()
+        self.generators = OrderedDict()
 
-    sub_networks = None
-
-
-    def __init__(self,network_data=None):
-        self.buses = []
-        self.converters = []
-        self.branches = []
-        #etc.
-
-        self.loads = []
-        self.generators = []
+        self.branches = OrderedDict()
+        self.converters = OrderedDict()
+        self.transport_links = OrderedDict()
+        self.lines = OrderedDict()
+        self.transformers = OrderedDict()
 
 
-        if network_data is not None:
-            self.add_network_data(network_data)
+        #or use Jonas' OrderedGraph here?
+        self.graph = nx.Graph()
+
+        if import_file_name is not None:
+            self.import_from_csv(import_file_name)
             self.determine_network_topology()
 
 
-    def add_network_data(self,network_data):
+        for key,value in kwargs.iteritems():
+            setattr(self,key,value)
+
+
+    def import_from_csv(self,file_name):
         """E.g. read in CSV or pickle of data."""
 
+    def import_from_pypower(self,file_name):
+        """Import network from PyPower .py."""
 
-    def add(self,class_name,name):
+
+    def add(self,class_name,name,**kwargs):
         """Add single objects to the network."""
 
         try:
             cls = globals()[class_name]
         except:
-            print class_name,"not found"
+            print(class_name,"not found")
             return None
         
-        obj = cls()
+        obj = cls(self)
 
         obj.name = name
 
         obj.network = self
 
-        #add obj to some list or something?
+        for key,value in kwargs.iteritems():
+            setattr(obj,key,value)
+
+        #add to list in network object
+        getattr(self,cls.list_name).update({obj.name : obj})
+
+        #build branches list
+        if cls.__base__.__name__ == "Branch":
+            self.branches.update({obj.name : obj})
+
+        #add oneports to bus lists
+        if "bus" in kwargs:
+            getattr(obj.bus,cls.list_name).update({obj.name : obj})
 
         return obj
 
@@ -306,61 +335,45 @@ class Network(Basic):
     def add_from(self,object_list):
         """Add objects from a list."""
 
-
-
+    def remove(self,obj):
+        """Remove object from network."""
 
     def build_graph(self):
         """Build networkx graph."""
 
-        #or use Jonas' OrderedGraph here?
-        self.graph = nx.Graph()
-    
-        self.graph.add_edges_from([(branch.bus0,branch.bus1,{"obj" : branch}) for branch in self.branches])
+        self.graph.add_edges_from([(branch.bus0,branch.bus1,{"obj" : branch}) for branch in self.branches.itervalues()])
 
 
     def determine_network_topology(self):
         """Build sub_networks from topology."""
 
-        #make sure to remove converters at this point
+        #remove converters and transport links that could be connected networks
+        # of different types or non-synchronous areas
+
+        #ideally this should be done on a copy of self.graph, but
+        #self.graph.copy() was behaving strangely
+
+        self.graph.remove_edges_from([(branch.bus0,branch.bus1) for branch in list(self.converters.itervalues()) + list(self.transport_links.itervalues())])
+
 
         #now build connected graphs of same type AC/DC
 
         sub_graphs = nx.connected_component_subgraphs(self.graph,copy=False)
 
-        self.sub_networks = []
+        for i,sub_graph in enumerate(sub_graphs):
 
-        for sub_graph in sub_graphs:
-            sub_network = SubNetwork()
+            #name using i for now
+            sub_network = self.add("SubNetwork",i,graph=sub_graph)
 
-            self.sub_networks.append(sub_network)
+            sub_network.buses.update([(n.name,n) for n in sub_graph.nodes()])
 
-            sub_network.graph = sub_graph
-
-            sub_network.buses = sub_graph.nodes()
-
-            sub_network.branches = [branch for (u,v,branch) in sub_graph.edges_iter(data="obj")]
-
-
-
-    def pf(self):
-        """Non-linear power flow."""
-        #calls pf on each sub_network separately
-
-    def lpf(self):
-        """Linear power flow."""
-        #calls lpf on each sub_network separately
-
-    def lpf_batch(self,subindex=None):
-        """Batched linear power flow with numpy.dot."""
-
-
-    def opf(self,subindex=None):
-        """Optimal power flow."""
-
+            sub_network.branches.update([(branch.name,branch) for (u,v,branch) in sub_graph.edges_iter(data="obj")])
 
 
 class SubNetwork(Common):
     """Connected network of same current type (AC or DC)."""
+
+    list_name = "sub_networks"
 
     current_type = String(default="AC",restricted=["AC","DC"])
 
@@ -370,12 +383,10 @@ class SubNetwork(Common):
 
     base_power = Float(default=1)
 
-    graph = None
+    def __init__(self,network):
 
-    buses = None
+        self.network = network
 
-    def pf(self):
-        pf.do_pf(self)
-
-    def opf(self):
-        pass
+        self.graph = nx.Graph()
+        self.buses = OrderedDict()
+        self.branches = OrderedDict()
