@@ -32,18 +32,9 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 import networkx as nx
 import numpy as np
 import pandas as pd
-from .descriptors import Float,String
 from collections import OrderedDict
 
-
-
-
-def build_series(obj,dtype=float,default=0.0):
-    """Defines default series value."""
-    return pd.Series(index=obj.network.index,data=[default]*len(obj.network.index),dtype=dtype)
-        
-
-
+from .descriptors import Float, String, OrderedDictDesc, Series
 
 class Basic(object):
     """Common to every object."""
@@ -57,6 +48,8 @@ class Common(Basic):
     """Common to all objects inside Network object."""
     network = None
 
+    def __init__(self, network):
+        self.network = network
 
 
 class Bus(Common):
@@ -71,18 +64,13 @@ class Bus(Common):
     x = Float()
     y = Float()
 
-    def __init__(self,network):
-
-        self.network = network
-
-        self.loads = OrderedDict()
-        self.generators = OrderedDict()
-        self.p = build_series(self)
-        self.q = build_series(self)
-        self.v_mag = build_series(self,default=1)
-        self.v_ang = build_series(self)
-        self.v_set = build_series(self,default=1)
-
+    loads = OrderedDictDesc()
+    generators = OrderedDictDesc()
+    p = Series()
+    q = Series()
+    v_mag = Series(default=1.)
+    v_ang = Series()
+    v_set = Series(default=1.)
 
 class SubStation(Common):
     """Placeholder for a group of buses."""
@@ -93,17 +81,11 @@ class Region(Common):
 
 class OnePort(Common):
     """Object which attaches to a single bus (e.g. load or generator)."""
-    
+
     bus = None
-
     sign = Float(1)
-
-    def __init__(self,network):
-
-        self.network = network
-
-        self.p = build_series(self)
-        self.q = build_series(self)
+    p = Series()
+    q = Series()
 
 
 class Generator(OnePort):
@@ -124,18 +106,13 @@ class Generator(OnePort):
 
     marginal_cost = Float()
 
-    def __init__(self,network):
+    #can change e.g. due to weather conditions
+    p_max = Series()
+    p_min = Series()
 
-        super(self.__class__, self).__init__(network)
-
-        #can change e.g. due to weather conditions
-        self.p_max = build_series(self)
-        self.p_min = build_series(self)
-
-        #operator's intended dispatch
-        self.p_set = build_series(self)
-        self.q_set = build_series(self)
-
+    #operator's intended dispatch
+    p_set = Series()
+    q_set = Series()
 
 
 class Load(OnePort):
@@ -146,11 +123,8 @@ class Load(OnePort):
     #set sign convention for powers opposite to generator
     sign = Float(-1)
 
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
-
-        self.p_set = build_series(self)
-        self.q_set = build_series(self)
+    p_set = Series()
+    q_set = Series()
 
 
 class Branch(Common):
@@ -164,15 +138,11 @@ class Branch(Common):
     capital_cost = Float()
 
 
-    def __init__(self,network):
+    p0 = Series()
+    p1 = Series()
 
-        self.network = network
-
-        self.p0 = build_series(self)
-        self.p1 = build_series(self)
-
-        self.q0 = build_series(self)
-        self.q1 = build_series(self)
+    q0 = Series()
+    q1 = Series()
 
 
 class Line(Branch):
@@ -194,10 +164,6 @@ class Line(Branch):
     s_nom = Float()
 
 
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
-
-
 class Transformer(Branch):
     """2-winding transformer."""
 
@@ -207,10 +173,6 @@ class Transformer(Branch):
 
     s_nom = Float()
 
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
-
-
 
 class Converter(Branch):
     """Bus 0 is AC, bus 1 is DC."""
@@ -219,11 +181,7 @@ class Converter(Branch):
 
     p_nom = Float()
 
-
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
-
-        self.p_set = build_series(self)
+    p_set = Series()
 
 class TransportLink(Branch):
     """Controllable link between two buses - can be used for a transport
@@ -234,11 +192,7 @@ class TransportLink(Branch):
     list_name = "transport_links"
 
     p_nom = Float()
-
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
-
-        self.p_set = build_series(self)
+    p_set = Series()
 
 
 class ThreePort(Common):
@@ -250,7 +204,6 @@ class ThreeTransformer(ThreePort):
 class LineType(Common):
     """Placeholder for future functionality to automatically generate line
     parameters from standard parameters (e.g. r/km)."""
-
 
 
 class Network(Basic):
@@ -308,7 +261,7 @@ class Network(Basic):
         except:
             print(class_name,"not found")
             return None
-        
+
         obj = cls(self)
 
         obj.name = name
@@ -378,14 +331,13 @@ class SubNetwork(Common):
     current_type = String(default="AC",restricted=["AC","DC"])
 
     frequency = Float(default=50)
-    
+
     num_phases = Float(default=3)
 
     base_power = Float(default=1)
 
     def __init__(self,network):
-
-        self.network = network
+        super(self.__class__, self).__init__(network)
 
         self.graph = nx.Graph()
         self.buses = OrderedDict()

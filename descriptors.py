@@ -38,6 +38,8 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 #destroyed if the key object goes out of scope
 from weakref import WeakKeyDictionary
 
+from collections import OrderedDict
+import pandas as pd
 
 
 
@@ -63,6 +65,46 @@ class Float(object):
             print("could not convert",val,"to a float")
             self.val = self.default
             return
+
+class OrderedDictDesc(object):
+    def __init__(self):
+        self.values = WeakKeyDictionary()
+
+    def __get__(self,obj,cls):
+        try:
+            return self.values[obj]
+        except KeyError:
+            ordereddict = OrderedDict()
+            self.values[obj] = ordereddict
+            return ordereddict
+
+    def __set__(self,obj,val):
+        if not isinstance(val, OrderedDict):
+            raise AttributeError("val must be an OrderedDict")
+        else:
+            self.values[obj] = val
+
+class Series(object):
+    """A descriptor to manage series."""
+
+    def __init__(self, dtype=float, default=0.0):
+        self.dtype = dtype
+        self.default = default
+        self.values = WeakKeyDictionary()
+
+    def __get__(self, obj, cls):
+        try:
+            return self.values[obj]
+        except KeyError:
+            series = pd.Series(index=obj.network.index, data=self.default, dtype=self.dtype)
+            self.values[obj] = series
+            return series
+
+    def __set__(self,obj,val):
+        try:
+            self.values[obj] = val.reindex(obj.index)
+        except AttributeError:
+            print("could not reindex to the network index")
 
 class String(object):
     """A descriptor to manage strings."""
