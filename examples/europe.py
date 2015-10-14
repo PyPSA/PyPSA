@@ -1,12 +1,13 @@
 
 
-#generateeurope does what regions/generate does
+#library with non-Europe-specific data generation functionality
+import generate
 
-import generateeurope
+#library with Europe-specific data generation
+import europe.generate
 
 
-
-network = generateeurope.build_entsoe(spatial_zoom=hundred_nodes)
+network = europe.generate.build_entsoe(spatial_zoom=hundred_nodes)
 
 
 

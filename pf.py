@@ -214,10 +214,16 @@ def calculate_x_pu(sub_network):
             branch.x_pu = branch.x*sub_network.base_power/branch.s_nom
 
     
-def calculate_B_H(sub_network,attribute="x_pu",verbose=True):
+def calculate_B_H(sub_network,verbose=True):
     """Calculate B and H matrices for AC or DC sub-networks."""
 
-    #leans heavily on pypower.makeBdc
+
+    if sub_network.current_type == "DC":
+        attribute="r_pu"
+    elif sub_network.current_type == "AC":
+        attribute="x_pu"
+
+    #following leans heavily on pypower.makeBdc
 
     for i,bus in enumerate(sub_network.buses.itervalues()):
         bus._i = i

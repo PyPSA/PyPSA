@@ -30,11 +30,16 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
+from .pf import calculate_B_H
+
+
+
 def network_lopf(network,subindex=None):
     """Optimal power flow for snapshots in subindex."""
 
     #calculate B,H or PTDF for each subnetwork.
-
+    for sub_network in network.sub_networks.itervalues():
+        calculate_B_H(sub_network)
 
     #network.model = pyomo.Model()
 
