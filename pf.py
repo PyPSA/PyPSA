@@ -117,9 +117,10 @@ def sub_network_lpf(sub_network,i=None,verbose=True):
         #convert all branch reactances to per unit
         for branch in sub_network.branches.itervalues():
             if branch.__class__.__name__ == "Line":
-                branch.x_pu = branch.x*sub_network.base_power/(branch.bus0.v_mag**2)
-                
-                
+                branch.x_pu = branch.x*sub_network.base_power/(branch.bus0.v_nom**2)
+            elif branch.__class__.__name__ == "Transformer":
+                branch.x_pu = branch.x*sub_network.base_power/branch.s_nom
+
         #set the power injection at each node
         for bus in sub_network.buses.itervalues():
             bus.p[i] = sum([g.sign*g.p_set[i] for g in bus.generators.itervalues()]) \
@@ -140,14 +141,27 @@ def sub_network_lpf(sub_network,i=None,verbose=True):
     
         slack_bus.v_ang.set_value(i,0)
 
-        #set p for all generators, loads and branches                                                                        
+        #delete row and column of slack bus and invert B to get v_ang
+        #for other buses
+
+        #then set slack_bus.p
+
+        sub_network.H = calculate_H(sub_network,verbose=verbose)
+    
+        #now calculate branch.p0 and branch.p1
+
+        #set p for all generators loads based on p_set; slack_bus is
+        #different
 
     
     
     
-def calculate_B(sub_network,attribute="x",verbose=True):
+def calculate_B(sub_network,attribute="x_pu",verbose=True):
     pass
     
+    
+def calculate_H(sub_network,attribute="x_pu",verbose=True):
+    pass
     
 
 

@@ -203,7 +203,8 @@ class Transformer(Branch):
 
     list_name = "transformers"
 
-    x_pu = Float()
+    #per unit with reference to s_nom
+    x = Float()
 
     s_nom = Float()
 
