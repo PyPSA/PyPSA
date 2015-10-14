@@ -137,6 +137,7 @@ class Branch(Common):
 
     capital_cost = Float()
 
+    technical_potential = Float()
 
     p0 = Series()
     p1 = Series()
@@ -211,13 +212,12 @@ class Network(Basic):
 
     """Network of buses and branches."""
 
-    #a list of scenarios/times
-    index = ["now"]
 
-    #the current scenario/time - if None, then default values obj.attr
-    #are used; if not None, the values are picked from
-    #obj.attr_series[i])
-    i = "now"
+    #the current scenario/time
+    now = "now"
+
+    #a list/index of scenarios/times
+    index = [now]
 
     def __init__(self,import_file_name=None,**kwargs):
 
@@ -266,8 +266,6 @@ class Network(Basic):
         obj = cls(self)
 
         obj.name = name
-
-        obj.network = self
 
         for key,value in kwargs.iteritems():
             setattr(obj,key,value)

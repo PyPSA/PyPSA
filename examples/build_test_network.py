@@ -28,11 +28,11 @@ T = 10
 
 network.index = pd.to_datetime([datetime.datetime(2015,1,1) + datetime.timedelta(hours=i) for i in range(T)])
 
-network.i = network.index[0]
+network.now = network.index[0]
 
 print("network:",network)
 print("index:",network.index)
-print("current snapshot:",network.i)
+print("current snapshot:",network.now)
 
 
 # In[3]:
@@ -86,13 +86,6 @@ print(network.generators)
 
 # In[5]:
 
-l = next(network.loads.itervalues())
-
-print(l.p)
-
-
-# In[6]:
-
 #now attach some time series
   
 network.load_series = pd.DataFrame(index = network.index,
@@ -124,6 +117,13 @@ for transport_link in network.transport_links.itervalues():
     transport_link.p_set = pd.Series(index = network.index, data=(200*np.random.rand(len(network.index))-100))
 
 
+# In[6]:
+
+l = next(network.loads.itervalues())
+
+print(l.p_set)
+
+
 # In[7]:
 
 network.build_graph()
@@ -139,18 +139,86 @@ network.determine_network_topology()
 print(network.sub_networks)
 
 
-# In[10]:
+# In[11]:
 
-network.lpf(network.index[3])
+for dt in network.index:
+    network.now = dt
+    network.lpf(verbose=False)
 
 
 # In[12]:
 
 for g in network.generators.itervalues():
-    print(g,g.p_set[network.i],g.p[network.i])
+    print(g,g.p_set[network.now],g.p[network.now])
 
 
-# In[11]:
+# In[13]:
+
+print("Bus injections:")
+
+for bus in network.buses.itervalues():
+    print(bus,bus.p[network.now])
+print("Total:",sum([bus.p[network.now] for bus in network.buses.itervalues()]))
+
+
+# In[14]:
+
+for branch in network.branches.itervalues():
+    print(branch,branch.p1[network.now])
+
+
+# In[15]:
+
+for sn in network.sub_networks.itervalues():
+    print(next(sn.buses.itervalues()))
+
+
+# In[16]:
+
+print("Comparing bus injection to branch outgoing:")
+
+for sub_network in network.sub_networks.itervalues():
+    
+    print("\n\nConsidering sub network",sub_network,":")
+
+    for bus in sub_network.buses.itervalues():
+    
+        print("\n%s" % bus)
+    
+        print("power injection (generators - loads + Transport feed-in):",bus.p[network.now])
+    
+        print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators.itervalues()])                        + sum([l.sign*l.p[network.now] for l in bus.loads.itervalues()]))
+        
+        total = 0.0
+
+        for branch in sub_network.branches.itervalues():
+            if bus == branch.bus0:
+                print("from branch:",branch,branch.p0[network.now])
+                total +=branch.p0[network.now]
+            elif bus == branch.bus1:
+                print("to branch:",branch,branch.p1[network.now])
+                total +=branch.p1[network.now]
+        print("branch injection:",total)
+
+
+# In[18]:
+
+now = network.now
+sub_network = network.sub_networks["1"]
+
+print(sub_network.buses)
+
+
+for t in sub_network.network.transport_links.itervalues():
+    if t.bus0.name in sub_network.buses:
+        t.bus0.p[now] += t.p0[now]
+        print(t,"leaves",t.bus0,t.p0[now])
+    if t.bus1.name in sub_network.buses:
+        t.bus1.p[now] += t.p1[now]
+        print(t,"arrives",t.bus1,t.p1[now])
+
+
+# In[ ]:
 
 
 

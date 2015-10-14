@@ -102,7 +102,7 @@ class Series(object):
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = val.reindex(obj.index)
+            self.values[obj] = val.reindex(obj.network.index)
         except AttributeError:
             print("could not reindex to the network index")
 
