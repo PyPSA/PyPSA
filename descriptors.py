@@ -39,7 +39,10 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 from weakref import WeakKeyDictionary
 
 from collections import OrderedDict
+import networkx as nx
 import pandas as pd
+
+from vresutils import graph as vgraph
 
 
 
@@ -81,6 +84,24 @@ class OrderedDictDesc(object):
     def __set__(self,obj,val):
         if not isinstance(val, OrderedDict):
             raise AttributeError("val must be an OrderedDict")
+        else:
+            self.values[obj] = val
+
+class GraphDesc(object):
+    def __init__(self):
+        self.values = WeakKeyDictionary()
+
+    def __get__(self,obj,cls):
+        try:
+            return self.values[obj]
+        except KeyError:
+            graph = vgraph.OrderedGraph()
+            self.values[obj] = graph
+            return graph
+
+    def __set__(self,obj,val):
+        if not isinstance(val, nx.Graph):
+            raise AttributeError("val must be an nx.Graph")
         else:
             self.values[obj] = val
 

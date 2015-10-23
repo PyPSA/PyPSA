@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 
-from .descriptors import Float, String, OrderedDictDesc, Series
+from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
 
 class Basic(object):
     """Common to every object."""
@@ -219,25 +219,22 @@ class Network(Basic):
     #a list/index of scenarios/times
     index = [now]
 
-    def __init__(self,import_file_name=None,**kwargs):
+    sub_networks = OrderedDictDesc()
 
-        self.sub_networks = OrderedDict()
+    buses = OrderedDictDesc()
 
-        self.buses = OrderedDict()
+    loads = OrderedDictDesc()
+    generators = OrderedDictDesc()
 
-        self.loads = OrderedDict()
-        self.generators = OrderedDict()
+    branches = OrderedDictDesc()
+    converters = OrderedDictDesc()
+    transport_links = OrderedDictDesc()
+    lines = OrderedDictDesc()
+    transformers = OrderedDictDesc()
 
-        self.branches = OrderedDict()
-        self.converters = OrderedDict()
-        self.transport_links = OrderedDict()
-        self.lines = OrderedDict()
-        self.transformers = OrderedDict()
+    graph = GraphDesc()
 
-
-        #or use Jonas' OrderedGraph here?
-        self.graph = nx.Graph()
-
+    def __init__(self, import_file_name=None, **kwargs):
         if import_file_name is not None:
             self.import_from_csv(import_file_name)
             self.determine_network_topology()
@@ -335,9 +332,9 @@ class SubNetwork(Common):
 
     base_power = Float(default=1)
 
-    def __init__(self,network):
-        super(self.__class__, self).__init__(network)
+    buses = OrderedDictDesc()
+    branches = OrderedDictDesc()
 
-        self.graph = nx.Graph()
-        self.buses = OrderedDict()
-        self.branches = OrderedDict()
+    graph = GraphDesc()
+
+    
