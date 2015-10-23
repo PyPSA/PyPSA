@@ -239,9 +239,8 @@ class Network(Basic):
             self.import_from_csv(import_file_name)
             self.determine_network_topology()
 
-
-        for key,value in kwargs.iteritems():
-            setattr(self,key,value)
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
 
 
     def import_from_csv(self,file_name):
@@ -256,7 +255,7 @@ class Network(Basic):
 
         try:
             cls = globals()[class_name]
-        except:
+        except KeyError:
             print(class_name,"not found")
             return None
 
@@ -268,15 +267,15 @@ class Network(Basic):
             setattr(obj,key,value)
 
         #add to list in network object
-        getattr(self,cls.list_name).update({obj.name : obj})
+        getattr(self,cls.list_name)[obj.name] = obj
 
         #build branches list
-        if cls.__base__.__name__ == "Branch":
-            self.branches.update({obj.name : obj})
+        if isinstance(obj, Branch):
+            self.branches[obj.name] = obj
 
         #add oneports to bus lists
         if "bus" in kwargs:
-            getattr(obj.bus,cls.list_name).update({obj.name : obj})
+            getattr(obj.bus,cls.list_name)[obj.name] = obj
 
         return obj
 
