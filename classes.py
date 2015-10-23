@@ -33,6 +33,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
+from itertools import chain
 
 from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
 
@@ -289,7 +290,7 @@ class Network(Basic):
     def build_graph(self):
         """Build networkx graph."""
 
-        self.graph.add_edges_from([(branch.bus0,branch.bus1,{"obj" : branch}) for branch in self.branches.itervalues()])
+        self.graph.add_edges_from((branch.bus0, branch.bus1, {"obj" : branch}) for branch in self.branches.itervalues())
 
 
     def determine_network_topology(self):
@@ -298,24 +299,22 @@ class Network(Basic):
         #remove converters and transport links that could be connected networks
         # of different types or non-synchronous areas
 
-        #ideally this should be done on a copy of self.graph, but
-        #self.graph.copy() was behaving strangely
+        graph = self.graph.__class__(self.graph)
 
-        self.graph.remove_edges_from([(branch.bus0,branch.bus1) for branch in list(self.converters.itervalues()) + list(self.transport_links.itervalues())])
+        graph.remove_edges_from((branch.bus0,branch.bus1)
+                                for branch in chain(self.converters.itervalues(),
+                                                    self.transport_links.itervalues()))
 
 
         #now build connected graphs of same type AC/DC
+        sub_graphs = nx.connected_component_subgraphs(graph, copy=False)
 
-        sub_graphs = nx.connected_component_subgraphs(self.graph,copy=False)
-
-        for i,sub_graph in enumerate(sub_graphs):
-
+        for i, sub_graph in enumerate(sub_graphs):
             #name using i for now
-            sub_network = self.add("SubNetwork",i,graph=sub_graph)
+            sub_network = self.add("SubNetwork", i, graph=sub_graph)
 
-            sub_network.buses.update([(n.name,n) for n in sub_graph.nodes()])
-
-            sub_network.branches.update([(branch.name,branch) for (u,v,branch) in sub_graph.edges_iter(data="obj")])
+            sub_network.buses.update((n.name, n) for n in sub_graph.nodes())
+            sub_network.branches.update((branch.name, branch) for (u, v, branch) in sub_graph.edges_iter(data="obj"))
 
 
 class SubNetwork(Common):
