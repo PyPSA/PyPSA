@@ -55,6 +55,7 @@ class Common(Basic):
 
     def __init__(self, network):
         self.network = network
+        self.sub_network = None
 
 
 class Bus(Common):
@@ -199,6 +200,8 @@ class TransportLink(Branch):
     list_name = "transport_links"
 
     p_nom = Float()
+    p_min = Float()
+    p_max = Float()
     p_set = Series()
 
 
@@ -319,6 +322,13 @@ class Network(Basic):
 
             sub_network.buses.update((n.name, n) for n in sub_graph.nodes())
             sub_network.branches.update((branch.name, branch) for (u, v, branch) in sub_graph.edges_iter(data="obj"))
+
+            for bus in sub_network.buses.itervalues():
+                bus.sub_network = sub_network
+
+            for branch in sub_network.branches.itervalues():
+                branch.sub_network = sub_network
+
 
 
 class SubNetwork(Common):

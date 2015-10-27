@@ -89,6 +89,25 @@ def network_lpf(network,now=None,verbose=True):
 
 
 
+
+
+def find_slack_bus(sub_network,verbose=True):
+    """Find the slack bus in a connected sub-network."""
+
+    slack_buses, slack_bus_indices = attrfilter(sub_network.buses, control="Slack", indexed=True)
+
+    if len(slack_buses) == 0:
+        sub_network.slack_bus = next(sub_network.buses.itervalues())
+        sub_network.slack_bus._i = 0
+        if verbose:
+            print("no slack bus found, taking %s to be the slack bus" % sub_network.slack_bus)
+    else:
+        sub_network.slack_bus = slack_buses[0]
+        sub_network.slack_bus._i = slack_bus_indices[0]
+        if len(slack_buses) >= 2 and verbose:
+            print("more than one slack bus found, taking %s to be the slack bus" % sub_network.slack_bus)
+
+
 def sub_network_lpf(sub_network,now=None,verbose=True):
     """Linear power flow for connected sub-network."""
 
@@ -101,19 +120,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     if len(sub_network.buses) == 1:
         return
 
-    #first find the slack bus
-    slack_buses, slack_bus_indices = attrfilter(sub_network.buses, control="Slack", indexed=True)
-
-    if len(slack_buses) == 0:
-        slack_bus = next(sub_network.buses.itervalues())
-        slack_bus._i = 0
-        if verbose:
-            print("no slack bus found, taking %s to be the slack bus" % slack_bus)
-    else:
-        slack_bus = slack_buses[0]
-        slack_bus._i = slack_bus_indices[0]
-        if len(slack_buses) >= 2 and verbose:
-            print("more than one slack bus found, taking %s to be the slack bus" % slack_bus)
+    find_slack_bus(sub_network,verbose=verbose)
 
 
     if sub_network.current_type == "AC":
@@ -142,12 +149,12 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
 
         v_ang = zeros(num_buses)
 
-        non_slack_index = r_[0:slack_bus._i, slack_bus._i+1:num_buses][:,newaxis]
+        non_slack_index = r_[0:sub_network.slack_bus._i, sub_network.slack_bus._i+1:num_buses][:,newaxis]
         v_ang[non_slack_index] = spsolve(sub_network.B[non_slack_index.T, non_slack_index], p[non_slack_index])
 
         #set slack bus power
 
-        slack_bus.p[now] = sub_network.B[slack_bus._i,:].dot(v_ang)[0]
+        sub_network.slack_bus.p[now] = sub_network.B[sub_network.slack_bus._i,:].dot(v_ang)[0]
 
         flows = sub_network.H.dot(v_ang)
 
@@ -159,7 +166,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
                 load.p[now] = load.p_set[now]
 
             #allow all non-slack generators to dispatch as set
-            if bus != slack_bus:
+            if bus != sub_network.slack_bus:
                 for generator in bus.generators.itervalues():
                     generator.p[now] = generator.p_set[now]
             else:

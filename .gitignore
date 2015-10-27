@@ -4,6 +4,7 @@
 
 .ipynb_checkpoints/
 
+*.log
 
 *.org
 
