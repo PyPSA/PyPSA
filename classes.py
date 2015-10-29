@@ -58,6 +58,14 @@ class Common(Basic):
         self.sub_network = None
 
 
+class Source(Common):
+    """Energy source, such as wind, PV or coal."""
+
+    #emissions in tonnes CO2-equivalent per MWh primary energy
+    co2_emissions = Float()
+
+
+
 class Bus(Common):
     """Electrically fundamental node where x-port objects attach."""
 
@@ -106,22 +114,38 @@ class Generator(OnePort):
     #rated power
     p_nom = Float()
 
+    #switch to allow capacity to be extended
     p_nom_extendable = False
 
     #technical potential
-    p_nom_max = Float()
+    p_nom_max = None
+
     p_nom_min = Float()
 
     capital_cost = Float()
     marginal_cost = Float()
 
-    #can change e.g. due to weather conditions
+
+    #power limits for variable generators, which can change e.g. due
+    #to weather conditions; per unit to ease multiplication with
+    #p_nom, which may be optimised
     p_max_pu = Series()
     p_min_pu = Series()
+
+
+    #non-variable power limits for de-rating and minimum limits for
+    #flexible generators
+    p_max_pu_fixed = Float(1)
+    p_min_pu_fixed = Float()
+
 
     #operator's intended dispatch
     p_set = Series()
     q_set = Series()
+
+
+    #ratio between electrical energy and primary energy
+    efficiency = Float(1)
 
 
 class Load(OnePort):
@@ -146,7 +170,12 @@ class Branch(Common):
 
     capital_cost = Float()
 
-    technical_potential = Float()
+    s_nom = Float()
+
+    s_nom_extendable = False
+
+    s_nom_max = None
+    s_nom_min = Float()
 
     p0 = Series()
     p1 = Series()
@@ -171,8 +200,6 @@ class Line(Branch):
     length = Float(default=1.0)
     terrain_factor = Float(default=1.0)
 
-    s_nom = Float()
-
 
 class Transformer(Branch):
     """2-winding transformer."""
@@ -182,15 +209,11 @@ class Transformer(Branch):
     #per unit with reference to s_nom
     x = Float()
 
-    s_nom = Float()
-
 
 class Converter(Branch):
     """Bus 0 is AC, bus 1 is DC."""
 
     list_name = "converters"
-
-    p_nom = Float()
 
     p_set = Series()
 
@@ -202,7 +225,6 @@ class TransportLink(Branch):
 
     list_name = "transport_links"
 
-    p_nom = Float()
     p_min = Float()
     p_max = Float()
     p_set = Series()

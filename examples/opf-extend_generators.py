@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[14]:
 
 # make the code as Python 3 compatible as possible                                                                       
 from __future__ import print_function, division
@@ -18,7 +18,7 @@ import networkx as nx
 import numpy as np
 
 
-# In[2]:
+# In[27]:
 
 #Build the Network object, which stores all other objects
 
@@ -37,7 +37,7 @@ print("index:",network.index)
 print("current snapshot:",network.now)
 
 
-# In[3]:
+# In[28]:
 
 #The network is two three-node AC networks connected by 2 point-to-point DC links
 
@@ -79,10 +79,16 @@ for i in range(n*c):
     #gas generator
     network.add("Generator","Gas %d" % (i),bus=network.buses[str(i)],p_nom=1000,source="gas",dispatch="flexible",marginal_cost=50)
     #wind generator
-    network.add("Generator","Wind %d" % (i),bus=network.buses[str(i)],p_nom=100,source="wind",dispatch="variable",marginal_cost=0)
+    network.add("Generator","Wind %d" % (i),bus=network.buses[str(i)],
+                p_nom=100,source="wind",dispatch="variable",
+                marginal_cost=0,
+                capital_cost=10,
+                p_nom_extendable=True,
+                p_nom_max=200,
+                p_nom_min=100)
 
 
-# In[4]:
+# In[29]:
 
 #now attach some time series
   
@@ -111,31 +117,32 @@ gas_generators = attrfilter(network.generators,source="gas")
 for generator in gas_generators:
     generator.p_set = pd.Series([1.]*len(network.index),network.index)
 
+
 for transport_link in network.transport_links.itervalues():
     transport_link.p_set = pd.Series(index = network.index, data=(200*np.random.rand(len(network.index))-100))
 
 
-# In[5]:
+# In[30]:
 
 network.build_graph()
 
 
-# In[6]:
+# In[31]:
 
 network.determine_network_topology()
 
 
-# In[7]:
+# In[32]:
 
 print(network.sub_networks)
 
 
-# In[8]:
+# In[33]:
 
 network.lopf(subindex=network.index[:2])
 
 
-# In[9]:
+# In[34]:
 
 print("Bus injections:")
 
@@ -144,15 +151,15 @@ for bus in network.buses.itervalues():
 print("Total:",sum([bus.p[network.now] for bus in network.buses.itervalues()]))
 
 
-# In[10]:
+# In[35]:
 
 for branch in network.branches.itervalues():
     print(branch,branch.p1[network.now])
 
 
-# In[11]:
+# In[36]:
 
-network.now = network.index[1]
+network.now = network.index[0]
 
 print("Comparing bus injection to branch outgoing for %s:",network.now)
 
@@ -180,15 +187,7 @@ for sub_network in network.sub_networks.itervalues():
         print("branch injection:",total)
 
 
-# In[13]:
-
-now = network.now
-
-for generator in network.generators.itervalues():
-    print(generator,generator.p[now],generator.p_nom)
-
-
-# In[23]:
+# In[37]:
 
 now = network.now
 sub_network = network.sub_networks["1"]
@@ -205,25 +204,19 @@ for t in sub_network.network.transport_links.itervalues():
         print(t,"arrives",t.bus1,t.p1[now])
 
 
-# In[17]:
+# In[38]:
 
-from pypsa.dicthelpers import attrfilter
+now = network.now
+print(now)
 
-
-# In[18]:
-
-d = attrfilter(network.generators,source="gas")
-
-
-# In[19]:
-
-print(type(d))
-print(type(d[0]))
+for generator in network.generators.itervalues():
+    print(generator,generator.p[now],generator.p_nom)
 
 
-# In[16]:
+# In[14]:
 
-all()
+for load in network.loads.itervalues():
+    print(load,load.p[network.now])
 
 
 # In[ ]:

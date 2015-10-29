@@ -11,4 +11,8 @@ SubNetwork.lpf = pf.sub_network_lpf
 
 Network.pf = pf.network_pf
 
+SubNetwork.pf = pf.sub_network_pf
+
 Network.lopf = opf.network_lopf
+
+Network.opf = opf.network_opf
