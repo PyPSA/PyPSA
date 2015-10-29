@@ -106,15 +106,18 @@ class Generator(OnePort):
     #rated power
     p_nom = Float()
 
-    technical_potential = Float()
+    p_nom_extendable = False
+
+    #technical potential
+    p_nom_max = Float()
+    p_nom_min = Float()
 
     capital_cost = Float()
-
     marginal_cost = Float()
 
     #can change e.g. due to weather conditions
-    p_max = Series()
-    p_min = Series()
+    p_max_pu = Series()
+    p_min_pu = Series()
 
     #operator's intended dispatch
     p_set = Series()
