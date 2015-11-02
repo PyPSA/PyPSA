@@ -31,7 +31,7 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 
 
 
-from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Constraint, Reals, Suffix
+from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Constraint, Reals, Suffix, Expression
 
 from pyomo.opt import SolverFactory
 
@@ -119,13 +119,33 @@ def define_generator_variables_constraints(network,subindex):
 
 
 
-def define_controllable_network_elements(network,subindex):
+def define_controllable_branch_flows(network,subindex):
 
     def tl_p_bounds(model,tl_name,snapshot):
         tl = network.transport_links[tl_name]
         return (tl.p_min,tl.p_max)
 
     network.model.transport_link_p = Var(network.transport_links.iterkeys(), subindex, domain=Reals, bounds=tl_p_bounds)
+
+
+
+def define_passive_branch_flows(network,subindex):
+
+    
+    network.model.voltage_angles = Var(network.buses.iterkeys(), subindex, domain=Reals, bounds=(-1,1))
+
+    def slack(model,sn_name,snapshot):
+        slack_bus = network.sub_networks[sn_name].slack_bus
+        return network.model.voltage_angles[slack_bus.name,snapshot] == 0
+
+    network.model.slack_angle = Constraint(network.sub_networks.iterkeys(), subindex, rule=slack)
+
+
+    def flow(model,branch_name,snapshot):
+        branch = network.branches[branch_name]
+        return 1/branch.x_pu*(network.model.voltage_angles[branch.bus0.name,snapshot]- network.model.voltage_angles[branch.bus1.name,snapshot])
+    
+    network.model.flow = Expression([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow)
 
 
 
@@ -163,11 +183,16 @@ def extract_optimisation_results(network,subindex):
 
 
 
+
+
 def network_lopf(network,subindex=None,solver_name="glpk"):
     """Linear optimal power flow for snapshots in subindex."""
-    
+
+
     if subindex is None:
         subindex = [network.now]
+
+
 
     #calculate B,H or PTDF for each subnetwork.                                                                                            
     for sub_network in network.sub_networks.itervalues():
@@ -177,41 +202,26 @@ def network_lopf(network,subindex=None,solver_name="glpk"):
 
     network.model = ConcreteModel("Linear Optimal Power Flow")
     
-    
-    ### Establish all optimisation variables ###
 
     define_generator_variables_constraints(network,subindex)
 
-    define_controllable_network_elements(network,subindex)
+    define_controllable_branch_flows(network,subindex)
 
-    
-    network.model.voltage_angles = Var(network.buses.iterkeys(), subindex, domain=Reals, bounds=(-1,1))
+    define_passive_branch_flows(network,subindex)
 
     
     #to include: s_nom for lines
-    
-    
-    
-    ### Establish all optimisation constraints ###
-
-
-
-    def slack(model,sn_name,snapshot):
-        slack_bus = network.sub_networks[sn_name].slack_bus
-        return network.model.voltage_angles[slack_bus.name,snapshot] == 0
-
-    network.model.slack_angle = Constraint(network.sub_networks.iterkeys(), subindex, rule=slack)
 
     
     def flow_upper(model,branch_name,snapshot):
         branch = network.branches[branch_name]
-        return 1/branch.x_pu*(network.model.voltage_angles[branch.bus0.name,snapshot]- network.model.voltage_angles[branch.bus1.name,snapshot]) <= branch.s_nom
+        return network.model.flow[branch_name,snapshot] <= branch.s_nom
     
     network.model.flow_upper = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_upper)
     
     def flow_lower(model,branch_name,snapshot):
         branch = network.branches[branch_name]
-        return 1/branch.x_pu*(network.model.voltage_angles[branch.bus0.name,snapshot]- network.model.voltage_angles[branch.bus1.name,snapshot]) >= -branch.s_nom
+        return network.model.flow[branch_name,snapshot] >= -branch.s_nom
     
     network.model.flow_lower = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_lower)
         
@@ -239,8 +249,8 @@ def network_lopf(network,subindex=None,solver_name="glpk"):
     for sub_network in network.sub_networks.itervalues():
         for branch in sub_network.branches.itervalues():
             for snapshot in subindex:
-                network.model.power_balance[branch.bus0.name,snapshot].body -= network.model.flow_upper[branch.name,snapshot].body
-                network.model.power_balance[branch.bus1.name,snapshot].body += network.model.flow_upper[branch.name,snapshot].body
+                network.model.power_balance[branch.bus0.name,snapshot].body -= network.model.flow[branch.name,snapshot]
+                network.model.power_balance[branch.bus1.name,snapshot].body += network.model.flow[branch.name,snapshot]
 
 
     extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
