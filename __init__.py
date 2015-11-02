@@ -1,7 +1,7 @@
 
 #Relative paths seem to be necessary for Python 3
 
-from .classes import Network, Bus, Load, Generator, Line, Transformer, Converter, SubNetwork
+from .components import Network, Bus, Load, Generator, Line, Transformer, Converter, SubNetwork
 
 from . import pf,opf
 

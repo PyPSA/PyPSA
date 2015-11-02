@@ -38,7 +38,7 @@ from scipy.sparse.linalg import spsolve
 
 import numpy as np
 
-from .classes import Line, Transformer
+from .components import Line, Transformer
 from .dicthelpers import attrfilter, attrdata
 
 def network_pf(network):

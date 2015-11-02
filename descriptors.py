@@ -39,12 +39,21 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 from weakref import WeakKeyDictionary
 
 from collections import OrderedDict
+
+from distutils.version import StrictVersion
+ 
 import networkx as nx
+assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least version 1.10"
+
 import pandas as pd
 
-from vresutils import graph as vgraph
 
 
+
+
+class OrderedGraph(nx.Graph):
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
 
 
 
@@ -95,7 +104,7 @@ class GraphDesc(object):
         try:
             return self.values[obj]
         except KeyError:
-            graph = vgraph.OrderedGraph()
+            graph = OrderedGraph()
             self.values[obj] = graph
             return graph
 
