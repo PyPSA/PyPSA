@@ -66,8 +66,6 @@ def define_generator_variables_constraints(network,subindex):
                 return (gen.p_nom*gen.p_min_pu_fixed,gen.p_nom*gen.p_max_pu_fixed)
             elif gen.dispatch == "variable":
                 return (gen.p_nom*gen.p_min_pu[snapshot],gen.p_nom*gen.p_max_pu[snapshot])
-            elif gen.dispatch == "inflexible":
-                return (gen.p_set[snapshot],gen.p_set[snapshot])
             else:
                 raise NotImplementedError("Dispatch type %s is not supported yet." % (gen.dispatch))
 
@@ -148,6 +146,79 @@ def define_passive_branch_flows(network,subindex):
     network.model.flow = Expression([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow)
 
 
+def define_passive_branch_constraints(network,subindex):
+
+
+    extendable_branches = attrfilter((branch for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()), s_nom_extendable=True)
+
+    def branch_s_nom_bounds(model, branch_name):
+        branch = network.branches[branch_name]
+        return (branch.s_nom_min,branch.s_nom_max)
+
+    network.model.branch_s_nom = Var([branch.name for branch in extendable_branches], domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+
+    
+    def flow_upper(model,branch_name,snapshot):
+        branch = network.branches[branch_name]
+        if branch.s_nom_extendable:
+            return network.model.flow[branch_name,snapshot] <= network.model.branch_s_nom[branch_name]
+        else:
+            return network.model.flow[branch_name,snapshot] <= branch.s_nom
+    
+    network.model.flow_upper = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_upper)
+    
+    def flow_lower(model,branch_name,snapshot):
+        branch = network.branches[branch_name]
+        if branch.s_nom_extendable:
+            return network.model.flow[branch_name,snapshot] >= -network.model.branch_s_nom[branch_name]
+        else:
+            return network.model.flow[branch_name,snapshot] >= -branch.s_nom
+    
+    network.model.flow_lower = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_lower)
+
+
+def define_nodal_balances(network,subindex):
+
+
+    def p_balance(model,bus_name,snapshot):
+        bus = network.buses[bus_name]
+        
+        p = sum(gen.sign*network.model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
+        
+        p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
+        
+        return p == 0
+        
+    network.model.power_balance = Constraint(network.buses.iterkeys(), subindex, rule=p_balance)
+    
+    #add branches to nodal power balance equation
+    
+    for tl in network.transport_links.itervalues():
+        for snapshot in subindex:
+            network.model.power_balance[tl.bus0.name,snapshot].body -= network.model.transport_link_p[tl.name,snapshot]
+            network.model.power_balance[tl.bus1.name,snapshot].body += network.model.transport_link_p[tl.name,snapshot]
+    
+    for sub_network in network.sub_networks.itervalues():
+        for branch in sub_network.branches.itervalues():
+            for snapshot in subindex:
+                network.model.power_balance[branch.bus0.name,snapshot].body -= network.model.flow[branch.name,snapshot]
+                network.model.power_balance[branch.bus1.name,snapshot].body += network.model.flow[branch.name,snapshot]
+
+
+
+
+def define_linear_objective(network,subindex):
+
+    extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
+
+    extendable_branches = attrfilter((branch for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()), s_nom_extendable=True)
+                
+    network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot] for gen in network.generators.itervalues() for snapshot in subindex)\
+                                        + sum(gen.capital_cost*(network.model.generator_p_nom[gen.name] - gen.p_nom) for gen in extendable_generators)\
+                                        + sum(branch.capital_cost*(network.model.branch_s_nom[branch.name] - branch.s_nom) for branch in extendable_branches))
+
+
+
 
 def extract_optimisation_results(network,subindex):
     
@@ -155,9 +226,6 @@ def extract_optimisation_results(network,subindex):
     
         for generator in network.generators.itervalues():
             generator.p[snapshot] = network.model.generator_p[generator.name,snapshot].value
-        
-        for generator in attrfilter(network.generators, p_nom_extendable=True):
-            generator.p_nom = network.model.generator_p_nom[generator.name].value
 
 
         for load in network.loads.itervalues():
@@ -181,6 +249,13 @@ def extract_optimisation_results(network,subindex):
                 branch.p1[snapshot] = 1/branch.x_pu*(branch.bus0.v_ang[snapshot] - branch.bus1.v_ang[snapshot])
                 branch.p0[snapshot] = -branch.p1[snapshot]
 
+        
+    for generator in attrfilter(network.generators, p_nom_extendable=True):
+        generator.p_nom = network.model.generator_p_nom[generator.name].value
+
+
+    for branch in attrfilter((branch for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()), s_nom_extendable=True):
+        branch.s_nom = network.model.branch_s_nom[branch.name].value
 
 
 
@@ -209,53 +284,11 @@ def network_lopf(network,subindex=None,solver_name="glpk"):
 
     define_passive_branch_flows(network,subindex)
 
-    
-    #to include: s_nom for lines
+    define_passive_branch_constraints(network,subindex)
 
-    
-    def flow_upper(model,branch_name,snapshot):
-        branch = network.branches[branch_name]
-        return network.model.flow[branch_name,snapshot] <= branch.s_nom
-    
-    network.model.flow_upper = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_upper)
-    
-    def flow_lower(model,branch_name,snapshot):
-        branch = network.branches[branch_name]
-        return network.model.flow[branch_name,snapshot] >= -branch.s_nom
-    
-    network.model.flow_lower = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],subindex,rule=flow_lower)
-        
-    
-    
-    
-    def p_balance(model,bus_name,snapshot):
-        bus = network.buses[bus_name]
-        
-        p = sum(gen.sign*network.model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
-        
-        p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
-        
-        return p == 0
-        
-    network.model.power_balance = Constraint(network.buses.iterkeys(), subindex, rule=p_balance)
-    
-    #add branches to nodal power balance equation
-    
-    for tl in network.transport_links.itervalues():
-        for snapshot in subindex:
-            network.model.power_balance[tl.bus0.name,snapshot].body -= network.model.transport_link_p[tl.name,snapshot]
-            network.model.power_balance[tl.bus1.name,snapshot].body += network.model.transport_link_p[tl.name,snapshot]
-    
-    for sub_network in network.sub_networks.itervalues():
-        for branch in sub_network.branches.itervalues():
-            for snapshot in subindex:
-                network.model.power_balance[branch.bus0.name,snapshot].body -= network.model.flow[branch.name,snapshot]
-                network.model.power_balance[branch.bus1.name,snapshot].body += network.model.flow[branch.name,snapshot]
+    define_nodal_balances(network,subindex)
 
-
-    extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
-                
-    network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot] for gen in network.generators.itervalues() for snapshot in subindex) + sum(gen.capital_cost*(network.model.generator_p_nom[gen.name] - gen.p_nom) for gen in extendable_generators))
+    define_linear_objective(network,subindex)
     
     #force solver to also give us the dual prices                                                                                              
     network.model.dual = Suffix(direction=Suffix.IMPORT_EXPORT)
