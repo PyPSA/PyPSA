@@ -41,7 +41,7 @@ from .pf import calculate_x_pu, find_slack_bus
 
 from itertools import chain
 
-
+import pandas as pd
 
 def network_opf(network,subindex=None):
     """Optimal power flow for snapshots in subindex."""
@@ -112,6 +112,100 @@ def define_generator_variables_constraints(network,subindex):
             raise NotImplementedError("Dispatch type %s is not supported yet for extendability." % (gen.dispatch))
 
     network.model.generator_p_upper = Constraint([gen.name for gen in extendable_generators],subindex,rule=gen_p_upper)
+
+
+
+
+
+def define_storage_variables_constraints(network,subindex):
+
+
+    ## Define storage dispatch variables ##
+
+    def su_p_dispatch_bounds(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+
+        if su.p_nom_extendable:
+            return (0,None)
+        else:
+            return (0,su.p_nom*su.p_max_pu_fixed)
+
+    network.model.storage_p_dispatch = Var(network.storage_units.iterkeys(), subindex, domain=NonNegativeReals, bounds=su_p_dispatch_bounds)
+
+
+
+    def su_p_store_bounds(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+
+        if su.p_nom_extendable:
+            return (0,None)
+        else:
+            return (0,su.p_nom*su.p_min_pu_fixed)
+
+    network.model.storage_p_store = Var(network.storage_units.iterkeys(), subindex, domain=NonNegativeReals, bounds=su_p_store_bounds)
+
+
+
+    ## Define generator capacity variables if generator is extendble ##
+
+    extendable_storage_units = attrfilter(network.storage_units, p_nom_extendable=True)
+
+    def su_p_nom_bounds(model, su_name):
+        su = network.storage_units[su_name]
+        return (su.p_nom_min, su.p_nom_max)
+
+    network.model.storage_p_nom = Var([su.name for su in extendable_storage_units], domain=NonNegativeReals, bounds=su_p_nom_bounds)
+
+
+
+    ## Define generator dispatch constraints for extendable generators ##
+
+    def su_p_upper(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+        return network.model.storage_p_dispatch[su_name,snapshot] <= network.model.storage_p_nom[su_name]*su.p_max_pu_fixed
+
+    network.model.storage_p_upper = Constraint([su.name for su in extendable_storage_units],subindex,rule=su_p_upper)
+
+
+    def su_p_lower(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+        return network.model.storage_p_store[su_name,snapshot] >= network.model.storage_p_nom[su_name]*su.p_min_pu_fixed
+
+    network.model.storage_p_lower = Constraint([su.name for su in extendable_storage_units],subindex,rule=su_p_lower)
+
+
+
+    ## Now define state of charge constraints ##
+
+    network.model.state_of_charge = Var(network.storage_units.iterkeys(), subindex, domain=NonNegativeReals, bounds=(0,None))
+
+    def soc_upper(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+        if su.p_nom_extendable:
+            return network.model.state_of_charge[su.name,snapshot] - su.max_hours*network.model.storage_p_nom[su_name] <= 0
+        else:
+            return network.model.state_of_charge[su.name,snapshot] - su.max_hours*su.p_nom <= 0
+
+    network.model.state_of_charge_upper = Constraint(network.storage_units.iterkeys(), subindex, rule=soc_upper)
+
+
+    def soc_constraint(model,su_name,snapshot):
+        su = network.storage_units[su_name]
+
+        i = subindex.get_loc(snapshot)
+
+        if pd.isnull(su.state_of_charge[snapshot]):
+            previous = subindex[i-1]
+            elapsed_hours = (snapshot - previous).total_seconds()/3600.
+            return network.model.state_of_charge[su_name,snapshot] == (1-su.standing_loss)**elapsed_hours*network.model.state_of_charge[su_name,previous]\
+                + su.efficiency_store*network.model.storage_p_store[su_name,snapshot]*elapsed_hours\
+                - (1/su.efficiency_dispatch)*network.model.storage_p_dispatch[su_name,snapshot]*elapsed_hours\
+                + su.inflow[snapshot]*elapsed_hours
+        else:
+            return network.model.state_of_charge[su_name,snapshot] == su.state_of_charge[snapshot]
+
+
+    network.model.state_of_charge_constraint = Constraint(network.storage_units.iterkeys(), subindex, rule=soc_constraint)
 
 
 
@@ -212,6 +306,10 @@ def define_nodal_balances(network,subindex):
 
         p = sum(gen.sign*network.model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
 
+        p += sum(su.sign*network.model.storage_p_dispatch[su.name,snapshot] for su in bus.storage_units.itervalues())
+
+        p -= sum(su.sign*network.model.storage_p_store[su.name,snapshot] for su in bus.storage_units.itervalues())
+
         p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
 
         return p == 0
@@ -238,10 +336,14 @@ def define_linear_objective(network,subindex):
 
     extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
 
+    extendable_storage_units = attrfilter(network.storage_units, p_nom_extendable=True)
+
     extendable_branches = attrfilter(network.branches, s_nom_extendable=True)
 
     network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot] for gen in network.generators.itervalues() for snapshot in subindex)\
+                                        + sum(su.marginal_cost*network.model.storage_p_dispatch[su.name,snapshot] for su in network.storage_units.itervalues() for snapshot in subindex)\
                                         + sum(gen.capital_cost*(network.model.generator_p_nom[gen.name] - gen.p_nom) for gen in extendable_generators)\
+                                        + sum(su.capital_cost*(network.model.storage_p_nom[su.name] - su.p_nom) for su in extendable_storage_units)\
                                         + sum(branch.capital_cost*(network.model.branch_s_nom[branch.name] - branch.s_nom) for branch in extendable_branches))
 
 
@@ -253,6 +355,11 @@ def extract_optimisation_results(network,subindex):
 
         for generator in network.generators.itervalues():
             generator.p[snapshot] = network.model.generator_p[generator.name,snapshot].value
+
+        for su in network.storage_units.itervalues():
+            su.p[snapshot] = network.model.storage_p_dispatch[su.name,snapshot].value - network.model.storage_p_store[su.name,snapshot].value
+            su.state_of_charge[snapshot] = network.model.state_of_charge[su.name,snapshot].value
+
 
 
         for load in network.loads.itervalues():
@@ -281,6 +388,10 @@ def extract_optimisation_results(network,subindex):
         generator.p_nom = network.model.generator_p_nom[generator.name].value
 
 
+    for su in attrfilter(network.storage_units, p_nom_extendable=True):
+        su.p_nom = network.model.storage_p_nom[su.name].value
+
+
     for branch in attrfilter(network.branches, s_nom_extendable=True):
         branch.s_nom = network.model.branch_s_nom[branch.name].value
 
@@ -307,6 +418,8 @@ def network_lopf(network,subindex=None,solver_name="glpk"):
 
     define_generator_variables_constraints(network,subindex)
 
+    define_storage_variables_constraints(network,subindex)
+
     define_branch_extension_variables(network,subindex)
 
     define_controllable_branch_flows(network,subindex)
@@ -331,6 +444,5 @@ def network_lopf(network,subindex=None,solver_name="glpk"):
     results.write()
 
     network.model.load(results)
-
 
     extract_optimisation_results(network,subindex)

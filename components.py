@@ -80,6 +80,7 @@ class Bus(Common):
 
     loads = OrderedDictDesc()
     generators = OrderedDictDesc()
+    storage_units = OrderedDictDesc()
     p = Series()
     q = Series()
     v_mag = Series(default=1.)
@@ -146,6 +147,29 @@ class Generator(OnePort):
 
     #ratio between electrical energy and primary energy
     efficiency = Float(1)
+
+
+
+class StorageUnit(Generator):
+
+    list_name = "storage_units"
+
+    #units are MWh
+    state_of_charge = Series(default=np.nan)
+
+    #maximum capacity in terms of hours at full output capacity p_nom
+    max_hours = Float(1)
+
+    #in MW
+    inflow = Series()
+
+    efficiency_store = Float(1)
+
+    efficiency_dispatch = Float(1)
+
+    #per hour per unit loss in state of charge
+    standing_loss = Float()
+
 
 
 class Load(OnePort):
@@ -258,6 +282,7 @@ class Network(Basic):
 
     loads = OrderedDictDesc()
     generators = OrderedDictDesc()
+    storage_units = OrderedDictDesc()
 
     branches = OrderedDictDesc()
     converters = OrderedDictDesc()
