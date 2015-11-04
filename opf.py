@@ -43,6 +43,8 @@ from itertools import chain
 
 import pandas as pd
 
+
+
 def network_opf(network,subindex=None):
     """Optimal power flow for snapshots in subindex."""
 
@@ -140,7 +142,7 @@ def define_storage_variables_constraints(network,subindex):
         if su.p_nom_extendable:
             return (0,None)
         else:
-            return (0,su.p_nom*su.p_min_pu_fixed)
+            return (0,-su.p_nom*su.p_min_pu_fixed)
 
     network.model.storage_p_store = Var(network.storage_units.iterkeys(), subindex, domain=NonNegativeReals, bounds=su_p_store_bounds)
 
@@ -169,7 +171,7 @@ def define_storage_variables_constraints(network,subindex):
 
     def su_p_lower(model,su_name,snapshot):
         su = network.storage_units[su_name]
-        return network.model.storage_p_store[su_name,snapshot] >= network.model.storage_p_nom[su_name]*su.p_min_pu_fixed
+        return network.model.storage_p_store[su_name,snapshot] <= -network.model.storage_p_nom[su_name]*su.p_min_pu_fixed
 
     network.model.storage_p_lower = Constraint([su.name for su in extendable_storage_units],subindex,rule=su_p_lower)
 
@@ -190,23 +192,41 @@ def define_storage_variables_constraints(network,subindex):
 
 
     def soc_constraint(model,su_name,snapshot):
+
         su = network.storage_units[su_name]
 
         i = subindex.get_loc(snapshot)
 
-        if pd.isnull(su.state_of_charge[snapshot]):
-            previous = subindex[i-1]
-            elapsed_hours = (snapshot - previous).total_seconds()/3600.
-            return network.model.state_of_charge[su_name,snapshot] == (1-su.standing_loss)**elapsed_hours*network.model.state_of_charge[su_name,previous]\
-                + su.efficiency_store*network.model.storage_p_store[su_name,snapshot]*elapsed_hours\
-                - (1/su.efficiency_dispatch)*network.model.storage_p_dispatch[su_name,snapshot]*elapsed_hours\
-                + su.inflow[snapshot]*elapsed_hours
+        if i == 0:
+            previous_state_of_charge = su.state_of_charge_start
+            elapsed_hours = su.hours_from_state_of_charge_start
         else:
-            return network.model.state_of_charge[su_name,snapshot] == su.state_of_charge[snapshot]
+            previous = subindex[i-1]
+            previous_state_of_charge = network.model.state_of_charge[su_name,previous]
+            elapsed_hours = (snapshot - previous).total_seconds()/3600.
 
+        if pd.isnull(su.state_of_charge[snapshot]):
+            state_of_charge = network.model.state_of_charge[su_name,snapshot]
+        else:
+            state_of_charge = su.state_of_charge[snapshot]
+
+        return (1-su.standing_loss)**elapsed_hours*previous_state_of_charge\
+            + su.efficiency_store*network.model.storage_p_store[su_name,snapshot]*elapsed_hours\
+            - (1/su.efficiency_dispatch)*network.model.storage_p_dispatch[su_name,snapshot]*elapsed_hours\
+            + su.inflow[snapshot]*elapsed_hours - state_of_charge == 0
 
     network.model.state_of_charge_constraint = Constraint(network.storage_units.iterkeys(), subindex, rule=soc_constraint)
 
+
+
+    def soc_constraint_fixed(model,su_name,snapshot):
+
+        if pd.isnull(su.state_of_charge[snapshot]):
+            return Constraint.Feasible
+        else:
+            return network.model.state_of_charge[su_name,snapshot] == su.state_of_charge[snapshot]
+
+    network.model.state_of_charge_constraint_fixed = Constraint(network.storage_units.iterkeys(), subindex, rule=soc_constraint_fixed)
 
 
 
@@ -368,7 +388,7 @@ def extract_optimisation_results(network,subindex):
         for bus in network.buses.itervalues():
             bus.v_ang[snapshot] = network.model.voltage_angles[bus.name,snapshot].value
 
-            bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.itervalues(),bus.loads.itervalues()))
+            bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.itervalues(),bus.loads.itervalues(),bus.storage_units.itervalues()))
 
 
         for tl in network.transport_links.itervalues():

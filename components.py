@@ -41,6 +41,8 @@ from itertools import chain
 
 from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
 
+
+
 class Basic(object):
     """Common to every object."""
     name = String()
@@ -155,7 +157,11 @@ class StorageUnit(Generator):
     list_name = "storage_units"
 
     #units are MWh
+    state_of_charge_start = Float()
     state_of_charge = Series(default=np.nan)
+
+    #hours from state of state_of_charge_start to first snapshot optimized
+    hours_from_state_of_charge_start = Float(1)
 
     #maximum capacity in terms of hours at full output capacity p_nom
     max_hours = Float(1)

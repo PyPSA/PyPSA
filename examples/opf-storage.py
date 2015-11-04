@@ -17,6 +17,8 @@ import networkx as nx
 
 import numpy as np
 
+from itertools import chain
+
 
 # In[2]:
 
@@ -26,7 +28,7 @@ network = pypsa.Network()
 
 #Build the snapshots we consider for the first T hours in 2015
 
-T = 10
+T = 50
 
 network.index = pd.to_datetime([datetime.datetime(2015,1,1) + datetime.timedelta(hours=i) for i in range(T)])
 
@@ -59,7 +61,7 @@ for i in range(n*c):
                 bus1=network.buses[str(n*(i // n)+ (i+1) % n)],
                 x=np.random.random(),
                 s_nom=0,
-                capital_cost=0.0,
+                capital_cost=0.1,
                 s_nom_min=0,
                 s_nom_extendable=True)
 
@@ -72,7 +74,7 @@ for i in range(2):
                 p_max=900,
                 p_min=-900,
                 s_nom=0,
-                capital_cost=0.0,
+                capital_cost=0.1,
                 s_nom_min=0,
                 s_nom_extendable=True)
     
@@ -87,19 +89,22 @@ for i in range(n*c):
     network.add("StorageUnit","Storage %d" % (i),
                 bus=network.buses[str(i)],
                 p_nom=0,source="storage",
-                marginal_cost=0,
+                marginal_cost=2,
                 capital_cost=5,
                 p_nom_extendable=True,
                 p_max_pu_fixed=1,
                 p_min_pu_fixed=-1,
+                efficiency_store=0.9,
+                efficiency_dispatch=0.95,
+                standing_loss=0.01,
                 max_hours=6)
     #wind generator
     network.add("Generator","Wind %d" % (i),bus=network.buses[str(i)],
                 p_nom=100,source="wind",dispatch="variable",
                 marginal_cost=0,
-                capital_cost=10,
+                capital_cost=1000,
                 p_nom_extendable=True,
-                p_nom_max=400,
+                p_nom_max=None,
                 p_nom_min=100)
 
 
@@ -152,39 +157,38 @@ print(network.sub_networks)
 
 # In[8]:
 
-subindex = network.index[:2]
+subindex = network.index
 network.lopf(subindex=subindex)
 
 
-# In[ ]:
+# In[9]:
 
-now = network.index[1]
+print("Generator and storage capacities:\n")
 
-i = subindex.get_loc(now)
+for one_port in chain(network.generators.itervalues(),network.storage_units.itervalues()):
+    print(one_port,one_port.p_nom)
 
-print(now,i)
+print("\n\nBranch capacities:\n")
 
-previous = subindex[i-1]
+for branch in network.branches.itervalues():
+    print(branch,branch.s_nom)
 
-print(previous)
+for snapshot in subindex:
 
+    print("\n"*2+"For time",snapshot,":\nBus injections:")
 
-# In[ ]:
-
-print("Bus injections:")
-
-for bus in network.buses.itervalues():
-    print(bus,bus.p[network.now])
-print("Total:",sum([bus.p[network.now] for bus in network.buses.itervalues()]))
+    for bus in network.buses.itervalues():
+        print(bus,bus.p[snapshot])
+    print("Total:",sum([bus.p[snapshot] for bus in network.buses.itervalues()]))
 
 
-# In[ ]:
+# In[10]:
 
 for branch in network.branches.itervalues():
     print(branch,branch.p1[network.now])
 
 
-# In[ ]:
+# In[11]:
 
 network.now = network.index[0]
 
@@ -214,71 +218,13 @@ for sub_network in network.sub_networks.itervalues():
         print("branch injection:",total)
 
 
-# In[ ]:
+# In[12]:
 
-now = network.now
-sub_network = network.sub_networks["1"]
-
-print(sub_network.buses)
+for su in network.storage_units.values():
+    print(su,su.p_nom,"\n",su.state_of_charge,"\n",su.p)
 
 
-for t in sub_network.network.transport_links.itervalues():
-    if t.bus0.name in sub_network.buses:
-        t.bus0.p[now] += t.p0[now]
-        print(t,"leaves",t.bus0,t.p0[now])
-    if t.bus1.name in sub_network.buses:
-        t.bus1.p[now] += t.p1[now]
-        print(t,"arrives",t.bus1,t.p1[now])
-
-
-# In[ ]:
-
-now = network.now
-print(now)
-
-for generator in network.generators.itervalues():
-    print(generator,generator.p[now],generator.p_nom)
-
-
-# In[ ]:
-
-for load in network.loads.itervalues():
-    print(load,load.p[network.now])
-
-
-# In[ ]:
-
-for branch in network.branches.itervalues():
-    print(branch,branch.s_nom)
-
-
-# In[ ]:
-
-for v in network.model.branch_s_nom:
-    print(v)
-
-
-# In[ ]:
-
-s = pd.Series(data=np.nan,index=network.index,dtype=float)
-
-
-# In[ ]:
-
-s
-
-
-# In[ ]:
-
-dt = datetime.timedelta(hours=4)
-
-
-# In[ ]:
-
-dt.total_seconds
-
-
-# In[ ]:
+# In[16]:
 
 
 
