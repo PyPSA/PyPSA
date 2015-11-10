@@ -63,8 +63,15 @@ class Common(Basic):
 class Source(Common):
     """Energy source, such as wind, PV or coal."""
 
-    #emissions in tonnes CO2-equivalent per MWh primary energy
+    list_name = "sources"
+
+    #emissions in CO2-tonnes-equivalent per MWh primary energy
     co2_emissions = Float()
+
+    #typical values, should generator-specific ones be missing
+    efficiency = Float(1)
+    capital_cost = Float()
+    marginal_cost = Float()
 
 
 
@@ -112,7 +119,7 @@ class Generator(OnePort):
     dispatch = String(default="flexible",restricted=["variable","flexible","inflexible"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = String()
+    source = None
 
     #rated power
     p_nom = Float()
@@ -157,11 +164,8 @@ class StorageUnit(Generator):
     list_name = "storage_units"
 
     #units are MWh
-    state_of_charge_start = Float()
+    state_of_charge_initial = Float()
     state_of_charge = Series(default=np.nan)
-
-    #hours from state of state_of_charge_start to first snapshot optimized
-    hours_from_state_of_charge_start = Float(1)
 
     #maximum capacity in terms of hours at full output capacity p_nom
     max_hours = Float(1)
@@ -280,11 +284,16 @@ class Network(Basic):
     now = "now"
 
     #a list/index of scenarios/times
-    index = [now]
+    snapshots = [now]
+
+    #corresponds to number of hours represented by each snapshot
+    snapshot_weightings = Series(default=1)
 
     sub_networks = OrderedDictDesc()
 
     buses = OrderedDictDesc()
+
+    sources = OrderedDictDesc()
 
     loads = OrderedDictDesc()
     generators = OrderedDictDesc()
@@ -296,6 +305,9 @@ class Network(Basic):
     lines = OrderedDictDesc()
     transformers = OrderedDictDesc()
 
+    #limit of total co2-tonnes-equivalent emissions for period
+    co2_limit = None
+
     graph = GraphDesc()
 
     def __init__(self, import_file_name=None, **kwargs):
@@ -305,6 +317,9 @@ class Network(Basic):
 
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
+
+        #hack so that Series descriptor works when looking for obj.network.snapshots
+        self.network = self
 
 
     def import_from_csv(self,file_name):
@@ -404,5 +419,3 @@ class SubNetwork(Common):
     branches = OrderedDictDesc()
 
     graph = GraphDesc()
-
-    

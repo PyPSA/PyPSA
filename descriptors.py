@@ -41,7 +41,7 @@ from weakref import WeakKeyDictionary
 from collections import OrderedDict
 
 from distutils.version import StrictVersion
- 
+
 import networkx as nx
 assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least version 1.10"
 
@@ -126,15 +126,15 @@ class Series(object):
         try:
             return self.values[obj]
         except KeyError:
-            series = pd.Series(index=obj.network.index, data=self.default, dtype=self.dtype)
+            series = pd.Series(index=obj.network.snapshots, data=self.default, dtype=self.dtype)
             self.values[obj] = series
             return series
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = val.reindex(obj.network.index)
+            self.values[obj] = val.reindex(obj.network.snapshots)
         except AttributeError:
-            print("could not reindex to the network index")
+            print("could not reindex to the network index of snapshots")
 
 class String(object):
     """A descriptor to manage strings."""
@@ -156,4 +156,3 @@ class String(object):
         if self.restricted is not None:
             if self.values[obj] not in self.restricted:
                 print(val,"not in list of acceptable entries:",self.restricted)
-

@@ -250,5 +250,5 @@ def calculate_B_H(sub_network,verbose=True):
 
 
 
-def network_batch_lpf(network,subindex=None):
+def network_batch_lpf(network,snapshots=None):
     """Batched linear power flow with numpy.dot for several snapshots."""
