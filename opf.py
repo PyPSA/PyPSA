@@ -221,6 +221,8 @@ def define_storage_variables_constraints(network,snapshots):
 
     def soc_constraint_fixed(model,su_name,snapshot):
 
+        su = network.storage_units[su_name]
+
         if pd.isnull(su.state_of_charge[snapshot]):
             return Constraint.Feasible
         else:
@@ -320,8 +322,21 @@ def define_passive_branch_constraints(network,snapshots):
 
 def define_nodal_balances(network,snapshots):
 
+    #create dictionary of inflow branches at each bus
+
+    inflows = {bus_name : {"transport_links" : [], "branches" : []} for bus_name in network.buses.iterkeys()}
+
+    for tl in network.transport_links.itervalues():
+        inflows[tl.bus0.name]["transport_links"].append((tl.name,-1))
+        inflows[tl.bus1.name]["transport_links"].append((tl.name,1))
+
+    for sub_network in network.sub_networks.itervalues():
+        for branch in sub_network.branches.itervalues():
+            inflows[branch.bus0.name]["branches"].append((branch.name,-1))
+            inflows[branch.bus1.name]["branches"].append((branch.name,1))
 
     def p_balance(model,bus_name,snapshot):
+
         bus = network.buses[bus_name]
 
         p = sum(gen.sign*network.model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
@@ -332,22 +347,15 @@ def define_nodal_balances(network,snapshots):
 
         p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
 
+        p += sum(coeff*network.model.transport_link_p[tl_name,snapshot] for tl_name,coeff in inflows[bus_name]["transport_links"])
+
+        p += sum(coeff*network.model.flow[branch_name,snapshot] for branch_name,coeff in inflows[bus_name]["branches"])
+
+        #beware if the p above sums to an integer, the below will return True or False, inducing a bug
+
         return p == 0
 
     network.model.power_balance = Constraint(network.buses.iterkeys(), snapshots, rule=p_balance)
-
-    #add branches to nodal power balance equation
-
-    for tl in network.transport_links.itervalues():
-        for snapshot in snapshots:
-            network.model.power_balance[tl.bus0.name,snapshot].body -= network.model.transport_link_p[tl.name,snapshot]
-            network.model.power_balance[tl.bus1.name,snapshot].body += network.model.transport_link_p[tl.name,snapshot]
-
-    for sub_network in network.sub_networks.itervalues():
-        for branch in sub_network.branches.itervalues():
-            for snapshot in snapshots:
-                network.model.power_balance[branch.bus0.name,snapshot].body -= network.model.flow[branch.name,snapshot]
-                network.model.power_balance[branch.bus1.name,snapshot].body += network.model.flow[branch.name,snapshot]
 
 
 

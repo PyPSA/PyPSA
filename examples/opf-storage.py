@@ -1,9 +1,9 @@
 
 # coding: utf-8
 
-# In[65]:
+# In[1]:
 
-# make the code as Python 3 compatible as possible
+# make the code as Python 3 compatible as possible                                                                       
 from __future__ import print_function, division
 
 import pypsa
@@ -20,7 +20,7 @@ import numpy as np
 from itertools import chain
 
 
-# In[66]:
+# In[2]:
 
 #Build the Network object, which stores all other objects
 
@@ -39,7 +39,7 @@ print("snapshots:",network.snapshots)
 print("current snapshot:",network.now)
 
 
-# In[67]:
+# In[3]:
 
 #add fuel types
 network.add("Source","gas",co2_emissions=0.24)
@@ -48,7 +48,7 @@ network.add("Source","wind")
 network.co2_limit = 1000
 
 
-# In[68]:
+# In[4]:
 
 #The network is two three-node AC networks connected by 2 point-to-point DC links
 
@@ -86,7 +86,7 @@ for i in range(2):
                 capital_cost=0.1,
                 s_nom_min=0,
                 s_nom_extendable=True)
-
+    
 
 #add loads
 for i in range(n*c):
@@ -126,10 +126,10 @@ for i in range(n*c):
                 p_nom_min=0)
 
 
-# In[69]:
+# In[5]:
 
 #now attach some time series
-
+  
 network.load_series = pd.DataFrame(index = network.snapshots,
                                        columns = [load_name for load_name in network.loads],
                                        data = 1000*np.random.rand(len(network.snapshots), len(network.loads)))
@@ -137,7 +137,7 @@ network.load_series = pd.DataFrame(index = network.snapshots,
 for load in network.loads.itervalues():
     load.p_set = network.load_series[load.name]
 
-
+    
 
 wind_generators = attrfilter(network.generators,source=network.sources["wind"])
 
@@ -149,7 +149,7 @@ network.wind_series = pd.DataFrame(index = network.snapshots,
 for generator in wind_generators:
     generator.p_set = network.wind_series[generator.name]*generator.p_nom
     generator.p_max_pu = network.wind_series[generator.name]
-
+    
 for su in network.storage_units.itervalues():
     su.state_of_charge[network.snapshots[0]] = 0.0
 
@@ -158,33 +158,55 @@ for transport_link in network.transport_links.itervalues():
     transport_link.p_set = pd.Series(index = network.snapshots, data=(200*np.random.rand(len(network.snapshots))-100))
 
 
-# In[70]:
+# In[6]:
 
 print(network.wind_series)
 
 
-# In[71]:
+# In[7]:
 
 network.build_graph()
 
 
-# In[72]:
+# In[8]:
 
 network.determine_network_topology()
 
 
-# In[73]:
+# In[9]:
 
 print(network.sub_networks)
 
 
-# In[74]:
+# In[27]:
+
+from distutils.spawn import find_executable
+
+solver_search_order = ["glpk","gurobi"]
+
+solver_executable = {"glpk" : "glpsol", "gurobi" : "gurobi_cl"}
+
+solver_name = None
+
+for s in solver_search_order:
+    if find_executable(solver_executable[s]) is not None:
+        solver_name = s
+        break
+
+if solver_name is None:
+    print("No known solver found, quitting.")
+    sys.exit()
+
+print("Using solver:",solver_name)
+
+
+# In[26]:
 
 snapshots = network.snapshots[:4]
-network.lopf(snapshots=snapshots)
+network.lopf(snapshots=snapshots,solver_name=solver_name)
 
 
-# In[75]:
+# In[28]:
 
 print("Generator and storage capacities:\n")
 
@@ -205,30 +227,30 @@ for snapshot in snapshots:
     print("Total:",sum([bus.p[snapshot] for bus in network.buses.itervalues()]))
 
 
-# In[76]:
+# In[29]:
 
 for branch in network.branches.itervalues():
     print(branch,branch.p1[network.now])
 
 
-# In[77]:
+# In[30]:
 
 network.now = network.snapshots[0]
 
 print("Comparing bus injection to branch outgoing for %s:",network.now)
 
 for sub_network in network.sub_networks.itervalues():
-
+    
     print("\n\nConsidering sub network",sub_network,":")
 
     for bus in sub_network.buses.itervalues():
-
+    
         print("\n%s" % bus)
-
+    
         print("power injection (generators - loads + Transport feed-in):",bus.p[network.now])
-
+    
         print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators.itervalues()])                        + sum([l.sign*l.p[network.now] for l in bus.loads.itervalues()]))
-
+        
         total = 0.0
 
         for branch in sub_network.branches.itervalues():
@@ -241,18 +263,14 @@ for sub_network in network.sub_networks.itervalues():
         print("branch injection:",total)
 
 
-# In[78]:
+# In[31]:
 
 for su in network.storage_units.values():
     print(su,su.p_nom,"\n",su.state_of_charge,"\n",su.p)
 
 
-# In[79]:
+# In[32]:
 
 for gen in network.generators.itervalues():
     print(gen,gen.source.co2_emissions*(1/gen.efficiency))
 
-
-# In[80]:
-
-network.co2_limit
