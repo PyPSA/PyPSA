@@ -41,6 +41,7 @@ from itertools import chain
 
 from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
 
+from io import export_to_csv_folder, import_from_csv_folder
 
 
 class Basic(object):
@@ -310,20 +311,27 @@ class Network(Basic):
 
     graph = GraphDesc()
 
-    def __init__(self, import_file_name=None, **kwargs):
-        if import_file_name is not None:
-            self.import_from_csv(import_file_name)
-            self.determine_network_topology()
-
-        for key, value in kwargs.iteritems():
-            setattr(self, key, value)
+    def __init__(self, csv_folder_name=None, **kwargs):
 
         #hack so that Series descriptor works when looking for obj.network.snapshots
         self.network = self
 
+        if csv_folder_name is not None:
+            self.import_from_csv_folder(csv_folder_name)
+            #self.determine_network_topology()
 
-    def import_from_csv(self,file_name):
-        """E.g. read in CSV or pickle of data."""
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
+
+
+    def import_from_csv_folder(self,csv_folder_name):
+        import_from_csv_folder(self,csv_folder_name)
+
+
+    def export_to_csv_folder(self,csv_folder_name,time_series={}):
+        export_to_csv_folder(self,csv_folder_name,time_series=time_series)
+
+
 
     def import_from_pypower(self,file_name):
         """Import network from PyPower .py."""
