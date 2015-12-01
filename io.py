@@ -134,6 +134,10 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
 
 def import_components_from_dataframe(network,dataframe,cls_name):
 
+    if not dataframe.index.is_unique:
+        print("Warning! Dataframe for",cls_name,"does not have a unique index!")
+
+
     for i in dataframe.index:
         obj = network.add(cls_name,i)
         for attr in dataframe.columns:

@@ -1,0 +1,324 @@
+
+
+
+* Abstraction etc
+
+
+* Technology neutral
+
+i.e. wind and solar do no appear in main libraries
+
+
+
+
+* Assume indexed lists are typesafe
+
+i.e. no type checking on load.p_set_series
+
+* networkx
+
+Nodes and edges are the electrically reduced version of buses and branches.
+
+
+* Separate data from code
+
+The versioned code libraries should not contain ANY data at all (apart from perhaps usage examples and unit testing).
+
+Scripts that use the libraries can link data together.
+
+Data should be managed completely separately (preferably in databases)
+
+
+* Use objects where possible
+
+i.e. avoid dictionaries called "data"
+
+* Avoid generating data dynamically if possible
+
+e.g. add edge, etc.
+
+better to version the data models
+
+* store data in a database?
+
+also power stations characteristics, etc.
+
+fuel costs and CO2 emissions per MWhthermal, etc.
+
+
+* Use an object-oriented GUI as far as possible - no free-hanging functions
+
+E.g.
+
+graph.do_something()
+
+rather than
+
+def do_something(graph)
+
+
+not sure about this, perhaps a matter of taste...
+* Optimization framework
+
+At the moment the optimization is mostly hard-coded to gurobi
+
+Would be good to use more general framework like pyomo so we can try other solvers at some point
+
+
+
+* Default units
+
+kV, Ohm, MW, A
+
+
+* TODO
+
+** DONE Capacity extension for controllable branches
+
+** DONE Storage model
+
+
+See David's branch in flexibility, regions.classes
+
+benchmarkopt/optimization.py
+
+
+Should include:
+
+Settable SoC, Soc min/max, separate efficiencies
+
+running loss
+
+
+** regression testing
+
+with nose?
+
+see Jonas email of 151109
+
+no, use py.test
+
+** DONE Time weighting
+
+network.snapshots
+
+network.snapshot_weightings  - e.g. n hours each snapshot represents
+
+** DONE CO2 constraint
+
+class Source
+
+** DONE Sort nexus efficiency CO2/MWht and CO2/MWhe
+
+source.co2_emissions is tCO2e / MWht
+
+gen.efficiency is MWhe/MWht
+
+so emissions per MWhe are:
+
+gen.source.co2_emissions / gen.efficiency   =   tCO2e / MWht  * (MWht/MWhe) = tCO2 / MWhe
+
+** Yearly import/export balances for zones
+Need to define countries etc.
+
+class Zone
+
+
+** DONE do remove object
+
+** Documentation in sphinx/rst
+
+cf. oemof
+
+** Python 3 improve
+
+use six for itervalues()/values()
+
+** DONE CSV file format
+
+follow minpower with separate csv for each object type, i.e.
+
+directory
+
+generator.csv
+
+bus.csv
+
+lines.csv
+
+generator-p_set.csv  - time-dependent set point
+
+
+** ensure object names are unique
+
+can also check with pandas.index.unique
+
+** DONE Pypower format converter
+
+** CIM converter
+
+** ConstantSeries???
+
+** Naming
+
+*** SubNetwork -> ConnectedNetwork
+
+*** DONE classes -> components
+
+network is no good - confuses with Network class / network object / networkx
+
+*** s_nom versus p_nom for lines/branches
+
+** linear pf/opf for DC meshed
+
+How to deal with slack nodes and power balance within DC network?
+
+
+Choose slack bus as first/last DC bus with a converter/generator and then set the converter on the bus.
+
+
+** slack buses versus slack generators
+
+Can have one bus with several PQ or PV generators and one slack generator - depends on generator, not on bus
+
+ALSO: don't want to choose a slack bus where there is no generator
+
+
+Cases:
+
+Choose the slack bus by the first generator set as a slack; otherwise
+choose the first generator in the sub-network.
+
+i) If there is a slack generator on the bus, it is a slack bus
+
+ii) If there is a PV generator on a non-slack bus, it is a PV bus; First PV generator sets the voltage
+
+iii) Otherwise it is a PQ bus
+
+
+
+
+
+*** Does PyPower allow for more than one generator per bus???
+
+Yes. If there is more than one generator on a PV bus (type 2), then the Q is divided equally between the generators.
+
+If there is more than one generator on a reference bus (type 3), then the Q is divided equally and the spare P is sent to the first generator.
+
+see pfsoln.py
+
+
+
+** look at pandas for storing object methods in different files
+
+want different files, but still have tab completion and ? and ?? magic
+
+** TODO Catch optimisation status gracefully
+
+** DONE Flow as Expression
+
+build flows based on PTDF or angles
+
+then use for nodal imbalance AND for flow limitation
+
+** non-linear pf
+
+** make p_set per unit?
+
+** think about storing tables for each component type
+
+class Generators:
+    name = ...
+    p_set = DataFrame
+
+
+network.generators.name = Series
+
+network.generators[name] -> Generator object
+
+network.generators.p = DataFrame (columns: gen_name, index: times)
+
+generator.p = network.generators.p[gen.name]
+
+
+
+Issue: generator.p_max_pu NOT needed for flexible generators
+
+Need separate class e.g. VariableGenerator??? better than having type = .... and then different used methods
+
+*** Better:
+
+Generators.p_max or Generators["p_max"] returns a series
+
+Generators.p or Generators["p"] returns a DataFrame
+
+Generator.df returns the df of
+
+
+for gen in network.generators.obj:
+   print gen
+
+
+for gen_name in network.generators.index:
+   print gen_name
+
+for gen_name in network.generators.index:
+   for dt in network.snapshots:
+       print network.generators.p[gen][dt]
+
+
+
+generators = pd.DataFrame(columns= ...., dtypes .....,index = gen_names)  #only contains time constant parts
+
+generators.p_set = pd.DataFrame
+
+
+
+
+
+** check results per unit behaviour
+
+e.g. per unit power
+
+** Pandas backend for attributes
+
+replace
+            self.values[obj] = float(val)
+
+with a pandas.DataFrame/Series for each network
+
+
+get
+
+self.values[network][obj.name]
+
+** Better as sqlalchemy?????
+
+Advantages of database:
+
+i) better scaling with size
+
+ii) easier, better querying
+
+iii) persistence
+
+iv) can swop out database for Netzbetreiber
+
+v) Sharing data between people editing concurrently
+
+vi) Transactions (e.g. bank account transfer that fails or succeeds always at both ends)
+
+vii) For relations between tables
+
+
+** isinstance
+
+also applies for inheritance? yes  - if the class A inherits from B, isinstance true for A and B
+
+** ZI load
+
+** ratio and phase shift for trafos
+
+** DONE Allow graphs with multiple edges between same nodes
+
+i.e. inherit from networkx.MultiGraph

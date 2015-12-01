@@ -51,7 +51,7 @@ import pandas as pd
 
 
 
-class OrderedGraph(nx.Graph):
+class OrderedGraph(nx.MultiGraph):
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
 
@@ -109,8 +109,8 @@ class GraphDesc(object):
             return graph
 
     def __set__(self,obj,val):
-        if not isinstance(val, nx.Graph):
-            raise AttributeError("val must be an nx.Graph")
+        if not isinstance(val, OrderedGraph):
+            raise AttributeError("val must be an OrderedGraph")
         else:
             self.values[obj] = val
 

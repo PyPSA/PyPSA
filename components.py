@@ -39,7 +39,7 @@ import pandas as pd
 from collections import OrderedDict
 from itertools import chain
 
-from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
+from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph
 
 from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
@@ -81,10 +81,10 @@ class Bus(Common):
 
     list_name = "buses"
 
-    v_nom = Float()
+    v_nom = Float(default=1.)
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
-    #2-d location data (e.g. longitude and latitude)
+    #2-d location data (e.g. longitude and latitude; Spatial Reference System Identifier (SRID) set in network.srid)
     x = Float()
     y = Float()
 
@@ -309,7 +309,16 @@ class Network(Basic):
     #limit of total co2-tonnes-equivalent emissions for period
     co2_limit = None
 
+
+    #Spatial Reference System Identifier (SRID) for x,y - defaults to longitude and latitude
+    srid = Float(4326)
+
     graph = GraphDesc()
+
+
+    #booleans for triggering recalculation
+    topology_determined = False
+
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
@@ -347,6 +356,12 @@ class Network(Basic):
             print(class_name,"not found")
             return None
 
+        obj_list = getattr(self,cls.list_name)
+
+        if str(name) in obj_list:
+            print("Failed to add",name,"because there is already an object with this name in",cls.list_name)
+            return
+
         obj = cls(self)
 
         obj.name = name
@@ -355,7 +370,7 @@ class Network(Basic):
             setattr(obj,key,value)
 
         #add to list in network object
-        getattr(self,cls.list_name)[obj.name] = obj
+        obj_list[obj.name] = obj
 
         #build branches list
         if isinstance(obj, Branch):
@@ -374,10 +389,33 @@ class Network(Basic):
     def remove(self,obj):
         """Remove object from network."""
 
+        obj_list = getattr(self,obj.__class__.list_name)
+
+        if obj.name not in obj_list:
+            print("Object",obj,"no longer in",obj.__class__.list_name)
+            return
+
+        obj_list.pop(obj.name)
+
+        if isinstance(obj, Branch):
+            self.branches.pop(obj.name)
+
+        if hasattr(obj,"bus"):
+            getattr(obj.bus,obj.__class__.list_name).pop(obj.name)
+
+        del obj
+
+        self.topology_determined = False
+
+
     def build_graph(self):
         """Build networkx graph."""
 
-        self.graph.add_edges_from((branch.bus0, branch.bus1, {"obj" : branch}) for branch in self.branches.itervalues())
+        #reset the graph
+        self.graph = OrderedGraph()
+
+        #Multigraph uses object itself as key
+        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches.itervalues())
 
 
     def determine_network_topology(self):
@@ -388,7 +426,7 @@ class Network(Basic):
 
         graph = self.graph.__class__(self.graph)
 
-        graph.remove_edges_from((branch.bus0,branch.bus1)
+        graph.remove_edges_from((branch.bus0, branch.bus1, branch)
                                 for branch in chain(self.converters.itervalues(),
                                                     self.transport_links.itervalues()))
 
@@ -396,18 +434,26 @@ class Network(Basic):
         #now build connected graphs of same type AC/DC
         sub_graphs = nx.connected_component_subgraphs(graph, copy=False)
 
+
+        #remove all old sub_networks
+        for sub_network in list(self.sub_networks.values()):
+            self.remove(sub_network)
+
         for i, sub_graph in enumerate(sub_graphs):
             #name using i for now
             sub_network = self.add("SubNetwork", i, graph=sub_graph)
 
             sub_network.buses.update((n.name, n) for n in sub_graph.nodes())
-            sub_network.branches.update((branch.name, branch) for (u, v, branch) in sub_graph.edges_iter(data="obj"))
+            sub_network.branches.update((branch.name, branch) for (u, v, branch) in sub_graph.edges_iter(keys=True))
 
             for bus in sub_network.buses.itervalues():
                 bus.sub_network = sub_network
 
             for branch in sub_network.branches.itervalues():
                 branch.sub_network = sub_network
+
+
+        self.topology_determined = True
 
 
 

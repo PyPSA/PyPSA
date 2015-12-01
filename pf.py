@@ -62,6 +62,12 @@ def sub_network_pf(sub_network):
 def network_lpf(network,now=None,verbose=True):
     """Linear power flow for generic network."""
 
+
+    if not network.topology_determined:
+        network.build_graph()
+        network.determine_network_topology()
+
+
     if now is None:
         now=network.now
 

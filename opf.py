@@ -439,6 +439,11 @@ def extract_optimisation_results(network,snapshots):
 def network_lopf(network,snapshots=None,solver_name="glpk"):
     """Linear optimal power flow for snapshots."""
 
+    if not network.topology_determined:
+        network.build_graph()
+        network.determine_network_topology()
+
+
 
     if snapshots is None:
         snapshots = [network.now]
