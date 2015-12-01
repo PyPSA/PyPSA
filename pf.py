@@ -115,7 +115,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
         now=sub_network.network.now
 
     if verbose:
-        print("performing load-flow for snapshot %s",now)
+        print("Performing load-flow for snapshot %s" % (now))
 
     if len(sub_network.buses) == 1:
         return

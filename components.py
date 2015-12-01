@@ -41,7 +41,7 @@ from itertools import chain
 
 from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc
 
-from io import export_to_csv_folder, import_from_csv_folder
+from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
 
 class Basic(object):
@@ -333,8 +333,9 @@ class Network(Basic):
 
 
 
-    def import_from_pypower(self,file_name):
-        """Import network from PyPower .py."""
+    def import_from_pypower_ppc(self, ppc):
+        """Import network from PyPower ppc dictionary."""
+        return import_from_pypower_ppc(self,ppc)
 
 
     def add(self,class_name,name,**kwargs):

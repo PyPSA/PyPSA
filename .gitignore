@@ -11,3 +11,5 @@
 old/
 
 *.ipynb
+
+test/.cache/

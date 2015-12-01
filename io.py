@@ -37,6 +37,8 @@ import os
 
 import pypsa
 
+import numpy as np
+
 
 def export_to_csv_folder(network,csv_folder_name,time_series={}):
     """Export network and components to csv_folder_name. Include also
@@ -213,3 +215,96 @@ def import_from_csv_folder(network,csv_folder_name):
 
 
         print(getattr(network,list_name))
+
+
+
+def import_from_pypower_ppc(network,ppc):
+    pass
+
+
+
+
+
+
+def import_from_pypower_ppc(network,ppc):
+    """Imports data from a pypower ppc dictionary to a PyPSA network
+    object."""
+
+
+    version = ppc["version"]
+    if int(version) != 2:
+        print("Warning, importing from PYPOWER may not work if PPC version is not 2!")
+
+    print("Warning: some PYPOWER features not supported: areas, gencosts, baseMVA, shunt Z, component status, branch: ratio, phase angle")
+
+    #dictionary to store pandas DataFrames of PyPower data
+    pdf = {}
+
+
+    # add buses
+
+    #integer numbering will be bus names
+    index = np.array(ppc['bus'][:,0],dtype=int)
+
+    columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","Vmax","Vmin"]
+
+    pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:])
+
+
+    #rename controls
+    controls = ["","PQ","PV","Slack"]
+    pdf['buses']["control"] = [controls[int(pdf["buses"]["type"][i])] for i in pdf["buses"].index]
+
+
+
+    #add loads for any buses with Pd or Qd
+
+    if pdf["buses"][["Gs","Bs"]].any().any():
+        print("Warning, shunt Z at buses not yet supported!")
+
+    pdf['loads'] = pdf["buses"][["Pd","Qd"]][pdf["buses"][["Pd","Qd"]].any(axis=1)]
+
+    pdf['loads']['bus'] = pdf['loads'].index
+
+    pdf['loads'].rename(columns={"Qd" : "q_set", "Pd" : "p_set"}, inplace=True)
+
+
+
+    #add gens
+
+    columns = "bus, p_set, q_set, q_max, q_min, Vg, mBase, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
+
+    index = np.array(ppc['gen'][:,0],dtype=int)
+
+    pdf['generators'] = pd.DataFrame(index=index,columns=columns,data=ppc['gen'])
+
+    #make sure bus name is an integer
+    pdf['generators']['bus'] = index
+
+    #add branchs
+    ## branch data
+    # fbus, tbus, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax
+
+    columns = 'bus0, bus1, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax'.split(", ")
+
+
+    pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])
+
+    pdf['branches']["bus0"] = np.array(pdf['branches']["bus0"],dtype=int)
+    pdf['branches']["bus1"] = np.array(pdf['branches']["bus1"],dtype=int)
+
+
+    #TODO
+
+    ##-----  OPF Data  -----##
+    ## generator cost data
+    # 1 startup shutdown n x1 y1 ... xn yn
+    # 2 startup shutdown n c(n-1) ... c0
+
+    import_components_from_dataframe(network,pdf["buses"],"Bus")
+    import_components_from_dataframe(network,pdf["loads"],"Load")
+    import_components_from_dataframe(network,pdf["generators"],"Generator")
+    import_components_from_dataframe(network,pdf["branches"],"Line")
+
+
+    return pdf

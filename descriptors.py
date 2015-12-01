@@ -131,10 +131,21 @@ class Series(object):
             return series
 
     def __set__(self,obj,val):
-        try:
-            self.values[obj] = val.reindex(obj.network.snapshots)
-        except AttributeError:
-            print("could not reindex to the network index of snapshots")
+
+        #unclear whether we should allow pd.DataFrame here...
+        if type(val) in [pd.DataFrame,pd.Series]:
+            try:
+                self.values[obj] = val.reindex(obj.network.snapshots)
+            except AttributeError:
+                print("could not reindex",val,"to the network index of snapshots")
+
+        #following should work for ints, floats, numpy ints/floats and numpy arrays of right size
+        else:
+            try:
+                self.values[obj] = pd.Series(index=obj.network.snapshots, data=val, dtype=self.dtype)
+            except AttributeError:
+                print("count not assign",val,"to series")
+
 
 class String(object):
     """A descriptor to manage strings."""
