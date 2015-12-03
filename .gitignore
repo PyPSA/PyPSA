@@ -12,4 +12,6 @@ old/
 
 test/.cache/
 
+.cache/
+
 .~*

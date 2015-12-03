@@ -248,7 +248,7 @@ Need separate class e.g. VariableGenerator??? better than having type = .... and
 
 *** Better:
 
-Generators.p_max or Generators["p_max"] returns a series
+network.generators.p_max or Generators["p_max"] returns a series
 
 Generators.p or Generators["p"] returns a DataFrame
 
@@ -268,9 +268,13 @@ for gen_name in network.generators.index:
 
 
 
-generators = pd.DataFrame(columns= ...., dtypes .....,index = gen_names)  #only contains time constant parts
+network.generators = pd.DataFrame(columns= ...., dtypes .....,index = gen_names)  #only contains time constant parts
 
-generators.p_set = pd.DataFrame
+network.generators["obj"]
+
+network.generators.p_set = pd.DataFrame(columns=generator.names,index=network.snapshots)
+
+netwrok.generators.p_set.ix[dt,gen_name]
 
 
 
@@ -322,3 +326,18 @@ also applies for inheritance? yes  - if the class A inherits from B, isinstance 
 ** DONE Allow graphs with multiple edges between same nodes
 
 i.e. inherit from networkx.MultiGraph
+
+
+** catch load flow edge cases
+
+<=1 line
+
+no gens in sub_network etc.
+
+
+** beware nx.MultiGraph reordering of edges!
+
+Orders them according to collections of edges between same nodes NOT
+the order in which you read them in.
+
+** ORderedGraph of branches will not necessarily have unique names!!!!
