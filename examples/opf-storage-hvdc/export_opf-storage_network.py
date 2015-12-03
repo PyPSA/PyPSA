@@ -66,7 +66,7 @@ for i in range(n*c):
                 bus1=network.buses[str(n*(i // n)+ (i+1) % n)],
                 x=np.random.random(),
                 s_nom=0,
-                capital_cost=0.1,
+                capital_cost=0.2*np.random.random(),
                 s_nom_min=0,
                 s_nom_extendable=True)
 
@@ -79,7 +79,7 @@ for i in range(2):
                 p_max=900,
                 p_min=-900,
                 s_nom=0,
-                capital_cost=0.1,
+                capital_cost=0.2*np.random.random(),
                 s_nom_min=0,
                 s_nom_extendable=True)
 
@@ -94,8 +94,8 @@ for i in range(n*c):
     network.add("StorageUnit","Storage %d" % (i),
                 bus=network.buses[str(i)],
                 p_nom=0,source=network.sources["battery"],
-                marginal_cost=2,
-                capital_cost=1000,
+                marginal_cost=4*np.random.random(),
+                capital_cost=1000*np.random.random(),
                 p_nom_extendable=True,
                 p_max_pu_fixed=1,
                 p_min_pu_fixed=-1,
@@ -107,16 +107,16 @@ for i in range(n*c):
     network.add("Generator","Wind %d" % (i),bus=network.buses[str(i)],
                 p_nom=100,source=network.sources["wind"],dispatch="variable",
                 marginal_cost=0,
-                capital_cost=1000,
+                capital_cost=2000 + 1000*np.random.random(),
                 p_nom_extendable=True,
                 p_nom_max=None,
                 p_nom_min=100)
     #gas generator
     network.add("Generator","Gas %d" % (i),bus=network.buses[str(i)],
                 p_nom=0,source=network.sources["gas"],dispatch="flexible",
-                marginal_cost=2,
-                capital_cost=100,
-                efficiency=0.35,
+                marginal_cost=2 + 4*np.random.random(),
+                capital_cost=100 + 100*np.random.random(),
+                efficiency=0.35 + 0.01*np.random.random(),
                 p_nom_extendable=True,
                 p_nom_max=None,
                 p_nom_min=0)

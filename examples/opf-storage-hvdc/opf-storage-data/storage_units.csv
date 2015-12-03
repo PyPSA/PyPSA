@@ -1,7 +1,7 @@
 name,bus,capital_cost,dispatch,efficiency,efficiency_dispatch,efficiency_store,marginal_cost,max_hours,p_max_pu_fixed,p_min_pu_fixed,p_nom,p_nom_extendable,p_nom_min,sign,source,standing_loss,state_of_charge_initial
-Storage 0,0,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
-Storage 1,1,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
-Storage 2,2,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
-Storage 3,3,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
-Storage 4,4,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
-Storage 5,5,1000.0,flexible,1,0.95,0.9,2.0,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 0,0,545.8187566968984,flexible,1,0.95,0.9,2.174751909791836,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 1,1,318.27877467228893,flexible,1,0.95,0.9,1.640746334319883,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 2,2,172.5414482864459,flexible,1,0.95,0.9,3.344852485389574,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 3,3,65.76891603568625,flexible,1,0.95,0.9,2.1235526624407237,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 4,4,457.9383022708414,flexible,1,0.95,0.9,3.823440078288032,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0
+Storage 5,5,300.92051464604816,flexible,1,0.95,0.9,2.9380897542655524,6.0,1.0,-1.0,0.0,True,0.0,1,battery,0.01,0.0

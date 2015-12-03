@@ -1,0 +1,4 @@
+name,capital_cost,co2_emissions,efficiency,marginal_cost
+gas,0.0,0.24,1.0,0.0
+wind,0.0,0.0,1.0,0.0
+battery,0.0,0.0,1.0,0.0

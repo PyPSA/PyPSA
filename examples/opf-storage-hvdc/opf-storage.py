@@ -19,6 +19,8 @@ import numpy as np
 
 from itertools import chain
 
+import os
+
 
 # In[2]:
 
@@ -66,7 +68,7 @@ print("Using solver:",solver_name)
 
 # In[7]:
 
-snapshots = network.snapshots[:4]
+snapshots = network.snapshots
 network.lopf(snapshots=snapshots,solver_name=solver_name)
 
 
@@ -139,3 +141,12 @@ for su in network.storage_units.values():
 
 for gen in network.generators.itervalues():
     print(gen,gen.source.co2_emissions*(1/gen.efficiency))
+
+
+
+
+results_folder_name = os.path.join(csv_folder_name,"results")
+
+
+network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
+                                                               "storage_units" : {"p" : None}})
