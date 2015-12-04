@@ -280,11 +280,11 @@ netwrok.generators.p_set.ix[dt,gen_name]
 
 
 
-*** allow nan in Float
+*** DONE allow nan in Float
 
 e.g. for p_nom_max
 
-*** create Boolean and Int descriptors
+*** DONE create Boolean and Int descriptors
 
 *** load.bus, bus.loads, generator.source
 *** first step: semi-pandify in e.g. network.generators_df, to which descriptors point

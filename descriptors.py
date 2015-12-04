@@ -63,6 +63,8 @@ class OrderedGraph(nx.MultiGraph):
 class Float(object):
     """A descriptor to manage floats."""
 
+    typ = float
+
     def __init__(self,default=0.0):
         self.default = default
         self.values = WeakKeyDictionary()
@@ -72,7 +74,7 @@ class Float(object):
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = float(val)
+            self.values[obj] = self.typ(val)
         except:
             print("could not convert",val,"to a float")
             self.val = self.default
@@ -83,6 +85,8 @@ class Float(object):
 class Integer(object):
     """A descriptor to manage integers."""
 
+    typ = int
+
     def __init__(self,default=0):
         self.default = default
         self.values = WeakKeyDictionary()
@@ -92,7 +96,7 @@ class Integer(object):
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = int(val)
+            self.values[obj] = self.typ(val)
         except:
             print("could not convert",val,"to an integer")
             self.val = self.default
@@ -103,6 +107,8 @@ class Integer(object):
 class Boolean(object):
     """A descriptor to manage booleans."""
 
+    typ = bool
+
     def __init__(self,default=True):
         self.default = default
         self.values = WeakKeyDictionary()
@@ -112,7 +118,7 @@ class Boolean(object):
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = bool(val)
+            self.values[obj] = self.typ(val)
         except:
             print("could not convert",val,"to a boolean")
             self.val = self.default
@@ -122,6 +128,9 @@ class Boolean(object):
 
 
 class OrderedDictDesc(object):
+
+    typ = OrderedDict
+
     def __init__(self):
         self.values = WeakKeyDictionary()
 
@@ -129,17 +138,20 @@ class OrderedDictDesc(object):
         try:
             return self.values[obj]
         except KeyError:
-            ordereddict = OrderedDict()
+            ordereddict = self.typ()
             self.values[obj] = ordereddict
             return ordereddict
 
     def __set__(self,obj,val):
-        if not isinstance(val, OrderedDict):
+        if not isinstance(val, self.typ):
             raise AttributeError("val must be an OrderedDict")
         else:
             self.values[obj] = val
 
 class GraphDesc(object):
+
+    typ = OrderedGraph
+
     def __init__(self):
         self.values = WeakKeyDictionary()
 
@@ -147,18 +159,20 @@ class GraphDesc(object):
         try:
             return self.values[obj]
         except KeyError:
-            graph = OrderedGraph()
+            graph = self.typ()
             self.values[obj] = graph
             return graph
 
     def __set__(self,obj,val):
-        if not isinstance(val, OrderedGraph):
+        if not isinstance(val, self.typ):
             raise AttributeError("val must be an OrderedGraph")
         else:
             self.values[obj] = val
 
 class Series(object):
     """A descriptor to manage series."""
+
+    typ = pd.Series
 
     def __init__(self, dtype=float, default=0.0):
         self.dtype = dtype
@@ -169,14 +183,14 @@ class Series(object):
         try:
             return self.values[obj]
         except KeyError:
-            series = pd.Series(index=obj.network.snapshots, data=self.default, dtype=self.dtype)
+            series = self.typ(index=obj.network.snapshots, data=self.default, dtype=self.dtype)
             self.values[obj] = series
             return series
 
     def __set__(self,obj,val):
 
         #unclear whether we should allow pd.DataFrame here...
-        if type(val) in [pd.DataFrame,pd.Series]:
+        if type(val) in [pd.DataFrame,self.typ]:
             try:
                 self.values[obj] = val.reindex(obj.network.snapshots)
             except AttributeError:
@@ -185,13 +199,15 @@ class Series(object):
         #following should work for ints, floats, numpy ints/floats and numpy arrays of right size
         else:
             try:
-                self.values[obj] = pd.Series(index=obj.network.snapshots, data=val, dtype=self.dtype)
+                self.values[obj] = self.typ(index=obj.network.snapshots, data=val, dtype=self.dtype)
             except AttributeError:
                 print("count not assign",val,"to series")
 
 
 class String(object):
     """A descriptor to manage strings."""
+
+    typ = str
 
     def __init__(self,default="",restricted=None):
         self.default = default
@@ -203,7 +219,7 @@ class String(object):
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = str(val)
+            self.values[obj] = self.typ(val)
         except:
             print("could not convert",val,"to a string")
             return
