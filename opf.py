@@ -45,6 +45,14 @@ import pandas as pd
 
 
 
+#this function is necessary because pyomo doesn't deal with NaNs gracefully
+def replace_nan_with_none(val):
+    if pd.isnull(val):
+        return None
+    else:
+        return val
+
+
 def network_opf(network,snapshots=None):
     """Optimal power flow for snapshots."""
 
@@ -82,7 +90,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     def gen_p_nom_bounds(model, gen_name):
         gen = network.generators[gen_name]
-        return (gen.p_nom_min, gen.p_nom_max)
+        return (replace_nan_with_none(gen.p_nom_min), replace_nan_with_none(gen.p_nom_max))
 
     network.model.generator_p_nom = Var([gen.name for gen in extendable_generators], domain=NonNegativeReals, bounds=gen_p_nom_bounds)
 
@@ -154,7 +162,7 @@ def define_storage_variables_constraints(network,snapshots):
 
     def su_p_nom_bounds(model, su_name):
         su = network.storage_units[su_name]
-        return (su.p_nom_min, su.p_nom_max)
+        return (replace_nan_with_none(su.p_nom_min), replace_nan_with_none(su.p_nom_max))
 
     network.model.storage_p_nom = Var([su.name for su in extendable_storage_units], domain=NonNegativeReals, bounds=su_p_nom_bounds)
 
@@ -240,7 +248,7 @@ def define_branch_extension_variables(network,snapshots):
 
     def branch_s_nom_bounds(model, branch_name):
         branch = network.branches[branch_name]
-        return (branch.s_nom_min, branch.s_nom_max)
+        return (replace_nan_with_none(branch.s_nom_min), replace_nan_with_none(branch.s_nom_max))
 
     network.model.branch_s_nom = Var([branch.name for branch in extendable_branches], domain=NonNegativeReals, bounds=branch_s_nom_bounds)
 

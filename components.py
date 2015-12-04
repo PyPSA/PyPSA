@@ -39,7 +39,7 @@ import pandas as pd
 from collections import OrderedDict
 from itertools import chain
 
-from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph
+from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean
 
 from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
@@ -126,10 +126,10 @@ class Generator(OnePort):
     p_nom = Float()
 
     #switch to allow capacity to be extended
-    p_nom_extendable = False
+    p_nom_extendable = Boolean(False)
 
     #technical potential
-    p_nom_max = None
+    p_nom_max = Float(np.nan)
 
     p_nom_min = Float()
 
@@ -207,9 +207,9 @@ class Branch(Common):
 
     s_nom = Float()
 
-    s_nom_extendable = False
+    s_nom_extendable = Boolean(False)
 
-    s_nom_max = None
+    s_nom_max = Float(np.nan)
     s_nom_min = Float()
 
     p0 = Series()

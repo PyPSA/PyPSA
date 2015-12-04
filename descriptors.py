@@ -78,6 +78,49 @@ class Float(object):
             self.val = self.default
             return
 
+
+
+class Integer(object):
+    """A descriptor to manage integers."""
+
+    def __init__(self,default=0):
+        self.default = default
+        self.values = WeakKeyDictionary()
+
+    def __get__(self,obj,cls):
+        return self.values.get(obj,self.default)
+
+    def __set__(self,obj,val):
+        try:
+            self.values[obj] = int(val)
+        except:
+            print("could not convert",val,"to an integer")
+            self.val = self.default
+            return
+
+
+
+class Boolean(object):
+    """A descriptor to manage booleans."""
+
+    def __init__(self,default=True):
+        self.default = default
+        self.values = WeakKeyDictionary()
+
+    def __get__(self,obj,cls):
+        return self.values.get(obj,self.default)
+
+    def __set__(self,obj,val):
+        try:
+            self.values[obj] = bool(val)
+        except:
+            print("could not convert",val,"to a boolean")
+            self.val = self.default
+            return
+
+
+
+
 class OrderedDictDesc(object):
     def __init__(self):
         self.values = WeakKeyDictionary()
