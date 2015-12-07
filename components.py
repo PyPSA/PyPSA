@@ -49,17 +49,22 @@ import sys
 
 class Basic(object):
     """Common to every object."""
-    name = ""
+
+    def __init__(self, name=""):
+        self.name = "%s %s" % (self.__class__.__name__, name)
 
     def __repr__(self):
-        return "%s %s" % (self.__class__.__name__, self.name)
+        return self.name
 
 
 class Common(Basic):
     """Common to all objects inside Network object."""
     network = None
 
-    def __init__(self, network):
+    def __init__(self, network, name=""):
+
+        Basic.__init__(self, name)
+
         self.network = network
         self.sub_network = None
 
@@ -319,9 +324,10 @@ class Network(Basic):
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
+        super(self.__class__, self).__init__(kwargs.get("name",""))
+
         #hack so that Series descriptor works when looking for obj.network.snapshots
         self.network = self
-
 
         #a list/index of scenarios/times
         self.snapshots = [self.now]
@@ -417,13 +423,11 @@ class Network(Basic):
 
         obj_list = getattr(self,cls.list_name)
 
-        if str(name) in obj_list:
+        if cls.__name__ + str(name) in obj_list:
             print("Failed to add",name,"because there is already an object with this name in",cls.list_name)
             return
 
-        obj = cls(self)
-
-        obj.name = str(name)
+        obj = cls(self,name)
 
         cls_df = getattr(self,cls.list_name + "_df")
 

@@ -40,6 +40,13 @@ import pypsa
 import numpy as np
 
 
+def get_cls_from_list_name(list_name):
+
+    for k,v in vars(pypsa.components).iteritems():
+        if hasattr(v,"list_name") and v.list_name == list_name:
+            return v
+
+
 def export_to_csv_folder(network,csv_folder_name,time_series={}):
     """Export network and components to csv_folder_name. Include also
     time_series for components in the dictionary time_series in the
@@ -142,9 +149,9 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         obj = network.add(cls_name,i)
         for attr in dataframe.columns:
             if attr == "source":
-                setattr(obj,attr,network.sources[str(dataframe[attr][i])])
+                setattr(obj,attr,network.sources["Source " + str(dataframe[attr][i])])
             elif "bus" in attr:
-                setattr(obj,attr,network.buses[str(dataframe[attr][i])])
+                setattr(obj,attr,network.buses["Bus " + str(dataframe[attr][i])])
                 #add oneports to bus lists
                 if attr == "bus":
                     getattr(obj.bus,obj.__class__.list_name)[obj.name] = obj
@@ -156,8 +163,10 @@ def import_series_from_dataframe(network,dataframe,list_name,attr):
 
     od = getattr(network,list_name)
 
+    cls = get_cls_from_list_name(list_name)
+
     for col in dataframe:
-        setattr(od[col],attr,dataframe[col])
+        setattr(od[cls.__name__ + " " + col],attr,dataframe[col])
 
 
 
