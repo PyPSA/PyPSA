@@ -351,3 +351,19 @@ Orders them according to collections of edges between same nodes NOT
 the order in which you read them in.
 
 ** ORderedGraph of branches will not necessarily have unique names!!!!
+
+Add component class name to start of name
+
+What's also an issue is that the inherited descriptors are also shared between the objects, so that the descriptor actually belongs to the parent class.
+
+so that Branch.s_nom was in fact sharing components for all transport_links, lines, trafos etc.
+
+
+** Kill inheritance
+
+It doesn't serve any good purpose and just serves to confuse.
+
+e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
+
+
+need to watch out for isinstance(Branch)

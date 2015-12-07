@@ -1,0 +1,16 @@
+
+
+* Design
+
+** network components cannot exist without a Network
+
+
+
+
+* Default units
+
+Power: MW
+
+Voltage: kV
+
+Impedance: Ohm

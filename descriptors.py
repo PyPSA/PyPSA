@@ -47,9 +47,7 @@ assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least v
 
 import pandas as pd
 
-
-
-
+import inspect
 
 class OrderedGraph(nx.MultiGraph):
     node_dict_factory = OrderedDict
@@ -65,21 +63,20 @@ class Float(object):
 
     typ = float
 
+    #the name is set by Network.__init__
+    name = None
+
     def __init__(self,default=0.0):
         self.default = default
-        self.values = WeakKeyDictionary()
 
     def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
+        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a float")
-            self.val = self.default
-            return
-
 
 
 class Integer(object):
@@ -87,20 +84,20 @@ class Integer(object):
 
     typ = int
 
+    #the name is set by Network.__init__
+    name = None
+
     def __init__(self,default=0):
         self.default = default
-        self.values = WeakKeyDictionary()
 
     def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
+        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to an integer")
-            self.val = self.default
-            return
 
 
 
@@ -109,20 +106,48 @@ class Boolean(object):
 
     typ = bool
 
+    #the name is set by Network.__init__
+    name = None
+
     def __init__(self,default=True):
         self.default = default
-        self.values = WeakKeyDictionary()
 
     def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
+        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            self.values[obj] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a boolean")
-            self.val = self.default
+
+
+
+class String(object):
+    """A descriptor to manage strings."""
+
+    typ = str
+
+    #the name is set by Network.__init__
+    name = None
+
+    def __init__(self,default="",restricted=None):
+        self.default = default
+        self.restricted = restricted
+
+    def __get__(self,obj,cls):
+        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
+
+    def __set__(self,obj,val):
+        try:
+            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
+        except:
+            print("could not convert",val,"to a string")
             return
+
+        if self.restricted is not None and self.typ(val) not in self.restricted:
+            print(val,"not in list of acceptable entries:",self.restricted)
+
 
 
 
@@ -130,6 +155,9 @@ class Boolean(object):
 class OrderedDictDesc(object):
 
     typ = OrderedDict
+
+    #the name is set by Network.__init__
+    name = None
 
     def __init__(self):
         self.values = WeakKeyDictionary()
@@ -152,6 +180,9 @@ class GraphDesc(object):
 
     typ = OrderedGraph
 
+    #the name is set by Network.__init__
+    name = None
+
     def __init__(self):
         self.values = WeakKeyDictionary()
 
@@ -173,6 +204,9 @@ class Series(object):
     """A descriptor to manage series."""
 
     typ = pd.Series
+
+    #the name is set by Network.__init__
+    name = None
 
     def __init__(self, dtype=float, default=0.0):
         self.dtype = dtype
@@ -204,25 +238,20 @@ class Series(object):
                 print("count not assign",val,"to series")
 
 
-class String(object):
-    """A descriptor to manage strings."""
 
-    typ = str
+simple_descriptors = [Integer, Float, String, Boolean]
 
-    def __init__(self,default="",restricted=None):
-        self.default = default
-        self.restricted = restricted
-        self.values = WeakKeyDictionary()
 
-    def __get__(self,obj,cls):
-        return self.values.get(obj,self.default)
+def get_simple_descriptors(cls):
+    d = OrderedDict()
 
-    def __set__(self,obj,val):
-        try:
-            self.values[obj] = self.typ(val)
-        except:
-            print("could not convert",val,"to a string")
-            return
-        if self.restricted is not None:
-            if self.values[obj] not in self.restricted:
-                print(val,"not in list of acceptable entries:",self.restricted)
+    mro = list(inspect.getmro(cls))
+
+    #make sure get closest descriptor in inheritance tree
+    mro.reverse()
+
+    for kls in mro:
+        for k,v in vars(kls).iteritems():
+            if type(v) in simple_descriptors:
+                d[k] = v
+    return d

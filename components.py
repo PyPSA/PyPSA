@@ -39,14 +39,17 @@ import pandas as pd
 from collections import OrderedDict
 from itertools import chain
 
-from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean
+from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors
 
 from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
+import inspect
+
+import sys
 
 class Basic(object):
     """Common to every object."""
-    name = String()
+    name = ""
 
     def __repr__(self):
         return "%s %s" % (self.__class__.__name__, self.name)
@@ -311,7 +314,7 @@ class Network(Basic):
 
 
     #Spatial Reference System Identifier (SRID) for x,y - defaults to longitude and latitude
-    srid = Float(4326)
+    srid = 4326
 
     graph = GraphDesc()
 
@@ -325,12 +328,46 @@ class Network(Basic):
         #hack so that Series descriptor works when looking for obj.network.snapshots
         self.network = self
 
+
+        #make a dictionary of all simple descriptors
+        self.component_simple_descriptors = {obj : OrderedDict() for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+
+        for cls in self.component_simple_descriptors:
+            self.component_simple_descriptors[cls] = get_simple_descriptors(cls)
+
+        self.build_dataframes()
+
+
+
         if csv_folder_name is not None:
             self.import_from_csv_folder(csv_folder_name)
             #self.determine_network_topology()
 
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
+
+
+
+
+    def build_dataframes(self):
+        for cls in Load, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
+            columns = list(self.component_simple_descriptors[cls].keys())
+
+            #store also the objects themselves
+            columns.append("obj")
+
+            #very important! must tell the descriptor what it's name is
+            for k,v in self.component_simple_descriptors[cls].iteritems():
+                v.name = k
+
+            df = pd.DataFrame(columns=columns)
+
+            df.index.name = "name"
+
+            setattr(self,cls.list_name+"_df",df)
+
+
+
 
 
     def import_from_csv_folder(self,csv_folder_name):
@@ -364,7 +401,19 @@ class Network(Basic):
 
         obj = cls(self)
 
-        obj.name = name
+        obj.name = str(name)
+
+        obj_df = getattr(self,cls.list_name + "_df")
+
+        obj_df.loc[obj.name,"obj"] = obj
+
+        #now set defaults for other items
+        for col in obj_df.columns:
+            if col in ["obj"]:
+                continue
+            else:
+                obj_df.loc[obj.name,col] = self.component_simple_descriptors[cls][col].default
+
 
         for key,value in kwargs.iteritems():
             setattr(obj,key,value)
