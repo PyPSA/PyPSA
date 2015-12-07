@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[184]:
+# In[1]:
 
 
 # make the code as Python 3 compatible as possible                                                                                          
@@ -13,24 +13,24 @@ import pypsa
 import pandas as pd
 
 
-# In[185]:
+# In[2]:
 
 #note that some columns have 'quotes because of fields containing commas'
-vertices = pd.read_csv("vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
+vertices = pd.read_csv("scigrid-151109/vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 
 vertices["v_nom"] = 380.
 
 vertices.rename(columns={"lon":"x","lat":"y","name":"osm_name"},inplace=True)
 
 
-# In[186]:
+# In[3]:
 
 print(vertices.columns)
 
 
-# In[187]:
+# In[4]:
 
-links = pd.read_csv("links_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
+links = pd.read_csv("scigrid-151109/links_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 links.rename(columns={"v_id_1":"bus0","v_id_2":"bus1","name":"osm_name"},inplace=True)
 
 links["cables"].fillna(3,inplace=True)
@@ -52,32 +52,32 @@ links["x"] = [row["length"]*coeffs.get(row["voltage"],default)["x"]/(row["wires"
 links["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
 
 
-# In[188]:
+# In[5]:
 
 print(links.columns)
 
 
-# In[189]:
+# In[6]:
 
 print(links["voltage"].value_counts(dropna=False))
 
 
-# In[190]:
+# In[7]:
 
 print(links[links["length_m"] <=0])
 
 
-# In[191]:
+# In[8]:
 
 print(links[(links["voltage"] != 220000) & (links["voltage"] != 380000)])
 
 
-# In[192]:
+# In[9]:
 
 print(links[pd.isnull(links.cables)])
 
 
-# In[193]:
+# In[10]:
 
 network = pypsa.Network()
 
@@ -86,7 +86,7 @@ pypsa.io.import_components_from_dataframe(network,vertices,"Bus")
 pypsa.io.import_components_from_dataframe(network,links,"Line")
 
 
-# In[194]:
+# In[11]:
 
 network.build_graph()
 
@@ -105,12 +105,12 @@ for sn in network.sub_networks.itervalues():
                 
 
 
-# In[195]:
+# In[12]:
 
 network.lpf()
 
 
-# In[196]:
+# In[13]:
 
 try:
     import vresutils
@@ -118,7 +118,7 @@ except:
     print("Oh dear! You don't have vresutils, so you cannot add load :-(")
 
 
-# In[197]:
+# In[14]:
 
 from vresutils import graph as vgraph
 from vresutils import shapes as vshapes
@@ -127,17 +127,17 @@ from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
 
 
-# In[198]:
+# In[15]:
 
 poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
 
 
-# In[199]:
+# In[16]:
 
 poly
 
 
-# In[200]:
+# In[17]:
 
 import numpy as np
 
@@ -145,82 +145,82 @@ for bus in network.buses.itervalues():
     network.graph.node[bus]["pos"] = np.array([bus.x,bus.y])
 
 
-# In[201]:
+# In[18]:
 
 region = vshapes.germany()
 #print(region.convex_hull)
 
 
-# In[202]:
+# In[19]:
 
 vgraph.voronoi_partition(network.graph, poly)
 
 
-# In[203]:
+# In[20]:
 
 network.graph.node[network.buses.itervalues().next()]["region"]
 
 
-# In[204]:
+# In[21]:
 
 import load.germany as DEload
 
 
-# In[205]:
+# In[22]:
 
 load = DEload.timeseries(network.graph, years=[2011, 2012, 2013, 2014])
 
 
 
-# In[206]:
+# In[23]:
 
 import datetime
 start = datetime.datetime(2011,1,1)
 n_hours = 24
-network.snapshots = [start + datetime.timedelta(hours=i) for i in range(n_hours)]
+network.set_snapshots([start + datetime.timedelta(hours=i) for i in range(n_hours)])
 
 network.now = network.snapshots[0]
 
-network.snapshots
+print(network.snapshots)
 
 
-# In[207]:
+# In[24]:
 
 load[:len(network.snapshots),2].shape
 
 
-# In[208]:
+# In[25]:
 
 for i,bus in enumerate(network.buses.values()):
     network.add("Load",bus.name,bus=bus,p_set = pd.Series(data=1000*load[:len(network.snapshots),i],index=network.snapshots))
 
 
-# In[209]:
+# In[26]:
 
 print(len(network.loads))
 
 
-# In[210]:
+# In[27]:
 
 get_ipython().magic(u'matplotlib inline')
 
 
-# In[211]:
+# In[28]:
 
 pd.DataFrame(load.sum(axis=1)).plot()
 
 
-# In[212]:
+# In[29]:
 
 [k.osm_name for k,v in network.graph.node.iteritems() if 'region' not in v]
 
 
-# In[213]:
+# In[30]:
 
 #cap = vdispatch.backup_capacity_german_grid(network.graph)
 
 
-# In[214]:
+# In[31]:
 
 import random
 
@@ -249,33 +249,33 @@ def backup_capacity_german_grid(G):
     return capacity
 
 
-# In[215]:
+# In[32]:
 
 cap = backup_capacity_german_grid(network.graph)
 
 
-# In[216]:
+# In[33]:
 
 cap.describe(),cap.sum(),type(cap)
 
 
-# In[217]:
+# In[34]:
 
 print(cap[pd.isnull(cap)])
 
 
-# In[218]:
+# In[35]:
 
 cap.fillna(0.1,inplace=True)
 
 
-# In[219]:
+# In[36]:
 
 
 cap.index.levels[1]
 
 
-# In[220]:
+# In[37]:
 
 m_costs = {"Gas" : 14.,
            "Coal" : 9.,
@@ -284,89 +284,89 @@ m_costs = {"Gas" : 14.,
 
 
 
-# In[221]:
+# In[38]:
 
 for (bus,tech_name) in cap.index:
     print(bus,tech_name,cap[(bus,tech_name)])
     network.add("Generator",bus.name + " " + tech_name,bus=bus,p_nom=1000*cap[(bus,tech_name)],marginal_cost=m_costs.get(tech_name,1.))
 
 
-# In[222]:
+# In[39]:
 
 cap.values.shape
 
 
-# In[223]:
+# In[40]:
 
 ##plot graph!!!
 
 
-# In[224]:
+# In[41]:
 
 print(len(network.generators))
 
 
-# In[225]:
+# In[42]:
 
 slack = next(network.generators.itervalues())
 slack.bus.control = "Slack"
 
 
-# In[226]:
+# In[43]:
 
 network.lpf()
 
 
-# In[227]:
+# In[44]:
 
 print(sum(g.p[network.now] for g in network.generators.values()))
 
 
-# In[228]:
+# In[45]:
 
 print(sum(g.p_nom for g in network.generators.values()))
 
 
-# In[229]:
+# In[46]:
 
 print(sum(l.p[network.now] for l in network.loads.values()))
 
 
-# In[230]:
+# In[47]:
 
 loading = pd.Series([b.p0[network.now] for b in network.branches.values()])
 caps = pd.Series([b.s_nom for b in network.branches.values()])
 
 
-# In[231]:
+# In[48]:
 
 loading.describe()
 
 
-# In[232]:
+# In[49]:
 
 caps.describe()
 
 
-# In[233]:
+# In[50]:
 
 loading_pu = abs(loading)/caps
 
 loading_pu.describe()
 
 
-# In[234]:
+# In[51]:
 
 angles = pd.Series([b.v_ang[network.now] for b in network.buses.values()])
 angles.describe()
 
 
-# In[235]:
+# In[52]:
 
 len(network.buses)
 
 
-# In[236]:
+# In[53]:
 
 for b in network.branches.values():
     print(b,b.s_nom)
@@ -376,12 +376,12 @@ for b in network.branches.values():
     b.capital_cost = 10000.
 
 
-# In[237]:
+# In[54]:
 
 network.lopf(network.snapshots[:2])
 
 
-# In[254]:
+# In[55]:
 
 for i,b in enumerate(network.branches.values()):
     
@@ -389,7 +389,7 @@ for i,b in enumerate(network.branches.values()):
         print(i,b,b.s_nom,b.s_nom_old,b.bus0.x,b.bus0.y,b.length,b.voltage)
 
 
-# In[239]:
+# In[56]:
 
 import networkx as nx
 
@@ -398,19 +398,19 @@ import matplotlib.pyplot as plt
 import vresutils.plot as vplot
 
 
-# In[240]:
+# In[57]:
 
 segments = np.array([[1.] for bus in network.buses.values()])
 
 segments.shape
 
 
-# In[241]:
+# In[58]:
 
 len(network.graph.edges())
 
 
-# In[251]:
+# In[59]:
 
 fig, ax = plt.subplots(figsize=(10,10))
 
@@ -453,20 +453,10 @@ len(network.branches)
 len(network.graph.edges())
 
 
-# In[248]:
+# In[60]:
 
 for i in range(822):
     print(network.graph.edges(keys=True)[i],network.branches.values()[i])
-
-
-# In[249]:
-
-get_ipython().magic(u'pinfo network.graph.edges')
-
-
-# In[250]:
-
-network.graph.g
 
 
 # In[ ]:
@@ -480,7 +470,7 @@ network.graph.edge[b.bus0][b.bus1][b]
 
 # # Look around specific nodes
 
-# In[261]:
+# In[63]:
 
 name = "Conneforde"
 #name = "Dipperz"
@@ -490,17 +480,17 @@ buses = list(filter(lambda b: type(b.osm_name) == str and name in b.osm_name,net
 for bus in buses:
     print(bus,bus.osm_name,bus.voltage)
     
-bus = network.buses[str(159)]
+bus = network.buses["Bus " + str(159)]
 
 print(bus,bus.osm_name,bus.voltage)
 
 
-# In[262]:
+# In[64]:
 
 lines = list(filter(lambda l: l.bus0 == bus or l.bus1 == bus,network.lines.values()))
 
 
-# In[263]:
+# In[65]:
 
 
 

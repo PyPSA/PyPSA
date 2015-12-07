@@ -56,6 +56,9 @@ class Basic(object):
     def __repr__(self):
         return self.name
 
+    def base_name(self):
+        return self.name[len(self.__class__.__name__) + 1:]
+
 
 class Common(Basic):
     """Common to all objects inside Network object."""
