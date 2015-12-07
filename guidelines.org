@@ -90,13 +90,18 @@ Settable SoC, Soc min/max, separate efficiencies
 running loss
 
 
-** regression testing
+** DONE regression testing
 
 with nose?
 
 see Jonas email of 151109
 
 no, use py.test
+
+
+** more detailed regression testing
+
+Use classes to do multiple tests with same set-up
 
 ** DONE Time weighting
 
@@ -149,7 +154,7 @@ lines.csv
 generator-p_set.csv  - time-dependent set point
 
 
-** ensure object names are unique
+** DONE ensure object names are unique
 
 can also check with pandas.index.unique
 
@@ -289,12 +294,13 @@ e.g. for p_nom_max
 *** load.bus, bus.loads, generator.source
 *** first step: semi-pandify in e.g. network.generators_df, to which descriptors point
 
+*** fix remove(obj)
 
 ** check results per unit behaviour
 
 e.g. per unit power
 
-** Pandas backend for attributes
+** DONE Pandas backend for attributes
 
 replace
             self.values[obj] = float(val)

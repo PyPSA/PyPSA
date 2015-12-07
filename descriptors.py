@@ -214,35 +214,20 @@ class Series(object):
         self.values = WeakKeyDictionary()
 
     def __get__(self, obj, cls):
-        try:
-            return self.values[obj]
-        except KeyError:
-            series = self.typ(index=obj.network.snapshots, data=self.default, dtype=self.dtype)
-            self.values[obj] = series
-            return series
+        return getattr(getattr(obj.network,obj.__class__.list_name + "_df"),self.name).loc[:,obj.name]
 
     def __set__(self,obj,val):
-
-        #unclear whether we should allow pd.DataFrame here...
-        if type(val) in [pd.DataFrame,self.typ]:
-            try:
-                self.values[obj] = val.reindex(obj.network.snapshots)
-            except AttributeError:
-                print("could not reindex",val,"to the network index of snapshots")
-
-        #following should work for ints, floats, numpy ints/floats and numpy arrays of right size
-        else:
-            try:
-                self.values[obj] = self.typ(index=obj.network.snapshots, data=val, dtype=self.dtype)
-            except AttributeError:
-                print("count not assign",val,"to series")
+        df = getattr(getattr(obj.network,obj.__class__.list_name + "_df"),self.name)
+        #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
+        try:
+            df[obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
+        except AttributeError:
+            print("count not assign",val,"to series")
 
 
 
-simple_descriptors = [Integer, Float, String, Boolean]
 
-
-def get_simple_descriptors(cls):
+def get_descriptors(cls,allowed_descriptors=[]):
     d = OrderedDict()
 
     mro = list(inspect.getmro(cls))
@@ -252,6 +237,16 @@ def get_simple_descriptors(cls):
 
     for kls in mro:
         for k,v in vars(kls).iteritems():
-            if type(v) in simple_descriptors:
+            if type(v) in allowed_descriptors:
                 d[k] = v
     return d
+
+
+simple_descriptors = [Integer, Float, String, Boolean]
+
+
+def get_simple_descriptors(cls):
+    return get_descriptors(cls,simple_descriptors)
+
+def get_series_descriptors(cls):
+    return get_descriptors(cls,[Series])

@@ -185,7 +185,7 @@ def import_from_csv_folder(network,csv_folder_name):
 
     if os.path.isfile(file_name):
         df = pd.read_csv(file_name,index_col=0)
-        network.snapshots = df.index
+        network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
@@ -219,13 +219,6 @@ def import_from_csv_folder(network,csv_folder_name):
 
 
         print(getattr(network,list_name))
-
-
-
-def import_from_pypower_ppc(network,ppc):
-    pass
-
-
 
 
 

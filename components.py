@@ -39,7 +39,7 @@ import pandas as pd
 from collections import OrderedDict
 from itertools import chain
 
-from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors
+from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
 from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
@@ -287,12 +287,6 @@ class Network(Basic):
     #the current scenario/time
     now = "now"
 
-    #a list/index of scenarios/times
-    snapshots = [now]
-
-    #corresponds to number of hours represented by each snapshot
-    snapshot_weightings = Series(default=1)
-
     sub_networks = OrderedDictDesc()
 
     buses = OrderedDictDesc()
@@ -329,11 +323,20 @@ class Network(Basic):
         self.network = self
 
 
-        #make a dictionary of all simple descriptors
-        self.component_simple_descriptors = {obj : OrderedDict() for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+        #a list/index of scenarios/times
+        self.snapshots = [self.now]
 
-        for cls in self.component_simple_descriptors:
-            self.component_simple_descriptors[cls] = get_simple_descriptors(cls)
+        #corresponds to number of hours represented by each snapshot
+        self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
+
+
+
+        #make a dictionary of all simple descriptors
+        self.component_simple_descriptors = {obj : get_simple_descriptors(obj) for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+
+        #make a dictionary of all simple descriptors
+        self.component_series_descriptors = {obj : get_series_descriptors(obj) for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+
 
         self.build_dataframes()
 
@@ -366,8 +369,27 @@ class Network(Basic):
 
             setattr(self,cls.list_name+"_df",df)
 
+            for k,v in self.component_series_descriptors[cls].iteritems():
+                v.name = k
+                series_df = pd.DataFrame(index=self.snapshots)
+                series_df.index.name = "snapshots"
+                series_df.columns.name = "name"
+                setattr(df,k,series_df)
 
 
+    def set_snapshots(self,snapshots):
+
+        self.snapshots = snapshots
+
+        self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
+
+        for cls in Load, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
+
+            df = getattr(self,cls.list_name+"_df")
+
+            for k,v in self.component_series_descriptors[cls].iteritems():
+                series_df = getattr(df,k)
+                setattr(df,k,series_df.reindex(index=self.snapshots,fill_value=v.default))
 
 
     def import_from_csv_folder(self,csv_folder_name):
@@ -403,16 +425,20 @@ class Network(Basic):
 
         obj.name = str(name)
 
-        obj_df = getattr(self,cls.list_name + "_df")
+        cls_df = getattr(self,cls.list_name + "_df")
 
-        obj_df.loc[obj.name,"obj"] = obj
+        cls_df.loc[obj.name,"obj"] = obj
 
         #now set defaults for other items
-        for col in obj_df.columns:
+        for col in cls_df.columns:
             if col in ["obj"]:
                 continue
             else:
-                obj_df.loc[obj.name,col] = self.component_simple_descriptors[cls][col].default
+                cls_df.loc[obj.name,col] = self.component_simple_descriptors[cls][col].default
+
+
+        for k,v in self.component_series_descriptors[cls].iteritems():
+            getattr(cls_df,k)[obj.name] = v.default
 
 
         for key,value in kwargs.iteritems():
