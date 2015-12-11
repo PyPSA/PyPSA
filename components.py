@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 from itertools import chain
+from operator import itemgetter
 
 from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
@@ -362,17 +363,19 @@ class Network(Basic):
 
 
     def build_dataframes(self):
-        for cls in Load, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
-            columns = list(self.component_simple_descriptors[cls].keys())
+        for cls in (Load, SubNetwork, Generator, Line, Bus,
+                    StorageUnit, TransportLink, Transformer, Source, Converter):
+            columns = list((k, v.typ) for k, v in self.component_simple_descriptors[cls].iteritems())
 
             #store also the objects themselves
-            columns.append("obj")
+            columns.append(("obj", object))
 
             #very important! must tell the descriptor what it's name is
             for k,v in self.component_simple_descriptors[cls].iteritems():
                 v.name = k
 
-            df = pd.DataFrame(columns=columns)
+            df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
+                              columns=map(itemgetter(0), columns))
 
             df.index.name = "name"
 
@@ -380,7 +383,7 @@ class Network(Basic):
 
             for k,v in self.component_series_descriptors[cls].iteritems():
                 v.name = k
-                series_df = pd.DataFrame(index=self.snapshots)
+                series_df = pd.DataFrame(index=self.snapshots, dtype=v.dtype)
                 series_df.index.name = "snapshots"
                 series_df.columns.name = "name"
                 setattr(df,k,series_df)
