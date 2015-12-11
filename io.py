@@ -94,7 +94,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
             print("No",list_name)
             continue
 
-        index = [o.base_name() for o in od.itervalues()]
+        index = od.keys()
 
         df = pd.DataFrame(index=index)
 
@@ -106,7 +106,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
             if attr in ["list_name","name"] or attr[:1] == "_":
                 continue
             elif "source" in attr or "bus" in attr:
-                df[attr] = [getattr(o,attr).base_name() for o in od.itervalues()]
+                df[attr] = [getattr(o,attr).name for o in od.itervalues()]
             elif type(getattr(first,attr)) in allowed_types:
                 df[attr] = [getattr(o,attr) for o in od.itervalues()]
 
@@ -128,7 +128,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
             df.index.name = "snapshots"
 
             for item in sub_selection:
-                df[item.base_name()] = getattr(item,attr)
+                df[item.name] = getattr(item,attr)
 
             df.to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"))
 
@@ -149,9 +149,9 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         obj = network.add(cls_name,i)
         for attr in dataframe.columns:
             if attr == "source":
-                setattr(obj,attr,network.sources["Source " + str(dataframe[attr][i])])
+                setattr(obj,attr,network.sources[str(dataframe[attr][i])])
             elif "bus" in attr:
-                setattr(obj,attr,network.buses["Bus " + str(dataframe[attr][i])])
+                setattr(obj,attr,network.buses[str(dataframe[attr][i])])
                 #add oneports to bus lists
                 if attr == "bus":
                     getattr(obj.bus,obj.__class__.list_name)[obj.name] = obj
@@ -166,7 +166,7 @@ def import_series_from_dataframe(network,dataframe,list_name,attr):
     cls = get_cls_from_list_name(list_name)
 
     for col in dataframe:
-        setattr(od[cls.__name__ + " " + col],attr,dataframe[col])
+        setattr(od[col],attr,dataframe[col])
 
 
 

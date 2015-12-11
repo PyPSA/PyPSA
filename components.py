@@ -51,14 +51,16 @@ import sys
 class Basic(object):
     """Common to every object."""
 
+    name = ""
+
+
     def __init__(self, name=""):
-        self.name = "%s %s" % (self.__class__.__name__, name)
+        self.name = name
 
     def __repr__(self):
-        return self.name
+        return "%s %s" % (self.__class__.__name__, self.name)
 
-    def base_name(self):
-        return self.name[len(self.__class__.__name__) + 1:]
+
 
 
 class Common(Basic):
@@ -429,11 +431,11 @@ class Network(Basic):
 
         obj_list = getattr(self,cls.list_name)
 
-        if cls.__name__ + str(name) in obj_list:
+        if str(name) in obj_list:
             print("Failed to add",name,"because there is already an object with this name in",cls.list_name)
             return
 
-        obj = cls(self,name)
+        obj = cls(self,str(name))
 
         cls_df = getattr(self,cls.list_name + "_df")
 

@@ -480,7 +480,7 @@ buses = list(filter(lambda b: type(b.osm_name) == str and name in b.osm_name,net
 for bus in buses:
     print(bus,bus.osm_name,bus.voltage)
     
-bus = network.buses["Bus " + str(159)]
+bus = network.buses[str(159)]
 
 print(bus,bus.osm_name,bus.voltage)
 
