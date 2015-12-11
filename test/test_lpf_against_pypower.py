@@ -46,8 +46,6 @@ def test_pypower_case():
 
     network = pypsa.Network()
     network.import_from_pypower_ppc(ppc)
-    network.build_graph()
-    network.determine_network_topology()
     network.lpf()
 
 

@@ -2,9 +2,15 @@
 
 * Design
 
+** objects with descriptor properties
+
 ** network components cannot exist without a Network
 
+** p_set separate from calculated p
 
+to allow pf/opf to change set points
+
+** internally, per unit used for impedances
 
 
 * Default units

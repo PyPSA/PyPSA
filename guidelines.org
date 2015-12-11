@@ -218,7 +218,6 @@ see pfsoln.py
 
 want different files, but still have tab completion and ? and ?? magic
 
-** TODO Catch optimisation status gracefully
 
 ** DONE Flow as Expression
 
@@ -230,7 +229,7 @@ then use for nodal imbalance AND for flow limitation
 
 ** make p_set per unit?
 
-** think about storing tables for each component type
+** TODO think about storing tables for each component type
 
 class Generators:
     name = ...
@@ -292,9 +291,31 @@ e.g. for p_nom_max
 *** DONE create Boolean and Int descriptors
 
 *** load.bus, bus.loads, generator.source
-*** first step: semi-pandify in e.g. network.generators_df, to which descriptors point
+*** DONE first step: semi-pandify in e.g. network.generators_df, to which descriptors point
 
 *** fix remove(obj)
+
+DataFrame.drop(labels, axis=0, level=None, inplace=False, errors='raise')
+
+df.drop(["i0","i3"]) will remove rows by index
+
+df.drop(["n0","n3"], axis=1) will remove columns by name
+
+
+*** import_dataframe directly to dataframe
+
+and allow non-standard columns
+
+*** rewrite pf and opf
+
+network.generators.keys -> network.generators.index
+
+network.generators.values -> network.generators["obj"]
+
+attrfilter -> can use dataframe directly
+
+sub_network.branches.itervalues() -> network.lines.loc[sub_network.lines] + network.transformers[sub_network.transformers]
+
 
 ** check results per unit behaviour
 
@@ -365,7 +386,7 @@ What's also an issue is that the inherited descriptors are also shared between t
 so that Branch.s_nom was in fact sharing components for all transport_links, lines, trafos etc.
 
 
-** Kill inheritance
+** Kill inheritance?
 
 It doesn't serve any good purpose and just serves to confuse.
 
@@ -373,3 +394,63 @@ e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
 
 
 need to watch out for isinstance(Branch)
+
+
+** TODO Go back to simple naming?
+
+When creating DataFrames/Series combining components (e.g. branches), which should only happen internally, could rename them there, or index by object instead of name to avoid naming collisions
+
+BUT want branch.name for index set in opf....
+
+Compromise: have obj.uid = Class.name + " " + obj.name?
+
+
+
+
+** Include bus objects in the dataframe of branches, loads and generators
+
+** Do not define empty timeseries contents until called, e.g.
+
+network.generators_df.p = pd.DataFrame(index = network.snapshots)
+
+network.generators_df.p.loc[1,"AT"] = 45.
+
+- this will define a new column "AT" and add NaNs in other entries.
+
+(at least for calculated quantities - p_set etc. should be defined)
+
+give default if name not in col????
+
+** fix angle bound limits!!!!!
+
+Currently set to None; should allow limits on angle *differences*
+
+** component.__init__
+
+should just do network and name, since have two interfaces for adding components and their attributes:
+
+network.add()
+
+network.import_from_df()
+
+
+
+
+** read out dual variables
+
+
+** TODO Catch optimisation status gracefully
+
+** Compare with oemof optimisation
+
+~/fias/oemof/oemof_base/oemof/solph/optimization_model.py
+
+more abstract and sophisticated than pypsa somehow
+
+
+Also snaffles dual variables in post-processing
+
+
+from oemof.solph.optimization_model import OptimizationModel as OM
+
+class OptimizationModel(po.ConcreteModel)

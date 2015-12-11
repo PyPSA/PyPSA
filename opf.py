@@ -288,7 +288,7 @@ def define_controllable_branch_flows(network,snapshots):
 def define_passive_branch_flows(network,snapshots):
 
 
-    network.model.voltage_angles = Var(network.buses.iterkeys(), snapshots, domain=Reals, bounds=(-1,1))
+    network.model.voltage_angles = Var(network.buses.iterkeys(), snapshots, domain=Reals, bounds=(None,None))
 
     def slack(model,sn_name,snapshot):
         slack_bus = network.sub_networks[sn_name].slack_bus
