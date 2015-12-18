@@ -64,7 +64,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
 
     #exportable component types
     #what about None????
-    allowed_types = [float,int,str,bool]
+    allowed_types = [float,int,str,bool] + np.typeDict.values()
 
     #first export network properties
 

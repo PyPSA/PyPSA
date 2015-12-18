@@ -135,6 +135,8 @@ class Zone
 
 cf. oemof
 
+started org-mode docu in doc/ - can be based on this documentation
+
 ** Python 3 improve
 
 use six for itervalues()/values()
@@ -162,9 +164,13 @@ can also check with pandas.index.unique
 
 ** CIM converter
 
+look at Richard Lincoln's PyCIM
+
 ** ConstantSeries???
 
-** Naming
+i.e. have some way of setting constant time series to save memory
+
+** Naming considerations for components and attributes
 
 *** SubNetwork -> ConnectedNetwork
 
@@ -217,6 +223,8 @@ see pfsoln.py
 ** look at pandas for storing object methods in different files
 
 want different files, but still have tab completion and ? and ?? magic
+
+over-ride __dir__???
 
 
 ** DONE Flow as Expression
@@ -356,7 +364,9 @@ vii) For relations between tables
 
 also applies for inheritance? yes  - if the class A inherits from B, isinstance true for A and B
 
-** ZI load
+** Voltage-dependent and ZIP loads
+
+see PyPower and PSAT
 
 ** ratio and phase shift for trafos
 
@@ -386,6 +396,12 @@ What's also an issue is that the inherited descriptors are also shared between t
 so that Branch.s_nom was in fact sharing components for all transport_links, lines, trafos etc.
 
 
+Better solution: hierarchical pandas index, so built
+
+subnetwork._branches
+
+with index (Line, 0),.... (Transormer,0),.....
+
 ** Kill inheritance?
 
 It doesn't serve any good purpose and just serves to confuse.
@@ -396,7 +412,7 @@ e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
 need to watch out for isinstance(Branch)
 
 
-** TODO Go back to simple naming?
+** DONE Go back to simple naming?
 
 When creating DataFrames/Series combining components (e.g. branches), which should only happen internally, could rename them there, or index by object instead of name to avoid naming collisions
 
@@ -407,7 +423,7 @@ Compromise: have obj.uid = Class.name + " " + obj.name?
 
 
 
-** Include bus objects in the dataframe of branches, loads and generators
+** Include bus names in the dataframe of branches, loads and generators
 
 ** Do not define empty timeseries contents until called, e.g.
 
@@ -423,7 +439,7 @@ give default if name not in col????
 
 ** fix angle bound limits!!!!!
 
-Currently set to None; should allow limits on angle *differences*
+Currently set to None; should allow limits on angle *differences* not the actual angles
 
 ** component.__init__
 
@@ -436,10 +452,12 @@ network.import_from_df()
 
 
 
-** read out dual variables
+** read out dual variables in opf results
 
 
 ** TODO Catch optimisation status gracefully
+
+i.e. when it fails or is infeasible, catch the status and inform the user
 
 ** Compare with oemof optimisation
 

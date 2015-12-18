@@ -81,6 +81,7 @@ class Source(Common):
     list_name = "sources"
 
     #emissions in CO2-tonnes-equivalent per MWh primary energy
+    #(e.g. gas: 0.2 t_CO2/MWh_thermal)
     co2_emissions = Float()
 
     #typical values, should generator-specific ones be missing
@@ -170,6 +171,7 @@ class Generator(OnePort):
 
 
     #ratio between electrical energy and primary energy
+    #(e.g. gas: 0.4 MWh_elec/MWh_thermal)
     efficiency = Float(1)
 
 
