@@ -35,8 +35,6 @@ from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Const
 
 from pyomo.opt import SolverFactory
 
-from .dicthelpers import attrdata, attrfilter
-
 from .pf import calculate_x_pu, find_slack_bus
 
 from itertools import chain
@@ -244,14 +242,16 @@ def define_storage_variables_constraints(network,snapshots):
 
 def define_branch_extension_variables(network,snapshots):
 
-    extendable_branches = attrfilter(network.branches, s_nom_extendable=True)
+    branches_df = network.branches_df
+
+    extendable_branches = branches_df[branches_df.s_nom_extendable]
 
 
-    def branch_s_nom_bounds(model, branch_name):
-        branch = network.branches[branch_name]
+    def branch_s_nom_bounds(model, branch_type, branch_name):
+        branch = extendable_branches.obj[(branch_type, branch_name)]
         return (replace_nan_with_none(branch.s_nom_min), replace_nan_with_none(branch.s_nom_max))
 
-    network.model.branch_s_nom = Var([branch.name for branch in extendable_branches], domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+    network.model.branch_s_nom = Var(list(extendable_branches.index), domain=NonNegativeReals, bounds=branch_s_nom_bounds)
 
 
 
@@ -259,27 +259,27 @@ def define_controllable_branch_flows(network,snapshots):
 
 
     def tl_p_bounds(model,tl_name,snapshot):
-        tl = network.transport_links[tl_name]
+        tl = network.transport_links_df.obj[tl_name]
         if tl.s_nom_extendable:
             return (None,None)
         else:
             return (tl.p_min,tl.p_max)
 
-    network.model.transport_link_p = Var(network.transport_links.iterkeys(), snapshots, domain=Reals, bounds=tl_p_bounds)
+    network.model.transport_link_p = Var(network.transport_links_df.index, snapshots, domain=Reals, bounds=tl_p_bounds)
 
 
-    extendable_transport_links = attrfilter(network.transport_links, s_nom_extendable=True)
+    extendable_transport_links = network.transport_links_df[network.transport_links_df.s_nom_extendable]
 
     def tl_p_upper(model,tl_name,snapshot):
-        return model.transport_link_p[tl_name,snapshot] <= model.branch_s_nom[tl_name]
+        return model.transport_link_p[tl_name,snapshot] <= model.branch_s_nom["TransportLink",tl_name]
 
-    network.model.transport_link_p_upper = Constraint([tl.name for tl in extendable_transport_links],snapshots,rule=tl_p_upper)
+    network.model.transport_link_p_upper = Constraint(extendable_transport_links.index,snapshots,rule=tl_p_upper)
 
 
     def tl_p_lower(model,tl_name,snapshot):
-        return model.transport_link_p[tl_name,snapshot] >= -model.branch_s_nom[tl_name]
+        return model.transport_link_p[tl_name,snapshot] >= -model.branch_s_nom["TransportLink",tl_name]
 
-    network.model.transport_link_p_lower = Constraint([tl.name for tl in extendable_transport_links],snapshots,rule=tl_p_lower)
+    network.model.transport_link_p_lower = Constraint(extendable_transport_links.index,snapshots,rule=tl_p_lower)
 
 
 
@@ -288,90 +288,94 @@ def define_controllable_branch_flows(network,snapshots):
 
 def define_passive_branch_flows(network,snapshots):
 
-
-    network.model.voltage_angles = Var(network.buses.iterkeys(), snapshots, domain=Reals, bounds=(None,None))
+    network.model.voltage_angles = Var(network.buses_df.index, snapshots, domain=Reals, bounds=(None,None))
 
     def slack(model,sn_name,snapshot):
-        slack_bus = network.sub_networks[sn_name].slack_bus
-        return model.voltage_angles[slack_bus.name,snapshot] == 0
+        return model.voltage_angles[network.sub_networks_df.slack_bus_name[sn_name], snapshot] == 0
 
-    network.model.slack_angle = Constraint(network.sub_networks.iterkeys(), snapshots, rule=slack)
+    network.model.slack_angle = Constraint(network.sub_networks_df.index, snapshots, rule=slack)
 
+    passive_branches = network.passive_branches_df
 
-    def flow(model,branch_name,snapshot):
-        branch = network.branches[branch_name]
+    def flow(model,branch_type,branch_name,snapshot):
+        branch = passive_branches.obj[branch_type,branch_name]
         return 1/branch.x_pu*(model.voltage_angles[branch.bus0.name,snapshot]- model.voltage_angles[branch.bus1.name,snapshot])
 
-    network.model.flow = Expression([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow)
+    network.model.flow = Expression(list(passive_branches.index),snapshots,rule=flow)
 
 
 def define_passive_branch_constraints(network,snapshots):
 
 
-    extendable_branches = attrfilter((branch for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()), s_nom_extendable=True)
+    passive_branches = network.passive_branches_df
 
-    def flow_upper(model,branch_name,snapshot):
-        branch = network.branches[branch_name]
+    extendable_branches = passive_branches[passive_branches.s_nom_extendable]
+
+    def flow_upper(model,branch_type,branch_name,snapshot):
+        branch = passive_branches.obj[branch_type,branch_name]
         if branch.s_nom_extendable:
-            return model.flow[branch_name,snapshot] <= model.branch_s_nom[branch_name]
+            return model.flow[branch_type,branch_name,snapshot] <= model.branch_s_nom[branch_type,branch_name]
         else:
-            return model.flow[branch_name,snapshot] <= branch.s_nom
+            return model.flow[branch_type,branch_name,snapshot] <= branch.s_nom
 
-    network.model.flow_upper = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow_upper)
+    network.model.flow_upper = Constraint(list(passive_branches.index),snapshots,rule=flow_upper)
 
-    def flow_lower(model,branch_name,snapshot):
-        branch = network.branches[branch_name]
+    def flow_lower(model,branch_type,branch_name,snapshot):
+        branch = passive_branches.obj[branch_type,branch_name]
         if branch.s_nom_extendable:
-            return model.flow[branch_name,snapshot] >= -model.branch_s_nom[branch_name]
+            return model.flow[branch_type,branch_name,snapshot] >= -model.branch_s_nom[branch_type,branch_name]
         else:
-            return model.flow[branch_name,snapshot] >= -branch.s_nom
+            return model.flow[branch_type,branch_name,snapshot] >= -branch.s_nom
 
-    network.model.flow_lower = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow_lower)
+    network.model.flow_lower = Constraint(list(passive_branches.index),snapshots,rule=flow_lower)
 
 
 def define_nodal_balances(network,snapshots):
 
+    passive_branches = network.passive_branches_df
+
     #create dictionary of inflow branches at each bus
 
-    inflows = {bus_name : {"transport_links" : [], "branches" : []} for bus_name in network.buses.iterkeys()}
+    inflows = {bus_name : {"transport_links" : [], "branches" : []} for bus_name in network.buses_df.index}
 
-    for tl in network.transport_links.itervalues():
-        inflows[tl.bus0.name]["transport_links"].append((tl.name,-1))
-        inflows[tl.bus1.name]["transport_links"].append((tl.name,1))
+    for tl in network.transport_links_df.obj:
+        inflows[tl.bus0_name]["transport_links"].append((tl.name,-1))
+        inflows[tl.bus1_name]["transport_links"].append((tl.name,1))
 
-    for sub_network in network.sub_networks.itervalues():
-        for branch in sub_network.branches.itervalues():
-            inflows[branch.bus0.name]["branches"].append((branch.name,-1))
-            inflows[branch.bus1.name]["branches"].append((branch.name,1))
+    for branch in passive_branches.obj:
+        inflows[branch.bus0_name]["branches"].append(((branch.__class__.__name__,branch.name),-1))
+        inflows[branch.bus1_name]["branches"].append(((branch.__class__.__name__,branch.name),1))
+
+
 
     def p_balance(model,bus_name,snapshot):
 
-        bus = network.buses[bus_name]
+        bus = network.buses_df.obj[bus_name]
 
-        p = sum(gen.sign*model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
+        p = sum(gen.sign*model.generator_p[gen.name,snapshot] for gen in bus.generators_df.obj)
 
-        p += sum(su.sign*model.storage_p_dispatch[su.name,snapshot] for su in bus.storage_units.itervalues())
+        p += sum(su.sign*model.storage_p_dispatch[su.name,snapshot] for su in bus.storage_units_df.obj)
 
-        p -= sum(su.sign*model.storage_p_store[su.name,snapshot] for su in bus.storage_units.itervalues())
+        p -= sum(su.sign*model.storage_p_store[su.name,snapshot] for su in bus.storage_units_df.obj)
 
-        p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
+        p += sum(load.sign*load.p_set[snapshot] for load in bus.loads_df.obj)
 
         p += sum(coeff*model.transport_link_p[tl_name,snapshot] for tl_name,coeff in inflows[bus_name]["transport_links"])
 
-        p += sum(coeff*model.flow[branch_name,snapshot] for branch_name,coeff in inflows[bus_name]["branches"])
+        p += sum(coeff*model.flow[bt,bn,snapshot] for (bt,bn),coeff in inflows[bus_name]["branches"])
 
         #beware if the p above sums to an integer, the below will return True or False, inducing a bug
 
         return p == 0
 
-    network.model.power_balance = Constraint(network.buses.iterkeys(), snapshots, rule=p_balance)
+    network.model.power_balance = Constraint(network.buses_df.index, snapshots, rule=p_balance)
 
 
 
 def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
-        return sum(gen.source.co2_emissions*(1/gen.efficiency)*model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators.itervalues() for snapshot in snapshots) <= network.co2_limit
+        return sum(gen.source.co2_emissions*(1/gen.efficiency)*model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators_df.obj for snapshot in snapshots) <= network.co2_limit
 
     network.model.co2_constraint = Constraint(rule=co2_constraint)
 
@@ -381,17 +385,19 @@ def define_co2_constraint(network,snapshots):
 
 def define_linear_objective(network,snapshots):
 
-    extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
+    extendable_generators = network.generators_df[network.generators_df.p_nom_extendable].obj
 
-    extendable_storage_units = attrfilter(network.storage_units, p_nom_extendable=True)
+    extendable_storage_units = network.storage_units_df[network.storage_units_df.p_nom_extendable].obj
 
-    extendable_branches = attrfilter(network.branches, s_nom_extendable=True)
+    branches = network.branches_df
 
-    network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators.itervalues() for snapshot in snapshots)\
-                                        + sum(su.marginal_cost*network.model.storage_p_dispatch[su.name,snapshot]*network.snapshot_weightings[snapshot] for su in network.storage_units.itervalues() for snapshot in snapshots)\
+    extendable_branches = branches[branches.s_nom_extendable].obj
+
+    network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators_df.obj for snapshot in snapshots)\
+                                        + sum(su.marginal_cost*network.model.storage_p_dispatch[su.name,snapshot]*network.snapshot_weightings[snapshot] for su in network.storage_units_df.obj for snapshot in snapshots)\
                                         + sum(gen.capital_cost*(network.model.generator_p_nom[gen.name] - gen.p_nom) for gen in extendable_generators)\
                                         + sum(su.capital_cost*(network.model.storage_p_nom[su.name] - su.p_nom) for su in extendable_storage_units)\
-                                        + sum(branch.capital_cost*(network.model.branch_s_nom[branch.name] - branch.s_nom) for branch in extendable_branches))
+                                        + sum(branch.capital_cost*(network.model.branch_s_nom[branch.__class__.__name__,branch.name] - branch.s_nom) for branch in extendable_branches))
 
 
 
@@ -400,47 +406,47 @@ def extract_optimisation_results(network,snapshots):
 
     for snapshot in snapshots:
 
-        for generator in network.generators.itervalues():
+        for generator in network.generators_df.obj:
             generator.p[snapshot] = network.model.generator_p[generator.name,snapshot].value
 
-        for su in network.storage_units.itervalues():
+        for su in network.storage_units_df.obj:
             su.p[snapshot] = network.model.storage_p_dispatch[su.name,snapshot].value - network.model.storage_p_store[su.name,snapshot].value
             su.state_of_charge[snapshot] = network.model.state_of_charge[su.name,snapshot].value
 
 
 
-        for load in network.loads.itervalues():
+        for load in network.loads_df.obj:
             load.p[snapshot] = load.p_set[snapshot]
 
-        for bus in network.buses.itervalues():
+        for bus in network.buses_df.obj:
             bus.v_ang[snapshot] = network.model.voltage_angles[bus.name,snapshot].value
 
-            bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.itervalues(),bus.loads.itervalues(),bus.storage_units.itervalues()))
+            bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators_df.obj,bus.loads_df.obj,bus.storage_units_df.obj))
 
 
-        for tl in network.transport_links.itervalues():
+        for tl in network.transport_links_df.obj:
             tl.p1[snapshot] = network.model.transport_link_p[tl.name,snapshot].value
             tl.p0[snapshot] = -tl.p1[snapshot]
             tl.bus0.p[snapshot] += tl.p0[snapshot]
             tl.bus1.p[snapshot] += tl.p1[snapshot]
 
 
-        for sn in network.sub_networks.itervalues():
-            for branch in sn.branches.itervalues():
-                branch.p1[snapshot] = 1/branch.x_pu*(branch.bus0.v_ang[snapshot] - branch.bus1.v_ang[snapshot])
-                branch.p0[snapshot] = -branch.p1[snapshot]
+        for branch in network.passive_branches_df.obj:
+            branch.p1[snapshot] = 1/branch.x_pu*(branch.bus0.v_ang[snapshot] - branch.bus1.v_ang[snapshot])
+            branch.p0[snapshot] = -branch.p1[snapshot]
 
 
-    for generator in attrfilter(network.generators, p_nom_extendable=True):
+
+    for generator in network.generators_df[network.generators_df.p_nom_extendable].obj:
         generator.p_nom = network.model.generator_p_nom[generator.name].value
 
 
-    for su in attrfilter(network.storage_units, p_nom_extendable=True):
+    for su in network.storage_units_df[network.storage_units_df.p_nom_extendable].obj:
         su.p_nom = network.model.storage_p_nom[su.name].value
 
 
-    for branch in attrfilter(network.branches, s_nom_extendable=True):
-        branch.s_nom = network.model.branch_s_nom[branch.name].value
+    for branch in network.branches_df[network.branches_df.s_nom_extendable].obj:
+        branch.s_nom = network.model.branch_s_nom[branch.__class__.__name__,branch.name].value
 
 
 
@@ -460,7 +466,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk"):
 
 
     #calculate B,H or PTDF for each subnetwork.
-    for sub_network in network.sub_networks.itervalues():
+    for sub_network in network.sub_networks_df.obj:
         calculate_x_pu(sub_network)
         find_slack_bus(sub_network)
 

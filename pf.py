@@ -113,6 +113,8 @@ def find_slack_bus(sub_network,verbose=True):
         if len(slack_buses) >= 2 and verbose:
             print("more than one slack bus found, taking %s to be the slack bus" % sub_network.slack_bus)
 
+    sub_network.slack_bus_name = sub_network.slack_bus.name
+
 
 def sub_network_lpf(sub_network,now=None,verbose=True):
     """Linear power flow for connected sub-network."""

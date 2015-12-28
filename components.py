@@ -529,6 +529,11 @@ class Network(Basic):
     def branches_df(self):
         return pd.concat([self.lines_df,self.transformers_df,self.converters_df,self.transport_links_df],keys=["Line","Transformer","Converter","TransportLink"])
 
+    @property
+    def passive_branches_df(self):
+        return pd.concat([self.lines_df,self.transformers_df],keys=["Line","Transformer"])
+
+
     def build_graph(self):
         """Build networkx graph."""
 
@@ -592,6 +597,8 @@ class SubNetwork(Common):
     num_phases = Float(default=3)
 
     base_power = Float(default=1)
+
+    slack_bus_name = String()
 
     buses = OrderedDictDesc()
     branches = OrderedDictDesc()
