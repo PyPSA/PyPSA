@@ -112,6 +112,24 @@ class Bus(Common):
     v_ang = Series()
     v_set = Series(default=1.)
 
+    sub_network_name = String()
+
+
+    @property
+    def generators_df(self):
+        return self.network.generators_df[self.network.generators_df.bus_name == self.name]
+
+
+    @property
+    def loads_df(self):
+        return self.network.loads_df[self.network.loads_df.bus_name == self.name]
+
+    @property
+    def storage_units_df(self):
+        return self.network.storage_units_df[self.network.storage_units_df.bus_name == self.name]
+
+
+
 class SubStation(Common):
     """Placeholder for a group of buses."""
 
@@ -123,6 +141,7 @@ class OnePort(Common):
     """Object which attaches to a single bus (e.g. load or generator)."""
 
     bus = None
+    bus_name = String()
     sign = Float(1)
     p = Series()
     q = Series()
@@ -136,6 +155,7 @@ class Generator(OnePort):
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
     source = None
+    source_name = String()
 
     #rated power
     p_nom = Float()
@@ -217,7 +237,9 @@ class Branch(Common):
     list_name = "branches"
 
     bus0 = None
+    bus0_name = String()
     bus1 = None
+    bus1_name = String()
 
     capital_cost = Float()
 
@@ -252,6 +274,9 @@ class Line(Branch):
     terrain_factor = Float(default=1.0)
 
 
+    sub_network_name = String()
+
+
 class Transformer(Branch):
     """2-winding transformer."""
 
@@ -259,6 +284,9 @@ class Transformer(Branch):
 
     #per unit with reference to s_nom
     x = Float()
+
+
+    sub_network_name = String()
 
 
 class Converter(Branch):
@@ -497,6 +525,10 @@ class Network(Basic):
         self.topology_determined = False
 
 
+    @property
+    def branches_df(self):
+        return pd.concat([self.lines_df,self.transformers_df,self.converters_df,self.transport_links_df],keys=["Line","Transformer","Converter","TransportLink"])
+
     def build_graph(self):
         """Build networkx graph."""
 
@@ -537,9 +569,11 @@ class Network(Basic):
 
             for bus in sub_network.buses.itervalues():
                 bus.sub_network = sub_network
+                bus.sub_network_name = sub_network.name
 
             for branch in sub_network.branches.itervalues():
                 branch.sub_network = sub_network
+                branch.sub_network_name = sub_network.name
 
 
         self.topology_determined = True
@@ -563,3 +597,15 @@ class SubNetwork(Common):
     branches = OrderedDictDesc()
 
     graph = GraphDesc()
+
+
+    @property
+    def buses_df(self):
+        return self.network.buses_df[self.network.buses_df.sub_network_name == self.name]
+
+
+
+    @property
+    def branches_df(self):
+        branches_df = self.network.branches_df
+        return branches_df[branches_df.sub_network_name == self.name]

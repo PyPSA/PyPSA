@@ -67,7 +67,8 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator dispatch variables ##
 
     def gen_p_bounds(model,gen_name,snapshot):
-        gen = network.generators[gen_name]
+
+        gen = network.generators_df.obj[gen_name]
 
         if gen.p_nom_extendable:
             return (None,None)
@@ -80,48 +81,48 @@ def define_generator_variables_constraints(network,snapshots):
                 raise NotImplementedError("Dispatch type %s is not supported yet." % (gen.dispatch))
 
 
-    network.model.generator_p = Var(network.generators.iterkeys(), snapshots, domain=Reals, bounds=gen_p_bounds)
+    network.model.generator_p = Var(network.generators_df.index, snapshots, domain=Reals, bounds=gen_p_bounds)
 
 
 
     ## Define generator capacity variables if generator is extendble ##
 
-    extendable_generators = attrfilter(network.generators, p_nom_extendable=True)
+    extendable_generators = network.generators_df[network.generators_df.p_nom_extendable]
 
     def gen_p_nom_bounds(model, gen_name):
-        gen = network.generators[gen_name]
+        gen = network.generators_df.obj[gen_name]
         return (replace_nan_with_none(gen.p_nom_min), replace_nan_with_none(gen.p_nom_max))
 
-    network.model.generator_p_nom = Var([gen.name for gen in extendable_generators], domain=NonNegativeReals, bounds=gen_p_nom_bounds)
+    network.model.generator_p_nom = Var(extendable_generators.index, domain=NonNegativeReals, bounds=gen_p_nom_bounds)
 
 
 
     ## Define generator dispatch constraints for extendable generators ##
 
     def gen_p_lower(model,gen_name,snapshot):
-        gen = network.generators[gen_name]
+        gen = network.generators_df.obj[gen_name]
 
         if gen.dispatch == "flexible":
-            return network.model.generator_p[gen_name,snapshot] >= network.model.generator_p_nom[gen_name]*gen.p_min_pu_fixed
+            return model.generator_p[gen_name,snapshot] >= model.generator_p_nom[gen_name]*gen.p_min_pu_fixed
         elif gen.dispatch == "variable":
-            return network.model.generator_p[gen_name,snapshot] >= network.model.generator_p_nom[gen_name]*gen.p_min_pu[snapshot]
+            return model.generator_p[gen_name,snapshot] >= model.generator_p_nom[gen_name]*gen.p_min_pu[snapshot]
         else:
             raise NotImplementedError("Dispatch type %s is not supported yet for extendability." % (gen.dispatch))
 
-    network.model.generator_p_lower = Constraint([gen.name for gen in extendable_generators],snapshots,rule=gen_p_lower)
+    network.model.generator_p_lower = Constraint(extendable_generators.index,snapshots,rule=gen_p_lower)
 
 
     def gen_p_upper(model,gen_name,snapshot):
-        gen = network.generators[gen_name]
+        gen = network.generators_df.obj[gen_name]
 
         if gen.dispatch == "flexible":
-            return network.model.generator_p[gen_name,snapshot] <= network.model.generator_p_nom[gen_name]*gen.p_max_pu_fixed
+            return model.generator_p[gen_name,snapshot] <= model.generator_p_nom[gen_name]*gen.p_max_pu_fixed
         elif gen.dispatch == "variable":
-            return network.model.generator_p[gen_name,snapshot] <= network.model.generator_p_nom[gen_name]*gen.p_max_pu[snapshot]
+            return model.generator_p[gen_name,snapshot] <= model.generator_p_nom[gen_name]*gen.p_max_pu[snapshot]
         else:
             raise NotImplementedError("Dispatch type %s is not supported yet for extendability." % (gen.dispatch))
 
-    network.model.generator_p_upper = Constraint([gen.name for gen in extendable_generators],snapshots,rule=gen_p_upper)
+    network.model.generator_p_upper = Constraint(extendable_generators.index,snapshots,rule=gen_p_upper)
 
 
 
@@ -133,75 +134,75 @@ def define_storage_variables_constraints(network,snapshots):
     ## Define storage dispatch variables ##
 
     def su_p_dispatch_bounds(model,su_name,snapshot):
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
 
         if su.p_nom_extendable:
             return (0,None)
         else:
             return (0,su.p_nom*su.p_max_pu_fixed)
 
-    network.model.storage_p_dispatch = Var(network.storage_units.iterkeys(), snapshots, domain=NonNegativeReals, bounds=su_p_dispatch_bounds)
+    network.model.storage_p_dispatch = Var(network.storage_units_df.index, snapshots, domain=NonNegativeReals, bounds=su_p_dispatch_bounds)
 
 
 
     def su_p_store_bounds(model,su_name,snapshot):
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
 
         if su.p_nom_extendable:
             return (0,None)
         else:
             return (0,-su.p_nom*su.p_min_pu_fixed)
 
-    network.model.storage_p_store = Var(network.storage_units.iterkeys(), snapshots, domain=NonNegativeReals, bounds=su_p_store_bounds)
+    network.model.storage_p_store = Var(network.storage_units_df.index, snapshots, domain=NonNegativeReals, bounds=su_p_store_bounds)
 
 
 
     ## Define generator capacity variables if generator is extendble ##
 
-    extendable_storage_units = attrfilter(network.storage_units, p_nom_extendable=True)
+    extendable_storage_units = network.storage_units_df[network.storage_units_df.p_nom_extendable]
 
     def su_p_nom_bounds(model, su_name):
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
         return (replace_nan_with_none(su.p_nom_min), replace_nan_with_none(su.p_nom_max))
 
-    network.model.storage_p_nom = Var([su.name for su in extendable_storage_units], domain=NonNegativeReals, bounds=su_p_nom_bounds)
+    network.model.storage_p_nom = Var(extendable_storage_units.index, domain=NonNegativeReals, bounds=su_p_nom_bounds)
 
 
 
     ## Define generator dispatch constraints for extendable generators ##
 
     def su_p_upper(model,su_name,snapshot):
-        su = network.storage_units[su_name]
-        return network.model.storage_p_dispatch[su_name,snapshot] <= network.model.storage_p_nom[su_name]*su.p_max_pu_fixed
+        su = network.storage_units_df.obj[su_name]
+        return model.storage_p_dispatch[su_name,snapshot] <= model.storage_p_nom[su_name]*su.p_max_pu_fixed
 
-    network.model.storage_p_upper = Constraint([su.name for su in extendable_storage_units],snapshots,rule=su_p_upper)
+    network.model.storage_p_upper = Constraint(extendable_storage_units.index,snapshots,rule=su_p_upper)
 
 
     def su_p_lower(model,su_name,snapshot):
-        su = network.storage_units[su_name]
-        return network.model.storage_p_store[su_name,snapshot] <= -network.model.storage_p_nom[su_name]*su.p_min_pu_fixed
+        su = network.storage_units_df.obj[su_name]
+        return model.storage_p_store[su_name,snapshot] <= -model.storage_p_nom[su_name]*su.p_min_pu_fixed
 
-    network.model.storage_p_lower = Constraint([su.name for su in extendable_storage_units],snapshots,rule=su_p_lower)
+    network.model.storage_p_lower = Constraint(extendable_storage_units.index,snapshots,rule=su_p_lower)
 
 
 
     ## Now define state of charge constraints ##
 
-    network.model.state_of_charge = Var(network.storage_units.iterkeys(), snapshots, domain=NonNegativeReals, bounds=(0,None))
+    network.model.state_of_charge = Var(network.storage_units_df.index, snapshots, domain=NonNegativeReals, bounds=(0,None))
 
     def soc_upper(model,su_name,snapshot):
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
         if su.p_nom_extendable:
-            return network.model.state_of_charge[su.name,snapshot] - su.max_hours*network.model.storage_p_nom[su_name] <= 0
+            return model.state_of_charge[su.name,snapshot] - su.max_hours*model.storage_p_nom[su_name] <= 0
         else:
-            return network.model.state_of_charge[su.name,snapshot] - su.max_hours*su.p_nom <= 0
+            return model.state_of_charge[su.name,snapshot] - su.max_hours*su.p_nom <= 0
 
-    network.model.state_of_charge_upper = Constraint(network.storage_units.iterkeys(), snapshots, rule=soc_upper)
+    network.model.state_of_charge_upper = Constraint(network.storage_units_df.index, snapshots, rule=soc_upper)
 
 
     def soc_constraint(model,su_name,snapshot):
 
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
 
         i = snapshots.get_loc(snapshot)
 
@@ -209,34 +210,34 @@ def define_storage_variables_constraints(network,snapshots):
             previous_state_of_charge = su.state_of_charge_initial
         else:
             previous = snapshots[i-1]
-            previous_state_of_charge = network.model.state_of_charge[su_name,previous]
+            previous_state_of_charge = model.state_of_charge[su_name,previous]
 
         elapsed_hours = network.snapshot_weightings[snapshot]
 
         if pd.isnull(su.state_of_charge[snapshot]):
-            state_of_charge = network.model.state_of_charge[su_name,snapshot]
+            state_of_charge = model.state_of_charge[su_name,snapshot]
         else:
             state_of_charge = su.state_of_charge[snapshot]
 
         return (1-su.standing_loss)**elapsed_hours*previous_state_of_charge\
-            + su.efficiency_store*network.model.storage_p_store[su_name,snapshot]*elapsed_hours\
-            - (1/su.efficiency_dispatch)*network.model.storage_p_dispatch[su_name,snapshot]*elapsed_hours\
+            + su.efficiency_store*model.storage_p_store[su_name,snapshot]*elapsed_hours\
+            - (1/su.efficiency_dispatch)*model.storage_p_dispatch[su_name,snapshot]*elapsed_hours\
             + su.inflow[snapshot]*elapsed_hours - state_of_charge == 0
 
-    network.model.state_of_charge_constraint = Constraint(network.storage_units.iterkeys(), snapshots, rule=soc_constraint)
+    network.model.state_of_charge_constraint = Constraint(network.storage_units_df.index, snapshots, rule=soc_constraint)
 
 
 
     def soc_constraint_fixed(model,su_name,snapshot):
 
-        su = network.storage_units[su_name]
+        su = network.storage_units_df.obj[su_name]
 
         if pd.isnull(su.state_of_charge[snapshot]):
             return Constraint.Feasible
         else:
-            return network.model.state_of_charge[su_name,snapshot] == su.state_of_charge[snapshot]
+            return model.state_of_charge[su_name,snapshot] == su.state_of_charge[snapshot]
 
-    network.model.state_of_charge_constraint_fixed = Constraint(network.storage_units.iterkeys(), snapshots, rule=soc_constraint_fixed)
+    network.model.state_of_charge_constraint_fixed = Constraint(network.storage_units_df.index, snapshots, rule=soc_constraint_fixed)
 
 
 
@@ -270,13 +271,13 @@ def define_controllable_branch_flows(network,snapshots):
     extendable_transport_links = attrfilter(network.transport_links, s_nom_extendable=True)
 
     def tl_p_upper(model,tl_name,snapshot):
-        return network.model.transport_link_p[tl_name,snapshot] <= network.model.branch_s_nom[tl_name]
+        return model.transport_link_p[tl_name,snapshot] <= model.branch_s_nom[tl_name]
 
     network.model.transport_link_p_upper = Constraint([tl.name for tl in extendable_transport_links],snapshots,rule=tl_p_upper)
 
 
     def tl_p_lower(model,tl_name,snapshot):
-        return network.model.transport_link_p[tl_name,snapshot] >= -network.model.branch_s_nom[tl_name]
+        return model.transport_link_p[tl_name,snapshot] >= -model.branch_s_nom[tl_name]
 
     network.model.transport_link_p_lower = Constraint([tl.name for tl in extendable_transport_links],snapshots,rule=tl_p_lower)
 
@@ -292,14 +293,14 @@ def define_passive_branch_flows(network,snapshots):
 
     def slack(model,sn_name,snapshot):
         slack_bus = network.sub_networks[sn_name].slack_bus
-        return network.model.voltage_angles[slack_bus.name,snapshot] == 0
+        return model.voltage_angles[slack_bus.name,snapshot] == 0
 
     network.model.slack_angle = Constraint(network.sub_networks.iterkeys(), snapshots, rule=slack)
 
 
     def flow(model,branch_name,snapshot):
         branch = network.branches[branch_name]
-        return 1/branch.x_pu*(network.model.voltage_angles[branch.bus0.name,snapshot]- network.model.voltage_angles[branch.bus1.name,snapshot])
+        return 1/branch.x_pu*(model.voltage_angles[branch.bus0.name,snapshot]- model.voltage_angles[branch.bus1.name,snapshot])
 
     network.model.flow = Expression([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow)
 
@@ -312,18 +313,18 @@ def define_passive_branch_constraints(network,snapshots):
     def flow_upper(model,branch_name,snapshot):
         branch = network.branches[branch_name]
         if branch.s_nom_extendable:
-            return network.model.flow[branch_name,snapshot] <= network.model.branch_s_nom[branch_name]
+            return model.flow[branch_name,snapshot] <= model.branch_s_nom[branch_name]
         else:
-            return network.model.flow[branch_name,snapshot] <= branch.s_nom
+            return model.flow[branch_name,snapshot] <= branch.s_nom
 
     network.model.flow_upper = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow_upper)
 
     def flow_lower(model,branch_name,snapshot):
         branch = network.branches[branch_name]
         if branch.s_nom_extendable:
-            return network.model.flow[branch_name,snapshot] >= -network.model.branch_s_nom[branch_name]
+            return model.flow[branch_name,snapshot] >= -model.branch_s_nom[branch_name]
         else:
-            return network.model.flow[branch_name,snapshot] >= -branch.s_nom
+            return model.flow[branch_name,snapshot] >= -branch.s_nom
 
     network.model.flow_lower = Constraint([branch.name for sn in network.sub_networks.itervalues() for branch in sn.branches.itervalues()],snapshots,rule=flow_lower)
 
@@ -347,17 +348,17 @@ def define_nodal_balances(network,snapshots):
 
         bus = network.buses[bus_name]
 
-        p = sum(gen.sign*network.model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
+        p = sum(gen.sign*model.generator_p[gen.name,snapshot] for gen in bus.generators.itervalues())
 
-        p += sum(su.sign*network.model.storage_p_dispatch[su.name,snapshot] for su in bus.storage_units.itervalues())
+        p += sum(su.sign*model.storage_p_dispatch[su.name,snapshot] for su in bus.storage_units.itervalues())
 
-        p -= sum(su.sign*network.model.storage_p_store[su.name,snapshot] for su in bus.storage_units.itervalues())
+        p -= sum(su.sign*model.storage_p_store[su.name,snapshot] for su in bus.storage_units.itervalues())
 
         p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.itervalues())
 
-        p += sum(coeff*network.model.transport_link_p[tl_name,snapshot] for tl_name,coeff in inflows[bus_name]["transport_links"])
+        p += sum(coeff*model.transport_link_p[tl_name,snapshot] for tl_name,coeff in inflows[bus_name]["transport_links"])
 
-        p += sum(coeff*network.model.flow[branch_name,snapshot] for branch_name,coeff in inflows[bus_name]["branches"])
+        p += sum(coeff*model.flow[branch_name,snapshot] for branch_name,coeff in inflows[bus_name]["branches"])
 
         #beware if the p above sums to an integer, the below will return True or False, inducing a bug
 
@@ -370,7 +371,7 @@ def define_nodal_balances(network,snapshots):
 def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
-        return sum(gen.source.co2_emissions*(1/gen.efficiency)*network.model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators.itervalues() for snapshot in snapshots) <= network.co2_limit
+        return sum(gen.source.co2_emissions*(1/gen.efficiency)*model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators.itervalues() for snapshot in snapshots) <= network.co2_limit
 
     network.model.co2_constraint = Constraint(rule=co2_constraint)
 

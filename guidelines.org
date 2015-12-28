@@ -207,6 +207,7 @@ ii) If there is a PV generator on a non-slack bus, it is a PV bus; First PV gene
 iii) Otherwise it is a PQ bus
 
 
+Need to also fix pypower importer/exporter
 
 
 
@@ -387,7 +388,7 @@ no gens in sub_network etc.
 Orders them according to collections of edges between same nodes NOT
 the order in which you read them in.
 
-** ORderedGraph of branches will not necessarily have unique names!!!!
+** OrderedGraph of branches will not necessarily have unique names!!!!
 
 Add component class name to start of name
 
@@ -423,7 +424,7 @@ Compromise: have obj.uid = Class.name + " " + obj.name?
 
 
 
-** Include bus names in the dataframe of branches, loads and generators
+** DONE Include bus names in the dataframe of branches, loads and generators
 
 ** Do not define empty timeseries contents until called, e.g.
 

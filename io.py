@@ -105,7 +105,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
         for attr in dir(first):
             if attr in ["list_name","name"] or attr[:1] == "_":
                 continue
-            elif "source" in attr or "bus" in attr:
+            elif attr in ["source","bus","bus0","bus1"]:
                 df[attr] = [getattr(o,attr).name for o in od.itervalues()]
             elif type(getattr(first,attr)) in allowed_types:
                 df[attr] = [getattr(o,attr) for o in od.itervalues()]
@@ -150,8 +150,10 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         for attr in dataframe.columns:
             if attr == "source":
                 setattr(obj,attr,network.sources[str(dataframe[attr][i])])
+                setattr(obj,attr+"_name",str(dataframe[attr][i]))
             elif "bus" in attr:
                 setattr(obj,attr,network.buses[str(dataframe[attr][i])])
+                setattr(obj,attr+"_name",str(dataframe[attr][i]))
                 #add oneports to bus lists
                 if attr == "bus":
                     getattr(obj.bus,obj.__class__.list_name)[obj.name] = obj
