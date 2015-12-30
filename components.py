@@ -72,8 +72,6 @@ class Common(Basic):
         Basic.__init__(self, name)
 
         self.network = network
-        self.sub_network = None
-
 
 class Source(Common):
     """Energy source, such as wind, PV or coal."""
@@ -105,30 +103,27 @@ class Bus(Common):
     x = Float()
     y = Float()
 
-    loads = OrderedDictDesc()
-    generators = OrderedDictDesc()
-    storage_units = OrderedDictDesc()
     p = Series()
     q = Series()
     v_mag = Series(default=1.)
     v_ang = Series()
     v_set = Series(default=1.)
 
-    sub_network_name = String()
+    sub_network = String()
 
 
     @property
-    def generators_df(self):
-        return self.network.generators_df[self.network.generators_df.bus_name == self.name]
+    def generators(self):
+        return self.network.generators[self.network.generators.bus == self.name]
 
 
     @property
-    def loads_df(self):
-        return self.network.loads_df[self.network.loads_df.bus_name == self.name]
+    def loads(self):
+        return self.network.loads[self.network.loads.bus == self.name]
 
     @property
-    def storage_units_df(self):
-        return self.network.storage_units_df[self.network.storage_units_df.bus_name == self.name]
+    def storage_units(self):
+        return self.network.storage_units[self.network.storage_units.bus == self.name]
 
 
 
@@ -142,8 +137,7 @@ class Region(Common):
 class OnePort(Common):
     """Object which attaches to a single bus (e.g. load or generator)."""
 
-    bus = None
-    bus_name = String()
+    bus = String()
     sign = Float(1)
     p = Series()
     q = Series()
@@ -158,8 +152,7 @@ class Generator(OnePort):
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = None
-    source_name = String()
+    source = String()
 
     #rated power
     p_nom = Float()
@@ -240,10 +233,8 @@ class Branch(Common):
 
     list_name = "branches"
 
-    bus0 = None
-    bus0_name = String()
-    bus1 = None
-    bus1_name = String()
+    bus0 = String()
+    bus1 = String()
 
     capital_cost = Float()
 
@@ -282,7 +273,7 @@ class Line(Branch):
     terrain_factor = Float(default=1.0)
 
 
-    sub_network_name = String()
+    sub_network = String()
 
 
 class Transformer(Branch):
@@ -295,7 +286,7 @@ class Transformer(Branch):
 
     x_pu = Float()
 
-    sub_network_name = String()
+    sub_network = String()
 
 
 class Converter(Branch):
@@ -336,22 +327,6 @@ class Network(Basic):
 
     #the current scenario/time
     now = "now"
-
-    sub_networks = OrderedDictDesc()
-
-    buses = OrderedDictDesc()
-
-    sources = OrderedDictDesc()
-
-    loads = OrderedDictDesc()
-    generators = OrderedDictDesc()
-    storage_units = OrderedDictDesc()
-
-    branches = OrderedDictDesc()
-    converters = OrderedDictDesc()
-    transport_links = OrderedDictDesc()
-    lines = OrderedDictDesc()
-    transformers = OrderedDictDesc()
 
     #limit of total co2-tonnes-equivalent emissions for period
     co2_limit = None
@@ -420,7 +395,7 @@ class Network(Basic):
 
             df.index.name = "name"
 
-            setattr(self,cls.list_name+"_df",df)
+            setattr(self,cls.list_name,df)
 
             for k,v in self.component_series_descriptors[cls].iteritems():
                 v.name = k
@@ -438,7 +413,7 @@ class Network(Basic):
 
         for cls in Load, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
 
-            df = getattr(self,cls.list_name+"_df")
+            df = getattr(self,cls.list_name)
 
             for k,v in self.component_series_descriptors[cls].iteritems():
                 series_df = getattr(df,k)
@@ -468,15 +443,13 @@ class Network(Basic):
             print(class_name,"not found")
             return None
 
-        obj_list = getattr(self,cls.list_name)
+        cls_df = getattr(self,cls.list_name)
 
-        if str(name) in obj_list:
+        if str(name) in cls_df.index:
             print("Failed to add",name,"because there is already an object with this name in",cls.list_name)
             return
 
         obj = cls(self,str(name))
-
-        cls_df = getattr(self,cls.list_name + "_df")
 
         cls_df.loc[obj.name,"obj"] = obj
 
@@ -495,17 +468,6 @@ class Network(Basic):
         for key,value in kwargs.iteritems():
             setattr(obj,key,value)
 
-        #add to list in network object
-        obj_list[obj.name] = obj
-
-        #build branches list
-        if isinstance(obj, Branch):
-            self.branches[obj.name] = obj
-
-        #add oneports to bus lists
-        if "bus" in kwargs:
-            getattr(obj.bus,cls.list_name)[obj.name] = obj
-
         return obj
 
 
@@ -515,19 +477,11 @@ class Network(Basic):
     def remove(self,obj):
         """Remove object from network."""
 
-        obj_list = getattr(self,obj.__class__.list_name)
+        cls = obj.__class__
 
-        if obj.name not in obj_list:
-            print("Object",obj,"no longer in",obj.__class__.list_name)
-            return
+        cls_df = getattr(self,cls.list_name)
 
-        obj_list.pop(obj.name)
-
-        if isinstance(obj, Branch):
-            self.branches.pop(obj.name)
-
-        if hasattr(obj,"bus"):
-            getattr(obj.bus,obj.__class__.list_name).pop(obj.name)
+        cls_df.drop([obj.name],inplace=True)
 
         del obj
 
@@ -535,12 +489,12 @@ class Network(Basic):
 
 
     @property
-    def branches_df(self):
-        return pd.concat([self.lines_df,self.transformers_df,self.converters_df,self.transport_links_df],keys=["Line","Transformer","Converter","TransportLink"])
+    def branches(self):
+        return pd.concat([self.lines,self.transformers,self.converters,self.transport_links],keys=["Line","Transformer","Converter","TransportLink"])
 
     @property
-    def passive_branches_df(self):
-        return pd.concat([self.lines_df,self.transformers_df],keys=["Line","Transformer"])
+    def passive_branches(self):
+        return pd.concat([self.lines,self.transformers],keys=["Line","Transformer"])
 
 
     def build_graph(self):
@@ -550,7 +504,7 @@ class Network(Basic):
         self.graph = OrderedGraph()
 
         #Multigraph uses object itself as key
-        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches.itervalues())
+        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches.obj)
 
 
     def determine_network_topology(self):
@@ -562,8 +516,8 @@ class Network(Basic):
         graph = self.graph.__class__(self.graph)
 
         graph.remove_edges_from((branch.bus0, branch.bus1, branch)
-                                for branch in chain(self.converters.itervalues(),
-                                                    self.transport_links.itervalues()))
+                                for branch in chain(self.converters.obj,
+                                                    self.transport_links.obj))
 
 
         #now build connected graphs of same type AC/DC
@@ -571,23 +525,18 @@ class Network(Basic):
 
 
         #remove all old sub_networks
-        for sub_network in list(self.sub_networks.values()):
+        for sub_network in self.sub_networks.obj:
             self.remove(sub_network)
 
         for i, sub_graph in enumerate(sub_graphs):
             #name using i for now
             sub_network = self.add("SubNetwork", i, graph=sub_graph)
 
-            sub_network.buses.update((n.name, n) for n in sub_graph.nodes())
-            sub_network.branches.update((branch.name, branch) for (u, v, branch) in sub_graph.edges_iter(keys=True))
+            for bus in sub_graph.nodes():
+                self.buses.loc[bus,"sub_network"] = sub_network.name
 
-            for bus in sub_network.buses.itervalues():
-                bus.sub_network = sub_network
-                bus.sub_network_name = sub_network.name
-
-            for branch in sub_network.branches.itervalues():
-                branch.sub_network = sub_network
-                branch.sub_network_name = sub_network.name
+            for (u,v,branch) in sub_graph.edges_iter(keys=True):
+                branch.sub_network = sub_network.name
 
 
         self.topology_determined = True
@@ -609,29 +558,26 @@ class SubNetwork(Common):
 
     slack_bus = String()
 
-    buses = OrderedDictDesc()
-    branches = OrderedDictDesc()
-
     graph = GraphDesc()
 
 
     @property
-    def buses_df(self):
-        return self.network.buses_df[self.network.buses_df.sub_network_name == self.name]
+    def buses(self):
+        return self.network.buses[self.network.buses.sub_network == self.name]
 
 
 
     @property
-    def branches_df(self):
-        branches_df = self.network.branches_df
-        return branches_df[branches_df.sub_network_name == self.name]
+    def branches(self):
+        branches = self.network.branches
+        return branches[branches.sub_network == self.name]
 
     @property
-    def generators_df(self):
-        merged = pd.merge(self.network.generators_df,self.buses_df,how="left",left_on="bus_name",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network_name == self.name]
+    def generators(self):
+        merged = pd.merge(self.network.generators,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        return merged[merged.sub_network == self.name]
 
     @property
-    def loads_df(self):
-        merged = pd.merge(self.network.loads_df,self.buses_df,how="left",left_on="bus_name",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network_name == self.name]
+    def loads(self):
+        merged = pd.merge(self.network.loads,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        return merged[merged.sub_network == self.name]

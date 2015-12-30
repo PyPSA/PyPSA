@@ -70,11 +70,11 @@ class Float(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a float")
 
@@ -91,11 +91,11 @@ class Integer(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to an integer")
 
@@ -113,11 +113,11 @@ class Boolean(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a boolean")
 
@@ -136,11 +136,11 @@ class String(object):
         self.restricted = restricted
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name + "_df").loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a string")
             return
@@ -214,10 +214,10 @@ class Series(object):
         self.values = WeakKeyDictionary()
 
     def __get__(self, obj, cls):
-        return getattr(getattr(obj.network,obj.__class__.list_name + "_df"),self.name).loc[:,obj.name]
+        return getattr(getattr(obj.network,obj.__class__.list_name),self.name).loc[:,obj.name]
 
     def __set__(self,obj,val):
-        df = getattr(getattr(obj.network,obj.__class__.list_name + "_df"),self.name)
+        df = getattr(getattr(obj.network,obj.__class__.list_name),self.name)
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
             df[obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)

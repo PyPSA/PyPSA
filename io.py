@@ -89,46 +89,27 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
     #now export all other components
 
     for list_name in ["buses","generators","storage_units","loads","transport_links","lines","converters","sources"]:
-        od = getattr(network,list_name)
-        if len(od) == 0:
+        list_df = getattr(network,list_name)
+        if len(list_df) == 0:
             print("No",list_name)
             continue
 
-        index = od.keys()
+        print("\n"*3+list_name+"\n",list_df)
 
-        df = pd.DataFrame(index=index)
-
-        df.index.name = "name"
-
-        first = next(od.itervalues())
-
-        for attr in dir(first):
-            if attr in ["list_name","name"] or attr[:1] == "_":
-                continue
-            elif attr in ["source","bus","bus0","bus1"]:
-                df[attr] = [getattr(o,attr).name for o in od.itervalues()]
-            elif type(getattr(first,attr)) in allowed_types:
-                df[attr] = [getattr(o,attr) for o in od.itervalues()]
-
-        print("\n"*3+list_name+"\n",df)
-
-        df.to_csv(os.path.join(csv_folder_name,list_name+".csv"))
+        list_df.to_csv(os.path.join(csv_folder_name,list_name+".csv"))
 
     for list_name in time_series:
         print("\n"*3 + "Exporting time series for:",list_name)
+
+        list_df = getattr(network,list_name)
 
         for attr in time_series[list_name]:
             print(attr)
             filter_f = time_series[list_name][attr]
 
-            sub_selection = filter(filter_f,getattr(network,list_name).itervalues())
+            sub_selection = filter(filter_f,getattr(network,list_name).obj)
 
-            df = pd.DataFrame(index=network.snapshots)
-
-            df.index.name = "snapshots"
-
-            for item in sub_selection:
-                df[item.name] = getattr(item,attr)
+            df = getattr(list_df,attr)[[s.name for s in sub_selection]]
 
             df.to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"))
 
@@ -148,27 +129,15 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     for i in dataframe.index:
         obj = network.add(cls_name,i)
         for attr in dataframe.columns:
-            if attr == "source":
-                setattr(obj,attr,network.sources[str(dataframe[attr][i])])
-                setattr(obj,attr+"_name",str(dataframe[attr][i]))
-            elif "bus" in attr:
-                setattr(obj,attr,network.buses[str(dataframe[attr][i])])
-                setattr(obj,attr+"_name",str(dataframe[attr][i]))
-                #add oneports to bus lists
-                if attr == "bus":
-                    getattr(obj.bus,obj.__class__.list_name)[obj.name] = obj
-            else:
-                setattr(obj,attr,dataframe[attr][i])
+            setattr(obj,attr,dataframe[attr][i])
 
 
 def import_series_from_dataframe(network,dataframe,list_name,attr):
 
-    od = getattr(network,list_name)
-
-    cls = get_cls_from_list_name(list_name)
+    cls_df = getattr(network,list_name)
 
     for col in dataframe:
-        setattr(od[col],attr,dataframe[col])
+        setattr(cls_df.obj[col],attr,dataframe[col])
 
 
 
@@ -315,8 +284,8 @@ def import_from_pypower_ppc(network,ppc):
     import_components_from_dataframe(network,pdf["branches"],"Line")
 
 
-    for gen in network.generators_df.obj:
-        gen.control = network.buses_df.control[gen.bus_name]
+    for gen in network.generators.obj:
+        gen.control = network.buses.control[gen.bus]
 
 
     return pdf

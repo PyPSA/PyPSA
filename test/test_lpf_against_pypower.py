@@ -52,14 +52,14 @@ def test_pypower_case():
 
     #compare generator dispatch
 
-    p_pypsa = np.array([gen.p[network.now] for gen in network.generators.itervalues()])
+    p_pypsa = network.generators.p.loc[network.now].values
     p_pypower = results_df['gen']["p"].values
 
     np.testing.assert_array_almost_equal(p_pypsa,p_pypower)
 
 
     #compare line flows
-    p0_pypsa = np.array([line.p0[network.now] for line in network.lines.itervalues()])
+    p0_pypsa = network.lines.p0.loc[network.now].values
     p0_pypower = -results_df['branch']["p0"].values
 
     np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)

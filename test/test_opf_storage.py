@@ -2,8 +2,6 @@ from __future__ import print_function, division
 
 import pypsa
 
-from pypsa.dicthelpers import attrfilter
-
 import datetime
 import pandas as pd
 
