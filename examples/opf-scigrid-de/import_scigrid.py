@@ -4,7 +4,7 @@
 # In[1]:
 
 
-# make the code as Python 3 compatible as possible                                                                                          
+# make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 
 
@@ -94,15 +94,17 @@ network.determine_network_topology()
 
 
 #remove small networks, which break the load flow
-for sn in network.sub_networks.itervalues():
-    print(sn,len(sn.buses))
-    if len(sn.buses) < 5:
-        print(sn.branches,sn.buses)
-        for bus in sn.buses.values():
+for sn in network.sub_networks.obj:
+    buses = sn.buses
+    branches = sn.branches
+    print(sn,len(buses))
+    if len(buses) < 5:
+        print(branches,buses)
+        for bus in buses.obj:
             network.remove(bus)
-        for branch in sn.branches.values():
+        for branch in branches.obj:
             network.remove(branch)
-                
+
 
 
 # In[12]:
@@ -141,8 +143,8 @@ poly
 
 import numpy as np
 
-for bus in network.buses.itervalues():
-    network.graph.node[bus]["pos"] = np.array([bus.x,bus.y])
+for bus in network.buses.obj:
+    network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
 
 
 # In[18]:
@@ -155,10 +157,6 @@ region = vshapes.germany()
 
 vgraph.voronoi_partition(network.graph, poly)
 
-
-# In[20]:
-
-network.graph.node[network.buses.itervalues().next()]["region"]
 
 
 # In[21]:
@@ -191,7 +189,7 @@ load[:len(network.snapshots),2].shape
 
 # In[25]:
 
-for i,bus in enumerate(network.buses.values()):
+for i,bus in enumerate(network.buses.obj):
     network.add("Load",bus.name,bus=bus,p_set = pd.Series(data=1000*load[:len(network.snapshots),i],index=network.snapshots))
 
 
@@ -306,10 +304,6 @@ cap.values.shape
 print(len(network.generators))
 
 
-# In[42]:
-
-slack = next(network.generators.itervalues())
-slack.bus.control = "Slack"
 
 
 # In[43]:
@@ -384,7 +378,7 @@ network.lopf(network.snapshots[:2])
 # In[55]:
 
 for i,b in enumerate(network.branches.values()):
-    
+
     if abs(b.s_nom - b.s_nom_old) > 0.1:
         print(i,b,b.s_nom,b.s_nom_old,b.bus0.x,b.bus0.y,b.length,b.voltage)
 
@@ -461,7 +455,7 @@ for i in range(822):
 
 # In[ ]:
 
-b = next(network.branches.itervalues())
+b = network.branches.obj.iloc[0]
 
 print(b,b.bus0,b.bus1)
 
@@ -479,7 +473,7 @@ name = "Conneforde"
 buses = list(filter(lambda b: type(b.osm_name) == str and name in b.osm_name,network.buses.values()))
 for bus in buses:
     print(bus,bus.osm_name,bus.voltage)
-    
+
 bus = network.buses[str(159)]
 
 print(bus,bus.osm_name,bus.voltage)
@@ -502,4 +496,3 @@ for l in lines:
 # In[ ]:
 
 ed
-
