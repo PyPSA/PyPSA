@@ -473,3 +473,10 @@ Also snaffles dual variables in post-processing
 from oemof.solph.optimization_model import OptimizationModel as OM
 
 class OptimizationModel(po.ConcreteModel)
+
+
+** Property-based dynamically-generated DataFrames do NOT include the time-dependent quantities!!
+
+** Underscore dynamically-generated DataFrames?
+
+Since they are NOT linked to original data for updating, and don't contain time-dependent quantities.

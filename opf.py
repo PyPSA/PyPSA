@@ -35,7 +35,7 @@ from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Const
 
 from pyomo.opt import SolverFactory
 
-from .pf import calculate_x_pu, find_slack_bus
+from .pf import calculate_z_pu, find_slack_bus
 
 from itertools import chain
 
@@ -291,7 +291,7 @@ def define_passive_branch_flows(network,snapshots):
     network.model.voltage_angles = Var(network.buses_df.index, snapshots, domain=Reals, bounds=(None,None))
 
     def slack(model,sn_name,snapshot):
-        return model.voltage_angles[network.sub_networks_df.slack_bus_name[sn_name], snapshot] == 0
+        return model.voltage_angles[network.sub_networks_df.slack_bus[sn_name], snapshot] == 0
 
     network.model.slack_angle = Constraint(network.sub_networks_df.index, snapshots, rule=slack)
 
@@ -467,7 +467,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk"):
 
     #calculate B,H or PTDF for each subnetwork.
     for sub_network in network.sub_networks_df.obj:
-        calculate_x_pu(sub_network)
+        calculate_z_pu(sub_network)
         find_slack_bus(sub_network)
 
 

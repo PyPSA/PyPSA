@@ -1,8 +1,43 @@
 
 
+* Overview
+
+** What PyPSA does
+
+PyPSA for power systems.
+
+Designed for time-varying data, such as wind, solar.
+
+Currently only does static power flow (linear and non-linear) and
+static linear optimisation (over several snapshots simultaneously for capacity and
+storage optimisation).
+
+** What PyPSA uses behind the hood
+
+Python (2 and 3).
+
+Pandas for storing data about components and time series.
+
+Numpy and scipy sparse matrices for calculations.
+
+Pyomo for preparing optimisation (currently only linear).
+
+Solver-independent (can use e.g. GLPK or Gurobi).
+
+** Other comparable software
+
+PYPOWER.
+
+
 * Design
 
-** objects with descriptor properties
+** data stored in pandas DataFrames
+
+for each component type (line, transformer), which must be uniquely named
+
+** time-varying data
+
+** can also access objects with descriptor properties connected to dataframes
 
 ** network components cannot exist without a Network
 

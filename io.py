@@ -315,4 +315,8 @@ def import_from_pypower_ppc(network,ppc):
     import_components_from_dataframe(network,pdf["branches"],"Line")
 
 
+    for gen in network.generators_df.obj:
+        gen.control = network.buses_df.control[gen.bus_name]
+
+
     return pdf

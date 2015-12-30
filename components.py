@@ -97,6 +97,8 @@ class Bus(Common):
     list_name = "buses"
 
     v_nom = Float(default=1.)
+
+    #should be removed and set by program based on generators at bus
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #2-d location data (e.g. longitude and latitude; Spatial Reference System Identifier (SRID) set in network.srid)
@@ -152,6 +154,8 @@ class Generator(OnePort):
     list_name = "generators"
 
     dispatch = String(default="flexible",restricted=["variable","flexible","inflexible"])
+
+    control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
     source = None
@@ -270,6 +274,10 @@ class Line(Branch):
     g = Float()
     b = Float()
 
+    x_pu = Float()
+    r_pu = Float()
+
+
     length = Float(default=1.0)
     terrain_factor = Float(default=1.0)
 
@@ -285,6 +293,7 @@ class Transformer(Branch):
     #per unit with reference to s_nom
     x = Float()
 
+    x_pu = Float()
 
     sub_network_name = String()
 
@@ -598,7 +607,7 @@ class SubNetwork(Common):
 
     base_power = Float(default=1)
 
-    slack_bus_name = String()
+    slack_bus = String()
 
     buses = OrderedDictDesc()
     branches = OrderedDictDesc()
@@ -616,3 +625,13 @@ class SubNetwork(Common):
     def branches_df(self):
         branches_df = self.network.branches_df
         return branches_df[branches_df.sub_network_name == self.name]
+
+    @property
+    def generators_df(self):
+        merged = pd.merge(self.network.generators_df,self.buses_df,how="left",left_on="bus_name",right_index=True,suffixes=("","_bus"))
+        return merged[merged.sub_network_name == self.name]
+
+    @property
+    def loads_df(self):
+        merged = pd.merge(self.network.loads_df,self.buses_df,how="left",left_on="bus_name",right_index=True,suffixes=("","_bus"))
+        return merged[merged.sub_network_name == self.name]
