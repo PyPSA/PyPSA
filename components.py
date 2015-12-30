@@ -36,11 +36,10 @@ assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least v
 
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
 from itertools import chain
 from operator import itemgetter
 
-from .descriptors import Float, String, OrderedDictDesc, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
+from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
 from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 

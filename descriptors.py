@@ -151,31 +151,6 @@ class String(object):
 
 
 
-
-class OrderedDictDesc(object):
-
-    typ = OrderedDict
-
-    #the name is set by Network.__init__
-    name = None
-
-    def __init__(self):
-        self.values = WeakKeyDictionary()
-
-    def __get__(self,obj,cls):
-        try:
-            return self.values[obj]
-        except KeyError:
-            ordereddict = self.typ()
-            self.values[obj] = ordereddict
-            return ordereddict
-
-    def __set__(self,obj,val):
-        if not isinstance(val, self.typ):
-            raise AttributeError("val must be an OrderedDict")
-        else:
-            self.values[obj] = val
-
 class GraphDesc(object):
 
     typ = OrderedGraph

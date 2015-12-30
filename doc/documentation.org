@@ -6,11 +6,14 @@
 
 PyPSA for power systems.
 
-Designed for time-varying data, such as wind, solar.
+Designed for time-varying data, such as wind, solar; includes models
+for storage units and for meshed mixed AC-DC networks.
 
 Currently only does static power flow (linear and non-linear) and
 static linear optimisation (over several snapshots simultaneously for capacity and
 storage optimisation).
+
+
 
 ** What PyPSA uses behind the hood
 
