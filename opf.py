@@ -202,7 +202,10 @@ def define_storage_variables_constraints(network,snapshots):
 
         su = network.storage_units.obj[su_name]
 
-        i = snapshots.get_loc(snapshot)
+        if type(snapshots) == list:
+            i = snapshots.index(snapshot)
+        elif type(snapshots) == pd.core.index.Index:
+            i = snapshots.get_loc(snapshot)
 
         if i == 0:
             previous_state_of_charge = su.state_of_charge_initial
@@ -257,29 +260,29 @@ def define_branch_extension_variables(network,snapshots):
 
 def define_controllable_branch_flows(network,snapshots):
 
+    controllable_branches = network.controllable_branches
 
-    def tl_p_bounds(model,tl_name,snapshot):
-        tl = network.transport_links.obj[tl_name]
-        if tl.s_nom_extendable:
+    extendable_branches = controllable_branches[controllable_branches.s_nom_extendable]
+
+    def cb_p_bounds(model,cb_type,cb_name,snapshot):
+        cb = network.controllable_branches.obj[cb_type,cb_name]
+        if cb.s_nom_extendable:
             return (None,None)
         else:
-            return (tl.p_min,tl.p_max)
+            return (cb.p_min,cb.p_max)
 
-    network.model.transport_link_p = Var(network.transport_links.index, snapshots, domain=Reals, bounds=tl_p_bounds)
+    network.model.controllable_branch_p = Var(list(controllable_branches.index), snapshots, domain=Reals, bounds=cb_p_bounds)
 
+    def cb_p_upper(model,cb_type,cb_name,snapshot):
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] <= model.branch_s_nom[cb_type,cb_name]
 
-    extendable_transport_links = network.transport_links[network.transport_links.s_nom_extendable]
-
-    def tl_p_upper(model,tl_name,snapshot):
-        return model.transport_link_p[tl_name,snapshot] <= model.branch_s_nom["TransportLink",tl_name]
-
-    network.model.transport_link_p_upper = Constraint(extendable_transport_links.index,snapshots,rule=tl_p_upper)
+    network.model.controllable_branch_p_upper = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_upper)
 
 
-    def tl_p_lower(model,tl_name,snapshot):
-        return model.transport_link_p[tl_name,snapshot] >= -model.branch_s_nom["TransportLink",tl_name]
+    def cb_p_lower(model,cb_type,cb_name,snapshot):
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] >= -model.branch_s_nom[cb_type,cb_name]
 
-    network.model.transport_link_p_lower = Constraint(extendable_transport_links.index,snapshots,rule=tl_p_lower)
+    network.model.controllable_branch_p_lower = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_lower)
 
 
 
@@ -299,7 +302,8 @@ def define_passive_branch_flows(network,snapshots):
 
     def flow(model,branch_type,branch_name,snapshot):
         branch = passive_branches.obj[branch_type,branch_name]
-        return 1/branch.x_pu*(model.voltage_angles[branch.bus0,snapshot]- model.voltage_angles[branch.bus1,snapshot])
+        attribute = "x_pu" if network.sub_networks.current_type[branch.sub_network] == "AC" else "r_pu"
+        return 1/getattr(branch,attribute)*(model.voltage_angles[branch.bus0,snapshot]- model.voltage_angles[branch.bus1,snapshot])
 
     network.model.flow = Expression(list(passive_branches.index),snapshots,rule=flow)
 
@@ -333,14 +337,15 @@ def define_passive_branch_constraints(network,snapshots):
 def define_nodal_balances(network,snapshots):
 
     passive_branches = network.passive_branches
+    controllable_branches = network.controllable_branches
 
     #create dictionary of inflow branches at each bus
 
-    inflows = {bus_name : {"transport_links" : [], "branches" : []} for bus_name in network.buses.index}
+    inflows = {bus_name : {"controllable_branches" : [], "branches" : []} for bus_name in network.buses.index}
 
-    for tl in network.transport_links.obj:
-        inflows[tl.bus0]["transport_links"].append((tl.name,-1))
-        inflows[tl.bus1]["transport_links"].append((tl.name,1))
+    for cb in controllable_branches.obj:
+        inflows[cb.bus0]["controllable_branches"].append(((cb.__class__.__name__,cb.name),-1))
+        inflows[cb.bus1]["controllable_branches"].append(((cb.__class__.__name__,cb.name),1))
 
     for branch in passive_branches.obj:
         inflows[branch.bus0]["branches"].append(((branch.__class__.__name__,branch.name),-1))
@@ -360,7 +365,7 @@ def define_nodal_balances(network,snapshots):
 
         p += sum(load.sign*load.p_set[snapshot] for load in bus.loads.obj)
 
-        p += sum(coeff*model.transport_link_p[tl_name,snapshot] for tl_name,coeff in inflows[bus_name]["transport_links"])
+        p += sum(coeff*model.controllable_branch_p[ct,cn,snapshot] for (ct,cn),coeff in inflows[bus_name]["controllable_branches"])
 
         p += sum(coeff*model.flow[bt,bn,snapshot] for (bt,bn),coeff in inflows[bus_name]["branches"])
 
@@ -424,15 +429,16 @@ def extract_optimisation_results(network,snapshots):
             bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.obj,bus.loads.obj,bus.storage_units.obj))
 
 
-        for tl in network.transport_links.obj:
-            tl.p1[snapshot] = network.model.transport_link_p[tl.name,snapshot].value
-            tl.p0[snapshot] = -tl.p1[snapshot]
-            network.buses.p.loc[snapshot,tl.bus0] += tl.p0[snapshot]
-            network.buses.p.loc[snapshot,tl.bus1] += tl.p1[snapshot]
+        for cb in network.controllable_branches.obj:
+            cb.p1[snapshot] = network.model.controllable_branch_p[cb.__class__.__name__,cb.name,snapshot].value
+            cb.p0[snapshot] = -cb.p1[snapshot]
+            network.buses.p.loc[snapshot,cb.bus0] += cb.p0[snapshot]
+            network.buses.p.loc[snapshot,cb.bus1] += cb.p1[snapshot]
 
 
         for branch in network.passive_branches.obj:
-            branch.p1[snapshot] = 1/branch.x_pu*(network.buses.v_ang.loc[snapshot,branch.bus0] - network.buses.v_ang.loc[snapshot,branch.bus1])
+            attribute = "x_pu" if network.sub_networks.current_type[branch.sub_network] == "AC" else "r_pu"
+            branch.p1[snapshot] = 1/getattr(branch,attribute)*(network.buses.v_ang.loc[snapshot,branch.bus0] - network.buses.v_ang.loc[snapshot,branch.bus1])
             branch.p0[snapshot] = -branch.p1[snapshot]
 
 

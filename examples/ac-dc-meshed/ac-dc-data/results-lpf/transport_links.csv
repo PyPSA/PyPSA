@@ -1,0 +1,2 @@
+name,s_nom_min,bus0,bus1,capital_cost,s_nom_extendable,s_nom,s_nom_max,p_min,p_max,obj
+DC link,0.0,London,Bremen,0.8765342,True,0.0,,-900.0,900.0,TransportLink DC link

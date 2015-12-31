@@ -14,6 +14,7 @@ from itertools import chain
 import os
 
 
+
 from distutils.spawn import find_executable
 
 
@@ -21,9 +22,13 @@ from distutils.spawn import find_executable
 def test_opf():
 
 
-    csv_folder_name = "../examples/opf-storage-hvdc/opf-storage-data"
+    csv_folder_name = "../examples/ac-dc-meshed/ac-dc-data"
 
     network = pypsa.Network(csv_folder_name=csv_folder_name)
+
+    results_folder_name = os.path.join(csv_folder_name,"results-lopf")
+
+    network_r = pypsa.Network(csv_folder_name=results_folder_name)
 
     solver_search_order = ["glpk","gurobi"]
 
@@ -46,28 +51,13 @@ def test_opf():
     network.lopf(snapshots=snapshots,solver_name=solver_name)
 
 
-    results_folder_name = "results"
+    np.testing.assert_array_almost_equal(network.generators.p,network_r.generators.p)
 
+    np.testing.assert_array_almost_equal(network.lines.p0,network_r.lines.p0)
 
-    network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                               "storage_units" : {"p" : None}})
+    np.testing.assert_array_almost_equal(network.transport_links.p0,network_r.transport_links.p0)
 
-    good_results_filename =  os.path.join(csv_folder_name,"results","generators-p.csv")
-
-    good_arr = pd.read_csv(good_results_filename,index_col=0).values
-
-    print(good_arr)
-
-    results_filename = os.path.join(results_folder_name,"generators-p.csv")
-
-
-    arr = pd.read_csv(results_filename,index_col=0).values
-
-
-    print(arr)
-
-
-    np.testing.assert_array_almost_equal(arr,good_arr)
+    np.testing.assert_array_almost_equal(network.converters.p0,network_r.converters.p0)
 
 
 

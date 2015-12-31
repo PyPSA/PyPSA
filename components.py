@@ -499,6 +499,10 @@ class Network(Basic):
     def passive_branches(self):
         return pd.concat([self.lines,self.transformers],keys=["Line","Transformer"])
 
+    @property
+    def controllable_branches(self):
+        return pd.concat([self.converters,self.transport_links],keys=["Converter","TransportLink"])
+
 
     def build_graph(self):
         """Build networkx graph."""

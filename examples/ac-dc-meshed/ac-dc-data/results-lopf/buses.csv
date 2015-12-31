@@ -1,0 +1,10 @@
+name,control,v_nom,sub_network,current_type,y,x,obj
+London,PQ,380.0,1,AC,0.0,0.0,Bus London
+Norwich,PQ,380.0,1,AC,0.0,0.0,Bus Norwich
+Norwich DC,PQ,200.0,0,DC,0.0,0.0,Bus Norwich DC
+Manchester,PQ,380.0,1,AC,0.0,0.0,Bus Manchester
+Bremen,PQ,380.0,3,AC,0.0,0.0,Bus Bremen
+Bremen DC,PQ,200.0,0,DC,0.0,0.0,Bus Bremen DC
+Frankfurt,PQ,380.0,3,AC,0.0,0.0,Bus Frankfurt
+Norway,PQ,380.0,2,AC,0.0,0.0,Bus Norway
+Norway DC,PQ,200.0,0,DC,0.0,0.0,Bus Norway DC

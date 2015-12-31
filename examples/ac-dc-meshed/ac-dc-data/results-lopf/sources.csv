@@ -1,0 +1,4 @@
+name,efficiency,co2_emissions,capital_cost,marginal_cost,obj
+gas,1.0,0.24,0.0,0.0,Source gas
+wind,1.0,0.0,0.0,0.0,Source wind
+battery,1.0,0.0,0.0,0.0,Source battery

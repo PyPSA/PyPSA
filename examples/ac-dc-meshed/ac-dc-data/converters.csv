@@ -1,0 +1,4 @@
+name,bus0,bus1,capital_cost,p_max,p_min,p_nom,s_nom,s_nom_extendable,s_nom_min
+Norwich Converter,Norwich,Norwich DC,0.21,900,-900,1000,0,True,0
+Norway Converter,Norway,Norway DC,0.2,900,-900,1000,0,True,0
+Bremen Converter,Bremen,Bremen DC,0.19,900,-900,1000,0,True,0

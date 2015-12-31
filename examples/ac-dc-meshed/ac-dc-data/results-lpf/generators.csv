@@ -1,0 +1,7 @@
+name,bus,sign,control,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom_max,p_nom,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost,obj
+Manchester Wind,Manchester,1.0,Slack,0.0,2793.65160293,True,variable,,80.0,100.0,1.0,1.0,wind,0.0,Generator Manchester Wind
+Manchester Gas,Manchester,1.0,PQ,0.0,196.615167969,True,flexible,,50000.0,0.0,1.0,0.3500264336,gas,4.5323676307,Generator Manchester Gas
+Norway Wind,Norway,1.0,Slack,0.0,2184.37479609,True,variable,,100.0,100.0,1.0,1.0,wind,0.0,Generator Norway Wind
+Norway Gas,Norway,1.0,PQ,0.0,158.251249717,True,flexible,,20000.0,0.0,1.0,0.3568363832,gas,5.8928445406,Generator Norway Gas
+Frankfurt Wind,Frankfurt,1.0,Slack,0.0,2129.45612248,True,variable,,110.0,100.0,1.0,1.0,wind,0.0,Generator Frankfurt Wind
+Frankfurt Gas,Frankfurt,1.0,PQ,0.0,102.676953008,True,flexible,,80000.0,0.0,1.0,0.3516658529,gas,4.0863219899,Generator Frankfurt Gas

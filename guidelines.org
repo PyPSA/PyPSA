@@ -103,8 +103,7 @@ no, use py.test
 
 Use classes to do multiple tests with same set-up
 
-Make a complicated example with meshed AC-DC and some sub networks
-with 1 or 2 nodes.
+** DONE Make a complicated example with meshed AC-DC and some sub networks with 1 or 2 nodes.
 
 ** DONE Time weighting
 
@@ -183,7 +182,7 @@ network is no good - confuses with Network class / network object / networkx
 
 *** s_nom versus p_nom for lines/branches
 
-** linear pf/opf for DC meshed
+** DONE linear pf/opf for DC meshed
 
 How to deal with slack nodes and power balance within DC network for pf if there are no generators?
 
@@ -384,7 +383,7 @@ i.e. inherit from networkx.MultiGraph
 
 <=1 line
 
-** catch no gens in sub_network
+** catch no gens in sub_network?
 
 
 ** beware nx.MultiGraph reordering of edges!
