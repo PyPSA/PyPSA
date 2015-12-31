@@ -108,6 +108,8 @@ class Bus(Common):
     v_ang = Series()
     v_set = Series(default=1.)
 
+    current_type = String(default="AC",restricted=["AC","DC"])
+
     sub_network = String()
 
 
@@ -289,10 +291,12 @@ class Transformer(Branch):
 
 
 class Converter(Branch):
-    """Bus 0 is AC, bus 1 is DC."""
+    """Converter between AC and DC. Bus 0 is AC, bus 1 is DC."""
 
     list_name = "converters"
 
+    p_min = Float()
+    p_max = Float()
     p_set = Series()
 
 class TransportLink(Branch):
@@ -530,6 +534,9 @@ class Network(Basic):
         for i, sub_graph in enumerate(sub_graphs):
             #name using i for now
             sub_network = self.add("SubNetwork", i, graph=sub_graph)
+
+            #grab data from first bus
+            sub_network.current_type = self.buses.loc[sub_graph.nodes()[0], "current_type"]
 
             for bus in sub_graph.nodes():
                 self.buses.loc[bus,"sub_network"] = sub_network.name

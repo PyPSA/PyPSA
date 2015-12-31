@@ -185,7 +185,7 @@ network is no good - confuses with Network class / network object / networkx
 
 ** linear pf/opf for DC meshed
 
-How to deal with slack nodes and power balance within DC network?
+How to deal with slack nodes and power balance within DC network for pf if there are no generators?
 
 
 Choose slack bus as first/last DC bus with a converter/generator and then set the converter on the bus.
@@ -380,11 +380,11 @@ see PyPower and PSAT
 i.e. inherit from networkx.MultiGraph
 
 
-** catch load flow edge cases
+** DONE catch load flow edge cases
 
 <=1 line
 
-no gens in sub_network etc.
+** catch no gens in sub_network
 
 
 ** beware nx.MultiGraph reordering of edges!
@@ -488,3 +488,14 @@ Since they are NOT linked to original data for updating, and don't contain time-
 ** Check branch.bus0 and branch.bus1 in network.buses
 
 Similarly for generator.source
+** Improve dataframe readin
+
+For lines csv:
+
+concat with network.lines
+
+check index is still unique
+
+fill in non-present columns with defaults
+
+set to network.lines
