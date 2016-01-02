@@ -58,3 +58,87 @@ Power: MW
 Voltage: kV
 
 Impedance: Ohm
+
+* Sign convention
+
+The sign convention in PyPSA follows other major software packages,
+such as MATPOWER, PYPOWER and DIgSILENT PowerFactory.
+
+
+
+power (p,q) of generator or storage unit is positive if injecting
+power into bus, negative if withdrawing power from bus
+
+p of load is positive if withdrawing power from bus, negative if injecting power into bus
+
+p0 of a branch is positive if the branch is withdrawing power from
+bus0, i.e. bus0 is injecting into branch
+
+p1 is negative if the branch is injecting into bus1
+
+If p0 > 0 and p1 < 0 then active power flows from bus0 to bus1; p0+p1 > 0 implies the line has losses
+
+
+** MATPOWER
+
+p0 is positive if power injected into the branch from bus0
+
+p1 is positive if power injected into the branch from bus1
+
+similarly with current I assumption
+
+i.e. opposite to pypsa
+
+** PowerFactory
+
+Same as Matpower: for branches flow going out of bus is positive.
+
+
+* Components
+
+
+** Network
+
+Overall container. Can contain disconnected sub-networks.
+
+
+** Sub-Network
+
+Connected subset of network.
+
+** Bus
+
+Fundamental electrical node of system.
+
+** Line
+
+Can be DC or AC.
+
+** Generator
+
+** Storage Unit
+
+** Transformer
+
+** Converter
+
+Converts
+
+** Transport Link
+
+Like point-to-point HVDC connector; equivalent to converter-(DC
+line)-converter.
+
+
+
+* Unresolved issues
+
+** When to calculate dependent quantities
+
+E.g. line.v_nom which points at line.bus0.v_nom
+
+or
+
+line.x_pu which depends on line.x and line.v_nom and the base power
+
+or bus.control which depends on generator controls gen.control at bus

@@ -246,6 +246,7 @@ class Branch(Common):
     s_nom_max = Float(np.nan)
     s_nom_min = Float()
 
+    #{p,q}i is positive if power is flowing from bus i into the branch
     p0 = Series()
     p1 = Series()
 

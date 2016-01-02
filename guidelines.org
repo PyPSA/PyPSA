@@ -239,6 +239,23 @@ then use for nodal imbalance AND for flow limitation
 
 ** non-linear pf
 
+See
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/makeYbus.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/runpf.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+
+
+I = YV
+
+I_bus_inj = \sum I_branch_inj = Y V_bus
+
+Branch to = Y_t V_bus
+
+Branch from = Y_f V_bus
+
 ** make p_set per unit?
 
 ** DONE think about storing tables for each component type
@@ -372,6 +389,8 @@ also applies for inheritance? yes  - if the class A inherits from B, isinstance 
 
 see PyPower and PSAT
 
+** Shunt and series impedances
+
 ** ratio and phase shift for trafos
 
 ** DONE Allow graphs with multiple edges between same nodes
@@ -498,3 +517,5 @@ check index is still unique
 fill in non-present columns with defaults
 
 set to network.lines
+
+** OPF DC output to v_mag not v_ang

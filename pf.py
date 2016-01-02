@@ -75,10 +75,10 @@ def network_lpf(network,now=None,verbose=True):
 
 
     #deal with transport links and converters
-    network.converters.p0.loc[now] = -network.converters.p_set.loc[now]
-    network.converters.p1.loc[now] = network.converters.p_set.loc[now]
-    network.transport_links.p0.loc[now] = -network.transport_links.p_set.loc[now]
-    network.transport_links.p1.loc[now] = network.transport_links.p_set.loc[now]
+    network.converters.p0.loc[now] = network.converters.p_set.loc[now]
+    network.converters.p1.loc[now] = -network.converters.p_set.loc[now]
+    network.transport_links.p0.loc[now] = network.transport_links.p_set.loc[now]
+    network.transport_links.p1.loc[now] = -network.transport_links.p_set.loc[now]
 
 
     for sub_network in network.sub_networks.obj:
@@ -252,9 +252,9 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     #power injection should include transport links and converters
     for t in chain(network.transport_links.obj,network.converters.obj):
         if t.bus0 in buses.index:
-            buses.obj[t.bus0].p[now] += t.p0[now]
+            buses.obj[t.bus0].p[now] -= t.p0[now]
         if t.bus1 in buses.index:
-            buses.obj[t.bus1].p[now] += t.p1[now]
+            buses.obj[t.bus1].p[now] -= t.p1[now]
 
 
     p = network.buses.p.loc[now,buses.index]
@@ -271,11 +271,11 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
         lines = branches.loc["Line"]
         trafos = branches.loc["Transformer"]
 
-        network.lines.p1.loc[now,lines.index] = lines["flows"]
-        network.lines.p0.loc[now,lines.index] = -lines["flows"]
+        network.lines.p1.loc[now,lines.index] = -lines["flows"]
+        network.lines.p0.loc[now,lines.index] = lines["flows"]
 
-        network.transformers.p1.loc[now,trafos.index] = trafos["flows"]
-        network.transformers.p0.loc[now,trafos.index] = -trafos["flows"]
+        network.transformers.p1.loc[now,trafos.index] = -trafos["flows"]
+        network.transformers.p0.loc[now,trafos.index] = trafos["flows"]
 
 
 

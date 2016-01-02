@@ -60,6 +60,6 @@ def test_pypower_case():
 
     #compare line flows
     p0_pypsa = network.lines.p0.loc[network.now].values
-    p0_pypower = -results_df['branch']["p0"].values
+    p0_pypower = results_df['branch']["p0"].values
 
     np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)

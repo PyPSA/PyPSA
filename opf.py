@@ -430,16 +430,16 @@ def extract_optimisation_results(network,snapshots):
 
 
         for cb in network.controllable_branches.obj:
-            cb.p1[snapshot] = network.model.controllable_branch_p[cb.__class__.__name__,cb.name,snapshot].value
-            cb.p0[snapshot] = -cb.p1[snapshot]
-            network.buses.p.loc[snapshot,cb.bus0] += cb.p0[snapshot]
-            network.buses.p.loc[snapshot,cb.bus1] += cb.p1[snapshot]
+            cb.p0[snapshot] = network.model.controllable_branch_p[cb.__class__.__name__,cb.name,snapshot].value
+            cb.p1[snapshot] = -cb.p0[snapshot]
+            network.buses.p.loc[snapshot,cb.bus0] -= cb.p0[snapshot]
+            network.buses.p.loc[snapshot,cb.bus1] -= cb.p1[snapshot]
 
 
         for branch in network.passive_branches.obj:
             attribute = "x_pu" if network.sub_networks.current_type[branch.sub_network] == "AC" else "r_pu"
-            branch.p1[snapshot] = 1/getattr(branch,attribute)*(network.buses.v_ang.loc[snapshot,branch.bus0] - network.buses.v_ang.loc[snapshot,branch.bus1])
-            branch.p0[snapshot] = -branch.p1[snapshot]
+            branch.p0[snapshot] = 1/getattr(branch,attribute)*(network.buses.v_ang.loc[snapshot,branch.bus0] - network.buses.v_ang.loc[snapshot,branch.bus1])
+            branch.p1[snapshot] = -branch.p0[snapshot]
 
 
 
