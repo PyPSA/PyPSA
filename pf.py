@@ -69,6 +69,8 @@ def network_lpf(network,now=None,verbose=True):
         network.build_graph()
         network.determine_network_topology()
 
+    if not network.dependent_values_calculated:
+        calculate_dependent_values(network)
 
     if now is None:
         now=network.now
@@ -156,36 +158,41 @@ def find_bus_controls(sub_network,verbose=True):
     sub_network.buses_o = pd.concat((buses.loc[[sub_network.slack_bus]],sub_network.pvpqs))
     sub_network.buses_o["i"] = range(len(sub_network.buses_o))
 
-def get_line_v_nom(sub_network):
-    """Add v_nom to lines based on voltage of bus0."""
 
-    lines = sub_network.branches.loc["Line"]
-    network = sub_network.network
+def calculate_dependent_values(network):
+    """Calculate per unit impedances and append voltages to lines and shunt impedances."""
 
-    if "v_nom" in lines.columns:
-        lines.drop(["v_nom"],axis=1,inplace=True)
+    #add voltages to components from bus voltage
+    for list_name in ["lines","shunt_impedances"]:
+        df = getattr(network,list_name)
 
-    join = pd.merge(lines,sub_network.buses,
-                    how="left",
-                    left_on="bus0",
-                    right_index=True)
+        if "v_nom" in df.columns:
+            df.drop(["v_nom"],axis=1,inplace=True)
 
-    network.lines.loc[lines.index,"v_nom"] = join["v_nom"]
+        bus_attr = "bus0" if list_name == "lines" else "bus"
+
+        join = pd.merge(df,network.buses,
+                        how="left",
+                        left_on=bus_attr,
+                        right_index=True)
+
+        df.loc[:,"v_nom"] = join["v_nom"]
 
 
-def calculate_z_pu(sub_network):
+    network.lines["x_pu"] = network.lines.x/(network.lines.v_nom**2)
+    network.lines["r_pu"] = network.lines.r/(network.lines.v_nom**2)
+    network.lines["b_pu"] = network.lines.b*network.lines.v_nom**2
+    network.lines["g_pu"] = network.lines.g*network.lines.v_nom**2
+    #convert transformer impedances from base power s_nom to base = 1 MVA
+    network.transformers["x_pu"] = network.transformers.x/network.transformers.s_nom
+    network.transformers["r_pu"] = network.transformers.r/network.transformers.s_nom
+    network.transformers["b_pu"] = network.transformers.b*network.transformers.s_nom
+    network.transformers["g_pu"] = network.transformers.g*network.transformers.s_nom
+    network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
+    network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
 
-    get_line_v_nom(sub_network)
+    network.dependent_values_calculated = True
 
-    branches = sub_network.branches
-    lines = branches.loc["Line"]
-    trafos = branches.loc["Transformer"]
-    network = sub_network.network
-
-    network.lines.loc[lines.index,"x_pu"] = lines.x*sub_network.base_power/(lines.v_nom**2)
-    network.lines.loc[lines.index,"r_pu"] = lines.r*sub_network.base_power/(lines.v_nom**2)
-    network.transformers.loc[trafos.index,"x_pu"] = trafos.x*sub_network.base_power/trafos.s_nom
-    network.transformers.loc[trafos.index,"r_pu"] = trafos.r*sub_network.base_power/trafos.s_nom
 
 def calculate_B_H(sub_network,verbose=True):
     """Calculate B and H matrices for AC or DC sub-networks."""
@@ -233,7 +240,8 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     if verbose:
         print("Performing load-flow for snapshot %s" % (now))
 
-    calculate_z_pu(sub_network)
+    if not network.dependent_values_calculated:
+        calculate_dependent_values(network)
 
     find_bus_controls(sub_network,verbose=verbose)
 
@@ -247,7 +255,8 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     #set the power injection at each node
     for bus in buses.obj:
         bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj)
+                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj) \
+                     + sum(sh.sign*sh.g_pu for sh in bus.shunt_impedances.obj)
 
     #power injection should include transport links and converters
     for t in chain(network.transport_links.obj,network.converters.obj):
@@ -290,6 +299,10 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     #allow all loads to dispatch as set
     loads = sub_network.loads
     network.loads.p.loc[now,loads.index] = network.loads.p_set.loc[now,loads.index]
+
+    #allow all loads to dispatch as set
+    shunt_impedances = sub_network.shunt_impedances
+    network.shunt_impedances.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
     generators = sub_network.generators

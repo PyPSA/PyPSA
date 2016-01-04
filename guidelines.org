@@ -73,6 +73,248 @@ kV, Ohm, MW, A
 
 * TODO
 
+
+** more detailed regression testing
+
+Use classes to do multiple tests with same set-up
+
+** Yearly import/export balances for zones
+Need to define countries etc.
+
+class Zone
+
+
+** Documentation in sphinx/rst
+
+cf. oemof
+
+started org-mode docu in doc/ - can be based on this documentation
+
+** Python 3 improve
+
+use six for itervalues()/values()
+
+** CIM converter
+
+look at Richard Lincoln's PyCIM
+
+** ConstantSeries???
+
+i.e. have some way of setting constant time series to save memory
+
+** Naming considerations for components and attributes
+
+*** SubNetwork -> ConnectedNetwork
+
+*** DONE classes -> components
+
+network is no good - confuses with Network class / network object / networkx
+
+*** s_nom versus p_nom for lines/branches
+
+
+** look at pandas for storing object methods in different files
+
+want different files, but still have tab completion and ? and ?? magic
+
+over-ride __dir__???
+
+** non-linear pf
+
+See
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/makeYbus.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/runpf.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+
+
+I = YV
+
+I_bus_inj = \sum I_branch_inj = Y V_bus
+
+Branch to = Y_t V_bus
+
+Branch from = Y_f V_bus
+
+** make p_set per unit?
+
+
+** Better as sqlalchemy?????
+
+Advantages of database:
+
+i) better scaling with size
+
+ii) easier, better querying
+
+iii) persistence
+
+iv) can swop out database for Netzbetreiber
+
+v) Sharing data between people editing concurrently
+
+vi) Transactions (e.g. bank account transfer that fails or succeeds always at both ends)
+
+vii) For relations between tables
+
+
+
+** Series impedances
+
+** ratio and phase shift for trafos
+
+** catch no gens in sub_network?
+
+
+** beware nx.MultiGraph reordering of edges!
+
+Orders them according to collections of edges between same nodes NOT
+the order in which you read them in.
+
+** Kill inheritance?
+
+It doesn't serve any good purpose and just serves to confuse.
+
+e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
+
+
+need to watch out for isinstance(Branch)
+
+
+** Do not define empty timeseries contents until called, e.g.
+
+network.generators_df.p = pd.DataFrame(index = network.snapshots)
+
+network.generators_df.p.loc[1,"AT"] = 45.
+
+- this will define a new column "AT" and add NaNs in other entries.
+
+(at least for calculated quantities - p_set etc. should be defined)
+
+give default if name not in col????
+
+** fix angle bound limits!!!!!
+
+Currently set to None; should allow limits on angle *differences* not the actual angles
+
+** component.__init__
+
+should just do network and name, since have two interfaces for adding components and their attributes:
+
+network.add()
+
+network.import_from_df()
+
+
+
+
+** read out dual variables in opf results
+
+
+** TODO Catch optimisation status gracefully
+
+i.e. when it fails or is infeasible, catch the status and inform the user
+
+** Compare with oemof optimisation
+
+~/fias/oemof/oemof_base/oemof/solph/optimization_model.py
+
+more abstract and sophisticated than pypsa somehow
+
+
+Also snaffles dual variables in post-processing
+
+
+from oemof.solph.optimization_model import OptimizationModel as OM
+
+class OptimizationModel(po.ConcreteModel)
+
+
+** Property-based dynamically-generated DataFrames do NOT include the time-dependent quantities!!
+
+** Underscore dynamically-generated DataFrames?
+
+Since they are NOT linked to original data for updating, and don't contain time-dependent quantities.
+** Fix examples after pandification
+** Check branch.bus0 and branch.bus1 in network.buses
+
+Similarly for generator.source
+
+try:
+network.buses.loc[branch.bus0]
+except:
+missing!
+
+** OPF DC output to v_mag not v_ang
+
+Also make v_mag per unit NOT kV
+
+
+** replace descriptors with __get__ and __set__ on objects
+
+Can then use obj.attr for attr which are dynamically added to DataFrame
+
+def __set__(attr,val):
+
+try:
+   val = attr_type(val)
+except:
+  oops!
+
+if attr in df.columns:
+df.loc[self.name,attr] = val
+
+else:
+
+#return to normal object set
+setattr(self,attr,val)
+
+
+Store attributes in
+
+class Branch:
+
+    static_attributes = {{}}
+
+    series_attributes = {{}}
+
+* DONE
+
+
+
+** improve pypower import
+
+see ~/fias-shared/playground/nl_pf/fix_pypower_import.py
+
+
+In pypower branch x,r are per unit of nominal voltage and of baseMVA.
+
+So adjusted all r,x to give correct angle behaviour (which agrees
+exactly, up to translation of slack angle).
+
+
+In pypower bus shunt g,b are per unit of nominal voltage and 1 MVA,
+i.e. the values gives the power in MVA for 1.0 per unit voltage.
+
+
+
+** check results per unit behaviour
+
+e.g. per unit power
+
+
+
+** Voltage-dependent and ZIP loads
+
+see PyPower and PSAT
+
+done as shunt impedances
+
+** DONE Shunt impedances
+
+
 ** DONE Capacity extension for controllable branches
 
 ** DONE Storage model
@@ -99,136 +341,83 @@ see Jonas email of 151109
 no, use py.test
 
 
-** more detailed regression testing
+** DONE isinstance
 
-Use classes to do multiple tests with same set-up
+also applies for inheritance? yes  - if the class A inherits from B, isinstance true for A and B
 
-** DONE Make a complicated example with meshed AC-DC and some sub networks with 1 or 2 nodes.
 
-** DONE Time weighting
 
-network.snapshots
+** DONE Improve dataframe readin
 
-network.snapshot_weightings  - e.g. n hours each snapshot represents
+For lines csv:
 
-** DONE CO2 constraint
+concat with network.lines
 
-class Source
+check index is still unique
 
-** DONE Sort nexus efficiency CO2/MWht and CO2/MWhe
+fill in non-present columns with defaults
 
-source.co2_emissions is tCO2e / MWht
+set to network.lines
 
-gen.efficiency is MWhe/MWht
 
-so emissions per MWhe are:
 
-gen.source.co2_emissions / gen.efficiency   =   tCO2e / MWht  * (MWht/MWhe) = tCO2 / MWhe
+Beware adding attributes which should be series!!
 
-** Yearly import/export balances for zones
-Need to define countries etc.
 
-class Zone
+** DONE Go back to simple naming?
 
+When creating DataFrames/Series combining components (e.g. branches), which should only happen internally, could rename them there, or index by object instead of name to avoid naming collisions
 
-** DONE do remove object
+BUT want branch.name for index set in opf....
 
-** Documentation in sphinx/rst
+Compromise: have obj.uid = Class.name + " " + obj.name?
 
-cf. oemof
 
-started org-mode docu in doc/ - can be based on this documentation
 
-** Python 3 improve
 
-use six for itervalues()/values()
+** DONE Include bus names in the dataframe of branches, loads and generators
 
-** DONE CSV file format
+** DONE OrderedGraph of branches will not necessarily have unique names!!!!
 
-follow minpower with separate csv for each object type, i.e.
+Add component class name to start of name
 
-directory
+What's also an issue is that the inherited descriptors are also shared between the objects, so that the descriptor actually belongs to the parent class.
 
-generator.csv
+so that Branch.s_nom was in fact sharing components for all transport_links, lines, trafos etc.
 
-bus.csv
 
-lines.csv
+Better solution: hierarchical pandas index, so built
 
-generator-p_set.csv  - time-dependent set point
+subnetwork._branches
 
+with index (Line, 0),.... (Transormer,0),.....
 
-** DONE ensure object names are unique
 
-can also check with pandas.index.unique
 
-** DONE Pypower format converter
+** DONE Allow graphs with multiple edges between same nodes
 
-** CIM converter
+i.e. inherit from networkx.MultiGraph
 
-look at Richard Lincoln's PyCIM
 
-** ConstantSeries???
+** DONE catch load flow edge cases
 
-i.e. have some way of setting constant time series to save memory
+<=1 line
 
-** Naming considerations for components and attributes
 
-*** SubNetwork -> ConnectedNetwork
 
-*** DONE classes -> components
+** DONE Pandas backend for attributes
 
-network is no good - confuses with Network class / network object / networkx
+replace
+            self.values[obj] = float(val)
 
-*** s_nom versus p_nom for lines/branches
+with a pandas.DataFrame/Series for each network
 
-** DONE linear pf/opf for DC meshed
 
-How to deal with slack nodes and power balance within DC network for pf if there are no generators?
+get
 
+self.values[network][obj.name]
 
-Choose slack bus as first/last DC bus with a converter/generator and then set the converter on the bus.
 
-*** DONE linear pf
-
-** DONE slack buses versus slack generators
-
-Can have one bus with several PQ or PV generators and one slack generator - depends on generator, not on bus
-
-ALSO: don't want to choose a slack bus where there is no generator
-
-
-Cases:
-
-Choose the slack bus by the first generator set as a slack; otherwise
-choose the first generator in the sub-network.
-
-i) If there is a slack generator on the bus, it is a slack bus
-
-ii) If there is a PV generator on a non-slack bus, it is a PV bus; First PV generator sets the voltage
-
-iii) Otherwise it is a PQ bus
-
-
-Need to also fix pypower importer/exporter
-
-
-
-*** Does PyPower allow for more than one generator per bus???
-
-Yes. If there is more than one generator on a PV bus (type 2), then the Q is divided equally between the generators.
-
-If there is more than one generator on a reference bus (type 3), then the Q is divided equally and the spare P is sent to the first generator.
-
-see pfsoln.py
-
-
-
-** look at pandas for storing object methods in different files
-
-want different files, but still have tab completion and ? and ?? magic
-
-over-ride __dir__???
 
 
 ** DONE Flow as Expression
@@ -237,26 +426,6 @@ build flows based on PTDF or angles
 
 then use for nodal imbalance AND for flow limitation
 
-** non-linear pf
-
-See
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/makeYbus.py
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/runpf.py
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
-
-
-I = YV
-
-I_bus_inj = \sum I_branch_inj = Y V_bus
-
-Branch to = Y_t V_bus
-
-Branch from = Y_f V_bus
-
-** make p_set per unit?
 
 ** DONE think about storing tables for each component type
 
@@ -346,217 +515,92 @@ attrfilter -> can use dataframe directly
 sub_network.branches.itervalues() -> network.lines.loc[sub_network.lines] + network.transformers[sub_network.transformers]
 
 
-** check results per unit behaviour
+** DONE linear pf/opf for DC meshed
 
-e.g. per unit power
+How to deal with slack nodes and power balance within DC network for pf if there are no generators?
 
-** DONE Pandas backend for attributes
 
-replace
-            self.values[obj] = float(val)
+Choose slack bus as first/last DC bus with a converter/generator and then set the converter on the bus.
 
-with a pandas.DataFrame/Series for each network
+*** DONE linear pf
 
+** DONE slack buses versus slack generators
 
-get
+Can have one bus with several PQ or PV generators and one slack generator - depends on generator, not on bus
 
-self.values[network][obj.name]
+ALSO: don't want to choose a slack bus where there is no generator
 
-** Better as sqlalchemy?????
 
-Advantages of database:
+Cases:
 
-i) better scaling with size
+Choose the slack bus by the first generator set as a slack; otherwise
+choose the first generator in the sub-network.
 
-ii) easier, better querying
+i) If there is a slack generator on the bus, it is a slack bus
 
-iii) persistence
+ii) If there is a PV generator on a non-slack bus, it is a PV bus; First PV generator sets the voltage
 
-iv) can swop out database for Netzbetreiber
+iii) Otherwise it is a PQ bus
 
-v) Sharing data between people editing concurrently
 
-vi) Transactions (e.g. bank account transfer that fails or succeeds always at both ends)
+Need to also fix pypower importer/exporter
 
-vii) For relations between tables
 
 
-** DONE isinstance
+*** Does PyPower allow for more than one generator per bus???
 
-also applies for inheritance? yes  - if the class A inherits from B, isinstance true for A and B
+Yes. If there is more than one generator on a PV bus (type 2), then the Q is divided equally between the generators.
 
-** Voltage-dependent and ZIP loads
+If there is more than one generator on a reference bus (type 3), then the Q is divided equally and the spare P is sent to the first generator.
 
-see PyPower and PSAT
+see pfsoln.py
 
-** Shunt and series impedances
 
-** ratio and phase shift for trafos
 
-** DONE Allow graphs with multiple edges between same nodes
 
-i.e. inherit from networkx.MultiGraph
+** DONE Make a complicated example with meshed AC-DC and some sub networks with 1 or 2 nodes.
 
+** DONE Time weighting
 
-** DONE catch load flow edge cases
+network.snapshots
 
-<=1 line
+network.snapshot_weightings  - e.g. n hours each snapshot represents
 
-** catch no gens in sub_network?
+** DONE CO2 constraint
 
+class Source
 
-** beware nx.MultiGraph reordering of edges!
+** DONE Sort nexus efficiency CO2/MWht and CO2/MWhe
 
-Orders them according to collections of edges between same nodes NOT
-the order in which you read them in.
+source.co2_emissions is tCO2e / MWht
 
-** DONE OrderedGraph of branches will not necessarily have unique names!!!!
+gen.efficiency is MWhe/MWht
 
-Add component class name to start of name
+so emissions per MWhe are:
 
-What's also an issue is that the inherited descriptors are also shared between the objects, so that the descriptor actually belongs to the parent class.
+gen.source.co2_emissions / gen.efficiency   =   tCO2e / MWht  * (MWht/MWhe) = tCO2 / MWhe
 
-so that Branch.s_nom was in fact sharing components for all transport_links, lines, trafos etc.
 
+** DONE do remove object
 
-Better solution: hierarchical pandas index, so built
 
-subnetwork._branches
+** DONE CSV file format
 
-with index (Line, 0),.... (Transormer,0),.....
+follow minpower with separate csv for each object type, i.e.
 
-** Kill inheritance?
+directory
 
-It doesn't serve any good purpose and just serves to confuse.
+generator.csv
 
-e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
+bus.csv
 
+lines.csv
 
-need to watch out for isinstance(Branch)
+generator-p_set.csv  - time-dependent set point
 
 
-** DONE Go back to simple naming?
+** DONE ensure object names are unique
 
-When creating DataFrames/Series combining components (e.g. branches), which should only happen internally, could rename them there, or index by object instead of name to avoid naming collisions
+can also check with pandas.index.unique
 
-BUT want branch.name for index set in opf....
-
-Compromise: have obj.uid = Class.name + " " + obj.name?
-
-
-
-
-** DONE Include bus names in the dataframe of branches, loads and generators
-
-** Do not define empty timeseries contents until called, e.g.
-
-network.generators_df.p = pd.DataFrame(index = network.snapshots)
-
-network.generators_df.p.loc[1,"AT"] = 45.
-
-- this will define a new column "AT" and add NaNs in other entries.
-
-(at least for calculated quantities - p_set etc. should be defined)
-
-give default if name not in col????
-
-** fix angle bound limits!!!!!
-
-Currently set to None; should allow limits on angle *differences* not the actual angles
-
-** component.__init__
-
-should just do network and name, since have two interfaces for adding components and their attributes:
-
-network.add()
-
-network.import_from_df()
-
-
-
-
-** read out dual variables in opf results
-
-
-** TODO Catch optimisation status gracefully
-
-i.e. when it fails or is infeasible, catch the status and inform the user
-
-** Compare with oemof optimisation
-
-~/fias/oemof/oemof_base/oemof/solph/optimization_model.py
-
-more abstract and sophisticated than pypsa somehow
-
-
-Also snaffles dual variables in post-processing
-
-
-from oemof.solph.optimization_model import OptimizationModel as OM
-
-class OptimizationModel(po.ConcreteModel)
-
-
-** Property-based dynamically-generated DataFrames do NOT include the time-dependent quantities!!
-
-** Underscore dynamically-generated DataFrames?
-
-Since they are NOT linked to original data for updating, and don't contain time-dependent quantities.
-** Fix examples after pandification
-** Check branch.bus0 and branch.bus1 in network.buses
-
-Similarly for generator.source
-
-try:
-network.buses.loc[branch.bus0]
-except:
-missing!
-
-** DONE Improve dataframe readin
-
-For lines csv:
-
-concat with network.lines
-
-check index is still unique
-
-fill in non-present columns with defaults
-
-set to network.lines
-
-
-
-Beware adding attributes which should be series!!
-
-** OPF DC output to v_mag not v_ang
-
-Also make v_mag per unit NOT kV
-
-
-** replace descriptors with __get__ and __set__ on objects
-
-Can then use obj.attr for attr which are dynamically added to DataFrame
-
-def __set__(attr,val):
-
-try:
-   val = attr_type(val)
-except:
-  oops!
-
-if attr in df.columns:
-df.loc[self.name,attr] = val
-
-else:
-
-#return to normal object set
-setattr(self,attr,val)
-
-
-Store attributes in
-
-class Branch:
-
-    static_attributes = {{}}
-
-    series_attributes = {{}}
+** DONE Pypower format converter

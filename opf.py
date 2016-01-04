@@ -35,7 +35,7 @@ from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Const
 
 from pyomo.opt import SolverFactory
 
-from .pf import calculate_z_pu, find_slack_bus
+from .pf import calculate_dependent_values, find_slack_bus
 
 from itertools import chain
 
@@ -464,6 +464,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk"):
         network.build_graph()
         network.determine_network_topology()
 
+    if not network.dependent_values_calculated:
+        calculate_dependent_values(network)
 
 
     if snapshots is None:
@@ -471,9 +473,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk"):
 
 
 
-    #calculate B,H or PTDF for each subnetwork.
     for sub_network in network.sub_networks.obj:
-        calculate_z_pu(sub_network)
         find_slack_bus(sub_network)
 
 

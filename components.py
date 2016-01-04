@@ -129,6 +129,9 @@ class Bus(Common):
     def storage_units(self):
         return self.network.storage_units[self.network.storage_units.bus == self.name]
 
+    @property
+    def shunt_impedances(self):
+        return self.network.shunt_impedances[self.network.shunt_impedances.bus == self.name]
 
 
 class SubStation(Common):
@@ -232,15 +235,18 @@ class Load(OnePort):
     q_set = Series()
 
 class ShuntImpedance(OnePort):
-    """Shunt z = r + ix."""
+    """Shunt y = g + jb."""
 
     list_name = "shunt_impedances"
 
-    r = Float()
-    x = Float()
+    #set sign convention so that g>0 withdraws p from bus
+    sign = Float(-1)
 
-    r_pu = Float()
-    x_pu = Float()
+    g = Float()
+    b = Float()
+
+    g_pu = Float()
+    b_pu = Float()
 
 
 class Branch(Common):
@@ -261,6 +267,7 @@ class Branch(Common):
     s_nom_min = Float()
 
     #{p,q}i is positive if power is flowing from bus i into the branch
+    #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
     p0 = Series()
     p1 = Series()
 
@@ -283,7 +290,12 @@ class Line(Branch):
 
     x_pu = Float()
     r_pu = Float()
+    g_pu = Float()
+    b_pu = Float()
 
+    #voltage angle difference across branches
+    v_ang_min = Float(np.nan)
+    v_ang_max = Float(np.nan)
 
     length = Float(default=1.0)
     terrain_factor = Float(default=1.0)
@@ -305,9 +317,14 @@ class Transformer(Branch):
 
     x_pu = Float()
     r_pu = Float()
+    g_pu = Float()
+    b_pu = Float()
 
+    #voltage angle difference across branches
+    v_ang_min = Float(np.nan)
+    v_ang_max = Float(np.nan)
 
-
+    #ratio of per unit voltages
     tap_ratio = Float(1.)
 
     #in degrees
@@ -370,6 +387,7 @@ class Network(Basic):
     #booleans for triggering recalculation
     topology_determined = False
 
+    dependent_values_calculated = False
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
@@ -408,7 +426,7 @@ class Network(Basic):
 
 
     def build_dataframes(self):
-        for cls in (Load, SubNetwork, Generator, Line, Bus,
+        for cls in (Load, ShuntImpedance, SubNetwork, Generator, Line, Bus,
                     StorageUnit, TransportLink, Transformer, Source, Converter):
             columns = list((k, v.typ) for k, v in self.component_simple_descriptors[cls].iteritems())
 
@@ -440,7 +458,7 @@ class Network(Basic):
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
 
-        for cls in Load, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
+        for cls in Load, ShuntImpedance, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
 
             df = getattr(self,cls.list_name)
 
@@ -590,8 +608,6 @@ class SubNetwork(Common):
 
     num_phases = Float(default=3)
 
-    base_power = Float(default=1)
-
     slack_bus = String()
 
     graph = GraphDesc()
@@ -616,4 +632,9 @@ class SubNetwork(Common):
     @property
     def loads(self):
         merged = pd.merge(self.network.loads,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        return merged[merged.sub_network == self.name]
+
+    @property
+    def shunt_impedances(self):
+        merged = pd.merge(self.network.shunt_impedances,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
         return merged[merged.sub_network == self.name]

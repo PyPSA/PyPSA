@@ -234,6 +234,8 @@ def import_from_pypower_ppc(network,ppc):
     """Imports data from a pypower ppc dictionary to a PyPSA network
     object.
 
+    Converts all baseMVA to base power of 1 MVA.
+
     For the meaning of the pypower indices, see also pypower/idx_*.
     """
 
@@ -242,7 +244,10 @@ def import_from_pypower_ppc(network,ppc):
     if int(version) != 2:
         print("Warning, importing from PYPOWER may not work if PPC version is not 2!")
 
-    print("Warning: some PYPOWER features not supported: areas, gencosts, baseMVA, shunt Z, component status, branch: ratio, phase angle")
+    print("Warning: some PYPOWER features not supported: areas, gencosts, component status, branch: ratio, phase angle")
+
+
+    baseMVA = ppc["baseMVA"]
 
     #dictionary to store pandas DataFrames of PyPower data
     pdf = {}
@@ -265,17 +270,21 @@ def import_from_pypower_ppc(network,ppc):
 
 
     #add loads for any buses with Pd or Qd
-
-    if pdf["buses"][["Gs","Bs"]].any().any():
-        print("Warning, shunt Z at buses not yet supported!")
-
     pdf['loads'] = pdf["buses"][["Pd","Qd"]][pdf["buses"][["Pd","Qd"]].any(axis=1)]
 
     pdf['loads']['bus'] = pdf['loads'].index
 
     pdf['loads'].rename(columns={"Qd" : "q_set", "Pd" : "p_set"}, inplace=True)
 
+    #add shunt impedances for any buses with Gs or Bs
 
+    shunt = pdf["buses"][["v_nom","Gs","Bs"]][pdf["buses"][["Gs","Bs"]].any(axis=1)]
+
+    #base power for shunt is 1 MVA, so no need to rebase here
+    shunt["g"] = shunt["Gs"]/shunt["v_nom"]**2
+    shunt["b"] = shunt["Bs"]/shunt["v_nom"]**2
+    pdf['shunt_impedances'] = shunt.reindex(columns=["g","b"])
+    pdf['shunt_impedances']["bus"] = pdf['shunt_impedances'].index
 
     #add gens
 
@@ -292,7 +301,7 @@ def import_from_pypower_ppc(network,ppc):
     ## branch data
     # fbus, tbus, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax
 
-    columns = 'bus0, bus1, r, x, b, s_nom, rateB, rateC, tap_ratio, phase_shift, status, angmin, angmax'.split(", ")
+    columns = 'bus0, bus1, r, x, b, s_nom, rateB, rateC, tap_ratio, phase_shift, status, v_ang_min, v_ang_max'.split(", ")
 
 
     pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])
@@ -300,6 +309,24 @@ def import_from_pypower_ppc(network,ppc):
     pdf['branches']["bus0"] = np.array(pdf['branches']["bus0"],dtype=int)
     pdf['branches']["bus1"] = np.array(pdf['branches']["bus1"],dtype=int)
 
+    #add bus voltages to branches to detect transformers
+    branches = pd.merge(pdf['branches'],pdf['buses'],how="left",left_on="bus0",right_index=True,suffixes=("","_0"))
+    branches = pd.merge(branches,pdf['buses'],how="left",left_on="bus1",right_index=True,suffixes=("","_1"))
+
+    pdf['transformers'] = pdf['branches'][(branches.v_nom != branches.v_nom_1) | (branches.tap_ratio != 0) | (branches.phase_shift != 0)]
+
+    #convert transformers from base baseMVA to base s_nom
+    pdf['transformers']['r'] = pdf['transformers']['r']*pdf['transformers']['s_nom']/baseMVA
+    pdf['transformers']['x'] = pdf['transformers']['x']*pdf['transformers']['s_nom']/baseMVA
+    pdf['transformers']['b'] = pdf['transformers']['b']*baseMVA/pdf['transformers']['s_nom']
+
+    #correct per unit impedances
+    pdf['branches']["r"] = branches["v_nom"]**2*pdf['branches']["r"]/baseMVA
+    pdf['branches']["x"] = branches["v_nom"]**2*pdf['branches']["x"]/baseMVA
+    pdf['branches']["b"] = pdf['branches']["b"]*baseMVA/branches["v_nom"]**2
+
+
+    pdf['lines'] = pdf['branches'].reindex(index=pdf['branches'].index.difference(pdf['transformers'].index)).drop(["tap_ratio","phase_shift"],axis=1)
 
     #TODO
 
@@ -308,11 +335,9 @@ def import_from_pypower_ppc(network,ppc):
     # 1 startup shutdown n x1 y1 ... xn yn
     # 2 startup shutdown n c(n-1) ... c0
 
-    import_components_from_dataframe(network,pdf["buses"],"Bus")
-    import_components_from_dataframe(network,pdf["loads"],"Load")
-    import_components_from_dataframe(network,pdf["generators"],"Generator")
-    import_components_from_dataframe(network,pdf["branches"],"Line")
-
+    for component in ["Bus","Load","Generator","Line","Transformer","ShuntImpedance"]:
+        cls = getattr(pypsa.components,component)
+        import_components_from_dataframe(network,pdf[cls.list_name],component)
 
     for gen in network.generators.obj:
         gen.control = network.buses.control[gen.bus]
