@@ -230,7 +230,7 @@ def import_from_csv_folder(network,csv_folder_name):
 
 
 
-def import_from_pypower_ppc(network,ppc):
+def import_from_pypower_ppc(network,ppc,verbose=True):
     """Imports data from a pypower ppc dictionary to a PyPSA network
     object.
 
@@ -341,6 +341,3 @@ def import_from_pypower_ppc(network,ppc):
 
     for gen in network.generators.obj:
         gen.control = network.buses.control[gen.bus]
-
-
-    return pdf

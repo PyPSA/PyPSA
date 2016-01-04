@@ -476,9 +476,9 @@ class Network(Basic):
 
 
 
-    def import_from_pypower_ppc(self, ppc):
+    def import_from_pypower_ppc(self, ppc, verbose=True):
         """Import network from PyPower ppc dictionary."""
-        return import_from_pypower_ppc(self,ppc)
+        return import_from_pypower_ppc(self,ppc,verbose)
 
 
     def add(self,class_name,name,**kwargs):
