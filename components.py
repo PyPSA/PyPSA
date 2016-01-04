@@ -106,7 +106,10 @@ class Bus(Common):
     q = Series()
     v_mag = Series(default=1.)
     v_ang = Series()
-    v_set = Series(default=1.)
+    v_mag_set = Series(default=1.)
+    v_mag_min = Float()
+    v_mag_max = Float(np.nan)
+
 
     current_type = String(default="AC",restricted=["AC","DC"])
 
@@ -228,6 +231,17 @@ class Load(OnePort):
     p_set = Series()
     q_set = Series()
 
+class ShuntImpedance(OnePort):
+    """Shunt z = r + ix."""
+
+    list_name = "shunt_impedances"
+
+    r = Float()
+    x = Float()
+
+    r_pu = Float()
+    x_pu = Float()
+
 
 class Branch(Common):
     """Object which attaches to two buses (e.g. line or 2-winding transformer)."""
@@ -285,8 +299,19 @@ class Transformer(Branch):
 
     #per unit with reference to s_nom
     x = Float()
+    r = Float()
+    g = Float()
+    b = Float()
 
     x_pu = Float()
+    r_pu = Float()
+
+
+
+    tap_ratio = Float(1.)
+
+    #in degrees
+    phase_shift = Float()
 
     sub_network = String()
 

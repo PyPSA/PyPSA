@@ -506,7 +506,13 @@ Since they are NOT linked to original data for updating, and don't contain time-
 ** Check branch.bus0 and branch.bus1 in network.buses
 
 Similarly for generator.source
-** Improve dataframe readin
+
+try:
+network.buses.loc[branch.bus0]
+except:
+missing!
+
+** DONE Improve dataframe readin
 
 For lines csv:
 
@@ -518,4 +524,39 @@ fill in non-present columns with defaults
 
 set to network.lines
 
+
+
+Beware adding attributes which should be series!!
+
 ** OPF DC output to v_mag not v_ang
+
+Also make v_mag per unit NOT kV
+
+
+** replace descriptors with __get__ and __set__ on objects
+
+Can then use obj.attr for attr which are dynamically added to DataFrame
+
+def __set__(attr,val):
+
+try:
+   val = attr_type(val)
+except:
+  oops!
+
+if attr in df.columns:
+df.loc[self.name,attr] = val
+
+else:
+
+#return to normal object set
+setattr(self,attr,val)
+
+
+Store attributes in
+
+class Branch:
+
+    static_attributes = {{}}
+
+    series_attributes = {{}}

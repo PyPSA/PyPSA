@@ -1,5 +1,3 @@
-
-
 ## Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
@@ -122,22 +120,51 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
 
 def import_components_from_dataframe(network,dataframe,cls_name):
 
-    if not dataframe.index.is_unique:
-        print("Warning! Dataframe for",cls_name,"does not have a unique index!")
+
+    dataframe.index = [str(i) for i in dataframe.index]
+
+    cls = getattr(pypsa.components,cls_name)
+
+    simple_attrs = set(network.component_simple_descriptors[cls].keys()) & set(dataframe.columns)
+    series_attrs = set(network.component_series_descriptors[cls].keys()) & set(dataframe.columns)
+    string_attrs = {"bus","bus0","bus1","source"} & set(dataframe.columns)
+
+    for col in string_attrs:
+        dataframe[col] = [str(v) for v in dataframe[col]]
 
 
-    for i in dataframe.index:
-        obj = network.add(cls_name,i)
-        for attr in dataframe.columns:
-            setattr(obj,attr,dataframe[attr][i])
+    old_df = getattr(network,cls.list_name)
+
+    new_df = pd.concat((old_df,dataframe.drop(series_attrs,axis=1)))
+
+    if not new_df.index.is_unique:
+        print("Error, new components for",cls_name,"are not unique")
+        return
+
+    for k,v in network.component_simple_descriptors[cls].items():
+        if k not in simple_attrs:
+            new_df.loc[dataframe.index,k] = v.default
+
+    new_df.loc[dataframe.index,"obj"] = [cls(network,str(i)) for i in dataframe.index]
+
+    for k,v in network.component_series_descriptors[cls].items():
+        old_s_df = getattr(old_df,k)
+        new_s_df = old_s_df.reindex(columns=old_s_df.columns|dataframe.index,fill_value=v.default)
+
+        if k in series_attrs:
+            new_s_df.loc[:,dataframe.index] = dataframe.loc[:,k].values
+
+        setattr(new_df,k,new_s_df)
+
+    setattr(network,cls.list_name,new_df)
+
 
 
 def import_series_from_dataframe(network,dataframe,list_name,attr):
 
-    cls_df = getattr(network,list_name)
+    df = getattr(getattr(network,list_name),attr)
 
-    for col in dataframe:
-        setattr(cls_df.obj[col],attr,dataframe[col])
+    df.loc[:,dataframe.columns] = dataframe
 
 
 
@@ -205,7 +232,10 @@ def import_from_csv_folder(network,csv_folder_name):
 
 def import_from_pypower_ppc(network,ppc):
     """Imports data from a pypower ppc dictionary to a PyPSA network
-    object."""
+    object.
+
+    For the meaning of the pypower indices, see also pypower/idx_*.
+    """
 
 
     version = ppc["version"]
@@ -223,7 +253,7 @@ def import_from_pypower_ppc(network,ppc):
     #integer numbering will be bus names
     index = np.array(ppc['bus'][:,0],dtype=int)
 
-    columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","Vmax","Vmin"]
+    columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","v_mag_max","v_mag_min"]
 
     pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:])
 
@@ -249,7 +279,7 @@ def import_from_pypower_ppc(network,ppc):
 
     #add gens
 
-    columns = "bus, p_set, q_set, q_max, q_min, Vg, mBase, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
+    columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
 
     index = np.array(ppc['gen'][:,0],dtype=int)
 
@@ -262,7 +292,7 @@ def import_from_pypower_ppc(network,ppc):
     ## branch data
     # fbus, tbus, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax
 
-    columns = 'bus0, bus1, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax'.split(", ")
+    columns = 'bus0, bus1, r, x, b, s_nom, rateB, rateC, tap_ratio, phase_shift, status, angmin, angmax'.split(", ")
 
 
     pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])

@@ -53,11 +53,18 @@ to allow pf/opf to change set points
 
 * Default units
 
-Power: MW
+Power: MW/MVA/MVar
 
-Voltage: kV
+Voltage: per unit for v_mag, v_mag_set, v_mag_min etc; kV for v_nom
 
-Impedance: Ohm
+Angles: radians, except transformer.phase_shift which is degrees for easy input
+
+Impedance: Ohm, except transformers which are pu
+
+
+
+
+
 
 * Sign convention
 
