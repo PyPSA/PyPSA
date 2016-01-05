@@ -110,6 +110,8 @@ class Bus(Common):
     v_mag_min = Float()
     v_mag_max = Float(np.nan)
 
+    #optimisation output for power balance constraint at bus
+    marginal_price = Series()
 
     current_type = String(default="AC",restricted=["AC","DC"])
 

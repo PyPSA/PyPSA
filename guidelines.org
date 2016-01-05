@@ -194,13 +194,6 @@ network.import_from_df()
 
 
 
-** read out dual variables in opf results
-
-
-** TODO Catch optimisation status gracefully
-
-i.e. when it fails or is infeasible, catch the status and inform the user
-
 ** Compare with oemof optimisation
 
 ~/fias/oemof/oemof_base/oemof/solph/optimization_model.py
@@ -265,6 +258,22 @@ class Branch:
     series_attributes = {{}}
 
 * DONE
+
+
+
+** DONE read out dual variables in opf results
+
+Done for the locational marginal price - not clear whether other
+constraints are necessary (e.g. line upper/lower).
+
+Note that shadow price at buses also include capacity extensions when
+capacity is being mit-optimised - only really useful when capacity is
+fixed and only dispatch is being optimised.
+
+** DONE Catch optimisation status gracefully
+
+i.e. when it fails or is infeasible, catch the status and inform the user
+
 
 ** DONE non-linear pf
 

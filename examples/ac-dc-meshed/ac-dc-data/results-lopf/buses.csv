@@ -1,10 +1,10 @@
-name,control,v_nom,sub_network,current_type,y,x,obj
-London,PQ,380.0,1,AC,0.0,0.0,Bus London
-Norwich,PQ,380.0,1,AC,0.0,0.0,Bus Norwich
-Norwich DC,PQ,200.0,0,DC,0.0,0.0,Bus Norwich DC
-Manchester,PQ,380.0,1,AC,0.0,0.0,Bus Manchester
-Bremen,PQ,380.0,3,AC,0.0,0.0,Bus Bremen
-Bremen DC,PQ,200.0,0,DC,0.0,0.0,Bus Bremen DC
-Frankfurt,PQ,380.0,3,AC,0.0,0.0,Bus Frankfurt
-Norway,PQ,380.0,2,AC,0.0,0.0,Bus Norway
-Norway DC,PQ,200.0,0,DC,0.0,0.0,Bus Norway DC
+name,control,current_type,obj,sub_network,v_mag_max,v_mag_min,v_nom,x,y
+London,PQ,AC,Bus London,1,,0.0,380.0,0.0,0.0
+Norwich,PQ,AC,Bus Norwich,1,,0.0,380.0,0.0,0.0
+Norwich DC,PQ,DC,Bus Norwich DC,0,,0.0,200.0,0.0,0.0
+Manchester,PQ,AC,Bus Manchester,1,,0.0,380.0,0.0,0.0
+Bremen,PQ,AC,Bus Bremen,3,,0.0,380.0,0.0,0.0
+Bremen DC,PQ,DC,Bus Bremen DC,0,,0.0,200.0,0.0,0.0
+Frankfurt,PQ,AC,Bus Frankfurt,3,,0.0,380.0,0.0,0.0
+Norway,PQ,AC,Bus Norway,2,,0.0,380.0,0.0,0.0
+Norway DC,PQ,DC,Bus Norway DC,0,,0.0,200.0,0.0,0.0

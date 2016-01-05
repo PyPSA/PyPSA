@@ -50,6 +50,11 @@ def test_opf():
     snapshots = network.snapshots
     network.lopf(snapshots=snapshots,solver_name=solver_name)
 
+    results_folder_name = "results"
+
+    network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
+                                                                  "storage_units" : {"p" : None},
+                                                                  "buses" : {"marginal_price" : None}})
 
     np.testing.assert_array_almost_equal(network.generators.p,network_r.generators.p)
 

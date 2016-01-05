@@ -409,6 +409,9 @@ def define_linear_objective(network,snapshots):
 
 def extract_optimisation_results(network,snapshots):
 
+    #get value of objective function
+    network.objective = network.results["Problem"][0]["Lower bound"]
+
     for snapshot in snapshots:
 
         for generator in network.generators.obj:
@@ -427,6 +430,8 @@ def extract_optimisation_results(network,snapshots):
             bus.v_ang[snapshot] = network.model.voltage_angles[bus.name,snapshot].value
 
             bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.obj,bus.loads.obj,bus.storage_units.obj))
+
+            bus.marginal_price[snapshot] = network.model.dual[network.model.power_balance[bus.name,snapshot]]
 
 
         for cb in network.controllable_branches.obj:
@@ -457,7 +462,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk"):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
     """Linear optimal power flow for snapshots."""
 
     if not network.topology_determined:
@@ -504,12 +509,15 @@ def network_lopf(network,snapshots=None,solver_name="glpk"):
 
     opt = SolverFactory(solver_name)
 
-    instance = network.model.create()
+    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=True)
 
-    results = opt.solve(instance,suffixes=["dual"],keepfiles=True)
+    if verbose:
+        network.results.write()
 
-    results.write()
+    status = network.results["Solver"][0]["Status"].key
+    termination_condition = network.results["Solver"][0]["Termination condition"].key
 
-    network.model.load(results)
-
-    extract_optimisation_results(network,snapshots)
+    if status == "ok" and termination_condition == "optimal":
+        extract_optimisation_results(network,snapshots)
+    else:
+        print("Optimisation failed with status %s and terminal condition %s" % (status,termination_condition))
