@@ -119,24 +119,8 @@ want different files, but still have tab completion and ? and ?? magic
 
 over-ride __dir__???
 
-** non-linear pf
 
-See
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/makeYbus.py
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/runpf.py
-
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
-
-
-I = YV
-
-I_bus_inj = \sum I_branch_inj = Y V_bus
-
-Branch to = Y_t V_bus
-
-Branch from = Y_f V_bus
+** newton-raphson
 
 ** make p_set per unit?
 
@@ -281,6 +265,25 @@ class Branch:
     series_attributes = {{}}
 
 * DONE
+
+** DONE non-linear pf
+
+See
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/makeYbus.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/runpf.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+
+
+I = YV
+
+I_bus_inj = \sum I_branch_inj = Y V_bus
+
+Branch to = Y_t V_bus
+
+Branch from = Y_f V_bus
 
 
 
