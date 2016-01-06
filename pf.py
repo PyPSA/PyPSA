@@ -29,7 +29,7 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 
 
 
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, hstack as shstack, vstack as svstack
 
 from numpy import r_, ones, zeros, newaxis
 from scipy.sparse.linalg import spsolve
@@ -47,6 +47,7 @@ from itertools import chain
 from scipy.optimize import fsolve
 from numpy.linalg import norm
 
+import time
 
 def network_pf(network,now=None,verbose=True):
     """Full non-linear power flow for generic network."""
@@ -141,6 +142,42 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
         return F
 
+
+    def dfdx(guess):
+
+        network.buses.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
+
+        network.buses.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
+
+        v_mag = network.buses.v_mag.loc[now,buses.index]
+        v_ang = network.buses.v_ang.loc[now,buses.index]
+
+        V = v_mag*np.exp(1j*v_ang)
+
+        index = r_[:len(buses)]
+
+        #make sparse diagonal matrices
+        V_diag = csr_matrix((V,(index,index)))
+        V_norm_diag = csr_matrix((V/abs(V),(index,index)))
+        I_diag = csr_matrix((sub_network.Y*V,(index,index)))
+
+        dS_dVa = 1j*V_diag*np.conj(I_diag - sub_network.Y*V_diag)
+
+        dS_dVm = V_norm_diag*np.conj(I_diag) + V_diag * np.conj(sub_network.Y*V_norm_diag)
+
+        J00 = dS_dVa[1:,1:].real
+        J01 = dS_dVm[1:,1+len(sub_network.pvs):].real
+        J10 = dS_dVa[1+len(sub_network.pvs):,1:].imag
+        J11 = dS_dVm[1+len(sub_network.pvs):,1+len(sub_network.pvs):].imag
+
+        J = svstack([
+            shstack([J00, J01]),
+            shstack([J10, J11])
+        ], format="csr")
+
+        return J.toarray()
+
+
     #Set what we know: slack V and V_mag for PV buses
     network.buses.v_mag.loc[now,sub_network.pvs.index] = network.buses.v_mag_set.loc[now,sub_network.pvs.index]
 
@@ -154,6 +191,11 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     #Now try and solve
     roots, infodict, ier, mesg =  fsolve(f,guess,full_output=True,xtol=1e-10)
 
+    start = time.time()
+    #Now try and solve
+    roots, infodict, ier, mesg =  fsolve(f,guess,fprime=dfdx,full_output=True,xtol=1e-10)
+    if verbose:
+        print("Solving with fsolve took",time.time()-start,"seconds")
 
     #now set everything
 
