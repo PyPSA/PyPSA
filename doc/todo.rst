@@ -2,6 +2,8 @@
  Todo List
 ###############
 
+.. _todo:
+
 Improve access to time-dependent variables
 ----------------------
 

@@ -121,12 +121,15 @@ want different files, but still have tab completion and ? and ?? magic
 over-ride __dir__???
 
 
-** newton-raphson
+** newton-raphson for DC networks
 
+i.e. solve P_i = \sum_j V_i Y_ij V_j
 
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+where everything is real
 
-~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/dSbus_dV.py
+Can set either P or V at bus
+
+Need one slack
 
 ** make p_set per unit?
 
@@ -264,6 +267,15 @@ class Branch:
     series_attributes = {{}}
 
 * DONE
+
+
+** newton-raphson for AC
+
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/dSbus_dV.py
+
 
 ** Documentation in sphinx/rst
 

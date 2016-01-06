@@ -12,12 +12,12 @@ networks.
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
 environment. Some APIs may change - those liable to be updated are
-listed in XXX.
+listed in the :doc:`todo`.
 
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
-financed by the CoNDyNet project.
+financed by the `CoNDyNet project <http://condynet.de/>`_.
 
 What PyPSA does and does not do (yet)
 ===================================
@@ -39,7 +39,7 @@ It has models for:
 
 
 
-Functionality that will definitely by added soon (see also TODO xxxx):
+Functionality that will definitely by added soon (see also :doc:`todo`):
 
 * Plotting of networks with power flow
 * Better modelling of hydroelectricity

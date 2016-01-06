@@ -2,9 +2,7 @@
 
 import pypsa
 
-#NB: this test doesn't work for other cases because transformer tap
-#ratio and phase angle not supported for lpf
-from pypower.api import ppoption, runpf, case30 as case
+from pypower.api import ppoption, runpf, case118 as case
 
 
 import pandas as pd
@@ -20,7 +18,7 @@ def test_pypower_case():
     ppopt = ppoption(PF_ALG=2)
 
     #choose DC or AC
-    ppopt["PF_DC"] = True
+    ppopt["PF_DC"] = False
 
     #ppc is a dictionary with details about the network, including baseMVA, branches and generators
     ppc = case()
@@ -35,7 +33,7 @@ def test_pypower_case():
     results_df['branch'] = pd.DataFrame(data=results["branch"],columns=columns)
 
     #buses
-    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","Vmax","Vmin"]
+    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag","v_ang","v_nom","zone","Vmax","Vmin"]
     results_df['bus'] = pd.DataFrame(data=results["bus"],columns=columns,index=results["bus"][:,0])
 
     #generators
@@ -48,16 +46,17 @@ def test_pypower_case():
 
     network = pypsa.Network()
     network.import_from_pypower_ppc(ppc)
-    network.lpf()
+    network.pf()
 
 
 
     #compare generator dispatch
 
-    p_pypsa = network.generators.p.loc[network.now].values
-    p_pypower = results_df['gen']["p"].values
+    p_pypsa = network.generators.p.loc[network.now]
+    p_pypower = results_df['gen']["p"]
 
     np.testing.assert_array_almost_equal(p_pypsa,p_pypower)
+
 
     #compare branch flows
     for item in ["lines","transformers"]:
@@ -67,3 +66,15 @@ def test_pypower_case():
         p0_pypower = results_df['branch']["p0"][index].values
 
         np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)
+
+    #compare voltages
+    v_mag_pypsa = network.buses.v_mag.loc[network.now]
+    v_mag_pypower = results_df["bus"]["v_mag"]
+
+    np.testing.assert_array_almost_equal(v_mag_pypsa,v_mag_pypower)
+
+    v_ang_pypsa = network.buses["v_ang"] = network.buses.v_ang.loc[network.now]
+    pypower_slack_angle = results_df["bus"]["v_ang"][results_df["bus"]["type"] == 3].values[0]
+    v_ang_pypower = (results_df["bus"]["v_ang"] - pypower_slack_angle)*np.pi/180.
+
+    np.testing.assert_array_almost_equal(v_ang_pypsa,v_ang_pypower)

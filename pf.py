@@ -44,10 +44,11 @@ import pypsa
 from itertools import chain
 
 
-from scipy.optimize import fsolve
 from numpy.linalg import norm
 
 import time
+
+
 
 def network_pf(network,now=None,verbose=True):
     """Full non-linear power flow for generic network."""
@@ -80,6 +81,39 @@ def network_pf(network,now=None,verbose=True):
             print("Performing linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
 
         sub_network.pf(now,verbose)
+
+
+
+
+def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
+    """Solve f(x) = 0 with initial guess for x and dfdx(x). dfdx(x) should
+    return a sparse Jacobian.  Terminate if error on norm of f(x) is <
+    x_tol or there were more than lim_iter iterations.
+
+    """
+
+    n_iter = 0
+    F = f(guess)
+    diff = norm(F,np.Inf)
+
+    if verbose:
+        print("Error at iteration %d: %f" % (n_iter,diff))
+
+    while diff > x_tol and n_iter < lim_iter:
+
+        n_iter +=1
+
+        guess = guess - spsolve(dfdx(guess),F)
+
+        F = f(guess)
+        diff = norm(F,np.Inf)
+
+        if verbose:
+            print("Error at iteration %d: %f" % (n_iter,diff))
+
+
+    return guess,n_iter,diff
+
 
 
 def sub_network_pf(sub_network,now=None,verbose=True):
@@ -175,7 +209,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
             shstack([J10, J11])
         ], format="csr")
 
-        return J.toarray()
+        return J
 
 
     #Set what we know: slack V and V_mag for PV buses
@@ -189,13 +223,10 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
 
     #Now try and solve
-    roots, infodict, ier, mesg =  fsolve(f,guess,full_output=True,xtol=1e-10)
-
     start = time.time()
-    #Now try and solve
-    roots, infodict, ier, mesg =  fsolve(f,guess,fprime=dfdx,full_output=True,xtol=1e-10)
+    roots,n_iter,diff = newton_raphson_sparse(f,guess,dfdx,verbose=verbose)
     if verbose:
-        print("Solving with fsolve took",time.time()-start,"seconds")
+        print("Newton-Raphson solved in %d iterations with error of %f in %f seconds" % (n_iter,diff,time.time()-start))
 
     #now set everything
 

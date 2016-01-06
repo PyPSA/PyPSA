@@ -89,7 +89,7 @@ Per unit values of voltage and impedance are used interally for
 network calculations. It is assumed internally that the base power is
 1 MVA. The base voltage depends on the component.
 
-See also XXXX.
+See also :ref:`unit-conventions`.
 
 
 Set points are stored separately from actual dispatch points
