@@ -109,12 +109,10 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     #set the power injection at each node
     for bus in buses.obj:
         bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj) \
-                     + sum(sh.sign*sh.g_pu for sh in bus.shunt_impedances.obj)
+                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj)
 
         bus.q[now] = sum(g.sign*g.q_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.q_set[now] for l in bus.loads.obj) \
-                     + sum(sh.sign*sh.b_pu for sh in bus.shunt_impedances.obj)
+                     + sum(l.sign*l.q_set[now] for l in bus.loads.obj)
 
     #power injection should include transport links and converters
     for t in chain(network.transport_links.obj,network.converters.obj):
@@ -144,9 +142,9 @@ def sub_network_pf(sub_network,now=None,verbose=True):
         return F
 
     #Set what we know: slack V and V_mag for PV buses
-    network.buses.v_mag.loc[now,sub_network.pvs.index] = 1.
+    network.buses.v_mag.loc[now,sub_network.pvs.index] = network.buses.v_mag_set.loc[now,sub_network.pvs.index]
 
-    network.buses.v_mag.loc[now,sub_network.slack_bus] = 1.
+    network.buses.v_mag.loc[now,sub_network.slack_bus] = network.buses.v_mag_set.loc[now,sub_network.slack_bus]
 
     network.buses.v_ang.loc[now,sub_network.slack_bus] = 0.
 
@@ -154,7 +152,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
 
     #Now try and solve
-    roots, infodict, ier, mesg =  fsolve(f,guess,full_output=True)
+    roots, infodict, ier, mesg =  fsolve(f,guess,full_output=True,xtol=1e-10)
 
 
     #now set everything

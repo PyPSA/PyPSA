@@ -73,6 +73,9 @@ kV, Ohm, MW, A
 
 * TODO
 
+
+** move guidelines.org to doc/
+
 ** more detailed regression testing
 
 Use classes to do multiple tests with same set-up
@@ -106,6 +109,10 @@ network is no good - confuses with Network class / network object / networkx
 
 *** s_nom versus p_nom for lines/branches
 
+
+** take v_mag_set from generators?
+
+instead of bus? like pypower
 
 ** look at pandas for storing object methods in different files
 
