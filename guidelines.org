@@ -73,7 +73,6 @@ kV, Ohm, MW, A
 
 * TODO
 
-
 ** more detailed regression testing
 
 Use classes to do multiple tests with same set-up
@@ -84,11 +83,6 @@ Need to define countries etc.
 class Zone
 
 
-** Documentation in sphinx/rst
-
-cf. oemof
-
-started org-mode docu in doc/ - can be based on this documentation
 
 ** Python 3 improve
 
@@ -121,6 +115,11 @@ over-ride __dir__???
 
 
 ** newton-raphson
+
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/newtonpf.py
+
+~/.virtualenvs/tom/lib/python2.7/site-packages/pypower/dSbus_dV.py
 
 ** make p_set per unit?
 
@@ -259,6 +258,11 @@ class Branch:
 
 * DONE
 
+** Documentation in sphinx/rst
+
+cf. oemof
+
+started org-mode docu in doc/ - can be based on this documentation
 
 
 ** DONE read out dual variables in opf results

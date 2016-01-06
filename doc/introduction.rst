@@ -39,10 +39,18 @@ It has models for:
 
 
 
+Functionality that will definitely by added soon (see also TODO xxxx):
+
+* Plotting of networks with power flow
+* Better modelling of hydroelectricity
+
 Functionality that may be added in the future:
 
+* Unit Commitment using MILP
 * Short-circuit current calculations
 * Dynamic RMS simulations
+* Interactive web-based GUI
+* AC OPF
 
 
 Target user group
@@ -102,4 +110,4 @@ equations, are carried out using the scipy.sparse libraries.
 Licence
 ==========
 
-GPLv3.
+PyPSA is released under the `GPLv3 <http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
