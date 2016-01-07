@@ -4,10 +4,11 @@
 
 PyPSA stands for "Python for Power System Analysis".
 
-PyPSA is intended to be a toolbox for simulating modern electric power
-systems that include features such as variable wind and solar
-generation, storage units and mixed alternating and direct current
-networks.
+PyPSA is a `free software
+<http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
+simulating and optimising modern electric power systems that include
+features such as variable wind and solar generation, storage units and
+mixed alternating and direct current networks.
 
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
@@ -17,21 +18,25 @@ listed in the :doc:`todo`.
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
-financed by the `CoNDyNet project <http://condynet.de/>`_.
+for the `CoNDyNet project <http://condynet.de/>`_, financed by the
+German Federal Ministry for Education and Research (BMBF).
+
 
 What PyPSA does and does not do (yet)
-===================================
+=======================================
 
 PyPSA can calculate:
 
-* static power flow (using both the full non-linear equations and
-  the linearised equations)
-* linear optimal power flow (over several snapshots
-  simultaneously for capacity and storage optimisation)
+* static power flow (using both the full non-linear network equations and
+  the linearised network equations)
+* linear optimal power flow (over several snapshots simultaneously for
+  optimisation of generation and storage dispatch and the capacities
+  of generation, storage and transmission)
 
 It has models for:
 
-* meshed multiply-connected AC and DC networks, with converters between AC and DC
+* meshed multiply-connected AC and DC networks, with controllable
+  converters between AC and DC networks
 * conventional dispatchable generators
 * generators with time-varying power availability, such as
   wind and solar generators
@@ -41,24 +46,29 @@ It has models for:
 
 Functionality that will definitely by added soon (see also :doc:`todo`):
 
-* Plotting of networks with power flow
+* Graphical plotting of networks with power flow
 * Better modelling of hydroelectricity
+* Distributed active power slack
+* Non-linear power flow solution using `analytic continuation <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_ in the complex plane
 
 Functionality that may be added in the future:
 
 * Unit Commitment using MILP
 * Short-circuit current calculations
 * Dynamic RMS simulations
+* Small signal stability analysis
 * Interactive web-based GUI
 * AC OPF
+* Dynamic EMT simulations
+* Unbalanced load flow
 
 
 Target user group
 =================
 
-PyPSA is intended for researchers, planners and utlities who need a
-fast and transparent tool for power system analysis, which
-can be arbitrarily extended.
+PyPSA is intended for researchers, planners and utilities who need a
+fast, easy-to-use and transparent tool for power system
+analysis. PyPSA is free software and can be arbitrarily extended.
 
 
 
@@ -72,8 +82,9 @@ such as the Matlab-based free software `PSAT
 <http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 However for power flow and optimal power flow over several time
-snapshots, it offers the flexibility of Python and the transparency of
-free software.
+snapshots with variable renewable energy sources and/or storage and/or
+mixed AC-DC systems, it offers the flexibility of Python and the
+transparency of free software.
 
 Another Python power system tool is `PYPOWER
 <https://github.com/rwl/PYPOWER/>`_, which is based on the
@@ -81,7 +92,8 @@ Matlab-based `MATPOWER <http://www.pserc.cornell.edu//matpower/>`_. In
 contrast to PYPOWER, PyPSA has an easier-to-use data model (objects
 and pandas DataFrames instead of numpy arrays), support for
 time-varying data inputs and support for multiply-connected networks
-using both AC and DC.
+using both AC and DC. PyPSA uses some of the sparse-matrix constructs
+from PYPOWER.
 
 
 
@@ -95,10 +107,11 @@ minimal effort should be required to run it in Python 3.
 It leans heavily on the following Python packages:
 
 * `pandas <http://ipython.org/>`_ for storing data about components and time series
-* numpy and `scipy <http://scipy.org/>`_ for calcuations, such as
+* numpy and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
 * networkx for some network calculations (such as discovering connected networks)
+* py.test for unit testing
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver (you can use e.g. the free software GLPK or the commercial

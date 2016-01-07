@@ -14,6 +14,7 @@ Contents:
 
    introduction
    installation
+   quick_start
    design
    components
    import_export
@@ -22,6 +23,7 @@ Contents:
    conventions
    examples
    pitfalls
+   unit_testing
    todo
 
 

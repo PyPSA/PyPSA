@@ -48,7 +48,7 @@ Network components cannot exist without a network to hold them.
 
 
 Time-varying data are stored in pandas DataFrames
-=======================
+=================================================
 
 Some quantities, such as generator.p_set (generator active power set
 point), generator.p (generator actual active power), line.p0 (line
@@ -69,7 +69,7 @@ columns are the component names.
 
 
 Object model with descriptor properties point to DataFrames
-======================================
+===========================================================
 
 Sometimes it is useful to access the components as objects instead of
 using the pandas DataFrames.

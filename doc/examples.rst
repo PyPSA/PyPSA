@@ -3,4 +3,4 @@
 ################
 
 
-See pyspa/examples/.
+See pypsa/examples/ and pypsa/test/ for usage cases.

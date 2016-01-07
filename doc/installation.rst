@@ -15,7 +15,7 @@ standard Python installation:
 It is recommended to use PyPSA with the following additional packages:
 
 * `iPython <http://ipython.org/>`_ for interactive simulations
-
+* py.test for unit testing
 
 In a unix-based environment these packages can be obtained with the
 `pip <https://pypi.python.org/pypi/pip>`_ Python package manager::

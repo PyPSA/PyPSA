@@ -7,7 +7,7 @@ See pypsa.pf.
 
 
 Full non-linear power flow
-=====================
+==========================
 
 
 The non-linear power flow network.pf() works only for AC networks.
@@ -26,11 +26,11 @@ impedances and any shunt admittances attached to the buses.
 
 
 
-For the slack bus it is assumed :math:`V_0 = 1` and P and Q are to be found.
+For the slack bus it is assumed :math:`V_0 = 1`; P and Q are to be found.
 
-For the PV buses, P and :math:`|V|` are given and Q and :math:`\theta` are to be found.
+For the PV buses, P and :math:`|V|` are given; Q and :math:`\theta` are to be found.
 
-For the PQ buses, P and Q are given and :math:`|V|` and :math:`\theta` are to be found.
+For the PQ buses, P and Q are given; :math:`|V|` and :math:`\theta` are to be found.
 
 If PV and PQ are the sets of buses, then there are :math:`|PV| + 2|PQ|` real equations to solve:
 
@@ -86,7 +86,7 @@ where :math:`\tau` is the tap ratio between the per unit voltages bus0:bus1 and 
 
 
 Linear power flow
-=============
+=================
 
 Assume decoupling of reactive power, no voltage magnitude variations,
 angles are small.

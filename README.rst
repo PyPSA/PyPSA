@@ -1,13 +1,23 @@
 
 
-# Python for Power Systems Analysis
+Python for Power Systems Analysis
+=================================
+
 
 For load-flow and optimal power flow.
 
 In future: also dynamical stability.
 
-# Licence (GPL3)
 
+Documentation
+-------------
+
+Can be found in pypsa/doc (which uses sphinx), which is also `on the
+web <http://nworbmot.org/energy/pypsa-doc/>`_.
+
+
+Licence (GPL3)
+--------------
 
 Copyright 2015 Tom Brown (FIAS), Jonas H
 
@@ -22,4 +32,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see http://www.gnu.org/licenses/ .
