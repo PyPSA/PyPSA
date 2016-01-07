@@ -1,2 +1,2 @@
-name,co2_limit,now,srid,topology_determined
-Test 6 bus,1000,now,4326,False
+name,co2_limit,dependent_values_calculated,now,srid,topology_determined
+Test 6 bus,1000,False,now,4326,False

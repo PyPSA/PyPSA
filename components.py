@@ -473,8 +473,8 @@ class Network(Basic):
         import_from_csv_folder(self,csv_folder_name)
 
 
-    def export_to_csv_folder(self,csv_folder_name,time_series={}):
-        export_to_csv_folder(self,csv_folder_name,time_series=time_series)
+    def export_to_csv_folder(self,csv_folder_name,time_series={},verbose=True):
+        export_to_csv_folder(self,csv_folder_name,time_series=time_series,verbose=verbose)
 
 
 

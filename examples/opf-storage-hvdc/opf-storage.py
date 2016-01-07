@@ -1,14 +1,12 @@
 
-# coding: utf-8
 
-# In[1]:
+#Optimise the dispatch and capacities of the network in
+#opf-storage-data.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 
 import pypsa
-
-from pypsa.dicthelpers import attrfilter
 
 import datetime
 import pandas as pd
@@ -22,31 +20,22 @@ from itertools import chain
 import os
 
 
-# In[2]:
+from distutils.spawn import find_executable
+
+
+
 
 csv_folder_name = "opf-storage-data"
 network = pypsa.Network(csv_folder_name=csv_folder_name)
 print(network,network.co2_limit)
 
 
-# In[3]:
-
 network.build_graph()
-
-
-# In[4]:
 
 network.determine_network_topology()
 
+print("Connected networks:\n",network.sub_networks)
 
-# In[5]:
-
-print(network.sub_networks)
-
-
-# In[6]:
-
-from distutils.spawn import find_executable
 
 solver_search_order = ["glpk","gurobi"]
 
@@ -66,81 +55,67 @@ if solver_name is None:
 print("Using solver:",solver_name)
 
 
-# In[7]:
-
 snapshots = network.snapshots
+
 network.lopf(snapshots=snapshots,solver_name=solver_name)
-
-
-# In[8]:
 
 print("Generator and storage capacities:\n")
 
-for one_port in chain(network.generators.itervalues(),network.storage_units.itervalues()):
-    print(one_port,one_port.p_nom)
+print(pd.concat((network.generators["p_nom"],network.storage_units["p_nom"])))
 
 print("\n\nBranch capacities:\n")
 
-for branch in network.branches.itervalues():
-    print(branch,branch.s_nom)
+print(network.branches.s_nom)
 
 for snapshot in snapshots:
 
     print("\n"*2+"For time",snapshot,":\nBus injections:")
 
-    for bus in network.buses.itervalues():
-        print(bus,bus.p[snapshot])
-    print("Total:",sum([bus.p[snapshot] for bus in network.buses.itervalues()]))
+    print(network.buses.p.loc[snapshot])
 
-
-# In[9]:
+    print("Total:",network.buses.p.loc[snapshot].sum())
 
 
 network.now = network.snapshots[0]
 
 
-for branch in network.branches.itervalues():
+for branch in network.branches.obj:
     print(branch,branch.p1[network.now])
 
 
-# In[10]:
+print("Comparing bus injection to branch outgoing for %s:" % network.now)
 
-print("Comparing bus injection to branch outgoing for %s:",network.now)
-
-for sub_network in network.sub_networks.itervalues():
+for sub_network in network.sub_networks.obj:
 
     print("\n\nConsidering sub network",sub_network,":")
 
-    for bus in sub_network.buses.itervalues():
+    for bus in sub_network.buses.obj:
 
         print("\n%s" % bus)
 
         print("power injection (generators - loads + Transport feed-in):",bus.p[network.now])
 
-        print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators.itervalues()])                        + sum([l.sign*l.p[network.now] for l in bus.loads.itervalues()]))
+        print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators.obj])  + sum([l.sign*l.p[network.now] for l in bus.loads.obj]))
 
         total = 0.0
 
-        for branch in sub_network.branches.itervalues():
-            if bus == branch.bus0:
+        for branch in sub_network.branches.obj:
+            if bus.name == branch.bus0:
                 print("from branch:",branch,branch.p0[network.now])
-                total +=branch.p0[network.now]
-            elif bus == branch.bus1:
+                total -=branch.p0[network.now]
+            elif bus.name == branch.bus1:
                 print("to branch:",branch,branch.p1[network.now])
-                total +=branch.p1[network.now]
+                total -=branch.p1[network.now]
         print("branch injection:",total)
 
 
-# In[11]:
+for su in network.storage_units.obj:
+    if su.p_nom > 1e-5:
+        print(su,su.p_nom,"\n\nState of Charge:\n",su.state_of_charge,"\n\nDispatch:\n",su.p)
 
-for su in network.storage_units.values():
-    print(su,su.p_nom,"\n",su.state_of_charge,"\n",su.p)
 
-
-# In[12]:
-
-for gen in network.generators.itervalues():
-    print(gen,gen.source.co2_emissions*(1/gen.efficiency))
+for gen in network.generators.obj:
+    print(gen,network.sources.loc[gen.source,"co2_emissions"]*(1/gen.efficiency))
 
 
 
@@ -149,4 +124,7 @@ results_folder_name = os.path.join(csv_folder_name,"results")
 
 
 network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                               "storage_units" : {"p" : None}})
+                                                              "storage_units" : {"p" : None},
+                                                              "transport_links": {"p0" : None},
+                                                              "lines": {"p0" : None}
+},verbose=False)

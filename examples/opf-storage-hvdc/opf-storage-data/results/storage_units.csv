@@ -1,7 +1,7 @@
-name,bus,capital_cost,dispatch,efficiency,efficiency_dispatch,efficiency_store,marginal_cost,max_hours,p_max_pu_fixed,p_min_pu_fixed,p_nom,p_nom_min,sign,source,standing_loss,state_of_charge_initial
-Storage 0,0,545.8187566968984,flexible,1.0,0.95,0.9,2.1747519097918357,6.0,1.0,-1.0,0.0,0.0,1.0,battery,0.01,0.0
-Storage 1,1,318.27877467228893,flexible,1.0,0.95,0.9,1.640746334319883,6.0,1.0,-1.0,0.0,0.0,1.0,battery,0.01,0.0
-Storage 2,2,172.54144828644593,flexible,1.0,0.95,0.9,3.3448524853895734,6.0,1.0,-1.0,0.0,0.0,1.0,battery,0.01,0.0
-Storage 3,3,65.76891603568626,flexible,1.0,0.95,0.9,2.123552662440724,6.0,1.0,-1.0,1624.45605538189,0.0,1.0,battery,0.01,0.0
-Storage 4,4,457.93830227084135,flexible,1.0,0.95,0.9,3.823440078288032,6.0,1.0,-1.0,0.0,0.0,1.0,battery,0.01,0.0
-Storage 5,5,300.9205146460482,flexible,1.0,0.95,0.9,2.9380897542655524,6.0,1.0,-1.0,0.0,0.0,1.0,battery,0.01,0.0
+name,bus,sign,control,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom_max,p_nom,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost,standing_loss,max_hours,efficiency_store,state_of_charge_initial,efficiency_dispatch,obj
+Storage 0,0,1.0,PQ,-1.0,15.3501046507,True,flexible,,893.25304368,0.0,1.0,1.0,battery,3.37151048666,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 0
+Storage 1,1,1.0,PQ,-1.0,225.809516382,True,flexible,,0.0,0.0,1.0,1.0,battery,0.0108356317511,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 1
+Storage 2,2,1.0,PQ,-1.0,304.706301173,True,flexible,,1.45333934531e-26,0.0,1.0,1.0,battery,0.812780031491,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 2
+Storage 3,3,1.0,PQ,-1.0,798.781429181,True,flexible,,-6.12779307376e-28,0.0,1.0,1.0,battery,1.52661050274,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 3
+Storage 4,4,1.0,PQ,-1.0,700.667849248,True,flexible,,0.0,0.0,1.0,1.0,battery,0.201133831503,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 4
+Storage 5,5,1.0,PQ,-1.0,425.790883181,True,flexible,,0.0,0.0,1.0,1.0,battery,0.154599020542,0.01,6.0,0.9,0.0,0.95,StorageUnit Storage 5

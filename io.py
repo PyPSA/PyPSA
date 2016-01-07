@@ -45,7 +45,7 @@ def get_cls_from_list_name(list_name):
             return v
 
 
-def export_to_csv_folder(network,csv_folder_name,time_series={}):
+def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
     """Export network and components to csv_folder_name. Include also
     time_series for components in the dictionary time_series in the
     format:
@@ -71,7 +71,8 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
     df = pd.DataFrame(index=index,columns=columns,data = [[getattr(network,col) for col in columns]])
     df.index.name = "name"
 
-    print("\n"*3+"network\n",df)
+    if verbose:
+        print("\n"*3+"network\n",df)
     df.to_csv(os.path.join(csv_folder_name,"network.csv"))
 
     #now export snapshots
@@ -80,7 +81,8 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
     df["weightings"] = network.snapshot_weightings
     df.index.name = "name"
 
-    print("\n"*3+"snapshots\n",df)
+    if verbose:
+        print("\n"*3+"snapshots\n",df)
     df.to_csv(os.path.join(csv_folder_name,"snapshots.csv"))
 
 
@@ -89,20 +91,25 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
     for list_name in ["buses","generators","storage_units","loads","transport_links","lines","converters","sources"]:
         list_df = getattr(network,list_name)
         if len(list_df) == 0:
-            print("No",list_name)
+            if verbose:
+                print("No",list_name)
             continue
 
-        print("\n"*3+list_name+"\n",list_df)
+        if verbose:
+            print("\n"*3+list_name+"\n",list_df)
 
         list_df.to_csv(os.path.join(csv_folder_name,list_name+".csv"))
 
     for list_name in time_series:
-        print("\n"*3 + "Exporting time series for:",list_name)
+
+        if verbose:
+            print("\n"*3 + "Exporting time series for:",list_name)
 
         list_df = getattr(network,list_name)
 
         for attr in time_series[list_name]:
-            print(attr)
+            if verbose:
+                print(attr)
             filter_f = time_series[list_name][attr]
 
             sub_selection = filter(filter_f,getattr(network,list_name).obj)
@@ -110,8 +117,8 @@ def export_to_csv_folder(network,csv_folder_name,time_series={}):
             df = getattr(list_df,attr)[[s.name for s in sub_selection]]
 
             df.to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"))
-
-            print(df)
+            if verbose:
+                print(df)
 
 
 
@@ -184,7 +191,7 @@ def import_from_csv_folder(network,csv_folder_name):
         print(df)
         network.name = df.index[0]
         for col in df.columns:
-            setattr(network,col,df[col][0])
+            setattr(network,col,df[col][network.name])
 
     #if there is snapshots.csv, read in snapshot data
 
