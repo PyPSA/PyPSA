@@ -202,10 +202,12 @@ def define_storage_variables_constraints(network,snapshots):
 
         su = network.storage_units.obj[su_name]
 
-        if type(snapshots) == list:
+        if isinstance(snapshots, list):
             i = snapshots.index(snapshot)
-        elif type(snapshots) == pd.core.index.Index:
+        elif isinstance(snapshots, pd.Index)
             i = snapshots.get_loc(snapshot)
+        else:
+            raise NotImplementedError("snapshots have to be lists or pandas indices")
 
         if i == 0:
             previous_state_of_charge = su.state_of_charge_initial
