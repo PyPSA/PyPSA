@@ -204,7 +204,7 @@ def define_storage_variables_constraints(network,snapshots):
 
         if isinstance(snapshots, list):
             i = snapshots.index(snapshot)
-        elif isinstance(snapshots, pd.Index)
+        elif isinstance(snapshots, pd.Index):
             i = snapshots.get_loc(snapshot)
         else:
             raise NotImplementedError("snapshots have to be lists or pandas indices")
