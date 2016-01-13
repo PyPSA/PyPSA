@@ -21,6 +21,9 @@ Grid calculation library.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
+from six import iteritems
+from six.moves import filter
 
 
 __version__ = "0.1"
@@ -40,7 +43,7 @@ import numpy as np
 
 def get_cls_from_list_name(list_name):
 
-    for k,v in vars(pypsa.components).iteritems():
+    for k,v in iteritems(vars(pypsa.components)):
         if hasattr(v,"list_name") and v.list_name == list_name:
             return v
 
@@ -62,7 +65,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
 
     #exportable component types
     #what about None????
-    allowed_types = [float,int,str,bool] + np.typeDict.values()
+    allowed_types = [float,int,str,bool] + list(np.typeDict.values())
 
     #first export network properties
 
@@ -112,7 +115,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
                 print(attr)
             filter_f = time_series[list_name][attr]
 
-            sub_selection = filter(filter_f,getattr(network,list_name).obj)
+            sub_selection = list(filter(filter_f,getattr(network,list_name).obj))
 
             df = getattr(list_df,attr)[[s.name for s in sub_selection]]
 
@@ -225,7 +228,7 @@ def import_from_csv_folder(network,csv_folder_name):
 
         import_components_from_dataframe(network,df,cls.__name__)
 
-        file_attrs = filter(lambda n: n.startswith(list_name+"-") and n.endswith(".csv"),os.listdir(csv_folder_name))
+        file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
         for file_name in file_attrs:
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0)

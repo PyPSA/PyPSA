@@ -23,6 +23,8 @@ Grid calculation library.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
+from six import iteritems
 
 
 __version__ = "0.1"
@@ -442,21 +444,21 @@ def extract_optimisation_results(network,snapshots):
         network.buses.p.loc[snapshots] = \
                pd.concat({n: assets.p.loc[snapshots].multiply(assets.sign, axis=1)
                                   .groupby(assets.bus, axis=1).sum()
-                          for n,assets in dict(g=network.generators,
-                                               l=network.loads,
-                                               s=network.storage_units).iteritems()}) \
+                          for n,assets in iteritems(dict(g=network.generators,
+                                                         l=network.loads,
+                                                         s=network.storage_units))}) \
                  .sum(level=1) \
                  .reindex_axis(network.buses.p.columns, axis=1, fill_value=0.)
 
         set_from_series(network.buses.marginal_price,
-                        pd.Series(model.power_balance.values(),
-                                  index=pd.MultiIndex.from_tuples(model.power_balance.keys()))
-                        .map(pd.Series(model.dual.values(), index=model.dual.keys())))
+                        pd.Series(list(model.power_balance.values()),
+                                  index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
+                        .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
 
     # active branches
     controllable_branches = as_series(model.controllable_branch_p)
-    for typ, df in dict(Converter=network.converters,
-                        TransportLink=network.transport_links).iteritems():
+    for typ, df in iteritems(dict(Converter=network.converters,
+                                  TransportLink=network.transport_links)):
         if len(df):
             set_from_series(df.p0, controllable_branches.loc[typ])
             df.p1.loc[snapshots] = - df.p0.loc[snapshots]
@@ -471,8 +473,8 @@ def extract_optimisation_results(network,snapshots):
         v = network.buses.v_ang.loc[snapshots,buses]
         v.set_axis(1, buses.index)
         return v
-    for typ, df in dict(Line=network.lines,
-                        Transformer=network.transformers).iteritems():
+    for typ, df in iteritems(dict(Line=network.lines,
+                                  Transformer=network.transformers)):
         if len(df):
             attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
             df.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
@@ -485,9 +487,9 @@ def extract_optimisation_results(network,snapshots):
         as_series(network.model.storage_p_nom)
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
-    for typ, df in dict(Line=network.lines,
-                        TransportLink=network.transport_links,
-                        Converter=network.converters).iteritems():
+    for typ, df in iteritems(dict(Line=network.lines,
+                                  TransportLink=network.transport_links,
+                                  Converter=network.converters)):
         if len(df):
             df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ]
 

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 
 #Relative paths seem to be necessary for Python 3
 

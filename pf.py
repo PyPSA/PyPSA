@@ -21,6 +21,8 @@ Grid calculation library.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
+from six.moves import range
 
 
 __version__ = "0.1"
@@ -389,7 +391,7 @@ def find_bus_controls(sub_network,verbose=True):
 
     #order buses
     sub_network.buses_o = pd.concat((buses.loc[[sub_network.slack_bus]],sub_network.pvpqs))
-    sub_network.buses_o["i"] = range(len(sub_network.buses_o))
+    sub_network.buses_o["i"] = list(range(len(sub_network.buses_o)))
 
 
 def calculate_dependent_values(network):
@@ -506,18 +508,18 @@ def calculate_Y(sub_network,verbose=True):
     bus1 = join.i_1
 
     #connection matrices
-    C0 = csr_matrix((ones(num_branches), (range(num_branches), bus0)), (num_branches, num_buses))
-    C1 = csr_matrix((ones(num_branches), (range(num_branches), bus1)), (num_branches, num_buses))
+    C0 = csr_matrix((ones(num_branches), (np.arange(num_branches), bus0)), (num_branches, num_buses))
+    C1 = csr_matrix((ones(num_branches), (np.arange(num_branches), bus1)), (num_branches, num_buses))
 
     #build Y{0,1} such that Y{0,1} * V is the vector complex branch currents
 
-    i = r_[range(num_branches), range(num_branches)]
+    i = r_[np.arange(num_branches), np.arange(num_branches)]
     sub_network.Y0 = csr_matrix((r_[Y00,Y01],(i,r_[bus0,bus1])), (num_branches,num_buses))
     sub_network.Y1 = csr_matrix((r_[Y10,Y11],(i,r_[bus0,bus1])), (num_branches,num_buses))
 
     #now build bus admittance matrix
     sub_network.Y = C0.T * sub_network.Y0 + C1.T * sub_network.Y1 + \
-       csr_matrix((Y_sh, (range(num_buses), range(num_buses))))
+       csr_matrix((Y_sh, (np.arange(num_buses), np.arange(num_buses))))
 
 
 
