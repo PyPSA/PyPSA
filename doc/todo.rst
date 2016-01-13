@@ -37,11 +37,52 @@ Create a 3d component pandas.Panel for time-varying quantities, e.g.
 
 
 
-And only instantiate the items when necessary, e.g. at start of
-network.pf() can instantiate "p" and "q" if they don't already exist.
+Then sub_network.generators_t can slice the Panel, similarly for bus.generators_t.
 
-Then sub_network.generators_t can slice the Panel.
 
+And only instantiate the items "p", "p_set", etc. when necessary,
+e.g. at start of network.pf() can instantiate "p" and "q" if they
+don't already exist.
+
+Or have switch, so that all items generated automatically for newbies,
+and experts can turn it off and only generate those which they need.
+
+
+
+Replace descriptors with __get__ and __set__ on objects
+-------------------------------------------------------
+
+Can then use obj.attr for attr which are dynamically added to DataFrame
+
+.. code:: python
+
+    def __set__(self,attr,val):
+        attr_type = self.__class__.attributes[attr]["type"]
+
+        try:
+            val = attr_type(val)
+        except:
+            oops!
+
+        df = getattr(self.network,self.__class__.list_name)
+
+	if attr in df.columns:
+            df.loc[self.name,attr] = val
+        else:
+
+            #return to normal object set
+            setattr(self,attr,val)
+
+
+Store attributes in:
+
+.. code:: python
+
+    class Branch:
+
+        static_attributes = {{}}
+
+        series_attributes = {{}}
 
 
 
@@ -49,6 +90,20 @@ Improve regression testing
 ---------------------------
 
 Use classes to do multiple tests with same set-up
+
+
+Ramp rate limits in OPF for generators
+--------------------------------------
+
+i.e. generator.ramp_rate_limit = x MW/h or per unit of p_nom/h
+
+
+Spillage variables for storage
+-------------------------------
+
+A variable per storage unit which can spill the state of charge
+without generating electricity (e.g. if the inflow overwhelms the
+storage)
 
 
 Regions for groups of buses
@@ -65,6 +120,12 @@ Interface for adding different constraints/objective functions
 I.e. other than rewriting lopf function.
 
 Example: Yearly import/export balances for zones
+
+
+More non-linear pf examples
+---------------------------
+
+pypower import, scigrid non-linear
 
 
 Improve Python 3 support
@@ -111,36 +172,6 @@ OPF DC output to v_mag not v_ang
 --------------------------------
 Also make v_mag per unit NOT kV
 
-
-
-Replace descriptors with __get__ and __set__ on objects
--------------------------------------------------------
-
-Can then use obj.attr for attr which are dynamically added to DataFrame
-
-def __set__(attr,val):
-
-try:
-   val = attr_type(val)
-except:
-  oops!
-
-if attr in df.columns:
-df.loc[self.name,attr] = val
-
-else:
-
-#return to normal object set
-setattr(self,attr,val)
-
-
-Store attributes in
-
-class Branch:
-
-    static_attributes = {{}}
-
-    series_attributes = {{}}
 
 
 Changes which may be implemented
