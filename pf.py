@@ -29,7 +29,7 @@ __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 
 
 
 
-from scipy.sparse import csr_matrix, hstack as shstack, vstack as svstack
+from scipy.sparse import csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
 
 from numpy import r_, ones, zeros, newaxis
 from scipy.sparse.linalg import spsolve
@@ -111,6 +111,8 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
         if verbose:
             print("Error at iteration %d: %f" % (n_iter,diff))
 
+    if verbose and diff > x_tol:
+        print("Warning, looks like we didn't reach the required tolerance within %d iterations" % (n_iter,))
 
     return guess,n_iter,diff
 
@@ -224,7 +226,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
     #Now try and solve
     start = time.time()
-    roots,n_iter,diff = newton_raphson_sparse(f,guess,dfdx,verbose=verbose)
+    roots,n_iter,diff = newton_raphson_sparse(f,guess,dfdx,x_tol=network.nr_x_tol,verbose=verbose)
     if verbose:
         print("Newton-Raphson solved in %d iterations with error of %f in %f seconds" % (n_iter,diff,time.time()-start))
 
@@ -459,6 +461,26 @@ def calculate_B_H(sub_network,verbose=True):
     incidence = csr_matrix((r_[ones(num_branches),-ones(num_branches)],(index,r_[from_bus,to_bus])),(num_branches,num_buses))
 
     sub_network.B = incidence.T * sub_network.H
+
+
+
+def calculate_PTDF(sub_network,verbose=True):
+    """Calculate the PTDF for sub_network based on the already calculated sub_network.B and sub_network.H."""
+
+    #calculate inverse of B with slack removed
+
+    n_pvpq = sub_network.pvpqs.shape[0]
+    index = np.r_[:n_pvpq]
+
+    I = csc_matrix((np.ones((n_pvpq)),(index,index)))
+
+    B_inverse = spsolve(sub_network.B[1:, 1:],I).toarray()
+
+    #add back in zeroes for slack
+    B_inverse = np.hstack((np.zeros((n_pvpq,1)),B_inverse))
+    B_inverse = np.vstack((np.zeros(n_pvpq+1),B_inverse))
+
+    sub_network.PTDF = sub_network.H*B_inverse
 
 
 def calculate_Y(sub_network,verbose=True):

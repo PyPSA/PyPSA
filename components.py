@@ -391,6 +391,10 @@ class Network(Basic):
 
     dependent_values_calculated = False
 
+
+    #tolerance for Newton-Raphson power flow
+    nr_x_tol = 1e-6
+
     def __init__(self, csv_folder_name=None, **kwargs):
 
         super(self.__class__, self).__init__(kwargs.get("name",""))

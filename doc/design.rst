@@ -13,7 +13,7 @@ It is also the object on which calculations, such as power flow and
 optimal power flow, are performed.
 
 Data storage uses pandas DataFrames
-============
+===================================
 
 To enable efficient calculations on the different dimensions of the
 data, data is stored in memory using pandas DataFrames.
