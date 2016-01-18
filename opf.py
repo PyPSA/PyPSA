@@ -38,6 +38,7 @@ from pyomo.opt import SolverFactory
 from .pf import calculate_dependent_values, find_slack_bus
 
 from itertools import chain
+from distutils.version import StrictVersion
 
 import pandas as pd
 
@@ -410,6 +411,9 @@ def define_linear_objective(network,snapshots):
 
 
 def extract_optimisation_results(network,snapshots):
+    if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.version.version) < '0.18.0':
+        # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
+        snapshots = list(snapshots)
 
     #get value of objective function
     network.objective = network.results["Problem"][0]["Lower bound"]
