@@ -1,5 +1,5 @@
 
-Copyright 2015 Tom Brown (FIAS),....
+Copyright 2015-2016 Tom Brown (FIAS), Jonas Hörsch (FIAS)
 
 This program is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as

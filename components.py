@@ -210,7 +210,7 @@ class StorageUnit(Generator):
     state_of_charge_initial = Float()
     state_of_charge = Series(default=np.nan)
 
-    #maximum capacity in terms of hours at full output capacity p_nom
+    #maximum state of charge capacity in terms of hours at full output capacity p_nom
     max_hours = Float(1)
 
     #in MW
