@@ -23,6 +23,8 @@ Grid calculation library.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
+from six import iteritems
 
 
 
@@ -211,7 +213,7 @@ def get_descriptors(cls,allowed_descriptors=[]):
     mro.reverse()
 
     for kls in mro:
-        for k,v in vars(kls).iteritems():
+        for k,v in iteritems(vars(kls)):
             if type(v) in allowed_descriptors:
                 d[k] = v
     return d

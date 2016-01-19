@@ -8,6 +8,7 @@
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
 
 import pypsa
 
@@ -23,6 +24,7 @@ from itertools import chain
 import inspect
 
 import os
+from six.moves import range
 
 
 

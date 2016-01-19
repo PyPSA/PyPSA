@@ -23,6 +23,9 @@ Grid calculation library.
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
+from six import iteritems
+from six.moves import map
 
 
 __version__ = "0.1"
@@ -41,7 +44,7 @@ from operator import itemgetter
 
 from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
-from io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
+from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
 import inspect
 
@@ -425,7 +428,7 @@ class Network(Basic):
             self.import_from_csv_folder(csv_folder_name)
             #self.determine_network_topology()
 
-        for key, value in kwargs.iteritems():
+        for key, value in iteritems(kwargs):
             setattr(self, key, value)
 
 
@@ -434,23 +437,23 @@ class Network(Basic):
     def build_dataframes(self):
         for cls in (Load, ShuntImpedance, SubNetwork, Generator, Line, Bus,
                     StorageUnit, TransportLink, Transformer, Source, Converter):
-            columns = list((k, v.typ) for k, v in self.component_simple_descriptors[cls].iteritems())
+            columns = list((k, v.typ) for k, v in iteritems(self.component_simple_descriptors[cls]))
 
             #store also the objects themselves
             columns.append(("obj", object))
 
             #very important! must tell the descriptor what it's name is
-            for k,v in self.component_simple_descriptors[cls].iteritems():
+            for k,v in iteritems(self.component_simple_descriptors[cls]):
                 v.name = k
 
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
-                              columns=map(itemgetter(0), columns))
+                              columns=list(map(itemgetter(0), columns)))
 
             df.index.name = "name"
 
             setattr(self,cls.list_name,df)
 
-            for k,v in self.component_series_descriptors[cls].iteritems():
+            for k,v in iteritems(self.component_series_descriptors[cls]):
                 v.name = k
                 series_df = pd.DataFrame(index=self.snapshots, dtype=v.dtype)
                 series_df.index.name = "snapshots"
@@ -468,7 +471,7 @@ class Network(Basic):
 
             df = getattr(self,cls.list_name)
 
-            for k,v in self.component_series_descriptors[cls].iteritems():
+            for k,v in iteritems(self.component_series_descriptors[cls]):
                 series_df = getattr(df,k)
                 setattr(df,k,series_df.reindex(index=self.snapshots,fill_value=v.default))
 
@@ -514,11 +517,11 @@ class Network(Basic):
                 cls_df.loc[obj.name,col] = self.component_simple_descriptors[cls][col].default
 
 
-        for k,v in self.component_series_descriptors[cls].iteritems():
+        for k,v in iteritems(self.component_series_descriptors[cls]):
             getattr(cls_df,k)[obj.name] = v.default
 
 
-        for key,value in kwargs.iteritems():
+        for key,value in iteritems(kwargs):
             setattr(obj,key,value)
 
         return obj
