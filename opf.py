@@ -202,10 +202,12 @@ def define_storage_variables_constraints(network,snapshots):
 
         su = network.storage_units.obj[su_name]
 
-        if type(snapshots) == list:
+        if isinstance(snapshots, list):
             i = snapshots.index(snapshot)
-        elif type(snapshots) == pd.core.index.Index:
+        elif isinstance(snapshots, pd.Index):
             i = snapshots.get_loc(snapshot)
+        else:
+            raise NotImplementedError("snapshots have to be lists or pandas indices")
 
         if i == 0:
             previous_state_of_charge = su.state_of_charge_initial
@@ -412,52 +414,79 @@ def extract_optimisation_results(network,snapshots):
     #get value of objective function
     network.objective = network.results["Problem"][0]["Lower bound"]
 
-    for snapshot in snapshots:
+    model = network.model
 
-        for generator in network.generators.obj:
-            generator.p[snapshot] = network.model.generator_p[generator.name,snapshot].value
+    def set_on(df, series):
+        df.loc[snapshots] = series.unstack(0).reindex_axis(df.columns, axis=1)
 
-        for su in network.storage_units.obj:
-            su.p[snapshot] = network.model.storage_p_dispatch[su.name,snapshot].value - network.model.storage_p_store[su.name,snapshot].value
-            su.state_of_charge[snapshot] = network.model.state_of_charge[su.name,snapshot].value
+    if len(network.generators):
+        set_on(network.generators.p, pd.Series(model.generator_p.get_values()))
 
+    if len(network.storage_units):
+        set_on(network.storage_units.p,
+               pd.Series(model.storage_p_dispatch.get_values())
+               - pd.Series(model.storage_p_store.get_values()))
 
+        set_on(network.storage_units.state_of_charge,
+               pd.Series(model.state_of_charge.get_values()))
 
-        for load in network.loads.obj:
-            load.p[snapshot] = load.p_set[snapshot]
+    if len(network.loads):
+        network.loads.p.loc[snapshots] = network.loads.p_set.loc[snapshots]
 
-        for bus in network.buses.obj:
-            bus.v_ang[snapshot] = network.model.voltage_angles[bus.name,snapshot].value
+    if len(network.buses):
+        set_on(network.buses.v_ang,
+               pd.Series(model.voltage_angles.get_values()))
+        network.buses.p.loc[snapshots] = \
+               pd.concat({n: assets.p.loc[snapshots].multiply(assets.sign, axis=1)
+                                  .groupby(assets.bus, axis=1).sum()
+                          for n,assets in dict(g=network.generators,
+                                               l=network.loads,
+                                               s=network.storage_units).iteritems()}) \
+                 .sum(level=1) \
+                 .reindex_axis(network.buses.p.columns, axis=1, fill_value=0.)
 
-            bus.p[snapshot] = sum(asset.sign*asset.p[snapshot] for asset in chain(bus.generators.obj,bus.loads.obj,bus.storage_units.obj))
+        set_on(network.buses.marginal_price,
+               pd.Series(model.power_balance.values(),
+                         index=pd.MultiIndex.from_tuples(model.power_balance.keys()))
+                 .map(pd.Series(model.dual.values(), index=model.dual.keys())))
 
-            bus.marginal_price[snapshot] = network.model.dual[network.model.power_balance[bus.name,snapshot]]
+    # active branches
+    controllable_branches = pd.Series(model.controllable_branch_p.get_values())
+    for typ, df in dict(Converter=network.converters,
+                        TransportLink=network.transport_links).iteritems():
+        if len(df):
+            set_on(df.p0, controllable_branches.loc[typ])
+            df.p1.loc[snapshots] = - df.p0.loc[snapshots]
 
+            # TODO : Eliminate for loop
+            for cb in df.obj:
+                network.buses.p.loc[snapshots,cb.bus0] -= cb.p0.loc[snapshots]
+                network.buses.p.loc[snapshots,cb.bus1] -= cb.p1.loc[snapshots]
 
-        for cb in network.controllable_branches.obj:
-            cb.p0[snapshot] = network.model.controllable_branch_p[cb.__class__.__name__,cb.name,snapshot].value
-            cb.p1[snapshot] = -cb.p0[snapshot]
-            network.buses.p.loc[snapshot,cb.bus0] -= cb.p0[snapshot]
-            network.buses.p.loc[snapshot,cb.bus1] -= cb.p1[snapshot]
+    # passive branches
+    def get_v_angs(buses):
+        v = network.buses.v_ang.loc[snapshots,buses]
+        v.set_axis(1, buses.index)
+        return v
+    for typ, df in dict(Line=network.lines,
+                        Transformer=network.transformers).iteritems():
+        if len(df):
+            attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
+            df.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
+            df.p1.loc[snapshots] = - df.p1.loc[snapshots]
 
+    network.generators.loc[network.generators.p_nom_extendable, 'p_nom'] = \
+        pd.Series(network.model.generator_p_nom.get_values())
 
-        for branch in network.passive_branches.obj:
-            attribute = "x_pu" if network.sub_networks.current_type[branch.sub_network] == "AC" else "r_pu"
-            branch.p0[snapshot] = 1/getattr(branch,attribute)*(network.buses.v_ang.loc[snapshot,branch.bus0] - network.buses.v_ang.loc[snapshot,branch.bus1])
-            branch.p1[snapshot] = -branch.p0[snapshot]
+    network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom'] = \
+        pd.Series(network.model.storage_p_nom.get_values())
 
-
-
-    for generator in network.generators[network.generators.p_nom_extendable].obj:
-        generator.p_nom = network.model.generator_p_nom[generator.name].value
-
-
-    for su in network.storage_units[network.storage_units.p_nom_extendable].obj:
-        su.p_nom = network.model.storage_p_nom[su.name].value
-
-
-    for branch in network.branches[network.branches.s_nom_extendable].obj:
-        branch.s_nom = network.model.branch_s_nom[branch.__class__.__name__,branch.name].value
+    s_nom_extendable_branches = pd.Series(model.branch_s_nom.get_values())
+    for typ, df in dict(Line=network.lines,
+                           TransportLink=network.transport_links,
+                           Converter=network.converters).iteritems():
+        if len(df):
+            df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ]
 
 
 
