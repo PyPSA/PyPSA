@@ -20,3 +20,11 @@ test/results/*
 
 
 doc/_build/
+
+build/
+
+dist/
+
+pypsa.egg-info/
+
+files.txt
