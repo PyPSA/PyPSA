@@ -265,6 +265,21 @@ def define_branch_extension_variables(network,snapshots):
 
 
 
+def define_branch_extension_variables2(network,snapshots):
+
+    branches = network.branches
+
+    extendable_branches = branches[branches.s_nom_extendable]
+
+    bounds = {b : (replace_nan_with_none(extendable_branches.s_nom_min[b]),replace_nan_with_none(extendable_branches.s_nom_max[b])) for b in extendable_branches.index}
+
+    def branch_s_nom_bounds(model, branch_type, branch_name):
+        return bounds[branch_type,branch_name]
+
+    network.model.branch_s_nom = Var(list(extendable_branches.index), domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+
+
+
 def define_controllable_branch_flows(network,snapshots):
 
     controllable_branches = network.controllable_branches
@@ -291,6 +306,34 @@ def define_controllable_branch_flows(network,snapshots):
 
     network.model.controllable_branch_p_lower = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_lower)
 
+
+
+def define_controllable_branch_flows2(network,snapshots):
+
+    controllable_branches = network.controllable_branches
+
+    extendable_branches = controllable_branches[controllable_branches.s_nom_extendable]
+
+    fixed_branches = controllable_branches[~ controllable_branches.s_nom_extendable]
+
+    bounds = {(cb[0],cb[1],sn) : (fixed_branches.p_min[cb],fixed_branches.p_max[cb]) for cb in fixed_branches.index for sn in snapshots}
+    bounds.update({(cb[0],cb[1],sn) : (None,None) for cb in extendable_branches.index for sn in snapshots})
+
+    def cb_p_bounds(model,cb_type,cb_name,snapshot):
+        return bounds[cb_type,cb_name,snapshot]
+
+    network.model.controllable_branch_p = Var(list(controllable_branches.index), snapshots, domain=Reals, bounds=cb_p_bounds)
+
+    def cb_p_upper(model,cb_type,cb_name,snapshot):
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] <= model.branch_s_nom[cb_type,cb_name]
+
+    network.model.controllable_branch_p_upper = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_upper)
+
+
+    def cb_p_lower(model,cb_type,cb_name,snapshot):
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] >= -model.branch_s_nom[cb_type,cb_name]
+
+    network.model.controllable_branch_p_lower = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_lower)
 
 
 
@@ -333,7 +376,7 @@ def define_passive_branch_flows2(network,snapshots):
         bn = branch[1]
         sub = passive_branches.sub_network[branch]
         attribute = "x_pu" if network.sub_networks.current_type[sub] == "AC" else "r_pu"
-        y = 1/passive_branches.loc[branch,attribute]
+        y = 1/passive_branches[attribute][branch]
 
         for sn in snapshots:
             network._flow[bt,bn,sn] = [(y,network.model.voltage_angles[bus0,sn]),(-y,network.model.voltage_angles[bus1,sn])]
@@ -627,9 +670,9 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
 
     define_storage_variables_constraints(network,snapshots)
 
-    define_branch_extension_variables(network,snapshots)
+    define_branch_extension_variables2(network,snapshots)
 
-    define_controllable_branch_flows(network,snapshots)
+    define_controllable_branch_flows2(network,snapshots)
 
     define_passive_branch_flows2(network,snapshots)
 

@@ -72,7 +72,7 @@ class Float(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
 
     def __set__(self,obj,val):
         try:
@@ -93,7 +93,7 @@ class Integer(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
 
     def __set__(self,obj,val):
         try:
@@ -115,7 +115,7 @@ class Boolean(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
 
     def __set__(self,obj,val):
         try:
@@ -138,7 +138,7 @@ class String(object):
         self.restricted = restricted
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name]
+        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
 
     def __set__(self,obj,val):
         try:
@@ -191,7 +191,7 @@ class Series(object):
         self.values = WeakKeyDictionary()
 
     def __get__(self, obj, cls):
-        return getattr(getattr(obj.network,obj.__class__.list_name),self.name).loc[:,obj.name]
+        return getattr(getattr(obj.network,obj.__class__.list_name),self.name)[obj.name]
 
     def __set__(self,obj,val):
         df = getattr(getattr(obj.network,obj.__class__.list_name),self.name)
