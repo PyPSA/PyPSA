@@ -72,11 +72,11 @@ class Float(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
+        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a float")
 
@@ -93,11 +93,11 @@ class Integer(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
+        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to an integer")
 
@@ -115,11 +115,11 @@ class Boolean(object):
         self.default = default
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
+        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a boolean")
 
@@ -138,11 +138,11 @@ class String(object):
         self.restricted = restricted
 
     def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name)[self.name][obj.name]
+        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a string")
             return

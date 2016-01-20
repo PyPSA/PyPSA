@@ -129,6 +129,66 @@ def define_generator_variables_constraints(network,snapshots):
 
 
 
+def define_generator_variables_constraints2(network,snapshots):
+
+    extendable_gens = network.generators[network.generators.p_nom_extendable]
+
+    fixed_gens = network.generators[~ network.generators.p_nom_extendable]
+
+    fixed_var_gens = fixed_gens[fixed_gens.dispatch == "variable"]
+    fixed_flex_gens = fixed_gens[fixed_gens.dispatch == "flexible"]
+
+    extendable_var_gens = extendable_gens[extendable_gens.dispatch == "variable"]
+    extendable_flex_gens = extendable_gens[extendable_gens.dispatch == "flexible"]
+
+
+    ## Define generator dispatch variables ##
+
+    gen_p_bounds = {(gen,sn) : (None,None) for gen in extendable_gens.index for sn in snapshots}
+
+    var_lower = network.generators.p_min_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
+    var_upper = network.generators.p_max_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
+
+    gen_p_bounds.update({(gen,sn) : (var_lower[gen][sn],var_upper[gen][sn]) for gen in fixed_var_gens.index for sn in snapshots})
+
+    flex_lower = fixed_flex_gens["p_nom"]*fixed_flex_gens.p_min_pu_fixed
+    flex_upper = fixed_flex_gens["p_nom"]*fixed_flex_gens.p_max_pu_fixed
+    gen_p_bounds.update({(gen,sn) : (flex_lower[gen],flex_upper[gen]) for gen in fixed_flex_gens.index for sn in snapshots})
+
+
+    def gen_p_bounds_f(model,gen_name,snapshot):
+        return gen_p_bounds[gen_name,snapshot]
+
+    network.model.generator_p = Var(network.generators.index, snapshots, domain=Reals, bounds=gen_p_bounds_f)
+
+
+
+    ## Define generator capacity variables if generator is extendable ##
+
+    def gen_p_nom_bounds(model, gen_name):
+        return (replace_nan_with_none(extendable_generators.p_nom_min[gen_name]), replace_nan_with_none(extendable_generators.p_nom_max[gen_name]))
+
+    network.model.generator_p_nom = Var(extendable_generators.index, domain=NonNegativeReals, bounds=gen_p_nom_bounds)
+
+
+
+    ## Define generator dispatch constraints for extendable generators ##
+
+    gen_p_lower = {(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-extendable_flex_gens.at[gen,"p_min_pu_fixed"],network.model.generator_p_nom[gen])],">=",0.] for gen in extendable_flex_gens.index for sn in snapshots}
+
+    gen_p_lower.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators.p_min_pu.at[sn,gen],network.model.generator_p_nom[gen])],">=",0.] for gen in extendable_var_gens.index for sn in snapshots})
+
+    LConstraint(network.model,"generator_p_lower",gen_p_lower,extendable_generators.index,snapshots)
+
+
+
+    gen_p_upper = {(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-extendable_flex_gens.at[gen,"p_max_pu_fixed"],network.model.generator_p_nom[gen])],"<=",0.] for gen in extendable_flex_gens.index for sn in snapshots}
+
+    gen_p_upper.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators.p_max_pu.at[sn,gen],network.model.generator_p_nom[gen])],"<=",0.] for gen in extendable_var_gens.index for sn in snapshots})
+
+    LConstraint(network.model,"generator_p_upper",gen_p_upper,extendable_generators.index,snapshots)
+
+
 
 
 def define_storage_variables_constraints(network,snapshots):
@@ -513,7 +573,7 @@ def define_nodal_balances2(network,snapshots):
         bus = network.loads.bus[load]
         sign = network.loads.sign[load]
         for sn in snapshots:
-            p_balance[(bus,sn)][2] -= sign*network.loads.p_set.loc[sn,load]
+            p_balance[(bus,sn)][2] -= sign*network.loads.p_set.at[sn,load]
 
     for su in network.storage_units.index:
         bus = network.storage_units.bus[su]
@@ -635,6 +695,7 @@ def extract_optimisation_results(network,snapshots):
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
     for typ, df in iteritems(dict(Line=network.lines,
+                                  Transformer=network.transformers,
                                   TransportLink=network.transport_links,
                                   Converter=network.converters)):
         if len(df):
@@ -666,7 +727,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
     network.model = ConcreteModel("Linear Optimal Power Flow")
 
 
-    define_generator_variables_constraints(network,snapshots)
+    define_generator_variables_constraints2(network,snapshots)
 
     define_storage_variables_constraints(network,snapshots)
 
