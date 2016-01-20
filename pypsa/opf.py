@@ -39,6 +39,8 @@ from pyomo.opt import SolverFactory
 
 from .pf import calculate_dependent_values, find_slack_bus
 
+from .opt import LVar, LConstraint
+
 from itertools import chain
 from distutils.version import StrictVersion
 
@@ -382,6 +384,56 @@ def define_nodal_balances(network,snapshots):
 
 
 
+def define_nodal_balances2(network,snapshots):
+
+    passive_branches = network.passive_branches
+    controllable_branches = network.controllable_branches
+
+    #dictionary for constraints
+    p_balance = {(bus,sn) : [[],"==",0.] for bus in network.buses.index for sn in snapshots}
+
+
+    for branch in passive_branches.index:
+        bus0 = passive_branches.bus0[branch]
+        bus1 = passive_branches.bus1[branch]
+        bt = branch[0]
+        bn = branch[1]
+        for sn in snapshots:
+            p_balance[(bus0,sn)][0].append((-1,network.model.flow[bt,bn,sn]))
+            p_balance[(bus1,sn)][0].append((1,network.model.flow[bt,bn,sn]))
+
+    for cb in controllable_branches.index:
+        bus0 = controllable_branches.bus0[cb]
+        bus1 = controllable_branches.bus1[cb]
+        ct = cb[0]
+        cn = cb[1]
+        for sn in snapshots:
+            p_balance[(bus0,sn)][0].append((-1,network.model.controllable_branch_p[ct,cn,sn]))
+            p_balance[(bus1,sn)][0].append((1,network.model.controllable_branch_p[ct,cn,sn]))
+
+
+    for gen in network.generators.index:
+        bus = network.generators.bus[gen]
+        sign = network.generators.sign[gen]
+        for sn in snapshots:
+            p_balance[(bus,sn)][0].append((sign,network.model.generator_p[gen,sn]))
+
+    for load in network.loads.index:
+        bus = network.loads.bus[load]
+        sign = network.loads.sign[load]
+        for sn in snapshots:
+            p_balance[(bus,sn)][2] -= sign*network.loads.p_set.loc[sn,load]
+
+    for su in network.storage_units.index:
+        bus = network.storage_units.bus[su]
+        sign = network.storage_units.sign[su]
+        for sn in snapshots:
+            p_balance[(bus,sn)][0].append((sign,network.model.storage_p_dispatch[su,sn]))
+            p_balance[(bus,sn)][0].append((-sign,network.model.storage_p_store[su,sn]))
+
+    LConstraint(network.model,"power_balance",p_balance,network.buses.index,snapshots)
+
+
 def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
@@ -535,7 +587,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
 
     define_passive_branch_constraints(network,snapshots)
 
-    define_nodal_balances(network,snapshots)
+    define_nodal_balances2(network,snapshots)
 
     if network.co2_limit is not None:
         define_co2_constraint(network,snapshots)
