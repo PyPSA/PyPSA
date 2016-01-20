@@ -295,7 +295,6 @@ def define_controllable_branch_flows(network,snapshots):
 
 
 
-
 def define_passive_branch_flows(network,snapshots):
 
     network.model.voltage_angles = Var(network.buses.index, snapshots, domain=Reals, bounds=(None,None))
@@ -313,6 +312,31 @@ def define_passive_branch_flows(network,snapshots):
         return 1/getattr(branch,attribute)*(model.voltage_angles[branch.bus0,snapshot]- model.voltage_angles[branch.bus1,snapshot])
 
     network.model.flow = Expression(list(passive_branches.index),snapshots,rule=flow)
+
+
+
+def define_passive_branch_flows2(network,snapshots):
+
+    network.model.voltage_angles = Var(network.buses.index, snapshots)
+
+    slack = {(sub,sn) : [[(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])],"==",0.] for sub in network.sub_networks.index for sn in snapshots}
+
+    LConstraint(network.model,"slack_angle",slack,network.sub_networks.index,snapshots)
+
+    passive_branches = network.passive_branches
+
+    network._flow = {}
+    for branch in passive_branches.index:
+        bus0 = passive_branches.bus0[branch]
+        bus1 = passive_branches.bus1[branch]
+        bt = branch[0]
+        bn = branch[1]
+        sub = passive_branches.sub_network[branch]
+        attribute = "x_pu" if network.sub_networks.current_type[sub] == "AC" else "r_pu"
+        y = 1/passive_branches.loc[branch,attribute]
+
+        for sn in snapshots:
+            network._flow[bt,bn,sn] = [(y,network.model.voltage_angles[bus0,sn]),(-y,network.model.voltage_angles[bus1,sn])]
 
 
 def define_passive_branch_constraints(network,snapshots):
@@ -339,6 +363,30 @@ def define_passive_branch_constraints(network,snapshots):
             return model.flow[branch_type,branch_name,snapshot] >= -branch.s_nom
 
     network.model.flow_lower = Constraint(list(passive_branches.index),snapshots,rule=flow_lower)
+
+
+
+def define_passive_branch_constraints2(network,snapshots):
+
+
+    passive_branches = network.passive_branches
+
+    extendable_branches = passive_branches[passive_branches.s_nom_extendable]
+
+    fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
+
+    flow_upper = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:],"<=",fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
+
+    flow_upper.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:] + [(-1,network.model.branch_s_nom[b[0],b[1]])],"<=",0.] for b in extendable_branches.index for sn in snapshots})
+
+    LConstraint(network.model,"flow_upper",flow_upper,list(passive_branches.index),snapshots)
+
+    flow_lower = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:],">=",-fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
+
+    flow_lower.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:] + [(1,network.model.branch_s_nom[b[0],b[1]])],">=",0.] for b in extendable_branches.index for sn in snapshots})
+
+    LConstraint(network.model,"flow_lower",flow_lower,list(passive_branches.index),snapshots)
+
 
 
 def define_nodal_balances(network,snapshots):
@@ -399,8 +447,8 @@ def define_nodal_balances2(network,snapshots):
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:
-            p_balance[(bus0,sn)][0].append((-1,network.model.flow[bt,bn,sn]))
-            p_balance[(bus1,sn)][0].append((1,network.model.flow[bt,bn,sn]))
+            p_balance[(bus0,sn)][0].extend([(-1.*item[0],item[1]) for item in network._flow[(bt,bn,sn)]])
+            p_balance[(bus1,sn)][0].extend(network._flow[(bt,bn,sn)][:])
 
     for cb in controllable_branches.index:
         bus0 = controllable_branches.bus0[cb]
@@ -583,9 +631,9 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
 
     define_controllable_branch_flows(network,snapshots)
 
-    define_passive_branch_flows(network,snapshots)
+    define_passive_branch_flows2(network,snapshots)
 
-    define_passive_branch_constraints(network,snapshots)
+    define_passive_branch_constraints2(network,snapshots)
 
     define_nodal_balances2(network,snapshots)
 
