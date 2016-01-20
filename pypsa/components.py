@@ -398,6 +398,9 @@ class Network(Basic):
     #tolerance for Newton-Raphson power flow
     nr_x_tol = 1e-6
 
+    #choice to keep files from OPF problem construction - useful for debugging
+    opf_keep_files = False
+
     def __init__(self, csv_folder_name=None, **kwargs):
 
         super(self.__class__, self).__init__(kwargs.get("name",""))

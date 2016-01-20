@@ -76,7 +76,7 @@ class Float(object):
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a float")
 
@@ -97,7 +97,7 @@ class Integer(object):
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to an integer")
 
@@ -119,7 +119,7 @@ class Boolean(object):
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a boolean")
 
@@ -142,7 +142,7 @@ class String(object):
 
     def __set__(self,obj,val):
         try:
-            getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name] = self.typ(val)
+            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
         except:
             print("could not convert",val,"to a string")
             return
