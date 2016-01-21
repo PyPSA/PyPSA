@@ -106,6 +106,6 @@ Pyomo for the optimisation framework
 
 To enable portability between solvers, the OPF is formulated using the
 Python package `pyomo <http://www.pyomo.org/>`_ (which can be thought
-of as a Python version of `GAMS <http://www.gams.de/>`_.
+of as a Python version of `GAMS <http://www.gams.de/>`_).
 
 Pyomo also has useful features such as index sets, etc.

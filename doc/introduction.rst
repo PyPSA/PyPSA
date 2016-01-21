@@ -29,9 +29,9 @@ PyPSA can calculate:
 
 * static power flow (using both the full non-linear network equations and
   the linearised network equations)
-* linear optimal power flow (over several snapshots simultaneously for
-  optimisation of generation and storage dispatch and the capacities
-  of generation, storage and transmission)
+* optimal power flow with the linear network equations (over several
+  snapshots simultaneously for optimisation of generation and storage
+  dispatch and the capacities of generation, storage and transmission)
 
 It has models for:
 
@@ -58,7 +58,7 @@ Functionality that may be added in the future:
 * Dynamic RMS simulations
 * Small signal stability analysis
 * Interactive web-based GUI
-* AC OPF
+* OPF with the full non-linear network equations
 * Dynamic EMT simulations
 * Unbalanced load flow
 

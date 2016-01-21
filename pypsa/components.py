@@ -510,15 +510,21 @@ class Network(Basic):
 
         obj = cls(self,str(name))
 
-        cls_df.loc[obj.name,"obj"] = obj
+        #build a single-index df of default values to concatenate with cls_df
+        cols = list(self.component_simple_descriptors[cls].keys())
+        values = [self.component_simple_descriptors[cls][col].default for col in cols]
 
-        #now set defaults for other items
-        for col in cls_df.columns:
-            if col in ["obj"]:
-                continue
-            else:
-                cls_df.loc[obj.name,col] = self.component_simple_descriptors[cls][col].default
+        obj_df = pd.DataFrame(data=[values+[obj]],index=[obj.name],columns=cols+["obj"])
 
+        new_df = pd.concat((cls_df,obj_df))
+
+        #reattach series descriptors
+        for k in self.component_series_descriptors[cls].keys():
+            setattr(new_df,k,getattr(cls_df,k))
+
+        cls_df = new_df
+
+        setattr(self,cls.list_name,cls_df)
 
         for k,v in iteritems(self.component_series_descriptors[cls]):
             getattr(cls_df,k)[obj.name] = v.default
