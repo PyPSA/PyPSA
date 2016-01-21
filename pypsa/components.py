@@ -216,6 +216,9 @@ class StorageUnit(Generator):
     #maximum state of charge capacity in terms of hours at full output capacity p_nom
     max_hours = Float(1)
 
+    #the minimum power dispatch is negative
+    p_min_pu_fixed = Float(-1)
+
     #in MW
     inflow = Series()
 

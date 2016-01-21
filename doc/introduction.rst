@@ -4,6 +4,8 @@
 
 PyPSA stands for "Python for Power System Analysis".
 
+It is pronounced "pipes-ah".
+
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern electric power systems that include
