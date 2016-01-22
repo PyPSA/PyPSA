@@ -1,2 +1,2 @@
-name,dependent_values_calculated,objective,srid,topology_determined
-,True,12339615.8105,4326,True
+name,dependent_values_calculated,nr_x_tol,opf_keep_files,srid,topology_determined
+,False,1e-06,False,4326,False

@@ -8,16 +8,15 @@
 # In[1]:
 
 
-# make the code as Python 3 compatible as possible
+# make the code as Python 3 compatible as possible                                                                                          
 from __future__ import print_function, division
-from __future__ import absolute_import
 
 
 import pypsa
 
 import pandas as pd
-from six import iteritems
-from six.moves import range
+
+import numpy as np
 
 
 # In[2]:
@@ -50,6 +49,9 @@ coeffs = {
 links["r"] = [row["length"]*coeffs.get(row["voltage"],default)["r"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in links.iterrows()]
 
 links["x"] = [row["length"]*coeffs.get(row["voltage"],default)["x"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in links.iterrows()]
+
+# if g = 0, b = 2*pi*f*C; C is in nF
+links["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["c"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
 
 links["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
 
@@ -85,6 +87,11 @@ pypsa.io.import_components_from_dataframe(network,links,"Line")
 
 # In[9]:
 
+network.lines[["b","x","r","b_pu","x_pu","r_pu"]]
+
+
+# In[10]:
+
 network.build_graph()
 
 network.determine_network_topology()
@@ -104,7 +111,7 @@ network.build_graph()
 network.determine_network_topology()                
 
 
-# In[10]:
+# In[11]:
 
 #import FIAS libraries for attaching data - sorry, not free software yet
 
@@ -114,7 +121,7 @@ except:
     print("Oh dear! You don't have vresutils, so you cannot add load :-(")
 
 
-# In[11]:
+# In[12]:
 
 from vresutils import graph as vgraph
 from vresutils import shapes as vshapes
@@ -123,61 +130,59 @@ from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
 
 
-# In[12]:
+# In[13]:
 
 
 #bounding poly for Germany
 poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
 
 
-# In[13]:
-
-import numpy as np
+# In[14]:
 
 for bus in network.buses.obj:
     network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
 
 
-# In[14]:
+# In[15]:
 
 region = vshapes.germany()
 #print(region.convex_hull)
 
 
-# In[15]:
+# In[16]:
 
 vgraph.voronoi_partition(network.graph, poly)
 
 
-# In[16]:
+# In[17]:
 
 network.graph.node[network.buses.index[0]]["region"]
 
 
-# In[17]:
+# In[18]:
 
 import load.germany as DEload
 
 
-# In[18]:
+# In[19]:
 
 type(network.graph)
 
 
-# In[19]:
+# In[20]:
 
 import networkx
 #DEload only works on non-MultiGraph
 g= networkx.Graph(network.graph)
 
 
-# In[20]:
+# In[21]:
 
 load = DEload.timeseries(g, years=[2011, 2012, 2013, 2014])
 
 
 
-# In[21]:
+# In[22]:
 
 import datetime
 start = datetime.datetime(2011,1,1)
@@ -189,43 +194,43 @@ network.now = network.snapshots[0]
 print(network.snapshots)
 
 
-# In[22]:
+# In[23]:
 
 load[:len(network.snapshots),2].shape
 
 
-# In[23]:
+# In[24]:
 
 for i,bus in enumerate(network.buses.obj):
     network.add("Load",bus.name,bus=bus.name,p_set = pd.Series(data=1000*load[:len(network.snapshots),i],index=network.snapshots))
 
 
-# In[24]:
+# In[25]:
 
 print(len(network.loads))
 
 
-# In[25]:
+# In[26]:
 
 get_ipython().magic(u'matplotlib inline')
 
 
-# In[26]:
+# In[27]:
 
 pd.DataFrame(load.sum(axis=1)).plot()
 
 
-# In[27]:
-
-[k.osm_name for k,v in iteritems(network.graph.node) if 'region' not in v]
-
-
 # In[28]:
+
+[k.osm_name for k,v in network.graph.node.iteritems() if 'region' not in v]
+
+
+# In[29]:
 
 #cap = vdispatch.backup_capacity_german_grid(network.graph)
 
 
-# In[29]:
+# In[30]:
 
 import random
 
@@ -239,9 +244,9 @@ def backup_capacity_german_grid(G):
 
     def nodeofaplant(x):
         if np.isnan(x["lon"]) or np.isnan(x["lat"]):
-            return random.choice(list(cells.keys()))
+            return random.choice(cells.keys())
         p = Point(x["lon"], x["lat"])
-        for n, cell in iteritems(cells):
+        for n, cell in cells.iteritems():
             if cell.contains(p):
                 return n
         else:
@@ -254,49 +259,50 @@ def backup_capacity_german_grid(G):
     return capacity
 
 
-# In[30]:
+# In[31]:
 
 cap = backup_capacity_german_grid(network.graph)
 
 
-# In[31]:
+# In[32]:
 
 cap.describe(),cap.sum(),type(cap)
 
 
-# In[32]:
+# In[33]:
 
 print(cap[pd.isnull(cap)])
 
 
-# In[33]:
+# In[34]:
 
 cap.fillna(0.1,inplace=True)
 
 
-# In[34]:
+# In[35]:
 
 
 cap.index.levels[1]
 
 
-# In[35]:
-
-m_costs = {"Gas" : 14.,
-           "Coal" : 9.,
-           "Oil" : 30.,
-           "Nuclear" : 4.}
-
-
-
 # In[36]:
+
+m_costs = {"Gas" : 50.,
+           "Coal" : 15.,
+           "Oil" : 100.,
+           "Nuclear" : 10.}
+
+default_cost = 10.
+
+
+# In[37]:
 
 for (bus_name,tech_name) in cap.index:
     print(bus_name,tech_name,cap[(bus_name,tech_name)])
-    network.add("Generator",bus_name + " " + tech_name,bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],marginal_cost=m_costs.get(tech_name,1.))
+    network.add("Generator",bus_name + " " + tech_name,bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],marginal_cost=m_costs.get(tech_name,default_cost))
 
 
-# In[69]:
+# In[38]:
 
 csv_folder_name = "scigrid-with-load-gen"
 

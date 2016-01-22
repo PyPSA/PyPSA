@@ -80,7 +80,7 @@ def network_pf(network,now=None,verbose=True):
             continue
 
         if verbose:
-            print("Performing linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
+            print("Performing full non-linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
 
         sub_network.pf(now,verbose)
 
@@ -129,7 +129,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
         now = network.now
 
     if verbose:
-        print("Performing load-flow for snapshot %s" % (now))
+        print("Performing full non-linear load-flow for snapshot %s" % (now))
 
     if not network.dependent_values_calculated:
         calculate_dependent_values(network)
@@ -554,7 +554,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
         now = network.now
 
     if verbose:
-        print("Performing load-flow for snapshot %s" % (now))
+        print("Performing linear load-flow for snapshot %s" % (now))
 
     if not network.dependent_values_calculated:
         calculate_dependent_values(network)
