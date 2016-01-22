@@ -163,10 +163,25 @@ where :math:`r_{n,s}` is the number of hours at nominal power that fill the stat
 The variables are related by
 
 .. math::
-   soc_{n,s,t} = \eta_{\textrm{stand};n,s}^{w_t} soc_{n-1,s,t} + \eta_{\textrm{store};n,s} w_t f_{n,s,t} -  \eta_{\textrm{dispatch};n,s} w_t h_{n,s,t} + \textrm{inflow}_{n,s,t} - \textrm{spillage}_{n,s,t}
+   soc_{n,s,t} = \eta_{\textrm{stand};n,s}^{w_t} soc_{n,s,t-1} + \eta_{\textrm{store};n,s} w_t f_{n,s,t} -  \eta_{\textrm{dispatch};n,s} w_t h_{n,s,t} + w_t\textrm{inflow}_{n,s,t} - w_t\textrm{spillage}_{n,s,t}
+
+:math:`\eta_{\textrm{stand};n,s}` is the standing losses dues to
+e.g. thermal losses for thermal
+storage. :math:`\eta_{\textrm{store};n,s}` and
+:math:`\eta_{\textrm{dispatch};n,s}` are the efficiency losses for
+power going into and out of the storage unit.
 
 
-If in the time series ``storage_unit_t.state_of_charge`` there are
+
+There are two options for specifying the initial state of charge :math:`soc_{n,s,t=-1}`: you can set
+``storage_unit.cyclic_state_of_charge = False`` (the default) and the value of
+``storage_unit.state_of_charge_initial`` in MWh; or you can set
+``storage_unit.cyclic_state_of_charge = True`` and then
+the optimisation assumes :math:`soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}`.
+
+
+
+If in the time series ``storage_unit_t.state_of_charge_set`` there are
 values which are not NaNs, then it will be assumed that these are
 fixed state of charges desired for that time :math:`t` and these will
 be added as extra constraints. (A possible usage case would be a
@@ -269,7 +284,15 @@ Additional variables which do not appear in the objective function are
 the storage uptake variable, the state of charge and the voltage angle
 for each bus.
 
-Variables summary
------------------
+Variables and notation summary
+------------------------------
 
 TODO - see objective function.
+
+:math:`n \in N = \{0,\dots |N|-1\}` label the buses
+
+:math:`t \in T = \{0,\dots |T|-1\}` label the snapshots
+
+:math:`l \in L = \{0,\dots |L|-1\}` label the branches
+
+:math:`s \in S = \{0,\dots |S|-1\}` label the different generator/storage types at each bus
