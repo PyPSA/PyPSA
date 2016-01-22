@@ -23,7 +23,7 @@ Impedance: Ohm, except transformers which are pu, using transformer.s_nom for th
 
 
 Sign Conventions
-========
+================
 
 
 The sign convention in PyPSA follows other major software packages,
@@ -41,3 +41,21 @@ such as MATPOWER, PYPOWER and DIgSILENT PowerFactory.
 * If p0 > 0 and p1 < 0 for a branch then active power flows from bus0
   to bus1; p0+p1 > 0 is the active power losses for this direction of
   power flow.
+
+AC/DC Terminology
+=================
+
+AC stands for Alternating Current and DC stands for Direct Current.
+
+Some people refer to the linearised power flow equations for AC
+networks as "DC load flow" for historical reasons, but we find this
+confusing when there are actual direct current elements in the network
+(which also have a linearised power flow, which would then be DC DC load
+flow).
+
+Therefore for us AC means AC and DC means DC. We distinguish between
+the full non-linear network equations (with no approximations) and the
+linearised network equations (with certain approximations to make the
+equations linear).
+
+All equations are listed in the section :doc:`power_flow`.

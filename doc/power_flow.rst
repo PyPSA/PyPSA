@@ -100,7 +100,7 @@ AC networks, with the difference that all quantities are real.
 
 To solve the non-linear equations for a DC network, ensure that the
 series reactance :math:`x` and shunt susceptance :math:`b` are zero
-for all branches, pick a Slack bus (where :math:`V_0 = 1` and set all
+for all branches, pick a Slack bus (where :math:`V_0 = 1`) and set all
 other buses to be 'PQ' buses. Then execute ``network.pf()``.
 
 The voltage magnitudes then satisfy at each bus :math:`i`:

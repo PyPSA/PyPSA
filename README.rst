@@ -55,7 +55,7 @@ It has models for:
 
 
 
-Functionality that will definitely by added soon (see also :doc:`todo`):
+Functionality that will definitely by added soon (see also `doc/todo.rst <doc/todo.rst>`_):
 
 * Graphical plotting of networks with power flow
 * Better modelling of hydroelectricity
