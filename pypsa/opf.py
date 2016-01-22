@@ -202,7 +202,7 @@ def define_storage_variables_constraints(network,snapshots):
 
             elapsed_hours = network.snapshot_weightings[sn]
 
-            if i == 0:
+            if i == 0 and not sus.at[su,"cyclic_state_of_charge"]:
                 previous_state_of_charge = sus.at[su,"state_of_charge_initial"]
                 soc[su,sn][2] -= (1-sus.at[su,"standing_loss"])**elapsed_hours*previous_state_of_charge
             else:
@@ -210,7 +210,7 @@ def define_storage_variables_constraints(network,snapshots):
                 soc[su,sn][0].append(((1-sus.at[su,"standing_loss"])**elapsed_hours,previous_state_of_charge))
 
 
-            state_of_charge = sus.state_of_charge.at[sn,su]
+            state_of_charge = sus.state_of_charge_set.at[sn,su]
             if pd.isnull(state_of_charge):
                 state_of_charge = model.state_of_charge[su,sn]
                 soc[su,sn][0].append((-1,state_of_charge))

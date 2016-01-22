@@ -209,9 +209,18 @@ class StorageUnit(Generator):
 
     list_name = "storage_units"
 
-    #units are MWh
+    #units for state of charge are MWh
     state_of_charge_initial = Float()
+
+    #state of charge can be forced to a particular value
+    state_of_charge_set = Series(default=np.nan)
+
+    #optimisation results are stored here
     state_of_charge = Series(default=np.nan)
+
+    #switch to disregard state_of_charge_initial; instead soc[-1] =
+    #soc[len(snapshots)-1]
+    cyclic_state_of_charge = Boolean(False)
 
     #maximum state of charge capacity in terms of hours at full output capacity p_nom
     max_hours = Float(1)

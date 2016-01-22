@@ -1,2 +1,2 @@
-name,co2_limit,dependent_values_calculated,now,srid,topology_determined
-Test 6 bus,1000,False,now,4326,False
+name,co2_limit,dependent_values_calculated,now,nr_x_tol,opf_keep_files,srid,topology_determined
+Test 6 bus,1000,False,now,1e-06,False,4326,False

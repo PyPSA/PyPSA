@@ -30,6 +30,8 @@ csv_folder_name = "opf-storage-data"
 network = pypsa.Network(csv_folder_name=csv_folder_name)
 print(network,network.co2_limit)
 
+#useful for debugging
+network.opf_keep_files = True
 
 network.build_graph()
 

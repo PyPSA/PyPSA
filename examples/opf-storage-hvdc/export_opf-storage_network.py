@@ -28,6 +28,11 @@ from six.moves import range
 
 
 
+#ensure the same random number are produced when refactoring
+np.random.seed(1)
+
+
+
 csv_folder_name = 'opf-storage-data'
 
 
@@ -38,9 +43,12 @@ network = pypsa.Network()
 
 #Build the snapshots we consider for the first T hours in 2015
 
-T = 10
+T = 12
 
 network.set_snapshots(pd.to_datetime([datetime.datetime(2015,1,1) + datetime.timedelta(hours=i) for i in range(T)]))
+
+#let each snapshot represent 3 hours
+network.snapshot_weightings = pd.Series(3.,index=network.snapshots)
 
 print("network:",network)
 print("snapshots:",network.snapshots)
@@ -80,6 +88,10 @@ for i in range(n*c):
                 s_nom_min=0,
                 s_nom_extendable=True)
 
+#make one line non-extendable
+network.lines.at["2","s_nom"] = 200.
+network.lines.at["2","s_nom_extendable"] = False
+
 #add HVDC lines
 for i in range(2):
     network.add("TransportLink","TL %d" % (i),
@@ -92,6 +104,11 @@ for i in range(2):
                 capital_cost=0.2*np.random.random(),
                 s_nom_min=0,
                 s_nom_extendable=True)
+
+
+#make one HVDC non-extendable
+network.transport_links.at["TL 1","s_nom"] = 300.
+network.transport_links.at["TL 1","s_nom_extendable"] = False
 
 
 #add loads
@@ -127,9 +144,21 @@ for i in range(n*c):
                 marginal_cost=2 + 4*np.random.random(),
                 capital_cost=100 + 100*np.random.random(),
                 efficiency=0.35 + 0.01*np.random.random(),
+                p_max_pu_fixed = 0.85,
+                p_min_pu_fixed = 0.02,
                 p_nom_extendable=True,
                 p_nom_max=np.nan,
                 p_nom_min=0)
+
+#make some objects non-extendable - useful for unit testing
+network.generators.at["Gas 0","p_nom"] = 350
+network.generators.at["Gas 0","p_nom_extendable"] = False
+
+network.generators.at["Wind 2","p_nom"] = 150
+network.generators.at["Wind 2","p_nom_extendable"] = False
+
+network.storage_units.at["Storage 1","p_nom"] = 25
+network.storage_units.at["Storage 1","p_nom_extendable"] = False
 
 
 #now attach some time series
@@ -149,17 +178,20 @@ network.generators.p_set.loc[:,wind_generators.index] = network.generators.p_max
 
 network.storage_units.state_of_charge_initial = 0.0
 
+#make the storage more complicated
+network.storage_units.at["Storage 2","cyclic_state_of_charge"] = True
+network.storage_units.at["Storage 4","cyclic_state_of_charge"] = True
 
-network.transport_links.p_set = pd.DataFrame(index = network.snapshots,
-                                            columns = network.transport_links.index,
-                                             data=(200*np.random.rand(len(network.snapshots),len(network.transport_links))-100))
+
+network.storage_units.state_of_charge_set.at[network.snapshots[3],"Storage 3"] = 50.
 
 
+network.storage_units.state_of_charge_set.at[network.snapshots[2],"Storage 4"] = 25.
 
 
 time_series = {"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
                "loads" : {"p_set" : None},
-               "transport_links" : {"p_set" : None},
+               "storage_units" : {"state_of_charge_set" : None},
 }
 
 
