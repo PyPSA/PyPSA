@@ -173,7 +173,16 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     setattr(network,cls.list_name,new_df)
 
+    pnl = getattr(network,cls.list_name+"_t")
 
+    pnl = pnl.reindex(minor_axis=pnl.minor_axis|dataframe.index)
+
+    for k,v in network.component_series_descriptors[cls].items():
+        pnl.loc[k,:,dataframe.index] = v.default
+        if k in series_attrs:
+            pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
+
+    setattr(network,cls.list_name+"_t",pnl)
 
 def import_series_from_dataframe(network,dataframe,list_name,attr):
 
@@ -181,7 +190,9 @@ def import_series_from_dataframe(network,dataframe,list_name,attr):
 
     df.loc[:,dataframe.columns] = dataframe
 
+    pnl = getattr(network,list_name+"_t")
 
+    pnl.loc[attr].loc[:,dataframe.columns] = dataframe
 
 def import_from_csv_folder(network,csv_folder_name):
 

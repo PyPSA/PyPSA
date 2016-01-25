@@ -452,6 +452,7 @@ class Network(Basic):
     def build_dataframes(self):
         for cls in (Load, ShuntImpedance, SubNetwork, Generator, Line, Bus,
                     StorageUnit, TransportLink, Transformer, Source, Converter):
+
             columns = list((k, v.typ) for k, v in iteritems(self.component_simple_descriptors[cls]))
 
             #store also the objects themselves
@@ -475,6 +476,13 @@ class Network(Basic):
                 series_df.columns.name = "name"
                 setattr(df,k,series_df)
 
+            pnl = pd.Panel(items=self.component_series_descriptors[cls].keys(),
+                           major_axis=self.snapshots,
+                           minor_axis=getattr(self,cls.list_name).index,
+                           #it's currently hard to image non-float series, but this should be generalised
+                           dtype=float)
+
+            setattr(self,cls.list_name+"_t",pnl)
 
     def set_snapshots(self,snapshots):
 
@@ -489,6 +497,14 @@ class Network(Basic):
             for k,v in iteritems(self.component_series_descriptors[cls]):
                 series_df = getattr(df,k)
                 setattr(df,k,series_df.reindex(index=self.snapshots,fill_value=v.default))
+
+            pnl = getattr(self,cls.list_name+"_t")
+            pnl = pnl.reindex(major_axis=self.snapshots)
+
+            for k,v in self.component_series_descriptors[cls].items():
+                pnl.loc[k,self.snapshots,:] = pnl.loc[k,self.snapshots,:].fillna(v.default)
+
+            setattr(self,cls.list_name+"_t",pnl)
 
 
     def import_from_csv_folder(self,csv_folder_name):
