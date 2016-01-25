@@ -31,7 +31,7 @@ impedances and any shunt admittances attached to the buses.
 
 
 
-For the slack bus it is assumed :math:`V_0 = 1`; P and Q are to be found.
+For the slack bus :math:`i=0` it is assumed :math:`V_0` is given; P and Q are to be found.
 
 For the PV buses, P and :math:`|V|` are given; Q and :math:`\theta` are to be found.
 
@@ -44,7 +44,7 @@ If PV and PQ are the sets of buses, then there are :math:`|PV| + 2|PQ|` real equ
    \textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i & = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ \\
    \textrm{Im}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - Q_i & = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PQ
 
-To be found: :math:`\theta_i \forall i \in PV \cup PQ` and :math:`|V_i| \forall i PQ`.
+To be found: :math:`\theta_i \forall i \in PV \cup PQ` and :math:`|V_i| \forall i \in PQ`.
 
 These equations :math:`f(x) = 0` are solved using the `Newton-Raphson method <https://en.wikipedia.org/wiki/Newton%27s_method#k_variables.2C_k_functions>`_, with the Jacobian:
 
@@ -124,10 +124,10 @@ are much smaller than branch reactances (i.e. it is good for overhead
 transmission lines).
 
 For AC networks, the load flow is calculated using small voltage
-angles and the series reactances alone.
+angle differences and the series reactances alone.
 
 For DC networks, it is assumed for the linear power flow that voltage
-magnitude variations are all small.
+magnitude differences across branches are all small.
 
 For DC networks, the load flow is calculated using small voltage
 magnitude differences and series resistances alone.

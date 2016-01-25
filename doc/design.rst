@@ -3,6 +3,14 @@
 ###########
 
 
+Python 2 and Python 3 compatible
+================================
+
+PyPSA is written and tested to be compatible with both Python 2.7 and
+Python 3.4.
+
+
+
 Network object is the overall container
 =======================================
 
@@ -28,7 +36,7 @@ the appropriate class definition in pypsa.components.
 
 
 Basic component data is stored in pandas DataFrames
-================================
+===================================================
 
 For each component type (line, transformer, generator, etc.), which
 must be uniquely named for each network, its basic data is stored in a
@@ -83,7 +91,7 @@ is a descriptor which points at network.buses.loc["bus_name","v_nom"].
 
 
 Internal use of per unit
-===============
+===========================
 
 Per unit values of voltage and impedance are used interally for
 network calculations. It is assumed internally that the base power is
@@ -93,7 +101,7 @@ See also :ref:`unit-conventions`.
 
 
 Set points are stored separately from actual dispatch points
-==================================
+============================================================
 
 Dispatchable generators have a p_set series which is separate from the
 calculated active power series p, since the operators's intention may
@@ -102,7 +110,7 @@ slack for the active power).
 
 
 Pyomo for the optimisation framework
-=================
+====================================
 
 To enable portability between solvers, the OPF is formulated using the
 Python package `pyomo <http://www.pyomo.org/>`_ (which can be thought

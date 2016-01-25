@@ -24,7 +24,7 @@ Documentation can be found in `sphinx
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
 environment. Some APIs may change - those liable to be updated are
-listed in the doc/todo.rst.
+listed in the `doc/todo.rst <doc/todo.rst>`_.
 
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
@@ -78,18 +78,17 @@ Functionality that may be added in the future:
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested with Python 2, but has included Python 3
-forward-compatibility (for e.g. printing and integer division) so that
-minimal effort should be required to run it in Python 3.
+PyPSA is written and tested to be compatible with both Python 2.7 and
+Python 3.4.
 
 It leans heavily on the following Python packages:
 
 * `pandas <http://ipython.org/>`_ for storing data about components and time series
-* numpy and `scipy <http://scipy.org/>`_ for calculations, such as
+* `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
-* networkx for some network calculations (such as discovering connected networks)
-* py.test for unit testing
+* `networkx <https://networkx.github.io/>`_ for some network calculations (such as discovering connected networks)
+* `py.test <http://pytest.org/>`_ for unit testing
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver (you can use e.g. the free software GLPK or the commercial

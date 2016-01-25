@@ -102,18 +102,17 @@ from PYPOWER.
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested with Python 2, but has included Python 3
-forward-compatibility (for e.g. printing and integer division) so that
-minimal effort should be required to run it in Python 3.
+PyPSA is written and tested to be compatible with Python 2.7 and
+Python 3.4.
 
 It leans heavily on the following Python packages:
 
 * `pandas <http://ipython.org/>`_ for storing data about components and time series
-* numpy and `scipy <http://scipy.org/>`_ for calculations, such as
+* `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
-* networkx for some network calculations (such as discovering connected networks)
-* py.test for unit testing
+* `networkx <https://networkx.github.io/>`_ for some network calculations (such as discovering connected networks)
+* `py.test <http://pytest.org/>`_ for unit testing
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver (you can use e.g. the free software GLPK or the commercial
