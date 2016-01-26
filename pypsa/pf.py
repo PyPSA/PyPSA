@@ -39,9 +39,7 @@ from scipy.sparse.linalg import spsolve
 import numpy as np
 import pandas as pd
 
-from .components import Line, Transformer
-
-import pypsa
+from . import components
 
 from itertools import chain
 
@@ -67,10 +65,10 @@ def network_pf(network,now=None,verbose=True):
 
 
     #deal with transport links and converters
-    network.converters.p0.loc[now] = network.converters.p_set.loc[now]
-    network.converters.p1.loc[now] = -network.converters.p_set.loc[now]
-    network.transport_links.p0.loc[now] = network.transport_links.p_set.loc[now]
-    network.transport_links.p1.loc[now] = -network.transport_links.p_set.loc[now]
+    network.converters_t.p0.loc[now] = network.converters_t.p_set.loc[now]
+    network.converters_t.p1.loc[now] = -network.converters_t.p_set.loc[now]
+    network.transport_links_t.p0.loc[now] = network.transport_links_t.p_set.loc[now]
+    network.transport_links_t.p1.loc[now] = -network.transport_links_t.p_set.loc[now]
 
 
     for sub_network in network.sub_networks.obj:
@@ -160,18 +158,18 @@ def sub_network_pf(sub_network,now=None,verbose=True):
         if t.bus1 in buses.index:
             buses.obj[t.bus1].p[now] -= t.p1[now]
 
-    p = network.buses.p.loc[now,buses.index]
-    q = network.buses.q.loc[now,buses.index]
+    p = network.buses_t.p.loc[now,buses.index]
+    q = network.buses_t.q.loc[now,buses.index]
 
     s = p + 1j*q
 
     def f(guess):
-        network.buses.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
+        network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
 
-        network.buses.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
+        network.buses_t.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
 
-        v_mag = network.buses.v_mag.loc[now,buses.index]
-        v_ang = network.buses.v_ang.loc[now,buses.index]
+        v_mag = network.buses_t.v_mag.loc[now,buses.index]
+        v_ang = network.buses_t.v_ang.loc[now,buses.index]
         V = v_mag*np.exp(1j*v_ang)
 
         mismatch = V*np.conj(sub_network.Y*V) - s
@@ -183,12 +181,12 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
     def dfdx(guess):
 
-        network.buses.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
+        network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
 
-        network.buses.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
+        network.buses_t.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
 
-        v_mag = network.buses.v_mag.loc[now,buses.index]
-        v_ang = network.buses.v_ang.loc[now,buses.index]
+        v_mag = network.buses_t.v_mag.loc[now,buses.index]
+        v_ang = network.buses_t.v_ang.loc[now,buses.index]
 
         V = v_mag*np.exp(1j*v_ang)
 
@@ -217,11 +215,11 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
 
     #Set what we know: slack V and V_mag for PV buses
-    network.buses.v_mag.loc[now,sub_network.pvs.index] = network.buses.v_mag_set.loc[now,sub_network.pvs.index]
+    network.buses_t.v_mag.loc[now,sub_network.pvs.index] = network.buses_t.v_mag_set.loc[now,sub_network.pvs.index]
 
-    network.buses.v_mag.loc[now,sub_network.slack_bus] = network.buses.v_mag_set.loc[now,sub_network.slack_bus]
+    network.buses_t.v_mag.loc[now,sub_network.slack_bus] = network.buses_t.v_mag_set.loc[now,sub_network.slack_bus]
 
-    network.buses.v_ang.loc[now,sub_network.slack_bus] = 0.
+    network.buses_t.v_ang.loc[now,sub_network.slack_bus] = 0.
 
     #Make a guess for what we don't know: V_ang for PV and PQs and V_mag for PQ buses
     guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
@@ -234,11 +232,11 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
     #now set everything
 
-    network.buses.v_ang.loc[now,sub_network.pvpqs.index] = roots[:len(sub_network.pvpqs)]
-    network.buses.v_mag.loc[now,sub_network.pqs.index] = roots[len(sub_network.pvpqs):]
+    network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = roots[:len(sub_network.pvpqs)]
+    network.buses_t.v_mag.loc[now,sub_network.pqs.index] = roots[len(sub_network.pvpqs):]
 
-    v_mag = network.buses.v_mag.loc[now,buses.index]
-    v_ang = network.buses.v_ang.loc[now,buses.index]
+    v_mag = network.buses_t.v_mag.loc[now,buses.index]
+    v_ang = network.buses_t.v_ang.loc[now,buses.index]
 
     V = v_mag*np.exp(1j*v_ang)
 
@@ -252,44 +250,42 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     branches["s0"] = branches["v0"]*np.conj(i0)
     branches["s1"] = branches["v1"]*np.conj(i1)
 
-    for cls_name in ["Line","Transformer"]:
-        cls = getattr(pypsa.components,cls_name)
-        list_name = cls.list_name
-        df = branches.loc[cls_name]
-        ndf = getattr(network,list_name)
-        getattr(ndf,"p0").loc[now,df.index] = df["s0"].real
-        getattr(ndf,"q0").loc[now,df.index] = df["s0"].imag
-        getattr(ndf,"p1").loc[now,df.index] = df["s1"].real
-        getattr(ndf,"q1").loc[now,df.index] = df["s1"].imag
+    for typ in components.passive_branch_types:
+        df = branches.loc[typ.__name__]
+        pnl = getattr(network,typ.list_name+"_t")
+        pnl.loc["p0",now,df.index] = df["s0"].real
+        pnl.loc["q0",now,df.index] = df["s0"].imag
+        pnl.loc["p1",now,df.index] = df["s1"].real
+        pnl.loc["q1",now,df.index] = df["s1"].imag
 
 
     s_calc = V*np.conj(sub_network.Y*V)
 
-    network.buses.p.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].real
-    network.buses.q.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].imag
-    network.buses.q.loc[now,sub_network.pvs.index] = s_calc[sub_network.pvs.index].imag
+    network.buses_t.p.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].real
+    network.buses_t.q.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].imag
+    network.buses_t.q.loc[now,sub_network.pvs.index] = s_calc[sub_network.pvs.index].imag
 
     #allow all loads to dispatch as set
     loads = sub_network.loads
-    network.loads.p.loc[now,loads.index] = network.loads.p_set.loc[now,loads.index]
-    network.loads.q.loc[now,loads.index] = network.loads.q_set.loc[now,loads.index]
+    network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
+    network.loads_t.q.loc[now,loads.index] = network.loads_t.q_set.loc[now,loads.index]
 
     #allow all loads to dispatch as set
     shunt_impedances = sub_network.shunt_impedances
-    network.shunt_impedances.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
-    network.shunt_impedances.q.loc[now,shunt_impedances.index] = network.shunt_impedances.b_pu.loc[shunt_impedances.index].values
+    network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
+    network.shunt_impedances_t.q.loc[now,shunt_impedances.index] = network.shunt_impedances.b_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
     generators = sub_network.generators
-    network.generators.p.loc[now,generators.index] = network.generators.p_set.loc[now,generators.index]
-    network.generators.q.loc[now,generators.index] = network.generators.q_set.loc[now,generators.index]
+    network.generators_t.p.loc[now,generators.index] = network.generators_t.p_set.loc[now,generators.index]
+    network.generators_t.q.loc[now,generators.index] = network.generators_t.q_set.loc[now,generators.index]
 
     #let slack generator take up the slack
-    network.generators.p.loc[now,sub_network.slack_generator] += network.buses.p.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].real
-    network.generators.q.loc[now,sub_network.slack_generator] += network.buses.q.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].imag
+    network.generators_t.p.loc[now,sub_network.slack_generator] += network.buses_t.p.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].real
+    network.generators_t.q.loc[now,sub_network.slack_generator] += network.buses_t.q.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].imag
 
     #set the Q of the PV generators
-    network.generators.q.loc[now,sub_network.pvs.generator] += network.buses.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
+    network.generators_t.q.loc[now,sub_network.pvs.generator] += network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
 
 
 
@@ -310,10 +306,10 @@ def network_lpf(network,now=None,verbose=True):
 
 
     #deal with transport links and converters
-    network.converters.p0.loc[now] = network.converters.p_set.loc[now]
-    network.converters.p1.loc[now] = -network.converters.p_set.loc[now]
-    network.transport_links.p0.loc[now] = network.transport_links.p_set.loc[now]
-    network.transport_links.p1.loc[now] = -network.transport_links.p_set.loc[now]
+    network.converters_t.p0.loc[now] = network.converters_t.p_set.loc[now]
+    network.converters_t.p1.loc[now] = -network.converters_t.p_set.loc[now]
+    network.transport_links_t.p0.loc[now] = network.transport_links_t.p_set.loc[now]
+    network.transport_links_t.p1.loc[now] = -network.transport_links_t.p_set.loc[now]
 
 
     for sub_network in network.sub_networks.obj:
@@ -582,7 +578,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
             buses.obj[t.bus1].p[now] -= t.p1[now]
 
 
-    p = network.buses.p.loc[now,buses.index]
+    p = network.buses_t.p.loc[now,buses.index]
 
     num_buses = len(buses)
 
@@ -596,37 +592,37 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
         lines = branches.loc["Line"]
         trafos = branches.loc["Transformer"]
 
-        network.lines.p1.loc[now,lines.index] = -lines["flows"]
-        network.lines.p0.loc[now,lines.index] = lines["flows"]
+        network.lines_t.p1.loc[now,lines.index] = -lines["flows"]
+        network.lines_t.p0.loc[now,lines.index] = lines["flows"]
 
-        network.transformers.p1.loc[now,trafos.index] = -trafos["flows"]
-        network.transformers.p0.loc[now,trafos.index] = trafos["flows"]
+        network.transformers_t.p1.loc[now,trafos.index] = -trafos["flows"]
+        network.transformers_t.p0.loc[now,trafos.index] = trafos["flows"]
 
 
 
     #set slack bus power to pick up remained
-    network.buses.p.loc[now,sub_network.slack_bus] = -sum(p[1:])
+    network.buses_t.at["p",now,sub_network.slack_bus] = -sum(p[1:])
 
     if sub_network.current_type == "AC":
-        network.buses.v_ang.loc[now,buses.index] = v_diff
+        network.buses_t.v_ang.loc[now,buses.index] = v_diff
     elif sub_network.current_type == "DC":
-        network.buses.v_mag.loc[now,buses.index] = buses.v_nom + v_diff*buses.v_nom
+        network.buses_t.v_mag.loc[now,buses.index] = buses.v_nom + v_diff*buses.v_nom
 
     #allow all loads to dispatch as set
     loads = sub_network.loads
-    network.loads.p.loc[now,loads.index] = network.loads.p_set.loc[now,loads.index]
+    network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
 
     #allow all loads to dispatch as set
     shunt_impedances = sub_network.shunt_impedances
-    network.shunt_impedances.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
+    network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
     generators = sub_network.generators
-    network.generators.p.loc[now,generators.index] = network.generators.p_set.loc[now,generators.index]
+    network.generators_t.p.loc[now,generators.index] = network.generators_t.p_set.loc[now,generators.index]
 
     #let slack generator take up the slack
     if sub_network.slack_generator != "":
-        network.generators.p.loc[now,sub_network.slack_generator] += network.buses.p.loc[now,sub_network.slack_bus] - p[0]
+        network.generators_t.at["p",now,sub_network.slack_generator] += network.buses_t.at["p",now,sub_network.slack_bus] - p[0]
 
 
 

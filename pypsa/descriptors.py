@@ -188,16 +188,14 @@ class Series(object):
     def __init__(self, dtype=float, default=0.0):
         self.dtype = dtype
         self.default = default
-        self.values = WeakKeyDictionary()
 
     def __get__(self, obj, cls):
-        return getattr(getattr(obj.network,obj.__class__.list_name),self.name)[obj.name]
+        return getattr(obj.network,obj.__class__.list_name+"_t").loc[self.name,:,obj.name]
 
     def __set__(self,obj,val):
-        df = getattr(getattr(obj.network,obj.__class__.list_name),self.name)
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
-            df[obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
+            getattr(obj.network,obj.__class__.list_name+"_t").loc[self.name,:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
         except AttributeError:
             print("count not assign",val,"to series")
 

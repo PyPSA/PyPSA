@@ -34,13 +34,13 @@ def test_opf():
     for snapshot in network.snapshots:
         network.lpf(snapshot)
 
-    np.testing.assert_array_almost_equal(network.generators.p,network_r.generators.p)
+    np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
 
-    np.testing.assert_array_almost_equal(network.lines.p0,network_r.lines.p0)
+    np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
 
-    np.testing.assert_array_almost_equal(network.transport_links.p0,network_r.transport_links.p0)
+    np.testing.assert_array_almost_equal(network.transport_links_t.p0,network_r.transport_links_t.p0)
 
-    np.testing.assert_array_almost_equal(network.converters.p0,network_r.converters.p0)
+    np.testing.assert_array_almost_equal(network.converters_t.p0,network_r.converters_t.p0)
 
 
 
