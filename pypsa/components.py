@@ -126,10 +126,17 @@ class Bus(Common):
     def generators(self):
         return self.network.generators[self.network.generators.bus == self.name]
 
+    @property
+    def generators_t(self):
+        return self.network.generators_t.loc[:,:,self.network.generators.bus == self.name]
 
     @property
     def loads(self):
         return self.network.loads[self.network.loads.bus == self.name]
+
+    @property
+    def loads_t(self):
+        return self.network.loads_t.loc[:,:,self.network.loads.bus == self.name]
 
     @property
     def storage_units(self):
@@ -463,19 +470,16 @@ class Network(Basic):
             for k,v in iteritems(self.component_simple_descriptors[cls]):
                 v.name = k
 
+            for k,v in iteritems(self.component_series_descriptors[cls]):
+                v.name = k
+
+
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
                               columns=list(map(itemgetter(0), columns)))
 
             df.index.name = "name"
 
             setattr(self,cls.list_name,df)
-
-            for k,v in iteritems(self.component_series_descriptors[cls]):
-                v.name = k
-                series_df = pd.DataFrame(index=self.snapshots, dtype=v.dtype)
-                series_df.index.name = "snapshots"
-                series_df.columns.name = "name"
-                setattr(df,k,series_df)
 
             pnl = pd.Panel(items=self.component_series_descriptors[cls].keys(),
                            major_axis=self.snapshots,
@@ -492,12 +496,6 @@ class Network(Basic):
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
 
         for cls in Load, ShuntImpedance, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
-
-            df = getattr(self,cls.list_name)
-
-            for k,v in iteritems(self.component_series_descriptors[cls]):
-                series_df = getattr(df,k)
-                setattr(df,k,series_df.reindex(index=self.snapshots,fill_value=v.default))
 
             pnl = getattr(self,cls.list_name+"_t")
             pnl = pnl.reindex(major_axis=self.snapshots)
@@ -545,18 +543,18 @@ class Network(Basic):
 
         obj_df = pd.DataFrame(data=[values+[obj]],index=[obj.name],columns=cols+["obj"])
 
-        new_df = pd.concat((cls_df,obj_df))
+        setattr(self,cls.list_name,pd.concat((cls_df,obj_df)))
 
-        #reattach series descriptors
-        for k in self.component_series_descriptors[cls].keys():
-            setattr(new_df,k,getattr(cls_df,k))
 
-        cls_df = new_df
+        #now deal with time-dependent variables
+        pnl = getattr(self,cls.list_name+"_t")
 
-        setattr(self,cls.list_name,cls_df)
+        pnl = pnl.reindex(minor_axis=pnl.minor_axis|{obj.name})
+
+        setattr(self,cls.list_name+"_t",pnl)
 
         for k,v in iteritems(self.component_series_descriptors[cls]):
-            getattr(cls_df,k)[obj.name] = v.default
+            pnl.loc[k,:,obj.name] = v.default
 
 
         for key,value in iteritems(kwargs):

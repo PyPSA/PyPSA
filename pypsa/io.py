@@ -162,16 +162,10 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     new_df.loc[dataframe.index,"obj"] = [cls(network,str(i)) for i in dataframe.index]
 
-    for k,v in network.component_series_descriptors[cls].items():
-        old_s_df = getattr(old_df,k)
-        new_s_df = old_s_df.reindex(columns=old_s_df.columns|dataframe.index,fill_value=v.default)
-
-        if k in series_attrs:
-            new_s_df.loc[:,dataframe.index] = dataframe.loc[:,k].values
-
-        setattr(new_df,k,new_s_df)
-
     setattr(network,cls.list_name,new_df)
+
+
+    #now deal with time-dependent properties
 
     pnl = getattr(network,cls.list_name+"_t")
 
@@ -185,10 +179,6 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     setattr(network,cls.list_name+"_t",pnl)
 
 def import_series_from_dataframe(network,dataframe,list_name,attr):
-
-    df = getattr(getattr(network,list_name),attr)
-
-    df.loc[:,dataframe.columns] = dataframe
 
     pnl = getattr(network,list_name+"_t")
 

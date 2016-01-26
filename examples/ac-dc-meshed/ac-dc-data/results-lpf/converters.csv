@@ -1,4 +1,4 @@
-name,s_nom_min,bus0,bus1,capital_cost,s_nom_extendable,s_nom,s_nom_max,p_min,p_max,obj
-Norwich Converter,0.0,Norwich,Norwich DC,0.21,True,0.0,,-900.0,900.0,Converter Norwich Converter
-Norway Converter,0.0,Norway,Norway DC,0.2,True,0.0,,-900.0,900.0,Converter Norway Converter
-Bremen Converter,0.0,Bremen,Bremen DC,0.19,True,0.0,,-900.0,900.0,Converter Bremen Converter
+name,bus0,bus1,capital_cost,obj,p_max,p_min,p_nom,s_nom,s_nom_extendable,s_nom_max,s_nom_min
+Norwich Converter,Norwich,Norwich DC,0.21,Converter Norwich Converter,900.0,-900.0,1000.0,0.0,True,,0.0
+Norway Converter,Norway,Norway DC,0.2,Converter Norway Converter,900.0,-900.0,1000.0,0.0,True,,0.0
+Bremen Converter,Bremen,Bremen DC,0.19,Converter Bremen Converter,900.0,-900.0,1000.0,0.0,True,,0.0

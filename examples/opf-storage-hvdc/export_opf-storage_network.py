@@ -163,18 +163,16 @@ network.storage_units.at["Storage 1","p_nom_extendable"] = False
 
 #now attach some time series
 
-network.loads.p_set = pd.DataFrame(index = network.snapshots,
-                                   columns = network.loads.index,
-                                   data = 1000*np.random.rand(len(network.snapshots), len(network.loads)))
+network.loads_t.p_set = pd.DataFrame(index = network.snapshots,
+                                     columns = network.loads.index,
+                                     data = 1000*np.random.rand(len(network.snapshots), len(network.loads)))
 
 
 wind_generators = network.generators[network.generators.source == "wind"]
 
-network.generators.p_max_pu.loc[:,wind_generators.index] = pd.DataFrame(index = network.snapshots,
-                                                                        columns = wind_generators.index,
-                                                                        data = np.random.rand(len(network.snapshots), len(wind_generators)))
-
-network.generators.p_set.loc[:,wind_generators.index] = network.generators.p_max_pu.loc[:,wind_generators.index].multiply(network.generators.p_nom,axis=1)
+network.generators_t.p_max_pu.loc[:,wind_generators.index] = pd.DataFrame(index = network.snapshots,
+                                                                          columns = wind_generators.index,
+                                                                          data = np.random.rand(len(network.snapshots), len(wind_generators)))
 
 network.storage_units.state_of_charge_initial = 0.0
 
@@ -183,10 +181,10 @@ network.storage_units.at["Storage 2","cyclic_state_of_charge"] = True
 network.storage_units.at["Storage 4","cyclic_state_of_charge"] = True
 
 
-network.storage_units.state_of_charge_set.at[network.snapshots[3],"Storage 3"] = 50.
+network.storage_units_t.state_of_charge_set.at[network.snapshots[3],"Storage 3"] = 50.
 
 
-network.storage_units.state_of_charge_set.at[network.snapshots[2],"Storage 4"] = 25.
+network.storage_units_t.state_of_charge_set.at[network.snapshots[2],"Storage 4"] = 25.
 
 
 time_series = {"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},

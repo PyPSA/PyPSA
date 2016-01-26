@@ -74,9 +74,9 @@ for snapshot in snapshots:
 
     print("\n"*2+"For time",snapshot,":\nBus injections:")
 
-    print(network.buses.p.loc[snapshot])
+    print(network.buses_t.p.loc[snapshot])
 
-    print("Total:",network.buses.p.loc[snapshot].sum())
+    print("Total:",network.buses_t.p.loc[snapshot].sum())
 
 
 network.now = network.snapshots[0]

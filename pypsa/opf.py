@@ -224,7 +224,7 @@ def define_storage_variables_constraints(network,snapshots):
 
             soc[su,sn][0].append((sus.at[su,"efficiency_store"]*elapsed_hours,model.storage_p_store[su,sn]))
             soc[su,sn][0].append((-(1/sus.at[su,"efficiency_dispatch"])*elapsed_hours,model.storage_p_dispatch[su,sn]))
-            soc[su,sn][2] -= sus.inflow.at[sn,su]*elapsed_hours
+            soc[su,sn][2] -= network.storage_units_t.at["inflow",sn,su]*elapsed_hours
 
     l_constraint(model,"state_of_charge_constraint",soc,network.storage_units.index, snapshots)
 
@@ -481,7 +481,7 @@ def extract_optimisation_results(network,snapshots):
         if len(df):
             attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
             pnl.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
-            pnl.p1.loc[snapshots] = - pnl.p1.loc[snapshots]
+            pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
 
     network.generators.loc[network.generators.p_nom_extendable, 'p_nom'] = \
         as_series(network.model.generator_p_nom)

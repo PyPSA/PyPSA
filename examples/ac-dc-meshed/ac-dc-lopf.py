@@ -38,8 +38,8 @@ for t in chain(network.transport_links.obj,network.converters.obj):
 
 for bus in network.buses.obj:
     print("\n"*3+bus.name)
-    print("Generators:",sum(network.generators.p.loc[now,bus.generators.index]))
-    print("Loads:",sum(load.p[now] for load in bus.loads.obj))
+    print("Generators:",sum(bus.generators_t.p.loc[now]))
+    print("Loads:",sum(bus.loads_t.p.loc[now]))
     print("Total:",sum(item.p[now]*item.sign for item in chain(bus.generators.obj,bus.loads.obj)))
 
     print("Branches",sum(b.p0[now] for b in network.branches.obj if b.bus0 == bus.name)+sum(b.p1[now] for b in network.branches.obj if b.bus1 == bus.name))
@@ -52,9 +52,9 @@ for bus in network.buses.obj:
         elif b.bus1 == bus.name:
             print(b,b.p1[now])
 
-print(sum(network.generators.p.loc[now]))
+print(sum(network.generators_t.p.loc[now]))
 
-print(sum(network.loads.p.loc[now]))
+print(sum(network.loads_t.p.loc[now]))
 
 results_folder_name = os.path.join(folder_name,"results-lopf")
 
