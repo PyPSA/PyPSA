@@ -46,6 +46,8 @@ from distutils.version import StrictVersion
 
 import pandas as pd
 
+from . import components
+
 
 
 #this function is necessary because pyomo doesn't deal with NaNs gracefully
@@ -80,8 +82,8 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_bounds = {(gen,sn) : (None,None) for gen in extendable_gens.index for sn in snapshots}
 
-    var_lower = network.generators.p_min_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
-    var_upper = network.generators.p_max_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
+    var_lower = network.generators_t.p_min_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
+    var_upper = network.generators_t.p_max_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
 
     gen_p_bounds.update({(gen,sn) : (var_lower[gen][sn],var_upper[gen][sn]) for gen in fixed_var_gens.index for sn in snapshots})
 
@@ -110,7 +112,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_lower = {(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-extendable_flex_gens.at[gen,"p_min_pu_fixed"],network.model.generator_p_nom[gen])],">=",0.] for gen in extendable_flex_gens.index for sn in snapshots}
 
-    gen_p_lower.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators.p_min_pu.at[sn,gen],network.model.generator_p_nom[gen])],">=",0.] for gen in extendable_var_gens.index for sn in snapshots})
+    gen_p_lower.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators_t.at["p_min_pu",sn,gen],network.model.generator_p_nom[gen])],">=",0.] for gen in extendable_var_gens.index for sn in snapshots})
 
     l_constraint(network.model,"generator_p_lower",gen_p_lower,extendable_gens.index,snapshots)
 
@@ -118,7 +120,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_upper = {(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-extendable_flex_gens.at[gen,"p_max_pu_fixed"],network.model.generator_p_nom[gen])],"<=",0.] for gen in extendable_flex_gens.index for sn in snapshots}
 
-    gen_p_upper.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators.p_max_pu.at[sn,gen],network.model.generator_p_nom[gen])],"<=",0.] for gen in extendable_var_gens.index for sn in snapshots})
+    gen_p_upper.update({(gen,sn) : [[(1,network.model.generator_p[gen,sn]),(-network.generators_t.at["p_max_pu",sn,gen],network.model.generator_p_nom[gen])],"<=",0.] for gen in extendable_var_gens.index for sn in snapshots})
 
     l_constraint(network.model,"generator_p_upper",gen_p_upper,extendable_gens.index,snapshots)
 
@@ -210,7 +212,7 @@ def define_storage_variables_constraints(network,snapshots):
                 soc[su,sn][0].append(((1-sus.at[su,"standing_loss"])**elapsed_hours,previous_state_of_charge))
 
 
-            state_of_charge = sus.state_of_charge_set.at[sn,su]
+            state_of_charge = network.storage_units_t.at["state_of_charge_set",sn,su]
             if pd.isnull(state_of_charge):
                 state_of_charge = model.state_of_charge[su,sn]
                 soc[su,sn][0].append((-1,state_of_charge))
@@ -361,7 +363,7 @@ def define_nodal_balances(network,snapshots):
         bus = network.loads.bus[load]
         sign = network.loads.sign[load]
         for sn in snapshots:
-            p_balance[(bus,sn)][2] -= sign*network.loads.p_set.at[sn,load]
+            p_balance[(bus,sn)][2] -= sign*network.loads_t.at["p_set",sn,load]
 
     for su in network.storage_units.index:
         bus = network.storage_units.bus[su]
@@ -420,60 +422,66 @@ def extract_optimisation_results(network,snapshots):
         df.loc[snapshots] = series.unstack(0).reindex_axis(df.columns, axis=1)
 
     if len(network.generators):
-        set_from_series(network.generators.p, as_series(model.generator_p))
+        set_from_series(network.generators_t.p, as_series(model.generator_p))
 
     if len(network.storage_units):
-        set_from_series(network.storage_units.p,
+        set_from_series(network.storage_units_t.p,
                         as_series(model.storage_p_dispatch)
                         - as_series(model.storage_p_store))
 
-        set_from_series(network.storage_units.state_of_charge,
+        set_from_series(network.storage_units_t.state_of_charge,
                         as_series(model.state_of_charge))
 
     if len(network.loads):
-        network.loads.p.loc[snapshots] = network.loads.p_set.loc[snapshots]
+        network.loads_t["p"].loc[snapshots] = network.loads_t["p_set"].loc[snapshots]
 
     if len(network.buses):
-        set_from_series(network.buses.v_ang,
+        set_from_series(network.buses_t.v_ang,
                         as_series(model.voltage_angles))
-        network.buses.p.loc[snapshots] = \
-               pd.concat({n: assets.p.loc[snapshots].multiply(assets.sign, axis=1)
-                                  .groupby(assets.bus, axis=1).sum()
-                          for n,assets in iteritems(dict(g=network.generators,
-                                                         l=network.loads,
-                                                         s=network.storage_units))}) \
+        network.buses_t.p.loc[snapshots] = \
+               pd.concat({n: getattr(network,list_name+"_t").p.loc[snapshots].multiply(getattr(network,list_name).sign, axis=1)
+                                  .groupby(getattr(network,list_name).bus, axis=1).sum()
+                          for n,list_name in iteritems(dict(g="generators",
+                                                         l="loads",
+                                                            s="storage_units"))}) \
                  .sum(level=1) \
-                 .reindex_axis(network.buses.p.columns, axis=1, fill_value=0.)
+                 .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
 
-        set_from_series(network.buses.marginal_price,
+        set_from_series(network.buses_t.marginal_price,
                         pd.Series(list(model.power_balance.values()),
                                   index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
                         .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
 
     # active branches
     controllable_branches = as_series(model.controllable_branch_p)
-    for typ, df in iteritems(dict(Converter=network.converters,
-                                  TransportLink=network.transport_links)):
+    for typ in components.controllable_branch_types:
+
+        df = getattr(network,typ.list_name)
+        pnl = getattr(network,typ.list_name+"_t")
+
         if len(df):
-            set_from_series(df.p0, controllable_branches.loc[typ])
-            df.p1.loc[snapshots] = - df.p0.loc[snapshots]
+            set_from_series(pnl.p0, controllable_branches.loc[typ.__name__])
+            pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
 
             # TODO : Eliminate for loop
             for cb in df.obj:
-                network.buses.p.loc[snapshots,cb.bus0] -= cb.p0.loc[snapshots]
-                network.buses.p.loc[snapshots,cb.bus1] -= cb.p1.loc[snapshots]
+                network.buses_t.p.loc[snapshots,cb.bus0] -= pnl.loc["p0",snapshots,cb.name]
+                network.buses_t.p.loc[snapshots,cb.bus1] -= pnl.loc["p1",snapshots,cb.name]
 
     # passive branches
     def get_v_angs(buses):
-        v = network.buses.v_ang.loc[snapshots,buses]
+        v = network.buses_t.v_ang.loc[snapshots,buses]
         v.set_axis(1, buses.index)
         return v
-    for typ, df in iteritems(dict(Line=network.lines,
-                                  Transformer=network.transformers)):
+    for typ in components.passive_branch_types:
+
+        df = getattr(network,typ.list_name)
+        pnl = getattr(network,typ.list_name+"_t")
+
         if len(df):
             attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
-            df.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
-            df.p1.loc[snapshots] = - df.p1.loc[snapshots]
+            pnl.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
+            pnl.p1.loc[snapshots] = - pnl.p1.loc[snapshots]
 
     network.generators.loc[network.generators.p_nom_extendable, 'p_nom'] = \
         as_series(network.model.generator_p_nom)
@@ -482,12 +490,10 @@ def extract_optimisation_results(network,snapshots):
         as_series(network.model.storage_p_nom)
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
-    for typ, df in iteritems(dict(Line=network.lines,
-                                  Transformer=network.transformers,
-                                  TransportLink=network.transport_links,
-                                  Converter=network.converters)):
+    for typ in components.branch_types:
+        df = getattr(network,typ.list_name)
         if len(df):
-            df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ]
+            df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ.__name__]
 
 
 

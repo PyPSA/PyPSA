@@ -50,6 +50,7 @@ import inspect
 
 import sys
 
+
 class Basic(object):
     """Common to every object."""
 
@@ -684,3 +685,12 @@ class SubNetwork(Common):
     def shunt_impedances(self):
         merged = pd.merge(self.network.shunt_impedances,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
         return merged[merged.sub_network == self.name]
+
+
+
+
+passive_branch_types = {Line,Transformer}
+
+controllable_branch_types = {Converter,TransportLink}
+
+branch_types = passive_branch_types|controllable_branch_types

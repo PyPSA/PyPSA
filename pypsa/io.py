@@ -113,7 +113,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
         if verbose:
             print("\n"*3 + "Exporting time series for:",list_name)
 
-        list_df = getattr(network,list_name)
+        pnl = getattr(network,list_name+"_t")
 
         for attr in time_series[list_name]:
             if verbose:
@@ -122,7 +122,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
 
             sub_selection = list(filter(filter_f,getattr(network,list_name).obj))
 
-            df = getattr(list_df,attr)[[s.name for s in sub_selection]]
+            df = pnl.loc[attr,:,[s.name for s in sub_selection]]
 
             df.to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"))
             if verbose:
