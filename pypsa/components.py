@@ -561,7 +561,11 @@ class Network(Basic):
 
         cls_df = getattr(self,cls.list_name)
 
-        cls_df.drop([obj.name],inplace=True)
+        cls_df.drop(obj.name,inplace=True)
+
+        pnl = getattr(self,cls.list_name+"_t")
+
+        pnl.drop(obj.name,axis=2,inplace=True)
 
         del obj
 

@@ -31,9 +31,12 @@ PyPSA can calculate:
 
 * static power flow (using both the full non-linear network equations and
   the linearised network equations)
-* optimal power flow with the linear network equations (over several
-  snapshots simultaneously for optimisation of generation and storage
-  dispatch and the capacities of generation, storage and transmission)
+* optimal power flow (optimisation of power plant dispatch within
+  network constraints, using the linear network equations)
+* total electricity system optimisation (using linear network
+  equations, over several snapshots simultaneously for optimisation of
+  generation and storage dispatch and the capacities of generation,
+  storage and transmission)
 
 It has models for:
 

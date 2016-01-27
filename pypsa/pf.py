@@ -468,7 +468,13 @@ def calculate_PTDF(sub_network,verbose=True):
 
     I = csc_matrix((np.ones((n_pvpq)),(index,index)))
 
-    B_inverse = spsolve(sub_network.B[1:, 1:],I).toarray()
+    B_inverse = spsolve(sub_network.B[1:, 1:],I)
+
+    #exception for two-node networks, where B_inverse is a 1d array
+    if issparse(B_inverse):
+        B_inverse = B_inverse.toarray()
+    elif B_inverse.shape == (1,):
+        B_inverse = B_inverse.reshape((1,1))
 
     #add back in zeroes for slack
     B_inverse = np.hstack((np.zeros((n_pvpq,1)),B_inverse))
@@ -534,6 +540,56 @@ def calculate_Y(sub_network,verbose=True):
     #now build bus admittance matrix
     sub_network.Y = C0.T * sub_network.Y0 + C1.T * sub_network.Y1 + \
        csr_matrix((Y_sh, (np.arange(num_buses), np.arange(num_buses))))
+
+
+
+def aggregate_multi_graph(sub_network,verbose=True):
+    """Aggregate branches between same buses and replace with a single
+branch with aggregated properties (e.g. s_nom is summed, length is
+averaged).
+
+    """
+
+    network = sub_network.network
+
+    count = 0
+    seen = []
+    for u,v in sub_network.graph.edges():
+        if (u,v) in seen:
+            continue
+        line_objs = sub_network.graph.edge[u][v].keys()
+        if len(line_objs) > 1:
+            lines = network.lines.loc[[l.name for l in line_objs]]
+            aggregated = {}
+
+            attr_inv = ["x","r"]
+            attr_sum = ["s_nom","b","g","s_nom_max","s_nom_min"]
+            attr_mean = ["capital_cost","length","terrain_factor"]
+
+            for attr in attr_inv:
+                aggregated[attr] = 1/(1/lines[attr]).sum()
+
+            for attr in attr_sum:
+                aggregated[attr] = lines[attr].sum()
+
+            for attr in attr_mean:
+                aggregated[attr] = lines[attr].mean()
+
+            count += len(line_objs) - 1
+
+            #remove all but first line
+            for line in line_objs[1:]:
+                network.remove(line)
+
+            rep = line_objs[0]
+
+            for key,value in aggregated.items():
+                setattr(rep,key,value)
+
+            seen.append((u,v))
+
+    if verbose:
+        print("Removed %d excess lines from sub-network %s and replaced with aggregated lines" % (count,sub_network.name))
 
 
 
