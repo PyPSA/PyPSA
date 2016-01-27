@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 
 
 #Tools to override slow Pyomo problem building
