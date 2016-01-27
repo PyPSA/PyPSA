@@ -1,4 +1,4 @@
-## Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -13,9 +13,7 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Python for Power Systems Analysis (PyPSA)
-
-Grid calculation library.
+"""Functions for importing and exporting data.
 """
 
 
@@ -26,9 +24,8 @@ from six import iteritems
 from six.moves import filter
 
 
-__version__ = "0.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
 

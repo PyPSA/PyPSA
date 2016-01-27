@@ -10,7 +10,7 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.2',
+    version='0.3',
     author='Tom Brown (FIAS), Jonas Hoersch (FIAS)',
     author_email='brown@fias.uni-frankfurt.de',
     description='Python for Power Systems Analysis',

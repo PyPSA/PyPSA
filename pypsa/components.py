@@ -1,6 +1,6 @@
 
 
-## Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -15,9 +15,7 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Python for Power Systems Analysis (PyPSA)
-
-Grid calculation library.
+"""Power system components.
 """
 
 
@@ -28,9 +26,8 @@ from six import iteritems
 from six.moves import map
 
 
-__version__ = "0.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 from distutils.version import StrictVersion
 
@@ -84,12 +81,6 @@ class Source(Common):
     #emissions in CO2-tonnes-equivalent per MWh primary energy
     #(e.g. gas: 0.2 t_CO2/MWh_thermal)
     co2_emissions = Float()
-
-    #typical values, should generator-specific ones be missing
-    efficiency = Float(1)
-    capital_cost = Float()
-    marginal_cost = Float()
-
 
 
 class Bus(Common):
