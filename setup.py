@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 
 
 
@@ -18,7 +19,7 @@ setup(
     url='https://github.com/FRESNA/PyPSA',
     license='GPLv2',
     packages=find_packages(exclude=['doc', 'test']),
-    install_requires=['numpy','pyomo','scipy'],
+    install_requires=['numpy','pyomo','scipy','networkx>=1.10'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

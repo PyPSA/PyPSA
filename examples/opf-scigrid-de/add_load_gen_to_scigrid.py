@@ -8,8 +8,9 @@
 # In[1]:
 
 
-# make the code as Python 3 compatible as possible                                                                                          
+# make the code as Python 3 compatible as possible
 from __future__ import print_function, division
+from __future__ import absolute_import
 
 
 import pypsa
@@ -17,6 +18,8 @@ import pypsa
 import pandas as pd
 
 import numpy as np
+from six import iteritems
+from six.moves import range
 
 
 # In[2]:
@@ -222,7 +225,7 @@ pd.DataFrame(load.sum(axis=1)).plot()
 
 # In[28]:
 
-[k.osm_name for k,v in network.graph.node.iteritems() if 'region' not in v]
+[k.osm_name for k,v in iteritems(network.graph.node) if 'region' not in v]
 
 
 # In[29]:
@@ -244,9 +247,9 @@ def backup_capacity_german_grid(G):
 
     def nodeofaplant(x):
         if np.isnan(x["lon"]) or np.isnan(x["lat"]):
-            return random.choice(cells.keys())
+            return random.choice(list(cells.keys()))
         p = Point(x["lon"], x["lat"])
-        for n, cell in cells.iteritems():
+        for n, cell in iteritems(cells):
             if cell.contains(p):
                 return n
         else:

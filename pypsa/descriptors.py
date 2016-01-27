@@ -38,10 +38,7 @@ from weakref import WeakKeyDictionary
 
 from collections import OrderedDict
 
-from distutils.version import StrictVersion
-
 import networkx as nx
-assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least version 1.10"
 
 import pandas as pd
 
