@@ -28,6 +28,7 @@ from .components import Network, Bus, Load, Generator, Line, Transformer, Conver
 
 from . import pf,opf
 
+from . import plot
 
 __version__ = "0.3"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
