@@ -32,10 +32,7 @@ __version__ = "0.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
-from distutils.version import StrictVersion
-
 import networkx as nx
-assert StrictVersion(nx.__version__) >= '1.10', "NetworkX needs to be at least version 1.10"
 
 import numpy as np
 import pandas as pd

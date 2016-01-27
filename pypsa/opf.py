@@ -406,7 +406,7 @@ def define_linear_objective(network,snapshots):
 
 
 def extract_optimisation_results(network,snapshots):
-    if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.version.version) < '0.18.0':
+    if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
         snapshots = list(snapshots)
 
