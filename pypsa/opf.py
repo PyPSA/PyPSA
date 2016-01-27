@@ -151,6 +151,19 @@ def define_storage_variables_constraints(network,snapshots):
 
     network.model.storage_p_store = Var(network.storage_units.index, snapshots, domain=NonNegativeReals, bounds=su_p_store_bounds)
 
+    ## Define spillage variables only for hours with inflow>0. ##
+
+    inflow = network.storage_units_t.inflow
+    spill_sus = sus[inflow.max()>0] #skip storage units without any inflow
+    inflow_gt0 = inflow>0
+    spill_bounds = {(su,sn) : (0,inflow.at[sn,su]) for su in spill_sus.index for sn in snapshots if inflow_gt0.at[sn,su]}
+    spill_index = spill_bounds.keys()
+
+    def su_p_spill_bounds(model,su_name,snapshot):
+        return spill_bounds[su_name,snapshot]
+
+    network.model.storage_p_spill = Var(spill_index, domain=NonNegativeReals, bounds=su_p_spill_bounds)
+
 
 
     ## Define generator capacity variables if generator is extendble ##
@@ -187,7 +200,7 @@ def define_storage_variables_constraints(network,snapshots):
     l_constraint(model,"state_of_charge_upper",upper,network.storage_units.index, snapshots)
 
 
-    #this builds the constraint previous_soc + p_store - p_dispatch + inflow == soc
+    #this builds the constraint previous_soc + p_store - p_dispatch + inflow - spill == soc
     #it is complicated by the fact that sometimes previous_soc and soc are floats, not variables
     soc = {}
 
@@ -218,10 +231,13 @@ def define_storage_variables_constraints(network,snapshots):
                 #make sure the variable is also set to the fixed state of charge
                 fixed_soc[su,sn] = [[(1,model.state_of_charge[su,sn])],"==",state_of_charge]
 
-
             soc[su,sn][0].append((sus.at[su,"efficiency_store"]*elapsed_hours,model.storage_p_store[su,sn]))
             soc[su,sn][0].append((-(1/sus.at[su,"efficiency_dispatch"])*elapsed_hours,model.storage_p_dispatch[su,sn]))
             soc[su,sn][2] -= network.storage_units_t.at["inflow",sn,su]*elapsed_hours
+
+    for su,sn in spill_index:
+        storage_p_spill = model.storage_p_spill[su,sn]
+        soc[su,sn][0].append((-1.*elapsed_hours,storage_p_spill))
 
     l_constraint(model,"state_of_charge_constraint",soc,network.storage_units.index, snapshots)
 
@@ -428,6 +444,10 @@ def extract_optimisation_results(network,snapshots):
 
         set_from_series(network.storage_units_t.state_of_charge,
                         as_series(model.state_of_charge))
+
+        set_from_series(network.storage_units_t.spill,
+                        as_series(model.storage_p_spill))
+        network.storage_units_t.spill.fillna(0,inplace=True) #p_spill doesn't exist if inflow=0
 
     if len(network.loads):
         network.loads_t["p"].loc[snapshots] = network.loads_t["p_set"].loc[snapshots]
