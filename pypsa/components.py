@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 from itertools import chain
 from operator import itemgetter
+from distutils.version import StrictVersion
 
 from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
@@ -482,6 +483,8 @@ class Network(Basic):
         self.snapshots = snapshots
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
+        if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0': 
+            snapshots = list(snapshots)
 
         for cls in Load, ShuntImpedance, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
 
@@ -489,7 +492,7 @@ class Network(Basic):
             pnl = pnl.reindex(major_axis=self.snapshots)
 
             for k,v in self.component_series_descriptors[cls].items():
-                pnl.loc[k,self.snapshots,:] = pnl.loc[k,self.snapshots,:].fillna(v.default)
+                pnl.loc[k,snapshots,:] = pnl.loc[k,self.snapshots,:].fillna(v.default)
 
             setattr(self,cls.list_name+"_t",pnl)
 
