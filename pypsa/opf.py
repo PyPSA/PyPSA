@@ -523,7 +523,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None,solver_options={}):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -592,7 +592,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
 
     opt = SolverFactory(solver_name)
 
-    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=network.opf_keep_files)
+    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=network.opf_keep_files,options=solver_options)
 
     if verbose:
         network.results.write()
