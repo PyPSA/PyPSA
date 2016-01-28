@@ -126,14 +126,14 @@ def length_clustering(network, length):
 
 try:
     # available using pip as scikit-learn
-    from sklearn.cluster import spectral_clustering
+    from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
     def busmap_by_spectral_clustering(network, n_clusters, **kwds):
         lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=1./network.lines.x).set_index(['bus0','bus1'])
         G = OrderedGraph()
         G.add_nodes_from(network.buses.index)
         G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        return pd.Series(spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1,
+        return pd.Series(sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1,
                          index=network.buses.index)
 
     def spectral_clustering(network, n_clusters=8, **kwds):
