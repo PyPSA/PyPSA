@@ -1,4 +1,25 @@
+## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+
+## This program is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License as
+## published by the Free Software Foundation; either version 3 of the
+## License, or (at your option) any later version.
+
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Functions for computing network clusters
+"""
+
 from __future__ import absolute_import
+
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import numpy as np
 import pandas as pd
@@ -126,14 +147,14 @@ def length_clustering(network, length):
 
 try:
     # available using pip as scikit-learn
-    from sklearn.cluster import spectral_clustering
+    from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
     def busmap_by_spectral_clustering(network, n_clusters, **kwds):
         lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=1./network.lines.x).set_index(['bus0','bus1'])
         G = OrderedGraph()
         G.add_nodes_from(network.buses.index)
         G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        return pd.Series(spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1,
+        return pd.Series(sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1,
                          index=network.buses.index)
 
     def spectral_clustering(network, n_clusters=8, **kwds):
