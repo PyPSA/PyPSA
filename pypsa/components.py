@@ -227,6 +227,7 @@ class StorageUnit(Generator):
 
     #in MW
     inflow = Series()
+    spill = Series()
 
     efficiency_store = Float(1)
 
