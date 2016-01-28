@@ -1,0 +1,6 @@
+Attribute,Type,Unit,Default,Description,Status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Bus to which one-port attaches,Input (required)
+sign,float,n/a,1.,"Power sign (positive for generators, negative for loads)",Input (optional)
+p,series of floats,MW,0.,active power at bus (positive if net generation),Output
+q,series of floats,MVar,0.,reactive power (positive if net generation),Output

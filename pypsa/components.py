@@ -181,7 +181,7 @@ class Generator(OnePort):
     #power limits for variable generators, which can change e.g. due
     #to weather conditions; per unit to ease multiplication with
     #p_nom, which may be optimised
-    p_max_pu = Series()
+    p_max_pu = Series(1.)
     p_min_pu = Series()
 
 
@@ -483,7 +483,7 @@ class Network(Basic):
         self.snapshots = snapshots
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
-        if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0': 
+        if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
             snapshots = list(snapshots)
 
         for cls in Load, ShuntImpedance, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:

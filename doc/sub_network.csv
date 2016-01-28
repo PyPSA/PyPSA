@@ -1,0 +1,8 @@
+Attribute,Type,Unit,Default,Description,Status
+name,string,n/a,n/a,Unique name based on order of sub-network in list of sub-networks.,Output
+current_type,string,n/a,"""AC""","Current type must be either ""AC"" or ""DC"". This is determined from buses in sub_network.",Output
+frequency,float,Hz,50,Frequency of AC.,Output
+num_phases,float,n/a,3,Number of phases of AC.,Output
+slack_bus,string,n/a,n/a,Name of slack bus.,Output
+graph,nx.OrderedGraph,n/a,n/a,Connected graph of sub-network's passive branches.,Output
+components(),pandas.DataFrame,n/a,n/a,"For each component type (buses, lines, etc.): a dynamically-generated DataFrame of those components in the sub-network. Note that this is a copy, so changing its elements will NOT update the original network.components.",Output

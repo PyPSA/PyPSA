@@ -1,0 +1,8 @@
+Attribute,Type,Unit,Default,Description,Status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
+p_set,series,MW,0.,Active power consumption (positive if the load is consuming power).,Input (optional)
+q_set,series,MVar,0.,Reactive power consumption (positive if the load is inductive).,Input (optional)
+sign,float,n/a,-1.,power sign,Input (optional)
+p,series of floats,MW,0.,active power at bus (positive if net load),Output
+q,series of floats,MVar,0.,reactive power (positive if net load),Output
