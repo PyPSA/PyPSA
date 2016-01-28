@@ -516,7 +516,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None):
     """Linear optimal power flow for snapshots."""
 
     if not network.topology_determined:
@@ -560,6 +560,10 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True):
 
     #force solver to also give us the dual prices
     network.model.dual = Suffix(direction=Suffix.IMPORT_EXPORT)
+
+    if extra_functionality is not None:
+        extra_functionality(network,snapshots)
+
 
     opt = SolverFactory(solver_name)
 
