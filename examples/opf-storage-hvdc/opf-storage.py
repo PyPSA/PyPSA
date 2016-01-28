@@ -68,7 +68,7 @@ print(pd.concat((network.generators["p_nom"],network.storage_units["p_nom"])))
 
 print("\n\nBranch capacities:\n")
 
-print(network.branches.s_nom)
+print(network.branches().s_nom)
 
 for snapshot in snapshots:
 
@@ -82,7 +82,7 @@ for snapshot in snapshots:
 network.now = network.snapshots[0]
 
 
-for branch in network.branches.obj:
+for branch in network.branches().obj:
     print(branch,branch.p1[network.now])
 
 
@@ -92,17 +92,17 @@ for sub_network in network.sub_networks.obj:
 
     print("\n\nConsidering sub network",sub_network,":")
 
-    for bus in sub_network.buses.obj:
+    for bus in sub_network.buses().obj:
 
         print("\n%s" % bus)
 
         print("power injection (generators - loads + Transport feed-in):",bus.p[network.now])
 
-        print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators.obj])  + sum([l.sign*l.p[network.now] for l in bus.loads.obj]))
+        print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators().obj])  + sum([l.sign*l.p[network.now] for l in bus.loads().obj]))
 
         total = 0.0
 
-        for branch in sub_network.branches.obj:
+        for branch in sub_network.branches().obj:
             if bus.name == branch.bus0:
                 print("from branch:",branch,branch.p0[network.now])
                 total -=branch.p0[network.now]

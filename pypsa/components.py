@@ -26,8 +26,8 @@ from six import iteritems
 from six.moves import map
 
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 import networkx as nx
 
@@ -111,27 +111,21 @@ class Bus(Common):
     sub_network = String()
 
 
-    @property
     def generators(self):
         return self.network.generators[self.network.generators.bus == self.name]
 
-    @property
     def generators_t(self):
         return self.network.generators_t.loc[:,:,self.network.generators.bus == self.name]
 
-    @property
     def loads(self):
         return self.network.loads[self.network.loads.bus == self.name]
 
-    @property
     def loads_t(self):
         return self.network.loads_t.loc[:,:,self.network.loads.bus == self.name]
 
-    @property
     def storage_units(self):
         return self.network.storage_units[self.network.storage_units.bus == self.name]
 
-    @property
     def shunt_impedances(self):
         return self.network.shunt_impedances[self.network.shunt_impedances.bus == self.name]
 
@@ -576,15 +570,12 @@ class Network(Basic):
         self.topology_determined = False
 
 
-    @property
     def branches(self):
         return pd.concat([self.lines,self.transformers,self.converters,self.transport_links],keys=["Line","Transformer","Converter","TransportLink"])
 
-    @property
     def passive_branches(self):
         return pd.concat([self.lines,self.transformers],keys=["Line","Transformer"])
 
-    @property
     def controllable_branches(self):
         return pd.concat([self.converters,self.transport_links],keys=["Converter","TransportLink"])
 
@@ -596,7 +587,7 @@ class Network(Basic):
         self.graph = OrderedGraph()
 
         #Multigraph uses object itself as key
-        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches.obj)
+        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches().obj)
 
 
     def determine_network_topology(self):
@@ -654,30 +645,23 @@ class SubNetwork(Common):
     graph = GraphDesc()
 
 
-    @property
     def buses(self):
         return self.network.buses[self.network.buses.sub_network == self.name]
 
-
-
-    @property
     def branches(self):
-        branches = self.network.branches
+        branches = self.network.branches()
         return branches[branches.sub_network == self.name]
 
-    @property
     def generators(self):
-        merged = pd.merge(self.network.generators,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        merged = pd.merge(self.network.generators,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
         return merged[merged.sub_network == self.name]
 
-    @property
     def loads(self):
-        merged = pd.merge(self.network.loads,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        merged = pd.merge(self.network.loads,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
         return merged[merged.sub_network == self.name]
 
-    @property
     def shunt_impedances(self):
-        merged = pd.merge(self.network.shunt_impedances,self.buses,how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
+        merged = pd.merge(self.network.shunt_impedances,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
         return merged[merged.sub_network == self.name]
 
 

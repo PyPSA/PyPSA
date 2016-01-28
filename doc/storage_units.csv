@@ -29,4 +29,4 @@ inflow,series of floats,MW,0.,"Inflow to the state of charge, e.g. due to river 
 p,series of floats,MW,0.,active power at bus (positive if net generation),Output
 q,series of floats,MVar,0.,reactive power (positive if net generation),Output
 state_of_charge,series of floats,MWh,NaN,State of charge as calculated by the OPF.,Output
-spillage,series of float,MW,0.,Spillage for each snapshot.,Output
+spill,series of floats,MW,0.,Spillage for each snapshot.,Output

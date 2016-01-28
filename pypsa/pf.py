@@ -131,21 +131,21 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     find_bus_controls(sub_network,verbose=verbose)
 
 
-    if len(sub_network.branches) > 0:
+    branches = sub_network.branches()
+    buses = sub_network.buses_o
+
+    if len(branches) > 0:
         calculate_Y(sub_network,verbose=verbose)
 
-
-    branches = sub_network.branches
-    buses = sub_network.buses_o
 
 
     #set the power injection at each node
     for bus in buses.obj:
-        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj)
+        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators().obj) \
+                     + sum(l.sign*l.p_set[now] for l in bus.loads().obj)
 
-        bus.q[now] = sum(g.sign*g.q_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.q_set[now] for l in bus.loads.obj)
+        bus.q[now] = sum(g.sign*g.q_set[now] for g in bus.generators().obj) \
+                     + sum(l.sign*l.q_set[now] for l in bus.loads().obj)
 
     #power injection should include transport links and converters
     for t in chain(network.transport_links.obj,network.converters.obj):
@@ -262,17 +262,17 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     network.buses_t.q.loc[now,sub_network.pvs.index] = s_calc[sub_network.pvs.index].imag
 
     #allow all loads to dispatch as set
-    loads = sub_network.loads
+    loads = sub_network.loads()
     network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
     network.loads_t.q.loc[now,loads.index] = network.loads_t.q_set.loc[now,loads.index]
 
     #allow all loads to dispatch as set
-    shunt_impedances = sub_network.shunt_impedances
+    shunt_impedances = sub_network.shunt_impedances()
     network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
     network.shunt_impedances_t.q.loc[now,shunt_impedances.index] = network.shunt_impedances.b_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
-    generators = sub_network.generators
+    generators = sub_network.generators()
     network.generators_t.p.loc[now,generators.index] = network.generators_t.p_set.loc[now,generators.index]
     network.generators_t.q.loc[now,generators.index] = network.generators_t.q_set.loc[now,generators.index]
 
@@ -320,13 +320,13 @@ def network_lpf(network,now=None,verbose=True):
 def find_slack_bus(sub_network,verbose=True):
     """Find the slack bus in a connected sub-network."""
 
-    gens = sub_network.generators
+    gens = sub_network.generators()
 
     if len(gens) == 0:
         if verbose:
             print("No generators in %s, better hope power is already balanced" % sub_network)
         sub_network.slack_generator = ""
-        sub_network.slack_bus = sub_network.buses.index[0]
+        sub_network.slack_bus = sub_network.buses().index[0]
 
     else:
 
@@ -361,8 +361,8 @@ def find_bus_controls(sub_network,verbose=True):
 
     find_slack_bus(sub_network,verbose)
 
-    gens = sub_network.generators
-    buses = sub_network.buses
+    gens = sub_network.generators()
+    buses = sub_network.buses()
 
     network.buses.loc[buses.index,"control"] = "PQ"
 
@@ -376,7 +376,7 @@ def find_bus_controls(sub_network,verbose=True):
     network.buses.loc[sub_network.slack_bus,"control"] = "Slack"
     network.buses.loc[sub_network.slack_bus,"generator"] = sub_network.slack_generator
 
-    buses = sub_network.buses
+    buses = sub_network.buses()
 
     sub_network.pvs = buses[buses.control == "PV"]
     sub_network.pqs = buses[buses.control == "PQ"]
@@ -432,7 +432,7 @@ def calculate_B_H(sub_network,verbose=True):
     elif sub_network.current_type == "AC":
         attribute="x_pu"
 
-    branches = sub_network.branches
+    branches = sub_network.branches()
     buses = sub_network.buses_o
 
     #following leans heavily on pypower.makeBdc
@@ -491,7 +491,7 @@ def calculate_Y(sub_network,verbose=True):
         print("DC networks not supported for Y!")
         return
 
-    branches = sub_network.branches
+    branches = sub_network.branches()
     buses = sub_network.buses_o
 
 
@@ -519,7 +519,7 @@ def calculate_Y(sub_network,verbose=True):
     Y00 = Y11/tau**2
 
     #bus shunt impedances
-    Y_sh = np.array([sum(sh.g_pu+1.j*sh.b_pu for sh in bus.shunt_impedances.obj) for bus in buses.obj],dtype="complex")
+    Y_sh = np.array([sum(sh.g_pu+1.j*sh.b_pu for sh in bus.shunt_impedances().obj) for bus in buses.obj],dtype="complex")
 
     #get bus indices
     join = pd.merge(branches,buses,how="left",left_on="bus0",right_index=True,suffixes=("","_0"))
@@ -610,17 +610,17 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     find_bus_controls(sub_network,verbose=verbose)
 
 
-    if len(sub_network.branches) > 0:
-        calculate_B_H(sub_network,verbose=verbose)
-
-    branches = sub_network.branches
+    branches = sub_network.branches()
     buses = sub_network.buses_o
+
+    if len(branches) > 0:
+        calculate_B_H(sub_network,verbose=verbose)
 
     #set the power injection at each node
     for bus in buses.obj:
-        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators.obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads.obj) \
-                     + sum(sh.sign*sh.g_pu for sh in bus.shunt_impedances.obj)
+        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators().obj) \
+                     + sum(l.sign*l.p_set[now] for l in bus.loads().obj) \
+                     + sum(sh.sign*sh.g_pu for sh in bus.shunt_impedances().obj)
 
     #power injection should include transport links and converters
     for t in chain(network.transport_links.obj,network.converters.obj):
@@ -636,7 +636,7 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
 
     v_diff = zeros(num_buses)
 
-    if len(sub_network.branches) > 0:
+    if len(branches) > 0:
         v_diff[1:] = spsolve(sub_network.B[1:, 1:], p[1:])
 
         branches["flows"] = sub_network.H.dot(v_diff)
@@ -661,15 +661,15 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
         network.buses_t.v_mag.loc[now,buses.index] = buses.v_nom + v_diff*buses.v_nom
 
     #allow all loads to dispatch as set
-    loads = sub_network.loads
+    loads = sub_network.loads()
     network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
 
     #allow all loads to dispatch as set
-    shunt_impedances = sub_network.shunt_impedances
+    shunt_impedances = sub_network.shunt_impedances()
     network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
-    generators = sub_network.generators
+    generators = sub_network.generators()
     network.generators_t.p.loc[now,generators.index] = network.generators_t.p_set.loc[now,generators.index]
 
     #let slack generator take up the slack

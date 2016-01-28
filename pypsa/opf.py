@@ -25,8 +25,8 @@ from __future__ import absolute_import
 from six import iteritems
 
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 
 
@@ -248,7 +248,7 @@ def define_storage_variables_constraints(network,snapshots):
 
 def define_branch_extension_variables(network,snapshots):
 
-    branches = network.branches
+    branches = network.branches()
 
     extendable_branches = branches[branches.s_nom_extendable]
 
@@ -263,7 +263,7 @@ def define_branch_extension_variables(network,snapshots):
 
 def define_controllable_branch_flows(network,snapshots):
 
-    controllable_branches = network.controllable_branches
+    controllable_branches = network.controllable_branches()
 
     extendable_branches = controllable_branches[controllable_branches.s_nom_extendable]
 
@@ -298,7 +298,7 @@ def define_passive_branch_flows(network,snapshots):
 
     l_constraint(network.model,"slack_angle",slack,network.sub_networks.index,snapshots)
 
-    passive_branches = network.passive_branches
+    passive_branches = network.passive_branches()
 
     network._flow = {}
     for branch in passive_branches.index:
@@ -318,7 +318,7 @@ def define_passive_branch_flows(network,snapshots):
 def define_passive_branch_constraints(network,snapshots):
 
 
-    passive_branches = network.passive_branches
+    passive_branches = network.passive_branches()
 
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
 
@@ -340,8 +340,8 @@ def define_passive_branch_constraints(network,snapshots):
 
 def define_nodal_balances(network,snapshots):
 
-    passive_branches = network.passive_branches
-    controllable_branches = network.controllable_branches
+    passive_branches = network.passive_branches()
+    controllable_branches = network.controllable_branches()
 
     #dictionary for constraints
     p_balance = {(bus,sn) : [[],"==",0.] for bus in network.buses.index for sn in snapshots}
@@ -405,7 +405,7 @@ def define_linear_objective(network,snapshots):
 
     ext_sus = network.storage_units[network.storage_units.p_nom_extendable].obj
 
-    branches = network.branches
+    branches = network.branches()
 
     extendable_branches = branches[branches.s_nom_extendable].obj
 
@@ -445,8 +445,9 @@ def extract_optimisation_results(network,snapshots):
         set_from_series(network.storage_units_t.state_of_charge,
                         as_series(model.state_of_charge))
 
-        set_from_series(network.storage_units_t.spill,
-                        as_series(model.storage_p_spill))
+        if (network.storage_units_t.inflow.max() > 0).any():
+            set_from_series(network.storage_units_t.spill,
+                            as_series(model.storage_p_spill))
         network.storage_units_t.spill.fillna(0,inplace=True) #p_spill doesn't exist if inflow=0
 
     if len(network.loads):

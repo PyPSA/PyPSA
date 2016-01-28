@@ -4,9 +4,7 @@ Python for Power Systems Analysis
 =================================
 
 
-PyPSA stands for "Python for Power System Analysis".
-
-It is pronounced "pipes-ah".
+PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for

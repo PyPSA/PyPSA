@@ -31,8 +31,8 @@ from . import pf,opf
 from . import plot
 
 __version__ = "0.3"
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
+__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 
 
