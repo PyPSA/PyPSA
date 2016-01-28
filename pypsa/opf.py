@@ -510,7 +510,7 @@ def extract_optimisation_results(network,snapshots):
     s_nom_extendable_branches = as_series(model.branch_s_nom)
     for typ in components.branch_types:
         df = getattr(network,typ.list_name)
-        if len(df):
+        if len(df) and df.s_nom_extendable.any():
             df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ.__name__]
 
 

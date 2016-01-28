@@ -23,11 +23,12 @@ import numpy as np
 
 import pandas as pd
 
+import os
+
 
 # In[2]:
 
-csv_folder_name = "scigrid-with-load-gen/"
-
+csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/scigrid-with-load-gen/"
 
 network = pypsa.Network(csv_folder_name=csv_folder_name)
 
@@ -39,7 +40,7 @@ network = pypsa.Network(csv_folder_name=csv_folder_name)
 #since we don't now where there are reactive power assets in the grid
 
 for bus in network.buses.obj:
-    if len(bus.generators) == 0:
+    if len(bus.generators()) == 0:
         network.add("Generator",bus.name,bus=bus.name,control="PV")
 
 
@@ -116,13 +117,13 @@ print("Performing non-linear PF on results of LOPF:")
 network.pf()
 
 
-# In[13]:
+# In[12]:
 
 print("With the non-linear load flow, there is the following per unit overloading:")
 print((network.lines_t.p0.loc[network.now]/network.lines.s_nom).describe())
 
 
-# In[14]:
+# In[13]:
 
 df = network.lines.copy()
 
@@ -133,13 +134,8 @@ for b in ["bus0","bus1"]:
 s = df[str(network.now)+"_x"]- df[str(network.now)+"_y"]
 
 
-# In[15]:
+# In[14]:
 
 print("The voltage angle differences across the lines have (in degrees):")
 print((s*180/np.pi).describe())
-
-
-# In[ ]:
-
-
 
