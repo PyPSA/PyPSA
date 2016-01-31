@@ -31,7 +31,7 @@ impedances and any shunt admittances attached to the buses.
 
 
 
-For the slack bus :math:`i=0` it is assumed :math:`V_0` is given; P and Q are to be found.
+For the slack bus :math:`i=0` it is assumed :math:`|V_0|` is given and that :math:`\theta_0 = 0`; P and Q are to be found.
 
 For the PV buses, P and :math:`|V|` are given; Q and :math:`\theta` are to be found.
 

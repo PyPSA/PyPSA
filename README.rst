@@ -14,9 +14,9 @@ mixed alternating and direct current networks.
 
 Documentation can be found in `sphinx
 <http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
-`doc <doc/>`_ and as a `website
-<http://nworbmot.org/energy/pypsa-doc/>`_ and as a `pdf
-<http://nworbmot.org/energy/pypsa-doc/PyPSA.pdf>`_.
+`doc/ <doc/>`_ and as a `website
+<http://pypsa.org/doc/>`_ and as a `pdf
+<http://pypsa.org/doc/PyPSA.pdf>`_.
 
 
 As of 2016 PyPSA is under heavy development and therefore it

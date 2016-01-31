@@ -162,11 +162,11 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     def f(guess):
         network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
 
-        network.buses_t.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
+        network.buses_t.v_mag_pu.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
 
-        v_mag = network.buses_t.v_mag.loc[now,buses.index]
+        v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses.index]
         v_ang = network.buses_t.v_ang.loc[now,buses.index]
-        V = v_mag*np.exp(1j*v_ang)
+        V = v_mag_pu*np.exp(1j*v_ang)
 
         mismatch = V*np.conj(sub_network.Y*V) - s
 
@@ -179,12 +179,12 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
         network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
 
-        network.buses_t.v_mag.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
+        network.buses_t.v_mag_pu.loc[now,sub_network.pqs.index] = guess[len(sub_network.pvpqs):]
 
-        v_mag = network.buses_t.v_mag.loc[now,buses.index]
+        v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses.index]
         v_ang = network.buses_t.v_ang.loc[now,buses.index]
 
-        V = v_mag*np.exp(1j*v_ang)
+        V = v_mag_pu*np.exp(1j*v_ang)
 
         index = r_[:len(buses)]
 
@@ -210,14 +210,14 @@ def sub_network_pf(sub_network,now=None,verbose=True):
         return J
 
 
-    #Set what we know: slack V and V_mag for PV buses
-    network.buses_t.v_mag.loc[now,sub_network.pvs.index] = network.buses_t.v_mag_set.loc[now,sub_network.pvs.index]
+    #Set what we know: slack V and v_mag_pu for PV buses
+    network.buses_t.v_mag_pu.loc[now,sub_network.pvs.index] = network.buses_t.v_mag_pu_set.loc[now,sub_network.pvs.index]
 
-    network.buses_t.v_mag.loc[now,sub_network.slack_bus] = network.buses_t.v_mag_set.loc[now,sub_network.slack_bus]
+    network.buses_t.v_mag_pu.loc[now,sub_network.slack_bus] = network.buses_t.v_mag_pu_set.loc[now,sub_network.slack_bus]
 
     network.buses_t.v_ang.loc[now,sub_network.slack_bus] = 0.
 
-    #Make a guess for what we don't know: V_ang for PV and PQs and V_mag for PQ buses
+    #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
     guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
 
     #Now try and solve
@@ -229,12 +229,12 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     #now set everything
 
     network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = roots[:len(sub_network.pvpqs)]
-    network.buses_t.v_mag.loc[now,sub_network.pqs.index] = roots[len(sub_network.pvpqs):]
+    network.buses_t.v_mag_pu.loc[now,sub_network.pqs.index] = roots[len(sub_network.pvpqs):]
 
-    v_mag = network.buses_t.v_mag.loc[now,buses.index]
+    v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses.index]
     v_ang = network.buses_t.v_ang.loc[now,buses.index]
 
-    V = v_mag*np.exp(1j*v_ang)
+    V = v_mag_pu*np.exp(1j*v_ang)
 
     #add voltages to branches
     branches = pd.merge(branches,pd.DataFrame({"v0" :V}),how="left",left_on="bus0",right_index=True)
@@ -657,8 +657,10 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
 
     if sub_network.current_type == "AC":
         network.buses_t.v_ang.loc[now,buses.index] = v_diff
+        network.buses_t.v_mag_pu.loc[now,buses.index] = 1.
     elif sub_network.current_type == "DC":
-        network.buses_t.v_mag.loc[now,buses.index] = buses.v_nom + v_diff*buses.v_nom
+        network.buses_t.v_mag_pu.loc[now,buses.index] = 1 + v_diff
+        network.buses_t.v_ang.loc[now,buses.index] = 0.
 
     #allow all loads to dispatch as set
     loads = sub_network.loads()

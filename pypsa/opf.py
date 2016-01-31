@@ -456,6 +456,10 @@ def extract_optimisation_results(network,snapshots):
     if len(network.buses):
         set_from_series(network.buses_t.v_ang,
                         as_series(model.voltage_angles))
+
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="AC"] = 1.
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
+
         network.buses_t.p.loc[snapshots] = \
                pd.concat({n: getattr(network,list_name+"_t").p.loc[snapshots].multiply(getattr(network,list_name).sign, axis=1)
                                   .groupby(getattr(network,list_name).bus, axis=1).sum()
@@ -500,6 +504,9 @@ def extract_optimisation_results(network,snapshots):
             attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
             pnl.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
             pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
+
+    #now that we've used the angles to calculate the flow, set the DC ones to zero
+    network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"] = 0.
 
     network.generators.loc[network.generators.p_nom_extendable, 'p_nom'] = \
         as_series(network.model.generator_p_nom)

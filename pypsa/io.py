@@ -271,7 +271,7 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     #integer numbering will be bus names
     index = np.array(ppc['bus'][:,0],dtype=int)
 
-    columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","v_mag_max","v_mag_min"]
+    columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_pu_set","v_ang_set","v_nom","zone","v_mag_pu_max","v_mag_pu_min"]
 
     pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:])
 
@@ -356,4 +356,4 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
         gen.control = network.buses.control[gen.bus]
 
     #for consistency with pypower, take the v_mag set point from the generators
-    network.buses_t.v_mag_set.loc[network.now,network.generators.bus] = network.generators["v_set_pu"]
+    network.buses_t.v_mag_pu_set.loc[network.now,network.generators.bus] = network.generators["v_set_pu"]

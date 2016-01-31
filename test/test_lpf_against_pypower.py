@@ -36,7 +36,7 @@ def test_pypower_case():
     results_df['branch'] = pd.DataFrame(data=results["branch"],columns=columns)
 
     #buses
-    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag_set","v_ang_set","v_nom","zone","Vmax","Vmin"]
+    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag_pu_set","v_ang_set","v_nom","zone","Vmax","Vmin"]
     results_df['bus'] = pd.DataFrame(data=results["bus"],columns=columns,index=results["bus"][:,0])
 
     #generators

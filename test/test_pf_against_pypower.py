@@ -34,7 +34,7 @@ def test_pypower_case():
     results_df['branch'] = pd.DataFrame(data=results["branch"],columns=columns)
 
     #buses
-    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag","v_ang","v_nom","zone","Vmax","Vmin"]
+    columns = ["bus","type","Pd","Qd","Gs","Bs","area","v_mag_pu","v_ang","v_nom","zone","Vmax","Vmin"]
     results_df['bus'] = pd.DataFrame(data=results["bus"],columns=columns,index=results["bus"][:,0])
 
     #generators
@@ -70,8 +70,8 @@ def test_pypower_case():
         np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)
 
     #compare voltages
-    v_mag_pypsa = network.buses_t.v_mag.loc[network.now]
-    v_mag_pypower = results_df["bus"]["v_mag"]
+    v_mag_pypsa = network.buses_t.v_mag_pu.loc[network.now]
+    v_mag_pypower = results_df["bus"]["v_mag_pu"]
 
     np.testing.assert_array_almost_equal(v_mag_pypsa,v_mag_pypower)
 

@@ -97,11 +97,11 @@ class Bus(Common):
 
     p = Series()
     q = Series()
-    v_mag = Series(default=1.)
+    v_mag_pu = Series(default=1.)
     v_ang = Series()
-    v_mag_set = Series(default=1.)
-    v_mag_min = Float()
-    v_mag_max = Float(np.nan)
+    v_mag_pu_set = Series(default=1.)
+    v_mag_pu_min = Float()
+    v_mag_pu_max = Float(np.nan)
 
     #optimisation output for power balance constraint at bus
     marginal_price = Series()

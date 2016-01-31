@@ -20,59 +20,60 @@ components.
 It is also the object on which calculations, such as power flow and
 optimal power flow, are performed.
 
-Data storage uses pandas DataFrames
-===================================
+Data storage uses pandas DataFrames and Panels
+==============================================
 
 To enable efficient calculations on the different dimensions of the
-data, data is stored in memory using pandas DataFrames.
+data, data is stored in memory using pandas DataFrames and Panels
+(three-dimensional DataFrames).
 
 Other power system toolboxes use databases for data storage; given
 modern RAM availability and speed considerations, pandas DataFrames
 were felt to be preferable and simpler.
 
 
-To see which data is stored for each component, look in the code at
-the appropriate class definition in pypsa.components.
+To see which data is stored for each component, see :doc:`components`.
 
 
-Basic component data is stored in pandas DataFrames
-===================================================
+Static component data is stored in pandas DataFrames
+====================================================
 
 For each component type (line, transformer, generator, etc.), which
-must be uniquely named for each network, its basic data is stored in a
-pandas DataFrame, which is an attribute of the network object, e.g.
+must be uniquely named for each network, its basic static data is
+stored in a pandas DataFrame, which is an attribute of the network
+object, e.g.
 
 * network.lines
 * network.transformers
 * network.generators
 
-are all pandas DataFrames, indexed by the unique name of the component.
+These are all pandas DataFrames, indexed by the unique name of the
+component.
 
 The columns contain data such as impedance, capacity, etc.
-
 
 Network components cannot exist without a network to hold them.
 
 
 
-Time-varying data are stored in pandas DataFrames
+Time-varying data are stored in pandas Panels
 =================================================
 
 Some quantities, such as generator.p_set (generator active power set
-point), generator.p (generator actual active power), line.p0 (line
+point), generator.p (generator calculated active power), line.p0 (line
 active power at bus0) and line.p1 (line active power at bus1) vary
 over time and therefore are stored as pandas Series. They are stored
-together per component in DataFrames which are accessed as attributes
-of the component DataFrame, e.g.
+together in a three-dimensional pandas Panel, indexed by the attribute
+("p_set" or "p"), the component names and the network's time steps in
+``network.snapshots``.
 
-* network.generators.p_set
-* network.generators.p
-* network.lines.p0
-* network.lines.p1
+They all have names like ``network.generators_t`` and the atttributes
+are accessed like:
 
-These DataFrames are index by the network's snapshot list
-network.snapshots (set using network.set_snapshots(snapshots)). The
-columns are the component names.
+* network.generators_t.p_set
+* network.generators_t.p
+* network.lines_t.p0
+* network.lines_t.p1
 
 
 
@@ -80,7 +81,7 @@ Object model with descriptor properties point to DataFrames
 ===========================================================
 
 Sometimes it is useful to access the components as objects instead of
-using the pandas DataFrames.
+using the pandas DataFrames and Panels.
 
 For this each component DataFrame has a column "obj" containing
 objects, which have the various component data as attributes, e.g.

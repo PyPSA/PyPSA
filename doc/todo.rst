@@ -6,43 +6,22 @@
 Changes which definitely will be implemented
 ============================================
 
-Improve access to time-dependent variables
-------------------------------------------
-
-Currently time-dependent variables, such as load/generator p_set or
-line p0 are accessed via pandas DataFrames attached as attributes to
-the component DataFrame.
-
-There are several problems with this:
-
-* At the moment all time-varying series are instantiated at startup
-  even if they're not used - this is memory inefficient
-* You can't slice over attributes
-* The attribute access on the component DataFrame is non-standard for
-  pandas
-* The time-varying attributes don't get copied over when doing
-  selective slices of the component DataFrame,
-  e.g. buses[buses.sub_network == "0"]
 
 
-Suggestion:
-
-Create a 3d component pandas.Panel for time-varying quantities, e.g.
-
-.. code:: python
-
-    network.generators_t = pandas.Panel(items=["p_set","p","q_set","q"],
-                                        major_axis=network.snapshots,
-					minor_axis=network.generators.index)
+Do not define empty timeseries contents until called
+----------------------------------------------------
 
 
+At the moment all time-varying series are instantiated at startup in
+e.g. ``network.generators_t.q_set`` even if they're not used - this
+is memory inefficient.
 
-Then sub_network.generators_t can slice the Panel, similarly for bus.generators_t.
+Could instantiate them as set, then check before PF and OPF if they're
+there.
 
-
-And only instantiate the items "p", "p_set", etc. when necessary,
-e.g. at start of network.pf() can instantiate "p" and "q" if they
-don't already exist.
+Results need only to be instantiated if things are actually
+calculated, e.g. instantiate ``network.buses_t.q`` only after a
+non-linear power flow.
 
 Or have switch, so that all items generated automatically for newbies,
 and experts can turn it off and only generate those which they need.
@@ -98,13 +77,6 @@ Ramp rate limits in OPF for generators
 i.e. generator.ramp_rate_limit = x MW/h or per unit of p_nom/h
 
 
-Spillage variables for storage
--------------------------------
-
-A variable per storage unit which can spill the state of charge
-without generating electricity (e.g. if the inflow overwhelms the
-storage)
-
 
 Regions for groups of buses
 ---------------------------
@@ -112,26 +84,6 @@ Regions for groups of buses
 I.e. countries/states to allow easy grouping.
 
 class Zone/Region
-
-
-Interface for adding different constraints/objective functions
---------------------------------------------------------------
-
-I.e. other than rewriting lopf function.
-
-Example: Yearly import/export balances for zones
-
-
-More non-linear pf examples
----------------------------
-
-pypower import, scigrid non-linear
-
-
-Improve Python 3 support
-------------------------
-
-Check and regression testing
 
 
 CIM converter
@@ -167,32 +119,24 @@ Branch voltage angle difference limits in LOPF
 ----------------------------------------------
 
 
+Include heating sector
+----------------------
 
-OPF DC output to v_mag not v_ang
---------------------------------
-Also make v_mag per unit NOT kV
-
+Along the lines of abstraction in oemof, include heat buses, with heat
+loads, gas boilers, CHP (with output to both heat and electricity
+buses), P2H, heat pumps, etc.
 
 
 Changes which may be implemented
 ============================================
 
-Constant time series series
----------------------------
 
-i.e. have some way of setting constant time series to save memory
-
-Rename components and attributes?
----------------------------------
-
-SubNetwork -> ConnectedNetwork
-
-s_nom versus p_nom for lines/branches
-
-Take v_mag_set for PV from generators instead of bus?
+Take v_mag_pu_set for PV from generators instead of bus?
 -----------------------------------------------------
 
-ike pypower
+Like pypower
+
+Would imitate set point on AVR
 
 Storing component object methods in different files
 ---------------------------------------------------
@@ -203,23 +147,7 @@ over-ride __dir__???
 
 cf. pandas code
 
-
-make p_set per unit?
---------------------
-
-Database interface with sqlalchemy?
------------------------------------
-
-Advantages of database:
-
-#. better scaling with size
-#. easier, better querying
-#. persistence
-#. can swop out database for Netzbetreiber
-#. Sharing data between people editing concurrently
-#. Transactions (e.g. bank account transfer that fails or succeeds always at both ends)
-#. For relations between tables
-
+best to do in __init__.
 
 
 catch no gens in sub_network?
@@ -241,25 +169,6 @@ e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
 
 need to watch out for isinstance(Branch)
 
-
-Do not define empty timeseries contents until called, e.g.
------------------------------------------------------------
-
-network.generators_df.p = pd.DataFrame(index = network.snapshots)
-
-network.generators_df.p.loc[1,"AT"] = 45.
-
-- this will define a new column "AT" and add NaNs in other entries.
-
-(at least for calculated quantities - p_set etc. should be defined)
-
-give default if name not in col????
-
-
-
-Underscore dynamically-generated DataFrames?
---------------------------------------------
-Since they are NOT linked to original data for updating, and don't contain time-dependent quantities.
 
 Check branch.bus0 and branch.bus1 in network.buses
 --------------------------------------------------
