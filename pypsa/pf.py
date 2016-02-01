@@ -266,10 +266,12 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
     network.loads_t.q.loc[now,loads.index] = network.loads_t.q_set.loc[now,loads.index]
 
-    #allow all loads to dispatch as set
+    #set shunt impedance powers
     shunt_impedances = sub_network.shunt_impedances()
-    network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
-    network.shunt_impedances_t.q.loc[now,shunt_impedances.index] = network.shunt_impedances.b_pu.loc[shunt_impedances.index].values
+    #add voltages
+    shunt_impedances = pd.merge(shunt_impedances,pd.DataFrame({"v_mag_pu" :v_mag_pu}),how="left",left_on="bus",right_index=True)
+    network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = (shunt_impedances.v_mag_pu**2)*shunt_impedances.g_pu
+    network.shunt_impedances_t.q.loc[now,shunt_impedances.index] = (shunt_impedances.v_mag_pu**2)*shunt_impedances.b_pu
 
     #allow all generators to dispatch as set
     generators = sub_network.generators()

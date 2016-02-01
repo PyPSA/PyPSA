@@ -2,6 +2,16 @@
  Installation
 ################
 
+Installation with pip
+=====================
+
+If you have the Python package installer ``pip`` then just run::
+
+    pip install pypsa
+
+
+"Manual" installation with setuptools
+=====================================
 
 PyPSA relies on the following packages which are not contained in a
 standard Python installation:
@@ -28,3 +38,17 @@ repository <https://github.com/fresna/pypsa/>`_ and then go to the
 local repository and run::
 
     python setup.py install
+
+Conservative manual installation
+================================
+
+If you're very conservative and don't like package managers, you can
+just download the code from the `PyPSA github repository
+<https://github.com/fresna/pypsa/>`_ and add the directory of PyPSA to
+your python path with e.g.::
+
+    import sys
+
+    sys.path.append("path/to/PyPSA")
+
+    import pypsa

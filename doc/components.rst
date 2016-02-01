@@ -103,6 +103,10 @@ gen.p_nom*(gen.p_nom_max_pu_fixed) at all times.
 active power availability for each snapshot.
 
 
+For generators, if :math:`p>0` the generator is supplying active power
+to the bus and if :math:`q>0` it is supplying reactive power
+(i.e. behaving like a capacitor).
+
 
 .. csv-table::
    :header-rows: 1
@@ -115,6 +119,11 @@ Storage Unit
 
 Has a time-varying state of charge and various efficiencies.
 
+For storage units, if :math:`p>0` the storage unit is supplying active
+power to the bus and if :math:`q>0` it is supplying reactive power
+(i.e. behaving like a capacitor).
+
+
 
 .. csv-table::
    :header-rows: 1
@@ -126,6 +135,10 @@ Load
 
 PQ load.
 
+For loads, if :math:`p>0` the load is consuming active power from the
+bus and if :math:`q>0` it is consuming reactive power (i.e. behaving
+like an inductor).
+
 
 .. csv-table::
    :header-rows: 1
@@ -136,6 +149,18 @@ Shunt Impedance
 ---------------
 
 Has voltage-dependent admittance.
+
+
+
+For shunt impedances the power consumption is given by :math:`s_i =
+|V_i|^2 y_i^*` so that :math:`p_i + j q_i = |V_i|^2 (g_i
+-jb_i)`. However the p and q below are defined directly proportional
+to g and b :math:`p = |V|^2g` and :math:`q = |V|^2b`, thus if
+:math:`p>0` the shunt impedance is consuming active power from the bus
+and if :math:`q>0` it is supplying reactive power (i.e. behaving like
+an capacitor).
+
+
 
 .. csv-table::
    :header-rows: 1
