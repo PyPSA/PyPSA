@@ -34,7 +34,7 @@ from . import Network
 
 def _consense(x):
     v = x.iat[0]
-    #assert (x == v).all()
+    assert ((x == v).all() or x.isnull().all())
     return v
 
 def _haversine(coords):
@@ -45,7 +45,8 @@ def _haversine(coords):
 def aggregatebuses(network, busmap):
     columns = set(network.component_simple_descriptors[components.Bus])
     strategies = dict(x=np.mean, y=np.mean,
-                      v_mag_max=np.min, v_mag_min=np.max, v_nom=np.max)
+                      v_mag_max=np.min, v_mag_min=np.max, v_nom=np.max,
+                      v_mag_pu_max=np.min, v_mag_pu_min=np.max)
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
 
     return network.buses \
@@ -199,15 +200,16 @@ try:
     # available using pip as scikit-learn
     from sklearn.cluster import KMeans
 
-    def busmap_by_kmeans(network,bus_weightings,n_clusters):
+    def busmap_by_kmeans(network, bus_weightings, n_clusters):
         """
-        Create a bus map from the clustering of buses in space with a weighting.
+        Create a bus map from the clustering of buses in space with a
+        weighting.
 
         Parameters
         ----------
         network : pypsa.Network
             The buses must have coordinates x,y.
-        bus_property : pandas.Series
+        bus_weightings : pandas.Series
             Series of integer weights for buses, indexed by bus names.
         n_clusters : int
             Final number of clusters desired.
@@ -215,45 +217,42 @@ try:
         Returns
         -------
         busmap : pandas.Series
-            Mapping of network.buses to k-means clusters (indexed by non-negative integers).
-
+            Mapping of network.buses to k-means clusters (indexed by
+            non-negative integers).
         """
 
-        join = pd.merge(network.buses[["x","y"]],pd.DataFrame({"weighting" :bus_weightings}),how="left",left_index=True,right_index=True)
-
-        #initial points to cluster
-        points = join[join["weighting"] != 0][["x","y"]].values
-
-        #since one cannot weight points directly in k-means, just add
-        #additional points at same position
-        for i in join.index:
-            multiplicity = join.at[i,"weighting"]
-            for j in range(int(multiplicity)-1):
-                points = np.vstack((points,join.loc[i,["x","y"]].values))
+        # since one cannot weight points directly in k-means, just add
+        # additional points at same position
+        points = (network.buses[["x","y"]].values
+                  .repeat(bus_weightings.reindex(network.buses.index).astype(int), axis=0))
 
         kmeans = KMeans(init='k-means++', n_clusters=n_clusters)
 
         kmeans.fit(points)
 
-        clusters = kmeans.cluster_centers_
+        # clusters = kmeans.cluster_centers_
 
-        busmap = pd.Series(data=kmeans.predict(network.buses[["x","y"]]),index=network.buses.index)
+        busmap = pd.Series(data=kmeans.predict(network.buses[["x","y"]]),
+                           index=network.buses.index)
 
         return busmap
 
     def kmeans_clustering(network, bus_weightings, n_clusters):
         """
-        Cluster then network according to k-means clustering of the buses.
+        Cluster then network according to k-means clustering of the
+        buses.
 
-        Buses can be weighted by an integer in the series `bus_weightings`.
+        Buses can be weighted by an integer in the series
+        `bus_weightings`.
 
-        Note that this clustering method completely ignores the branches of the network.
+        Note that this clustering method completely ignores the
+        branches of the network.
 
         Parameters
         ----------
         network : pypsa.Network
             The buses must have coordinates x,y.
-        bus_property : pandas.Series
+        bus_weightings : pandas.Series
             Series of integer weights for buses, indexed by bus names.
         n_clusters : int
             Final number of clusters desired.
@@ -264,11 +263,9 @@ try:
             A named tuple containing network, busmap and linemap
         """
 
-        busmap = busmap_by_kmeans(network,bus_weightings,n_clusters)
+        busmap = busmap_by_kmeans(network, bus_weightings, n_clusters)
         buses, linemap, lines = get_buses_linemap_and_lines(network, busmap)
         return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap)
-
-
 
 
 except ImportError:
