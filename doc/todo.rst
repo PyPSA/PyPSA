@@ -23,9 +23,12 @@ Results need only to be instantiated if things are actually
 calculated, e.g. instantiate ``network.buses_t.q`` only after a
 non-linear power flow.
 
-Or have switch, so that all items generated automatically for newbies,
-and experts can turn it off and only generate those which they need.
+Or have switch network.memory_saving, so that all items generated
+automatically for newbies, and experts can turn it off and only
+generate those which they need.
 
+This requires the descriptors to be replaced with __get__ and __set__,
+since some time-dependent quantities will not exist in the _t dataframes.
 
 
 Replace descriptors with __get__ and __set__ on objects

@@ -43,7 +43,7 @@ from distutils.version import StrictVersion
 
 import pandas as pd
 
-from . import components
+import pypsa
 
 
 
@@ -476,7 +476,7 @@ def extract_optimisation_results(network,snapshots):
 
     # active branches
     controllable_branches = as_series(model.controllable_branch_p)
-    for typ in components.controllable_branch_types:
+    for typ in pypsa.components.controllable_branch_types:
 
         df = getattr(network,typ.list_name)
         pnl = getattr(network,typ.list_name+"_t")
@@ -495,7 +495,7 @@ def extract_optimisation_results(network,snapshots):
         v = network.buses_t.v_ang.loc[snapshots,buses]
         v.set_axis(1, buses.index)
         return v
-    for typ in components.passive_branch_types:
+    for typ in pypsa.components.passive_branch_types:
 
         df = getattr(network,typ.list_name)
         pnl = getattr(network,typ.list_name+"_t")
@@ -515,7 +515,7 @@ def extract_optimisation_results(network,snapshots):
         as_series(network.model.storage_p_nom)
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
-    for typ in components.branch_types:
+    for typ in pypsa.components.branch_types:
         df = getattr(network,typ.list_name)
         if len(df) and df.s_nom_extendable.any():
             df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ.__name__]
@@ -524,7 +524,25 @@ def extract_optimisation_results(network,snapshots):
 
 
 def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None):
-    """Linear optimal power flow for snapshots."""
+    """
+    Linear optimal power flow for a group of snapshots.
+
+    Parameters
+    ----------
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of network.snapshots, defaults to network.now
+    solver_name : string
+        Must be a solver name that pyomo recognises and that is installed, e.g. "glpk", "gurobi"
+    verbose: bool, default True
+    extra_functionality : callable function
+        This function must take two arguments `extra_functionality(network,snapshots)` and is called
+        after the model building is complete, but before it is sent to the solver. It allows the user to
+        add/change constraints and add/change the objective function.
+
+    Returns
+    -------
+    None
+    """
 
     if not network.topology_determined:
         network.build_graph()

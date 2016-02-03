@@ -45,7 +45,26 @@ except:
 
 def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
          line_colors={},bus_sizes={},line_widths={}):
-    """Plot the network buses and lines using matplotlib."""
+    """
+    Plot the network buses and lines using matplotlib and Basemap.
+
+    Parameters
+    ----------
+    margin : float
+        Margin at the sides as proportion of distance between max/min x,y
+    ax : matplotlib ax, defaults to plt.gca()
+        Axis to which to plot the network
+    basemap : bool, default True
+        Switch to use Basemap
+    bus_colors : dict/pandas.Series
+        Colors for the buses, defaults to "b"
+    bus_sizes : dict/pandas.Series
+        Sizes of bus points, defaults to 10
+    line_colors : dict/pandas.Series
+        Colors for the lines, defaults to "g"
+    line_widths : dict/pandas.Series
+        Widths of lines, defaults to 2
+    """
 
     if not plt_present:
         print("Matplotlib is not present, so plotting won't work.")

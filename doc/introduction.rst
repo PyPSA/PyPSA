@@ -52,6 +52,8 @@ Functionality that will definitely by added soon (see also :doc:`todo`):
 * Graphical plotting of networks with power flow
 * Better modelling of hydroelectricity
 * Integration of heating sector (CHPs, heat pumps, etc.)
+* Security Constrained Linear OPF
+* Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_ in the complex plane
 

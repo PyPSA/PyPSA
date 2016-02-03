@@ -26,24 +26,9 @@ from __future__ import absolute_import
 
 from .components import Network, Bus, Load, Generator, Line, Transformer, Converter, TransportLink, SubNetwork, Branch, OnePort
 
-from . import pf,opf
+from . import components, pf, opf, plot, networkclustering, io
 
-from . import plot
 
 __version__ = "0.3"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
-
-
-
-Network.lpf = pf.network_lpf
-
-SubNetwork.lpf = pf.sub_network_lpf
-
-Network.pf = pf.network_pf
-
-SubNetwork.pf = pf.sub_network_pf
-
-Network.lopf = opf.network_lopf
-
-Network.opf = opf.network_opf

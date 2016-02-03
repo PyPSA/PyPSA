@@ -41,6 +41,12 @@ from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer
 
 from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
 
+from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf
+
+from .opf import network_lopf, network_opf
+
+from .plot import plot
+
 import inspect
 
 import sys
@@ -405,6 +411,26 @@ class Network(Basic):
     #choice to keep files from OPF problem construction - useful for debugging
     opf_keep_files = False
 
+
+    #methods imported from other sub-modules
+
+    import_from_csv_folder = import_from_csv_folder
+
+    export_to_csv_folder = export_to_csv_folder
+
+    import_from_pypower_ppc = import_from_pypower_ppc
+
+    lpf = network_lpf
+
+    pf = network_pf
+
+    lopf = network_lopf
+
+    opf = network_opf
+
+    plot = plot
+
+
     def __init__(self, csv_folder_name=None, **kwargs):
 
         super(self.__class__, self).__init__(kwargs.get("name",""))
@@ -490,20 +516,6 @@ class Network(Basic):
                 pnl.loc[k,snapshots,:] = pnl.loc[k,self.snapshots,:].fillna(v.default)
 
             setattr(self,cls.list_name+"_t",pnl)
-
-
-    def import_from_csv_folder(self,csv_folder_name):
-        import_from_csv_folder(self,csv_folder_name)
-
-
-    def export_to_csv_folder(self,csv_folder_name,time_series={},verbose=True):
-        export_to_csv_folder(self,csv_folder_name,time_series=time_series,verbose=verbose)
-
-
-
-    def import_from_pypower_ppc(self, ppc, verbose=True):
-        """Import network from PyPower ppc dictionary."""
-        return import_from_pypower_ppc(self,ppc,verbose)
 
 
     def add(self,class_name,name,**kwargs):
@@ -643,6 +655,12 @@ class SubNetwork(Common):
     slack_bus = String()
 
     graph = GraphDesc()
+
+
+    lpf = sub_network_lpf
+
+    pf = sub_network_pf
+
 
 
     def buses(self):

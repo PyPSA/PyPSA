@@ -35,7 +35,7 @@ from scipy.sparse.linalg import spsolve
 import numpy as np
 import pandas as pd
 
-from . import components
+import pypsa
 
 from itertools import chain
 
@@ -47,7 +47,22 @@ import time
 
 
 def network_pf(network,now=None,verbose=True):
-    """Full non-linear power flow for generic network."""
+    """
+    Full non-linear power flow for generic network.
+
+    Parameters
+    ----------
+    now : object
+        A member of network.snapshots on which to run the power flow, defaults to network.now
+    verbose: bool, default True
+
+    Returns
+    -------
+    None
+    """
+
+
+
 
     if not network.topology_determined:
         network.build_graph()
@@ -115,7 +130,19 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
 
 
 def sub_network_pf(sub_network,now=None,verbose=True):
-    """Non-linear power flow for connected sub-network."""
+    """
+    Non-linear power flow for connected sub-network.
+
+    Parameters
+    ----------
+    now : object
+        A member of network.snapshots on which to run the power flow, defaults to network.now
+    verbose: bool, default True
+
+    Returns
+    -------
+    None
+    """
 
     network = sub_network.network
 
@@ -246,7 +273,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     branches["s0"] = branches["v0"]*np.conj(i0)
     branches["s1"] = branches["v1"]*np.conj(i1)
 
-    for typ in components.passive_branch_types:
+    for typ in pypsa.components.passive_branch_types:
         df = branches.loc[typ.__name__]
         pnl = getattr(network,typ.list_name+"_t")
         pnl.loc["p0",now,df.index] = df["s0"].real
@@ -289,8 +316,19 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
 
 def network_lpf(network,now=None,verbose=True):
-    """Linear power flow for generic network."""
+    """
+    Linear power flow for generic network.
 
+    Parameters
+    ----------
+    now : object
+        A member of network.snapshots on which to run the power flow, defaults to network.now
+    verbose: bool, default True
+
+    Returns
+    -------
+    None
+    """
 
     if not network.topology_determined:
         network.build_graph()
@@ -596,7 +634,19 @@ averaged).
 
 
 def sub_network_lpf(sub_network,now=None,verbose=True):
-    """Linear power flow for connected sub-network."""
+    """
+    Linear power flow for connected sub-network.
+
+    Parameters
+    ----------
+    now : object
+        A member of network.snapshots on which to run the power flow, defaults to network.now
+    verbose: bool, default True
+
+    Returns
+    -------
+    None
+    """
 
     network = sub_network.network
 

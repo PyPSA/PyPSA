@@ -39,6 +39,22 @@ import numpy as np
 
 
 def get_cls_from_list_name(list_name):
+    """
+    Get the class from the component list name.
+
+    Parameters
+    ----------
+    list_name : string
+        Name of component list
+
+    Returns
+    -------
+    cls : type
+        Class from pypsa.components
+    """
+
+
+
 
     for k,v in iteritems(vars(pypsa.components)):
         if hasattr(v,"list_name") and v.list_name == list_name:
@@ -46,17 +62,22 @@ def get_cls_from_list_name(list_name):
 
 
 def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
-    """Export network and components to csv_folder_name. Include also
-    time_series for components in the dictionary time_series in the
-    format:
+    """
+    Export network and components to a folder of CSVs.
 
-    list_name : {attribute_name : filter/None}
+    Parameters
+    ----------
+    csv_folder_name : string
+        Name of folder to which to export.
+    time_series : dictionary of callable functions per component type, defaults to {}
+        This allows you to select which components' time series are exported with
+        the format {list_name : {attribute_name : filter/None}}
+    verbose : boolean, default True
 
-    e.g.
-
-    export_to_csv(network,csv_folder_name,time_series={"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
+    Examples
+    --------
+    >>> export_to_csv(network,csv_folder_name,time_series={"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
     "loads" : {"p_set" : None}})
-
     """
 
 
@@ -131,6 +152,23 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
 
 
 def import_components_from_dataframe(network,dataframe,cls_name):
+    """
+    Import components from a pandas DataFrame.
+
+    If columns are missing then defaults are used.
+
+    If extra columns are added, these are left in the resulting component dataframe.
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+    cls_name : string
+        Name of class of component
+
+    Examples
+    --------
+    >>> import_components_from_dataframe(dataframe,"Line")
+    """
 
 
     dataframe.index = [str(i) for i in dataframe.index]
@@ -176,13 +214,37 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     setattr(network,cls.list_name+"_t",pnl)
 
 def import_series_from_dataframe(network,dataframe,list_name,attr):
+    """
+    Import time series from a pandas DataFrame.
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+    list_name : string
+        Name of components
+    attr : string
+        Name of series attribute
+
+    Examples
+    --------
+    >>> import_series_from_dataframe(dataframe,"loads","p_set")
+    """
 
     pnl = getattr(network,list_name+"_t")
 
     pnl.loc[attr].loc[:,dataframe.columns] = dataframe
 
 def import_from_csv_folder(network,csv_folder_name):
+    """
+    Import network data from CSVs in a folder.
 
+    The CSVs must follow the standard form, see pypsa/examples.
+
+    Parameters
+    ----------
+    csv_folder_name : string
+        Name of folder
+    """
 
     if not os.path.isdir(csv_folder_name):
         print("Directory {} does not exist.".format(csv_folder_name))
@@ -244,12 +306,21 @@ def import_from_csv_folder(network,csv_folder_name):
 
 
 def import_from_pypower_ppc(network,ppc,verbose=True):
-    """Imports data from a pypower ppc dictionary to a PyPSA network
-    object.
+    """
+    Import network from PYPOWER PPC dictionary format version 2.
 
     Converts all baseMVA to base power of 1 MVA.
 
     For the meaning of the pypower indices, see also pypower/idx_*.
+
+    Parameters
+    ----------
+    ppc : PYPOWER PPC dict
+    verbose : bool, default True
+
+    Examples
+    --------
+    >>> import_series_from_dataframe(dataframe,"loads","p_set")
     """
 
 
