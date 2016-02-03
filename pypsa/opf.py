@@ -538,6 +538,9 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
         This function must take two arguments `extra_functionality(network,snapshots)` and is called
         after the model building is complete, but before it is sent to the solver. It allows the user to
         add/change constraints and add/change the objective function.
+    solver_options : dictionary
+        A dictionary with additional options that get passed to the solver.
+        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
 
     Returns
     -------
