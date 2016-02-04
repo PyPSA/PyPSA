@@ -523,7 +523,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None,solver_options={}):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -538,6 +538,9 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
         This function must take two arguments `extra_functionality(network,snapshots)` and is called
         after the model building is complete, but before it is sent to the solver. It allows the user to
         add/change constraints and add/change the objective function.
+    solver_options : dictionary
+        A dictionary with additional options that get passed to the solver.
+        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
 
     Returns
     -------
@@ -592,7 +595,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
 
     opt = SolverFactory(solver_name)
 
-    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=network.opf_keep_files)
+    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=network.opf_keep_files,options=solver_options)
 
     if verbose:
         network.results.write()
