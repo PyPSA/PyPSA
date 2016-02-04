@@ -181,7 +181,7 @@ class Generator(OnePort):
     #power limits for variable generators, which can change e.g. due
     #to weather conditions; per unit to ease multiplication with
     #p_nom, which may be optimised
-    p_max_pu = Series(1.)
+    p_max_pu = Series(default=1.)
     p_min_pu = Series()
 
 
@@ -433,7 +433,7 @@ class Network(Basic):
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
-        super(self.__class__, self).__init__(kwargs.get("name",""))
+        Basic.__init__(self,kwargs.get("name",""))
 
         #hack so that Series descriptor works when looking for obj.network.snapshots
         self.network = self
