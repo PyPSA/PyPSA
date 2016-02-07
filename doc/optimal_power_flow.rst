@@ -296,3 +296,53 @@ TODO - see objective function.
 :math:`l \in L = \{0,\dots |L|-1\}` label the branches
 
 :math:`s \in S = \{0,\dots |S|-1\}` label the different generator/storage types at each bus
+
+
+Inputs
+------
+
+For the linear optimal power flow, the following data for each component
+are used. For almost all values, defaults are assumed if not
+explicitly set. For the defaults and units, see :doc:`components`.
+
+network{snapshot_weightings,co2_limit}
+
+bus.{v_nom}
+
+load.{p_set}
+
+generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency}
+
+storage_unit.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
+
+line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+
+transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+
+converter.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+
+transport_link.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+
+source.{co2_emissions}
+
+Note that for lines and transformers you MUST make sure that
+:math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+
+Outputs
+-------
+
+bus.{v_mag_pu, v_ang, p, marginal_price}
+
+load.{p}
+
+generator.{p, p_nom}
+
+storage_unit.{p, p_nom, state_of_charge, spill}
+
+line.{p0, p1, s_nom}
+
+transformer.{p0, p1, s_nom}
+
+converter.{p0, p1, s_nom}
+
+transport_link.{p0, p1, s_nom}

@@ -30,3 +30,4 @@ p,series of floats,MW,0.,active power at bus (positive if net generation),Output
 q,series of floats,MVar,0.,reactive power (positive if net generation),Output
 state_of_charge,series of floats,MWh,NaN,State of charge as calculated by the OPF.,Output
 spill,series of floats,MW,0.,Spillage for each snapshot.,Output
+p_nom_opt,float,MW,0.,Optimised nominal power.,Output

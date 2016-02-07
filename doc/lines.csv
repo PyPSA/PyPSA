@@ -21,3 +21,4 @@ x_pu,float,per unit,0.,Per unit series reactance calculated by PyPSA from x and 
 r_pu,float,per unit,0.,Per unit series resistance calculated by PyPSA from r and bus.v_nom,Output
 g_pu,float,per unit,0.,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output
 b_pu,float,per unit,0.,Per unit shunt susceptance calculated by PyPSA from b and bus.v_nom,Output
+s_nom_opt,float,MVA,0.,Optimised capacity for apparent power.,Output

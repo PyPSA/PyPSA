@@ -506,17 +506,22 @@ def extract_optimisation_results(network,snapshots):
     #now that we've used the angles to calculate the flow, set the DC ones to zero
     network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"] = 0.
 
-    network.generators.loc[network.generators.p_nom_extendable, 'p_nom'] = \
+    network.generators.p_nom_opt = network.generators.p_nom
+
+    network.generators.loc[network.generators.p_nom_extendable, 'p_nom_opt'] = \
         as_series(network.model.generator_p_nom)
 
-    network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom'] = \
+    network.storage_units.p_nom_opt = network.storage_units.p_nom
+
+    network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom_opt'] = \
         as_series(network.model.storage_p_nom)
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
     for typ in pypsa.components.branch_types:
         df = getattr(network,typ.list_name)
+        df.s_nom_opt = df.s_nom
         if len(df) and df.s_nom_extendable.any():
-            df.loc[df.s_nom_extendable, 's_nom'] = s_nom_extendable_branches.loc[typ.__name__]
+            df.loc[df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_branches.loc[typ.__name__]
 
 
 

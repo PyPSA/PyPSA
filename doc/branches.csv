@@ -11,3 +11,4 @@ p0,series of floats,MW,0.,Active power at bus0 (positive if bus is withdrawing p
 q0,series of floats,MVar,0.,Reactive power at bus0 (positive if bus is withdrawing power).,Output
 p1,series of floats,MW,0.,Active power at bus1 (positive if bus is withdrawing power).,Output
 q1,series of floats,MVar,0.,Reactive power at bus1 (positive if bus is withdrawing power).,Output
+s_nom_opt,float,MVA,0.,Optimised capacity for apparent power.,Output

@@ -113,6 +113,56 @@ where all quantities are real.
 :math:`G_{ij}` is based only on the branch resistances and any shunt
 conductances attached to the buses.
 
+Inputs
+------
+
+For the non-linear power flow, the following data for each component
+are used. For almost all values, defaults are assumed if not
+explicitly set. For the defaults and units, see :doc:`components`.
+
+bus.{v_nom, v_mag_pu_set (if PV generators are attached)}
+
+load.{p_set, q_set}
+
+generator.{control, p_set, q_set (for control PQ)}
+
+storage_unit.{control, p_set, q_set (for control PQ)}
+
+shunt_impedance.{b, g}
+
+line.{x, r, b, g}
+
+transformer.{x, r, b, g}
+
+converter.{p_set}
+
+transport_link.{p_set}
+
+
+Note that for lines and transformers you MUST make sure that
+:math:`r+jx` is non-zero, otherwise the bus admittance matrix will be singular.
+
+Outputs
+-------
+
+bus.{v_mag_pu, v_ang, p, q}
+
+load.{p, q}
+
+generator.{p, q}
+
+storage_unit.{p, q}
+
+shunt_impedance.{p, q}
+
+line.{p0, q0, p1, q1}
+
+transformer.{p0, q0, p1, q1}
+
+converter.{p0, q0, p1, q1}
+
+transport_link.{p0, q0, p1, q1}
+
 
 Linear power flow
 =================
@@ -131,3 +181,52 @@ magnitude differences across branches are all small.
 
 For DC networks, the load flow is calculated using small voltage
 magnitude differences and series resistances alone.
+
+Inputs
+------
+
+For the linear power flow, the following data for each component
+are used. For almost all values, defaults are assumed if not
+explicitly set. For the defaults and units, see :doc:`components`.
+
+bus.{v_nom}
+
+load.{p_set}
+
+generator.{p_set}
+
+storage_unit.{p_set}
+
+shunt_impedance.{g}
+
+line.{x}
+
+transformer.{x}
+
+converter.{p_set}
+
+transport_link.{p_set}
+
+Note that for lines and transformers you MUST make sure that
+:math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+
+Outputs
+-------
+
+bus.{v_mag_pu, v_ang, p}
+
+load.{p}
+
+generator.{p}
+
+storage_unit.{p}
+
+shunt_impedance.{p}
+
+line.{p0, p1}
+
+transformer.{p0, p1}
+
+converter.{p0, p1}
+
+transport_link.{p0, p1}
