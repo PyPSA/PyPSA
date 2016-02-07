@@ -521,7 +521,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_functionality=None,solver_options={}):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={}):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -532,6 +532,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
     solver_name : string
         Must be a solver name that pyomo recognises and that is installed, e.g. "glpk", "gurobi"
     verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     extra_functionality : callable function
         This function must take two arguments `extra_functionality(network,snapshots)` and is called
         after the model building is complete, but before it is sent to the solver. It allows the user to
@@ -545,21 +547,16 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,extra_fu
     None
     """
 
-    if not network.topology_determined:
+    if not skip_pre:
         network.build_graph()
         network.determine_network_topology()
-
-    if not network.dependent_values_calculated:
         calculate_dependent_values(network)
+        for sub_network in network.sub_networks.obj:
+            find_slack_bus(sub_network)
 
 
     if snapshots is None:
         snapshots = [network.now]
-
-
-
-    for sub_network in network.sub_networks.obj:
-        find_slack_bus(sub_network)
 
 
     network.model = ConcreteModel("Linear Optimal Power Flow")

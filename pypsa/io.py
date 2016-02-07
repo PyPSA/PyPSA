@@ -92,11 +92,6 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
     df = pd.DataFrame(index=index,columns=columns,data = [[getattr(network,col) for col in columns]])
     df.index.name = "name"
 
-    #make sure things are recalculated after import
-    df["dependent_values_calculated"] = False
-    df["topology_determined"] = False
-
-
     if verbose:
         print("\n"*3+"network\n",df)
     df.to_csv(os.path.join(csv_folder_name,"network.csv"))

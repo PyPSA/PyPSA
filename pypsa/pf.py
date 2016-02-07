@@ -46,7 +46,7 @@ import time
 
 
 
-def network_pf(network,now=None,verbose=True):
+def network_pf(network,now=None,verbose=True,skip_pre=False):
     """
     Full non-linear power flow for generic network.
 
@@ -55,6 +55,8 @@ def network_pf(network,now=None,verbose=True):
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
     verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
 
     Returns
     -------
@@ -64,11 +66,9 @@ def network_pf(network,now=None,verbose=True):
 
 
 
-    if not network.topology_determined:
+    if not skip_pre:
         network.build_graph()
         network.determine_network_topology()
-
-    if not network.dependent_values_calculated:
         calculate_dependent_values(network)
 
     if now is None:
@@ -91,7 +91,16 @@ def network_pf(network,now=None,verbose=True):
         if verbose:
             print("Performing full non-linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
 
-        sub_network.pf(now,verbose)
+
+        if not skip_pre:
+            find_bus_controls(sub_network,verbose=verbose)
+
+            branches = sub_network.branches()
+
+            if len(branches) > 0:
+                calculate_Y(sub_network,verbose=verbose,skip_pre=True)
+
+        sub_network.pf(now,verbose=verbose,skip_pre=True)
 
 
 
@@ -129,7 +138,7 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
 
 
 
-def sub_network_pf(sub_network,now=None,verbose=True):
+def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False):
     """
     Non-linear power flow for connected sub-network.
 
@@ -138,6 +147,8 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
     verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
 
     Returns
     -------
@@ -152,16 +163,17 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     if verbose:
         print("Performing full non-linear load-flow for snapshot %s" % (now))
 
-    if not network.dependent_values_calculated:
+    if not skip_pre:
         calculate_dependent_values(network)
-
-    find_bus_controls(sub_network,verbose=verbose)
+        find_bus_controls(sub_network,verbose=verbose)
 
     branches = sub_network.branches()
     buses = sub_network.buses_o
 
-    if len(branches) > 0:
-        calculate_Y(sub_network,verbose=verbose)
+    if not skip_pre and len(branches) > 0:
+        calculate_Y(sub_network,verbose=verbose,skip_pre=True)
+
+
 
 
     #set the power injection at each node
@@ -320,7 +332,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     network.generators_t.q.loc[now,sub_network.pvs.generator] += network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
 
 
-def network_lpf(network,now=None,verbose=True):
+def network_lpf(network,now=None,verbose=True,skip_pre=False):
     """
     Linear power flow for generic network.
 
@@ -329,17 +341,17 @@ def network_lpf(network,now=None,verbose=True):
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
     verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
 
     Returns
     -------
     None
     """
 
-    if not network.topology_determined:
+    if not skip_pre:
         network.build_graph()
         network.determine_network_topology()
-
-    if not network.dependent_values_calculated:
         calculate_dependent_values(network)
 
     if now is None:
@@ -356,7 +368,16 @@ def network_lpf(network,now=None,verbose=True):
     for sub_network in network.sub_networks.obj:
         if verbose:
             print("Performing linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
-        sub_network.lpf(now,verbose)
+
+        if not skip_pre:
+            find_bus_controls(sub_network,verbose=verbose)
+
+            branches = sub_network.branches()
+
+            if len(branches) > 0:
+                calculate_B_H(sub_network,verbose=verbose,skip_pre=True)
+
+        sub_network.lpf(now,verbose,skip_pre=True)
 
 
 
@@ -473,12 +494,12 @@ def calculate_dependent_values(network):
     network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
     network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
 
-    network.dependent_values_calculated = True
 
-
-def calculate_B_H(sub_network,verbose=True):
+def calculate_B_H(sub_network,verbose=True,skip_pre=False):
     """Calculate B and H matrices for AC or DC sub-networks."""
 
+    if not skip_pre:
+        calculate_dependent_values(sub_network.network)
 
     if sub_network.current_type == "DC":
         attribute="r_pu"
@@ -511,8 +532,12 @@ def calculate_B_H(sub_network,verbose=True):
 
 
 
-def calculate_PTDF(sub_network,verbose=True):
+def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
     """Calculate the PTDF for sub_network based on the already calculated sub_network.B and sub_network.H."""
+
+    if not skip_pre:
+        calculate_dependent_values(sub_network.network)
+
 
     #calculate inverse of B with slack removed
 
@@ -536,9 +561,11 @@ def calculate_PTDF(sub_network,verbose=True):
     sub_network.PTDF = sub_network.H*B_inverse
 
 
-def calculate_Y(sub_network,verbose=True):
+def calculate_Y(sub_network,verbose=True,skip_pre=False):
     """Calculate bus admittance matrices for AC sub-networks."""
 
+    if not skip_pre:
+        calculate_dependent_values(sub_network.network)
 
     if sub_network.current_type == "DC":
         print("DC networks not supported for Y!")
@@ -649,7 +676,7 @@ averaged).
 
 
 
-def sub_network_lpf(sub_network,now=None,verbose=True):
+def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
     """
     Linear power flow for connected sub-network.
 
@@ -658,6 +685,8 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
     verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
 
     Returns
     -------
@@ -672,16 +701,15 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     if verbose:
         print("Performing linear load-flow for snapshot %s" % (now))
 
-    if not network.dependent_values_calculated:
+
+    if not skip_pre:
         calculate_dependent_values(network)
-
-    find_bus_controls(sub_network,verbose=verbose)
-
+        find_bus_controls(sub_network,verbose=verbose)
 
     branches = sub_network.branches()
     buses = sub_network.buses_o
 
-    if len(branches) > 0:
+    if not skip_pre and len(branches) > 0:
         calculate_B_H(sub_network,verbose=verbose)
 
 

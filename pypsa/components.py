@@ -398,13 +398,6 @@ class Network(Basic):
 
     graph = GraphDesc()
 
-
-    #booleans for triggering recalculation
-    topology_determined = False
-
-    dependent_values_calculated = False
-
-
     #tolerance for Newton-Raphson power flow
     nr_x_tol = 1e-6
 
@@ -459,7 +452,6 @@ class Network(Basic):
 
         if csv_folder_name is not None:
             self.import_from_csv_folder(csv_folder_name)
-            #self.determine_network_topology()
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
@@ -579,8 +571,6 @@ class Network(Basic):
 
         del obj
 
-        self.topology_determined = False
-
 
     def branches(self):
         return pd.concat([self.lines,self.transformers,self.converters,self.transport_links],keys=["Line","Transformer","Converter","TransportLink"])
@@ -635,9 +625,6 @@ class Network(Basic):
 
             for (u,v,branch) in sub_graph.edges_iter(keys=True):
                 branch.sub_network = sub_network.name
-
-
-        self.topology_determined = True
 
 
 

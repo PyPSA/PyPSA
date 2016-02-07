@@ -61,10 +61,6 @@ network.lines["capital_cost"] = 400*network.lines["length"]
 
 # In[5]:
 
-
-network.topology_determined = False
-network.dependent_values_calculated = False
-
 network.now = network.snapshots[0]
 
 
@@ -105,25 +101,19 @@ network.generators.loc[f.index,"control"] = "PQ"
 
 # In[10]:
 
-network.dependent_values_calculated = False
-network.topology_determined = False
-
-
-# In[11]:
-
 
 print("Performing non-linear PF on results of LOPF:")
 
 network.pf()
 
 
-# In[12]:
+# In[11]:
 
 print("With the non-linear load flow, there is the following per unit overloading:")
 print((network.lines_t.p0.loc[network.now]/network.lines.s_nom).describe())
 
 
-# In[13]:
+# In[12]:
 
 df = network.lines.copy()
 
@@ -134,7 +124,7 @@ for b in ["bus0","bus1"]:
 s = df[str(network.now)+"_x"]- df[str(network.now)+"_y"]
 
 
-# In[14]:
+# In[13]:
 
 print("The voltage angle differences across the lines have (in degrees):")
 print((s*180/np.pi).describe())
