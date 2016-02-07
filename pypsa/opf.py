@@ -485,10 +485,8 @@ def extract_optimisation_results(network,snapshots):
             set_from_series(pnl.p0, controllable_branches.loc[typ.__name__])
             pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
 
-            # TODO : Eliminate for loop
-            for cb in df.obj:
-                network.buses_t.p.loc[snapshots,cb.bus0] -= pnl.loc["p0",snapshots,cb.name]
-                network.buses_t.p.loc[snapshots,cb.bus1] -= pnl.loc["p1",snapshots,cb.name]
+            network.buses_t.p.loc[snapshots] -= pnl.p0.loc[snapshots].groupby(df.bus0, axis=1).sum().reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
+            network.buses_t.p.loc[snapshots] -= pnl.p1.loc[snapshots].groupby(df.bus1, axis=1).sum().reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
 
     # passive branches
     def get_v_angs(buses):

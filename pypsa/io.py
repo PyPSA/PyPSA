@@ -234,7 +234,7 @@ def import_series_from_dataframe(network,dataframe,list_name,attr):
 
     pnl.loc[attr].loc[:,dataframe.columns] = dataframe
 
-def import_from_csv_folder(network,csv_folder_name):
+def import_from_csv_folder(network,csv_folder_name,verbose=False):
     """
     Import network data from CSVs in a folder.
 
@@ -256,7 +256,8 @@ def import_from_csv_folder(network,csv_folder_name):
 
     if os.path.isfile(file_name):
         df = pd.read_csv(file_name,index_col=0)
-        print(df)
+        if verbose:
+            print(df)
         network.name = df.index[0]
         for col in df.columns:
             setattr(network,col,df[col][network.name])
@@ -275,8 +276,8 @@ def import_from_csv_folder(network,csv_folder_name):
 
     for class_name in ["Bus","Source","Generator","StorageUnit","Load","TransportLink","Line","Converter"]:
         cls = getattr(pypsa.components,class_name)
-
-        print(class_name,cls)
+        if verbose:
+            print(class_name,cls)
         list_name = cls.list_name
 
         file_name = os.path.join(csv_folder_name,list_name+".csv")
@@ -286,7 +287,8 @@ def import_from_csv_folder(network,csv_folder_name):
                 print("Error, no buses found")
                 return
             else:
-                print("No",list_name+".csv","found.")
+                if verbose:
+                    print("No",list_name+".csv","found.")
                 continue
 
         df = pd.read_csv(file_name,index_col=0)
@@ -299,8 +301,8 @@ def import_from_csv_folder(network,csv_folder_name):
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0)
             import_series_from_dataframe(network,df,list_name,file_name[len(list_name)+1:-4])
 
-
-        print(getattr(network,list_name))
+        if verbose:
+            print(getattr(network,list_name))
 
 
 

@@ -27,7 +27,7 @@ __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 
 
 
-from scipy.sparse import csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
+from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
 
 from numpy import r_, ones, zeros, newaxis
 from scipy.sparse.linalg import spsolve
@@ -157,7 +157,6 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
     find_bus_controls(sub_network,verbose=verbose)
 
-
     branches = sub_network.branches()
     buses = sub_network.buses_o
 
@@ -165,26 +164,33 @@ def sub_network_pf(sub_network,now=None,verbose=True):
         calculate_Y(sub_network,verbose=verbose)
 
 
-
     #set the power injection at each node
-    for bus in buses.obj:
-        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators().obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads().obj)
+    network.buses_t.p.loc[now,buses.index] =  pd.DataFrame({list_name :
+                          (getattr(network,list_name+"_t").p_set.loc[now]*getattr(network,list_name).sign)
+                          .groupby(getattr(network,list_name).bus).sum()
+    for list_name in ["generators","loads","storage_units"]})\
+              .sum(axis=1).reindex(buses.index,fill_value = 0.)
 
-        bus.q[now] = sum(g.sign*g.q_set[now] for g in bus.generators().obj) \
-                     + sum(l.sign*l.q_set[now] for l in bus.loads().obj)
 
-    #power injection should include transport links and converters
-    for t in chain(network.transport_links.obj,network.converters.obj):
-        if t.bus0 in buses.index:
-            buses.obj[t.bus0].p[now] -= t.p0[now]
-        if t.bus1 in buses.index:
-            buses.obj[t.bus1].p[now] -= t.p1[now]
+    network.buses_t.q.loc[now,buses.index] =  pd.DataFrame({list_name:
+                          (getattr(network,list_name+"_t").q_set.loc[now]*getattr(network,list_name).sign)
+                          .groupby(getattr(network,list_name).bus).sum()
+    for list_name in ["generators","loads","storage_units"]})\
+              .sum(axis=1).reindex(buses.index,fill_value = 0.)
+
+    network.buses_t.p.loc[now,buses.index] -=  pd.DataFrame({list_name+str(i) :
+                          getattr(getattr(network,list_name+"_t"),"p"+str(i)).loc[now]
+                          .groupby(getattr(getattr(network,list_name),"bus"+str(i))).sum()
+                                    for list_name in ["transport_links","converters"] for i in [0,1]})\
+              .sum(axis=1).reindex(buses.index,fill_value = 0.)
+
 
     p = network.buses_t.p.loc[now,buses.index]
     q = network.buses_t.q.loc[now,buses.index]
 
     s = p + 1j*q
+
+
 
     def f(guess):
         network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = guess[:len(sub_network.pvpqs)]
@@ -253,6 +259,7 @@ def sub_network_pf(sub_network,now=None,verbose=True):
     if verbose:
         print("Newton-Raphson solved in %d iterations with error of %f in %f seconds" % (n_iter,diff,time.time()-start))
 
+
     #now set everything
 
     network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = roots[:len(sub_network.pvpqs)]
@@ -311,8 +318,6 @@ def sub_network_pf(sub_network,now=None,verbose=True):
 
     #set the Q of the PV generators
     network.generators_t.q.loc[now,sub_network.pvs.generator] += network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
-
-
 
 
 def network_lpf(network,now=None,verbose=True):
@@ -404,14 +409,21 @@ def find_bus_controls(sub_network,verbose=True):
     gens = sub_network.generators()
     buses = sub_network.buses()
 
+    #default bus control is PQ
     network.buses.loc[buses.index,"control"] = "PQ"
 
-    pvs = gens[gens.control == "PV"]
+    #find all buses with one or more gens with PV
+    gen_pvs = pd.DataFrame(data=0.,index=gens.index,columns=["pvs"])
+    gen_pvs.loc[gens.control=="PV","pvs"] = 1.
+    gen_pvs["name"] = gens.index
 
-    pvs.drop_duplicates("bus",inplace=True)
+    bus_pvs = gen_pvs["pvs"].groupby(gens.bus).sum().reindex(buses.index)
+    bus_pv_names = gen_pvs["name"].groupby(gens.bus).first().reindex(buses.index)
 
-    network.buses.loc[pvs.bus,"control"] = "PV"
-    network.buses.loc[pvs.bus,"generator"] = pvs.index
+    pvs = bus_pv_names[bus_pvs>0]
+
+    network.buses.loc[pvs.index,"control"] = "PV"
+    network.buses.loc[pvs.index,"generator"] = pvs
 
     network.buses.loc[sub_network.slack_bus,"control"] = "Slack"
     network.buses.loc[sub_network.slack_bus,"generator"] = sub_network.slack_generator
@@ -426,6 +438,7 @@ def find_bus_controls(sub_network,verbose=True):
     #order buses
     sub_network.buses_o = pd.concat((buses.loc[[sub_network.slack_bus]],sub_network.pvpqs))
     sub_network.buses_o["i"] = list(range(len(sub_network.buses_o)))
+
 
 
 def calculate_dependent_values(network):
@@ -534,6 +547,7 @@ def calculate_Y(sub_network,verbose=True):
     branches = sub_network.branches()
     buses = sub_network.buses_o
 
+    network = sub_network.network
 
     #following leans heavily on pypower.makeYbus
     #Copyright Richard Lincoln, Ray Zimmerman, BSD-style licence
@@ -559,7 +573,9 @@ def calculate_Y(sub_network,verbose=True):
     Y00 = Y11/tau**2
 
     #bus shunt impedances
-    Y_sh = np.array([sum(sh.g_pu+1.j*sh.b_pu for sh in bus.shunt_impedances().obj) for bus in buses.obj],dtype="complex")
+    b_sh = network.shunt_impedances.b_pu.groupby(network.shunt_impedances.bus).sum().reindex(buses.index,fill_value = 0.)
+    g_sh = network.shunt_impedances.g_pu.groupby(network.shunt_impedances.bus).sum().reindex(buses.index,fill_value = 0.)
+    Y_sh = g_sh + 1.j*b_sh
 
     #get bus indices
     join = pd.merge(branches,buses,how="left",left_on="bus0",right_index=True,suffixes=("","_0"))
@@ -668,18 +684,21 @@ def sub_network_lpf(sub_network,now=None,verbose=True):
     if len(branches) > 0:
         calculate_B_H(sub_network,verbose=verbose)
 
-    #set the power injection at each node
-    for bus in buses.obj:
-        bus.p[now] = sum(g.sign*g.p_set[now] for g in bus.generators().obj) \
-                     + sum(l.sign*l.p_set[now] for l in bus.loads().obj) \
-                     + sum(sh.sign*sh.g_pu for sh in bus.shunt_impedances().obj)
 
-    #power injection should include transport links and converters
-    for t in chain(network.transport_links.obj,network.converters.obj):
-        if t.bus0 in buses.index:
-            buses.obj[t.bus0].p[now] -= t.p0[now]
-        if t.bus1 in buses.index:
-            buses.obj[t.bus1].p[now] -= t.p1[now]
+    #set the power injection at each node
+    network.buses_t.p.loc[now,buses.index] =  pd.DataFrame({list_name :
+                          (getattr(network,list_name+"_t").p_set.loc[now]*getattr(network,list_name).sign)
+                          .groupby(getattr(network,list_name).bus).sum()
+    for list_name in ["generators","loads","storage_units"]})\
+              .sum(axis=1).reindex(buses.index,fill_value = 0.)
+
+    network.buses_t.p.loc[now,buses.index] += (network.shunt_impedances.sign*network.shunt_impedances.g_pu).groupby(network.shunt_impedances.bus).sum().reindex(buses.index,fill_value = 0.)
+
+    network.buses_t.p.loc[now,buses.index] -=  pd.DataFrame({list_name+str(i) :
+                          getattr(getattr(network,list_name+"_t"),"p"+str(i)).loc[now]
+                          .groupby(getattr(getattr(network,list_name),"bus"+str(i))).sum()
+                                    for list_name in ["transport_links","converters"] for i in [0,1]})\
+              .sum(axis=1).reindex(buses.index,fill_value = 0.)
 
 
     p = network.buses_t.p.loc[now,buses.index]
