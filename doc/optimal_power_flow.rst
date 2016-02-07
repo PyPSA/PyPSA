@@ -335,14 +335,14 @@ bus.{v_mag_pu, v_ang, p, marginal_price}
 
 load.{p}
 
-generator.{p, p_nom}
+generator.{p, p_nom_opt}
 
-storage_unit.{p, p_nom, state_of_charge, spill}
+storage_unit.{p, p_nom_opt, state_of_charge, spill}
 
-line.{p0, p1, s_nom}
+line.{p0, p1, s_nom_opt}
 
-transformer.{p0, p1, s_nom}
+transformer.{p0, p1, s_nom_opt}
 
-converter.{p0, p1, s_nom}
+converter.{p0, p1, s_nom_opt}
 
-transport_link.{p0, p1, s_nom}
+transport_link.{p0, p1, s_nom_opt}
