@@ -121,6 +121,16 @@ Include transformer tap ratio and phase shift for trafos in linear pf
 Branch voltage angle difference limits in LOPF
 ----------------------------------------------
 
+Reactive-power-constrained Power Flow
+-------------------------------------
+
+If a PV bus exceeds Q-limits, convert it to PQ at the limit.
+
+Introduced "active" switch/boolean for each component
+-----------------------------------------------------
+
+To allow easy deactivation of components without full removal.
+
 
 Include heating sector
 ----------------------

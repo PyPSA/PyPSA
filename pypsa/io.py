@@ -38,29 +38,6 @@ import pypsa
 import numpy as np
 
 
-def get_cls_from_list_name(list_name):
-    """
-    Get the class from the component list name.
-
-    Parameters
-    ----------
-    list_name : string
-        Name of component list
-
-    Returns
-    -------
-    cls : type
-        Class from pypsa.components
-    """
-
-
-
-
-    for k,v in iteritems(vars(pypsa.components)):
-        if hasattr(v,"list_name") and v.list_name == list_name:
-            return v
-
-
 def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
     """
     Export network and components to a folder of CSVs.
@@ -208,24 +185,29 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     setattr(network,cls.list_name+"_t",pnl)
 
-def import_series_from_dataframe(network,dataframe,list_name,attr):
+
+
+
+def import_series_from_dataframe(network,dataframe,cls_name,attr):
     """
     Import time series from a pandas DataFrame.
 
     Parameters
     ----------
     dataframe : pandas.DataFrame
-    list_name : string
-        Name of components
+    cls_name : string
+        Name of class of component
     attr : string
         Name of series attribute
 
     Examples
     --------
-    >>> import_series_from_dataframe(dataframe,"loads","p_set")
+    >>> import_series_from_dataframe(dataframe,"Load","p_set")
     """
 
-    pnl = getattr(network,list_name+"_t")
+    cls = getattr(pypsa.components,cls_name)
+
+    pnl = getattr(network,cls.list_name+"_t")
 
     pnl.loc[attr].loc[:,dataframe.columns] = dataframe
 
@@ -294,7 +276,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
 
         for file_name in file_attrs:
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0)
-            import_series_from_dataframe(network,df,list_name,file_name[len(list_name)+1:-4])
+            import_series_from_dataframe(network,df,class_name,file_name[len(list_name)+1:-4])
 
         if verbose:
             print(getattr(network,list_name))

@@ -556,18 +556,27 @@ class Network(Basic):
     def add_from(self,object_list):
         """Add objects from a list."""
 
-    def remove(self,obj):
+        raise NotImplementedError("Batch adding of components not implemented yet.")
+
+
+    def remove(self,class_name,name):
         """Remove object from network."""
 
-        cls = obj.__class__
+        try:
+            cls = globals()[class_name]
+        except KeyError:
+            print(class_name,"not found")
+            return None
 
         cls_df = getattr(self,cls.list_name)
 
-        cls_df.drop(obj.name,inplace=True)
+        obj = cls_df.obj[name]
+
+        cls_df.drop(name,inplace=True)
 
         pnl = getattr(self,cls.list_name+"_t")
 
-        pnl.drop(obj.name,axis=2,inplace=True)
+        pnl.drop(name,axis=2,inplace=True)
 
         del obj
 
@@ -610,8 +619,8 @@ class Network(Basic):
 
 
         #remove all old sub_networks
-        for sub_network in self.sub_networks.obj:
-            self.remove(sub_network)
+        for sub_network in self.sub_networks.index:
+            self.remove("SubNetwork",sub_network)
 
         for i, sub_graph in enumerate(sub_graphs):
             #name using i for now

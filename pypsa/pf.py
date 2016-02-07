@@ -662,7 +662,7 @@ averaged).
 
             #remove all but first line
             for line in line_objs[1:]:
-                network.remove(line)
+                network.remove("Line",line.name)
 
             rep = line_objs[0]
 
@@ -781,3 +781,5 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
 
 def network_batch_lpf(network,snapshots=None):
     """Batched linear power flow with numpy.dot for several snapshots."""
+
+    raise NotImplementedError("Batch linear power flow not supported yet.")
