@@ -361,8 +361,10 @@ class Converter(Branch):
 
     list_name = "converters"
 
-    p_min = Float()
-    p_max = Float()
+    #limits per unit of s_nom
+    p_min_pu = Float(-1.)
+    p_max_pu = Float(1.)
+
     p_set = Series()
 
 class TransportLink(Branch):
@@ -373,8 +375,10 @@ class TransportLink(Branch):
 
     list_name = "transport_links"
 
-    p_min = Float()
-    p_max = Float()
+    #limits per unit of s_nom
+    p_min_pu = Float(-1.)
+    p_max_pu = Float(1.)
+
     p_set = Series()
 
 

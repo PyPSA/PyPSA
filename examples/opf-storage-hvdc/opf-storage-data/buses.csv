@@ -1,7 +1,7 @@
-name,control,v_nom,sub_network,v_mag_max,y,current_type,v_mag_min,x,obj
-0,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 0
-1,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 1
-2,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 2
-3,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 3
-4,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 4
-5,PQ,380.0,,,0.0,AC,0.0,0.0,Bus 5
+name,v_nom,x,v_mag_pu_min,v_mag_pu_max,y,sub_network,current_type,control,obj
+0,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 0
+1,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 1
+2,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 2
+3,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 3
+4,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 4
+5,380.0,0.0,0.0,,0.0,,AC,PQ,Bus 5

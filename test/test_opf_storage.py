@@ -51,7 +51,8 @@ def test_opf():
 
 
     network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                               "storage_units" : {"p" : None}})
+                                                                  "storage_units" : {"p" : None},
+                                                                  "transport_links" : {"p0" : None}})
 
     good_results_filename =  os.path.join(csv_folder_name,"results","generators-p.csv")
 

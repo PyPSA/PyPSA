@@ -1,7 +1,7 @@
-name,bus,sign,control,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom_max,p_nom,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost,standing_loss,cyclic_state_of_charge,max_hours,efficiency_store,state_of_charge_initial,efficiency_dispatch,obj
-Storage 0,0,1.0,PQ,-1.0,670.467510178,True,flexible,,0.0,0.0,1.0,1.0,battery,0.109550372792,0.01,False,6.0,0.9,0.0,0.95,StorageUnit Storage 0
-Storage 1,1,1.0,PQ,-1.0,313.424178159,False,flexible,,25.0,0.0,1.0,1.0,battery,3.87304630288,0.01,False,6.0,0.9,0.0,0.95,StorageUnit Storage 1
-Storage 2,2,1.0,PQ,-1.0,878.142503429,True,flexible,,183.157133702,0.0,1.0,1.0,battery,0.679321678258,0.01,True,6.0,0.9,0.0,0.95,StorageUnit Storage 2
-Storage 3,3,1.0,PQ,-1.0,686.500927682,True,flexible,,8.33333333333,0.0,1.0,1.0,battery,1.26206252402,0.01,False,6.0,0.9,0.0,0.95,StorageUnit Storage 3
-Storage 4,4,1.0,PQ,-1.0,789.279328451,True,flexible,,2045.13861459,0.0,1.0,1.0,battery,1.12177596826,0.01,True,6.0,0.9,0.0,0.95,StorageUnit Storage 4
-Storage 5,5,1.0,PQ,-1.0,19.3669578703,True,flexible,,804.446055055,0.0,1.0,1.0,battery,0.520114288473,0.01,False,6.0,0.9,0.0,0.95,StorageUnit Storage 5
+name,bus,capital_cost,control,cyclic_state_of_charge,dispatch,efficiency,efficiency_dispatch,efficiency_store,marginal_cost,max_hours,obj,p_max_pu_fixed,p_min_pu_fixed,p_nom,p_nom_extendable,p_nom_max,p_nom_min,p_nom_opt,sign,source,standing_loss,state_of_charge_initial
+Storage 0,0,670.4675101784022,PQ,False,flexible,1.0,0.95,0.9,0.10955037279170464,6.0,StorageUnit Storage 0,1.0,-1.0,0.0,True,,0.0,0.0,1.0,battery,0.01,0.0
+Storage 1,1,313.42417815924284,PQ,False,flexible,1.0,0.95,0.9,3.87304630287759,6.0,StorageUnit Storage 1,1.0,-1.0,25.0,False,,0.0,25.0,1.0,battery,0.01,0.0
+Storage 2,2,878.1425034294133,PQ,True,flexible,1.0,0.95,0.9,0.6793216782582756,6.0,StorageUnit Storage 2,1.0,-1.0,0.0,True,,0.0,554.325629723585,1.0,battery,0.01,0.0
+Storage 3,3,686.5009276815838,PQ,False,flexible,1.0,0.95,0.9,1.2620625240242518,6.0,StorageUnit Storage 3,1.0,-1.0,0.0,True,,0.0,8.33333333333333,1.0,battery,0.01,0.0
+Storage 4,4,789.2793284514885,PQ,True,flexible,1.0,0.95,0.9,1.1217759682576207,6.0,StorageUnit Storage 4,1.0,-1.0,0.0,True,,0.0,1996.48772791152,1.0,battery,0.01,0.0
+Storage 5,5,19.366957870297075,PQ,False,flexible,1.0,0.95,0.9,0.5201142884731107,6.0,StorageUnit Storage 5,1.0,-1.0,0.0,True,,0.0,754.96439960325,1.0,battery,0.01,0.0

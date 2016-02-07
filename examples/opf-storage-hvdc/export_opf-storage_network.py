@@ -97,10 +97,9 @@ for i in range(2):
     network.add("TransportLink","TL %d" % (i),
                 bus0=str(i),
                 bus1=str(3+i),
-                p_nom=1000,
-                p_max=900,
-                p_min=-900,
-                s_nom=0,
+                p_max_pu=0.9,
+                p_min_pu=-0.9,
+                s_nom=1000,
                 capital_cost=0.2*np.random.random(),
                 s_nom_min=0,
                 s_nom_extendable=True)

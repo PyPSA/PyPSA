@@ -269,7 +269,11 @@ def define_controllable_branch_flows(network,snapshots):
 
     fixed_branches = controllable_branches[~ controllable_branches.s_nom_extendable]
 
-    bounds = {(cb[0],cb[1],sn) : (fixed_branches.p_min[cb],fixed_branches.p_max[cb]) for cb in fixed_branches.index for sn in snapshots}
+    fixed_lower = fixed_branches.p_min_pu*fixed_branches.s_nom
+
+    fixed_upper = fixed_branches.p_max_pu*fixed_branches.s_nom
+
+    bounds = {(cb[0],cb[1],sn) : (fixed_lower[cb],fixed_upper[cb]) for cb in fixed_branches.index for sn in snapshots}
     bounds.update({(cb[0],cb[1],sn) : (None,None) for cb in extendable_branches.index for sn in snapshots})
 
     def cb_p_bounds(model,cb_type,cb_name,snapshot):
@@ -278,13 +282,13 @@ def define_controllable_branch_flows(network,snapshots):
     network.model.controllable_branch_p = Var(list(controllable_branches.index), snapshots, domain=Reals, bounds=cb_p_bounds)
 
     def cb_p_upper(model,cb_type,cb_name,snapshot):
-        return model.controllable_branch_p[cb_type,cb_name,snapshot] <= model.branch_s_nom[cb_type,cb_name]
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] <= model.branch_s_nom[cb_type,cb_name]*extendable_branches.at[(cb_type,cb_name),"p_max_pu"]
 
     network.model.controllable_branch_p_upper = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_upper)
 
 
     def cb_p_lower(model,cb_type,cb_name,snapshot):
-        return model.controllable_branch_p[cb_type,cb_name,snapshot] >= -model.branch_s_nom[cb_type,cb_name]
+        return model.controllable_branch_p[cb_type,cb_name,snapshot] >= model.branch_s_nom[cb_type,cb_name]*extendable_branches.at[(cb_type,cb_name),"p_min_pu"]
 
     network.model.controllable_branch_p_lower = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_lower)
 
