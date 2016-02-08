@@ -81,6 +81,8 @@ analysis. PyPSA is free software and can be arbitrarily extended.
 Other comparable software
 =========================
 
+For a full list see :doc:`comparable_software`.
+
 PyPSA is not as fully featured as other power system simulation tools
 such as the Matlab-based free software `PSAT
 <http://faraday1.ucd.ie/psat.html>`_ or the commercial package

@@ -15,6 +15,7 @@ Contents:
    introduction
    installation
    quick_start
+   user_guide
    design
    components
    import_export
@@ -25,7 +26,10 @@ Contents:
    pitfalls
    unit_testing
    todo
-
+   comparable_software
+   developers
+   release_notes
+   mailing_list
 
 Indices and tables
 ==================
