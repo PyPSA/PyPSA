@@ -24,7 +24,7 @@ from __future__ import absolute_import
 from six.moves import range
 
 
-from pyomo.environ import Constraint
+from pyomo.environ import Constraint, Objective
 
 import pyomo
 
@@ -36,26 +36,36 @@ __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 
 
 def l_constraint(model,name,constraints,*args):
-    """A replacement for pyomo's Constraint that quickly builds linear
-constraints.
+    """
+    A replacement for pyomo's Constraint that quickly builds linear
+    constraints.
 
-Instead of
+    Instead of
 
-model.constraint_name = Constraint(index1,index2,...,rule=f)
+    model.name = Constraint(index1,index2,...,rule=f)
 
-call instead
+    call instead
 
-l_constraint(model,constraint_name,const_dict,index1,index2,...)
+    l_constraint(model,name,constraints,index1,index2,...)
 
-where
+    where constraints is a dictionary of constraints of the form:
 
-const_dict is a dictionary of constraints of the form
+    constraints[i] = [[(coeff1,var1),(coeff2,var2),...],sense,constant_term]
 
-const_dict[i] = [[(coeff1,var1),(coeff2,var2),...],sense,constant_term]
+    i.e. the first argument is a list of tuples with the variables and their
+    coefficients, the second argument is the sense string (must be one of
+    "==","<=",">=") and the third argument is the constant term (a float).
 
-sense is one of "==","<=",">=".
 
-I.e. variable coefficients are stored as a list of tuples.
+
+    Parameters
+    ----------
+    model : pyomo.environ.ConcreteModel
+    name : "string"
+        Name of constraints
+    constraints : dict
+        A dictionary of constraints (see format above)
+    args : indexes of the constraints
 
     """
 
@@ -80,3 +90,34 @@ I.e. variable coefficients are stored as a list of tuples.
             v._data[i]._equality = False
             v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(c[2])
             v._data[i]._upper = None
+
+
+def l_objective(model,linear_part,constant=0.):
+    """
+    A replacement for pyomo's Objective that quickly builds linear
+    objectives.
+
+    Instead of
+
+    model.objective = Objective(expr=sum(vars[i]*coeffs[i] for i in index)+constant)
+
+    call instead
+
+    l_objective(model,[(vars[i],coeffs[i]) for i in index],constant)
+
+
+    Parameters
+    ----------
+    model : pyomo.environ.ConcreteModel
+    linear_part : list of 2-tuples
+    constant : float
+
+    """
+
+    #initialise with a dummy
+    model.objective = Objective(expr = 0.)
+
+    model.objective._expr = pyomo.core.base.expr_coopr3._SumExpression()
+    model.objective._expr._args = [item[1] for item in linear_part]
+    model.objective._expr._coef = [item[0] for item in linear_part]
+    model.objective._expr._const = constant

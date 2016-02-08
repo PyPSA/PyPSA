@@ -36,7 +36,7 @@ from pyomo.opt import SolverFactory
 
 from .pf import calculate_dependent_values, find_slack_bus
 
-from .opt import l_constraint
+from .opt import l_constraint, l_objective
 
 from itertools import chain
 from distutils.version import StrictVersion
@@ -405,21 +405,36 @@ def define_co2_constraint(network,snapshots):
 
 def define_linear_objective(network,snapshots):
 
-    extendable_generators = network.generators[network.generators.p_nom_extendable].obj
+    model = network.model
 
-    ext_sus = network.storage_units[network.storage_units.p_nom_extendable].obj
+    extendable_generators = network.generators[network.generators.p_nom_extendable]
+
+    ext_sus = network.storage_units[network.storage_units.p_nom_extendable]
 
     branches = network.branches()
 
-    extendable_branches = branches[branches.s_nom_extendable].obj
+    extendable_branches = branches[branches.s_nom_extendable]
 
-    network.model.objective = Objective(expr=sum(gen.marginal_cost*network.model.generator_p[gen.name,snapshot]*network.snapshot_weightings[snapshot] for gen in network.generators.obj for snapshot in snapshots)\
-                                        + sum(su.marginal_cost*network.model.storage_p_dispatch[su.name,snapshot]*network.snapshot_weightings[snapshot] for su in network.storage_units.obj for snapshot in snapshots)\
-                                        + sum(gen.capital_cost*(network.model.generator_p_nom[gen.name] - gen.p_nom) for gen in extendable_generators)\
-                                        + sum(su.capital_cost*(network.model.storage_p_nom[su.name] - su.p_nom) for su in ext_sus)\
-                                        + sum(branch.capital_cost*(network.model.branch_s_nom[branch.__class__.__name__,branch.name] - branch.s_nom) for branch in extendable_branches))
+    terms = []
+    constant = 0.
+
+    terms.extend([(network.generators.at[gen,"marginal_cost"]*network.snapshot_weightings[sn],model.generator_p[gen,sn]) for gen in network.generators.index for sn in snapshots])
+
+    terms.extend([(network.storage_units.at[su,"marginal_cost"]*network.snapshot_weightings[sn],model.storage_p_dispatch[su,sn]) for su in network.storage_units.index for sn in snapshots])
+
+    #NB: for capital costs we subtract the costs of existing infrastructure p_nom/s_nom
+
+    terms.extend([(extendable_generators.at[gen,"capital_cost"],model.generator_p_nom[gen]) for gen in extendable_generators.index])
+    constant -= (extendable_generators.capital_cost*extendable_generators.p_nom).sum()
+
+    terms.extend([(ext_sus.at[su,"capital_cost"],model.storage_p_nom[su]) for su in ext_sus.index])
+    constant -= (ext_sus.capital_cost*ext_sus.p_nom).sum()
+
+    terms.extend([(extendable_branches.at[b,"capital_cost"],model.branch_s_nom[b]) for b in extendable_branches.index])
+    constant -= (extendable_branches.capital_cost*extendable_branches.s_nom).sum()
 
 
+    l_objective(model,terms,constant)
 
 
 def extract_optimisation_results(network,snapshots):
