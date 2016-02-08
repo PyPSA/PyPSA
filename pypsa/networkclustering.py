@@ -45,7 +45,7 @@ def _haversine(coords):
 def aggregatebuses(network, busmap):
     columns = set(network.component_simple_descriptors[components.Bus])
     strategies = dict(x=np.mean, y=np.mean,
-                      v_mag_max=np.min, v_mag_min=np.max, v_nom=np.max,
+                     v_nom=np.max,
                       v_mag_pu_max=np.min, v_mag_pu_min=np.max)
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
 
