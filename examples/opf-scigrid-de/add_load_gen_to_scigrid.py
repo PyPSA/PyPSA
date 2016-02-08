@@ -9,8 +9,7 @@
 
 
 # make the code as Python 3 compatible as possible                                                                                          
-from __future__ import print_function, division
-from __future__ import absolute_import
+from __future__ import print_function, division,absolute_import
 
 
 import pypsa
@@ -116,9 +115,9 @@ for sn in network.sub_networks.obj:
     if len(buses) < 5:
         print(branches,sn.buses)
         for bus in buses.obj:
-            network.remove(bus)
+            network.remove("Bus",bus.name)
         for branch in branches.obj:
-            network.remove(branch)
+            network.remove("Line",branch.name)
 network.build_graph()
 
 network.determine_network_topology()                
@@ -129,9 +128,9 @@ network.determine_network_topology()
 #import FIAS libraries for attaching data - sorry, not free software yet
 
 try:
-    import vresutils
+    import vresutils, load
 except:
-    print("Oh dear! You don't have vresutils, so you cannot add load :-(")
+    print("Oh dear! You don't have FIAS libraries, so you cannot add load :-(")
 
 
 # In[13]:
@@ -141,61 +140,36 @@ from vresutils import shapes as vshapes
 from vresutils import grid as vgrid
 from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
+from load import germany as DEload
 
 
 # In[14]:
 
 
-#bounding poly for Germany
+#bounding poly for Germany for the Voronoi - necessary
+#because some SciGRID points lie outside border vshapes.germany()
 poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
 
 
 # In[15]:
 
+
+#add positions to graph for voronoi cell computation
 for bus in network.buses.obj:
     network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
 
 
 # In[16]:
 
-region = vshapes.germany()
-#print(region.convex_hull)
-
-
-# In[17]:
-
 vgraph.voronoi_partition(network.graph, poly)
 
 
 # In[18]:
 
-network.graph.node[network.buses.index[0]]["region"]
+load = DEload.timeseries(network.graph, years=[2011, 2012, 2013, 2014])
 
 
 # In[19]:
-
-import load.germany as DEload
-
-
-# In[20]:
-
-type(network.graph)
-
-
-# In[21]:
-
-import networkx
-#DEload only works on non-MultiGraph
-g= networkx.Graph(network.graph)
-
-
-# In[22]:
-
-load = DEload.timeseries(g, years=[2011, 2012, 2013, 2014])
-
-
-
-# In[23]:
 
 import datetime
 start = datetime.datetime(2011,1,1)
@@ -209,38 +183,28 @@ print(network.snapshots)
 
 # In[24]:
 
-load[:len(network.snapshots),2].shape
-
-
-# In[25]:
-
 for i,bus in enumerate(network.buses.obj):
     network.add("Load",bus.name,bus=bus.name,p_set = pd.Series(data=1000*load[:len(network.snapshots),i],index=network.snapshots))
 
 
 # In[26]:
 
-print(len(network.loads))
+#%matplotlib inline
 
 
 # In[27]:
 
-get_ipython().magic(u'matplotlib inline')
+pd.DataFrame(load.sum(axis=1)).plot()
 
 
 # In[28]:
 
-pd.DataFrame(load.sum(axis=1)).plot()
+load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
 
 
 # In[29]:
 
-[k.osm_name for k,v in iteritems(network.graph.node) if 'region' not in v]
-
-
-# In[30]:
-
-#cap = vdispatch.backup_capacity_german_grid(network.graph)
+network.plot(bus_sizes=load_distribution)
 
 
 # In[31]:
@@ -325,4 +289,9 @@ time_series = {"loads" : {"p_set" : None}}
 
 
 network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
+
+
+# In[ ]:
+
+
 

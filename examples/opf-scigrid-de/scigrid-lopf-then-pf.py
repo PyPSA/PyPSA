@@ -73,6 +73,8 @@ network.lopf()
 
 # In[7]:
 
+network.lines["s_nom"] = network.lines["s_nom_opt"]
+
 print("The following lines were extended:")
 
 print(network.lines[["bus0","bus1","s_nom_old","s_nom"]][abs(network.lines["s_nom"] - network.lines["s_nom_old"]) > 0.1])
@@ -80,11 +82,17 @@ print(network.lines[["bus0","bus1","s_nom_old","s_nom"]][abs(network.lines["s_no
 
 # In[8]:
 
+print("With the non-linear load flow, there is the following per unit overloading:")
+print((network.lines_t.p0.loc[network.now]/network.lines.s_nom).describe())
+
+
+# In[9]:
+
 #For the PF, set the P to the optimised P
 network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now] 
 
 
-# In[9]:
+# In[10]:
 
 
 #set all buses to PV, since we don't know what Q set points are
@@ -99,7 +107,7 @@ f = network.generators[network.generators.bus == "492"]
 network.generators.loc[f.index,"control"] = "PQ"
 
 
-# In[10]:
+# In[11]:
 
 
 print("Performing non-linear PF on results of LOPF:")
@@ -107,13 +115,13 @@ print("Performing non-linear PF on results of LOPF:")
 network.pf()
 
 
-# In[11]:
+# In[12]:
 
 print("With the non-linear load flow, there is the following per unit overloading:")
 print((network.lines_t.p0.loc[network.now]/network.lines.s_nom).describe())
 
 
-# In[12]:
+# In[13]:
 
 df = network.lines.copy()
 
@@ -124,8 +132,13 @@ for b in ["bus0","bus1"]:
 s = df[str(network.now)+"_x"]- df[str(network.now)+"_y"]
 
 
-# In[13]:
+# In[14]:
 
 print("The voltage angle differences across the lines have (in degrees):")
 print((s*180/np.pi).describe())
+
+
+# In[ ]:
+
+
 

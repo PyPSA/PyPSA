@@ -1,4 +1,4 @@
-name,control,current_type,frequency,obj,operator,osm_name,ref,sub_network,typ,v_mag_max,v_mag_min,v_nom,voltage,wkt_srid_4326,x,y
+name,control,current_type,frequency,obj,operator,osm_name,ref,sub_network,typ,v_mag_pu_max,v_mag_pu_min,v_nom,voltage,wkt_srid_4326,x,y
 1,PQ,AC,50,Bus 1,TenneT;EON_Netz,Hannover/West,,0,substation,,0.0,380.0,220000;110000,SRID=4326;POINT(9.52257596986262 52.3604090557601),9.52257596986,52.3604090558
 2,PQ,AC,50,Bus 2,TenneT,Umspannwerk Kraftwerk Robert Frank,,0,substation,,0.0,380.0,220000,SRID=4326;POINT(9.11321007472722 52.5438533223737),9.11321007473,52.5438533224
 3,PQ,AC,50,Bus 3,TenneT,UW Grohnde 380 kV / 110 kV,,0,substation,,0.0,380.0,380000;110000,SRID=4326;POINT(9.38974509624863 52.0263130660355),9.38974509625,52.026313066
