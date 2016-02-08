@@ -685,6 +685,9 @@ class Network(Basic):
         #reset the graph
         self.graph = OrderedGraph()
 
+        #add nodes first, in case there are isolated buses not connected with branches
+        self.graph.add_nodes_from(self.buses.index)
+
         #Multigraph uses object itself as key
         self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches().obj)
 
