@@ -176,7 +176,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     pnl = getattr(network,cls.list_name+"_t")
 
-    pnl = pnl.reindex(minor_axis=pnl.minor_axis|dataframe.index)
+    pnl = pnl.reindex(minor_axis=pnl.minor_axis.append(dataframe.index))
 
     for k,v in network.component_series_descriptors[cls].items():
         pnl.loc[k,:,dataframe.index] = v.default

@@ -611,7 +611,7 @@ class Network(Basic):
         #now deal with time-dependent variables
         pnl = getattr(self,cls.list_name+"_t")
 
-        pnl = pnl.reindex(minor_axis=pnl.minor_axis|{obj.name})
+        pnl = pnl.reindex(minor_axis=pnl.minor_axis.append(pd.Index([obj.name])))
 
         setattr(self,cls.list_name+"_t",pnl)
 
