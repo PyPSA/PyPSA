@@ -29,6 +29,6 @@ from .components import Network, Bus, Load, Generator, Line, Transformer, Conver
 from . import components, pf, opf, plot, networkclustering, io
 
 
-__version__ = "0.3"
+__version__ = "0.3.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"

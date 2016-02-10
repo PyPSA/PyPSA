@@ -11,13 +11,13 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.3',
-    author='Tom Brown (FIAS), Jonas Hoersch (FIAS)',
+    version='0.3.1',
+    author='Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)',
     author_email='brown@fias.uni-frankfurt.de',
     description='Python for Power Systems Analysis',
     long_description=long_description,
     url='https://github.com/FRESNA/PyPSA',
-    license='GPLv2',
+    license='GPLv3',
     packages=find_packages(exclude=['doc', 'test']),
     install_requires=['numpy','pyomo','scipy','pandas','networkx>=1.10'],
     classifiers=[
