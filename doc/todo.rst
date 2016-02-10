@@ -113,6 +113,17 @@ Need one slack
 Generic branch impedance component
 ----------------------------------
 
+Option to separate optimisation of max state of charge from nominal power for storage
+-------------------------------------------------------------------------------------
+
+For storage units, the maximum state of charge is currently fixed by
+the "max_hours" variable multiplied by the nominal power "p_nom"
+("p_nom" can be optimised). It would be nice to include the option to
+de-link p_nom and state_of_charge_max and optimise them separately
+with separate costs.
+
+
+
 Include transformer tap ratio and phase shift for trafos in linear pf
 ---------------------------------------------------------------------
 

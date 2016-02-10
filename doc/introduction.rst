@@ -44,13 +44,13 @@ It has models for:
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
+* hydroelectricity with inflow and spillage
 
 
 
 Functionality that will definitely by added soon (see also :doc:`todo`):
 
 * Graphical plotting of networks with power flow
-* Better modelling of hydroelectricity
 * Integration of heating sector (CHPs, heat pumps, etc.)
 * Security Constrained Linear OPF
 * Simple RMS simulations with the swing equation

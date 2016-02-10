@@ -22,17 +22,17 @@ Use an existing example
     network.lopf(snapshots=network.snapshots,solver_name=solver_name)
 
 
-    print(network.generators.p_nom)
+    print(network.generators.p_nom_opt)
 
-    print(network.generators.p)
+    print(network.generators_t.p)
 
-    print(network.storage_units.p_nom)
+    print(network.storage_units.p_nom_opt)
 
-    print(network.storage_units.p)
+    print(network.storage_units_t.p)
 
-    print(network.lines.s_nom)
+    print(network.lines.s_nom_opt)
 
-    print(network.lines.p0)
+    print(network.lines_t.p0)
 
 
 Build a minimal network for power flow

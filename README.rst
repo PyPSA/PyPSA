@@ -3,7 +3,6 @@
 Python for Power Systems Analysis
 =================================
 
-
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is a `free software
@@ -11,13 +10,6 @@ PyPSA is a `free software
 simulating and optimising modern electric power systems that include
 features such as variable wind and solar generation, storage units and
 mixed alternating and direct current networks.
-
-Documentation can be found in `sphinx
-<http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
-`doc/ <doc/>`_ and as a `website
-<http://pypsa.org/doc/>`_ and as a `pdf
-<http://pypsa.org/doc/PyPSA.pdf>`_.
-
 
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
@@ -29,6 +21,17 @@ PyPSA was initially developed by the `Renewable Energy Group
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 German Federal Ministry for Education and Research (BMBF).
+
+
+Documentation
+=============
+
+Documentation can be found in `sphinx
+<http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
+`doc/ <doc/>`_ and as a `website
+<http://pypsa.org/doc/>`_ and as a `pdf
+<http://pypsa.org/doc/PyPSA.pdf>`_.
+
 
 
 What PyPSA does and does not do (yet)
@@ -53,13 +56,12 @@ It has models for:
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
-
+* hydroelectricity with inflow and spillage
 
 
 Functionality that will definitely by added soon (see also `doc/todo.rst <doc/todo.rst>`_):
 
 * Graphical plotting of networks with power flow
-* Better modelling of hydroelectricity
 * Integration of heating sector (CHPs, heat pumps, etc.)
 * Security Constrained Linear OPF
 * Simple RMS simulations with the swing equation
