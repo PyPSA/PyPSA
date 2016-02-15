@@ -44,11 +44,46 @@ import pandas as pd
 
 import inspect
 
-class OrderedGraph(nx.MultiGraph):
-    node_dict_factory = OrderedDict
-    adjlist_dict_factory = OrderedDict
+from distutils.version import StrictVersion, LooseVersion
+try:
+    _nx_version = StrictVersion(nx.__version__)
+except ValueError:
+    _nx_version = LooseVersion(nx.__version__)
 
+if _nx_version >= '1.12':
+    class OrderedGraph(nx.MultiGraph):
+        node_dict_factory = OrderedDict
+        adjlist_dict_factory = OrderedDict
+elif _nx_version >= '1.10':
+    class OrderedGraph(nx.MultiGraph):
+        node_dict_factory = OrderedDict
+        adjlist_dict_factory = OrderedDict
 
+        def __init__(self, data=None, **attr):
+            self.node_dict_factory = ndf = self.node_dict_factory
+            self.adjlist_dict_factory = self.adjlist_dict_factory
+            self.edge_attr_dict_factory = self.edge_attr_dict_factory
+
+            self.graph = {}   # dictionary for graph attributes
+            self.node = ndf()  # empty node attribute dict
+            self.adj = ndf()  # empty adjacency dict
+            # attempt to load graph with data
+            if data is not None:
+                if isinstance(data, OrderedGraph):
+                    try:
+                        nx.convert.from_dict_of_dicts(
+                            data.adj,
+                            create_using=self,
+                            multigraph_input=data.is_multigraph()
+                        )
+                        self.graph = data.graph.copy()
+                        self.node.update((n,d.copy()) for n,d in data.node.items())
+                    except:
+                        raise nx.NetworkXError("Input is not a correct NetworkX graph.")
+                else:
+                    nx.convert.to_networkx_graph(data, create_using=self)
+else:
+    raise ImportError("NetworkX version {} is too old. At least 1.10 is needed.".format(nx.__version__))
 
 #Some descriptors to control variables - idea is to do type checking
 #and in future facilitate interface with Database / GUI
