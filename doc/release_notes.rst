@@ -2,6 +2,21 @@
 Release Notes
 #######################
 
+
+PyPSA 0.3.2
+===========
+
+In this release some minor API changes were made:
+
+* The Newton-Raphson tolerance ``network.nr_x_tol`` was moved to being
+  an argument of the function ``network.pf(x_tol=1e-6)`` instead. This
+  makes more sense and is then available in the docstring of
+  ``network.pf``.
+* Following similar reasoning ``network.opf_keep_files`` was moved to
+  being an argument of the function
+  ``network.lopf(keep_files=False)``.
+
+
 PyPSA 0.3.1
 ===========
 

@@ -24,6 +24,8 @@ from __future__ import print_function, division
 from __future__ import absolute_import
 from six import iteritems
 
+import pandas as pd
+
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -44,7 +46,8 @@ except:
 
 
 def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
-         line_colors={},bus_sizes={},line_widths={}):
+         line_colors={},bus_sizes={},line_widths={},title="",
+         line_cmap=None,bus_cmap=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -64,6 +67,16 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
         Colors for the lines, defaults to "g"
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 2
+    title : string
+        Graph title
+    line_cmap : plt.cm.ColorMap
+        If line_colors are floats, this color map will assign the colors
+    bus_cmap : plt.cm.ColorMap
+        If bus_colors are floats, this color map will assign the colors
+
+    Returns
+    -------
+    ax : matplotlib axis
     """
 
     if not plt_present:
@@ -100,8 +113,11 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
 
     s = [bus_sizes.get(bus,10) for bus in network.buses.index]
 
-    ax.scatter(x, y,c=c,s=s)
+    ax.scatter(x, y,c=c,s=s,cmap=bus_cmap)
 
+    if line_cmap is not None:
+        line_nums = pd.Series(line_colors,index=network.lines.index)
+        line_colors = pd.DataFrame(line_cmap(line_nums.values),index=network.lines.index)
 
     #should probably use LineCollection here instead
     for line in network.lines.obj:
@@ -112,8 +128,15 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
 
         if basemap and basemap_present:
             x,y = bmap(x,y)
-        color = line_colors.get(line.name,"g")
+        if type(line_colors) == pd.DataFrame:
+            color = line_colors.loc[line.name]
+        else:
+            color = line_colors.get(line.name,"g")
         alpha = 0.7
         width = line_widths.get(line.name,2.)
 
         ax.plot(x,y,color=color,alpha=alpha,linewidth=width)
+
+    ax.set_title(title)
+
+    return ax

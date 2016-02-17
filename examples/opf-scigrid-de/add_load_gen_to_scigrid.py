@@ -1,11 +1,6 @@
-
-# coding: utf-8
-
-# # Script to add load and generators to SciGRID
-# 
-# Load based on Landkreise, power plants from the BNetzA list.
-
-# In[1]:
+## Script to add load and generators to SciGRID
+#
+#Load based on Landkreise, power plants from the BNetzA list.
 
 
 # make the code as Python 3 compatible as possible                                                                                          
@@ -23,13 +18,7 @@ from six.moves import range
 
 import os
 
-
-# In[2]:
-
 folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/"
-
-
-# In[3]:
 
 #note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(folder_prefix+"scigrid-151109/vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
@@ -37,9 +26,6 @@ vertices = pd.read_csv(folder_prefix+"scigrid-151109/vertices_de_power_151109.cs
 vertices["v_nom"] = 380.
 
 vertices.rename(columns={"lon":"x","lat":"y","name":"osm_name"},inplace=True)
-
-
-# In[4]:
 
 links = pd.read_csv(folder_prefix+"scigrid-151109/links_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 links.rename(columns={"v_id_1":"bus0","v_id_2":"bus1","name":"osm_name"},inplace=True)
@@ -65,28 +51,13 @@ links["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["
 
 links["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
 
-
-# In[5]:
-
 print(links["voltage"].value_counts(dropna=False))
-
-
-# In[6]:
 
 print(links[links["length_m"] <=0])
 
-
-# In[7]:
-
 print(links[(links["voltage"] != 220000) & (links["voltage"] != 380000)])
 
-
-# In[8]:
-
 print(links[pd.isnull(links.cables)])
-
-
-# In[9]:
 
 network = pypsa.Network()
 
@@ -94,13 +65,7 @@ pypsa.io.import_components_from_dataframe(network,vertices,"Bus")
 
 pypsa.io.import_components_from_dataframe(network,links,"Line")
 
-
-# In[10]:
-
 network.lines[["b","x","r","b_pu","x_pu","r_pu"]]
-
-
-# In[11]:
 
 network.build_graph()
 
@@ -122,9 +87,6 @@ network.build_graph()
 
 network.determine_network_topology()                
 
-
-# In[12]:
-
 #import FIAS libraries for attaching data - sorry, not free software yet
 
 try:
@@ -132,8 +94,7 @@ try:
 except:
     print("Oh dear! You don't have FIAS libraries, so you cannot add load :-(")
 
-
-# In[13]:
+import load
 
 from vresutils import graph as vgraph
 from vresutils import shapes as vshapes
@@ -143,79 +104,122 @@ from shapely.geometry import Polygon
 from load import germany as DEload
 
 
-# In[14]:
-
-
 #bounding poly for Germany for the Voronoi - necessary
 #because some SciGRID points lie outside border vshapes.germany()
 poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
-
-
-# In[15]:
 
 
 #add positions to graph for voronoi cell computation
 for bus in network.buses.obj:
     network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
 
-
-# In[16]:
+network.graph.name = "scigrid"
 
 vgraph.voronoi_partition(network.graph, poly)
 
-
-# In[18]:
-
+#NB: starts at midnight CET, 23:00 UTC
 load = DEload.timeseries(network.graph, years=[2011, 2012, 2013, 2014])
 
-
-# In[19]:
-
-import datetime
-start = datetime.datetime(2011,1,1)
-n_hours = 24
-network.set_snapshots([start + datetime.timedelta(hours=i) for i in range(n_hours)])
+#Take the first day (in UTC time - we don't set time zone because of a Pandas bug)
+network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-01-01 23:00",freq="H"))
 
 network.now = network.snapshots[0]
 
 print(network.snapshots)
 
-
-# In[24]:
-
-for i,bus in enumerate(network.buses.obj):
-    network.add("Load",bus.name,bus=bus.name,p_set = pd.Series(data=1000*load[:len(network.snapshots),i],index=network.snapshots))
-
-
-# In[26]:
+for bus in network.buses.obj:
+    network.add("Load",bus.name,bus=bus.name,
+                p_set = pd.Series(data=1000*load.loc[load.index[1:25],bus.name],index=network.snapshots))
 
 #%matplotlib inline
 
-
-# In[27]:
-
 pd.DataFrame(load.sum(axis=1)).plot()
-
-
-# In[28]:
 
 load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
 
-
-# In[29]:
-
 network.plot(bus_sizes=load_distribution)
 
+from vresutils import shapes as vshapes
 
-# In[31]:
+def read_kraftwerksliste(with_latlon=True):                                                                              
+                                                                                                              
+    kraftwerke = pd.read_csv('../../lib/vresutils/data/Kraftwerksliste_CSV_deCP850ed.csv',                                         
+                             delimiter=';', encoding='utf-8', thousands='.', decimal=',')                                
+    def sanitize_names(x):                                                                                               
+        try:                                                                                                             
+            x = x[:x.index('(')]                                                                                         
+        except ValueError:                                                                                               
+            pass                                                                                                         
+        return x.replace(u'\n', u' ').strip()
+    kraftwerke.columns = kraftwerke.columns.map(sanitize_names)
+    
+    def sanitize_plz(x):
+        try:
+            x = x.strip()
+            if len(x) > 5:
+                x = x[:5]
+            return float(x)
+        except (ValueError, AttributeError):
+            return np.NAN
+    kraftwerke.PLZ = kraftwerke.PLZ.apply(sanitize_plz)
+    if with_latlon:
+        postcodes = {pc: sh.centroid
+                     for pc, sh in iteritems(vshapes.postcodeareas())
+                     if sh is not None}
+        kraftwerke['lon'] = kraftwerke.PLZ.map({pc: c.x for pc, c in iteritems(postcodes)})
+        kraftwerke['lat'] = kraftwerke.PLZ.map({pc: c.y for pc, c in iteritems(postcodes)})
+        #kraftwerke.dropna(subset=('lon','lat'), inplace=True)                                                           
+
+    kraftwerke[u'Type'] = kraftwerke[u"Auswertung Energieträger"].map({
+        u'Erdgas': u'Gas',
+        u'Grubengas': u'Gas',
+        u'Laufwasser': u'Run of River',
+        u'Pumpspeicher': u'Pumped Hydro',
+        u'Speicherwasser (ohne Pumpspeicher)': u'Storage Hydro',
+        u'Mineralölprodukte': u'Oil',
+        u'Steinkohle': u'Hard Coal',
+        u'Braunkohle': u'Brown Coal',
+        u'Abfall': u'Waste',
+        u'Kernenergie': u'Nuclear',
+        u'Sonstige Energieträger\n(nicht erneuerbar) ': u'Other',
+        u'Mehrere Energieträger\n(nicht erneuerbar)': u'Multiple',
+        u'Biomasse' : u'Biomass',
+        u'Deponiegas' : u'Gas',
+        u'Klärgas' : u'Gas',
+        u'Geothermie' : u'Geothermal',
+        u'Windenergie (Onshore-Anlage)' : u'Wind Onshore',
+        u'Windenergie (Offshore-Anlage)' : u'Wind Offshore',
+        u'Solare Strahlungsenergie' : u'Solar',
+        u'Unbekannter Energieträger\n(nicht erneuerbar)' : u'Other'
+    })
+
+    return kraftwerke
+
+power_plants = read_kraftwerksliste()
+
+power_plants[power_plants[u"Unternehmen"] == "EEG-Anlagen < 10 MW"].groupby(u"Type").sum()
 
 import random
 
-def backup_capacity_german_grid(G):
+#NB: bnetza extracted from BNetzA using
+
+#./Kraftwerksdaten.ipynb
+
+
+def backup_capacity_german_grid(G):   
+
     from shapely.geometry import Point
 
-    plants = pd.read_csv("/home/tom/fias-shared/playground/bnetza.csv")
+    plants = power_plants
     plants = plants[plants["Kraftwerksstatus"] == u"in Betrieb"]
+    
+    #remove EEG-receiving power plants - except biomass, these will be added later
+    
+    #it's necessary to remove biomass because we don't have coordinates for it
+    
+    for tech in ["Solar","Wind Onshore","Wind Offshore","Biomass"]:
+        plants = plants[plants['Type'] != tech]
+    
     cells = {n: d["region"]
              for n, d in G.nodes_iter(data=True)}
 
@@ -235,63 +239,94 @@ def backup_capacity_german_grid(G):
 
     return capacity
 
-
-# In[32]:
-
 cap = backup_capacity_german_grid(network.graph)
-
-
-# In[33]:
 
 cap.describe(),cap.sum(),type(cap)
 
-
-# In[34]:
-
 print(cap[pd.isnull(cap)])
-
-
-# In[35]:
 
 cap.fillna(0.1,inplace=True)
 
 
-# In[36]:
-
-
 cap.index.levels[1]
 
-
-# In[37]:
-
 m_costs = {"Gas" : 50.,
-           "Coal" : 15.,
+           "Brown Coal" : 10.,
+           "Hard Coal" : 25.,
            "Oil" : 100.,
-           "Nuclear" : 10.}
+           "Nuclear" : 8.,
+           "Pumped Hydro" : 3.,
+           "Storage Hydro" : 3.,
+           "Run of River" : 3.,
+           "Geothermal" : 26.,
+           "Waste" : 6.,
+           "Multiple" : 28.,
+           "Other" : 32.}
 
 default_cost = 10.
 
-
-# In[38]:
-
 for (bus_name,tech_name) in cap.index:
     print(bus_name,tech_name,cap[(bus_name,tech_name)])
-    network.add("Generator",bus_name + " " + tech_name,bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],marginal_cost=m_costs.get(tech_name,default_cost))
+    if tech_name == "Pumped Hydro":
+        network.add("StorageUnit",bus_name + " " + tech_name,
+                bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],
+                marginal_cost=m_costs.get(tech_name,default_cost),
+                source=tech_name,
+                max_hours = 6,
+                efficiency_store=0.95,
+                efficiency_dispatch=0.95)
+    else:
+        network.add("Generator",bus_name + " " + tech_name,
+                bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],
+                marginal_cost=m_costs.get(tech_name,default_cost),
+                source=tech_name)   
+
+## Add renewables
+
+import generation.germany as DEgen
+
+reload(DEgen)
+
+generation = DEgen.timeseries_eeg(network.graph)
 
 
-# In[39]:
+generation.items
 
-csv_folder_name = "scigrid-with-load-gen"
+#Kill the Timezone information to avoid pandas bugs
+generation.major_axis = generation.major_axis.values
 
-time_series = {"loads" : {"p_set" : None}}
+generation.loc[["wind","solar"],network.snapshots,:].sum(axis=2).plot(kind="area")
+
+#make sure the ordering of the minor axis is correc
+generation.minor_axis = network.graph.nodes()
+
+network.plot(bus_sizes=1000*generation.windoff.max())
+
+network.plot(bus_sizes=1000*(generation.wind.mean()/generation.wind.max()))
+
+network.plot(bus_sizes=1000*generation.solar.max())
+
+maxes = generation.max(axis=1)
 
 
+d = {"windoff" : "Wind Offshore",
+    "windon" : "Wind Onshore",
+    "solar" : "Solar"}
+
+for tech in ["windoff",'windon',"solar"]:
+    gens = maxes[tech][maxes[tech] != 0.]
+    
+    for i in gens.index:
+        network.add("Generator","{} {}".format(i,d[tech]),
+                    p_nom=gens[i]*1000.,dispatch="variable",
+                    bus=i,source=d[tech],
+                    p_max_pu=generation[tech].loc[network.snapshots,i]/gens[i])
+
+csv_folder_name = "../../lib/pypsa/examples/opf-scigrid-de/scigrid-with-load-gen"
+
+time_series = {"loads" : {"p_set" : None},
+               "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
 
 
 network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
-
-
-# In[ ]:
-
-
 

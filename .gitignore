@@ -22,6 +22,8 @@ test/results/*
 
 doc/_build/
 
+doc/img/
+
 build/
 
 dist/

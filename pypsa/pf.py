@@ -46,7 +46,7 @@ import time
 
 
 
-def network_pf(network,now=None,verbose=True,skip_pre=False):
+def network_pf(network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     """
     Full non-linear power flow for generic network.
 
@@ -57,6 +57,8 @@ def network_pf(network,now=None,verbose=True,skip_pre=False):
     verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+    x_tol: float
+        Tolerance for Newton-Raphson power flow.
 
     Returns
     -------
@@ -138,7 +140,7 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
 
 
 
-def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False):
+def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     """
     Non-linear power flow for connected sub-network.
 
@@ -149,6 +151,8 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False):
     verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+    x_tol: float
+        Tolerance for Newton-Raphson power flow.
 
     Returns
     -------
@@ -267,7 +271,7 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False):
 
     #Now try and solve
     start = time.time()
-    roots,n_iter,diff = newton_raphson_sparse(f,guess,dfdx,x_tol=network.nr_x_tol,verbose=verbose)
+    roots,n_iter,diff = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol,verbose=verbose)
     if verbose:
         print("Newton-Raphson solved in %d iterations with error of %f in %f seconds" % (n_iter,diff,time.time()-start))
 

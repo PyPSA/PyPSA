@@ -36,6 +36,9 @@ string, e.g. "gurobi" or "glpk".
 The linear OPF module can optimises the dispatch of generation and storage
 and the capacities of generation, storage and transmission.
 
+It is assumed that the load is inelastic and must be met in every
+snapshot (this will be relaxed in future versions).
+
 The optimisation currently uses continuous variables. MILP unit commitment may be
 added in the future.
 
@@ -61,7 +64,7 @@ Optimising dispatch only: a market model
 ----------------------------------------
 
 Capacity optimisation can be turned off so that only the dispatch is
-optimised, like an electricity market model.
+optimised, like a short-run electricity market model.
 
 For simplified transmission representation using Net Transfer
 Capacities (NTCs), there is a TransportLink component which does
@@ -73,10 +76,11 @@ a point-to-point HVDC link).
 Optimising total annual system costs
 ------------------------------------
 
-To minimise annual system costs for meeting an inelastic electrical
+To minimise long-run annual system costs for meeting an inelastic electrical
 load, capital costs for transmission and generation should be set to
 the annualised investment costs in e.g. EUR/MW/a, marginal costs for
-dispatch to e.g. EUR/MWh and the weightings chosen such that
+dispatch to e.g. EUR/MWh and the weightings (now with units hours per
+annum, h/a) are chosen such that
 
 
 .. math::
@@ -84,6 +88,25 @@ dispatch to e.g. EUR/MWh and the weightings chosen such that
 
 In this case the objective function gives total system cost in EUR/a
 to meet the total load.
+
+
+
+
+Objective function
+------------------
+
+See ``pypsa.opf.define_linear_objective(network,snapshots)``.
+
+The objective function is composed of capital costs :math:`c` for each component and operation costs :math:`o` for generators
+
+.. math::
+   \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
+   + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
+
+
+Additional variables which do not appear in the objective function are
+the storage uptake variable, the state of charge and the voltage angle
+for each bus.
 
 
 
@@ -200,13 +223,16 @@ See ``pypsa.opf.define_passive_branch_flows(network,snapshots)`` and
 
 
 For lines and transformers, whose power flows according to impedances,
-the power flow :math:`f_{l,t}` is given by the difference in voltage
-angles :math:`\theta_{n,t}` at each bus for AC networks (voltage
-magnitudes for DC networks)
+the power flow :math:`f_{l,t}` in AC networks is given by the difference in voltage
+angles :math:`\theta_{n,t}` at bus0 and :math:`\theta_{m,t}` at bus1 divided by the series reactance :math:`x_l`
 
 
 .. math::
-   f_{l,t} = \frac{\theta_{n,t} - \theta_{m,t}}{x}
+   f_{l,t} = \frac{\theta_{n,t} - \theta_{m,t}}{x_l}
+
+
+(For DC networks, replace the voltage angles by the difference in voltage magnitude :math:`\delta V_{n,t}` and the series reactance by the series resistance :math:`r_l`.)
+
 
 This flow is the limited by the capacity :math:``F_l`` of the line
 
@@ -255,9 +281,9 @@ This is the most important equation, which guarantees that the power
 balances at each bus :math:`n` for each time :math:`t`.
 
 .. math::
-   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{s} \ell_{n,s,t} + \sum_{l} \alpha_{l,n} f_{l,t} = 0
+   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{s} \ell_{n,s,t} + \sum_{l} K_{nl} f_{l,t} = 0
 
-Where :math:`\ell_{n,s,t}` is the exogenous load at each node (``load.p_set``) and :math:`\alpha_{l,n} \in \{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus.
+Where :math:`\ell_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus.
 
 CO2 constraint
 --------------
@@ -267,22 +293,6 @@ See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
 This depends on the power plant efficiency and specific CO2 emissions
 of the fuel source.
 
-
-Objective function
-------------------
-
-See ``pypsa.opf.define_linear_objective(network,snapshots)``.
-
-The objective function is composed of capital costs :math:`c` for each component and operation costs :math:`o` for generators
-
-.. math::
-   \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
-   + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
-
-
-Additional variables which do not appear in the objective function are
-the storage uptake variable, the state of charge and the voltage angle
-for each bus.
 
 Variables and notation summary
 ------------------------------

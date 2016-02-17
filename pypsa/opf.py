@@ -545,7 +545,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={}):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -565,6 +565,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    keep_files : bool, default False
+        Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
 
     Returns
     -------
@@ -614,7 +616,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
     opt = SolverFactory(solver_name)
 
-    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=network.opf_keep_files,options=solver_options)
+    network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=keep_files,options=solver_options)
 
     if verbose:
         network.results.write()

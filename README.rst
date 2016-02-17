@@ -20,7 +20,7 @@ PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
-German Federal Ministry for Education and Research (BMBF).
+`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_ Research Initiative.
 
 
 Documentation
@@ -78,7 +78,28 @@ Functionality that may be added in the future:
 * OPF with the full non-linear network equations
 * Dynamic EMT simulations
 * Unbalanced load flow
+* Port to `Julia <http://julialang.org/>`_
 
+
+Screenshots and example Jupyter/iPython notebooks
+=================================================
+
+There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Jupyter/iPython notebooks. They are also described in the `doc/examples.rst <doc/examples.rst>`_ and are available as Python scripts in `examples/ <examples/>`_.
+
+Some screenshots:
+
+
+.. image:: http://www.pypsa.org/img/line-loading.png
+
+
+.. image:: http://www.pypsa.org/img/lmp.png
+
+
+.. image:: http://www.pypsa.org/img/reactive-power.png
+
+.. image:: http://www.pypsa.org/img/stacked-gen.png
+
+.. image:: http://www.pypsa.org/img/storage-scigrid.png
 
 
 What PyPSA uses under the hood

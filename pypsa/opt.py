@@ -36,8 +36,7 @@ __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 
 
 def l_constraint(model,name,constraints,*args):
-    """
-    A replacement for pyomo's Constraint that quickly builds linear
+    """A replacement for pyomo's Constraint that quickly builds linear
     constraints.
 
     Instead of
@@ -56,16 +55,18 @@ def l_constraint(model,name,constraints,*args):
     coefficients, the second argument is the sense string (must be one of
     "==","<=",">=") and the third argument is the constant term (a float).
 
-
+    Variables may be repeated with different coefficients, which pyomo
+    will sum up.
 
     Parameters
     ----------
     model : pyomo.environ.ConcreteModel
-    name : "string"
-        Name of constraints
+    name : string
+        Name of constraints to be constructed
     constraints : dict
         A dictionary of constraints (see format above)
-    args : indexes of the constraints
+    *args :
+        Indices of the constraints
 
     """
 
@@ -104,6 +105,10 @@ def l_objective(model,linear_part,constant=0.):
     call instead
 
     l_objective(model,[(vars[i],coeffs[i]) for i in index],constant)
+
+
+    Variables may be repeated with different coefficients, which pyomo
+    will sum up.
 
 
     Parameters

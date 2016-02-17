@@ -46,7 +46,6 @@ If you have the Python package installer ``pip`` then just run::
 
     pip install pypsa
 
-
 "Manual" installation with setuptools
 =====================================
 
@@ -75,6 +74,11 @@ repository <https://github.com/fresna/pypsa/>`_ and then go to the
 local repository and run::
 
     python setup.py install
+
+Or if you want to develop/modify the code in the current directory, run::
+
+    python setup.py develop
+
 
 Conservative manual installation
 ================================

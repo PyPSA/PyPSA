@@ -137,6 +137,12 @@ Reactive-power-constrained Power Flow
 
 If a PV bus exceeds Q-limits, convert it to PQ at the limit.
 
+Include zero-impedance switch/breaker component
+-----------------------------------------------
+
+Connects two buses with zero impedance and can be either on or off. Would have no p0/1 or q0/1 or any time dependence (apart perhaps from the swtich on/off status?).
+
+
 Introduced "active" switch/boolean for each component
 -----------------------------------------------------
 
@@ -149,6 +155,11 @@ Include heating sector
 Along the lines of abstraction in oemof, include heat buses, with heat
 loads, gas boilers, CHP (with output to both heat and electricity
 buses), P2H, heat pumps, etc.
+
+Allow elastic demand
+--------------------
+
+I.e. allow demand bid prices for blocks of demand
 
 
 Changes which may be implemented

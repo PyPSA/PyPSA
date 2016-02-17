@@ -134,6 +134,10 @@ class Bus(Common):
     def storage_units(self):
         return self.network.storage_units[self.network.storage_units.bus == self.name]
 
+    def storage_units_t(self):
+        return self.network.storage_units_t.loc[:,:,self.network.storage_units.bus == self.name]
+
+
     def shunt_impedances(self):
         return self.network.shunt_impedances[self.network.shunt_impedances.bus == self.name]
 
@@ -428,13 +432,6 @@ class Network(Basic):
 
     graph = GraphDesc()
 
-    #tolerance for Newton-Raphson power flow
-    nr_x_tol = 1e-6
-
-    #choice to keep files from OPF problem construction - useful for debugging
-    opf_keep_files = False
-
-
     #methods imported from other sub-modules
 
     import_from_csv_folder = import_from_csv_folder
@@ -570,7 +567,7 @@ class Network(Basic):
         class_name : string
             Component class name
         name : string
-            Component name
+            Component name in ["Bus","Generator","Load","StorageUnit","ShuntImpedance","Line","Transformer","Converter","TransportLink"]
         kwargs
 
         Returns

@@ -173,14 +173,37 @@ angles differences across branches are small and branch resistances
 are much smaller than branch reactances (i.e. it is good for overhead
 transmission lines).
 
-For AC networks, the load flow is calculated using small voltage
+For AC networks, the linear load flow is calculated using small voltage
 angle differences and the series reactances alone.
+
+It is assumed that the active powers :math:`P_i` are given for all buses except the slack bus and the task is to find the voltage angles :math:`\theta_i` at all buses except the slack bus, where it is assumed :math:`\theta_0 = 0`.
+
+To find the voltage angles, the following linear set of equations are solved
+
+.. math::
+   P_i = \sum_j (KBK^T)_{ij} \theta_j
+
+where :math:`K` is the incidence matrix of the network and :math:`B`
+is the diagonal matrix of inverse line series reactances. The matrix
+:math:`KBK^T` is singular with a single zero eigenvalue for a
+connected network, therefore the row and column corresponding to the
+slack bus is deleted before inverting.
+
+The flow in the network can then be found by multiplying by the transpose incidence matrix and inverse series reactances:
+
+.. math::
+   F_l = \sum_i (BK^T)_{li} \theta_i
+
+
 
 For DC networks, it is assumed for the linear power flow that voltage
 magnitude differences across branches are all small.
 
-For DC networks, the load flow is calculated using small voltage
+For DC networks, the linear load flow is calculated using small voltage
 magnitude differences and series resistances alone.
+
+The linear load flow for DC networks follows the same calculation as for AC networks, but replacing the voltage angles by the difference in voltage magnitude :math:`\delta V_{n,t}` and the series reactance by the series resistance :math:`r_l`.
+
 
 Inputs
 ------

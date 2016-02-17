@@ -20,6 +20,8 @@ Free software
 
 `OSeMOSYS <http://www.osemosys.org/>`_ -  systems optimization model for long-run energy planning
 
+`urbs <https://github.com/tum-ens/urbs>`_
+
 `minpower <http://adamgreenhall.github.io/minpower/>`_
 
 `DiSC <http://kom.aau.dk/project/SmartGridControl/DiSC/documentation.html>`_
@@ -39,7 +41,8 @@ https://bitbucket.org/mosaik/mosaik-pypower
 Non-free software
 =================
 
-PowerFactory
+`DIgSILENT PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_
 
 PSS/E
 
@@ -48,3 +51,5 @@ Neplan
 PowerWorld
 
 INTEGRAL
+
+`PLEXOS <http://energyexemplar.com/software/plexos-desktop-edition/>`_
