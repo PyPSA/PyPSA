@@ -1,12 +1,12 @@
 ## LOPF then non-linear power flow with SciGRID
 #
-#This Jupyter Notebook is also available to download: [scigrid-lopf-then-pf.ipynb](http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb).
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb>.
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
 ### Data sources
 #
-#The data is generated in a separate notebook called [add_load_gen_to_scigrid.ipynb](http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb).
+#The data is generated in a separate notebook at <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
 #
 #Grid: from [SciGRID](http://scigrid.de/) which is based on [OpenStreetMap](http://www.openstreetmap.org/).
 #

@@ -2,7 +2,9 @@
 Quick Start
 ###########################
 
-See also the existing :doc:`examples`.
+See also the existing :doc:`examples` and the example Jupyter
+notebooks at `http://www.pypsa.org/examples/
+<http://www.pypsa.org/examples/>`_.
 
 
 Use an existing example
@@ -38,6 +40,8 @@ Use an existing example
 Build a minimal network for power flow
 ======================================
 
+This example is downloadable at `http://www.pypsa.org/examples/
+<http://www.pypsa.org/examples/>`_.
 
 .. code:: python
 
@@ -91,6 +95,11 @@ Build a minimal network for power flow
 
 Build a minimal network for optimal power flow
 ==============================================
+
+
+This example is downloadable at `http://www.pypsa.org/examples/
+<http://www.pypsa.org/examples/>`_.
+
 
 .. code:: python
 

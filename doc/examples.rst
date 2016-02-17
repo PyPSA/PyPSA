@@ -3,7 +3,26 @@
 ################
 
 
-See ``pypsa/examples/`` and ``pypsa/test/`` for usage cases.
+See ``pypsa/examples/`` and ``pypsa/test/`` for usage cases; there are
+Jupyter/iPython notebooks available of these examples at
+`http://www.pypsa.org/examples/ <http://www.pypsa.org/examples/>`_.
+
+
+SciGRID LOPF and LPF
+====================
+
+See ``pypsa/examples/opf-scigrid-de``.
+
+The script ``add_load_gen_to_scigrid.py`` takes the `SciGRID
+<http://scigrid.de/>`_ network for Germany, attaches load and
+conventional generation data and exports the resulting network.
+
+The script ``scigrid-lopf-then-pf.py`` then performs a linear OPF on
+the network for several hours, expanding any lines where capacity is
+needed.
+
+Then the resulting optimised dispatch is run through a full non-linear
+Newton-Raphson power flow.
 
 
 
@@ -27,23 +46,6 @@ DC network.
 
 
 The example scripts do LOPF and LPF.
-
-SciGRID LOPF and LPF
-====================
-
-See ``pypsa/examples/opf-scigrid-de``.
-
-The script ``add_load_gen_to_scigrid.py`` takes the `SciGRID
-<http://scigrid.de/>`_ network for Germany, attaches load and
-conventional generation data and exports the resulting network.
-
-The script ``scigrid-lopf-then-pf.py`` then performs a linear OPF on
-the network for several hours, expanding any lines where capacity is
-needed.
-
-Then the resulting optimised dispatch is run through a full non-linear
-Newton-Raphson power flow.
-
 
 Storage and HVDC OPF example
 ============================

@@ -1,6 +1,19 @@
 ## Script to add load and generators to SciGRID
 #
-#Load based on Landkreise, power plants from the BNetzA list.
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
+#
+#
+### Data sources
+#
+#Grid: from [SciGRID](http://scigrid.de/) which is based on [OpenStreetMap](http://www.openstreetmap.org/).
+#
+#Load size and location: based on Landkreise GDP and population.
+#
+#Power plant capacities and locations: BNetzA list.
+#
+#Wind and solar capacities and locations: EEG Stammdaten.
+#
+#Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
 
 
 # make the code as Python 3 compatible as possible                                                                                          
