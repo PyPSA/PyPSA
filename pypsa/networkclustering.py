@@ -54,6 +54,15 @@ def aggregatebuses(network, busmap):
             .reindex_axis([f for f in network.buses.columns if f in columns], axis=1)
 
 def aggregatelines(network, buses, interlines):
+
+
+    #make sure all lines have same bus ordering
+    positive_order = interlines.bus0_s < interlines.bus1_s
+    interlines_p = interlines[positive_order]
+    interlines_n = interlines[~ positive_order].rename(columns={"bus0_s":"bus1_s", "bus1_s":"bus0_s"})
+    interlines_c = pd.concat((interlines_p,interlines_n))
+
+
     columns = set(network.component_simple_descriptors[components.Line]).difference(('bus0', 'bus1'))
 
     def aggregatelinegroup(l):
@@ -83,9 +92,14 @@ def aggregatelines(network, buses, interlines):
         data.update((f, _consense(l[f])) for f in columns.difference(data))
         return pd.Series(data, index=[f for f in l.columns if f in columns])
 
-    lines = interlines.groupby(['bus0_s', 'bus1_s']).apply(aggregatelinegroup)
+    lines = interlines_c.groupby(['bus0_s', 'bus1_s']).apply(aggregatelinegroup)
     lines['name'] = [str(i+1) for i in range(len(lines))]
-    return lines
+
+    linemap_p = interlines_p.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
+    linemap_n = interlines_n.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
+    linemap = pd.concat((linemap_p,linemap_n))
+
+    return lines, linemap_p, linemap_n, linemap
 
 def get_buses_linemap_and_lines(network, busmap):
     # compute new buses
@@ -98,11 +112,11 @@ def get_buses_linemap_and_lines(network, busmap):
 
     # lines between different clusters
     interlines = lines.loc[lines['bus0_s'] != lines['bus1_s']]
-    lines = aggregatelines(network, buses, interlines)
-
-    linemap = interlines.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
+    lines, linemap_p, linemap_n, linemap = aggregatelines(network, buses, interlines)
     return (buses,
             linemap,
+            linemap_p,
+            linemap_n,
             lines.reset_index()
                  .rename(columns={'bus0_s': 'bus0', 'bus1_s': 'bus1'}, copy=False)
                  .set_index('name'))
@@ -120,7 +134,7 @@ def _build_network_from_buses_lines(buses, lines):
 
     return network
 
-Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap'])
+Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap', 'linemap_positive', 'linemap_negative'])
 
 ################
 # Length
@@ -140,8 +154,8 @@ def busmap_by_length(network, length):
 
 def length_clustering(network, length):
     busmap = busmap_by_length(network, length=length)
-    buses, linemap, lines = get_buses_linemap_and_lines(network, busmap)
-    return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap)
+    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
+    return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
 
 ################
 # SpectralClustering
@@ -160,8 +174,8 @@ try:
 
     def spectral_clustering(network, n_clusters=8, **kwds):
         busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
-        buses, linemap, lines = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap)
+        buses, linemap, lines, linemap_p, linemap_n = get_buses_linemap_and_lines(network, busmap)
+        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
 
 except ImportError:
     pass
@@ -186,8 +200,8 @@ try:
 
     def louvain_clustering(network, level=-1, **kwds):
         busmap = busmap_by_louvain(network, level=level)
-        buses, linemap, lines = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap)
+        buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
+        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
 
 except ImportError:
     pass
@@ -232,7 +246,7 @@ try:
 
         # clusters = kmeans.cluster_centers_
 
-        busmap = pd.Series(data=kmeans.predict(network.buses[["x","y"]]),
+        busmap = pd.Series(data=[str(i) for i in kmeans.predict(network.buses[["x","y"]])],
                            index=network.buses.index)
 
         return busmap
@@ -264,8 +278,8 @@ try:
         """
 
         busmap = busmap_by_kmeans(network, bus_weightings, n_clusters)
-        buses, linemap, lines = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap)
+        buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
+        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
 
 
 except ImportError:
