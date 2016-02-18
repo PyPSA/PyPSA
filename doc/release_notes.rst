@@ -3,8 +3,8 @@ Release Notes
 #######################
 
 
-PyPSA 0.3.2
-===========
+PyPSA 0.3.2 (17th February 2016)
+================================
 
 In this release some minor API changes were made:
 
@@ -17,8 +17,8 @@ In this release some minor API changes were made:
   ``network.lopf(keep_files=False)``.
 
 
-PyPSA 0.3.1
-===========
+PyPSA 0.3.1 (7th February 2016)
+===============================
 
 In this release some minor API changes were made:
 
@@ -41,8 +41,8 @@ In this release some minor API changes were made:
 
 
 
-PyPSA 0.3
-=========
+PyPSA 0.3 (January 2016)
+========================
 
 In this release the pandas.Panel interface for time-dependent
 variables was introduced. This replaced the manual attachment of

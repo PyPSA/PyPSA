@@ -9,7 +9,8 @@ PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern electric power systems that include
 features such as variable wind and solar generation, storage units and
-mixed alternating and direct current networks.
+mixed alternating and direct current networks. PyPSA is designed to
+scale well with large networks and long time series.
 
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
@@ -26,12 +27,16 @@ for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 Documentation
 =============
 
-Documentation can be found in `sphinx
-<http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
-`doc/ <doc/>`_ and as a `website
-<http://pypsa.org/doc/>`_ and as a `pdf
-<http://pypsa.org/doc/PyPSA.pdf>`_.
+`Documentation as a website <doc/index.html>`_
 
+`Documentation as a PDF <doc/PyPSA.pdf>`_
+
+`Quick start <doc/quick_start.html>`_
+
+
+Documentation is in `sphinx
+<http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
+`doc/ <doc/>`_.
 
 
 What PyPSA does and does not do (yet)
@@ -56,7 +61,7 @@ It has models for:
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
-* hydroelectricity with inflow and spillage
+* simple hydroelectricity with inflow and spillage
 
 
 Functionality that will definitely by added soon (see also `doc/todo.rst <doc/todo.rst>`_):
@@ -91,15 +96,18 @@ Some screenshots:
 
 .. image:: http://www.pypsa.org/img/line-loading.png
 
-
 .. image:: http://www.pypsa.org/img/lmp.png
-
 
 .. image:: http://www.pypsa.org/img/reactive-power.png
 
 .. image:: http://www.pypsa.org/img/stacked-gen.png
 
 .. image:: http://www.pypsa.org/img/storage-scigrid.png
+
+.. image:: http://www.pypsa.org/img/meshed-ac-dc.png
+
+.. image:: http://www.pypsa.org/img/europe-map.png
+
 
 
 What PyPSA uses under the hood

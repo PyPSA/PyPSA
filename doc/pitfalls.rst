@@ -9,8 +9,7 @@ data. They are all defined as functions to make this clear.
 
 For example:
 
-network.branches() returns a DataFrame which is a union of
-network.lines and network.transformers
-
-bus.generators() returns a DataFrame consisting of generators attached
-to bus
+* ``network.branches()`` returns a DataFrame which is a concatenation
+  of ``network.lines`` and ``network.transformers``
+* ``bus.generators()`` returns a DataFrame consisting of generators
+  attached to bus

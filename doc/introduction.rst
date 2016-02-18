@@ -8,7 +8,9 @@ PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern electric power systems that include
 features such as variable wind and solar generation, storage units and
-mixed alternating and direct current networks.
+mixed alternating and direct current networks.  PyPSA is designed to
+scale well with large networks and long time series.
+
 
 As of 2016 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
@@ -44,7 +46,7 @@ It has models for:
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
-* hydroelectricity with inflow and spillage
+* simple hydroelectricity with inflow and spillage
 
 
 
@@ -80,15 +82,17 @@ Some screenshots:
 
 .. image:: img/line-loading.png
 
-
 .. image:: img/lmp.png
-
 
 .. image:: img/reactive-power.png
 
 .. image:: img/stacked-gen.png
 
 .. image:: img/storage-scigrid.png
+
+.. image:: img/meshed-ac-dc.png
+
+.. image:: img/europe-map.png
 
 
 Target user group

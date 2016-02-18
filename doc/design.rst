@@ -105,6 +105,14 @@ bus.v_nom
 is a descriptor which points at network.buses.loc["bus_name","v_nom"].
 
 
+No GUI: Use Jupyter notebooks
+=============================
+
+PyPSA has no Graphical User Interface (GUI). However it has features
+for plotting time series and networks (e.g. ``network.plot()``), which
+works especially well in combination with ``Jupyter notebooks
+<http://jupyter.org/>`_.
+
 Internal use of per unit
 ===========================
 

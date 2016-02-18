@@ -737,10 +737,6 @@ class SubNetwork(Common):
 
     current_type = String(default="AC",restricted=["AC","DC"])
 
-    frequency = Float(default=50)
-
-    num_phases = Float(default=3)
-
     slack_bus = String()
 
     graph = GraphDesc()

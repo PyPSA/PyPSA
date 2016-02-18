@@ -7,34 +7,15 @@ notebooks at `http://www.pypsa.org/examples/
 <http://www.pypsa.org/examples/>`_.
 
 
-Use an existing example
-=======================
+Installation
+============
 
+For full installation instructions see :doc:`installation`.
 
-.. code:: python
+If you have the Python package installer ``pip`` then just run::
 
-    import pypsa
+    pip install pypsa
 
-    #adjust the path to pypsa
-    network = pypsa.Network(csv_folder_name="path/to/pypsa/examples/ac-dc-meshed/ac-dc-data")
-
-    #set to your favourite solver
-    solver_name = "glpk"
-
-    network.lopf(snapshots=network.snapshots,solver_name=solver_name)
-
-
-    print(network.generators.p_nom_opt)
-
-    print(network.generators_t.p)
-
-    print(network.storage_units.p_nom_opt)
-
-    print(network.storage_units_t.p)
-
-    print(network.lines.s_nom_opt)
-
-    print(network.lines_t.p0)
 
 
 Build a minimal network for power flow
@@ -158,3 +139,36 @@ This example is downloadable at `http://www.pypsa.org/examples/
 	print(network.lines_t.p0)
 
 	print(network.buses_t.v_ang*180/np.pi)
+
+
+
+Use an existing example
+=======================
+
+The examples are NOT bundled with the ``pip`` package but can be
+downloaded from the `PyPSA github repository <https://github.com/FRESNA/PyPSA>`_.
+
+.. code:: python
+
+    import pypsa
+
+    #adjust the path to pypsa examples directory
+    network = pypsa.Network(csv_folder_name="path/to/pypsa/examples/ac-dc-meshed/ac-dc-data")
+
+    #set to your favourite solver
+    solver_name = "glpk"
+
+    network.lopf(snapshots=network.snapshots,solver_name=solver_name)
+
+
+    print(network.generators.p_nom_opt)
+
+    print(network.generators_t.p)
+
+    print(network.storage_units.p_nom_opt)
+
+    print(network.storage_units_t.p)
+
+    print(network.lines.s_nom_opt)
+
+    print(network.lines_t.p0)
