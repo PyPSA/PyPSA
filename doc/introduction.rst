@@ -90,6 +90,8 @@ Some screenshots:
 
 .. image:: img/storage-scigrid.png
 
+.. image:: img/scigrid-curtailment.png
+
 .. image:: img/meshed-ac-dc.png
 
 .. image:: img/europe-map.png

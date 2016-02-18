@@ -1,7 +1,7 @@
 
 
-Python for Power Systems Analysis
-=================================
+Python for Power System Analysis
+================================
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
@@ -27,11 +27,11 @@ for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 Documentation
 =============
 
-`Documentation as a website <doc/index.html>`_
+`Documentation as a website <http://www.pypsa.org/doc/index.html>`_
 
-`Documentation as a PDF <doc/PyPSA.pdf>`_
+`Documentation as a PDF <http://www.pypsa.org/doc/PyPSA.pdf>`_
 
-`Quick start <doc/quick_start.html>`_
+`Quick start <http://www.pypsa.org/doc/quick_start.html>`_
 
 
 Documentation is in `sphinx
@@ -103,6 +103,8 @@ Some screenshots:
 .. image:: http://www.pypsa.org/img/stacked-gen.png
 
 .. image:: http://www.pypsa.org/img/storage-scigrid.png
+
+.. image:: http://www.pypsa.org/img/scigrid-curtailment.png
 
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 

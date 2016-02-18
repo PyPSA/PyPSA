@@ -96,12 +96,30 @@ Generator
 Can have generator.dispatch in ["variable","flexible"], which dictates
 how they behave in the OPF.
 
-"flexible" generators can dispatch
-anywhere between gen.p_nom*(gen.p_nom_min_pu_fixed) and
-gen.p_nom*(gen.p_nom_max_pu_fixed) at all times.
+"flexible" generators can dispatch anywhere between
+``gen.p_nom*(gen.p_nom_min_pu_fixed)`` and
+``gen.p_nom*(gen.p_nom_max_pu_fixed)`` at all times. The factor
+``gen.p_nom_max_pu_fixed`` essentially acts like a de-rating
+factor. In the following example ``gen.p_nom_max_pu_fixed = 0.9`` and ``gen.p_nom_min_pu_fixed = 0``. Since ``gen.p_nom`` is 12000 MW, the maximum dispatchable active power is 0.9*12000 MW = 10800 MW.
 
-"variable" generators have time series gen.p_max_pu which dictates the
-active power availability for each snapshot.
+.. image:: img/nuclear-dispatch.png
+
+
+
+
+
+"variable" generators have a time series ``gen.p_max_pu`` which
+dictates the active power availability for each snapshot per unit of the nominal power ``gen.p_nom`` and another
+time series ``gen.p_min_pu`` which dictates the minimum dispatch. These time
+series can take values between 0 and 1, e.g.
+
+.. image:: img/p_max_pu.png
+
+This time series is then multiplied by ``gen.p_nom`` to get the
+available power dispatch, which is the maximum that may be dispatched. The actual dispatch may be below this value, e.g.
+
+.. image:: img/scigrid-curtailment.png
+
 
 
 For generators, if :math:`p>0` the generator is supplying active power
