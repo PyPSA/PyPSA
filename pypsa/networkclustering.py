@@ -27,6 +27,7 @@ import networkx as nx
 from collections import OrderedDict, namedtuple
 from itertools import repeat
 from six.moves import zip, range
+from six import itervalues
 
 from .descriptors import OrderedGraph
 from . import components, io
@@ -121,20 +122,36 @@ def get_buses_linemap_and_lines(network, busmap):
                  .rename(columns={'bus0_s': 'bus0', 'bus1_s': 'bus1'}, copy=False)
                  .set_index('name'))
 
-# network building stuff
-
-def _build_network_from_buses_lines(buses, lines):
-    network = Network()
-
-    io.import_components_from_dataframe(network, buses, "Bus")
-    io.import_components_from_dataframe(network, lines, "Line")
-
-    network.build_graph()
-    network.determine_network_topology()
-
-    return network
-
 Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap', 'linemap_positive', 'linemap_negative'])
+
+def get_clustering_from_busmap(network, busmap, with_time=True):
+    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
+
+    network_c = Network()
+
+    io.import_components_from_dataframe(network_c, buses, "Bus")
+    io.import_components_from_dataframe(network_c, lines, "Line")
+    io.import_components_from_dataframe(
+        network_c,
+        network.generators.assign(bus=network.generators.bus.map(busmap)),
+        "Generator"
+    )
+    io.import_components_from_dataframe(
+        network_c,
+        network.loads.assign(bus=network.loads.bus.map(busmap)),
+        "Load"
+    )
+
+    if with_time:
+        network_c.set_snapshots(network.snapshots)
+        network_c.generators_t = network.generators_t.copy()
+        network_c.loads_t = network.loads_t.copy()
+
+    network_c.build_graph()
+    network_c.determine_network_topology()
+
+    return Clustering(network_c, busmap, linemap, linemap_p, linemap_n)
+
 
 ################
 # Length
@@ -154,8 +171,7 @@ def busmap_by_length(network, length):
 
 def length_clustering(network, length):
     busmap = busmap_by_length(network, length=length)
-    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
-    return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
+    return get_clustering_from_busmap(network, busmap)
 
 ################
 # SpectralClustering
@@ -174,8 +190,7 @@ try:
 
     def spectral_clustering(network, n_clusters=8, **kwds):
         busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
-        buses, linemap, lines, linemap_p, linemap_n = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
+        return get_clustering_from_busmap(network, busmap)
 
 except ImportError:
     pass
@@ -200,8 +215,7 @@ try:
 
     def louvain_clustering(network, level=-1, **kwds):
         busmap = busmap_by_louvain(network, level=level)
-        buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
+        return get_clustering_from_busmap(network, busmap)
 
 except ImportError:
     pass
@@ -278,9 +292,22 @@ try:
         """
 
         busmap = busmap_by_kmeans(network, bus_weightings, n_clusters)
-        buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
-        return Clustering(_build_network_from_buses_lines(buses, lines), busmap, linemap, linemap_p, linemap_n)
-
+        return get_clustering_from_busmap(network, busmap)
 
 except ImportError:
     pass
+
+def busmap_by_rectangular_grid(buses, divisions=10):
+    busmap = pd.Series(0, index=buses.index)
+    if isinstance(divisions, tuple):
+        divisions_x, divisions_y = divisions
+    else:
+        divisions_x = divisions_y = divisions
+    gb = buses.groupby([pd.cut(buses.x, divisions_x), pd.cut(buses.y, divisions_y)])
+    for nk, oks in enumerate(itervalues(gb.groups)):
+        busmap.loc[oks] = nk
+    return busmap
+
+def rectangular_grid_clustering(network, divisions):
+    busmap = busmap_by_rectangular_grid(network.buses, divisions)
+    return get_clustering_from_busmap(network, busmap)
