@@ -4,6 +4,8 @@
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
+#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#
 ### Data sources
 #
 #The data is generated in a separate notebook at <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
@@ -18,8 +20,7 @@
 #
 #Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
 
-#make the code as Python 3 compatible as possible                                                                               \
-                                                                                                                                  
+#make the code as Python 3 compatible as possible
 from __future__ import print_function, division, absolute_import
 
 import pypsa
@@ -33,6 +34,10 @@ import os
 import matplotlib.pyplot as plt
 
 #%matplotlib inline
+
+#You may have to adjust this path to where 
+#you downloaded the github repository
+#https://github.com/FRESNA/PyPSA
 
 csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/scigrid-with-load-gen/"
 
@@ -161,7 +166,7 @@ ax.set_ylabel("MWh")
 ax.set_xlabel("")
 
 fig.tight_layout()
-fig.savefig("storage-scigrid.png")
+#fig.savefig("storage-scigrid.png")
 
 print("With the linear load flow, there is the following per unit loading:")
 loading = network.lines_t.p0.loc[network.snapshots[4]]/network.lines.s_nom
@@ -195,6 +200,37 @@ cb.set_label('Locational Marginal Price (EUR/MWh)')
 
 fig.tight_layout()
 #fig.savefig('lmp.png')
+
+### Look at variable curtailment
+
+source = "Wind Onshore"
+
+capacity = network.generators.groupby("source").sum().at[source,"p_nom"]
+
+p_available = network.generators_t.p_max_pu.multiply(network.generators["p_nom"])
+
+p_available_by_source =p_available.groupby(network.generators.source, axis=1).sum()
+
+p_curtailed_by_source = p_available_by_source - p_by_source
+
+p_df = pd.DataFrame({source + " available" : p_available_by_source[source],
+                     source + " dispatched" : p_by_source[source],
+                     source + " curtailed" : p_curtailed_by_source[source]})
+
+p_df[source + " capacity"] = capacity
+
+fig,ax = plt.subplots(1,1)
+fig.set_size_inches(12,6)
+p_df[[source + " dispatched",source + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
+p_df[[source+ " available",source + " capacity"]].plot(ax=ax,linewidth=3)
+
+ax.set_xlabel("")
+ax.set_ylabel("Power [MW]")
+ax.set_ylim([0,35000])
+ax.legend()
+
+fig.tight_layout()
+#fig.savefig("scigrid-curtailment.png")
 
 ## Check power flow
 

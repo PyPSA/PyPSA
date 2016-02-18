@@ -104,6 +104,8 @@ Some screenshots:
 
 .. image:: http://www.pypsa.org/img/storage-scigrid.png
 
+.. image:: http://www.pypsa.org/img/scigrid-curtailment.png
+
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 
 .. image:: http://www.pypsa.org/img/europe-map.png
