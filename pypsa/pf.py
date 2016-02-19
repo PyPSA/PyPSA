@@ -714,11 +714,11 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
     buses = sub_network.buses_o
 
     if not skip_pre and len(branches) > 0:
-        calculate_B_H(sub_network,verbose=verbose)
+        calculate_B_H(sub_network, verbose=verbose)
 
 
     #set the power injection at each node
-    network.buses_t.p.loc[now] = \
+    network.buses_t.p.loc[now, buses.index] = \
     pd.concat(
         [(getattr(network,list_name+"_t").p_set.loc[now]
           *getattr(network,list_name).sign)
@@ -728,14 +728,14 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
         [(network.shunt_impedances.sign*network.shunt_impedances.g_pu)
          .groupby(network.shunt_impedances.bus).sum()]
         +
-        [getattr(network,list_name+"_t").loc["p"+str(i),now]
+        [- getattr(network,list_name+"_t").loc["p"+str(i),now]
          .groupby(getattr(network,list_name)["bus"+str(i)]).sum()
          for list_name in ["transport_links","converters"]
          for i in [0,1]],
         axis=1
     ).sum(axis=1).reindex(buses.index, fill_value=0.)
 
-    p = network.buses_t.loc['p',now]
+    p = network.buses_t.loc['p', now, buses.index]
 
     num_buses = len(buses)
 
@@ -749,39 +749,42 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
         lines = branches.loc["Line"]
         trafos = branches.loc["Transformer"]
 
-        network.lines_t.p1.loc[now] = -lines["flows"]
-        network.lines_t.p0.loc[now] = lines["flows"]
+        network.lines_t.p1.loc[now, lines.index] = -lines["flows"]
+        network.lines_t.p0.loc[now, lines.index] = lines["flows"]
 
-        network.transformers_t.p1.loc[now] = -trafos["flows"]
-        network.transformers_t.p0.loc[now] = trafos["flows"]
+        network.transformers_t.p1.loc[now, trafos.index] = -trafos["flows"]
+        network.transformers_t.p0.loc[now, trafos.index] = trafos["flows"]
 
 
 
     #set slack bus power to pick up remained
-    network.buses_t.at["p",now,sub_network.slack_bus] = -sum(p[1:])
+    network.buses_t.at["p", now, sub_network.slack_bus] = -sum(p[1:])
 
     if sub_network.current_type == "AC":
-        network.buses_t.v_ang.loc[now] = v_diff
-        network.buses_t.v_mag_pu.loc[now] = 1.
+        network.buses_t.v_ang.loc[now, buses.index] = v_diff
+        network.buses_t.v_mag_pu.loc[now, buses.index] = 1.
     elif sub_network.current_type == "DC":
-        network.buses_t.v_mag_pu.loc[now] = 1 + v_diff
-        network.buses_t.v_ang.loc[now] = 0.
+        network.buses_t.v_mag_pu.loc[now, buses.index] = 1 + v_diff
+        network.buses_t.v_ang.loc[now, buses.index] = 0.
 
     #allow all loads to dispatch as set
     loads = sub_network.loads()
-    network.loads_t.p.loc[now] = network.loads_t.p_set.loc[now]
+    network.loads_t.p.loc[now, loads.index] = network.loads_t.p_set.loc[now, loads.index]
 
     #allow all loads to dispatch as set
     shunt_impedances = sub_network.shunt_impedances()
-    network.shunt_impedances_t.p.loc[now] = network.shunt_impedances.g_pu.values
+    network.shunt_impedances_t.p.loc[now, shunt_impedances.index] = \
+        network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
 
     #allow all generators to dispatch as set
     generators = sub_network.generators()
-    network.generators_t.p.loc[now] = network.generators_t.p_set.loc[now]
+    network.generators_t.p.loc[now, generators.index] = \
+        network.generators_t.p_set.loc[now, generators.index]
 
     #let slack generator take up the slack
     if sub_network.slack_generator != "":
-        network.generators_t.at["p",now,sub_network.slack_generator] += network.buses_t.at["p",now,sub_network.slack_bus] - p[0]
+        network.generators_t.at["p", now, sub_network.slack_generator] += \
+            network.buses_t.at["p",now,sub_network.slack_bus] - p[0]
 
 
 
