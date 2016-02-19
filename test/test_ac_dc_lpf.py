@@ -20,7 +20,7 @@ from distutils.spawn import find_executable
 
 
 
-def test_opf():
+def test_lpf():
 
 
     csv_folder_name = "../examples/ac-dc-meshed/ac-dc-data"
