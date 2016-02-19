@@ -86,7 +86,7 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
 
     #now export all other components
 
-    for list_name in ["buses","generators","storage_units","loads","transport_links","lines","converters","sources"]:
+    for list_name in ["buses","generators","storage_units","loads","shunt_impedances","transport_links","lines","transformers","converters","sources"]:
         list_df = getattr(network,list_name)
         if len(list_df) == 0:
             if verbose:
@@ -251,7 +251,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
 
     #now read in other components
 
-    for class_name in ["Bus","Source","Generator","StorageUnit","Load","TransportLink","Line","Converter"]:
+    for class_name in ["Bus","Source","Generator","StorageUnit","Load","ShuntImpedance","TransportLink","Line","Transformer","Converter"]:
         cls = getattr(pypsa.components,class_name)
         if verbose:
             print(class_name,cls)

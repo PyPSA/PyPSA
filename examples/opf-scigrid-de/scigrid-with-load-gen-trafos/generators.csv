@@ -1,0 +1,1581 @@
+name,bus,sign,control,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom_max,p_nom,p_nom_opt,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost,obj
+1 Gas,1,1.0,PQ,0.0,0.0,False,flexible,,121.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 1 Gas
+1 Hard Coal,1,1.0,PQ,0.0,0.0,False,flexible,,272.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 1 Hard Coal
+100_220kV Gas,100_220kV,1.0,PQ,0.0,0.0,False,flexible,,390.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 100_220kV Gas
+101 Run of River,101,1.0,PQ,0.0,0.0,False,flexible,,3.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 101 Run of River
+102 Gas,102,1.0,PQ,0.0,0.0,False,flexible,,180.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 102 Gas
+104 Brown Coal,104,1.0,PQ,0.0,0.0,False,flexible,,750.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 104 Brown Coal
+104_220kV Gas,104_220kV,1.0,PQ,0.0,0.0,False,flexible,,20.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 104_220kV Gas
+105 Hard Coal,105,1.0,PQ,0.0,0.0,False,flexible,,324.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 105 Hard Coal
+107_220kV Gas,107_220kV,1.0,PQ,0.0,0.0,False,flexible,,27.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 107_220kV Gas
+108 Waste,108,1.0,PQ,0.0,0.0,False,flexible,,38.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 108 Waste
+10_220kV Hard Coal,10_220kV,1.0,PQ,0.0,0.0,False,flexible,,695.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 10_220kV Hard Coal
+111 Gas,111,1.0,PQ,0.0,0.0,False,flexible,,13.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 111 Gas
+114 Hard Coal,114,1.0,PQ,0.0,0.0,False,flexible,,19.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 114 Hard Coal
+115 Brown Coal,115,1.0,PQ,0.0,0.0,False,flexible,,4730.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 115 Brown Coal
+116 Gas,116,1.0,PQ,0.0,0.0,False,flexible,,543.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 116 Gas
+118 Gas,118,1.0,PQ,0.0,0.0,False,flexible,,95.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 118 Gas
+118 Waste,118,1.0,PQ,0.0,0.0,False,flexible,,12.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 118 Waste
+119 Brown Coal,119,1.0,PQ,0.0,0.0,False,flexible,,9.3,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 119 Brown Coal
+119 Gas,119,1.0,PQ,0.0,0.0,False,flexible,,16.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 119 Gas
+12 Gas,12,1.0,PQ,0.0,0.0,False,flexible,,150.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 12 Gas
+12 Hard Coal,12,1.0,PQ,0.0,0.0,False,flexible,,26.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 12 Hard Coal
+121 Brown Coal,121,1.0,PQ,0.0,0.0,False,flexible,,24.6,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 121 Brown Coal
+123 Brown Coal,123,1.0,PQ,0.0,0.0,False,flexible,,3455.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 123 Brown Coal
+126 Brown Coal,126,1.0,PQ,0.0,0.0,False,flexible,,38.5,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 126 Brown Coal
+126 Oil,126,1.0,PQ,0.0,0.0,False,flexible,,60.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 126 Oil
+127 Brown Coal,127,1.0,PQ,0.0,0.0,False,flexible,,1800.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 127 Brown Coal
+127 Waste,127,1.0,PQ,0.0,0.0,False,flexible,,24.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 127 Waste
+128 Run of River,128,1.0,PQ,0.0,0.0,False,flexible,,16.4,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 128 Run of River
+128_220kV Gas,128_220kV,1.0,PQ,0.0,0.0,False,flexible,,52.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 128_220kV Gas
+128_220kV Run of River,128_220kV,1.0,PQ,0.0,0.0,False,flexible,,20.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 128_220kV Run of River
+12_220kV Waste,12_220kV,1.0,PQ,0.0,0.0,False,flexible,,30.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 12_220kV Waste
+130 Hard Coal,130,1.0,PQ,0.0,0.0,False,flexible,,85.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 130 Hard Coal
+130 Waste,130,1.0,PQ,0.0,0.0,False,flexible,,30.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 130 Waste
+131 Gas,131,1.0,PQ,0.0,0.0,False,flexible,,586.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 131 Gas
+133 Brown Coal,133,1.0,PQ,0.0,0.0,False,flexible,,137.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 133 Brown Coal
+133 Hard Coal,133,1.0,PQ,0.0,0.0,False,flexible,,318.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 133 Hard Coal
+133 Waste,133,1.0,PQ,0.0,0.0,False,flexible,,33.4,0.0,0.0,1.0,1.0,Waste,6.0,Generator 133 Waste
+134 Brown Coal,134,1.0,PQ,0.0,0.0,False,flexible,,118.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 134 Brown Coal
+136 Gas,136,1.0,PQ,0.0,0.0,False,flexible,,838.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 136 Gas
+136 Hard Coal,136,1.0,PQ,0.0,0.0,False,flexible,,765.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 136 Hard Coal
+137 Gas,137,1.0,PQ,0.0,0.0,False,flexible,,11.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 137 Gas
+139 Hard Coal,139,1.0,PQ,0.0,0.0,False,flexible,,760.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 139 Hard Coal
+14 Run of River,14,1.0,PQ,0.0,0.0,False,flexible,,27.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 14 Run of River
+140 Gas,140,1.0,PQ,0.0,0.0,False,flexible,,11.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 140 Gas
+141 Gas,141,1.0,PQ,0.0,0.0,False,flexible,,64.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 141 Gas
+144 Gas,144,1.0,PQ,0.0,0.0,False,flexible,,99.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 144 Gas
+145 Brown Coal,145,1.0,PQ,0.0,0.0,False,flexible,,75.3,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 145 Brown Coal
+145 Gas,145,1.0,PQ,0.0,0.0,False,flexible,,536.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 145 Gas
+145 Other,145,1.0,PQ,0.0,0.0,False,flexible,,79.8,0.0,0.0,1.0,1.0,Other,32.0,Generator 145 Other
+145 Waste,145,1.0,PQ,0.0,0.0,False,flexible,,45.1,0.0,0.0,1.0,1.0,Waste,6.0,Generator 145 Waste
+146 Gas,146,1.0,PQ,0.0,0.0,False,flexible,,84.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 146 Gas
+147 Gas,147,1.0,PQ,0.0,0.0,False,flexible,,230.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 147 Gas
+148 Gas,148,1.0,PQ,0.0,0.0,False,flexible,,10.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 148 Gas
+148 Oil,148,1.0,PQ,0.0,0.0,False,flexible,,86.2,0.0,0.0,1.0,1.0,Oil,100.0,Generator 148 Oil
+148 Waste,148,1.0,PQ,0.0,0.0,False,flexible,,53.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 148 Waste
+150 Gas,150,1.0,PQ,0.0,0.0,False,flexible,,15.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 150 Gas
+155 Waste,155,1.0,PQ,0.0,0.0,False,flexible,,12.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 155 Waste
+156 Brown Coal,156,1.0,PQ,0.0,0.0,False,flexible,,28.9,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 156 Brown Coal
+157 Gas,157,1.0,PQ,0.0,0.0,False,flexible,,22.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 157 Gas
+159 Gas,159,1.0,PQ,0.0,0.0,False,flexible,,64.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 159 Gas
+159_220kV Gas,159_220kV,1.0,PQ,0.0,0.0,False,flexible,,58.58,0.0,0.0,1.0,1.0,Gas,50.0,Generator 159_220kV Gas
+16 Gas,16,1.0,PQ,0.0,0.0,False,flexible,,11.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 16 Gas
+160_220kV Waste,160_220kV,1.0,PQ,0.0,0.0,False,flexible,,14.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 160_220kV Waste
+162 Gas,162,1.0,PQ,0.0,0.0,False,flexible,,8.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 162 Gas
+163 Waste,163,1.0,PQ,0.0,0.0,False,flexible,,12.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 163 Waste
+166 Gas,166,1.0,PQ,0.0,0.0,False,flexible,,332.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 166 Gas
+166 Hard Coal,166,1.0,PQ,0.0,0.0,False,flexible,,1324.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 166 Hard Coal
+167 Gas,167,1.0,PQ,0.0,0.0,False,flexible,,26.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 167 Gas
+170 Gas,170,1.0,PQ,0.0,0.0,False,flexible,,32.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 170 Gas
+170 Nuclear,170,1.0,PQ,0.0,0.0,False,flexible,,1360.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 170 Nuclear
+170 Waste,170,1.0,PQ,0.0,0.0,False,flexible,,61.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 170 Waste
+174 Gas,174,1.0,PQ,0.0,0.0,False,flexible,,24.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 174 Gas
+174 Other,174,1.0,PQ,0.0,0.0,False,flexible,,38.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 174 Other
+175 Hard Coal,175,1.0,PQ,0.0,0.0,False,flexible,,95.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 175 Hard Coal
+175 Other,175,1.0,PQ,0.0,0.0,False,flexible,,21.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 175 Other
+178 Storage Hydro,178,1.0,PQ,0.0,0.0,False,flexible,,15.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 178 Storage Hydro
+179 Gas,179,1.0,PQ,0.0,0.0,False,flexible,,37.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 179 Gas
+18 Gas,18,1.0,PQ,0.0,0.0,False,flexible,,37.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 18 Gas
+180 Oil,180,1.0,PQ,0.0,0.0,False,flexible,,333.5,0.0,0.0,1.0,1.0,Oil,100.0,Generator 180 Oil
+180 Waste,180,1.0,PQ,0.0,0.0,False,flexible,,28.9,0.0,0.0,1.0,1.0,Waste,6.0,Generator 180 Waste
+183 Brown Coal,183,1.0,PQ,0.0,0.0,False,flexible,,857.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 183 Brown Coal
+183 Gas,183,1.0,PQ,0.0,0.0,False,flexible,,22.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 183 Gas
+183 Hard Coal,183,1.0,PQ,0.0,0.0,False,flexible,,766.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 183 Hard Coal
+183 Oil,183,1.0,PQ,0.0,0.0,False,flexible,,38.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 183 Oil
+183 Waste,183,1.0,PQ,0.0,0.0,False,flexible,,24.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 183 Waste
+184_220kV Gas,184_220kV,1.0,PQ,0.0,0.0,False,flexible,,22.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 184_220kV Gas
+185 Waste,185,1.0,PQ,0.0,0.0,False,flexible,,33.1,0.0,0.0,1.0,1.0,Waste,6.0,Generator 185 Waste
+188 Gas,188,1.0,PQ,0.0,0.0,False,flexible,,274.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 188 Gas
+18_220kV Gas,18_220kV,1.0,PQ,0.0,0.0,False,flexible,,15.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 18_220kV Gas
+19 Gas,19,1.0,PQ,0.0,0.0,False,flexible,,10.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 19 Gas
+190 Gas,190,1.0,PQ,0.0,0.0,False,flexible,,13.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 190 Gas
+194 Hard Coal,194,1.0,PQ,0.0,0.0,False,flexible,,1017.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 194 Hard Coal
+196 Other,196,1.0,PQ,0.0,0.0,False,flexible,,700.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 196 Other
+198 Storage Hydro,198,1.0,PQ,0.0,0.0,False,flexible,,79.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 198 Storage Hydro
+199 Other,199,1.0,PQ,0.0,0.0,False,flexible,,19.7,0.0,0.0,1.0,1.0,Other,32.0,Generator 199 Other
+200 Brown Coal,200,1.0,PQ,0.0,0.0,False,flexible,,27.5,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 200 Brown Coal
+201_220kV Gas,201_220kV,1.0,PQ,0.0,0.0,False,flexible,,37.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 201_220kV Gas
+202 Gas,202,1.0,PQ,0.0,0.0,False,flexible,,1837.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 202 Gas
+202 Nuclear,202,1.0,PQ,0.0,0.0,False,flexible,,1329.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 202 Nuclear
+204 Hard Coal,204,1.0,PQ,0.0,0.0,False,flexible,,310.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 204 Hard Coal
+205 Gas,205,1.0,PQ,0.0,0.0,False,flexible,,417.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 205 Gas
+206 Run of River,206,1.0,PQ,0.0,0.0,False,flexible,,40.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 206 Run of River
+21 Gas,21,1.0,PQ,0.0,0.0,False,flexible,,127.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 21 Gas
+21 Hard Coal,21,1.0,PQ,0.0,0.0,False,flexible,,194.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 21 Hard Coal
+21 Waste,21,1.0,PQ,0.0,0.0,False,flexible,,16.4,0.0,0.0,1.0,1.0,Waste,6.0,Generator 21 Waste
+210 Waste,210,1.0,PQ,0.0,0.0,False,flexible,,14.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 210 Waste
+211 Hard Coal,211,1.0,PQ,0.0,0.0,False,flexible,,721.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 211 Hard Coal
+211 Waste,211,1.0,PQ,0.0,0.0,False,flexible,,11.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 211 Waste
+212 Run of River,212,1.0,PQ,0.0,0.0,False,flexible,,24.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 212 Run of River
+213 Gas,213,1.0,PQ,0.0,0.0,False,flexible,,104.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 213 Gas
+215 Gas,215,1.0,PQ,0.0,0.0,False,flexible,,47.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 215 Gas
+215 Waste,215,1.0,PQ,0.0,0.0,False,flexible,,73.4,0.0,0.0,1.0,1.0,Waste,6.0,Generator 215 Waste
+217 Gas,217,1.0,PQ,0.0,0.0,False,flexible,,108.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 217 Gas
+217 Hard Coal,217,1.0,PQ,0.0,0.0,False,flexible,,788.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 217 Hard Coal
+217 Waste,217,1.0,PQ,0.0,0.0,False,flexible,,17.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 217 Waste
+219 Gas,219,1.0,PQ,0.0,0.0,False,flexible,,254.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 219 Gas
+219 Waste,219,1.0,PQ,0.0,0.0,False,flexible,,34.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 219 Waste
+22 Oil,22,1.0,PQ,0.0,0.0,False,flexible,,298.5,0.0,0.0,1.0,1.0,Oil,100.0,Generator 22 Oil
+221 Gas,221,1.0,PQ,0.0,0.0,False,flexible,,9.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 221 Gas
+223 Gas,223,1.0,PQ,0.0,0.0,False,flexible,,87.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 223 Gas
+225 Gas,225,1.0,PQ,0.0,0.0,False,flexible,,11.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 225 Gas
+225 Hard Coal,225,1.0,PQ,0.0,0.0,False,flexible,,13.4,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 225 Hard Coal
+225 Other,225,1.0,PQ,0.0,0.0,False,flexible,,56.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 225 Other
+225 Run of River,225,1.0,PQ,0.0,0.0,False,flexible,,4.6,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 225 Run of River
+225 Waste,225,1.0,PQ,0.0,0.0,False,flexible,,15.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 225 Waste
+226 Gas,226,1.0,PQ,0.0,0.0,False,flexible,,20.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 226 Gas
+226 Run of River,226,1.0,PQ,0.0,0.0,False,flexible,,0.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 226 Run of River
+227 Gas,227,1.0,PQ,0.0,0.0,False,flexible,,95.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 227 Gas
+227 Run of River,227,1.0,PQ,0.0,0.0,False,flexible,,11.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 227 Run of River
+229 Gas,229,1.0,PQ,0.0,0.0,False,flexible,,2301.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 229 Gas
+229 Hard Coal,229,1.0,PQ,0.0,0.0,False,flexible,,1958.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 229 Hard Coal
+230 Geothermal,230,1.0,PQ,0.0,0.0,False,flexible,,7.8,0.0,0.0,1.0,1.0,Geothermal,26.0,Generator 230 Geothermal
+232 Gas,232,1.0,PQ,0.0,0.0,False,flexible,,86.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 232 Gas
+233 Gas,233,1.0,PQ,0.0,0.0,False,flexible,,4.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 233 Gas
+233_220kV Hard Coal,233_220kV,1.0,PQ,0.0,0.0,False,flexible,,20.7,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 233_220kV Hard Coal
+238 Gas,238,1.0,PQ,0.0,0.0,False,flexible,,7.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 238 Gas
+238 Run of River,238,1.0,PQ,0.0,0.0,False,flexible,,12.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 238 Run of River
+238 Storage Hydro,238,1.0,PQ,0.0,0.0,False,flexible,,392.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 238 Storage Hydro
+24 Gas,24,1.0,PQ,0.0,0.0,False,flexible,,2.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 24 Gas
+240 Gas,240,1.0,PQ,0.0,0.0,False,flexible,,126.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 240 Gas
+240 Storage Hydro,240,1.0,PQ,0.0,0.0,False,flexible,,82.5,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 240 Storage Hydro
+241 Brown Coal,241,1.0,PQ,0.0,0.0,False,flexible,,465.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 241 Brown Coal
+246 Hard Coal,246,1.0,PQ,0.0,0.0,False,flexible,,510.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 246 Hard Coal
+247 Oil,247,1.0,PQ,0.0,0.0,False,flexible,,34.5,0.0,0.0,1.0,1.0,Oil,100.0,Generator 247 Oil
+248_220kV Hard Coal,248_220kV,1.0,PQ,0.0,0.0,False,flexible,,956.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 248_220kV Hard Coal
+249 Waste,249,1.0,PQ,0.0,0.0,False,flexible,,14.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 249 Waste
+250 Run of River,250,1.0,PQ,0.0,0.0,False,flexible,,46.9,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 250 Run of River
+252 Gas,252,1.0,PQ,0.0,0.0,False,flexible,,15.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 252 Gas
+254 Gas,254,1.0,PQ,0.0,0.0,False,flexible,,10.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 254 Gas
+255 Run of River,255,1.0,PQ,0.0,0.0,False,flexible,,84.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 255 Run of River
+256 Run of River,256,1.0,PQ,0.0,0.0,False,flexible,,25.4,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 256 Run of River
+258 Gas,258,1.0,PQ,0.0,0.0,False,flexible,,32.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 258 Gas
+258 Other,258,1.0,PQ,0.0,0.0,False,flexible,,28.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 258 Other
+26 Nuclear,26,1.0,PQ,0.0,0.0,False,flexible,,1410.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 26 Nuclear
+26 Run of River,26,1.0,PQ,0.0,0.0,False,flexible,,104.4,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 26 Run of River
+262 Gas,262,1.0,PQ,0.0,0.0,False,flexible,,36.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 262 Gas
+263 Storage Hydro,263,1.0,PQ,0.0,0.0,False,flexible,,500.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 263 Storage Hydro
+266 Gas,266,1.0,PQ,0.0,0.0,False,flexible,,59.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 266 Gas
+266 Oil,266,1.0,PQ,0.0,0.0,False,flexible,,92.8,0.0,0.0,1.0,1.0,Oil,100.0,Generator 266 Oil
+266 Run of River,266,1.0,PQ,0.0,0.0,False,flexible,,214.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 266 Run of River
+266 Waste,266,1.0,PQ,0.0,0.0,False,flexible,,9.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 266 Waste
+26_220kV Hard Coal,26_220kV,1.0,PQ,0.0,0.0,False,flexible,,725.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 26_220kV Hard Coal
+270 Gas,270,1.0,PQ,0.0,0.0,False,flexible,,50.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 270 Gas
+271 Gas,271,1.0,PQ,0.0,0.0,False,flexible,,490.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 271 Gas
+273 Other,273,1.0,PQ,0.0,0.0,False,flexible,,176.1,0.0,0.0,1.0,1.0,Other,32.0,Generator 273 Other
+275 Gas,275,1.0,PQ,0.0,0.0,False,flexible,,42.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 275 Gas
+275 Other,275,1.0,PQ,0.0,0.0,False,flexible,,100.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 275 Other
+275 Waste,275,1.0,PQ,0.0,0.0,False,flexible,,12.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 275 Waste
+276 Run of River,276,1.0,PQ,0.0,0.0,False,flexible,,16.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 276 Run of River
+279_220kV Brown Coal,279_220kV,1.0,PQ,0.0,0.0,False,flexible,,90.8,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 279_220kV Brown Coal
+28 Hard Coal,28,1.0,PQ,0.0,0.0,False,flexible,,260.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 28 Hard Coal
+28 Oil,28,1.0,PQ,0.0,0.0,False,flexible,,101.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 28 Oil
+28 Run of River,28,1.0,PQ,0.0,0.0,False,flexible,,128.7,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 28 Run of River
+281_220kV Gas,281_220kV,1.0,PQ,0.0,0.0,False,flexible,,74.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 281_220kV Gas
+282_220kV Gas,282_220kV,1.0,PQ,0.0,0.0,False,flexible,,27.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 282_220kV Gas
+282_220kV Oil,282_220kV,1.0,PQ,0.0,0.0,False,flexible,,17.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 282_220kV Oil
+283 Hard Coal,283,1.0,PQ,0.0,0.0,False,flexible,,370.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 283 Hard Coal
+285 Gas,285,1.0,PQ,0.0,0.0,False,flexible,,18.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 285 Gas
+288 Hard Coal,288,1.0,PQ,0.0,0.0,False,flexible,,18.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 288 Hard Coal
+289 Gas,289,1.0,PQ,0.0,0.0,False,flexible,,33.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 289 Gas
+289 Hard Coal,289,1.0,PQ,0.0,0.0,False,flexible,,794.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 289 Hard Coal
+290 Waste,290,1.0,PQ,0.0,0.0,False,flexible,,15.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 290 Waste
+291 Brown Coal,291,1.0,PQ,0.0,0.0,False,flexible,,1105.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 291 Brown Coal
+292 Gas,292,1.0,PQ,0.0,0.0,False,flexible,,132.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 292 Gas
+292 Waste,292,1.0,PQ,0.0,0.0,False,flexible,,24.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 292 Waste
+292_220kV Brown Coal,292_220kV,1.0,PQ,0.0,0.0,False,flexible,,20.3,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 292_220kV Brown Coal
+292_220kV Gas,292_220kV,1.0,PQ,0.0,0.0,False,flexible,,84.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 292_220kV Gas
+292_220kV Waste,292_220kV,1.0,PQ,0.0,0.0,False,flexible,,35.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 292_220kV Waste
+294 Gas,294,1.0,PQ,0.0,0.0,False,flexible,,13.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 294 Gas
+294 Waste,294,1.0,PQ,0.0,0.0,False,flexible,,11.2,0.0,0.0,1.0,1.0,Waste,6.0,Generator 294 Waste
+295 Gas,295,1.0,PQ,0.0,0.0,False,flexible,,119.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 295 Gas
+295 Hard Coal,295,1.0,PQ,0.0,0.0,False,flexible,,43.3,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 295 Hard Coal
+299 Hard Coal,299,1.0,PQ,0.0,0.0,False,flexible,,690.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 299 Hard Coal
+301 Gas,301,1.0,PQ,0.0,0.0,False,flexible,,13.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 301 Gas
+302 Brown Coal,302,1.0,PQ,0.0,0.0,False,flexible,,33.5,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 302 Brown Coal
+302 Gas,302,1.0,PQ,0.0,0.0,False,flexible,,128.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 302 Gas
+302 Waste,302,1.0,PQ,0.0,0.0,False,flexible,,14.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 302 Waste
+304 Gas,304,1.0,PQ,0.0,0.0,False,flexible,,34.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 304 Gas
+304 Oil,304,1.0,PQ,0.0,0.0,False,flexible,,24.8,0.0,0.0,1.0,1.0,Oil,100.0,Generator 304 Oil
+305 Nuclear,305,1.0,PQ,0.0,0.0,False,flexible,,1310.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 305 Nuclear
+305 Oil,305,1.0,PQ,0.0,0.0,False,flexible,,136.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 305 Oil
+308_220kV Nuclear,308_220kV,1.0,PQ,0.0,0.0,False,flexible,,1275.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 308_220kV Nuclear
+31 Gas,31,1.0,PQ,0.0,0.0,False,flexible,,195.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 31 Gas
+310 Hard Coal,310,1.0,PQ,0.0,0.0,False,flexible,,778.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 310 Hard Coal
+311 Gas,311,1.0,PQ,0.0,0.0,False,flexible,,13.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 311 Gas
+312_220kV Gas,312_220kV,1.0,PQ,0.0,0.0,False,flexible,,800.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 312_220kV Gas
+313 Brown Coal,313,1.0,PQ,0.0,0.0,False,flexible,,875.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 313 Brown Coal
+315_220kV Hard Coal,315_220kV,1.0,PQ,0.0,0.0,False,flexible,,61.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 315_220kV Hard Coal
+315_220kV Run of River,315_220kV,1.0,PQ,0.0,0.0,False,flexible,,77.4,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 315_220kV Run of River
+316 Gas,316,1.0,PQ,0.0,0.0,False,flexible,,75.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 316 Gas
+316 Waste,316,1.0,PQ,0.0,0.0,False,flexible,,10.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 316 Waste
+318 Run of River,318,1.0,PQ,0.0,0.0,False,flexible,,62.7,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 318 Run of River
+319 Hard Coal,319,1.0,PQ,0.0,0.0,False,flexible,,138.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 319 Hard Coal
+32 Gas,32,1.0,PQ,0.0,0.0,False,flexible,,109.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 32 Gas
+320 Gas,320,1.0,PQ,0.0,0.0,False,flexible,,9.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 320 Gas
+321 Waste,321,1.0,PQ,0.0,0.0,False,flexible,,13.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 321 Waste
+322 Gas,322,1.0,PQ,0.0,0.0,False,flexible,,85.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 322 Gas
+323 Gas,323,1.0,PQ,0.0,0.0,False,flexible,,46.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 323 Gas
+323 Waste,323,1.0,PQ,0.0,0.0,False,flexible,,26.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 323 Waste
+326 Gas,326,1.0,PQ,0.0,0.0,False,flexible,,319.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 326 Gas
+327 Gas,327,1.0,PQ,0.0,0.0,False,flexible,,26.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 327 Gas
+327 Run of River,327,1.0,PQ,0.0,0.0,False,flexible,,134.5,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 327 Run of River
+328 Run of River,328,1.0,PQ,0.0,0.0,False,flexible,,36.5,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 328 Run of River
+329 Run of River,329,1.0,PQ,0.0,0.0,False,flexible,,50.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 329 Run of River
+32_220kV Run of River,32_220kV,1.0,PQ,0.0,0.0,False,flexible,,18.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 32_220kV Run of River
+33 Gas,33,1.0,PQ,0.0,0.0,False,flexible,,31.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 33 Gas
+330 Nuclear,330,1.0,PQ,0.0,0.0,False,flexible,,1410.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 330 Nuclear
+330 Run of River,330,1.0,PQ,0.0,0.0,False,flexible,,35.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 330 Run of River
+331 Gas,331,1.0,PQ,0.0,0.0,False,flexible,,227.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 331 Gas
+331 Run of River,331,1.0,PQ,0.0,0.0,False,flexible,,217.5,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 331 Run of River
+331 Waste,331,1.0,PQ,0.0,0.0,False,flexible,,12.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 331 Waste
+332 Gas,332,1.0,PQ,0.0,0.0,False,flexible,,97.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 332 Gas
+332 Hard Coal,332,1.0,PQ,0.0,0.0,False,flexible,,61.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 332 Hard Coal
+332 Run of River,332,1.0,PQ,0.0,0.0,False,flexible,,25.2,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 332 Run of River
+335 Gas,335,1.0,PQ,0.0,0.0,False,flexible,,54.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 335 Gas
+336_220kV Oil,336_220kV,1.0,PQ,0.0,0.0,False,flexible,,250.6,0.0,0.0,1.0,1.0,Oil,100.0,Generator 336_220kV Oil
+337 Gas,337,1.0,PQ,0.0,0.0,False,flexible,,45.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 337 Gas
+337 Run of River,337,1.0,PQ,0.0,0.0,False,flexible,,80.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 337 Run of River
+338 Waste,338,1.0,PQ,0.0,0.0,False,flexible,,54.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 338 Waste
+338_220kV Run of River,338_220kV,1.0,PQ,0.0,0.0,False,flexible,,48.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 338_220kV Run of River
+339 Hard Coal,339,1.0,PQ,0.0,0.0,False,flexible,,110.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 339 Hard Coal
+34 Hard Coal,34,1.0,PQ,0.0,0.0,False,flexible,,757.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 34 Hard Coal
+34 Oil,34,1.0,PQ,0.0,0.0,False,flexible,,56.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 34 Oil
+340 Gas,340,1.0,PQ,0.0,0.0,False,flexible,,213.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 340 Gas
+341 Brown Coal,341,1.0,PQ,0.0,0.0,False,flexible,,134.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 341 Brown Coal
+341 Gas,341,1.0,PQ,0.0,0.0,False,flexible,,159.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 341 Gas
+341 Oil,341,1.0,PQ,0.0,0.0,False,flexible,,111.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 341 Oil
+341 Other,341,1.0,PQ,0.0,0.0,False,flexible,,42.7,0.0,0.0,1.0,1.0,Other,32.0,Generator 341 Other
+341 Waste,341,1.0,PQ,0.0,0.0,False,flexible,,58.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 341 Waste
+342 Gas,342,1.0,PQ,0.0,0.0,False,flexible,,19.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 342 Gas
+344 Gas,344,1.0,PQ,0.0,0.0,False,flexible,,69.95,0.0,0.0,1.0,1.0,Gas,50.0,Generator 344 Gas
+347 Gas,347,1.0,PQ,0.0,0.0,False,flexible,,211.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 347 Gas
+347 Hard Coal,347,1.0,PQ,0.0,0.0,False,flexible,,89.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 347 Hard Coal
+347 Oil,347,1.0,PQ,0.0,0.0,False,flexible,,327.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 347 Oil
+348 Gas,348,1.0,PQ,0.0,0.0,False,flexible,,288.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 348 Gas
+350 Gas,350,1.0,PQ,0.0,0.0,False,flexible,,18.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 350 Gas
+351 Other,351,1.0,PQ,0.0,0.0,False,flexible,,23.3,0.0,0.0,1.0,1.0,Other,32.0,Generator 351 Other
+351 Run of River,351,1.0,PQ,0.0,0.0,False,flexible,,63.7,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 351 Run of River
+351 Waste,351,1.0,PQ,0.0,0.0,False,flexible,,25.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 351 Waste
+352 Hard Coal,352,1.0,PQ,0.0,0.0,False,flexible,,472.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 352 Hard Coal
+352 Oil,352,1.0,PQ,0.0,0.0,False,flexible,,46.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 352 Oil
+352 Run of River,352,1.0,PQ,0.0,0.0,False,flexible,,73.3,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 352 Run of River
+353 Gas,353,1.0,PQ,0.0,0.0,False,flexible,,17.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 353 Gas
+353_220kV Gas,353_220kV,1.0,PQ,0.0,0.0,False,flexible,,1397.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 353_220kV Gas
+353_220kV Run of River,353_220kV,1.0,PQ,0.0,0.0,False,flexible,,23.3,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 353_220kV Run of River
+354 Gas,354,1.0,PQ,0.0,0.0,False,flexible,,540.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 354 Gas
+354 Hard Coal,354,1.0,PQ,0.0,0.0,False,flexible,,333.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 354 Hard Coal
+354 Waste,354,1.0,PQ,0.0,0.0,False,flexible,,40.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 354 Waste
+357 Run of River,357,1.0,PQ,0.0,0.0,False,flexible,,633.2,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 357 Run of River
+360_220kV Gas,360_220kV,1.0,PQ,0.0,0.0,False,flexible,,42.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 360_220kV Gas
+360_220kV Hard Coal,360_220kV,1.0,PQ,0.0,0.0,False,flexible,,779.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 360_220kV Hard Coal
+360_220kV Waste,360_220kV,1.0,PQ,0.0,0.0,False,flexible,,16.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 360_220kV Waste
+362_220kV Run of River,362_220kV,1.0,PQ,0.0,0.0,False,flexible,,79.5,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 362_220kV Run of River
+363 Other,363,1.0,PQ,0.0,0.0,False,flexible,,16.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 363 Other
+363 Run of River,363,1.0,PQ,0.0,0.0,False,flexible,,31.7,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 363 Run of River
+364 Waste,364,1.0,PQ,0.0,0.0,False,flexible,,11.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 364 Waste
+365 Gas,365,1.0,PQ,0.0,0.0,False,flexible,,81.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 365 Gas
+365 Hard Coal,365,1.0,PQ,0.0,0.0,False,flexible,,688.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 365 Hard Coal
+365 Waste,365,1.0,PQ,0.0,0.0,False,flexible,,36.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 365 Waste
+367 Nuclear,367,1.0,PQ,0.0,0.0,False,flexible,,1402.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 367 Nuclear
+370 Other,370,1.0,PQ,0.0,0.0,False,flexible,,85.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 370 Other
+373 Run of River,373,1.0,PQ,0.0,0.0,False,flexible,,25.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 373 Run of River
+374 Gas,374,1.0,PQ,0.0,0.0,False,flexible,,100.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 374 Gas
+376 Gas,376,1.0,PQ,0.0,0.0,False,flexible,,24.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 376 Gas
+376 Hard Coal,376,1.0,PQ,0.0,0.0,False,flexible,,875.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 376 Hard Coal
+377 Waste,377,1.0,PQ,0.0,0.0,False,flexible,,11.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 377 Waste
+378 Gas,378,1.0,PQ,0.0,0.0,False,flexible,,253.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 378 Gas
+378 Hard Coal,378,1.0,PQ,0.0,0.0,False,flexible,,769.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 378 Hard Coal
+37_220kV Gas,37_220kV,1.0,PQ,0.0,0.0,False,flexible,,52.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 37_220kV Gas
+37_220kV Waste,37_220kV,1.0,PQ,0.0,0.0,False,flexible,,58.4,0.0,0.0,1.0,1.0,Waste,6.0,Generator 37_220kV Waste
+380 Gas,380,1.0,PQ,0.0,0.0,False,flexible,,250.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 380 Gas
+380 Geothermal,380,1.0,PQ,0.0,0.0,False,flexible,,0.6,0.0,0.0,1.0,1.0,Geothermal,26.0,Generator 380 Geothermal
+380 Waste,380,1.0,PQ,0.0,0.0,False,flexible,,22.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 380 Waste
+382 Gas,382,1.0,PQ,0.0,0.0,False,flexible,,122.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 382 Gas
+382 Waste,382,1.0,PQ,0.0,0.0,False,flexible,,20.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 382 Waste
+383 Waste,383,1.0,PQ,0.0,0.0,False,flexible,,24.4,0.0,0.0,1.0,1.0,Waste,6.0,Generator 383 Waste
+385 Gas,385,1.0,PQ,0.0,0.0,False,flexible,,11.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 385 Gas
+385 Hard Coal,385,1.0,PQ,0.0,0.0,False,flexible,,24.8,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 385 Hard Coal
+385_220kV Gas,385_220kV,1.0,PQ,0.0,0.0,False,flexible,,47.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 385_220kV Gas
+385_220kV Oil,385_220kV,1.0,PQ,0.0,0.0,False,flexible,,0.5,0.0,0.0,1.0,1.0,Oil,100.0,Generator 385_220kV Oil
+386 Gas,386,1.0,PQ,0.0,0.0,False,flexible,,48.4,0.0,0.0,1.0,1.0,Gas,50.0,Generator 386 Gas
+386 Run of River,386,1.0,PQ,0.0,0.0,False,flexible,,30.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 386 Run of River
+387 Gas,387,1.0,PQ,0.0,0.0,False,flexible,,11.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 387 Gas
+387 Run of River,387,1.0,PQ,0.0,0.0,False,flexible,,4.2,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 387 Run of River
+39 Gas,39,1.0,PQ,0.0,0.0,False,flexible,,22.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 39 Gas
+390 Gas,390,1.0,PQ,0.0,0.0,False,flexible,,1001.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 390 Gas
+390 Hard Coal,390,1.0,PQ,0.0,0.0,False,flexible,,17.4,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 390 Hard Coal
+390 Waste,390,1.0,PQ,0.0,0.0,False,flexible,,18.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 390 Waste
+394 Gas,394,1.0,PQ,0.0,0.0,False,flexible,,26.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 394 Gas
+396 Nuclear,396,1.0,PQ,0.0,0.0,False,flexible,,2572.0,0.0,0.0,1.0,1.0,Nuclear,8.0,Generator 396 Nuclear
+398 Oil,398,1.0,PQ,0.0,0.0,False,flexible,,87.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 398 Oil
+399 Gas,399,1.0,PQ,0.0,0.0,False,flexible,,35.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 399 Gas
+399 Waste,399,1.0,PQ,0.0,0.0,False,flexible,,9.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 399 Waste
+401 Gas,401,1.0,PQ,0.0,0.0,False,flexible,,31.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 401 Gas
+402 Oil,402,1.0,PQ,0.0,0.0,False,flexible,,88.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 402 Oil
+403_220kV Run of River,403_220kV,1.0,PQ,0.0,0.0,False,flexible,,19.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 403_220kV Run of River
+404 Run of River,404,1.0,PQ,0.0,0.0,False,flexible,,24.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 404 Run of River
+404_220kV Geothermal,404_220kV,1.0,PQ,0.0,0.0,False,flexible,,0.2,0.0,0.0,1.0,1.0,Geothermal,26.0,Generator 404_220kV Geothermal
+405 Gas,405,1.0,PQ,0.0,0.0,False,flexible,,56.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 405 Gas
+405 Hard Coal,405,1.0,PQ,0.0,0.0,False,flexible,,103.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 405 Hard Coal
+405 Run of River,405,1.0,PQ,0.0,0.0,False,flexible,,84.6,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 405 Run of River
+409 Hard Coal,409,1.0,PQ,0.0,0.0,False,flexible,,112.6,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 409 Hard Coal
+409 Oil,409,1.0,PQ,0.0,0.0,False,flexible,,69.9,0.0,0.0,1.0,1.0,Oil,100.0,Generator 409 Oil
+409 Waste,409,1.0,PQ,0.0,0.0,False,flexible,,19.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 409 Waste
+410 Run of River,410,1.0,PQ,0.0,0.0,False,flexible,,20.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 410 Run of River
+414 Gas,414,1.0,PQ,0.0,0.0,False,flexible,,193.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 414 Gas
+414 Hard Coal,414,1.0,PQ,0.0,0.0,False,flexible,,12.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 414 Hard Coal
+417 Run of River,417,1.0,PQ,0.0,0.0,False,flexible,,137.3,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 417 Run of River
+418 Run of River,418,1.0,PQ,0.0,0.0,False,flexible,,66.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 418 Run of River
+422 Gas,422,1.0,PQ,0.0,0.0,False,flexible,,13.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 422 Gas
+423 Run of River,423,1.0,PQ,0.0,0.0,False,flexible,,36.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 423 Run of River
+424 Oil,424,1.0,PQ,0.0,0.0,False,flexible,,70.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 424 Oil
+425 Hard Coal,425,1.0,PQ,0.0,0.0,False,flexible,,449.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 425 Hard Coal
+425 Other,425,1.0,PQ,0.0,0.0,False,flexible,,288.5,0.0,0.0,1.0,1.0,Other,32.0,Generator 425 Other
+426 Brown Coal,426,1.0,PQ,0.0,0.0,False,flexible,,56.8,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 426 Brown Coal
+428 Brown Coal,428,1.0,PQ,0.0,0.0,False,flexible,,74.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 428 Brown Coal
+43 Gas,43,1.0,PQ,0.0,0.0,False,flexible,,196.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 43 Gas
+43 Waste,43,1.0,PQ,0.0,0.0,False,flexible,,17.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 43 Waste
+433 Run of River,433,1.0,PQ,0.0,0.0,False,flexible,,89.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 433 Run of River
+434 Run of River,434,1.0,PQ,0.0,0.0,False,flexible,,12.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 434 Run of River
+434 Storage Hydro,434,1.0,PQ,0.0,0.0,False,flexible,,124.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 434 Storage Hydro
+435 Brown Coal,435,1.0,PQ,0.0,0.0,False,flexible,,164.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 435 Brown Coal
+438 Run of River,438,1.0,PQ,0.0,0.0,False,flexible,,146.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 438 Run of River
+439 Gas,439,1.0,PQ,0.0,0.0,False,flexible,,7.44,0.0,0.0,1.0,1.0,Gas,50.0,Generator 439 Gas
+44 Other,44,1.0,PQ,0.0,0.0,False,flexible,,396.6,0.0,0.0,1.0,1.0,Other,32.0,Generator 44 Other
+440 Other,440,1.0,PQ,0.0,0.0,False,flexible,,17.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 440 Other
+441 Gas,441,1.0,PQ,0.0,0.0,False,flexible,,182.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 441 Gas
+442 Gas,442,1.0,PQ,0.0,0.0,False,flexible,,26.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 442 Gas
+444 Gas,444,1.0,PQ,0.0,0.0,False,flexible,,5.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 444 Gas
+445 Run of River,445,1.0,PQ,0.0,0.0,False,flexible,,217.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 445 Run of River
+446 Gas,446,1.0,PQ,0.0,0.0,False,flexible,,14.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 446 Gas
+447 Gas,447,1.0,PQ,0.0,0.0,False,flexible,,75.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 447 Gas
+45 Gas,45,1.0,PQ,0.0,0.0,False,flexible,,296.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 45 Gas
+453 Run of River,453,1.0,PQ,0.0,0.0,False,flexible,,30.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 453 Run of River
+454 Brown Coal,454,1.0,PQ,0.0,0.0,False,flexible,,875.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 454 Brown Coal
+455 Gas,455,1.0,PQ,0.0,0.0,False,flexible,,16.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 455 Gas
+456 Storage Hydro,456,1.0,PQ,0.0,0.0,False,flexible,,158.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 456 Storage Hydro
+457 Waste,457,1.0,PQ,0.0,0.0,False,flexible,,29.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 457 Waste
+46 Gas,46,1.0,PQ,0.0,0.0,False,flexible,,11.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 46 Gas
+463 Gas,463,1.0,PQ,0.0,0.0,False,flexible,,25.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 463 Gas
+464 Gas,464,1.0,PQ,0.0,0.0,False,flexible,,51.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 464 Gas
+464 Oil,464,1.0,PQ,0.0,0.0,False,flexible,,66.3,0.0,0.0,1.0,1.0,Oil,100.0,Generator 464 Oil
+465 Gas,465,1.0,PQ,0.0,0.0,False,flexible,,35.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 465 Gas
+465 Oil,465,1.0,PQ,0.0,0.0,False,flexible,,80.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 465 Oil
+468 Hard Coal,468,1.0,PQ,0.0,0.0,False,flexible,,79.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 468 Hard Coal
+468 Oil,468,1.0,PQ,0.0,0.0,False,flexible,,4.8,0.0,0.0,1.0,1.0,Oil,100.0,Generator 468 Oil
+468 Waste,468,1.0,PQ,0.0,0.0,False,flexible,,16.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 468 Waste
+469 Gas,469,1.0,PQ,0.0,0.0,False,flexible,,15.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 469 Gas
+47 Gas,47,1.0,PQ,0.0,0.0,False,flexible,,444.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 47 Gas
+471 Gas,471,1.0,PQ,0.0,0.0,False,flexible,,27.1,0.0,0.0,1.0,1.0,Gas,50.0,Generator 471 Gas
+471 Storage Hydro,471,1.0,PQ,0.0,0.0,False,flexible,,29.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 471 Storage Hydro
+484 Gas,484,1.0,PQ,0.0,0.0,False,flexible,,65.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 484 Gas
+484 Other,484,1.0,PQ,0.0,0.0,False,flexible,,6.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 484 Other
+484 Run of River,484,1.0,PQ,0.0,0.0,False,flexible,,66.7,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 484 Run of River
+484 Storage Hydro,484,1.0,PQ,0.0,0.0,False,flexible,,45.5,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 484 Storage Hydro
+485 Run of River,485,1.0,PQ,0.0,0.0,False,flexible,,26.5,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 485 Run of River
+486 Gas,486,1.0,PQ,0.0,0.0,False,flexible,,170.9,0.0,0.0,1.0,1.0,Gas,50.0,Generator 486 Gas
+486 Oil,486,1.0,PQ,0.0,0.0,False,flexible,,11.4,0.0,0.0,1.0,1.0,Oil,100.0,Generator 486 Oil
+487 Oil,487,1.0,PQ,0.0,0.0,False,flexible,,11.4,0.0,0.0,1.0,1.0,Oil,100.0,Generator 487 Oil
+487 Run of River,487,1.0,PQ,0.0,0.0,False,flexible,,11.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 487 Run of River
+49 Brown Coal,49,1.0,PQ,0.0,0.0,False,flexible,,352.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 49 Brown Coal
+49 Waste,49,1.0,PQ,0.0,0.0,False,flexible,,37.5,0.0,0.0,1.0,1.0,Waste,6.0,Generator 49 Waste
+491 Gas,491,1.0,PQ,0.0,0.0,False,flexible,,539.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 491 Gas
+492 Hard Coal,492,1.0,PQ,0.0,0.0,False,flexible,,54.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 492 Hard Coal
+492 Waste,492,1.0,PQ,0.0,0.0,False,flexible,,56.9,0.0,0.0,1.0,1.0,Waste,6.0,Generator 492 Waste
+495 Hard Coal,495,1.0,PQ,0.0,0.0,False,flexible,,147.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 495 Hard Coal
+51 Storage Hydro,51,1.0,PQ,0.0,0.0,False,flexible,,20.0,0.0,0.0,1.0,1.0,Storage Hydro,3.0,Generator 51 Storage Hydro
+52_220kV Gas,52_220kV,1.0,PQ,0.0,0.0,False,flexible,,390.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 52_220kV Gas
+52_220kV Hard Coal,52_220kV,1.0,PQ,0.0,0.0,False,flexible,,1347.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 52_220kV Hard Coal
+58 Gas,58,1.0,PQ,0.0,0.0,False,flexible,,52.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 58 Gas
+58 Hard Coal,58,1.0,PQ,0.0,0.0,False,flexible,,26.9,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 58 Hard Coal
+58 Run of River,58,1.0,PQ,0.0,0.0,False,flexible,,311.8,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 58 Run of River
+60 Gas,60,1.0,PQ,0.0,0.0,False,flexible,,0.2,0.0,0.0,1.0,1.0,Gas,50.0,Generator 60 Gas
+61 Gas,61,1.0,PQ,0.0,0.0,False,flexible,,321.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 61 Gas
+61 Run of River,61,1.0,PQ,0.0,0.0,False,flexible,,0.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 61 Run of River
+61_220kV Hard Coal,61_220kV,1.0,PQ,0.0,0.0,False,flexible,,350.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 61_220kV Hard Coal
+62 Hard Coal,62,1.0,PQ,0.0,0.0,False,flexible,,119.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 62 Hard Coal
+62 Run of River,62,1.0,PQ,0.0,0.0,False,flexible,,9.9,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 62 Run of River
+62 Waste,62,1.0,PQ,0.0,0.0,False,flexible,,44.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 62 Waste
+63 Run of River,63,1.0,PQ,0.0,0.0,False,flexible,,22.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 63 Run of River
+64 Run of River,64,1.0,PQ,0.0,0.0,False,flexible,,11.2,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 64 Run of River
+66 Run of River,66,1.0,PQ,0.0,0.0,False,flexible,,5.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 66 Run of River
+67 Gas,67,1.0,PQ,0.0,0.0,False,flexible,,14.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 67 Gas
+67 Hard Coal,67,1.0,PQ,0.0,0.0,False,flexible,,300.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 67 Hard Coal
+67 Oil,67,1.0,PQ,0.0,0.0,False,flexible,,88.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 67 Oil
+67 Other,67,1.0,PQ,0.0,0.0,False,flexible,,150.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 67 Other
+67 Waste,67,1.0,PQ,0.0,0.0,False,flexible,,33.0,0.0,0.0,1.0,1.0,Waste,6.0,Generator 67 Waste
+68_220kV Hard Coal,68_220kV,1.0,PQ,0.0,0.0,False,flexible,,61.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 68_220kV Hard Coal
+69 Gas,69,1.0,PQ,0.0,0.0,False,flexible,,11.5,0.0,0.0,1.0,1.0,Gas,50.0,Generator 69 Gas
+69 Waste,69,1.0,PQ,0.0,0.0,False,flexible,,18.8,0.0,0.0,1.0,1.0,Waste,6.0,Generator 69 Waste
+69_220kV Multiple,69_220kV,1.0,PQ,0.0,0.0,False,flexible,,32.7,0.0,0.0,1.0,1.0,Multiple,28.0,Generator 69_220kV Multiple
+70 Gas,70,1.0,PQ,0.0,0.0,False,flexible,,423.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 70 Gas
+70 Waste,70,1.0,PQ,0.0,0.0,False,flexible,,15.6,0.0,0.0,1.0,1.0,Waste,6.0,Generator 70 Waste
+71 Brown Coal,71,1.0,PQ,0.0,0.0,False,flexible,,49.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 71 Brown Coal
+71 Gas,71,1.0,PQ,0.0,0.0,False,flexible,,146.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 71 Gas
+71 Waste,71,1.0,PQ,0.0,0.0,False,flexible,,9.9,0.0,0.0,1.0,1.0,Waste,6.0,Generator 71 Waste
+72 Brown Coal,72,1.0,PQ,0.0,0.0,False,flexible,,900.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 72 Brown Coal
+72 Gas,72,1.0,PQ,0.0,0.0,False,flexible,,151.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 72 Gas
+72 Oil,72,1.0,PQ,0.0,0.0,False,flexible,,120.0,0.0,0.0,1.0,1.0,Oil,100.0,Generator 72 Oil
+74 Gas,74,1.0,PQ,0.0,0.0,False,flexible,,122.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 74 Gas
+74_220kV Gas,74_220kV,1.0,PQ,0.0,0.0,False,flexible,,1.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 74_220kV Gas
+74_220kV Waste,74_220kV,1.0,PQ,0.0,0.0,False,flexible,,23.3,0.0,0.0,1.0,1.0,Waste,6.0,Generator 74_220kV Waste
+75 Brown Coal,75,1.0,PQ,0.0,0.0,False,flexible,,49.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 75 Brown Coal
+78 Gas,78,1.0,PQ,0.0,0.0,False,flexible,,11.06,0.0,0.0,1.0,1.0,Gas,50.0,Generator 78 Gas
+78 Waste,78,1.0,PQ,0.0,0.0,False,flexible,,67.3,0.0,0.0,1.0,1.0,Waste,6.0,Generator 78 Waste
+79 Brown Coal,79,1.0,PQ,0.0,0.0,False,flexible,,750.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 79 Brown Coal
+79 Hard Coal,79,1.0,PQ,0.0,0.0,False,flexible,,138.5,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 79 Hard Coal
+79 Waste,79,1.0,PQ,0.0,0.0,False,flexible,,18.7,0.0,0.0,1.0,1.0,Waste,6.0,Generator 79 Waste
+81 Brown Coal,81,1.0,PQ,0.0,0.0,False,flexible,,2835.0,0.0,0.0,1.0,1.0,Brown Coal,10.0,Generator 81 Brown Coal
+81 Other,81,1.0,PQ,0.0,0.0,False,flexible,,124.5,0.0,0.0,1.0,1.0,Other,32.0,Generator 81 Other
+83 Hard Coal,83,1.0,PQ,0.0,0.0,False,flexible,,66.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 83 Hard Coal
+83 Other,83,1.0,PQ,0.0,0.0,False,flexible,,53.6,0.0,0.0,1.0,1.0,Other,32.0,Generator 83 Other
+83 Run of River,83,1.0,PQ,0.0,0.0,False,flexible,,63.1,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 83 Run of River
+84 Hard Coal,84,1.0,PQ,0.0,0.0,False,flexible,,323.0,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 84 Hard Coal
+87_220kV Gas,87_220kV,1.0,PQ,0.0,0.0,False,flexible,,138.7,0.0,0.0,1.0,1.0,Gas,50.0,Generator 87_220kV Gas
+87_220kV Hard Coal,87_220kV,1.0,PQ,0.0,0.0,False,flexible,,175.9,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 87_220kV Hard Coal
+87_220kV Multiple,87_220kV,1.0,PQ,0.0,0.0,False,flexible,,120.0,0.0,0.0,1.0,1.0,Multiple,28.0,Generator 87_220kV Multiple
+88 Gas,88,1.0,PQ,0.0,0.0,False,flexible,,39.8,0.0,0.0,1.0,1.0,Gas,50.0,Generator 88 Gas
+89 Other,89,1.0,PQ,0.0,0.0,False,flexible,,606.0,0.0,0.0,1.0,1.0,Other,32.0,Generator 89 Other
+91 Gas,91,1.0,PQ,0.0,0.0,False,flexible,,3.3,0.0,0.0,1.0,1.0,Gas,50.0,Generator 91 Gas
+92 Gas,92,1.0,PQ,0.0,0.0,False,flexible,,66.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 92 Gas
+95 Geothermal,95,1.0,PQ,0.0,0.0,False,flexible,,23.1,0.0,0.0,1.0,1.0,Geothermal,26.0,Generator 95 Geothermal
+96 Run of River,96,1.0,PQ,0.0,0.0,False,flexible,,60.0,0.0,0.0,1.0,1.0,Run of River,3.0,Generator 96 Run of River
+99 Gas,99,1.0,PQ,0.0,0.0,False,flexible,,38.6,0.0,0.0,1.0,1.0,Gas,50.0,Generator 99 Gas
+99_220kV Gas,99_220kV,1.0,PQ,0.0,0.0,False,flexible,,75.0,0.0,0.0,1.0,1.0,Gas,50.0,Generator 99_220kV Gas
+99_220kV Hard Coal,99_220kV,1.0,PQ,0.0,0.0,False,flexible,,655.6,0.0,0.0,1.0,1.0,Hard Coal,25.0,Generator 99_220kV Hard Coal
+218 Wind Offshore,218,1.0,PQ,0.0,0.0,False,variable,,48.2999989986,0.0,0.0,1.0,1.0,Wind Offshore,0.0,Generator 218 Wind Offshore
+221 Wind Offshore,221,1.0,PQ,0.0,0.0,False,variable,,400.0,0.0,0.0,1.0,1.0,Wind Offshore,0.0,Generator 221 Wind Offshore
+270 Wind Offshore,270,1.0,PQ,0.0,0.0,False,variable,,60.0,0.0,0.0,1.0,1.0,Wind Offshore,0.0,Generator 270 Wind Offshore
+271 Wind Offshore,271,1.0,PQ,0.0,0.0,False,variable,,1017.99999714,0.0,0.0,1.0,1.0,Wind Offshore,0.0,Generator 271 Wind Offshore
+22_220kV Wind Offshore,22_220kV,1.0,PQ,0.0,0.0,False,variable,,1447.19996166,0.0,0.0,1.0,1.0,Wind Offshore,0.0,Generator 22_220kV Wind Offshore
+1 Wind Onshore,1,1.0,PQ,0.0,0.0,False,variable,,130.336856054,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 1 Wind Onshore
+2 Wind Onshore,2,1.0,PQ,0.0,0.0,False,variable,,20.4677548447,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 2 Wind Onshore
+3 Wind Onshore,3,1.0,PQ,0.0,0.0,False,variable,,48.9964048612,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 3 Wind Onshore
+4 Wind Onshore,4,1.0,PQ,0.0,0.0,False,variable,,73.5187739685,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 4 Wind Onshore
+5 Wind Onshore,5,1.0,PQ,0.0,0.0,False,variable,,37.4744064926,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 5 Wind Onshore
+6 Wind Onshore,6,1.0,PQ,0.0,0.0,False,variable,,46.81051647,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 6 Wind Onshore
+7 Wind Onshore,7,1.0,PQ,0.0,0.0,False,variable,,63.6103334885,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 7 Wind Onshore
+8 Wind Onshore,8,1.0,PQ,0.0,0.0,False,variable,,94.206573957,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 8 Wind Onshore
+9 Wind Onshore,9,1.0,PQ,0.0,0.0,False,variable,,85.7360780458,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 9 Wind Onshore
+10 Wind Onshore,10,1.0,PQ,0.0,0.0,False,variable,,275.154311706,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 10 Wind Onshore
+11 Wind Onshore,11,1.0,PQ,0.0,0.0,False,variable,,120.070740507,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 11 Wind Onshore
+12 Wind Onshore,12,1.0,PQ,0.0,0.0,False,variable,,28.8988435949,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 12 Wind Onshore
+13 Wind Onshore,13,1.0,PQ,0.0,0.0,False,variable,,9.06309501765,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 13 Wind Onshore
+14 Wind Onshore,14,1.0,PQ,0.0,0.0,False,variable,,0.0609106481565,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 14 Wind Onshore
+15 Wind Onshore,15,1.0,PQ,0.0,0.0,False,variable,,0.00143034915838,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 15 Wind Onshore
+16 Wind Onshore,16,1.0,PQ,0.0,0.0,False,variable,,173.950409791,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 16 Wind Onshore
+17 Wind Onshore,17,1.0,PQ,0.0,0.0,False,variable,,45.1191080916,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 17 Wind Onshore
+18 Wind Onshore,18,1.0,PQ,0.0,0.0,False,variable,,54.6570750125,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 18 Wind Onshore
+19 Wind Onshore,19,1.0,PQ,0.0,0.0,False,variable,,6.01766327322,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 19 Wind Onshore
+20 Wind Onshore,20,1.0,PQ,0.0,0.0,False,variable,,4.28649638263,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 20 Wind Onshore
+21 Wind Onshore,21,1.0,PQ,0.0,0.0,False,variable,,32.7506878726,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 21 Wind Onshore
+22 Wind Onshore,22,1.0,PQ,0.0,0.0,False,variable,,953.460942296,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 22 Wind Onshore
+23 Wind Onshore,23,1.0,PQ,0.0,0.0,False,variable,,47.7281541558,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 23 Wind Onshore
+24 Wind Onshore,24,1.0,PQ,0.0,0.0,False,variable,,94.6578078345,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 24 Wind Onshore
+25 Wind Onshore,25,1.0,PQ,0.0,0.0,False,variable,,88.0569243369,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 25 Wind Onshore
+26 Wind Onshore,26,1.0,PQ,0.0,0.0,False,variable,,39.3639954874,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 26 Wind Onshore
+27 Wind Onshore,27,1.0,PQ,0.0,0.0,False,variable,,11.1654073066,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 27 Wind Onshore
+28 Wind Onshore,28,1.0,PQ,0.0,0.0,False,variable,,66.0540566088,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 28 Wind Onshore
+29 Wind Onshore,29,1.0,PQ,0.0,0.0,False,variable,,275.185441196,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 29 Wind Onshore
+30 Wind Onshore,30,1.0,PQ,0.0,0.0,False,variable,,57.5955574834,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 30 Wind Onshore
+31 Wind Onshore,31,1.0,PQ,0.0,0.0,False,variable,,52.6218919326,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 31 Wind Onshore
+32 Wind Onshore,32,1.0,PQ,0.0,0.0,False,variable,,164.369683397,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 32 Wind Onshore
+33 Wind Onshore,33,1.0,PQ,0.0,0.0,False,variable,,302.299739166,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 33 Wind Onshore
+34 Wind Onshore,34,1.0,PQ,0.0,0.0,False,variable,,19.7325589476,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 34 Wind Onshore
+35 Wind Onshore,35,1.0,PQ,0.0,0.0,False,variable,,15.760621618,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 35 Wind Onshore
+36 Wind Onshore,36,1.0,PQ,0.0,0.0,False,variable,,253.095030937,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 36 Wind Onshore
+37 Wind Onshore,37,1.0,PQ,0.0,0.0,False,variable,,222.593063567,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 37 Wind Onshore
+38 Wind Onshore,38,1.0,PQ,0.0,0.0,False,variable,,1.78003057637,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 38 Wind Onshore
+39 Wind Onshore,39,1.0,PQ,0.0,0.0,False,variable,,590.002537908,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 39 Wind Onshore
+40 Wind Onshore,40,1.0,PQ,0.0,0.0,False,variable,,355.031401068,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 40 Wind Onshore
+41 Wind Onshore,41,1.0,PQ,0.0,0.0,False,variable,,782.095654119,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 41 Wind Onshore
+42 Wind Onshore,42,1.0,PQ,0.0,0.0,False,variable,,44.8739360399,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 42 Wind Onshore
+43 Wind Onshore,43,1.0,PQ,0.0,0.0,False,variable,,335.95203877,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 43 Wind Onshore
+44 Wind Onshore,44,1.0,PQ,0.0,0.0,False,variable,,9.25408417264,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 44 Wind Onshore
+45 Wind Onshore,45,1.0,PQ,0.0,0.0,False,variable,,110.729734379,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 45 Wind Onshore
+46 Wind Onshore,46,1.0,PQ,0.0,0.0,False,variable,,0.559186793562,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 46 Wind Onshore
+47 Wind Onshore,47,1.0,PQ,0.0,0.0,False,variable,,2.21252174336,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 47 Wind Onshore
+48 Wind Onshore,48,1.0,PQ,0.0,0.0,False,variable,,6.96749953706,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 48 Wind Onshore
+49 Wind Onshore,49,1.0,PQ,0.0,0.0,False,variable,,194.483320879,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 49 Wind Onshore
+50 Wind Onshore,50,1.0,PQ,0.0,0.0,False,variable,,328.099985686,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 50 Wind Onshore
+51 Wind Onshore,51,1.0,PQ,0.0,0.0,False,variable,,131.160453291,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 51 Wind Onshore
+52 Wind Onshore,52,1.0,PQ,0.0,0.0,False,variable,,0.0708158069817,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 52 Wind Onshore
+53 Wind Onshore,53,1.0,PQ,0.0,0.0,False,variable,,26.3599905155,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 53 Wind Onshore
+54 Wind Onshore,54,1.0,PQ,0.0,0.0,False,variable,,4.92271725185,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 54 Wind Onshore
+55 Wind Onshore,55,1.0,PQ,0.0,0.0,False,variable,,3.17425887468,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 55 Wind Onshore
+56 Wind Onshore,56,1.0,PQ,0.0,0.0,False,variable,,0.713875068168,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 56 Wind Onshore
+57 Wind Onshore,57,1.0,PQ,0.0,0.0,False,variable,,0.781512022346,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 57 Wind Onshore
+58 Wind Onshore,58,1.0,PQ,0.0,0.0,False,variable,,4.1385077431,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 58 Wind Onshore
+59 Wind Onshore,59,1.0,PQ,0.0,0.0,False,variable,,110.021344199,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 59 Wind Onshore
+60 Wind Onshore,60,1.0,PQ,0.0,0.0,False,variable,,67.8446846424,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 60 Wind Onshore
+61 Wind Onshore,61,1.0,PQ,0.0,0.0,False,variable,,62.1671023108,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 61 Wind Onshore
+62 Wind Onshore,62,1.0,PQ,0.0,0.0,False,variable,,143.837754316,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 62 Wind Onshore
+63 Wind Onshore,63,1.0,PQ,0.0,0.0,False,variable,,14.872078747,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 63 Wind Onshore
+64 Wind Onshore,64,1.0,PQ,0.0,0.0,False,variable,,2.26708326244,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 64 Wind Onshore
+65 Wind Onshore,65,1.0,PQ,0.0,0.0,False,variable,,24.7118175066,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 65 Wind Onshore
+66 Wind Onshore,66,1.0,PQ,0.0,0.0,False,variable,,30.65613431,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 66 Wind Onshore
+67 Wind Onshore,67,1.0,PQ,0.0,0.0,False,variable,,70.2107689854,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 67 Wind Onshore
+68 Wind Onshore,68,1.0,PQ,0.0,0.0,False,variable,,3.83828358373,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 68 Wind Onshore
+69 Wind Onshore,69,1.0,PQ,0.0,0.0,False,variable,,19.534477298,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 69 Wind Onshore
+70 Wind Onshore,70,1.0,PQ,0.0,0.0,False,variable,,128.665514822,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 70 Wind Onshore
+71 Wind Onshore,71,1.0,PQ,0.0,0.0,False,variable,,384.72459096,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 71 Wind Onshore
+72 Wind Onshore,72,1.0,PQ,0.0,0.0,False,variable,,482.171546735,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 72 Wind Onshore
+73 Wind Onshore,73,1.0,PQ,0.0,0.0,False,variable,,421.676342684,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 73 Wind Onshore
+74 Wind Onshore,74,1.0,PQ,0.0,0.0,False,variable,,417.240453272,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 74 Wind Onshore
+75 Wind Onshore,75,1.0,PQ,0.0,0.0,False,variable,,576.864887693,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 75 Wind Onshore
+76 Wind Onshore,76,1.0,PQ,0.0,0.0,False,variable,,110.286694133,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 76 Wind Onshore
+77 Wind Onshore,77,1.0,PQ,0.0,0.0,False,variable,,219.040982306,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 77 Wind Onshore
+78 Wind Onshore,78,1.0,PQ,0.0,0.0,False,variable,,18.5862816327,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 78 Wind Onshore
+79 Wind Onshore,79,1.0,PQ,0.0,0.0,False,variable,,106.147284144,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 79 Wind Onshore
+80 Wind Onshore,80,1.0,PQ,0.0,0.0,False,variable,,33.5877604508,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 80 Wind Onshore
+81 Wind Onshore,81,1.0,PQ,0.0,0.0,False,variable,,341.927994413,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 81 Wind Onshore
+82 Wind Onshore,82,1.0,PQ,0.0,0.0,False,variable,,83.5861811449,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 82 Wind Onshore
+83 Wind Onshore,83,1.0,PQ,0.0,0.0,False,variable,,45.0795805445,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 83 Wind Onshore
+84 Wind Onshore,84,1.0,PQ,0.0,0.0,False,variable,,50.9428703258,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 84 Wind Onshore
+85 Wind Onshore,85,1.0,PQ,0.0,0.0,False,variable,,148.317231905,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 85 Wind Onshore
+86 Wind Onshore,86,1.0,PQ,0.0,0.0,False,variable,,7.26355010768,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 86 Wind Onshore
+87 Wind Onshore,87,1.0,PQ,0.0,0.0,False,variable,,39.3536082458,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 87 Wind Onshore
+88 Wind Onshore,88,1.0,PQ,0.0,0.0,False,variable,,3.74024260575,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 88 Wind Onshore
+89 Wind Onshore,89,1.0,PQ,0.0,0.0,False,variable,,0.202390544805,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 89 Wind Onshore
+90 Wind Onshore,90,1.0,PQ,0.0,0.0,False,variable,,81.938428707,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 90 Wind Onshore
+91 Wind Onshore,91,1.0,PQ,0.0,0.0,False,variable,,4.47470044058,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 91 Wind Onshore
+92 Wind Onshore,92,1.0,PQ,0.0,0.0,False,variable,,68.5841117135,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 92 Wind Onshore
+93 Wind Onshore,93,1.0,PQ,0.0,0.0,False,variable,,254.444205541,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 93 Wind Onshore
+94 Wind Onshore,94,1.0,PQ,0.0,0.0,False,variable,,23.1419870568,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 94 Wind Onshore
+95 Wind Onshore,95,1.0,PQ,0.0,0.0,False,variable,,29.320992535,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 95 Wind Onshore
+96 Wind Onshore,96,1.0,PQ,0.0,0.0,False,variable,,23.5379938465,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 96 Wind Onshore
+97 Wind Onshore,97,1.0,PQ,0.0,0.0,False,variable,,0.00834956166636,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 97 Wind Onshore
+98 Wind Onshore,98,1.0,PQ,0.0,0.0,False,variable,,69.0236129625,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 98 Wind Onshore
+99 Wind Onshore,99,1.0,PQ,0.0,0.0,False,variable,,13.4433509582,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 99 Wind Onshore
+100 Wind Onshore,100,1.0,PQ,0.0,0.0,False,variable,,62.2366157618,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 100 Wind Onshore
+101 Wind Onshore,101,1.0,PQ,0.0,0.0,False,variable,,232.321488825,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 101 Wind Onshore
+102 Wind Onshore,102,1.0,PQ,0.0,0.0,False,variable,,228.384550682,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 102 Wind Onshore
+103 Wind Onshore,103,1.0,PQ,0.0,0.0,False,variable,,0.181521125797,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 103 Wind Onshore
+104 Wind Onshore,104,1.0,PQ,0.0,0.0,False,variable,,0.330253469024,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 104 Wind Onshore
+105 Wind Onshore,105,1.0,PQ,0.0,0.0,False,variable,,16.3866340455,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 105 Wind Onshore
+106 Wind Onshore,106,1.0,PQ,0.0,0.0,False,variable,,1.22682097177,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 106 Wind Onshore
+107 Wind Onshore,107,1.0,PQ,0.0,0.0,False,variable,,0.0726722276169,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 107 Wind Onshore
+108 Wind Onshore,108,1.0,PQ,0.0,0.0,False,variable,,2.08866550223,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 108 Wind Onshore
+109 Wind Onshore,109,1.0,PQ,0.0,0.0,False,variable,,2.02115489015,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 109 Wind Onshore
+110 Wind Onshore,110,1.0,PQ,0.0,0.0,False,variable,,73.9655232147,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 110 Wind Onshore
+111 Wind Onshore,111,1.0,PQ,0.0,0.0,False,variable,,309.554113752,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 111 Wind Onshore
+112 Wind Onshore,112,1.0,PQ,0.0,0.0,False,variable,,0.772510007745,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 112 Wind Onshore
+113 Wind Onshore,113,1.0,PQ,0.0,0.0,False,variable,,1.56773690625,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 113 Wind Onshore
+114 Wind Onshore,114,1.0,PQ,0.0,0.0,False,variable,,87.2684546245,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 114 Wind Onshore
+115 Wind Onshore,115,1.0,PQ,0.0,0.0,False,variable,,50.3672208529,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 115 Wind Onshore
+116 Wind Onshore,116,1.0,PQ,0.0,0.0,False,variable,,2.71839554717,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 116 Wind Onshore
+117 Wind Onshore,117,1.0,PQ,0.0,0.0,False,variable,,3.33360613573,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 117 Wind Onshore
+118 Wind Onshore,118,1.0,PQ,0.0,0.0,False,variable,,10.7523642202,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 118 Wind Onshore
+119 Wind Onshore,119,1.0,PQ,0.0,0.0,False,variable,,45.9126796316,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 119 Wind Onshore
+120 Wind Onshore,120,1.0,PQ,0.0,0.0,False,variable,,69.7821323699,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 120 Wind Onshore
+121 Wind Onshore,121,1.0,PQ,0.0,0.0,False,variable,,31.257922823,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 121 Wind Onshore
+122 Wind Onshore,122,1.0,PQ,0.0,0.0,False,variable,,87.7802453676,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 122 Wind Onshore
+123 Wind Onshore,123,1.0,PQ,0.0,0.0,False,variable,,9.1252174725,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 123 Wind Onshore
+124 Wind Onshore,124,1.0,PQ,0.0,0.0,False,variable,,0.62370143983,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 124 Wind Onshore
+125 Wind Onshore,125,1.0,PQ,0.0,0.0,False,variable,,0.39701102384,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 125 Wind Onshore
+126 Wind Onshore,126,1.0,PQ,0.0,0.0,False,variable,,7.88456484904,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 126 Wind Onshore
+127 Wind Onshore,127,1.0,PQ,0.0,0.0,False,variable,,41.5154743223,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 127 Wind Onshore
+128 Wind Onshore,128,1.0,PQ,0.0,0.0,False,variable,,174.187882811,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 128 Wind Onshore
+129 Wind Onshore,129,1.0,PQ,0.0,0.0,False,variable,,4.90498554765,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 129 Wind Onshore
+130 Wind Onshore,130,1.0,PQ,0.0,0.0,False,variable,,2.11779099048,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 130 Wind Onshore
+131 Wind Onshore,131,1.0,PQ,0.0,0.0,False,variable,,0.529017755577,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 131 Wind Onshore
+132 Wind Onshore,132,1.0,PQ,0.0,0.0,False,variable,,1.32106939559,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 132 Wind Onshore
+133 Wind Onshore,133,1.0,PQ,0.0,0.0,False,variable,,1.41990401847,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 133 Wind Onshore
+134 Wind Onshore,134,1.0,PQ,0.0,0.0,False,variable,,1.2044958269,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 134 Wind Onshore
+135 Wind Onshore,135,1.0,PQ,0.0,0.0,False,variable,,25.3329566069,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 135 Wind Onshore
+136 Wind Onshore,136,1.0,PQ,0.0,0.0,False,variable,,28.605289821,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 136 Wind Onshore
+137 Wind Onshore,137,1.0,PQ,0.0,0.0,False,variable,,99.8771513811,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 137 Wind Onshore
+138 Wind Onshore,138,1.0,PQ,0.0,0.0,False,variable,,4.83504766254,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 138 Wind Onshore
+139 Wind Onshore,139,1.0,PQ,0.0,0.0,False,variable,,2.84807381632,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 139 Wind Onshore
+140 Wind Onshore,140,1.0,PQ,0.0,0.0,False,variable,,4.62097369285,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 140 Wind Onshore
+141 Wind Onshore,141,1.0,PQ,0.0,0.0,False,variable,,0.866593935385,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 141 Wind Onshore
+142 Wind Onshore,142,1.0,PQ,0.0,0.0,False,variable,,2.83650184604,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 142 Wind Onshore
+143 Wind Onshore,143,1.0,PQ,0.0,0.0,False,variable,,2.06798817546,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 143 Wind Onshore
+144 Wind Onshore,144,1.0,PQ,0.0,0.0,False,variable,,0.291778786441,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 144 Wind Onshore
+145 Wind Onshore,145,1.0,PQ,0.0,0.0,False,variable,,0.704934159423,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 145 Wind Onshore
+146 Wind Onshore,146,1.0,PQ,0.0,0.0,False,variable,,0.498091514859,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 146 Wind Onshore
+147 Wind Onshore,147,1.0,PQ,0.0,0.0,False,variable,,7.93582426583,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 147 Wind Onshore
+148 Wind Onshore,148,1.0,PQ,0.0,0.0,False,variable,,0.389834922665,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 148 Wind Onshore
+149 Wind Onshore,149,1.0,PQ,0.0,0.0,False,variable,,3.44899659369,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 149 Wind Onshore
+150 Wind Onshore,150,1.0,PQ,0.0,0.0,False,variable,,1.1814090059,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 150 Wind Onshore
+151 Wind Onshore,151,1.0,PQ,0.0,0.0,False,variable,,14.3448709478,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 151 Wind Onshore
+152 Wind Onshore,152,1.0,PQ,0.0,0.0,False,variable,,25.3597511446,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 152 Wind Onshore
+153 Wind Onshore,153,1.0,PQ,0.0,0.0,False,variable,,110.423284253,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 153 Wind Onshore
+154 Wind Onshore,154,1.0,PQ,0.0,0.0,False,variable,,1.13115592013,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 154 Wind Onshore
+155 Wind Onshore,155,1.0,PQ,0.0,0.0,False,variable,,24.750322074,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 155 Wind Onshore
+156 Wind Onshore,156,1.0,PQ,0.0,0.0,False,variable,,23.1095516465,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 156 Wind Onshore
+157 Wind Onshore,157,1.0,PQ,0.0,0.0,False,variable,,41.0802273651,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 157 Wind Onshore
+158 Wind Onshore,158,1.0,PQ,0.0,0.0,False,variable,,46.6590517972,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 158 Wind Onshore
+159 Wind Onshore,159,1.0,PQ,0.0,0.0,False,variable,,30.0043497122,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 159 Wind Onshore
+160 Wind Onshore,160,1.0,PQ,0.0,0.0,False,variable,,1.09201531649,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 160 Wind Onshore
+161 Wind Onshore,161,1.0,PQ,0.0,0.0,False,variable,,157.175637298,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 161 Wind Onshore
+162 Wind Onshore,162,1.0,PQ,0.0,0.0,False,variable,,0.843766594151,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 162 Wind Onshore
+163 Wind Onshore,163,1.0,PQ,0.0,0.0,False,variable,,36.3538874291,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 163 Wind Onshore
+164 Wind Onshore,164,1.0,PQ,0.0,0.0,False,variable,,16.1227947321,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 164 Wind Onshore
+165 Wind Onshore,165,1.0,PQ,0.0,0.0,False,variable,,10.1165245767,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 165 Wind Onshore
+166 Wind Onshore,166,1.0,PQ,0.0,0.0,False,variable,,8.38529497274,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 166 Wind Onshore
+167 Wind Onshore,167,1.0,PQ,0.0,0.0,False,variable,,3.54957737255,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 167 Wind Onshore
+168 Wind Onshore,168,1.0,PQ,0.0,0.0,False,variable,,12.5687005057,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 168 Wind Onshore
+169 Wind Onshore,169,1.0,PQ,0.0,0.0,False,variable,,0.08191891459,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 169 Wind Onshore
+170 Wind Onshore,170,1.0,PQ,0.0,0.0,False,variable,,0.0629129566664,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 170 Wind Onshore
+171 Wind Onshore,171,1.0,PQ,0.0,0.0,False,variable,,0.146905160728,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 171 Wind Onshore
+172 Wind Onshore,172,1.0,PQ,0.0,0.0,False,variable,,0.59792130285,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 172 Wind Onshore
+173 Wind Onshore,173,1.0,PQ,0.0,0.0,False,variable,,12.4778488024,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 173 Wind Onshore
+174 Wind Onshore,174,1.0,PQ,0.0,0.0,False,variable,,4.22068959193,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 174 Wind Onshore
+175 Wind Onshore,175,1.0,PQ,0.0,0.0,False,variable,,1.03614358876,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 175 Wind Onshore
+176 Wind Onshore,176,1.0,PQ,0.0,0.0,False,variable,,11.6733468904,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 176 Wind Onshore
+177 Wind Onshore,177,1.0,PQ,0.0,0.0,False,variable,,197.817729044,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 177 Wind Onshore
+178 Wind Onshore,178,1.0,PQ,0.0,0.0,False,variable,,23.0445811256,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 178 Wind Onshore
+179 Wind Onshore,179,1.0,PQ,0.0,0.0,False,variable,,220.271882317,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 179 Wind Onshore
+180 Wind Onshore,180,1.0,PQ,0.0,0.0,False,variable,,230.771194889,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 180 Wind Onshore
+181 Wind Onshore,181,1.0,PQ,0.0,0.0,False,variable,,205.661835076,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 181 Wind Onshore
+182 Wind Onshore,182,1.0,PQ,0.0,0.0,False,variable,,33.935494911,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 182 Wind Onshore
+183 Wind Onshore,183,1.0,PQ,0.0,0.0,False,variable,,74.5139153307,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 183 Wind Onshore
+184 Wind Onshore,184,1.0,PQ,0.0,0.0,False,variable,,5.95449791822,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 184 Wind Onshore
+185 Wind Onshore,185,1.0,PQ,0.0,0.0,False,variable,,4.9865291549,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 185 Wind Onshore
+186 Wind Onshore,186,1.0,PQ,0.0,0.0,False,variable,,1.2897752724,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 186 Wind Onshore
+187 Wind Onshore,187,1.0,PQ,0.0,0.0,False,variable,,2.43236118152,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 187 Wind Onshore
+188 Wind Onshore,188,1.0,PQ,0.0,0.0,False,variable,,0.26317238518,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 188 Wind Onshore
+189 Wind Onshore,189,1.0,PQ,0.0,0.0,False,variable,,7.05346838049,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 189 Wind Onshore
+190 Wind Onshore,190,1.0,PQ,0.0,0.0,False,variable,,2.21141897767,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 190 Wind Onshore
+191 Wind Onshore,191,1.0,PQ,0.0,0.0,False,variable,,1.37117323495,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 191 Wind Onshore
+192 Wind Onshore,192,1.0,PQ,0.0,0.0,False,variable,,164.214068757,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 192 Wind Onshore
+193 Wind Onshore,193,1.0,PQ,0.0,0.0,False,variable,,1.18166887504,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 193 Wind Onshore
+194 Wind Onshore,194,1.0,PQ,0.0,0.0,False,variable,,0.813773766882,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 194 Wind Onshore
+195 Wind Onshore,195,1.0,PQ,0.0,0.0,False,variable,,0.372313044328,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 195 Wind Onshore
+196 Wind Onshore,196,1.0,PQ,0.0,0.0,False,variable,,0.227553407263,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 196 Wind Onshore
+197 Wind Onshore,197,1.0,PQ,0.0,0.0,False,variable,,26.1896523272,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 197 Wind Onshore
+198 Wind Onshore,198,1.0,PQ,0.0,0.0,False,variable,,3.10318406534,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 198 Wind Onshore
+199 Wind Onshore,199,1.0,PQ,0.0,0.0,False,variable,,1.27870522831,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 199 Wind Onshore
+200 Wind Onshore,200,1.0,PQ,0.0,0.0,False,variable,,0.677732640824,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 200 Wind Onshore
+201 Wind Onshore,201,1.0,PQ,0.0,0.0,False,variable,,41.4984476964,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 201 Wind Onshore
+202 Wind Onshore,202,1.0,PQ,0.0,0.0,False,variable,,83.3884305667,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 202 Wind Onshore
+203 Wind Onshore,203,1.0,PQ,0.0,0.0,False,variable,,95.6608127762,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 203 Wind Onshore
+204 Wind Onshore,204,1.0,PQ,0.0,0.0,False,variable,,35.9131993414,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 204 Wind Onshore
+205 Wind Onshore,205,1.0,PQ,0.0,0.0,False,variable,,4.12896407844,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 205 Wind Onshore
+206 Wind Onshore,206,1.0,PQ,0.0,0.0,False,variable,,7.72887192273,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 206 Wind Onshore
+207 Wind Onshore,207,1.0,PQ,0.0,0.0,False,variable,,38.4957855699,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 207 Wind Onshore
+208 Wind Onshore,208,1.0,PQ,0.0,0.0,False,variable,,9.62505021683,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 208 Wind Onshore
+209 Wind Onshore,209,1.0,PQ,0.0,0.0,False,variable,,162.118086357,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 209 Wind Onshore
+210 Wind Onshore,210,1.0,PQ,0.0,0.0,False,variable,,19.5104426133,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 210 Wind Onshore
+211 Wind Onshore,211,1.0,PQ,0.0,0.0,False,variable,,213.328511572,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 211 Wind Onshore
+212 Wind Onshore,212,1.0,PQ,0.0,0.0,False,variable,,72.5762634843,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 212 Wind Onshore
+213 Wind Onshore,213,1.0,PQ,0.0,0.0,False,variable,,21.1632613173,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 213 Wind Onshore
+214 Wind Onshore,214,1.0,PQ,0.0,0.0,False,variable,,2.39897487998,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 214 Wind Onshore
+215 Wind Onshore,215,1.0,PQ,0.0,0.0,False,variable,,8.90467681995,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 215 Wind Onshore
+216 Wind Onshore,216,1.0,PQ,0.0,0.0,False,variable,,0.197383832264,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 216 Wind Onshore
+217 Wind Onshore,217,1.0,PQ,0.0,0.0,False,variable,,142.040111921,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 217 Wind Onshore
+218 Wind Onshore,218,1.0,PQ,0.0,0.0,False,variable,,70.2967155492,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 218 Wind Onshore
+219 Wind Onshore,219,1.0,PQ,0.0,0.0,False,variable,,37.8238021892,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 219 Wind Onshore
+220 Wind Onshore,220,1.0,PQ,0.0,0.0,False,variable,,1.57020246971,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 220 Wind Onshore
+221 Wind Onshore,221,1.0,PQ,0.0,0.0,False,variable,,177.989888398,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 221 Wind Onshore
+222 Wind Onshore,222,1.0,PQ,0.0,0.0,False,variable,,41.796486857,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 222 Wind Onshore
+223 Wind Onshore,223,1.0,PQ,0.0,0.0,False,variable,,23.6682075273,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 223 Wind Onshore
+224 Wind Onshore,224,1.0,PQ,0.0,0.0,False,variable,,49.266803381,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 224 Wind Onshore
+225 Wind Onshore,225,1.0,PQ,0.0,0.0,False,variable,,180.144307392,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 225 Wind Onshore
+226 Wind Onshore,226,1.0,PQ,0.0,0.0,False,variable,,46.2834639304,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 226 Wind Onshore
+227 Wind Onshore,227,1.0,PQ,0.0,0.0,False,variable,,0.458967839495,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 227 Wind Onshore
+228 Wind Onshore,228,1.0,PQ,0.0,0.0,False,variable,,3.62145110785,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 228 Wind Onshore
+229 Wind Onshore,229,1.0,PQ,0.0,0.0,False,variable,,3.57399500651,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 229 Wind Onshore
+230 Wind Onshore,230,1.0,PQ,0.0,0.0,False,variable,,2.21992477134,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 230 Wind Onshore
+231 Wind Onshore,231,1.0,PQ,0.0,0.0,False,variable,,0.0316752136438,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 231 Wind Onshore
+232 Wind Onshore,232,1.0,PQ,0.0,0.0,False,variable,,3.63241275505,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 232 Wind Onshore
+233 Wind Onshore,233,1.0,PQ,0.0,0.0,False,variable,,4.94831755702,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 233 Wind Onshore
+234 Wind Onshore,234,1.0,PQ,0.0,0.0,False,variable,,0.446155189802,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 234 Wind Onshore
+235 Wind Onshore,235,1.0,PQ,0.0,0.0,False,variable,,8.51449017313,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 235 Wind Onshore
+236 Wind Onshore,236,1.0,PQ,0.0,0.0,False,variable,,0.0530199015978,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 236 Wind Onshore
+237 Wind Onshore,237,1.0,PQ,0.0,0.0,False,variable,,17.656373107,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 237 Wind Onshore
+238 Wind Onshore,238,1.0,PQ,0.0,0.0,False,variable,,88.1188250707,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 238 Wind Onshore
+239 Wind Onshore,239,1.0,PQ,0.0,0.0,False,variable,,53.6422060611,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 239 Wind Onshore
+240 Wind Onshore,240,1.0,PQ,0.0,0.0,False,variable,,4.50237751022,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 240 Wind Onshore
+241 Wind Onshore,241,1.0,PQ,0.0,0.0,False,variable,,2.03900942353,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 241 Wind Onshore
+242 Wind Onshore,242,1.0,PQ,0.0,0.0,False,variable,,63.3169583371,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 242 Wind Onshore
+245 Wind Onshore,245,1.0,PQ,0.0,0.0,False,variable,,32.0284923234,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 245 Wind Onshore
+246 Wind Onshore,246,1.0,PQ,0.0,0.0,False,variable,,0.947285655515,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 246 Wind Onshore
+247 Wind Onshore,247,1.0,PQ,0.0,0.0,False,variable,,8.21616911551,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 247 Wind Onshore
+248 Wind Onshore,248,1.0,PQ,0.0,0.0,False,variable,,0.367772377764,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 248 Wind Onshore
+249 Wind Onshore,249,1.0,PQ,0.0,0.0,False,variable,,11.0611539246,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 249 Wind Onshore
+250 Wind Onshore,250,1.0,PQ,0.0,0.0,False,variable,,0.0133860527299,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 250 Wind Onshore
+251 Wind Onshore,251,1.0,PQ,0.0,0.0,False,variable,,0.550901899805,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 251 Wind Onshore
+252 Wind Onshore,252,1.0,PQ,0.0,0.0,False,variable,,2.84107734571,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 252 Wind Onshore
+253 Wind Onshore,253,1.0,PQ,0.0,0.0,False,variable,,29.8893579803,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 253 Wind Onshore
+254 Wind Onshore,254,1.0,PQ,0.0,0.0,False,variable,,573.167899065,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 254 Wind Onshore
+255 Wind Onshore,255,1.0,PQ,0.0,0.0,False,variable,,204.252651443,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 255 Wind Onshore
+256 Wind Onshore,256,1.0,PQ,0.0,0.0,False,variable,,3.78487661311,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 256 Wind Onshore
+257 Wind Onshore,257,1.0,PQ,0.0,0.0,False,variable,,155.808056435,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 257 Wind Onshore
+258 Wind Onshore,258,1.0,PQ,0.0,0.0,False,variable,,33.1475064774,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 258 Wind Onshore
+259 Wind Onshore,259,1.0,PQ,0.0,0.0,False,variable,,3.95126663427,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 259 Wind Onshore
+260 Wind Onshore,260,1.0,PQ,0.0,0.0,False,variable,,15.8561651157,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 260 Wind Onshore
+261 Wind Onshore,261,1.0,PQ,0.0,0.0,False,variable,,0.914544898856,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 261 Wind Onshore
+262 Wind Onshore,262,1.0,PQ,0.0,0.0,False,variable,,3.00358706828,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 262 Wind Onshore
+264 Wind Onshore,264,1.0,PQ,0.0,0.0,False,variable,,3.18598842436,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 264 Wind Onshore
+265 Wind Onshore,265,1.0,PQ,0.0,0.0,False,variable,,48.5090577683,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 265 Wind Onshore
+266 Wind Onshore,266,1.0,PQ,0.0,0.0,False,variable,,1.29823141399,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 266 Wind Onshore
+267 Wind Onshore,267,1.0,PQ,0.0,0.0,False,variable,,0.116514307052,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 267 Wind Onshore
+268 Wind Onshore,268,1.0,PQ,0.0,0.0,False,variable,,31.0171172001,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 268 Wind Onshore
+269 Wind Onshore,269,1.0,PQ,0.0,0.0,False,variable,,72.8155157623,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 269 Wind Onshore
+270 Wind Onshore,270,1.0,PQ,0.0,0.0,False,variable,,540.118163637,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 270 Wind Onshore
+271 Wind Onshore,271,1.0,PQ,0.0,0.0,False,variable,,84.1370940612,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 271 Wind Onshore
+272 Wind Onshore,272,1.0,PQ,0.0,0.0,False,variable,,562.130055306,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 272 Wind Onshore
+273 Wind Onshore,273,1.0,PQ,0.0,0.0,False,variable,,8.13143464803,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 273 Wind Onshore
+274 Wind Onshore,274,1.0,PQ,0.0,0.0,False,variable,,76.6834443262,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 274 Wind Onshore
+275 Wind Onshore,275,1.0,PQ,0.0,0.0,False,variable,,11.7433441471,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 275 Wind Onshore
+276 Wind Onshore,276,1.0,PQ,0.0,0.0,False,variable,,184.196357275,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 276 Wind Onshore
+277 Wind Onshore,277,1.0,PQ,0.0,0.0,False,variable,,2.17725257842,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 277 Wind Onshore
+278 Wind Onshore,278,1.0,PQ,0.0,0.0,False,variable,,309.747539939,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 278 Wind Onshore
+279 Wind Onshore,279,1.0,PQ,0.0,0.0,False,variable,,45.3381444996,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 279 Wind Onshore
+280 Wind Onshore,280,1.0,PQ,0.0,0.0,False,variable,,361.287178128,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 280 Wind Onshore
+281 Wind Onshore,281,1.0,PQ,0.0,0.0,False,variable,,184.908863691,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 281 Wind Onshore
+282 Wind Onshore,282,1.0,PQ,0.0,0.0,False,variable,,21.041995834,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 282 Wind Onshore
+283 Wind Onshore,283,1.0,PQ,0.0,0.0,False,variable,,26.3040185782,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 283 Wind Onshore
+284 Wind Onshore,284,1.0,PQ,0.0,0.0,False,variable,,80.2625895153,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 284 Wind Onshore
+285 Wind Onshore,285,1.0,PQ,0.0,0.0,False,variable,,312.286312143,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 285 Wind Onshore
+286 Wind Onshore,286,1.0,PQ,0.0,0.0,False,variable,,8.00373649707,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 286 Wind Onshore
+287 Wind Onshore,287,1.0,PQ,0.0,0.0,False,variable,,56.6067861144,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 287 Wind Onshore
+288 Wind Onshore,288,1.0,PQ,0.0,0.0,False,variable,,19.1437464534,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 288 Wind Onshore
+289 Wind Onshore,289,1.0,PQ,0.0,0.0,False,variable,,90.6324323239,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 289 Wind Onshore
+290 Wind Onshore,290,1.0,PQ,0.0,0.0,False,variable,,65.4617512662,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 290 Wind Onshore
+291 Wind Onshore,291,1.0,PQ,0.0,0.0,False,variable,,23.2611396282,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 291 Wind Onshore
+292 Wind Onshore,292,1.0,PQ,0.0,0.0,False,variable,,183.900991327,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 292 Wind Onshore
+293 Wind Onshore,293,1.0,PQ,0.0,0.0,False,variable,,22.7753927041,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 293 Wind Onshore
+294 Wind Onshore,294,1.0,PQ,0.0,0.0,False,variable,,14.8624625268,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 294 Wind Onshore
+295 Wind Onshore,295,1.0,PQ,0.0,0.0,False,variable,,55.203005489,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 295 Wind Onshore
+296 Wind Onshore,296,1.0,PQ,0.0,0.0,False,variable,,72.2615011628,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 296 Wind Onshore
+297 Wind Onshore,297,1.0,PQ,0.0,0.0,False,variable,,3.72833415772,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 297 Wind Onshore
+298 Wind Onshore,298,1.0,PQ,0.0,0.0,False,variable,,14.1519709781,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 298 Wind Onshore
+299 Wind Onshore,299,1.0,PQ,0.0,0.0,False,variable,,84.7211131569,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 299 Wind Onshore
+300 Wind Onshore,300,1.0,PQ,0.0,0.0,False,variable,,212.881786052,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 300 Wind Onshore
+301 Wind Onshore,301,1.0,PQ,0.0,0.0,False,variable,,104.044498236,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 301 Wind Onshore
+302 Wind Onshore,302,1.0,PQ,0.0,0.0,False,variable,,20.1649387845,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 302 Wind Onshore
+303 Wind Onshore,303,1.0,PQ,0.0,0.0,False,variable,,36.1505259071,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 303 Wind Onshore
+304 Wind Onshore,304,1.0,PQ,0.0,0.0,False,variable,,191.338160174,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 304 Wind Onshore
+305 Wind Onshore,305,1.0,PQ,0.0,0.0,False,variable,,0.521701042885,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 305 Wind Onshore
+306 Wind Onshore,306,1.0,PQ,0.0,0.0,False,variable,,0.352408777539,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 306 Wind Onshore
+307 Wind Onshore,307,1.0,PQ,0.0,0.0,False,variable,,0.000148913537815,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 307 Wind Onshore
+308 Wind Onshore,308,1.0,PQ,0.0,0.0,False,variable,,30.7192687246,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 308 Wind Onshore
+309 Wind Onshore,309,1.0,PQ,0.0,0.0,False,variable,,74.7340581844,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 309 Wind Onshore
+310 Wind Onshore,310,1.0,PQ,0.0,0.0,False,variable,,6.3766810558,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 310 Wind Onshore
+311 Wind Onshore,311,1.0,PQ,0.0,0.0,False,variable,,112.625243427,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 311 Wind Onshore
+312 Wind Onshore,312,1.0,PQ,0.0,0.0,False,variable,,47.2097391159,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 312 Wind Onshore
+313 Wind Onshore,313,1.0,PQ,0.0,0.0,False,variable,,36.6282061745,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 313 Wind Onshore
+314 Wind Onshore,314,1.0,PQ,0.0,0.0,False,variable,,3.42757127965,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 314 Wind Onshore
+315 Wind Onshore,315,1.0,PQ,0.0,0.0,False,variable,,1.14468484415,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 315 Wind Onshore
+316 Wind Onshore,316,1.0,PQ,0.0,0.0,False,variable,,5.09251231743,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 316 Wind Onshore
+317 Wind Onshore,317,1.0,PQ,0.0,0.0,False,variable,,0.153589797613,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 317 Wind Onshore
+318 Wind Onshore,318,1.0,PQ,0.0,0.0,False,variable,,37.3193946977,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 318 Wind Onshore
+319 Wind Onshore,319,1.0,PQ,0.0,0.0,False,variable,,44.0011188717,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 319 Wind Onshore
+320 Wind Onshore,320,1.0,PQ,0.0,0.0,False,variable,,1.23109415845,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 320 Wind Onshore
+321 Wind Onshore,321,1.0,PQ,0.0,0.0,False,variable,,2.16381915148,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 321 Wind Onshore
+322 Wind Onshore,322,1.0,PQ,0.0,0.0,False,variable,,7.74943868105,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 322 Wind Onshore
+323 Wind Onshore,323,1.0,PQ,0.0,0.0,False,variable,,48.7412371587,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 323 Wind Onshore
+324 Wind Onshore,324,1.0,PQ,0.0,0.0,False,variable,,84.2552127629,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 324 Wind Onshore
+325 Wind Onshore,325,1.0,PQ,0.0,0.0,False,variable,,23.4824407348,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 325 Wind Onshore
+326 Wind Onshore,326,1.0,PQ,0.0,0.0,False,variable,,56.1965340488,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 326 Wind Onshore
+327 Wind Onshore,327,1.0,PQ,0.0,0.0,False,variable,,161.032147549,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 327 Wind Onshore
+328 Wind Onshore,328,1.0,PQ,0.0,0.0,False,variable,,0.00410199037072,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 328 Wind Onshore
+329 Wind Onshore,329,1.0,PQ,0.0,0.0,False,variable,,0.401612165551,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 329 Wind Onshore
+330 Wind Onshore,330,1.0,PQ,0.0,0.0,False,variable,,2.01088489891,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 330 Wind Onshore
+331 Wind Onshore,331,1.0,PQ,0.0,0.0,False,variable,,3.25328389622,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 331 Wind Onshore
+332 Wind Onshore,332,1.0,PQ,0.0,0.0,False,variable,,0.793818929497,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 332 Wind Onshore
+333 Wind Onshore,333,1.0,PQ,0.0,0.0,False,variable,,922.033001712,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 333 Wind Onshore
+334 Wind Onshore,334,1.0,PQ,0.0,0.0,False,variable,,14.6131138526,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 334 Wind Onshore
+335 Wind Onshore,335,1.0,PQ,0.0,0.0,False,variable,,27.3950308738,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 335 Wind Onshore
+336 Wind Onshore,336,1.0,PQ,0.0,0.0,False,variable,,72.9045443951,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 336 Wind Onshore
+337 Wind Onshore,337,1.0,PQ,0.0,0.0,False,variable,,2.69684049359,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 337 Wind Onshore
+338 Wind Onshore,338,1.0,PQ,0.0,0.0,False,variable,,23.9039780973,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 338 Wind Onshore
+339 Wind Onshore,339,1.0,PQ,0.0,0.0,False,variable,,14.2602993648,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 339 Wind Onshore
+340 Wind Onshore,340,1.0,PQ,0.0,0.0,False,variable,,79.6829979075,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 340 Wind Onshore
+341 Wind Onshore,341,1.0,PQ,0.0,0.0,False,variable,,140.220485816,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 341 Wind Onshore
+342 Wind Onshore,342,1.0,PQ,0.0,0.0,False,variable,,183.326827695,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 342 Wind Onshore
+343 Wind Onshore,343,1.0,PQ,0.0,0.0,False,variable,,4.50890144167,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 343 Wind Onshore
+344 Wind Onshore,344,1.0,PQ,0.0,0.0,False,variable,,93.3628117392,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 344 Wind Onshore
+345 Wind Onshore,345,1.0,PQ,0.0,0.0,False,variable,,37.4842617065,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 345 Wind Onshore
+346 Wind Onshore,346,1.0,PQ,0.0,0.0,False,variable,,1.10696774683,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 346 Wind Onshore
+347 Wind Onshore,347,1.0,PQ,0.0,0.0,False,variable,,4.11197624415,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 347 Wind Onshore
+348 Wind Onshore,348,1.0,PQ,0.0,0.0,False,variable,,4.88115272495,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 348 Wind Onshore
+349 Wind Onshore,349,1.0,PQ,0.0,0.0,False,variable,,22.3984946474,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 349 Wind Onshore
+350 Wind Onshore,350,1.0,PQ,0.0,0.0,False,variable,,155.380431704,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 350 Wind Onshore
+351 Wind Onshore,351,1.0,PQ,0.0,0.0,False,variable,,54.1265046365,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 351 Wind Onshore
+352 Wind Onshore,352,1.0,PQ,0.0,0.0,False,variable,,3.94040115759,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 352 Wind Onshore
+353 Wind Onshore,353,1.0,PQ,0.0,0.0,False,variable,,6.81681731951,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 353 Wind Onshore
+354 Wind Onshore,354,1.0,PQ,0.0,0.0,False,variable,,2.1357206387,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 354 Wind Onshore
+355 Wind Onshore,355,1.0,PQ,0.0,0.0,False,variable,,23.4438446048,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 355 Wind Onshore
+356 Wind Onshore,356,1.0,PQ,0.0,0.0,False,variable,,60.0829818906,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 356 Wind Onshore
+357 Wind Onshore,357,1.0,PQ,0.0,0.0,False,variable,,4.76025422083,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 357 Wind Onshore
+358 Wind Onshore,358,1.0,PQ,0.0,0.0,False,variable,,4.22239290809,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 358 Wind Onshore
+359 Wind Onshore,359,1.0,PQ,0.0,0.0,False,variable,,9.59430349524,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 359 Wind Onshore
+361 Wind Onshore,361,1.0,PQ,0.0,0.0,False,variable,,0.00388133920254,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 361 Wind Onshore
+362 Wind Onshore,362,1.0,PQ,0.0,0.0,False,variable,,0.00113529579037,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 362 Wind Onshore
+363 Wind Onshore,363,1.0,PQ,0.0,0.0,False,variable,,1.78141966749,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 363 Wind Onshore
+364 Wind Onshore,364,1.0,PQ,0.0,0.0,False,variable,,0.261423786856,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 364 Wind Onshore
+365 Wind Onshore,365,1.0,PQ,0.0,0.0,False,variable,,1.45882065261,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 365 Wind Onshore
+366 Wind Onshore,366,1.0,PQ,0.0,0.0,False,variable,,3.31673876015,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 366 Wind Onshore
+367 Wind Onshore,367,1.0,PQ,0.0,0.0,False,variable,,1.63332322118,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 367 Wind Onshore
+368 Wind Onshore,368,1.0,PQ,0.0,0.0,False,variable,,11.5366694306,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 368 Wind Onshore
+369 Wind Onshore,369,1.0,PQ,0.0,0.0,False,variable,,210.158230542,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 369 Wind Onshore
+370 Wind Onshore,370,1.0,PQ,0.0,0.0,False,variable,,30.8329846829,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 370 Wind Onshore
+371 Wind Onshore,371,1.0,PQ,0.0,0.0,False,variable,,11.9854862278,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 371 Wind Onshore
+372 Wind Onshore,372,1.0,PQ,0.0,0.0,False,variable,,7.67210756028,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 372 Wind Onshore
+373 Wind Onshore,373,1.0,PQ,0.0,0.0,False,variable,,2.45532361738,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 373 Wind Onshore
+374 Wind Onshore,374,1.0,PQ,0.0,0.0,False,variable,,23.6912231121,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 374 Wind Onshore
+375 Wind Onshore,375,1.0,PQ,0.0,0.0,False,variable,,1.94116042159,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 375 Wind Onshore
+376 Wind Onshore,376,1.0,PQ,0.0,0.0,False,variable,,16.2613746537,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 376 Wind Onshore
+377 Wind Onshore,377,1.0,PQ,0.0,0.0,False,variable,,18.8562322999,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 377 Wind Onshore
+378 Wind Onshore,378,1.0,PQ,0.0,0.0,False,variable,,0.161116290382,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 378 Wind Onshore
+379 Wind Onshore,379,1.0,PQ,0.0,0.0,False,variable,,0.870578697272,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 379 Wind Onshore
+380 Wind Onshore,380,1.0,PQ,0.0,0.0,False,variable,,165.839501327,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 380 Wind Onshore
+381 Wind Onshore,381,1.0,PQ,0.0,0.0,False,variable,,12.3291123381,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 381 Wind Onshore
+382 Wind Onshore,382,1.0,PQ,0.0,0.0,False,variable,,101.862721646,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 382 Wind Onshore
+383 Wind Onshore,383,1.0,PQ,0.0,0.0,False,variable,,87.0900962834,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 383 Wind Onshore
+384 Wind Onshore,384,1.0,PQ,0.0,0.0,False,variable,,117.45608112,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 384 Wind Onshore
+385 Wind Onshore,385,1.0,PQ,0.0,0.0,False,variable,,6.15272307368,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 385 Wind Onshore
+386 Wind Onshore,386,1.0,PQ,0.0,0.0,False,variable,,55.6816108028,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 386 Wind Onshore
+387 Wind Onshore,387,1.0,PQ,0.0,0.0,False,variable,,49.1877683742,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 387 Wind Onshore
+388 Wind Onshore,388,1.0,PQ,0.0,0.0,False,variable,,14.7827839527,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 388 Wind Onshore
+389 Wind Onshore,389,1.0,PQ,0.0,0.0,False,variable,,180.557317446,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 389 Wind Onshore
+390 Wind Onshore,390,1.0,PQ,0.0,0.0,False,variable,,28.9160400921,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 390 Wind Onshore
+391 Wind Onshore,391,1.0,PQ,0.0,0.0,False,variable,,20.5979900571,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 391 Wind Onshore
+392 Wind Onshore,392,1.0,PQ,0.0,0.0,False,variable,,0.228830309621,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 392 Wind Onshore
+393 Wind Onshore,393,1.0,PQ,0.0,0.0,False,variable,,25.3846876037,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 393 Wind Onshore
+394 Wind Onshore,394,1.0,PQ,0.0,0.0,False,variable,,44.2796148305,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 394 Wind Onshore
+395 Wind Onshore,395,1.0,PQ,0.0,0.0,False,variable,,1.2007745384,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 395 Wind Onshore
+396 Wind Onshore,396,1.0,PQ,0.0,0.0,False,variable,,3.13090489584,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 396 Wind Onshore
+397 Wind Onshore,397,1.0,PQ,0.0,0.0,False,variable,,26.1861269392,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 397 Wind Onshore
+398 Wind Onshore,398,1.0,PQ,0.0,0.0,False,variable,,115.306382332,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 398 Wind Onshore
+399 Wind Onshore,399,1.0,PQ,0.0,0.0,False,variable,,0.826067449451,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 399 Wind Onshore
+400 Wind Onshore,400,1.0,PQ,0.0,0.0,False,variable,,9.72324221192,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 400 Wind Onshore
+401 Wind Onshore,401,1.0,PQ,0.0,0.0,False,variable,,58.4359105953,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 401 Wind Onshore
+402 Wind Onshore,402,1.0,PQ,0.0,0.0,False,variable,,190.224968691,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 402 Wind Onshore
+403 Wind Onshore,403,1.0,PQ,0.0,0.0,False,variable,,0.000112701990696,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 403 Wind Onshore
+404 Wind Onshore,404,1.0,PQ,0.0,0.0,False,variable,,0.00169445319712,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 404 Wind Onshore
+405 Wind Onshore,405,1.0,PQ,0.0,0.0,False,variable,,0.73416407849,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 405 Wind Onshore
+406 Wind Onshore,406,1.0,PQ,0.0,0.0,False,variable,,0.0241741210634,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 406 Wind Onshore
+409 Wind Onshore,409,1.0,PQ,0.0,0.0,False,variable,,0.22551909817,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 409 Wind Onshore
+410 Wind Onshore,410,1.0,PQ,0.0,0.0,False,variable,,3.96228834114,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 410 Wind Onshore
+411 Wind Onshore,411,1.0,PQ,0.0,0.0,False,variable,,206.928561956,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 411 Wind Onshore
+412 Wind Onshore,412,1.0,PQ,0.0,0.0,False,variable,,400.986191491,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 412 Wind Onshore
+413 Wind Onshore,413,1.0,PQ,0.0,0.0,False,variable,,0.0139216401596,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 413 Wind Onshore
+414 Wind Onshore,414,1.0,PQ,0.0,0.0,False,variable,,22.6803317864,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 414 Wind Onshore
+415 Wind Onshore,415,1.0,PQ,0.0,0.0,False,variable,,33.5764495454,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 415 Wind Onshore
+416 Wind Onshore,416,1.0,PQ,0.0,0.0,False,variable,,0.0947566714235,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 416 Wind Onshore
+417 Wind Onshore,417,1.0,PQ,0.0,0.0,False,variable,,0.0072084868812,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 417 Wind Onshore
+418 Wind Onshore,418,1.0,PQ,0.0,0.0,False,variable,,0.61492323141,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 418 Wind Onshore
+421 Wind Onshore,421,1.0,PQ,0.0,0.0,False,variable,,0.000149417553017,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 421 Wind Onshore
+423 Wind Onshore,423,1.0,PQ,0.0,0.0,False,variable,,0.147397077031,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 423 Wind Onshore
+424 Wind Onshore,424,1.0,PQ,0.0,0.0,False,variable,,1.65231140811,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 424 Wind Onshore
+425 Wind Onshore,425,1.0,PQ,0.0,0.0,False,variable,,72.9928795749,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 425 Wind Onshore
+426 Wind Onshore,426,1.0,PQ,0.0,0.0,False,variable,,56.1216463759,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 426 Wind Onshore
+427 Wind Onshore,427,1.0,PQ,0.0,0.0,False,variable,,0.23050240738,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 427 Wind Onshore
+428 Wind Onshore,428,1.0,PQ,0.0,0.0,False,variable,,62.6156408354,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 428 Wind Onshore
+429 Wind Onshore,429,1.0,PQ,0.0,0.0,False,variable,,16.3276068175,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 429 Wind Onshore
+430 Wind Onshore,430,1.0,PQ,0.0,0.0,False,variable,,62.7462556278,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 430 Wind Onshore
+431 Wind Onshore,431,1.0,PQ,0.0,0.0,False,variable,,75.2749092991,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 431 Wind Onshore
+432 Wind Onshore,432,1.0,PQ,0.0,0.0,False,variable,,0.0352133018203,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 432 Wind Onshore
+433 Wind Onshore,433,1.0,PQ,0.0,0.0,False,variable,,0.0598020558764,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 433 Wind Onshore
+434 Wind Onshore,434,1.0,PQ,0.0,0.0,False,variable,,0.00018660618208,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 434 Wind Onshore
+435 Wind Onshore,435,1.0,PQ,0.0,0.0,False,variable,,0.992889607194,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 435 Wind Onshore
+436 Wind Onshore,436,1.0,PQ,0.0,0.0,False,variable,,40.8909944264,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 436 Wind Onshore
+437 Wind Onshore,437,1.0,PQ,0.0,0.0,False,variable,,2.13747376134,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 437 Wind Onshore
+438 Wind Onshore,438,1.0,PQ,0.0,0.0,False,variable,,7.58533227763,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 438 Wind Onshore
+439 Wind Onshore,439,1.0,PQ,0.0,0.0,False,variable,,0.339787561787,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 439 Wind Onshore
+440 Wind Onshore,440,1.0,PQ,0.0,0.0,False,variable,,60.3745073348,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 440 Wind Onshore
+441 Wind Onshore,441,1.0,PQ,0.0,0.0,False,variable,,190.132713018,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 441 Wind Onshore
+442 Wind Onshore,442,1.0,PQ,0.0,0.0,False,variable,,34.1245338146,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 442 Wind Onshore
+443 Wind Onshore,443,1.0,PQ,0.0,0.0,False,variable,,82.2465776461,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 443 Wind Onshore
+444 Wind Onshore,444,1.0,PQ,0.0,0.0,False,variable,,47.4562564747,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 444 Wind Onshore
+445 Wind Onshore,445,1.0,PQ,0.0,0.0,False,variable,,169.51027797,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 445 Wind Onshore
+446 Wind Onshore,446,1.0,PQ,0.0,0.0,False,variable,,159.750933639,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 446 Wind Onshore
+447 Wind Onshore,447,1.0,PQ,0.0,0.0,False,variable,,195.136791903,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 447 Wind Onshore
+448 Wind Onshore,448,1.0,PQ,0.0,0.0,False,variable,,0.758204418293,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 448 Wind Onshore
+449 Wind Onshore,449,1.0,PQ,0.0,0.0,False,variable,,0.970498177105,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 449 Wind Onshore
+450 Wind Onshore,450,1.0,PQ,0.0,0.0,False,variable,,0.64461242878,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 450 Wind Onshore
+451 Wind Onshore,451,1.0,PQ,0.0,0.0,False,variable,,0.993755541937,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 451 Wind Onshore
+452 Wind Onshore,452,1.0,PQ,0.0,0.0,False,variable,,128.400038245,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 452 Wind Onshore
+453 Wind Onshore,453,1.0,PQ,0.0,0.0,False,variable,,99.6799006973,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 453 Wind Onshore
+454 Wind Onshore,454,1.0,PQ,0.0,0.0,False,variable,,3.21057376656,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 454 Wind Onshore
+455 Wind Onshore,455,1.0,PQ,0.0,0.0,False,variable,,0.113892545767,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 455 Wind Onshore
+456 Wind Onshore,456,1.0,PQ,0.0,0.0,False,variable,,0.668096166998,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 456 Wind Onshore
+457 Wind Onshore,457,1.0,PQ,0.0,0.0,False,variable,,3.32844346928,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 457 Wind Onshore
+458 Wind Onshore,458,1.0,PQ,0.0,0.0,False,variable,,0.00422385717708,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 458 Wind Onshore
+459 Wind Onshore,459,1.0,PQ,0.0,0.0,False,variable,,0.695013282998,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 459 Wind Onshore
+460 Wind Onshore,460,1.0,PQ,0.0,0.0,False,variable,,0.166308100657,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 460 Wind Onshore
+461 Wind Onshore,461,1.0,PQ,0.0,0.0,False,variable,,3.59367543707,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 461 Wind Onshore
+462 Wind Onshore,462,1.0,PQ,0.0,0.0,False,variable,,0.516811791846,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 462 Wind Onshore
+463 Wind Onshore,463,1.0,PQ,0.0,0.0,False,variable,,18.9935233992,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 463 Wind Onshore
+464 Wind Onshore,464,1.0,PQ,0.0,0.0,False,variable,,1.27889070314,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 464 Wind Onshore
+465 Wind Onshore,465,1.0,PQ,0.0,0.0,False,variable,,1.0457751541,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 465 Wind Onshore
+466 Wind Onshore,466,1.0,PQ,0.0,0.0,False,variable,,0.0662080217804,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 466 Wind Onshore
+467 Wind Onshore,467,1.0,PQ,0.0,0.0,False,variable,,0.0172657559098,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 467 Wind Onshore
+468 Wind Onshore,468,1.0,PQ,0.0,0.0,False,variable,,24.066092581,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 468 Wind Onshore
+469 Wind Onshore,469,1.0,PQ,0.0,0.0,False,variable,,2.61863066606,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 469 Wind Onshore
+470 Wind Onshore,470,1.0,PQ,0.0,0.0,False,variable,,17.5294321434,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 470 Wind Onshore
+471 Wind Onshore,471,1.0,PQ,0.0,0.0,False,variable,,1.25560054614,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 471 Wind Onshore
+472 Wind Onshore,472,1.0,PQ,0.0,0.0,False,variable,,87.1787301723,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 472 Wind Onshore
+473 Wind Onshore,473,1.0,PQ,0.0,0.0,False,variable,,26.0465873516,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 473 Wind Onshore
+474 Wind Onshore,474,1.0,PQ,0.0,0.0,False,variable,,109.466055653,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 474 Wind Onshore
+475 Wind Onshore,475,1.0,PQ,0.0,0.0,False,variable,,125.496759594,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 475 Wind Onshore
+476 Wind Onshore,476,1.0,PQ,0.0,0.0,False,variable,,28.4598098431,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 476 Wind Onshore
+477 Wind Onshore,477,1.0,PQ,0.0,0.0,False,variable,,10.1525805024,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 477 Wind Onshore
+478 Wind Onshore,478,1.0,PQ,0.0,0.0,False,variable,,0.205146857258,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 478 Wind Onshore
+479 Wind Onshore,479,1.0,PQ,0.0,0.0,False,variable,,40.8380328355,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 479 Wind Onshore
+480 Wind Onshore,480,1.0,PQ,0.0,0.0,False,variable,,11.9550296649,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 480 Wind Onshore
+481 Wind Onshore,481,1.0,PQ,0.0,0.0,False,variable,,36.8538052139,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 481 Wind Onshore
+482 Wind Onshore,482,1.0,PQ,0.0,0.0,False,variable,,38.7051709312,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 482 Wind Onshore
+483 Wind Onshore,483,1.0,PQ,0.0,0.0,False,variable,,5.90749544399,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 483 Wind Onshore
+484 Wind Onshore,484,1.0,PQ,0.0,0.0,False,variable,,5.6567662917,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 484 Wind Onshore
+485 Wind Onshore,485,1.0,PQ,0.0,0.0,False,variable,,25.7928587657,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 485 Wind Onshore
+486 Wind Onshore,486,1.0,PQ,0.0,0.0,False,variable,,7.38721218029,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 486 Wind Onshore
+487 Wind Onshore,487,1.0,PQ,0.0,0.0,False,variable,,7.90846807623,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 487 Wind Onshore
+489 Wind Onshore,489,1.0,PQ,0.0,0.0,False,variable,,83.4764916882,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 489 Wind Onshore
+490 Wind Onshore,490,1.0,PQ,0.0,0.0,False,variable,,31.5436523699,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 490 Wind Onshore
+491 Wind Onshore,491,1.0,PQ,0.0,0.0,False,variable,,1.34979278858,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 491 Wind Onshore
+492 Wind Onshore,492,1.0,PQ,0.0,0.0,False,variable,,6.93960205806,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 492 Wind Onshore
+493 Wind Onshore,493,1.0,PQ,0.0,0.0,False,variable,,4.61082629168,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 493 Wind Onshore
+494 Wind Onshore,494,1.0,PQ,0.0,0.0,False,variable,,1.93020439783,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 494 Wind Onshore
+495 Wind Onshore,495,1.0,PQ,0.0,0.0,False,variable,,178.151788945,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 495 Wind Onshore
+2_220kV Wind Onshore,2_220kV,1.0,PQ,0.0,0.0,False,variable,,9.62892326601,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 2_220kV Wind Onshore
+5_220kV Wind Onshore,5_220kV,1.0,PQ,0.0,0.0,False,variable,,29.2264799766,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 5_220kV Wind Onshore
+10_220kV Wind Onshore,10_220kV,1.0,PQ,0.0,0.0,False,variable,,28.8703319519,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 10_220kV Wind Onshore
+12_220kV Wind Onshore,12_220kV,1.0,PQ,0.0,0.0,False,variable,,247.75549793,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 12_220kV Wind Onshore
+13_220kV Wind Onshore,13_220kV,1.0,PQ,0.0,0.0,False,variable,,4.29243458289,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 13_220kV Wind Onshore
+15_220kV Wind Onshore,15_220kV,1.0,PQ,0.0,0.0,False,variable,,0.0121073488246,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 15_220kV Wind Onshore
+18_220kV Wind Onshore,18_220kV,1.0,PQ,0.0,0.0,False,variable,,136.273834313,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 18_220kV Wind Onshore
+20_220kV Wind Onshore,20_220kV,1.0,PQ,0.0,0.0,False,variable,,5.73435075491,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 20_220kV Wind Onshore
+22_220kV Wind Onshore,22_220kV,1.0,PQ,0.0,0.0,False,variable,,66.028032755,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 22_220kV Wind Onshore
+26_220kV Wind Onshore,26_220kV,1.0,PQ,0.0,0.0,False,variable,,20.3750263979,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 26_220kV Wind Onshore
+30_220kV Wind Onshore,30_220kV,1.0,PQ,0.0,0.0,False,variable,,31.8729268081,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 30_220kV Wind Onshore
+32_220kV Wind Onshore,32_220kV,1.0,PQ,0.0,0.0,False,variable,,74.4915422642,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 32_220kV Wind Onshore
+37_220kV Wind Onshore,37_220kV,1.0,PQ,0.0,0.0,False,variable,,166.686549264,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 37_220kV Wind Onshore
+42_220kV Wind Onshore,42_220kV,1.0,PQ,0.0,0.0,False,variable,,83.8271213821,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 42_220kV Wind Onshore
+46_220kV Wind Onshore,46_220kV,1.0,PQ,0.0,0.0,False,variable,,0.138602227838,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 46_220kV Wind Onshore
+52_220kV Wind Onshore,52_220kV,1.0,PQ,0.0,0.0,False,variable,,0.137413198675,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 52_220kV Wind Onshore
+61_220kV Wind Onshore,61_220kV,1.0,PQ,0.0,0.0,False,variable,,37.9484517902,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 61_220kV Wind Onshore
+68_220kV Wind Onshore,68_220kV,1.0,PQ,0.0,0.0,False,variable,,4.74540500429,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 68_220kV Wind Onshore
+69_220kV Wind Onshore,69_220kV,1.0,PQ,0.0,0.0,False,variable,,5.73900923971,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 69_220kV Wind Onshore
+74_220kV Wind Onshore,74_220kV,1.0,PQ,0.0,0.0,False,variable,,300.56831653,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 74_220kV Wind Onshore
+78_220kV Wind Onshore,78_220kV,1.0,PQ,0.0,0.0,False,variable,,70.6154434449,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 78_220kV Wind Onshore
+86_220kV Wind Onshore,86_220kV,1.0,PQ,0.0,0.0,False,variable,,3.09507901045,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 86_220kV Wind Onshore
+87_220kV Wind Onshore,87_220kV,1.0,PQ,0.0,0.0,False,variable,,51.9887181244,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 87_220kV Wind Onshore
+94_220kV Wind Onshore,94_220kV,1.0,PQ,0.0,0.0,False,variable,,34.944413375,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 94_220kV Wind Onshore
+95_220kV Wind Onshore,95_220kV,1.0,PQ,0.0,0.0,False,variable,,38.7986521134,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 95_220kV Wind Onshore
+99_220kV Wind Onshore,99_220kV,1.0,PQ,0.0,0.0,False,variable,,51.7668217342,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 99_220kV Wind Onshore
+100_220kV Wind Onshore,100_220kV,1.0,PQ,0.0,0.0,False,variable,,86.8834686959,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 100_220kV Wind Onshore
+104_220kV Wind Onshore,104_220kV,1.0,PQ,0.0,0.0,False,variable,,0.368157221838,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 104_220kV Wind Onshore
+105_220kV Wind Onshore,105_220kV,1.0,PQ,0.0,0.0,False,variable,,31.9792091529,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 105_220kV Wind Onshore
+106_220kV Wind Onshore,106_220kV,1.0,PQ,0.0,0.0,False,variable,,0.480579238007,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 106_220kV Wind Onshore
+107_220kV Wind Onshore,107_220kV,1.0,PQ,0.0,0.0,False,variable,,0.165852128645,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 107_220kV Wind Onshore
+117_220kV Wind Onshore,117_220kV,1.0,PQ,0.0,0.0,False,variable,,1.87723480434,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 117_220kV Wind Onshore
+120_220kV Wind Onshore,120_220kV,1.0,PQ,0.0,0.0,False,variable,,28.5836732595,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 120_220kV Wind Onshore
+123_220kV Wind Onshore,123_220kV,1.0,PQ,0.0,0.0,False,variable,,4.02403752855,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 123_220kV Wind Onshore
+124_220kV Wind Onshore,124_220kV,1.0,PQ,0.0,0.0,False,variable,,1.73724558901,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 124_220kV Wind Onshore
+125_220kV Wind Onshore,125_220kV,1.0,PQ,0.0,0.0,False,variable,,0.35019496299,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 125_220kV Wind Onshore
+128_220kV Wind Onshore,128_220kV,1.0,PQ,0.0,0.0,False,variable,,42.7691539625,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 128_220kV Wind Onshore
+138_220kV Wind Onshore,138_220kV,1.0,PQ,0.0,0.0,False,variable,,0.908749098278,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 138_220kV Wind Onshore
+157_220kV Wind Onshore,157_220kV,1.0,PQ,0.0,0.0,False,variable,,22.2920568446,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 157_220kV Wind Onshore
+159_220kV Wind Onshore,159_220kV,1.0,PQ,0.0,0.0,False,variable,,40.2105622844,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 159_220kV Wind Onshore
+160_220kV Wind Onshore,160_220kV,1.0,PQ,0.0,0.0,False,variable,,130.925223281,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 160_220kV Wind Onshore
+165_220kV Wind Onshore,165_220kV,1.0,PQ,0.0,0.0,False,variable,,2.74415239126,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 165_220kV Wind Onshore
+184_220kV Wind Onshore,184_220kV,1.0,PQ,0.0,0.0,False,variable,,2.53851680885,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 184_220kV Wind Onshore
+201_220kV Wind Onshore,201_220kV,1.0,PQ,0.0,0.0,False,variable,,171.140294458,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 201_220kV Wind Onshore
+220_220kV Wind Onshore,220_220kV,1.0,PQ,0.0,0.0,False,variable,,11.0344025955,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 220_220kV Wind Onshore
+231_220kV Wind Onshore,231_220kV,1.0,PQ,0.0,0.0,False,variable,,0.00425797799652,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 231_220kV Wind Onshore
+232_220kV Wind Onshore,232_220kV,1.0,PQ,0.0,0.0,False,variable,,1.49701285377,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 232_220kV Wind Onshore
+233_220kV Wind Onshore,233_220kV,1.0,PQ,0.0,0.0,False,variable,,13.5822503213,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 233_220kV Wind Onshore
+247_220kV Wind Onshore,247_220kV,1.0,PQ,0.0,0.0,False,variable,,9.37112852193,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 247_220kV Wind Onshore
+248_220kV Wind Onshore,248_220kV,1.0,PQ,0.0,0.0,False,variable,,3.44040044891,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 248_220kV Wind Onshore
+261_220kV Wind Onshore,261_220kV,1.0,PQ,0.0,0.0,False,variable,,0.230338046619,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 261_220kV Wind Onshore
+264_220kV Wind Onshore,264_220kV,1.0,PQ,0.0,0.0,False,variable,,2.34775437688,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 264_220kV Wind Onshore
+272_220kV Wind Onshore,272_220kV,1.0,PQ,0.0,0.0,False,variable,,76.4565133051,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 272_220kV Wind Onshore
+279_220kV Wind Onshore,279_220kV,1.0,PQ,0.0,0.0,False,variable,,34.5222621992,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 279_220kV Wind Onshore
+281_220kV Wind Onshore,281_220kV,1.0,PQ,0.0,0.0,False,variable,,40.5145677485,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 281_220kV Wind Onshore
+282_220kV Wind Onshore,282_220kV,1.0,PQ,0.0,0.0,False,variable,,58.5341120747,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 282_220kV Wind Onshore
+292_220kV Wind Onshore,292_220kV,1.0,PQ,0.0,0.0,False,variable,,182.049539948,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 292_220kV Wind Onshore
+303_220kV Wind Onshore,303_220kV,1.0,PQ,0.0,0.0,False,variable,,28.984458104,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 303_220kV Wind Onshore
+307_220kV Wind Onshore,307_220kV,1.0,PQ,0.0,0.0,False,variable,,6.73712615757e-05,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 307_220kV Wind Onshore
+308_220kV Wind Onshore,308_220kV,1.0,PQ,0.0,0.0,False,variable,,57.3607651242,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 308_220kV Wind Onshore
+312_220kV Wind Onshore,312_220kV,1.0,PQ,0.0,0.0,False,variable,,57.1394597121,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 312_220kV Wind Onshore
+315_220kV Wind Onshore,315_220kV,1.0,PQ,0.0,0.0,False,variable,,1.16611648113,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 315_220kV Wind Onshore
+332_220kV Wind Onshore,332_220kV,1.0,PQ,0.0,0.0,False,variable,,0.0172131915375,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 332_220kV Wind Onshore
+334_220kV Wind Onshore,334_220kV,1.0,PQ,0.0,0.0,False,variable,,31.2103345202,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 334_220kV Wind Onshore
+336_220kV Wind Onshore,336_220kV,1.0,PQ,0.0,0.0,False,variable,,112.954139582,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 336_220kV Wind Onshore
+338_220kV Wind Onshore,338_220kV,1.0,PQ,0.0,0.0,False,variable,,1.54321954768,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 338_220kV Wind Onshore
+353_220kV Wind Onshore,353_220kV,1.0,PQ,0.0,0.0,False,variable,,7.32529529029,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 353_220kV Wind Onshore
+360_220kV Wind Onshore,360_220kV,1.0,PQ,0.0,0.0,False,variable,,0.238467820508,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 360_220kV Wind Onshore
+362_220kV Wind Onshore,362_220kV,1.0,PQ,0.0,0.0,False,variable,,0.00245577848574,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 362_220kV Wind Onshore
+382_220kV Wind Onshore,382_220kV,1.0,PQ,0.0,0.0,False,variable,,0.626490896658,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 382_220kV Wind Onshore
+384_220kV Wind Onshore,384_220kV,1.0,PQ,0.0,0.0,False,variable,,36.4661998792,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 384_220kV Wind Onshore
+385_220kV Wind Onshore,385_220kV,1.0,PQ,0.0,0.0,False,variable,,48.7888423505,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 385_220kV Wind Onshore
+403_220kV Wind Onshore,403_220kV,1.0,PQ,0.0,0.0,False,variable,,0.0989155855099,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 403_220kV Wind Onshore
+404_220kV Wind Onshore,404_220kV,1.0,PQ,0.0,0.0,False,variable,,0.00199541568714,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 404_220kV Wind Onshore
+421_220kV Wind Onshore,421_220kV,1.0,PQ,0.0,0.0,False,variable,,2.29932092166,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 421_220kV Wind Onshore
+450_220kV Wind Onshore,450_220kV,1.0,PQ,0.0,0.0,False,variable,,0.0864742902902,0.0,0.0,1.0,1.0,Wind Onshore,0.0,Generator 450_220kV Wind Onshore
+1 Solar,1,1.0,PQ,0.0,0.0,False,variable,,71.2186028982,0.0,0.0,1.0,1.0,Solar,0.0,Generator 1 Solar
+2 Solar,2,1.0,PQ,0.0,0.0,False,variable,,6.21340370335,0.0,0.0,1.0,1.0,Solar,0.0,Generator 2 Solar
+3 Solar,3,1.0,PQ,0.0,0.0,False,variable,,27.7285479957,0.0,0.0,1.0,1.0,Solar,0.0,Generator 3 Solar
+4 Solar,4,1.0,PQ,0.0,0.0,False,variable,,35.8482751849,0.0,0.0,1.0,1.0,Solar,0.0,Generator 4 Solar
+5 Solar,5,1.0,PQ,0.0,0.0,False,variable,,8.60117538055,0.0,0.0,1.0,1.0,Solar,0.0,Generator 5 Solar
+6 Solar,6,1.0,PQ,0.0,0.0,False,variable,,18.7438286264,0.0,0.0,1.0,1.0,Solar,0.0,Generator 6 Solar
+7 Solar,7,1.0,PQ,0.0,0.0,False,variable,,24.1397840342,0.0,0.0,1.0,1.0,Solar,0.0,Generator 7 Solar
+8 Solar,8,1.0,PQ,0.0,0.0,False,variable,,60.007448792,0.0,0.0,1.0,1.0,Solar,0.0,Generator 8 Solar
+9 Solar,9,1.0,PQ,0.0,0.0,False,variable,,36.8089985667,0.0,0.0,1.0,1.0,Solar,0.0,Generator 9 Solar
+10 Solar,10,1.0,PQ,0.0,0.0,False,variable,,108.087864586,0.0,0.0,1.0,1.0,Solar,0.0,Generator 10 Solar
+11 Solar,11,1.0,PQ,0.0,0.0,False,variable,,80.4025346867,0.0,0.0,1.0,1.0,Solar,0.0,Generator 11 Solar
+12 Solar,12,1.0,PQ,0.0,0.0,False,variable,,33.4020796627,0.0,0.0,1.0,1.0,Solar,0.0,Generator 12 Solar
+13 Solar,13,1.0,PQ,0.0,0.0,False,variable,,111.295486026,0.0,0.0,1.0,1.0,Solar,0.0,Generator 13 Solar
+14 Solar,14,1.0,PQ,0.0,0.0,False,variable,,38.1484856372,0.0,0.0,1.0,1.0,Solar,0.0,Generator 14 Solar
+15 Solar,15,1.0,PQ,0.0,0.0,False,variable,,21.4980838479,0.0,0.0,1.0,1.0,Solar,0.0,Generator 15 Solar
+16 Solar,16,1.0,PQ,0.0,0.0,False,variable,,78.9481676917,0.0,0.0,1.0,1.0,Solar,0.0,Generator 16 Solar
+17 Solar,17,1.0,PQ,0.0,0.0,False,variable,,71.8115260821,0.0,0.0,1.0,1.0,Solar,0.0,Generator 17 Solar
+18 Solar,18,1.0,PQ,0.0,0.0,False,variable,,25.6698984917,0.0,0.0,1.0,1.0,Solar,0.0,Generator 18 Solar
+19 Solar,19,1.0,PQ,0.0,0.0,False,variable,,172.358685408,0.0,0.0,1.0,1.0,Solar,0.0,Generator 19 Solar
+20 Solar,20,1.0,PQ,0.0,0.0,False,variable,,4.21061112876,0.0,0.0,1.0,1.0,Solar,0.0,Generator 20 Solar
+21 Solar,21,1.0,PQ,0.0,0.0,False,variable,,32.9827936885,0.0,0.0,1.0,1.0,Solar,0.0,Generator 21 Solar
+22 Solar,22,1.0,PQ,0.0,0.0,False,variable,,181.202333191,0.0,0.0,1.0,1.0,Solar,0.0,Generator 22 Solar
+23 Solar,23,1.0,PQ,0.0,0.0,False,variable,,32.9090917237,0.0,0.0,1.0,1.0,Solar,0.0,Generator 23 Solar
+24 Solar,24,1.0,PQ,0.0,0.0,False,variable,,59.2930722261,0.0,0.0,1.0,1.0,Solar,0.0,Generator 24 Solar
+25 Solar,25,1.0,PQ,0.0,0.0,False,variable,,26.6082727379,0.0,0.0,1.0,1.0,Solar,0.0,Generator 25 Solar
+26 Solar,26,1.0,PQ,0.0,0.0,False,variable,,13.5878544781,0.0,0.0,1.0,1.0,Solar,0.0,Generator 26 Solar
+27 Solar,27,1.0,PQ,0.0,0.0,False,variable,,7.59415034198,0.0,0.0,1.0,1.0,Solar,0.0,Generator 27 Solar
+28 Solar,28,1.0,PQ,0.0,0.0,False,variable,,35.1434243784,0.0,0.0,1.0,1.0,Solar,0.0,Generator 28 Solar
+29 Solar,29,1.0,PQ,0.0,0.0,False,variable,,93.3744415819,0.0,0.0,1.0,1.0,Solar,0.0,Generator 29 Solar
+30 Solar,30,1.0,PQ,0.0,0.0,False,variable,,16.7238613767,0.0,0.0,1.0,1.0,Solar,0.0,Generator 30 Solar
+31 Solar,31,1.0,PQ,0.0,0.0,False,variable,,114.573505051,0.0,0.0,1.0,1.0,Solar,0.0,Generator 31 Solar
+32 Solar,32,1.0,PQ,0.0,0.0,False,variable,,72.0329807611,0.0,0.0,1.0,1.0,Solar,0.0,Generator 32 Solar
+33 Solar,33,1.0,PQ,0.0,0.0,False,variable,,180.96549044,0.0,0.0,1.0,1.0,Solar,0.0,Generator 33 Solar
+34 Solar,34,1.0,PQ,0.0,0.0,False,variable,,3.74544087412,0.0,0.0,1.0,1.0,Solar,0.0,Generator 34 Solar
+35 Solar,35,1.0,PQ,0.0,0.0,False,variable,,3.08471401871,0.0,0.0,1.0,1.0,Solar,0.0,Generator 35 Solar
+36 Solar,36,1.0,PQ,0.0,0.0,False,variable,,46.6832460696,0.0,0.0,1.0,1.0,Solar,0.0,Generator 36 Solar
+37 Solar,37,1.0,PQ,0.0,0.0,False,variable,,38.4973020365,0.0,0.0,1.0,1.0,Solar,0.0,Generator 37 Solar
+38 Solar,38,1.0,PQ,0.0,0.0,False,variable,,6.13187664264,0.0,0.0,1.0,1.0,Solar,0.0,Generator 38 Solar
+39 Solar,39,1.0,PQ,0.0,0.0,False,variable,,111.737837083,0.0,0.0,1.0,1.0,Solar,0.0,Generator 39 Solar
+40 Solar,40,1.0,PQ,0.0,0.0,False,variable,,136.261915398,0.0,0.0,1.0,1.0,Solar,0.0,Generator 40 Solar
+41 Solar,41,1.0,PQ,0.0,0.0,False,variable,,238.6605308,0.0,0.0,1.0,1.0,Solar,0.0,Generator 41 Solar
+42 Solar,42,1.0,PQ,0.0,0.0,False,variable,,18.2886311114,0.0,0.0,1.0,1.0,Solar,0.0,Generator 42 Solar
+43 Solar,43,1.0,PQ,0.0,0.0,False,variable,,353.74991949,0.0,0.0,1.0,1.0,Solar,0.0,Generator 43 Solar
+44 Solar,44,1.0,PQ,0.0,0.0,False,variable,,18.109255333,0.0,0.0,1.0,1.0,Solar,0.0,Generator 44 Solar
+45 Solar,45,1.0,PQ,0.0,0.0,False,variable,,70.0175109464,0.0,0.0,1.0,1.0,Solar,0.0,Generator 45 Solar
+46 Solar,46,1.0,PQ,0.0,0.0,False,variable,,1.07175626135,0.0,0.0,1.0,1.0,Solar,0.0,Generator 46 Solar
+47 Solar,47,1.0,PQ,0.0,0.0,False,variable,,4.2372837398,0.0,0.0,1.0,1.0,Solar,0.0,Generator 47 Solar
+48 Solar,48,1.0,PQ,0.0,0.0,False,variable,,8.24824619005,0.0,0.0,1.0,1.0,Solar,0.0,Generator 48 Solar
+49 Solar,49,1.0,PQ,0.0,0.0,False,variable,,46.5241627454,0.0,0.0,1.0,1.0,Solar,0.0,Generator 49 Solar
+50 Solar,50,1.0,PQ,0.0,0.0,False,variable,,83.2093251002,0.0,0.0,1.0,1.0,Solar,0.0,Generator 50 Solar
+51 Solar,51,1.0,PQ,0.0,0.0,False,variable,,138.656703837,0.0,0.0,1.0,1.0,Solar,0.0,Generator 51 Solar
+52 Solar,52,1.0,PQ,0.0,0.0,False,variable,,1.97138478892,0.0,0.0,1.0,1.0,Solar,0.0,Generator 52 Solar
+53 Solar,53,1.0,PQ,0.0,0.0,False,variable,,89.3033261543,0.0,0.0,1.0,1.0,Solar,0.0,Generator 53 Solar
+54 Solar,54,1.0,PQ,0.0,0.0,False,variable,,34.3866451864,0.0,0.0,1.0,1.0,Solar,0.0,Generator 54 Solar
+55 Solar,55,1.0,PQ,0.0,0.0,False,variable,,21.9882319446,0.0,0.0,1.0,1.0,Solar,0.0,Generator 55 Solar
+56 Solar,56,1.0,PQ,0.0,0.0,False,variable,,7.851474635,0.0,0.0,1.0,1.0,Solar,0.0,Generator 56 Solar
+57 Solar,57,1.0,PQ,0.0,0.0,False,variable,,20.4131344418,0.0,0.0,1.0,1.0,Solar,0.0,Generator 57 Solar
+58 Solar,58,1.0,PQ,0.0,0.0,False,variable,,95.6741241037,0.0,0.0,1.0,1.0,Solar,0.0,Generator 58 Solar
+59 Solar,59,1.0,PQ,0.0,0.0,False,variable,,73.7017301475,0.0,0.0,1.0,1.0,Solar,0.0,Generator 59 Solar
+60 Solar,60,1.0,PQ,0.0,0.0,False,variable,,16.8000329598,0.0,0.0,1.0,1.0,Solar,0.0,Generator 60 Solar
+61 Solar,61,1.0,PQ,0.0,0.0,False,variable,,21.7006555566,0.0,0.0,1.0,1.0,Solar,0.0,Generator 61 Solar
+62 Solar,62,1.0,PQ,0.0,0.0,False,variable,,52.2519894912,0.0,0.0,1.0,1.0,Solar,0.0,Generator 62 Solar
+63 Solar,63,1.0,PQ,0.0,0.0,False,variable,,92.5313056152,0.0,0.0,1.0,1.0,Solar,0.0,Generator 63 Solar
+64 Solar,64,1.0,PQ,0.0,0.0,False,variable,,51.2030403474,0.0,0.0,1.0,1.0,Solar,0.0,Generator 64 Solar
+65 Solar,65,1.0,PQ,0.0,0.0,False,variable,,12.0460609183,0.0,0.0,1.0,1.0,Solar,0.0,Generator 65 Solar
+66 Solar,66,1.0,PQ,0.0,0.0,False,variable,,333.240713549,0.0,0.0,1.0,1.0,Solar,0.0,Generator 66 Solar
+67 Solar,67,1.0,PQ,0.0,0.0,False,variable,,24.0901334264,0.0,0.0,1.0,1.0,Solar,0.0,Generator 67 Solar
+68 Solar,68,1.0,PQ,0.0,0.0,False,variable,,16.7679410735,0.0,0.0,1.0,1.0,Solar,0.0,Generator 68 Solar
+69 Solar,69,1.0,PQ,0.0,0.0,False,variable,,22.7236074348,0.0,0.0,1.0,1.0,Solar,0.0,Generator 69 Solar
+70 Solar,70,1.0,PQ,0.0,0.0,False,variable,,77.7788824224,0.0,0.0,1.0,1.0,Solar,0.0,Generator 70 Solar
+71 Solar,71,1.0,PQ,0.0,0.0,False,variable,,311.531478723,0.0,0.0,1.0,1.0,Solar,0.0,Generator 71 Solar
+72 Solar,72,1.0,PQ,0.0,0.0,False,variable,,225.895077556,0.0,0.0,1.0,1.0,Solar,0.0,Generator 72 Solar
+73 Solar,73,1.0,PQ,0.0,0.0,False,variable,,187.03329549,0.0,0.0,1.0,1.0,Solar,0.0,Generator 73 Solar
+74 Solar,74,1.0,PQ,0.0,0.0,False,variable,,196.319540523,0.0,0.0,1.0,1.0,Solar,0.0,Generator 74 Solar
+75 Solar,75,1.0,PQ,0.0,0.0,False,variable,,221.61028526,0.0,0.0,1.0,1.0,Solar,0.0,Generator 75 Solar
+76 Solar,76,1.0,PQ,0.0,0.0,False,variable,,70.9573205712,0.0,0.0,1.0,1.0,Solar,0.0,Generator 76 Solar
+77 Solar,77,1.0,PQ,0.0,0.0,False,variable,,130.658812756,0.0,0.0,1.0,1.0,Solar,0.0,Generator 77 Solar
+78 Solar,78,1.0,PQ,0.0,0.0,False,variable,,9.61911703077,0.0,0.0,1.0,1.0,Solar,0.0,Generator 78 Solar
+79 Solar,79,1.0,PQ,0.0,0.0,False,variable,,144.173144792,0.0,0.0,1.0,1.0,Solar,0.0,Generator 79 Solar
+80 Solar,80,1.0,PQ,0.0,0.0,False,variable,,31.5281734973,0.0,0.0,1.0,1.0,Solar,0.0,Generator 80 Solar
+81 Solar,81,1.0,PQ,0.0,0.0,False,variable,,206.530507061,0.0,0.0,1.0,1.0,Solar,0.0,Generator 81 Solar
+82 Solar,82,1.0,PQ,0.0,0.0,False,variable,,14.5958296028,0.0,0.0,1.0,1.0,Solar,0.0,Generator 82 Solar
+83 Solar,83,1.0,PQ,0.0,0.0,False,variable,,33.5919508485,0.0,0.0,1.0,1.0,Solar,0.0,Generator 83 Solar
+84 Solar,84,1.0,PQ,0.0,0.0,False,variable,,19.9066160338,0.0,0.0,1.0,1.0,Solar,0.0,Generator 84 Solar
+85 Solar,85,1.0,PQ,0.0,0.0,False,variable,,124.79276844,0.0,0.0,1.0,1.0,Solar,0.0,Generator 85 Solar
+86 Solar,86,1.0,PQ,0.0,0.0,False,variable,,4.76858208284,0.0,0.0,1.0,1.0,Solar,0.0,Generator 86 Solar
+87 Solar,87,1.0,PQ,0.0,0.0,False,variable,,62.3607392668,0.0,0.0,1.0,1.0,Solar,0.0,Generator 87 Solar
+88 Solar,88,1.0,PQ,0.0,0.0,False,variable,,6.6963630562,0.0,0.0,1.0,1.0,Solar,0.0,Generator 88 Solar
+89 Solar,89,1.0,PQ,0.0,0.0,False,variable,,1.44219765883,0.0,0.0,1.0,1.0,Solar,0.0,Generator 89 Solar
+90 Solar,90,1.0,PQ,0.0,0.0,False,variable,,67.0107243095,0.0,0.0,1.0,1.0,Solar,0.0,Generator 90 Solar
+91 Solar,91,1.0,PQ,0.0,0.0,False,variable,,2.92956254393,0.0,0.0,1.0,1.0,Solar,0.0,Generator 91 Solar
+92 Solar,92,1.0,PQ,0.0,0.0,False,variable,,41.4536269318,0.0,0.0,1.0,1.0,Solar,0.0,Generator 92 Solar
+93 Solar,93,1.0,PQ,0.0,0.0,False,variable,,147.411862521,0.0,0.0,1.0,1.0,Solar,0.0,Generator 93 Solar
+94 Solar,94,1.0,PQ,0.0,0.0,False,variable,,33.2261332475,0.0,0.0,1.0,1.0,Solar,0.0,Generator 94 Solar
+95 Solar,95,1.0,PQ,0.0,0.0,False,variable,,35.4737528073,0.0,0.0,1.0,1.0,Solar,0.0,Generator 95 Solar
+96 Solar,96,1.0,PQ,0.0,0.0,False,variable,,15.4341995369,0.0,0.0,1.0,1.0,Solar,0.0,Generator 96 Solar
+97 Solar,97,1.0,PQ,0.0,0.0,False,variable,,56.5799768834,0.0,0.0,1.0,1.0,Solar,0.0,Generator 97 Solar
+98 Solar,98,1.0,PQ,0.0,0.0,False,variable,,32.9000529725,0.0,0.0,1.0,1.0,Solar,0.0,Generator 98 Solar
+99 Solar,99,1.0,PQ,0.0,0.0,False,variable,,35.5373199923,0.0,0.0,1.0,1.0,Solar,0.0,Generator 99 Solar
+100 Solar,100,1.0,PQ,0.0,0.0,False,variable,,27.6554647284,0.0,0.0,1.0,1.0,Solar,0.0,Generator 100 Solar
+101 Solar,101,1.0,PQ,0.0,0.0,False,variable,,107.751020916,0.0,0.0,1.0,1.0,Solar,0.0,Generator 101 Solar
+102 Solar,102,1.0,PQ,0.0,0.0,False,variable,,117.477929908,0.0,0.0,1.0,1.0,Solar,0.0,Generator 102 Solar
+103 Solar,103,1.0,PQ,0.0,0.0,False,variable,,8.03143681277,0.0,0.0,1.0,1.0,Solar,0.0,Generator 103 Solar
+104 Solar,104,1.0,PQ,0.0,0.0,False,variable,,1.91170889739,0.0,0.0,1.0,1.0,Solar,0.0,Generator 104 Solar
+105 Solar,105,1.0,PQ,0.0,0.0,False,variable,,23.106797237,0.0,0.0,1.0,1.0,Solar,0.0,Generator 105 Solar
+106 Solar,106,1.0,PQ,0.0,0.0,False,variable,,6.92357646309,0.0,0.0,1.0,1.0,Solar,0.0,Generator 106 Solar
+107 Solar,107,1.0,PQ,0.0,0.0,False,variable,,0.41012644569,0.0,0.0,1.0,1.0,Solar,0.0,Generator 107 Solar
+108 Solar,108,1.0,PQ,0.0,0.0,False,variable,,5.82330902024,0.0,0.0,1.0,1.0,Solar,0.0,Generator 108 Solar
+109 Solar,109,1.0,PQ,0.0,0.0,False,variable,,8.22123696677,0.0,0.0,1.0,1.0,Solar,0.0,Generator 109 Solar
+110 Solar,110,1.0,PQ,0.0,0.0,False,variable,,49.6841456393,0.0,0.0,1.0,1.0,Solar,0.0,Generator 110 Solar
+111 Solar,111,1.0,PQ,0.0,0.0,False,variable,,124.644958627,0.0,0.0,1.0,1.0,Solar,0.0,Generator 111 Solar
+112 Solar,112,1.0,PQ,0.0,0.0,False,variable,,2.46235562264,0.0,0.0,1.0,1.0,Solar,0.0,Generator 112 Solar
+113 Solar,113,1.0,PQ,0.0,0.0,False,variable,,3.98187682394,0.0,0.0,1.0,1.0,Solar,0.0,Generator 113 Solar
+114 Solar,114,1.0,PQ,0.0,0.0,False,variable,,77.4207544893,0.0,0.0,1.0,1.0,Solar,0.0,Generator 114 Solar
+115 Solar,115,1.0,PQ,0.0,0.0,False,variable,,22.7492516667,0.0,0.0,1.0,1.0,Solar,0.0,Generator 115 Solar
+116 Solar,116,1.0,PQ,0.0,0.0,False,variable,,6.35573593199,0.0,0.0,1.0,1.0,Solar,0.0,Generator 116 Solar
+117 Solar,117,1.0,PQ,0.0,0.0,False,variable,,9.5628257621,0.0,0.0,1.0,1.0,Solar,0.0,Generator 117 Solar
+118 Solar,118,1.0,PQ,0.0,0.0,False,variable,,40.9622161483,0.0,0.0,1.0,1.0,Solar,0.0,Generator 118 Solar
+119 Solar,119,1.0,PQ,0.0,0.0,False,variable,,23.2333611325,0.0,0.0,1.0,1.0,Solar,0.0,Generator 119 Solar
+120 Solar,120,1.0,PQ,0.0,0.0,False,variable,,54.0104355069,0.0,0.0,1.0,1.0,Solar,0.0,Generator 120 Solar
+121 Solar,121,1.0,PQ,0.0,0.0,False,variable,,14.8007406566,0.0,0.0,1.0,1.0,Solar,0.0,Generator 121 Solar
+122 Solar,122,1.0,PQ,0.0,0.0,False,variable,,40.4619300462,0.0,0.0,1.0,1.0,Solar,0.0,Generator 122 Solar
+123 Solar,123,1.0,PQ,0.0,0.0,False,variable,,4.10294432398,0.0,0.0,1.0,1.0,Solar,0.0,Generator 123 Solar
+124 Solar,124,1.0,PQ,0.0,0.0,False,variable,,0.28007440747,0.0,0.0,1.0,1.0,Solar,0.0,Generator 124 Solar
+125 Solar,125,1.0,PQ,0.0,0.0,False,variable,,3.74089149564,0.0,0.0,1.0,1.0,Solar,0.0,Generator 125 Solar
+126 Solar,126,1.0,PQ,0.0,0.0,False,variable,,36.6794038745,0.0,0.0,1.0,1.0,Solar,0.0,Generator 126 Solar
+127 Solar,127,1.0,PQ,0.0,0.0,False,variable,,17.9977750835,0.0,0.0,1.0,1.0,Solar,0.0,Generator 127 Solar
+128 Solar,128,1.0,PQ,0.0,0.0,False,variable,,50.2424715376,0.0,0.0,1.0,1.0,Solar,0.0,Generator 128 Solar
+129 Solar,129,1.0,PQ,0.0,0.0,False,variable,,7.35508615943,0.0,0.0,1.0,1.0,Solar,0.0,Generator 129 Solar
+130 Solar,130,1.0,PQ,0.0,0.0,False,variable,,17.3907053342,0.0,0.0,1.0,1.0,Solar,0.0,Generator 130 Solar
+131 Solar,131,1.0,PQ,0.0,0.0,False,variable,,4.98474325407,0.0,0.0,1.0,1.0,Solar,0.0,Generator 131 Solar
+132 Solar,132,1.0,PQ,0.0,0.0,False,variable,,15.3779759221,0.0,0.0,1.0,1.0,Solar,0.0,Generator 132 Solar
+133 Solar,133,1.0,PQ,0.0,0.0,False,variable,,5.42498307762,0.0,0.0,1.0,1.0,Solar,0.0,Generator 133 Solar
+134 Solar,134,1.0,PQ,0.0,0.0,False,variable,,8.69466497018,0.0,0.0,1.0,1.0,Solar,0.0,Generator 134 Solar
+135 Solar,135,1.0,PQ,0.0,0.0,False,variable,,24.6273737667,0.0,0.0,1.0,1.0,Solar,0.0,Generator 135 Solar
+136 Solar,136,1.0,PQ,0.0,0.0,False,variable,,25.0011985808,0.0,0.0,1.0,1.0,Solar,0.0,Generator 136 Solar
+137 Solar,137,1.0,PQ,0.0,0.0,False,variable,,167.262339034,0.0,0.0,1.0,1.0,Solar,0.0,Generator 137 Solar
+138 Solar,138,1.0,PQ,0.0,0.0,False,variable,,9.02024975465,0.0,0.0,1.0,1.0,Solar,0.0,Generator 138 Solar
+139 Solar,139,1.0,PQ,0.0,0.0,False,variable,,5.3239682708,0.0,0.0,1.0,1.0,Solar,0.0,Generator 139 Solar
+140 Solar,140,1.0,PQ,0.0,0.0,False,variable,,8.64058594329,0.0,0.0,1.0,1.0,Solar,0.0,Generator 140 Solar
+141 Solar,141,1.0,PQ,0.0,0.0,False,variable,,4.24036671894,0.0,0.0,1.0,1.0,Solar,0.0,Generator 141 Solar
+142 Solar,142,1.0,PQ,0.0,0.0,False,variable,,5.48265781118,0.0,0.0,1.0,1.0,Solar,0.0,Generator 142 Solar
+143 Solar,143,1.0,PQ,0.0,0.0,False,variable,,5.61838718925,0.0,0.0,1.0,1.0,Solar,0.0,Generator 143 Solar
+144 Solar,144,1.0,PQ,0.0,0.0,False,variable,,1.64665650875,0.0,0.0,1.0,1.0,Solar,0.0,Generator 144 Solar
+145 Solar,145,1.0,PQ,0.0,0.0,False,variable,,6.64233999465,0.0,0.0,1.0,1.0,Solar,0.0,Generator 145 Solar
+146 Solar,146,1.0,PQ,0.0,0.0,False,variable,,4.69425027908,0.0,0.0,1.0,1.0,Solar,0.0,Generator 146 Solar
+147 Solar,147,1.0,PQ,0.0,0.0,False,variable,,17.4251780797,0.0,0.0,1.0,1.0,Solar,0.0,Generator 147 Solar
+148 Solar,148,1.0,PQ,0.0,0.0,False,variable,,7.31658969484,0.0,0.0,1.0,1.0,Solar,0.0,Generator 148 Solar
+149 Solar,149,1.0,PQ,0.0,0.0,False,variable,,57.0052733599,0.0,0.0,1.0,1.0,Solar,0.0,Generator 149 Solar
+150 Solar,150,1.0,PQ,0.0,0.0,False,variable,,10.4017009936,0.0,0.0,1.0,1.0,Solar,0.0,Generator 150 Solar
+151 Solar,151,1.0,PQ,0.0,0.0,False,variable,,8.80676585729,0.0,0.0,1.0,1.0,Solar,0.0,Generator 151 Solar
+152 Solar,152,1.0,PQ,0.0,0.0,False,variable,,60.110338184,0.0,0.0,1.0,1.0,Solar,0.0,Generator 152 Solar
+153 Solar,153,1.0,PQ,0.0,0.0,False,variable,,104.74456804,0.0,0.0,1.0,1.0,Solar,0.0,Generator 153 Solar
+154 Solar,154,1.0,PQ,0.0,0.0,False,variable,,10.7847831315,0.0,0.0,1.0,1.0,Solar,0.0,Generator 154 Solar
+155 Solar,155,1.0,PQ,0.0,0.0,False,variable,,28.0700011552,0.0,0.0,1.0,1.0,Solar,0.0,Generator 155 Solar
+156 Solar,156,1.0,PQ,0.0,0.0,False,variable,,33.8973218041,0.0,0.0,1.0,1.0,Solar,0.0,Generator 156 Solar
+157 Solar,157,1.0,PQ,0.0,0.0,False,variable,,60.3181664207,0.0,0.0,1.0,1.0,Solar,0.0,Generator 157 Solar
+158 Solar,158,1.0,PQ,0.0,0.0,False,variable,,23.0754560989,0.0,0.0,1.0,1.0,Solar,0.0,Generator 158 Solar
+159 Solar,159,1.0,PQ,0.0,0.0,False,variable,,21.6686190593,0.0,0.0,1.0,1.0,Solar,0.0,Generator 159 Solar
+160 Solar,160,1.0,PQ,0.0,0.0,False,variable,,0.305835241712,0.0,0.0,1.0,1.0,Solar,0.0,Generator 160 Solar
+161 Solar,161,1.0,PQ,0.0,0.0,False,variable,,58.8342536068,0.0,0.0,1.0,1.0,Solar,0.0,Generator 161 Solar
+162 Solar,162,1.0,PQ,0.0,0.0,False,variable,,7.95050788725,0.0,0.0,1.0,1.0,Solar,0.0,Generator 162 Solar
+163 Solar,163,1.0,PQ,0.0,0.0,False,variable,,17.0812381968,0.0,0.0,1.0,1.0,Solar,0.0,Generator 163 Solar
+164 Solar,164,1.0,PQ,0.0,0.0,False,variable,,20.2138386213,0.0,0.0,1.0,1.0,Solar,0.0,Generator 164 Solar
+165 Solar,165,1.0,PQ,0.0,0.0,False,variable,,10.5944563681,0.0,0.0,1.0,1.0,Solar,0.0,Generator 165 Solar
+166 Solar,166,1.0,PQ,0.0,0.0,False,variable,,24.9436805851,0.0,0.0,1.0,1.0,Solar,0.0,Generator 166 Solar
+167 Solar,167,1.0,PQ,0.0,0.0,False,variable,,10.342444651,0.0,0.0,1.0,1.0,Solar,0.0,Generator 167 Solar
+168 Solar,168,1.0,PQ,0.0,0.0,False,variable,,23.4481282432,0.0,0.0,1.0,1.0,Solar,0.0,Generator 168 Solar
+169 Solar,169,1.0,PQ,0.0,0.0,False,variable,,1.69634454221,0.0,0.0,1.0,1.0,Solar,0.0,Generator 169 Solar
+170 Solar,170,1.0,PQ,0.0,0.0,False,variable,,4.09106278776,0.0,0.0,1.0,1.0,Solar,0.0,Generator 170 Solar
+171 Solar,171,1.0,PQ,0.0,0.0,False,variable,,9.55285315187,0.0,0.0,1.0,1.0,Solar,0.0,Generator 171 Solar
+172 Solar,172,1.0,PQ,0.0,0.0,False,variable,,2.73384755799,0.0,0.0,1.0,1.0,Solar,0.0,Generator 172 Solar
+173 Solar,173,1.0,PQ,0.0,0.0,False,variable,,9.79416277801,0.0,0.0,1.0,1.0,Solar,0.0,Generator 173 Solar
+174 Solar,174,1.0,PQ,0.0,0.0,False,variable,,8.97547873388,0.0,0.0,1.0,1.0,Solar,0.0,Generator 174 Solar
+175 Solar,175,1.0,PQ,0.0,0.0,False,variable,,3.0209086682,0.0,0.0,1.0,1.0,Solar,0.0,Generator 175 Solar
+176 Solar,176,1.0,PQ,0.0,0.0,False,variable,,14.397756949,0.0,0.0,1.0,1.0,Solar,0.0,Generator 176 Solar
+177 Solar,177,1.0,PQ,0.0,0.0,False,variable,,92.1266570607,0.0,0.0,1.0,1.0,Solar,0.0,Generator 177 Solar
+178 Solar,178,1.0,PQ,0.0,0.0,False,variable,,20.4940339831,0.0,0.0,1.0,1.0,Solar,0.0,Generator 178 Solar
+179 Solar,179,1.0,PQ,0.0,0.0,False,variable,,168.725066736,0.0,0.0,1.0,1.0,Solar,0.0,Generator 179 Solar
+180 Solar,180,1.0,PQ,0.0,0.0,False,variable,,143.19531538,0.0,0.0,1.0,1.0,Solar,0.0,Generator 180 Solar
+181 Solar,181,1.0,PQ,0.0,0.0,False,variable,,66.8849766947,0.0,0.0,1.0,1.0,Solar,0.0,Generator 181 Solar
+182 Solar,182,1.0,PQ,0.0,0.0,False,variable,,14.5168971293,0.0,0.0,1.0,1.0,Solar,0.0,Generator 182 Solar
+183 Solar,183,1.0,PQ,0.0,0.0,False,variable,,41.724499019,0.0,0.0,1.0,1.0,Solar,0.0,Generator 183 Solar
+184 Solar,184,1.0,PQ,0.0,0.0,False,variable,,10.504075546,0.0,0.0,1.0,1.0,Solar,0.0,Generator 184 Solar
+185 Solar,185,1.0,PQ,0.0,0.0,False,variable,,8.79946068281,0.0,0.0,1.0,1.0,Solar,0.0,Generator 185 Solar
+186 Solar,186,1.0,PQ,0.0,0.0,False,variable,,2.2370166695,0.0,0.0,1.0,1.0,Solar,0.0,Generator 186 Solar
+187 Solar,187,1.0,PQ,0.0,0.0,False,variable,,4.37161023973,0.0,0.0,1.0,1.0,Solar,0.0,Generator 187 Solar
+188 Solar,188,1.0,PQ,0.0,0.0,False,variable,,1.51393860733,0.0,0.0,1.0,1.0,Solar,0.0,Generator 188 Solar
+189 Solar,189,1.0,PQ,0.0,0.0,False,variable,,82.7284335995,0.0,0.0,1.0,1.0,Solar,0.0,Generator 189 Solar
+190 Solar,190,1.0,PQ,0.0,0.0,False,variable,,167.851428245,0.0,0.0,1.0,1.0,Solar,0.0,Generator 190 Solar
+191 Solar,191,1.0,PQ,0.0,0.0,False,variable,,2.60136537283,0.0,0.0,1.0,1.0,Solar,0.0,Generator 191 Solar
+192 Solar,192,1.0,PQ,0.0,0.0,False,variable,,74.6690211499,0.0,0.0,1.0,1.0,Solar,0.0,Generator 192 Solar
+193 Solar,193,1.0,PQ,0.0,0.0,False,variable,,2.35458726228,0.0,0.0,1.0,1.0,Solar,0.0,Generator 193 Solar
+194 Solar,194,1.0,PQ,0.0,0.0,False,variable,,1.4024835931,0.0,0.0,1.0,1.0,Solar,0.0,Generator 194 Solar
+195 Solar,195,1.0,PQ,0.0,0.0,False,variable,,0.641656142553,0.0,0.0,1.0,1.0,Solar,0.0,Generator 195 Solar
+196 Solar,196,1.0,PQ,0.0,0.0,False,variable,,1.26204967217,0.0,0.0,1.0,1.0,Solar,0.0,Generator 196 Solar
+197 Solar,197,1.0,PQ,0.0,0.0,False,variable,,42.4470920319,0.0,0.0,1.0,1.0,Solar,0.0,Generator 197 Solar
+198 Solar,198,1.0,PQ,0.0,0.0,False,variable,,2.56440442011,0.0,0.0,1.0,1.0,Solar,0.0,Generator 198 Solar
+199 Solar,199,1.0,PQ,0.0,0.0,False,variable,,4.46512803704,0.0,0.0,1.0,1.0,Solar,0.0,Generator 199 Solar
+200 Solar,200,1.0,PQ,0.0,0.0,False,variable,,3.15903474659,0.0,0.0,1.0,1.0,Solar,0.0,Generator 200 Solar
+201 Solar,201,1.0,PQ,0.0,0.0,False,variable,,20.9206136733,0.0,0.0,1.0,1.0,Solar,0.0,Generator 201 Solar
+202 Solar,202,1.0,PQ,0.0,0.0,False,variable,,57.251192668,0.0,0.0,1.0,1.0,Solar,0.0,Generator 202 Solar
+203 Solar,203,1.0,PQ,0.0,0.0,False,variable,,81.8425551363,0.0,0.0,1.0,1.0,Solar,0.0,Generator 203 Solar
+204 Solar,204,1.0,PQ,0.0,0.0,False,variable,,53.7860908099,0.0,0.0,1.0,1.0,Solar,0.0,Generator 204 Solar
+205 Solar,205,1.0,PQ,0.0,0.0,False,variable,,8.87791790864,0.0,0.0,1.0,1.0,Solar,0.0,Generator 205 Solar
+206 Solar,206,1.0,PQ,0.0,0.0,False,variable,,3.47066574796,0.0,0.0,1.0,1.0,Solar,0.0,Generator 206 Solar
+207 Solar,207,1.0,PQ,0.0,0.0,False,variable,,39.7587207735,0.0,0.0,1.0,1.0,Solar,0.0,Generator 207 Solar
+208 Solar,208,1.0,PQ,0.0,0.0,False,variable,,26.4902637132,0.0,0.0,1.0,1.0,Solar,0.0,Generator 208 Solar
+209 Solar,209,1.0,PQ,0.0,0.0,False,variable,,73.9831963995,0.0,0.0,1.0,1.0,Solar,0.0,Generator 209 Solar
+210 Solar,210,1.0,PQ,0.0,0.0,False,variable,,12.5619974661,0.0,0.0,1.0,1.0,Solar,0.0,Generator 210 Solar
+211 Solar,211,1.0,PQ,0.0,0.0,False,variable,,206.426365323,0.0,0.0,1.0,1.0,Solar,0.0,Generator 211 Solar
+212 Solar,212,1.0,PQ,0.0,0.0,False,variable,,66.2186037559,0.0,0.0,1.0,1.0,Solar,0.0,Generator 212 Solar
+213 Solar,213,1.0,PQ,0.0,0.0,False,variable,,45.8310669742,0.0,0.0,1.0,1.0,Solar,0.0,Generator 213 Solar
+214 Solar,214,1.0,PQ,0.0,0.0,False,variable,,14.4956386235,0.0,0.0,1.0,1.0,Solar,0.0,Generator 214 Solar
+215 Solar,215,1.0,PQ,0.0,0.0,False,variable,,33.1711265931,0.0,0.0,1.0,1.0,Solar,0.0,Generator 215 Solar
+216 Solar,216,1.0,PQ,0.0,0.0,False,variable,,7.54968638183,0.0,0.0,1.0,1.0,Solar,0.0,Generator 216 Solar
+217 Solar,217,1.0,PQ,0.0,0.0,False,variable,,34.8299712691,0.0,0.0,1.0,1.0,Solar,0.0,Generator 217 Solar
+218 Solar,218,1.0,PQ,0.0,0.0,False,variable,,42.1238860735,0.0,0.0,1.0,1.0,Solar,0.0,Generator 218 Solar
+219 Solar,219,1.0,PQ,0.0,0.0,False,variable,,70.3070525321,0.0,0.0,1.0,1.0,Solar,0.0,Generator 219 Solar
+220 Solar,220,1.0,PQ,0.0,0.0,False,variable,,2.10916324877,0.0,0.0,1.0,1.0,Solar,0.0,Generator 220 Solar
+221 Solar,221,1.0,PQ,0.0,0.0,False,variable,,98.8690654262,0.0,0.0,1.0,1.0,Solar,0.0,Generator 221 Solar
+222 Solar,222,1.0,PQ,0.0,0.0,False,variable,,14.122020688,0.0,0.0,1.0,1.0,Solar,0.0,Generator 222 Solar
+223 Solar,223,1.0,PQ,0.0,0.0,False,variable,,100.78722622,0.0,0.0,1.0,1.0,Solar,0.0,Generator 223 Solar
+224 Solar,224,1.0,PQ,0.0,0.0,False,variable,,100.359380403,0.0,0.0,1.0,1.0,Solar,0.0,Generator 224 Solar
+225 Solar,225,1.0,PQ,0.0,0.0,False,variable,,207.704183517,0.0,0.0,1.0,1.0,Solar,0.0,Generator 225 Solar
+226 Solar,226,1.0,PQ,0.0,0.0,False,variable,,24.7958665209,0.0,0.0,1.0,1.0,Solar,0.0,Generator 226 Solar
+227 Solar,227,1.0,PQ,0.0,0.0,False,variable,,58.5652251364,0.0,0.0,1.0,1.0,Solar,0.0,Generator 227 Solar
+228 Solar,228,1.0,PQ,0.0,0.0,False,variable,,46.2685254534,0.0,0.0,1.0,1.0,Solar,0.0,Generator 228 Solar
+229 Solar,229,1.0,PQ,0.0,0.0,False,variable,,19.262459069,0.0,0.0,1.0,1.0,Solar,0.0,Generator 229 Solar
+230 Solar,230,1.0,PQ,0.0,0.0,False,variable,,48.8094733141,0.0,0.0,1.0,1.0,Solar,0.0,Generator 230 Solar
+231 Solar,231,1.0,PQ,0.0,0.0,False,variable,,1.20659307046,0.0,0.0,1.0,1.0,Solar,0.0,Generator 231 Solar
+232 Solar,232,1.0,PQ,0.0,0.0,False,variable,,22.7201498424,0.0,0.0,1.0,1.0,Solar,0.0,Generator 232 Solar
+233 Solar,233,1.0,PQ,0.0,0.0,False,variable,,102.401599349,0.0,0.0,1.0,1.0,Solar,0.0,Generator 233 Solar
+234 Solar,234,1.0,PQ,0.0,0.0,False,variable,,121.170735352,0.0,0.0,1.0,1.0,Solar,0.0,Generator 234 Solar
+235 Solar,235,1.0,PQ,0.0,0.0,False,variable,,20.3436902521,0.0,0.0,1.0,1.0,Solar,0.0,Generator 235 Solar
+236 Solar,236,1.0,PQ,0.0,0.0,False,variable,,12.7993068234,0.0,0.0,1.0,1.0,Solar,0.0,Generator 236 Solar
+237 Solar,237,1.0,PQ,0.0,0.0,False,variable,,4.66231237439,0.0,0.0,1.0,1.0,Solar,0.0,Generator 237 Solar
+238 Solar,238,1.0,PQ,0.0,0.0,False,variable,,51.5062003973,0.0,0.0,1.0,1.0,Solar,0.0,Generator 238 Solar
+239 Solar,239,1.0,PQ,0.0,0.0,False,variable,,34.1103361629,0.0,0.0,1.0,1.0,Solar,0.0,Generator 239 Solar
+240 Solar,240,1.0,PQ,0.0,0.0,False,variable,,21.8170203071,0.0,0.0,1.0,1.0,Solar,0.0,Generator 240 Solar
+241 Solar,241,1.0,PQ,0.0,0.0,False,variable,,42.7113746099,0.0,0.0,1.0,1.0,Solar,0.0,Generator 241 Solar
+242 Solar,242,1.0,PQ,0.0,0.0,False,variable,,111.390874253,0.0,0.0,1.0,1.0,Solar,0.0,Generator 242 Solar
+245 Solar,245,1.0,PQ,0.0,0.0,False,variable,,44.2391201542,0.0,0.0,1.0,1.0,Solar,0.0,Generator 245 Solar
+246 Solar,246,1.0,PQ,0.0,0.0,False,variable,,5.75830505207,0.0,0.0,1.0,1.0,Solar,0.0,Generator 246 Solar
+247 Solar,247,1.0,PQ,0.0,0.0,False,variable,,115.272627549,0.0,0.0,1.0,1.0,Solar,0.0,Generator 247 Solar
+248 Solar,248,1.0,PQ,0.0,0.0,False,variable,,1.28422932733,0.0,0.0,1.0,1.0,Solar,0.0,Generator 248 Solar
+249 Solar,249,1.0,PQ,0.0,0.0,False,variable,,9.50799890859,0.0,0.0,1.0,1.0,Solar,0.0,Generator 249 Solar
+250 Solar,250,1.0,PQ,0.0,0.0,False,variable,,0.0115064463992,0.0,0.0,1.0,1.0,Solar,0.0,Generator 250 Solar
+251 Solar,251,1.0,PQ,0.0,0.0,False,variable,,0.473546855763,0.0,0.0,1.0,1.0,Solar,0.0,Generator 251 Solar
+252 Solar,252,1.0,PQ,0.0,0.0,False,variable,,2.44214667715,0.0,0.0,1.0,1.0,Solar,0.0,Generator 252 Solar
+253 Solar,253,1.0,PQ,0.0,0.0,False,variable,,23.4939925413,0.0,0.0,1.0,1.0,Solar,0.0,Generator 253 Solar
+254 Solar,254,1.0,PQ,0.0,0.0,False,variable,,203.847877077,0.0,0.0,1.0,1.0,Solar,0.0,Generator 254 Solar
+255 Solar,255,1.0,PQ,0.0,0.0,False,variable,,172.612916778,0.0,0.0,1.0,1.0,Solar,0.0,Generator 255 Solar
+256 Solar,256,1.0,PQ,0.0,0.0,False,variable,,6.65939567983,0.0,0.0,1.0,1.0,Solar,0.0,Generator 256 Solar
+257 Solar,257,1.0,PQ,0.0,0.0,False,variable,,66.8044328921,0.0,0.0,1.0,1.0,Solar,0.0,Generator 257 Solar
+258 Solar,258,1.0,PQ,0.0,0.0,False,variable,,80.5658558284,0.0,0.0,1.0,1.0,Solar,0.0,Generator 258 Solar
+259 Solar,259,1.0,PQ,0.0,0.0,False,variable,,39.1932020972,0.0,0.0,1.0,1.0,Solar,0.0,Generator 259 Solar
+260 Solar,260,1.0,PQ,0.0,0.0,False,variable,,137.743039311,0.0,0.0,1.0,1.0,Solar,0.0,Generator 260 Solar
+261 Solar,261,1.0,PQ,0.0,0.0,False,variable,,60.7020043957,0.0,0.0,1.0,1.0,Solar,0.0,Generator 261 Solar
+262 Solar,262,1.0,PQ,0.0,0.0,False,variable,,143.86535544,0.0,0.0,1.0,1.0,Solar,0.0,Generator 262 Solar
+264 Solar,264,1.0,PQ,0.0,0.0,False,variable,,108.82644367,0.0,0.0,1.0,1.0,Solar,0.0,Generator 264 Solar
+265 Solar,265,1.0,PQ,0.0,0.0,False,variable,,67.103096459,0.0,0.0,1.0,1.0,Solar,0.0,Generator 265 Solar
+266 Solar,266,1.0,PQ,0.0,0.0,False,variable,,283.670859826,0.0,0.0,1.0,1.0,Solar,0.0,Generator 266 Solar
+267 Solar,267,1.0,PQ,0.0,0.0,False,variable,,1.09787223578,0.0,0.0,1.0,1.0,Solar,0.0,Generator 267 Solar
+268 Solar,268,1.0,PQ,0.0,0.0,False,variable,,15.5366108622,0.0,0.0,1.0,1.0,Solar,0.0,Generator 268 Solar
+269 Solar,269,1.0,PQ,0.0,0.0,False,variable,,46.0435033934,0.0,0.0,1.0,1.0,Solar,0.0,Generator 269 Solar
+270 Solar,270,1.0,PQ,0.0,0.0,False,variable,,75.7169534292,0.0,0.0,1.0,1.0,Solar,0.0,Generator 270 Solar
+271 Solar,271,1.0,PQ,0.0,0.0,False,variable,,19.4529879552,0.0,0.0,1.0,1.0,Solar,0.0,Generator 271 Solar
+272 Solar,272,1.0,PQ,0.0,0.0,False,variable,,135.472205449,0.0,0.0,1.0,1.0,Solar,0.0,Generator 272 Solar
+273 Solar,273,1.0,PQ,0.0,0.0,False,variable,,2.60886986703,0.0,0.0,1.0,1.0,Solar,0.0,Generator 273 Solar
+274 Solar,274,1.0,PQ,0.0,0.0,False,variable,,32.7319010277,0.0,0.0,1.0,1.0,Solar,0.0,Generator 274 Solar
+275 Solar,275,1.0,PQ,0.0,0.0,False,variable,,48.6481264923,0.0,0.0,1.0,1.0,Solar,0.0,Generator 275 Solar
+276 Solar,276,1.0,PQ,0.0,0.0,False,variable,,70.9994433066,0.0,0.0,1.0,1.0,Solar,0.0,Generator 276 Solar
+277 Solar,277,1.0,PQ,0.0,0.0,False,variable,,0.413264737845,0.0,0.0,1.0,1.0,Solar,0.0,Generator 277 Solar
+278 Solar,278,1.0,PQ,0.0,0.0,False,variable,,58.2649574091,0.0,0.0,1.0,1.0,Solar,0.0,Generator 278 Solar
+279 Solar,279,1.0,PQ,0.0,0.0,False,variable,,54.8227089562,0.0,0.0,1.0,1.0,Solar,0.0,Generator 279 Solar
+280 Solar,280,1.0,PQ,0.0,0.0,False,variable,,206.96758896,0.0,0.0,1.0,1.0,Solar,0.0,Generator 280 Solar
+281 Solar,281,1.0,PQ,0.0,0.0,False,variable,,81.9129188704,0.0,0.0,1.0,1.0,Solar,0.0,Generator 281 Solar
+282 Solar,282,1.0,PQ,0.0,0.0,False,variable,,31.8060277497,0.0,0.0,1.0,1.0,Solar,0.0,Generator 282 Solar
+283 Solar,283,1.0,PQ,0.0,0.0,False,variable,,45.7473607019,0.0,0.0,1.0,1.0,Solar,0.0,Generator 283 Solar
+284 Solar,284,1.0,PQ,0.0,0.0,False,variable,,136.997545962,0.0,0.0,1.0,1.0,Solar,0.0,Generator 284 Solar
+285 Solar,285,1.0,PQ,0.0,0.0,False,variable,,305.220576659,0.0,0.0,1.0,1.0,Solar,0.0,Generator 285 Solar
+286 Solar,286,1.0,PQ,0.0,0.0,False,variable,,53.8169045408,0.0,0.0,1.0,1.0,Solar,0.0,Generator 286 Solar
+287 Solar,287,1.0,PQ,0.0,0.0,False,variable,,63.0453591892,0.0,0.0,1.0,1.0,Solar,0.0,Generator 287 Solar
+288 Solar,288,1.0,PQ,0.0,0.0,False,variable,,131.336721911,0.0,0.0,1.0,1.0,Solar,0.0,Generator 288 Solar
+289 Solar,289,1.0,PQ,0.0,0.0,False,variable,,73.947220245,0.0,0.0,1.0,1.0,Solar,0.0,Generator 289 Solar
+290 Solar,290,1.0,PQ,0.0,0.0,False,variable,,184.806235368,0.0,0.0,1.0,1.0,Solar,0.0,Generator 290 Solar
+291 Solar,291,1.0,PQ,0.0,0.0,False,variable,,93.1001943138,0.0,0.0,1.0,1.0,Solar,0.0,Generator 291 Solar
+292 Solar,292,1.0,PQ,0.0,0.0,False,variable,,42.2875468371,0.0,0.0,1.0,1.0,Solar,0.0,Generator 292 Solar
+293 Solar,293,1.0,PQ,0.0,0.0,False,variable,,29.6800504669,0.0,0.0,1.0,1.0,Solar,0.0,Generator 293 Solar
+294 Solar,294,1.0,PQ,0.0,0.0,False,variable,,56.190770222,0.0,0.0,1.0,1.0,Solar,0.0,Generator 294 Solar
+295 Solar,295,1.0,PQ,0.0,0.0,False,variable,,33.9759537341,0.0,0.0,1.0,1.0,Solar,0.0,Generator 295 Solar
+296 Solar,296,1.0,PQ,0.0,0.0,False,variable,,21.557022868,0.0,0.0,1.0,1.0,Solar,0.0,Generator 296 Solar
+297 Solar,297,1.0,PQ,0.0,0.0,False,variable,,0.944825209492,0.0,0.0,1.0,1.0,Solar,0.0,Generator 297 Solar
+298 Solar,298,1.0,PQ,0.0,0.0,False,variable,,3.49220436791,0.0,0.0,1.0,1.0,Solar,0.0,Generator 298 Solar
+299 Solar,299,1.0,PQ,0.0,0.0,False,variable,,29.5244277865,0.0,0.0,1.0,1.0,Solar,0.0,Generator 299 Solar
+300 Solar,300,1.0,PQ,0.0,0.0,False,variable,,140.044265958,0.0,0.0,1.0,1.0,Solar,0.0,Generator 300 Solar
+301 Solar,301,1.0,PQ,0.0,0.0,False,variable,,24.4296245843,0.0,0.0,1.0,1.0,Solar,0.0,Generator 301 Solar
+302 Solar,302,1.0,PQ,0.0,0.0,False,variable,,60.0799297301,0.0,0.0,1.0,1.0,Solar,0.0,Generator 302 Solar
+303 Solar,303,1.0,PQ,0.0,0.0,False,variable,,42.4485960422,0.0,0.0,1.0,1.0,Solar,0.0,Generator 303 Solar
+304 Solar,304,1.0,PQ,0.0,0.0,False,variable,,198.104576811,0.0,0.0,1.0,1.0,Solar,0.0,Generator 304 Solar
+305 Solar,305,1.0,PQ,0.0,0.0,False,variable,,18.9117090129,0.0,0.0,1.0,1.0,Solar,0.0,Generator 305 Solar
+306 Solar,306,1.0,PQ,0.0,0.0,False,variable,,15.7686823531,0.0,0.0,1.0,1.0,Solar,0.0,Generator 306 Solar
+307 Solar,307,1.0,PQ,0.0,0.0,False,variable,,31.6885096515,0.0,0.0,1.0,1.0,Solar,0.0,Generator 307 Solar
+308 Solar,308,1.0,PQ,0.0,0.0,False,variable,,60.8264103434,0.0,0.0,1.0,1.0,Solar,0.0,Generator 308 Solar
+309 Solar,309,1.0,PQ,0.0,0.0,False,variable,,123.189740657,0.0,0.0,1.0,1.0,Solar,0.0,Generator 309 Solar
+310 Solar,310,1.0,PQ,0.0,0.0,False,variable,,68.2863570592,0.0,0.0,1.0,1.0,Solar,0.0,Generator 310 Solar
+311 Solar,311,1.0,PQ,0.0,0.0,False,variable,,343.338979354,0.0,0.0,1.0,1.0,Solar,0.0,Generator 311 Solar
+312 Solar,312,1.0,PQ,0.0,0.0,False,variable,,129.207656543,0.0,0.0,1.0,1.0,Solar,0.0,Generator 312 Solar
+313 Solar,313,1.0,PQ,0.0,0.0,False,variable,,40.9255919357,0.0,0.0,1.0,1.0,Solar,0.0,Generator 313 Solar
+314 Solar,314,1.0,PQ,0.0,0.0,False,variable,,88.2956122782,0.0,0.0,1.0,1.0,Solar,0.0,Generator 314 Solar
+315 Solar,315,1.0,PQ,0.0,0.0,False,variable,,101.085696376,0.0,0.0,1.0,1.0,Solar,0.0,Generator 315 Solar
+316 Solar,316,1.0,PQ,0.0,0.0,False,variable,,182.534633416,0.0,0.0,1.0,1.0,Solar,0.0,Generator 316 Solar
+317 Solar,317,1.0,PQ,0.0,0.0,False,variable,,9.937936387,0.0,0.0,1.0,1.0,Solar,0.0,Generator 317 Solar
+318 Solar,318,1.0,PQ,0.0,0.0,False,variable,,288.507309484,0.0,0.0,1.0,1.0,Solar,0.0,Generator 318 Solar
+319 Solar,319,1.0,PQ,0.0,0.0,False,variable,,140.554723409,0.0,0.0,1.0,1.0,Solar,0.0,Generator 319 Solar
+320 Solar,320,1.0,PQ,0.0,0.0,False,variable,,97.6620237021,0.0,0.0,1.0,1.0,Solar,0.0,Generator 320 Solar
+321 Solar,321,1.0,PQ,0.0,0.0,False,variable,,42.2939627834,0.0,0.0,1.0,1.0,Solar,0.0,Generator 321 Solar
+322 Solar,322,1.0,PQ,0.0,0.0,False,variable,,44.5244449586,0.0,0.0,1.0,1.0,Solar,0.0,Generator 322 Solar
+323 Solar,323,1.0,PQ,0.0,0.0,False,variable,,94.3485206958,0.0,0.0,1.0,1.0,Solar,0.0,Generator 323 Solar
+324 Solar,324,1.0,PQ,0.0,0.0,False,variable,,85.2599168297,0.0,0.0,1.0,1.0,Solar,0.0,Generator 324 Solar
+325 Solar,325,1.0,PQ,0.0,0.0,False,variable,,20.9626462205,0.0,0.0,1.0,1.0,Solar,0.0,Generator 325 Solar
+326 Solar,326,1.0,PQ,0.0,0.0,False,variable,,104.527619273,0.0,0.0,1.0,1.0,Solar,0.0,Generator 326 Solar
+327 Solar,327,1.0,PQ,0.0,0.0,False,variable,,91.6846417525,0.0,0.0,1.0,1.0,Solar,0.0,Generator 327 Solar
+328 Solar,328,1.0,PQ,0.0,0.0,False,variable,,87.5631082135,0.0,0.0,1.0,1.0,Solar,0.0,Generator 328 Solar
+329 Solar,329,1.0,PQ,0.0,0.0,False,variable,,145.466268819,0.0,0.0,1.0,1.0,Solar,0.0,Generator 329 Solar
+330 Solar,330,1.0,PQ,0.0,0.0,False,variable,,221.233547954,0.0,0.0,1.0,1.0,Solar,0.0,Generator 330 Solar
+331 Solar,331,1.0,PQ,0.0,0.0,False,variable,,445.543426061,0.0,0.0,1.0,1.0,Solar,0.0,Generator 331 Solar
+332 Solar,332,1.0,PQ,0.0,0.0,False,variable,,564.782105854,0.0,0.0,1.0,1.0,Solar,0.0,Generator 332 Solar
+333 Solar,333,1.0,PQ,0.0,0.0,False,variable,,244.181566011,0.0,0.0,1.0,1.0,Solar,0.0,Generator 333 Solar
+334 Solar,334,1.0,PQ,0.0,0.0,False,variable,,82.0187131282,0.0,0.0,1.0,1.0,Solar,0.0,Generator 334 Solar
+335 Solar,335,1.0,PQ,0.0,0.0,False,variable,,248.143225322,0.0,0.0,1.0,1.0,Solar,0.0,Generator 335 Solar
+336 Solar,336,1.0,PQ,0.0,0.0,False,variable,,116.534851223,0.0,0.0,1.0,1.0,Solar,0.0,Generator 336 Solar
+337 Solar,337,1.0,PQ,0.0,0.0,False,variable,,496.351613464,0.0,0.0,1.0,1.0,Solar,0.0,Generator 337 Solar
+338 Solar,338,1.0,PQ,0.0,0.0,False,variable,,119.13625668,0.0,0.0,1.0,1.0,Solar,0.0,Generator 338 Solar
+339 Solar,339,1.0,PQ,0.0,0.0,False,variable,,78.4444929456,0.0,0.0,1.0,1.0,Solar,0.0,Generator 339 Solar
+340 Solar,340,1.0,PQ,0.0,0.0,False,variable,,172.986238763,0.0,0.0,1.0,1.0,Solar,0.0,Generator 340 Solar
+341 Solar,341,1.0,PQ,0.0,0.0,False,variable,,100.732960949,0.0,0.0,1.0,1.0,Solar,0.0,Generator 341 Solar
+342 Solar,342,1.0,PQ,0.0,0.0,False,variable,,178.065838245,0.0,0.0,1.0,1.0,Solar,0.0,Generator 342 Solar
+343 Solar,343,1.0,PQ,0.0,0.0,False,variable,,71.9011233548,0.0,0.0,1.0,1.0,Solar,0.0,Generator 343 Solar
+344 Solar,344,1.0,PQ,0.0,0.0,False,variable,,70.2577181143,0.0,0.0,1.0,1.0,Solar,0.0,Generator 344 Solar
+345 Solar,345,1.0,PQ,0.0,0.0,False,variable,,85.8597463926,0.0,0.0,1.0,1.0,Solar,0.0,Generator 345 Solar
+346 Solar,346,1.0,PQ,0.0,0.0,False,variable,,4.32490914832,0.0,0.0,1.0,1.0,Solar,0.0,Generator 346 Solar
+347 Solar,347,1.0,PQ,0.0,0.0,False,variable,,8.07210034215,0.0,0.0,1.0,1.0,Solar,0.0,Generator 347 Solar
+348 Solar,348,1.0,PQ,0.0,0.0,False,variable,,8.97975540794,0.0,0.0,1.0,1.0,Solar,0.0,Generator 348 Solar
+349 Solar,349,1.0,PQ,0.0,0.0,False,variable,,220.163287131,0.0,0.0,1.0,1.0,Solar,0.0,Generator 349 Solar
+350 Solar,350,1.0,PQ,0.0,0.0,False,variable,,254.28908388,0.0,0.0,1.0,1.0,Solar,0.0,Generator 350 Solar
+351 Solar,351,1.0,PQ,0.0,0.0,False,variable,,243.641516416,0.0,0.0,1.0,1.0,Solar,0.0,Generator 351 Solar
+352 Solar,352,1.0,PQ,0.0,0.0,False,variable,,181.2021242,0.0,0.0,1.0,1.0,Solar,0.0,Generator 352 Solar
+353 Solar,353,1.0,PQ,0.0,0.0,False,variable,,29.4231922884,0.0,0.0,1.0,1.0,Solar,0.0,Generator 353 Solar
+354 Solar,354,1.0,PQ,0.0,0.0,False,variable,,109.843745055,0.0,0.0,1.0,1.0,Solar,0.0,Generator 354 Solar
+355 Solar,355,1.0,PQ,0.0,0.0,False,variable,,9.37486637102,0.0,0.0,1.0,1.0,Solar,0.0,Generator 355 Solar
+356 Solar,356,1.0,PQ,0.0,0.0,False,variable,,23.727587134,0.0,0.0,1.0,1.0,Solar,0.0,Generator 356 Solar
+357 Solar,357,1.0,PQ,0.0,0.0,False,variable,,1.35148868767,0.0,0.0,1.0,1.0,Solar,0.0,Generator 357 Solar
+358 Solar,358,1.0,PQ,0.0,0.0,False,variable,,1.1117981137,0.0,0.0,1.0,1.0,Solar,0.0,Generator 358 Solar
+359 Solar,359,1.0,PQ,0.0,0.0,False,variable,,7.98125448378,0.0,0.0,1.0,1.0,Solar,0.0,Generator 359 Solar
+360 Solar,360,1.0,PQ,0.0,0.0,False,variable,,5.15036393974,0.0,0.0,1.0,1.0,Solar,0.0,Generator 360 Solar
+361 Solar,361,1.0,PQ,0.0,0.0,False,variable,,37.7998493684,0.0,0.0,1.0,1.0,Solar,0.0,Generator 361 Solar
+362 Solar,362,1.0,PQ,0.0,0.0,False,variable,,3.3431765671,0.0,0.0,1.0,1.0,Solar,0.0,Generator 362 Solar
+363 Solar,363,1.0,PQ,0.0,0.0,False,variable,,5.61083607501,0.0,0.0,1.0,1.0,Solar,0.0,Generator 363 Solar
+364 Solar,364,1.0,PQ,0.0,0.0,False,variable,,2.46344190003,0.0,0.0,1.0,1.0,Solar,0.0,Generator 364 Solar
+365 Solar,365,1.0,PQ,0.0,0.0,False,variable,,5.9859107257,0.0,0.0,1.0,1.0,Solar,0.0,Generator 365 Solar
+366 Solar,366,1.0,PQ,0.0,0.0,False,variable,,53.8564136409,0.0,0.0,1.0,1.0,Solar,0.0,Generator 366 Solar
+367 Solar,367,1.0,PQ,0.0,0.0,False,variable,,12.6248771109,0.0,0.0,1.0,1.0,Solar,0.0,Generator 367 Solar
+368 Solar,368,1.0,PQ,0.0,0.0,False,variable,,45.180747617,0.0,0.0,1.0,1.0,Solar,0.0,Generator 368 Solar
+369 Solar,369,1.0,PQ,0.0,0.0,False,variable,,71.5849536717,0.0,0.0,1.0,1.0,Solar,0.0,Generator 369 Solar
+370 Solar,370,1.0,PQ,0.0,0.0,False,variable,,18.9367012598,0.0,0.0,1.0,1.0,Solar,0.0,Generator 370 Solar
+371 Solar,371,1.0,PQ,0.0,0.0,False,variable,,10.420988011,0.0,0.0,1.0,1.0,Solar,0.0,Generator 371 Solar
+372 Solar,372,1.0,PQ,0.0,0.0,False,variable,,13.6729319434,0.0,0.0,1.0,1.0,Solar,0.0,Generator 372 Solar
+373 Solar,373,1.0,PQ,0.0,0.0,False,variable,,364.980463073,0.0,0.0,1.0,1.0,Solar,0.0,Generator 373 Solar
+374 Solar,374,1.0,PQ,0.0,0.0,False,variable,,18.9693438002,0.0,0.0,1.0,1.0,Solar,0.0,Generator 374 Solar
+375 Solar,375,1.0,PQ,0.0,0.0,False,variable,,18.1516776286,0.0,0.0,1.0,1.0,Solar,0.0,Generator 375 Solar
+376 Solar,376,1.0,PQ,0.0,0.0,False,variable,,25.4519109415,0.0,0.0,1.0,1.0,Solar,0.0,Generator 376 Solar
+377 Solar,377,1.0,PQ,0.0,0.0,False,variable,,103.605181713,0.0,0.0,1.0,1.0,Solar,0.0,Generator 377 Solar
+378 Solar,378,1.0,PQ,0.0,0.0,False,variable,,28.0431349123,0.0,0.0,1.0,1.0,Solar,0.0,Generator 378 Solar
+379 Solar,379,1.0,PQ,0.0,0.0,False,variable,,63.4803873236,0.0,0.0,1.0,1.0,Solar,0.0,Generator 379 Solar
+380 Solar,380,1.0,PQ,0.0,0.0,False,variable,,47.34880473,0.0,0.0,1.0,1.0,Solar,0.0,Generator 380 Solar
+381 Solar,381,1.0,PQ,0.0,0.0,False,variable,,40.3001140665,0.0,0.0,1.0,1.0,Solar,0.0,Generator 381 Solar
+382 Solar,382,1.0,PQ,0.0,0.0,False,variable,,157.926291902,0.0,0.0,1.0,1.0,Solar,0.0,Generator 382 Solar
+383 Solar,383,1.0,PQ,0.0,0.0,False,variable,,156.635700897,0.0,0.0,1.0,1.0,Solar,0.0,Generator 383 Solar
+384 Solar,384,1.0,PQ,0.0,0.0,False,variable,,380.66436921,0.0,0.0,1.0,1.0,Solar,0.0,Generator 384 Solar
+385 Solar,385,1.0,PQ,0.0,0.0,False,variable,,27.3847325397,0.0,0.0,1.0,1.0,Solar,0.0,Generator 385 Solar
+386 Solar,386,1.0,PQ,0.0,0.0,False,variable,,53.6368607858,0.0,0.0,1.0,1.0,Solar,0.0,Generator 386 Solar
+387 Solar,387,1.0,PQ,0.0,0.0,False,variable,,54.6832265353,0.0,0.0,1.0,1.0,Solar,0.0,Generator 387 Solar
+388 Solar,388,1.0,PQ,0.0,0.0,False,variable,,27.5145682247,0.0,0.0,1.0,1.0,Solar,0.0,Generator 388 Solar
+389 Solar,389,1.0,PQ,0.0,0.0,False,variable,,249.94259126,0.0,0.0,1.0,1.0,Solar,0.0,Generator 389 Solar
+390 Solar,390,1.0,PQ,0.0,0.0,False,variable,,153.690593375,0.0,0.0,1.0,1.0,Solar,0.0,Generator 390 Solar
+391 Solar,391,1.0,PQ,0.0,0.0,False,variable,,26.4587760748,0.0,0.0,1.0,1.0,Solar,0.0,Generator 391 Solar
+392 Solar,392,1.0,PQ,0.0,0.0,False,variable,,1.29140614825,0.0,0.0,1.0,1.0,Solar,0.0,Generator 392 Solar
+393 Solar,393,1.0,PQ,0.0,0.0,False,variable,,72.4302331491,0.0,0.0,1.0,1.0,Solar,0.0,Generator 393 Solar
+394 Solar,394,1.0,PQ,0.0,0.0,False,variable,,175.277699074,0.0,0.0,1.0,1.0,Solar,0.0,Generator 394 Solar
+395 Solar,395,1.0,PQ,0.0,0.0,False,variable,,154.294158086,0.0,0.0,1.0,1.0,Solar,0.0,Generator 395 Solar
+396 Solar,396,1.0,PQ,0.0,0.0,False,variable,,119.793648829,0.0,0.0,1.0,1.0,Solar,0.0,Generator 396 Solar
+397 Solar,397,1.0,PQ,0.0,0.0,False,variable,,50.0108884668,0.0,0.0,1.0,1.0,Solar,0.0,Generator 397 Solar
+398 Solar,398,1.0,PQ,0.0,0.0,False,variable,,73.6006877225,0.0,0.0,1.0,1.0,Solar,0.0,Generator 398 Solar
+399 Solar,399,1.0,PQ,0.0,0.0,False,variable,,62.372230749,0.0,0.0,1.0,1.0,Solar,0.0,Generator 399 Solar
+400 Solar,400,1.0,PQ,0.0,0.0,False,variable,,25.7721839438,0.0,0.0,1.0,1.0,Solar,0.0,Generator 400 Solar
+401 Solar,401,1.0,PQ,0.0,0.0,False,variable,,39.2283040031,0.0,0.0,1.0,1.0,Solar,0.0,Generator 401 Solar
+402 Solar,402,1.0,PQ,0.0,0.0,False,variable,,62.7335302598,0.0,0.0,1.0,1.0,Solar,0.0,Generator 402 Solar
+403 Solar,403,1.0,PQ,0.0,0.0,False,variable,,0.331880605526,0.0,0.0,1.0,1.0,Solar,0.0,Generator 403 Solar
+404 Solar,404,1.0,PQ,0.0,0.0,False,variable,,4.98976237796,0.0,0.0,1.0,1.0,Solar,0.0,Generator 404 Solar
+405 Solar,405,1.0,PQ,0.0,0.0,False,variable,,24.834437911,0.0,0.0,1.0,1.0,Solar,0.0,Generator 405 Solar
+406 Solar,406,1.0,PQ,0.0,0.0,False,variable,,60.0747875631,0.0,0.0,1.0,1.0,Solar,0.0,Generator 406 Solar
+409 Solar,409,1.0,PQ,0.0,0.0,False,variable,,22.4769506231,0.0,0.0,1.0,1.0,Solar,0.0,Generator 409 Solar
+410 Solar,410,1.0,PQ,0.0,0.0,False,variable,,74.9358650223,0.0,0.0,1.0,1.0,Solar,0.0,Generator 410 Solar
+411 Solar,411,1.0,PQ,0.0,0.0,False,variable,,91.8514412985,0.0,0.0,1.0,1.0,Solar,0.0,Generator 411 Solar
+412 Solar,412,1.0,PQ,0.0,0.0,False,variable,,99.8120494291,0.0,0.0,1.0,1.0,Solar,0.0,Generator 412 Solar
+413 Solar,413,1.0,PQ,0.0,0.0,False,variable,,9.43469693884,0.0,0.0,1.0,1.0,Solar,0.0,Generator 413 Solar
+414 Solar,414,1.0,PQ,0.0,0.0,False,variable,,5.86995875684,0.0,0.0,1.0,1.0,Solar,0.0,Generator 414 Solar
+415 Solar,415,1.0,PQ,0.0,0.0,False,variable,,11.6750317619,0.0,0.0,1.0,1.0,Solar,0.0,Generator 415 Solar
+416 Solar,416,1.0,PQ,0.0,0.0,False,variable,,22.6695066495,0.0,0.0,1.0,1.0,Solar,0.0,Generator 416 Solar
+417 Solar,417,1.0,PQ,0.0,0.0,False,variable,,169.953119043,0.0,0.0,1.0,1.0,Solar,0.0,Generator 417 Solar
+418 Solar,418,1.0,PQ,0.0,0.0,False,variable,,132.535984329,0.0,0.0,1.0,1.0,Solar,0.0,Generator 418 Solar
+421 Solar,421,1.0,PQ,0.0,0.0,False,variable,,35.1567330013,0.0,0.0,1.0,1.0,Solar,0.0,Generator 421 Solar
+422 Solar,422,1.0,PQ,0.0,0.0,False,variable,,19.8487395265,0.0,0.0,1.0,1.0,Solar,0.0,Generator 422 Solar
+423 Solar,423,1.0,PQ,0.0,0.0,False,variable,,6.51788037739,0.0,0.0,1.0,1.0,Solar,0.0,Generator 423 Solar
+424 Solar,424,1.0,PQ,0.0,0.0,False,variable,,15.8715956095,0.0,0.0,1.0,1.0,Solar,0.0,Generator 424 Solar
+425 Solar,425,1.0,PQ,0.0,0.0,False,variable,,29.385846315,0.0,0.0,1.0,1.0,Solar,0.0,Generator 425 Solar
+426 Solar,426,1.0,PQ,0.0,0.0,False,variable,,29.7696110628,0.0,0.0,1.0,1.0,Solar,0.0,Generator 426 Solar
+427 Solar,427,1.0,PQ,0.0,0.0,False,variable,,3.05320765762,0.0,0.0,1.0,1.0,Solar,0.0,Generator 427 Solar
+428 Solar,428,1.0,PQ,0.0,0.0,False,variable,,112.003161226,0.0,0.0,1.0,1.0,Solar,0.0,Generator 428 Solar
+429 Solar,429,1.0,PQ,0.0,0.0,False,variable,,8.47770178819,0.0,0.0,1.0,1.0,Solar,0.0,Generator 429 Solar
+430 Solar,430,1.0,PQ,0.0,0.0,False,variable,,32.3231209493,0.0,0.0,1.0,1.0,Solar,0.0,Generator 430 Solar
+431 Solar,431,1.0,PQ,0.0,0.0,False,variable,,42.6509956153,0.0,0.0,1.0,1.0,Solar,0.0,Generator 431 Solar
+432 Solar,432,1.0,PQ,0.0,0.0,False,variable,,7.452090247,0.0,0.0,1.0,1.0,Solar,0.0,Generator 432 Solar
+433 Solar,433,1.0,PQ,0.0,0.0,False,variable,,35.4226422497,0.0,0.0,1.0,1.0,Solar,0.0,Generator 433 Solar
+434 Solar,434,1.0,PQ,0.0,0.0,False,variable,,29.3860990594,0.0,0.0,1.0,1.0,Solar,0.0,Generator 434 Solar
+435 Solar,435,1.0,PQ,0.0,0.0,False,variable,,1.85311118394,0.0,0.0,1.0,1.0,Solar,0.0,Generator 435 Solar
+436 Solar,436,1.0,PQ,0.0,0.0,False,variable,,109.830239844,0.0,0.0,1.0,1.0,Solar,0.0,Generator 436 Solar
+437 Solar,437,1.0,PQ,0.0,0.0,False,variable,,55.3599360538,0.0,0.0,1.0,1.0,Solar,0.0,Generator 437 Solar
+438 Solar,438,1.0,PQ,0.0,0.0,False,variable,,34.8847027709,0.0,0.0,1.0,1.0,Solar,0.0,Generator 438 Solar
+439 Solar,439,1.0,PQ,0.0,0.0,False,variable,,23.003821769,0.0,0.0,1.0,1.0,Solar,0.0,Generator 439 Solar
+440 Solar,440,1.0,PQ,0.0,0.0,False,variable,,23.3495298185,0.0,0.0,1.0,1.0,Solar,0.0,Generator 440 Solar
+441 Solar,441,1.0,PQ,0.0,0.0,False,variable,,75.5649763429,0.0,0.0,1.0,1.0,Solar,0.0,Generator 441 Solar
+442 Solar,442,1.0,PQ,0.0,0.0,False,variable,,24.0145851844,0.0,0.0,1.0,1.0,Solar,0.0,Generator 442 Solar
+443 Solar,443,1.0,PQ,0.0,0.0,False,variable,,27.0417440326,0.0,0.0,1.0,1.0,Solar,0.0,Generator 443 Solar
+444 Solar,444,1.0,PQ,0.0,0.0,False,variable,,25.5991990834,0.0,0.0,1.0,1.0,Solar,0.0,Generator 444 Solar
+445 Solar,445,1.0,PQ,0.0,0.0,False,variable,,113.121576026,0.0,0.0,1.0,1.0,Solar,0.0,Generator 445 Solar
+446 Solar,446,1.0,PQ,0.0,0.0,False,variable,,47.222988972,0.0,0.0,1.0,1.0,Solar,0.0,Generator 446 Solar
+447 Solar,447,1.0,PQ,0.0,0.0,False,variable,,82.0002702081,0.0,0.0,1.0,1.0,Solar,0.0,Generator 447 Solar
+448 Solar,448,1.0,PQ,0.0,0.0,False,variable,,1.64826116295,0.0,0.0,1.0,1.0,Solar,0.0,Generator 448 Solar
+449 Solar,449,1.0,PQ,0.0,0.0,False,variable,,5.47701619969,0.0,0.0,1.0,1.0,Solar,0.0,Generator 449 Solar
+450 Solar,450,1.0,PQ,0.0,0.0,False,variable,,1.38601744091,0.0,0.0,1.0,1.0,Solar,0.0,Generator 450 Solar
+451 Solar,451,1.0,PQ,0.0,0.0,False,variable,,2.33353944827,0.0,0.0,1.0,1.0,Solar,0.0,Generator 451 Solar
+452 Solar,452,1.0,PQ,0.0,0.0,False,variable,,50.8148651107,0.0,0.0,1.0,1.0,Solar,0.0,Generator 452 Solar
+453 Solar,453,1.0,PQ,0.0,0.0,False,variable,,48.3872288362,0.0,0.0,1.0,1.0,Solar,0.0,Generator 453 Solar
+454 Solar,454,1.0,PQ,0.0,0.0,False,variable,,1.44171471779,0.0,0.0,1.0,1.0,Solar,0.0,Generator 454 Solar
+455 Solar,455,1.0,PQ,0.0,0.0,False,variable,,7.3496613459,0.0,0.0,1.0,1.0,Solar,0.0,Generator 455 Solar
+456 Solar,456,1.0,PQ,0.0,0.0,False,variable,,2.86791696525,0.0,0.0,1.0,1.0,Solar,0.0,Generator 456 Solar
+457 Solar,457,1.0,PQ,0.0,0.0,False,variable,,6.22373200225,0.0,0.0,1.0,1.0,Solar,0.0,Generator 457 Solar
+458 Solar,458,1.0,PQ,0.0,0.0,False,variable,,0.00908195289752,0.0,0.0,1.0,1.0,Solar,0.0,Generator 458 Solar
+459 Solar,459,1.0,PQ,0.0,0.0,False,variable,,3.92231443581,0.0,0.0,1.0,1.0,Solar,0.0,Generator 459 Solar
+460 Solar,460,1.0,PQ,0.0,0.0,False,variable,,0.938561434658,0.0,0.0,1.0,1.0,Solar,0.0,Generator 460 Solar
+461 Solar,461,1.0,PQ,0.0,0.0,False,variable,,6.71967934255,0.0,0.0,1.0,1.0,Solar,0.0,Generator 461 Solar
+462 Solar,462,1.0,PQ,0.0,0.0,False,variable,,1.49595362329,0.0,0.0,1.0,1.0,Solar,0.0,Generator 462 Solar
+463 Solar,463,1.0,PQ,0.0,0.0,False,variable,,31.892606953,0.0,0.0,1.0,1.0,Solar,0.0,Generator 463 Solar
+464 Solar,464,1.0,PQ,0.0,0.0,False,variable,,3.77755926861,0.0,0.0,1.0,1.0,Solar,0.0,Generator 464 Solar
+465 Solar,465,1.0,PQ,0.0,0.0,False,variable,,4.31337116872,0.0,0.0,1.0,1.0,Solar,0.0,Generator 465 Solar
+466 Solar,466,1.0,PQ,0.0,0.0,False,variable,,6.1149876562,0.0,0.0,1.0,1.0,Solar,0.0,Generator 466 Solar
+467 Solar,467,1.0,PQ,0.0,0.0,False,variable,,4.93041760017,0.0,0.0,1.0,1.0,Solar,0.0,Generator 467 Solar
+468 Solar,468,1.0,PQ,0.0,0.0,False,variable,,41.0013848072,0.0,0.0,1.0,1.0,Solar,0.0,Generator 468 Solar
+469 Solar,469,1.0,PQ,0.0,0.0,False,variable,,4.51706222043,0.0,0.0,1.0,1.0,Solar,0.0,Generator 469 Solar
+470 Solar,470,1.0,PQ,0.0,0.0,False,variable,,14.895757955,0.0,0.0,1.0,1.0,Solar,0.0,Generator 470 Solar
+471 Solar,471,1.0,PQ,0.0,0.0,False,variable,,3.60183199834,0.0,0.0,1.0,1.0,Solar,0.0,Generator 471 Solar
+472 Solar,472,1.0,PQ,0.0,0.0,False,variable,,76.9992014384,0.0,0.0,1.0,1.0,Solar,0.0,Generator 472 Solar
+473 Solar,473,1.0,PQ,0.0,0.0,False,variable,,20.9826029292,0.0,0.0,1.0,1.0,Solar,0.0,Generator 473 Solar
+474 Solar,474,1.0,PQ,0.0,0.0,False,variable,,27.917941024,0.0,0.0,1.0,1.0,Solar,0.0,Generator 474 Solar
+475 Solar,475,1.0,PQ,0.0,0.0,False,variable,,34.396509421,0.0,0.0,1.0,1.0,Solar,0.0,Generator 475 Solar
+476 Solar,476,1.0,PQ,0.0,0.0,False,variable,,39.4709804665,0.0,0.0,1.0,1.0,Solar,0.0,Generator 476 Solar
+477 Solar,477,1.0,PQ,0.0,0.0,False,variable,,26.8295439885,0.0,0.0,1.0,1.0,Solar,0.0,Generator 477 Solar
+478 Solar,478,1.0,PQ,0.0,0.0,False,variable,,0.127886162458,0.0,0.0,1.0,1.0,Solar,0.0,Generator 478 Solar
+479 Solar,479,1.0,PQ,0.0,0.0,False,variable,,42.5546361972,0.0,0.0,1.0,1.0,Solar,0.0,Generator 479 Solar
+480 Solar,480,1.0,PQ,0.0,0.0,False,variable,,13.9055097036,0.0,0.0,1.0,1.0,Solar,0.0,Generator 480 Solar
+481 Solar,481,1.0,PQ,0.0,0.0,False,variable,,16.6216740397,0.0,0.0,1.0,1.0,Solar,0.0,Generator 481 Solar
+482 Solar,482,1.0,PQ,0.0,0.0,False,variable,,11.5350104961,0.0,0.0,1.0,1.0,Solar,0.0,Generator 482 Solar
+483 Solar,483,1.0,PQ,0.0,0.0,False,variable,,73.2745566444,0.0,0.0,1.0,1.0,Solar,0.0,Generator 483 Solar
+484 Solar,484,1.0,PQ,0.0,0.0,False,variable,,126.301287931,0.0,0.0,1.0,1.0,Solar,0.0,Generator 484 Solar
+485 Solar,485,1.0,PQ,0.0,0.0,False,variable,,258.436719741,0.0,0.0,1.0,1.0,Solar,0.0,Generator 485 Solar
+486 Solar,486,1.0,PQ,0.0,0.0,False,variable,,123.94027319,0.0,0.0,1.0,1.0,Solar,0.0,Generator 486 Solar
+487 Solar,487,1.0,PQ,0.0,0.0,False,variable,,74.8564729998,0.0,0.0,1.0,1.0,Solar,0.0,Generator 487 Solar
+488 Solar,488,1.0,PQ,0.0,0.0,False,variable,,4.28222908415,0.0,0.0,1.0,1.0,Solar,0.0,Generator 488 Solar
+489 Solar,489,1.0,PQ,0.0,0.0,False,variable,,63.9749769646,0.0,0.0,1.0,1.0,Solar,0.0,Generator 489 Solar
+490 Solar,490,1.0,PQ,0.0,0.0,False,variable,,26.0389080946,0.0,0.0,1.0,1.0,Solar,0.0,Generator 490 Solar
+491 Solar,491,1.0,PQ,0.0,0.0,False,variable,,45.1912252568,0.0,0.0,1.0,1.0,Solar,0.0,Generator 491 Solar
+492 Solar,492,1.0,PQ,0.0,0.0,False,variable,,28.4827709526,0.0,0.0,1.0,1.0,Solar,0.0,Generator 492 Solar
+493 Solar,493,1.0,PQ,0.0,0.0,False,variable,,17.2367538209,0.0,0.0,1.0,1.0,Solar,0.0,Generator 493 Solar
+494 Solar,494,1.0,PQ,0.0,0.0,False,variable,,7.03711322908,0.0,0.0,1.0,1.0,Solar,0.0,Generator 494 Solar
+495 Solar,495,1.0,PQ,0.0,0.0,False,variable,,79.9188591291,0.0,0.0,1.0,1.0,Solar,0.0,Generator 495 Solar
+2_220kV Solar,2_220kV,1.0,PQ,0.0,0.0,False,variable,,2.93707413784,0.0,0.0,1.0,1.0,Solar,0.0,Generator 2_220kV Solar
+5_220kV Solar,5_220kV,1.0,PQ,0.0,0.0,False,variable,,6.67985256469,0.0,0.0,1.0,1.0,Solar,0.0,Generator 5_220kV Solar
+10_220kV Solar,10_220kV,1.0,PQ,0.0,0.0,False,variable,,24.8291326624,0.0,0.0,1.0,1.0,Solar,0.0,Generator 10_220kV Solar
+12_220kV Solar,12_220kV,1.0,PQ,0.0,0.0,False,variable,,211.039374823,0.0,0.0,1.0,1.0,Solar,0.0,Generator 12_220kV Solar
+13_220kV Solar,13_220kV,1.0,PQ,0.0,0.0,False,variable,,62.8455345817,0.0,0.0,1.0,1.0,Solar,0.0,Generator 13_220kV Solar
+15_220kV Solar,15_220kV,1.0,PQ,0.0,0.0,False,variable,,92.7012320836,0.0,0.0,1.0,1.0,Solar,0.0,Generator 15_220kV Solar
+18_220kV Solar,18_220kV,1.0,PQ,0.0,0.0,False,variable,,24.5123305071,0.0,0.0,1.0,1.0,Solar,0.0,Generator 18_220kV Solar
+20_220kV Solar,20_220kV,1.0,PQ,0.0,0.0,False,variable,,5.41340223623,0.0,0.0,1.0,1.0,Solar,0.0,Generator 20_220kV Solar
+22_220kV Solar,22_220kV,1.0,PQ,0.0,0.0,False,variable,,17.3574323253,0.0,0.0,1.0,1.0,Solar,0.0,Generator 22_220kV Solar
+26_220kV Solar,26_220kV,1.0,PQ,0.0,0.0,False,variable,,7.26345234114,0.0,0.0,1.0,1.0,Solar,0.0,Generator 26_220kV Solar
+30_220kV Solar,30_220kV,1.0,PQ,0.0,0.0,False,variable,,16.8046515399,0.0,0.0,1.0,1.0,Solar,0.0,Generator 30_220kV Solar
+32_220kV Solar,32_220kV,1.0,PQ,0.0,0.0,False,variable,,50.742409522,0.0,0.0,1.0,1.0,Solar,0.0,Generator 32_220kV Solar
+37_220kV Solar,37_220kV,1.0,PQ,0.0,0.0,False,variable,,50.6229326459,0.0,0.0,1.0,1.0,Solar,0.0,Generator 37_220kV Solar
+42_220kV Solar,42_220kV,1.0,PQ,0.0,0.0,False,variable,,80.6993740233,0.0,0.0,1.0,1.0,Solar,0.0,Generator 42_220kV Solar
+46_220kV Solar,46_220kV,1.0,PQ,0.0,0.0,False,variable,,0.265649702805,0.0,0.0,1.0,1.0,Solar,0.0,Generator 46_220kV Solar
+52_220kV Solar,52_220kV,1.0,PQ,0.0,0.0,False,variable,,2.54429126633,0.0,0.0,1.0,1.0,Solar,0.0,Generator 52_220kV Solar
+56_220kV Solar,56_220kV,1.0,PQ,0.0,0.0,False,variable,,1.82598798475,0.0,0.0,1.0,1.0,Solar,0.0,Generator 56_220kV Solar
+61_220kV Solar,61_220kV,1.0,PQ,0.0,0.0,False,variable,,11.655436783,0.0,0.0,1.0,1.0,Solar,0.0,Generator 61_220kV Solar
+68_220kV Solar,68_220kV,1.0,PQ,0.0,0.0,False,variable,,24.3679532308,0.0,0.0,1.0,1.0,Solar,0.0,Generator 68_220kV Solar
+69_220kV Solar,69_220kV,1.0,PQ,0.0,0.0,False,variable,,16.3407840442,0.0,0.0,1.0,1.0,Solar,0.0,Generator 69_220kV Solar
+74_220kV Solar,74_220kV,1.0,PQ,0.0,0.0,False,variable,,166.102305928,0.0,0.0,1.0,1.0,Solar,0.0,Generator 74_220kV Solar
+78_220kV Solar,78_220kV,1.0,PQ,0.0,0.0,False,variable,,45.7740964838,0.0,0.0,1.0,1.0,Solar,0.0,Generator 78_220kV Solar
+86_220kV Solar,86_220kV,1.0,PQ,0.0,0.0,False,variable,,2.14955809225,0.0,0.0,1.0,1.0,Solar,0.0,Generator 86_220kV Solar
+87_220kV Solar,87_220kV,1.0,PQ,0.0,0.0,False,variable,,47.4067791845,0.0,0.0,1.0,1.0,Solar,0.0,Generator 87_220kV Solar
+94_220kV Solar,94_220kV,1.0,PQ,0.0,0.0,False,variable,,42.6354214825,0.0,0.0,1.0,1.0,Solar,0.0,Generator 94_220kV Solar
+95_220kV Solar,95_220kV,1.0,PQ,0.0,0.0,False,variable,,50.1247388638,0.0,0.0,1.0,1.0,Solar,0.0,Generator 95_220kV Solar
+99_220kV Solar,99_220kV,1.0,PQ,0.0,0.0,False,variable,,61.3393099353,0.0,0.0,1.0,1.0,Solar,0.0,Generator 99_220kV Solar
+100_220kV Solar,100_220kV,1.0,PQ,0.0,0.0,False,variable,,38.3633567338,0.0,0.0,1.0,1.0,Solar,0.0,Generator 100_220kV Solar
+104_220kV Solar,104_220kV,1.0,PQ,0.0,0.0,False,variable,,1.1856176922,0.0,0.0,1.0,1.0,Solar,0.0,Generator 104_220kV Solar
+105_220kV Solar,105_220kV,1.0,PQ,0.0,0.0,False,variable,,55.7531577781,0.0,0.0,1.0,1.0,Solar,0.0,Generator 105_220kV Solar
+106_220kV Solar,106_220kV,1.0,PQ,0.0,0.0,False,variable,,2.71215375144,0.0,0.0,1.0,1.0,Solar,0.0,Generator 106_220kV Solar
+107_220kV Solar,107_220kV,1.0,PQ,0.0,0.0,False,variable,,0.935988152032,0.0,0.0,1.0,1.0,Solar,0.0,Generator 107_220kV Solar
+117_220kV Solar,117_220kV,1.0,PQ,0.0,0.0,False,variable,,6.52002786122,0.0,0.0,1.0,1.0,Solar,0.0,Generator 117_220kV Solar
+120_220kV Solar,120_220kV,1.0,PQ,0.0,0.0,False,variable,,15.2095906357,0.0,0.0,1.0,1.0,Solar,0.0,Generator 120_220kV Solar
+123_220kV Solar,123_220kV,1.0,PQ,0.0,0.0,False,variable,,5.12995853823,0.0,0.0,1.0,1.0,Solar,0.0,Generator 123_220kV Solar
+124_220kV Solar,124_220kV,1.0,PQ,0.0,0.0,False,variable,,0.78011368565,0.0,0.0,1.0,1.0,Solar,0.0,Generator 124_220kV Solar
+125_220kV Solar,125_220kV,1.0,PQ,0.0,0.0,False,variable,,3.30827324388,0.0,0.0,1.0,1.0,Solar,0.0,Generator 125_220kV Solar
+128_220kV Solar,128_220kV,1.0,PQ,0.0,0.0,False,variable,,11.6015915356,0.0,0.0,1.0,1.0,Solar,0.0,Generator 128_220kV Solar
+138_220kV Solar,138_220kV,1.0,PQ,0.0,0.0,False,variable,,1.69535946756,0.0,0.0,1.0,1.0,Solar,0.0,Generator 138_220kV Solar
+157_220kV Solar,157_220kV,1.0,PQ,0.0,0.0,False,variable,,56.7988099931,0.0,0.0,1.0,1.0,Solar,0.0,Generator 157_220kV Solar
+159_220kV Solar,159_220kV,1.0,PQ,0.0,0.0,False,variable,,35.6919035435,0.0,0.0,1.0,1.0,Solar,0.0,Generator 159_220kV Solar
+160_220kV Solar,160_220kV,1.0,PQ,0.0,0.0,False,variable,,31.8381114093,0.0,0.0,1.0,1.0,Solar,0.0,Generator 160_220kV Solar
+165_220kV Solar,165_220kV,1.0,PQ,0.0,0.0,False,variable,,2.35883146723,0.0,0.0,1.0,1.0,Solar,0.0,Generator 165_220kV Solar
+184_220kV Solar,184_220kV,1.0,PQ,0.0,0.0,False,variable,,4.47900539505,0.0,0.0,1.0,1.0,Solar,0.0,Generator 184_220kV Solar
+201_220kV Solar,201_220kV,1.0,PQ,0.0,0.0,False,variable,,40.5858211541,0.0,0.0,1.0,1.0,Solar,0.0,Generator 201_220kV Solar
+220_220kV Solar,220_220kV,1.0,PQ,0.0,0.0,False,variable,,14.9347730834,0.0,0.0,1.0,1.0,Solar,0.0,Generator 220_220kV Solar
+231_220kV Solar,231_220kV,1.0,PQ,0.0,0.0,False,variable,,1.49360489632,0.0,0.0,1.0,1.0,Solar,0.0,Generator 231_220kV Solar
+232_220kV Solar,232_220kV,1.0,PQ,0.0,0.0,False,variable,,83.9330882651,0.0,0.0,1.0,1.0,Solar,0.0,Generator 232_220kV Solar
+233_220kV Solar,233_220kV,1.0,PQ,0.0,0.0,False,variable,,78.1251999778,0.0,0.0,1.0,1.0,Solar,0.0,Generator 233_220kV Solar
+247_220kV Solar,247_220kV,1.0,PQ,0.0,0.0,False,variable,,111.894135967,0.0,0.0,1.0,1.0,Solar,0.0,Generator 247_220kV Solar
+248_220kV Solar,248_220kV,1.0,PQ,0.0,0.0,False,variable,,12.0135807401,0.0,0.0,1.0,1.0,Solar,0.0,Generator 248_220kV Solar
+261_220kV Solar,261_220kV,1.0,PQ,0.0,0.0,False,variable,,8.9114400864,0.0,0.0,1.0,1.0,Solar,0.0,Generator 261_220kV Solar
+263_220kV Solar,263_220kV,1.0,PQ,0.0,0.0,False,variable,,2.18004039913,0.0,0.0,1.0,1.0,Solar,0.0,Generator 263_220kV Solar
+264_220kV Solar,264_220kV,1.0,PQ,0.0,0.0,False,variable,,96.978514698,0.0,0.0,1.0,1.0,Solar,0.0,Generator 264_220kV Solar
+272_220kV Solar,272_220kV,1.0,PQ,0.0,0.0,False,variable,,50.6956422264,0.0,0.0,1.0,1.0,Solar,0.0,Generator 272_220kV Solar
+279_220kV Solar,279_220kV,1.0,PQ,0.0,0.0,False,variable,,39.4399654517,0.0,0.0,1.0,1.0,Solar,0.0,Generator 279_220kV Solar
+281_220kV Solar,281_220kV,1.0,PQ,0.0,0.0,False,variable,,53.2996668831,0.0,0.0,1.0,1.0,Solar,0.0,Generator 281_220kV Solar
+282_220kV Solar,282_220kV,1.0,PQ,0.0,0.0,False,variable,,93.4362158117,0.0,0.0,1.0,1.0,Solar,0.0,Generator 282_220kV Solar
+292_220kV Solar,292_220kV,1.0,PQ,0.0,0.0,False,variable,,109.359252049,0.0,0.0,1.0,1.0,Solar,0.0,Generator 292_220kV Solar
+303_220kV Solar,303_220kV,1.0,PQ,0.0,0.0,False,variable,,43.4857222882,0.0,0.0,1.0,1.0,Solar,0.0,Generator 303_220kV Solar
+307_220kV Solar,307_220kV,1.0,PQ,0.0,0.0,False,variable,,4.5134743299,0.0,0.0,1.0,1.0,Solar,0.0,Generator 307_220kV Solar
+308_220kV Solar,308_220kV,1.0,PQ,0.0,0.0,False,variable,,206.062071864,0.0,0.0,1.0,1.0,Solar,0.0,Generator 308_220kV Solar
+312_220kV Solar,312_220kV,1.0,PQ,0.0,0.0,False,variable,,232.138567764,0.0,0.0,1.0,1.0,Solar,0.0,Generator 312_220kV Solar
+315_220kV Solar,315_220kV,1.0,PQ,0.0,0.0,False,variable,,136.590912911,0.0,0.0,1.0,1.0,Solar,0.0,Generator 315_220kV Solar
+317_220kV Solar,317_220kV,1.0,PQ,0.0,0.0,False,variable,,0.0785462745405,0.0,0.0,1.0,1.0,Solar,0.0,Generator 317_220kV Solar
+332_220kV Solar,332_220kV,1.0,PQ,0.0,0.0,False,variable,,231.337444381,0.0,0.0,1.0,1.0,Solar,0.0,Generator 332_220kV Solar
+334_220kV Solar,334_220kV,1.0,PQ,0.0,0.0,False,variable,,132.965799076,0.0,0.0,1.0,1.0,Solar,0.0,Generator 334_220kV Solar
+336_220kV Solar,336_220kV,1.0,PQ,0.0,0.0,False,variable,,105.085505173,0.0,0.0,1.0,1.0,Solar,0.0,Generator 336_220kV Solar
+338_220kV Solar,338_220kV,1.0,PQ,0.0,0.0,False,variable,,125.401981322,0.0,0.0,1.0,1.0,Solar,0.0,Generator 338_220kV Solar
+353_220kV Solar,353_220kV,1.0,PQ,0.0,0.0,False,variable,,56.8897263342,0.0,0.0,1.0,1.0,Solar,0.0,Generator 353_220kV Solar
+360_220kV Solar,360_220kV,1.0,PQ,0.0,0.0,False,variable,,20.5053654732,0.0,0.0,1.0,1.0,Solar,0.0,Generator 360_220kV Solar
+362_220kV Solar,362_220kV,1.0,PQ,0.0,0.0,False,variable,,7.23168460336,0.0,0.0,1.0,1.0,Solar,0.0,Generator 362_220kV Solar
+382_220kV Solar,382_220kV,1.0,PQ,0.0,0.0,False,variable,,0.649517091925,0.0,0.0,1.0,1.0,Solar,0.0,Generator 382_220kV Solar
+384_220kV Solar,384_220kV,1.0,PQ,0.0,0.0,False,variable,,130.557077626,0.0,0.0,1.0,1.0,Solar,0.0,Generator 384_220kV Solar
+385_220kV Solar,385_220kV,1.0,PQ,0.0,0.0,False,variable,,84.3557884529,0.0,0.0,1.0,1.0,Solar,0.0,Generator 385_220kV Solar
+403_220kV Solar,403_220kV,1.0,PQ,0.0,0.0,False,variable,,22.9481934199,0.0,0.0,1.0,1.0,Solar,0.0,Generator 403_220kV Solar
+404_220kV Solar,404_220kV,1.0,PQ,0.0,0.0,False,variable,,10.5926271746,0.0,0.0,1.0,1.0,Solar,0.0,Generator 404_220kV Solar
+413_220kV Solar,413_220kV,1.0,PQ,0.0,0.0,False,variable,,57.5102739365,0.0,0.0,1.0,1.0,Solar,0.0,Generator 413_220kV Solar
+421_220kV Solar,421_220kV,1.0,PQ,0.0,0.0,False,variable,,17.4908923821,0.0,0.0,1.0,1.0,Solar,0.0,Generator 421_220kV Solar
+450_220kV Solar,450_220kV,1.0,PQ,0.0,0.0,False,variable,,0.185933235509,0.0,0.0,1.0,1.0,Solar,0.0,Generator 450_220kV Solar
