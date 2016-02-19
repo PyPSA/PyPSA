@@ -2,6 +2,10 @@
 #
 #This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
 #
+#This script does some processing on the original SciGRID dataset and then adds load and generation data to the SciGRID nodes.
+#
+#Some of the libraries used below for attaching load and generation are NOT freely available, except on personal request - we're working on bringing them online. Similarly the datasets may not be totally open.
+#
 #
 ### Data sources
 #
@@ -9,11 +13,37 @@
 #
 #Load size and location: based on Landkreise GDP and population.
 #
-#Power plant capacities and locations: BNetzA list.
+#Load time series: from ENTSO-E.
+#
+#Conventional power plant capacities and locations: BNetzA list.
 #
 #Wind and solar capacities and locations: EEG Stammdaten.
 #
 #Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+#
+### Warning
+#
+#This dataset is ONLY intended to demonstrate the capabilities of PyPSA and is NOT (yet) accurate enough to be used for research purposes.
+#
+#Known problems include:
+#
+#i) Since SciGRID does not have transformers, it is assumed for convenience that all lines are run at 380 kV. This means that the 220 kV lines have (380/220)^2 less per unit impedance than they should do. You can fix this either by artificially re-adjusting the impedances line.x for the 220 kV lines or by carefully splitting the buses according to voltage level and putting in transformers.
+#
+#ii) There appears to be some unexpected congestion in parts of the network, which may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
+#
+#iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
+#
+#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket 80% reduction in thermal limits or a proper security constrained OPF.
+#
+#v) The borders and neighbouring countries are not represented.
+#
+#vi) Hydroelectric power stations are not modelled accurately.
+#
+#viii) The marginal costs are illustrative, not accurate.
+#
+#ix) Only the first day of 2011 is in the dataset, which is not representative.
+#
+#x) The ENTSO-E total load for Germany may not be scaled correctly.
 
 
 # make the code as Python 3 compatible as possible                                                                                          
@@ -31,11 +61,18 @@ from six.moves import range
 
 import os
 
+#You may have to adjust this path to where 
+#you downloaded the github repository
+#https://github.com/FRESNA/PyPSA
+
 folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/"
 
 #note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(folder_prefix+"scigrid-151109/vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 
+#Because there are no transformers in the dataset, for convenience we assume
+#all buses are at 380 kV - this affects the per unit impedance of the 220 kV lines,
+#see warning above.
 vertices["v_nom"] = 380.
 
 vertices.rename(columns={"lon":"x","lat":"y","name":"osm_name"},inplace=True)

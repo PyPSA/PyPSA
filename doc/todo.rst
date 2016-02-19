@@ -173,6 +173,23 @@ Like pypower
 
 Would imitate set point on AVR
 
+Thermal limits: i_nom or s_nom?
+-------------------------------
+
+At the moment PyPSA inherits the behaviour of PYPOWER and MATPOWER to
+take all branch thermal limits in terms of apparent power in MVA as
+branch.s_nom. This makes sense for transformers, but less so for
+transmission lines, where the limit should properly be on the current
+in kA as branch.i_nom. However, the only place where the limit is used
+in calculation is for the linear OPF, where it is assumed anyway that
+voltage is 1 p.u. and it is more convenient to have limits on the
+power there. This is the logic behind using branch.s_nom.
+
+At some point the option may be introduced to have branch.i_nom limits
+on lines.
+
+
+
 Storing component object methods in different files
 ---------------------------------------------------
 
