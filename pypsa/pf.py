@@ -336,7 +336,7 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     network.generators_t.q.loc[now,sub_network.pvs.generator] += network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
 
 
-def network_lpf(network,now=None,verbose=True,skip_pre=False):
+def network_lpf(network, now=None, snapshots=None, verbose=True, skip_pre=False):
     """
     Linear power flow for generic network.
 
@@ -344,6 +344,8 @@ def network_lpf(network,now=None,verbose=True,skip_pre=False):
     ----------
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
+    snapshots : list-like
+        A subset of network.snapshots, superceding `now`, defaults to [now]
     verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
@@ -358,33 +360,25 @@ def network_lpf(network,now=None,verbose=True,skip_pre=False):
         network.determine_network_topology()
         calculate_dependent_values(network)
 
-    if now is None:
-        now=network.now
-
+    if snapshots is None:
+        if now is None:
+            now = network.now
+        snapshots = [now]
 
     #deal with transport links and converters
-    network.converters_t.p0.loc[now] = network.converters_t.p_set.loc[now]
-    network.converters_t.p1.loc[now] = -network.converters_t.p_set.loc[now]
-    network.transport_links_t.p0.loc[now] = network.transport_links_t.p_set.loc[now]
-    network.transport_links_t.p1.loc[now] = -network.transport_links_t.p_set.loc[now]
-
+    network.converters_t.p0.loc[snapshots] = network.converters_t.p_set.loc[snapshots]
+    network.converters_t.p1.loc[snapshots] = -network.converters_t.p_set.loc[snapshots]
+    network.transport_links_t.p0.loc[snapshots] = network.transport_links_t.p_set.loc[snapshots]
+    network.transport_links_t.p1.loc[snapshots] = -network.transport_links_t.p_set.loc[snapshots]
 
     for sub_network in network.sub_networks.obj:
-        if verbose:
-            print("Performing linear load-flow on %s sub-network %s" % (sub_network.current_type,sub_network))
-
         if not skip_pre:
-            find_bus_controls(sub_network,verbose=verbose)
+            find_bus_controls(sub_network, verbose=verbose)
 
             branches = sub_network.branches()
-
             if len(branches) > 0:
-                calculate_B_H(sub_network,verbose=verbose,skip_pre=True)
-
-        sub_network.lpf(now,verbose,skip_pre=True)
-
-
-
+                calculate_B_H(sub_network, verbose=verbose, skip_pre=True)
+        sub_network.lpf(snapshots=snapshots, verbose=verbose, skip_pre=True)
 
 
 def find_slack_bus(sub_network,verbose=True):
@@ -395,7 +389,7 @@ def find_slack_bus(sub_network,verbose=True):
     if len(gens) == 0:
         if verbose:
             print("No generators in %s, better hope power is already balanced" % sub_network)
-        sub_network.slack_generator = ""
+        sub_network.slack_generator = None
         sub_network.slack_bus = sub_network.buses().index[0]
 
     else:
@@ -667,7 +661,7 @@ averaged).
 
 
 
-def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
+def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pre=False):
     """
     Linear power flow for connected sub-network.
 
@@ -675,6 +669,8 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
     ----------
     now : object
         A member of network.snapshots on which to run the power flow, defaults to network.now
+    snapshots : list-like
+        A subset of network.snapshots, superceding `now`, defaults to [now]
     verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
@@ -686,92 +682,92 @@ def sub_network_lpf(sub_network,now=None,verbose=True,skip_pre=False):
 
     network = sub_network.network
 
-    if now is None:
-        now = network.now
+    if snapshots is None:
+        if now is None:
+            now = network.now
+        snapshots = [now]
 
     if verbose:
-        print("Performing linear load-flow for snapshot %s" % (now))
-
+        print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
+              .format(sub_network.current_type,sub_network,snapshots))
 
     if not skip_pre:
         calculate_dependent_values(network)
         find_bus_controls(sub_network,verbose=verbose)
 
-    branches = sub_network.branches()
+    # get the components on this subnetwork
     buses = sub_network.buses_o
-
-    if not skip_pre and len(branches) > 0:
-        calculate_B_H(sub_network, verbose=verbose)
-
-
-    #set the power injection at each node
-    network.buses_t.p.loc[now, buses.index] = \
-    pd.concat(
-        [(getattr(network,list_name+"_t").p_set.loc[now]
-          *getattr(network,list_name).sign)
-         .groupby(getattr(network,list_name).bus).sum()
-         for list_name in ["generators","loads","storage_units"]]
-        +
-        [(network.shunt_impedances.sign*network.shunt_impedances.g_pu)
-         .groupby(network.shunt_impedances.bus).sum()]
-        +
-        [- getattr(network,list_name+"_t").loc["p"+str(i),now]
-         .groupby(getattr(network,list_name)["bus"+str(i)]).sum()
-         for list_name in ["transport_links","converters"]
-         for i in [0,1]],
-        axis=1
-    ).sum(axis=1).reindex(buses.index, fill_value=0.)
-
-    p = network.buses_t.loc['p', now, buses.index]
-
-    num_buses = len(buses)
-
-    v_diff = zeros(num_buses)
-
-    if len(branches) > 0:
-        v_diff[1:] = spsolve(sub_network.B[1:, 1:], p[1:])
-
-        branches["flows"] = sub_network.H.dot(v_diff)
-
-        lines = branches.loc["Line"]
-        trafos = branches.loc["Transformer"]
-
-        network.lines_t.p1.loc[now, lines.index] = -lines["flows"]
-        network.lines_t.p0.loc[now, lines.index] = lines["flows"]
-
-        network.transformers_t.p1.loc[now, trafos.index] = -trafos["flows"]
-        network.transformers_t.p0.loc[now, trafos.index] = trafos["flows"]
-
-
-
-    #set slack bus power to pick up remained
-    network.buses_t.at["p", now, sub_network.slack_bus] = -sum(p[1:])
-
-    if sub_network.current_type == "AC":
-        network.buses_t.v_ang.loc[now, buses.index] = v_diff
-        network.buses_t.v_mag_pu.loc[now, buses.index] = 1.
-    elif sub_network.current_type == "DC":
-        network.buses_t.v_mag_pu.loc[now, buses.index] = 1 + v_diff
-        network.buses_t.v_ang.loc[now, buses.index] = 0.
-
-    #allow all loads to dispatch as set
+    branches = sub_network.branches()
+    generators = sub_network.generators()
     loads = sub_network.loads()
-    network.loads_t.p.loc[now, loads.index] = network.loads_t.p_set.loc[now, loads.index]
-
-    #allow all loads to dispatch as set
     shunt_impedances = sub_network.shunt_impedances()
-    network.shunt_impedances_t.p.loc[now, shunt_impedances.index] = \
+    storage_units = sub_network.storage_units()
+
+    # allow all generators to dispatch as set
+    network.generators_t.p.loc[snapshots, generators.index] = \
+        network.generators_t.p_set.loc[snapshots, generators.index]
+
+    # allow all loads to dispatch as set
+    network.loads_t.p.loc[snapshots, loads.index] = \
+        network.loads_t.p_set.loc[snapshots, loads.index]
+
+    # allow all shunt impedances to dispatch as set
+    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances.index] = \
         network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
 
-    #allow all generators to dispatch as set
-    generators = sub_network.generators()
-    network.generators_t.p.loc[now, generators.index] = \
-        network.generators_t.p_set.loc[now, generators.index]
+    # allow all storage units to dispatch as set
+    network.storage_units_t.p.loc[snapshots, storage_units.index] = \
+        network.storage_units_t.p_set.loc[snapshots, storage_units.index]
 
-    #let slack generator take up the slack
-    if sub_network.slack_generator != "":
-        network.generators_t.at["p", now, sub_network.slack_generator] += \
-            network.buses_t.at["p",now,sub_network.slack_bus] - p[0]
+    # set the power injection at each node
+    network.buses_t.p.loc[snapshots, buses.index] = \
+        sum([((df_t.p.loc[snapshots, df.index] * df.sign).groupby(df.bus, axis=1).sum()
+              .reindex(columns=buses.index, fill_value=0.))
+             for df, df_t in ((generators, network.generators_t),
+                              (loads, network.loads_t),
+                              (shunt_impedances, network.shunt_impedances_t),
+                              (storage_units, network.storage_units_t))]
+            +
+            [(- df_t.loc["p"+str(i), snapshots].groupby(df["bus"+str(i)], axis=1).sum()
+              .reindex(columns=buses.index, fill_value=0))
+             for df, df_t in ((network.transport_links, network.transport_links_t),
+                              (network.converters, network.converters_t))
+             for i in [0,1]])
+
+    if not skip_pre and len(branches) > 0:
+        calculate_B_H(sub_network, verbose=verbose, skip_pre=True)
+
+    v_diff = np.zeros((len(snapshots), len(buses.index)))
+    if len(branches) > 0:
+        for i, now in enumerate(snapshots):
+            p = network.buses_t.loc['p', now, buses.index]
+            v_diff[i,1:] = spsolve(sub_network.B[1:, 1:], p[1:])
+        flows = pd.DataFrame(v_diff * sub_network.H.T,
+                             columns=branches.index, index=snapshots)
+
+        line_flows = flows.loc[:, "Line"]
+        network.lines_t.p1.loc[snapshots, line_flows.columns] = -line_flows
+        network.lines_t.p0.loc[snapshots, line_flows.columns] = line_flows
+
+        trafo_flows = flows.loc[:, "Transformer"]
+        network.transformers_t.p1.loc[snapshots, trafo_flows.columns] = -trafo_flows
+        network.transformers_t.p0.loc[snapshots, trafo_flows.columns] = trafo_flows
+
+
+    if sub_network.current_type == "AC":
+        network.buses_t.v_ang.loc[snapshots, buses.index] = v_diff
+        network.buses_t.v_mag_pu.loc[snapshots, buses.index] = 1.
+    elif sub_network.current_type == "DC":
+        network.buses_t.v_mag_pu.loc[snapshots, buses.index] = 1 + v_diff
+        network.buses_t.v_ang.loc[snapshots, buses.index] = 0.
+
+    # set slack bus power to pick up remained
+    slack_adjustment = - network.buses_t.loc['p', snapshots, buses.index[1:]].sum(axis=1) - network.buses_t.loc['p', snapshots, buses.index[0]]
+    network.buses_t.loc["p", snapshots, buses.index[0]] += slack_adjustment
+
+    # let slack generator take up the slack
+    if sub_network.slack_generator is not None:
+        network.generators_t.p.loc[snapshots, sub_network.slack_generator] += slack_adjustment
 
 
 
