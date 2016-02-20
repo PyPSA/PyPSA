@@ -766,17 +766,20 @@ class SubNetwork(Common):
         return branches[branches.sub_network == self.name]
 
     def generators(self):
-        merged = pd.merge(self.network.generators,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        sub_networks = self.network.generators.bus.map(self.network.buses.sub_network)
+        return self.network.generators[sub_networks == self.name]
 
     def loads(self):
-        merged = pd.merge(self.network.loads,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        sub_networks = self.network.loads.bus.map(self.network.buses.sub_network)
+        return self.network.loads[sub_networks == self.name]
 
     def shunt_impedances(self):
-        merged = pd.merge(self.network.shunt_impedances,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        sub_networks = self.network.shunt_impedances.bus.map(self.network.buses.sub_network)
+        return self.network.shunt_impedances[sub_networks == self.name]
 
+    def storage_units(self):
+        sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
+        return self.network.storage_units[sub_networks == self.name]
 
 
 

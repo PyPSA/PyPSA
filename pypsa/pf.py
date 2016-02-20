@@ -469,32 +469,20 @@ def find_bus_controls(sub_network,verbose=True):
 def calculate_dependent_values(network):
     """Calculate per unit impedances and append voltages to lines and shunt impedances."""
 
-    #add voltages to components from bus voltage
-    for list_name in ["lines","shunt_impedances"]:
-        df = getattr(network,list_name)
-
-        if "v_nom" in df.columns:
-            df.drop(["v_nom"],axis=1,inplace=True)
-
-        bus_attr = "bus0" if list_name == "lines" else "bus"
-
-        join = pd.merge(df,network.buses,
-                        how="left",
-                        left_on=bus_attr,
-                        right_index=True)
-
-        df.loc[:,"v_nom"] = join["v_nom"]
-
+    network.lines["v_nom"] = network.lines.bus0.map(network.buses.v_nom)
 
     network.lines["x_pu"] = network.lines.x/(network.lines.v_nom**2)
     network.lines["r_pu"] = network.lines.r/(network.lines.v_nom**2)
     network.lines["b_pu"] = network.lines.b*network.lines.v_nom**2
     network.lines["g_pu"] = network.lines.g*network.lines.v_nom**2
+
     #convert transformer impedances from base power s_nom to base = 1 MVA
     network.transformers["x_pu"] = network.transformers.x/network.transformers.s_nom
     network.transformers["r_pu"] = network.transformers.r/network.transformers.s_nom
     network.transformers["b_pu"] = network.transformers.b*network.transformers.s_nom
     network.transformers["g_pu"] = network.transformers.g*network.transformers.s_nom
+
+    network.shunt_impedances["v_nom"] = network.shunt_impedances["bus"].map(network.buses.v_nom)
     network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
     network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
 
@@ -523,9 +511,8 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
     #susceptances
     b = 1/branches[attribute]
 
-    from_bus = np.array([buses["i"][bus] for bus in branches.bus0])
-    to_bus = np.array([buses["i"][bus] for bus in branches.bus1])
-
+    from_bus = branches.bus0.map(buses["i"]).values
+    to_bus = branches.bus1.map(buses["i"]).values
 
     #build weighted Laplacian
     sub_network.H = csr_matrix((r_[b,-b],(index,r_[from_bus,to_bus])))
