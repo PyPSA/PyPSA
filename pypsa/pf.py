@@ -42,7 +42,15 @@ from numpy.linalg import norm
 
 import time
 
-
+def _as_snapshots(snapshots, now=None):
+    if snapshots is None:
+        if now is None:
+            now = network.now
+        snapshots = [now]
+    try:
+        return pd.Index(snapshots)
+    except TypeError:
+        return pd.Index([snapshots])
 
 def network_pf(network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     """
@@ -335,19 +343,22 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     network.generators_t.q.loc[now,sub_network.pvs.generator] += network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag
 
 
-def network_lpf(network, now=None, snapshots=None, verbose=True, skip_pre=False):
+def network_lpf(network, snapshots=None, verbose=True, skip_pre=False, now=None):
     """
     Linear power flow for generic network.
 
     Parameters
     ----------
-    now : object
-        A member of network.snapshots on which to run the power flow, defaults to network.now
-    snapshots : list-like
-        A subset of network.snapshots, superceding `now`, defaults to [now]
+    snapshots : list-like|single snapshot
+        A subset or an elements of network.snapshots on which to run
+        the power flow, defaults to [now]
     verbose: bool, default True
     skip_pre: bool, default False
-        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    now : object
+        Deprecated: A member of network.snapshots on which to run the
+        power flow, defaults to network.now
 
     Returns
     -------
@@ -359,10 +370,7 @@ def network_lpf(network, now=None, snapshots=None, verbose=True, skip_pre=False)
         network.determine_network_topology()
         calculate_dependent_values(network)
 
-    if snapshots is None:
-        if now is None:
-            now = network.now
-        snapshots = [now]
+    snapshots = _as_snapshots(snapshots, now=now)
 
     #deal with transport links and converters
     network.converters_t.p0.loc[snapshots] = network.converters_t.p_set.loc[snapshots]
@@ -660,19 +668,22 @@ averaged).
 
 
 
-def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pre=False):
+def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False, now=None):
     """
     Linear power flow for connected sub-network.
 
     Parameters
     ----------
-    now : object
-        A member of network.snapshots on which to run the power flow, defaults to network.now
-    snapshots : list-like
-        A subset of network.snapshots, superceding `now`, defaults to [now]
+    snapshots : list-like|single snapshot
+        A subset or an elements of network.snapshots on which to run
+        the power flow, defaults to [now]
     verbose: bool, default True
     skip_pre: bool, default False
-        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    now : object
+        Deprecated: A member of network.snapshots on which to run the
+        power flow, defaults to network.now
 
     Returns
     -------
@@ -685,12 +696,7 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
 
     network = sub_network.network
 
-    if snapshots is None:
-        if now is None:
-            now = network.now
-        snapshots = [now]
-
-    snapshots = pd.Index(snapshots)
+    snapshots = _as_snapshots(snapshots, now=now)
 
     if verbose:
         print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
