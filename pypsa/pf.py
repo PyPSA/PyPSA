@@ -35,8 +35,6 @@ from scipy.sparse.linalg import spsolve
 import numpy as np
 import pandas as pd
 
-import pypsa
-
 from itertools import chain
 
 
@@ -158,6 +156,8 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     -------
     None
     """
+
+    from .components import passive_branch_types
 
     network = sub_network.network
 
@@ -296,13 +296,12 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     branches["s0"] = branches["v0"]*np.conj(i0)
     branches["s1"] = branches["v1"]*np.conj(i1)
 
-    for typ in pypsa.components.passive_branch_types:
-        df = branches.loc[typ.__name__]
-        pnl = getattr(network,typ.list_name+"_t")
-        pnl.loc["p0",now,df.index] = df["s0"].real
-        pnl.loc["q0",now,df.index] = df["s0"].imag
-        pnl.loc["p1",now,df.index] = df["s1"].real
-        pnl.loc["q1",now,df.index] = df["s1"].imag
+    for t in network.iterate_components(passive_branch_types):
+        df = branches.loc[t.name]
+        t.pnl.loc["p0",now,df.index] = df["s0"].real
+        t.pnl.loc["q0",now,df.index] = df["s0"].imag
+        t.pnl.loc["p1",now,df.index] = df["s1"].real
+        t.pnl.loc["q1",now,df.index] = df["s1"].imag
 
 
     s_calc = V*np.conj(sub_network.Y*V)
@@ -680,6 +679,10 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
     None
     """
 
+    from .components import \
+        one_port_types, controllable_one_port_types, \
+        passive_branch_types, controllable_branch_types
+
     network = sub_network.network
 
     if snapshots is None:
@@ -700,42 +703,26 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
     # get indices for the components on this subnetwork
     buses_i = sub_network.buses_o.index
     branches_i = sub_network.branches().index
-    generators_i = sub_network.generators_i()
-    loads_i = sub_network.loads_i()
-    shunt_impedances_i = sub_network.shunt_impedances_i()
-    storage_units_i = sub_network.storage_units_i()
-
-    # allow all generators to dispatch as set
-    network.generators_t.p.loc[snapshots, generators_i] = \
-        network.generators_t.p_set.loc[snapshots, generators_i]
-
-    # allow all loads to dispatch as set
-    network.loads_t.p.loc[snapshots, loads_i] = \
-        network.loads_t.p_set.loc[snapshots, loads_i]
 
     # allow all shunt impedances to dispatch as set
+    shunt_impedances_i = sub_network.shunt_impedances_i()
     network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = \
         network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
 
-    # allow all storage units to dispatch as set
-    network.storage_units_t.p.loc[snapshots, storage_units_i] = \
-        network.storage_units_t.p_set.loc[snapshots, storage_units_i]
+    # allow all one ports to dispatch as set
+    for t in sub_network.iterate_components(controllable_one_port_types):
+        t.pnl.p.loc[snapshots, t.ind] = t.pnl.p_set.loc[snapshots, t.ind]
 
     # set the power injection at each node
     network.buses_t.p.loc[snapshots, buses_i] = \
-        sum([((df_t.p.loc[snapshots, ind] * df.loc[ind,'sign'])
-              .groupby(df.loc[ind, 'bus'], axis=1).sum()
+        sum([((t.pnl.p.loc[snapshots, t.ind] * t.df.loc[t.ind, 'sign'])
+              .groupby(t.df.loc[t.ind, 'bus'], axis=1).sum()
               .reindex(columns=buses_i, fill_value=0.))
-             for df, df_t, ind in
-                 ((network.generators, network.generators_t, generators_i),
-                  (network.loads, network.loads_t, loads_i),
-                  (network.shunt_impedances, network.shunt_impedances_t, shunt_impedances_i),
-                  (network.storage_units, network.storage_units_t, storage_units_i))]
+             for t in sub_network.iterate_components(one_port_types)]
             +
-            [(- df_t.loc["p"+str(i), snapshots].groupby(df["bus"+str(i)], axis=1).sum()
+            [(- t.pnl.loc["p"+str(i), snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
               .reindex(columns=buses_i, fill_value=0))
-             for df, df_t in ((network.transport_links, network.transport_links_t),
-                              (network.converters, network.converters_t))
+             for t in network.iterate_components(controllable_branch_types)
              for i in [0,1]])
 
     if not skip_pre and len(branches_i) > 0:
@@ -749,14 +736,10 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
         flows = pd.DataFrame(v_diff * sub_network.H.T,
                              columns=branches_i, index=snapshots)
 
-        line_flows = flows.loc[:, "Line"]
-        network.lines_t.p1.loc[snapshots, line_flows.columns] = -line_flows
-        network.lines_t.p0.loc[snapshots, line_flows.columns] = line_flows
-
-        trafo_flows = flows.loc[:, "Transformer"]
-        network.transformers_t.p1.loc[snapshots, trafo_flows.columns] = -trafo_flows
-        network.transformers_t.p0.loc[snapshots, trafo_flows.columns] = trafo_flows
-
+        for t in network.iterate_components(passive_branch_types):
+            f = flows.loc[:, t.name]
+            t.pnl.p0.loc[snapshots, f.columns] = f
+            t.pnl.p1.loc[snapshots, f.columns] = -f
 
     if sub_network.current_type == "AC":
         network.buses_t.v_ang.loc[snapshots, buses_i] = v_diff
