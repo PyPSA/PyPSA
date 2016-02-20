@@ -687,6 +687,8 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
             now = network.now
         snapshots = [now]
 
+    snapshots = pd.Index(snapshots)
+
     if verbose:
         print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
               .format(sub_network.current_type,sub_network,snapshots))
@@ -695,55 +697,57 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
         calculate_dependent_values(network)
         find_bus_controls(sub_network,verbose=verbose)
 
-    # get the components on this subnetwork
-    buses = sub_network.buses_o
-    branches = sub_network.branches()
-    generators = sub_network.generators()
-    loads = sub_network.loads()
-    shunt_impedances = sub_network.shunt_impedances()
-    storage_units = sub_network.storage_units()
+    # get indices for the components on this subnetwork
+    buses_i = sub_network.buses_o.index
+    branches_i = sub_network.branches().index
+    generators_i = sub_network.generators_i()
+    loads_i = sub_network.loads_i()
+    shunt_impedances_i = sub_network.shunt_impedances_i()
+    storage_units_i = sub_network.storage_units_i()
 
     # allow all generators to dispatch as set
-    network.generators_t.p.loc[snapshots, generators.index] = \
-        network.generators_t.p_set.loc[snapshots, generators.index]
+    network.generators_t.p.loc[snapshots, generators_i] = \
+        network.generators_t.p_set.loc[snapshots, generators_i]
 
     # allow all loads to dispatch as set
-    network.loads_t.p.loc[snapshots, loads.index] = \
-        network.loads_t.p_set.loc[snapshots, loads.index]
+    network.loads_t.p.loc[snapshots, loads_i] = \
+        network.loads_t.p_set.loc[snapshots, loads_i]
 
     # allow all shunt impedances to dispatch as set
-    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances.index] = \
-        network.shunt_impedances.g_pu.loc[shunt_impedances.index].values
+    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = \
+        network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
 
     # allow all storage units to dispatch as set
-    network.storage_units_t.p.loc[snapshots, storage_units.index] = \
-        network.storage_units_t.p_set.loc[snapshots, storage_units.index]
+    network.storage_units_t.p.loc[snapshots, storage_units_i] = \
+        network.storage_units_t.p_set.loc[snapshots, storage_units_i]
 
     # set the power injection at each node
-    network.buses_t.p.loc[snapshots, buses.index] = \
-        sum([((df_t.p.loc[snapshots, df.index] * df.sign).groupby(df.bus, axis=1).sum()
-              .reindex(columns=buses.index, fill_value=0.))
-             for df, df_t in ((generators, network.generators_t),
-                              (loads, network.loads_t),
-                              (shunt_impedances, network.shunt_impedances_t),
-                              (storage_units, network.storage_units_t))]
+    network.buses_t.p.loc[snapshots, buses_i] = \
+        sum([((df_t.p.loc[snapshots, ind] * df.loc[ind,'sign'])
+              .groupby(df.loc[ind, 'bus'], axis=1).sum()
+              .reindex(columns=buses_i, fill_value=0.))
+             for df, df_t, ind in
+                 ((network.generators, network.generators_t, generators_i),
+                  (network.loads, network.loads_t, loads_i),
+                  (network.shunt_impedances, network.shunt_impedances_t, shunt_impedances_i),
+                  (network.storage_units, network.storage_units_t, storage_units_i))]
             +
             [(- df_t.loc["p"+str(i), snapshots].groupby(df["bus"+str(i)], axis=1).sum()
-              .reindex(columns=buses.index, fill_value=0))
+              .reindex(columns=buses_i, fill_value=0))
              for df, df_t in ((network.transport_links, network.transport_links_t),
                               (network.converters, network.converters_t))
              for i in [0,1]])
 
-    if not skip_pre and len(branches) > 0:
+    if not skip_pre and len(branches_i) > 0:
         calculate_B_H(sub_network, verbose=verbose, skip_pre=True)
 
-    v_diff = np.zeros((len(snapshots), len(buses.index)))
-    if len(branches) > 0:
+    v_diff = np.zeros((len(snapshots), len(buses_i)))
+    if len(branches_i) > 0:
         for i, now in enumerate(snapshots):
-            p = network.buses_t.loc['p', now, buses.index]
+            p = network.buses_t.loc['p', now, buses_i]
             v_diff[i,1:] = spsolve(sub_network.B[1:, 1:], p[1:])
         flows = pd.DataFrame(v_diff * sub_network.H.T,
-                             columns=branches.index, index=snapshots)
+                             columns=branches_i, index=snapshots)
 
         line_flows = flows.loc[:, "Line"]
         network.lines_t.p1.loc[snapshots, line_flows.columns] = -line_flows
@@ -755,15 +759,16 @@ def sub_network_lpf(sub_network, now=None, snapshots=None, verbose=True, skip_pr
 
 
     if sub_network.current_type == "AC":
-        network.buses_t.v_ang.loc[snapshots, buses.index] = v_diff
-        network.buses_t.v_mag_pu.loc[snapshots, buses.index] = 1.
+        network.buses_t.v_ang.loc[snapshots, buses_i] = v_diff
+        network.buses_t.v_mag_pu.loc[snapshots, buses_i] = 1.
     elif sub_network.current_type == "DC":
-        network.buses_t.v_mag_pu.loc[snapshots, buses.index] = 1 + v_diff
-        network.buses_t.v_ang.loc[snapshots, buses.index] = 0.
+        network.buses_t.v_mag_pu.loc[snapshots, buses_i] = 1 + v_diff
+        network.buses_t.v_ang.loc[snapshots, buses_i] = 0.
 
     # set slack bus power to pick up remained
-    slack_adjustment = - network.buses_t.loc['p', snapshots, buses.index[1:]].sum(axis=1) - network.buses_t.loc['p', snapshots, buses.index[0]]
-    network.buses_t.loc["p", snapshots, buses.index[0]] += slack_adjustment
+    slack_adjustment = (- network.buses_t.loc['p', snapshots, buses_i[1:]].sum(axis=1)
+                        - network.buses_t.loc['p', snapshots, buses_i[0]])
+    network.buses_t.loc["p", snapshots, buses_i[0]] += slack_adjustment
 
     # let slack generator take up the slack
     if sub_network.slack_generator is not None:

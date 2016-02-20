@@ -765,21 +765,33 @@ class SubNetwork(Common):
         branches = self.network.branches()
         return branches[branches.sub_network == self.name]
 
-    def generators(self):
+    def generators_i(self):
         sub_networks = self.network.generators.bus.map(self.network.buses.sub_network)
-        return self.network.generators[sub_networks == self.name]
+        return self.network.generators.index[sub_networks == self.name]
+
+    def loads_i(self):
+        sub_networks = self.network.loads.bus.map(self.network.buses.sub_network)
+        return self.network.loads.index[sub_networks == self.name]
+
+    def shunt_impedances_i(self):
+        sub_networks = self.network.shunt_impedances.bus.map(self.network.buses.sub_network)
+        return self.network.shunt_impedances.index[sub_networks == self.name]
+
+    def storage_units_i(self):
+        sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
+        return self.network.storage_units.index[sub_networks == self.name]
+
+    def generators(self):
+        return self.network.generators.loc[self.generators_i()]
 
     def loads(self):
-        sub_networks = self.network.loads.bus.map(self.network.buses.sub_network)
-        return self.network.loads[sub_networks == self.name]
+        return self.network.loads.loc[self.loads_i()]
 
     def shunt_impedances(self):
-        sub_networks = self.network.shunt_impedances.bus.map(self.network.buses.sub_network)
-        return self.network.shunt_impedances[sub_networks == self.name]
+        return self.network.shunt_impedances.loc[self.shunt_impedances_i()]
 
     def storage_units(self):
-        sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
-        return self.network.storage_units[sub_networks == self.name]
+        return self.network.storage_units.loc[self.storage_units_i()]
 
 
 
