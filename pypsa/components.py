@@ -34,6 +34,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from itertools import chain
+from collections import namedtuple
 from operator import itemgetter
 from distutils.version import StrictVersion
 
@@ -396,6 +397,7 @@ class LineType(Common):
     """Placeholder for future functionality to automatically generate line
     parameters from standard parameters (e.g. r/km)."""
 
+Type = namedtuple("Type", ['typ', 'name', 'df', 'pnl', 'ind'])
 
 class Network(Basic):
     """
@@ -468,12 +470,17 @@ class Network(Basic):
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
 
+        descriptors = [obj
+                       for name, obj in inspect.getmembers(sys.modules[__name__])
+                       if inspect.isclass(obj) and hasattr(obj,"list_name")]
 
         #make a dictionary of all simple descriptors
-        self.component_simple_descriptors = {obj : get_simple_descriptors(obj) for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+        self.component_simple_descriptors = {obj : get_simple_descriptors(obj)
+                                             for obj in descriptors}
 
         #make a dictionary of all simple descriptors
-        self.component_series_descriptors = {obj : get_series_descriptors(obj) for name, obj in inspect.getmembers(sys.modules[__name__]) if inspect.isclass(obj) and hasattr(obj,"list_name")}
+        self.component_series_descriptors = {obj : get_series_descriptors(obj)
+                                             for obj in descriptors}
 
 
         self.build_dataframes()
@@ -490,9 +497,7 @@ class Network(Basic):
 
 
     def build_dataframes(self):
-        for cls in (Load, ShuntImpedance, SubNetwork, Generator, Line, Bus,
-                    StorageUnit, TransportLink, Transformer, Source, Converter):
-
+        for cls in component_types:
             columns = list((k, v.typ) for k, v in iteritems(self.component_simple_descriptors[cls]))
 
             #store also the objects themselves
@@ -543,10 +548,9 @@ class Network(Basic):
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
         if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
-            snapshots = list(snapshots)
+            snapshots = pd.Index(snapshots.values)
 
-        for cls in Load, ShuntImpedance, SubNetwork, Generator, Line, Bus, StorageUnit,TransportLink,Transformer,Source,Converter:
-
+        for cls in component_types:
             pnl = getattr(self,cls.list_name+"_t")
             pnl = pnl.reindex(major_axis=self.snapshots)
 
@@ -667,13 +671,16 @@ class Network(Basic):
 
 
     def branches(self):
-        return pd.concat([self.lines,self.transformers,self.converters,self.transport_links],keys=["Line","Transformer","Converter","TransportLink"])
+        return pd.concat({typ.__name__: getattr(self, typ.list_name)
+                          for typ in branch_types})
 
     def passive_branches(self):
-        return pd.concat([self.lines,self.transformers],keys=["Line","Transformer"])
+        return pd.concat({typ.__name__: getattr(self, typ.list_name)
+                          for typ in passive_branch_types})
 
     def controllable_branches(self):
-        return pd.concat([self.converters,self.transport_links],keys=["Converter","TransportLink"])
+        return pd.concat({typ.__name__: getattr(self, typ.list_name)
+                          for typ in controllable_branch_types})
 
 
     def build_graph(self):
@@ -686,8 +693,9 @@ class Network(Basic):
         self.graph.add_nodes_from(self.buses.index)
 
         #Multigraph uses object itself as key
-        self.graph.add_edges_from((branch.bus0, branch.bus1, branch, {}) for branch in self.branches().obj)
-
+        self.graph.add_edges_from((branch.bus0, branch.bus1, branch.obj, {})
+                                  for t in self.iterate_components(branch_types)
+                                  for branch in t.df.itertuples())
 
     def determine_network_topology(self):
         """Build sub_networks from topology."""
@@ -697,14 +705,12 @@ class Network(Basic):
 
         graph = self.graph.__class__(self.graph)
 
-        graph.remove_edges_from((branch.bus0, branch.bus1, branch)
-                                for branch in chain(self.converters.obj,
-                                                    self.transport_links.obj))
-
+        graph.remove_edges_from((branch.bus0, branch.bus1, branch.obj)
+                                for t in self.iterate_components(controllable_branch_types)
+                                for branch in t.df.itertuples())
 
         #now build connected graphs of same type AC/DC
         sub_graphs = nx.connected_component_subgraphs(graph, copy=False)
-
 
         #remove all old sub_networks
         for sub_network in self.sub_networks.index:
@@ -715,7 +721,7 @@ class Network(Basic):
             sub_network = self.add("SubNetwork", i, graph=sub_graph)
 
             #grab data from first bus
-            sub_network.current_type = self.buses.loc[sub_graph.nodes()[0], "current_type"]
+            sub_network.current_type = self.buses.loc[next(sub_graph.nodes_iter()), "current_type"]
 
             for bus in sub_graph.nodes():
                 self.buses.loc[bus,"sub_network"] = sub_network.name
@@ -723,6 +729,15 @@ class Network(Basic):
             for (u,v,branch) in sub_graph.edges_iter(keys=True):
                 branch.sub_network = sub_network.name
 
+    def iterate_components(self, types=None, skip_empty=True):
+        if types is None:
+            types = component_types
+        return (Type(typ=typ, name=typ.__name__,
+                     df=getattr(self, typ.list_name),
+                     pnl=getattr(self, typ.list_name + '_t'),
+                     ind=None)
+                for typ in types
+                if not skip_empty or len(getattr(self, typ.list_name)) > 0)
 
 
 class SubNetwork(Common):
@@ -765,23 +780,46 @@ class SubNetwork(Common):
         branches = self.network.branches()
         return branches[branches.sub_network == self.name]
 
+    def generators_i(self):
+        sub_networks = self.network.generators.bus.map(self.network.buses.sub_network)
+        return self.network.generators.index[sub_networks == self.name]
+
+    def loads_i(self):
+        sub_networks = self.network.loads.bus.map(self.network.buses.sub_network)
+        return self.network.loads.index[sub_networks == self.name]
+
+    def shunt_impedances_i(self):
+        sub_networks = self.network.shunt_impedances.bus.map(self.network.buses.sub_network)
+        return self.network.shunt_impedances.index[sub_networks == self.name]
+
+    def storage_units_i(self):
+        sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
+        return self.network.storage_units.index[sub_networks == self.name]
+
     def generators(self):
-        merged = pd.merge(self.network.generators,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        return self.network.generators.loc[self.generators_i()]
 
     def loads(self):
-        merged = pd.merge(self.network.loads,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        return self.network.loads.loc[self.loads_i()]
 
     def shunt_impedances(self):
-        merged = pd.merge(self.network.shunt_impedances,self.buses(),how="left",left_on="bus",right_index=True,suffixes=("","_bus"))
-        return merged[merged.sub_network == self.name]
+        return self.network.shunt_impedances.loc[self.shunt_impedances_i()]
 
+    def storage_units(self):
+        return self.network.storage_units.loc[self.storage_units_i()]
 
+    def iterate_components(self, types=None, skip_empty=True):
+        for t in self.network.iterate_components(types=types, skip_empty=False):
+            t = Type(*t[:-1], ind=getattr(self, t.typ.list_name + '_i')())
+            if not skip_empty or len(t.ind) > 0:
+                yield t
 
+passive_one_port_types = {ShuntImpedance}
+controllable_one_port_types = {Load, Generator, StorageUnit}
+one_port_types = passive_one_port_types|controllable_one_port_types
 
-passive_branch_types = {Line,Transformer}
-
-controllable_branch_types = {Converter,TransportLink}
-
+passive_branch_types = {Line, Transformer}
+controllable_branch_types = {Converter, TransportLink}
 branch_types = passive_branch_types|controllable_branch_types
+
+component_types = branch_types|one_port_types|{Bus, SubNetwork, Source}

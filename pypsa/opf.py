@@ -43,10 +43,6 @@ from distutils.version import StrictVersion
 
 import pandas as pd
 
-import pypsa
-
-
-
 #this function is necessary because pyomo doesn't deal with NaNs gracefully
 def replace_nan_with_none(val):
     if pd.isnull(val):
@@ -438,9 +434,13 @@ def define_linear_objective(network,snapshots):
 
 
 def extract_optimisation_results(network,snapshots):
+    from .components import \
+        controllable_branch_types, passive_branch_types, branch_types, \
+        controllable_one_port_types
+
     if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
-        snapshots = list(snapshots)
+        snapshots = pd.Index(snapshots.values)
 
     #get value of objective function
     network.objective = network.results["Problem"][0]["Lower bound"]
@@ -480,13 +480,12 @@ def extract_optimisation_results(network,snapshots):
         network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
 
         network.buses_t.p.loc[snapshots] = \
-               pd.concat({n: getattr(network,list_name+"_t").p.loc[snapshots].multiply(getattr(network,list_name).sign, axis=1)
-                                  .groupby(getattr(network,list_name).bus, axis=1).sum()
-                          for n,list_name in iteritems(dict(g="generators",
-                                                         l="loads",
-                                                            s="storage_units"))}) \
-                 .sum(level=1) \
-                 .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
+            pd.concat({t.name:
+                       t.pnl.p.loc[snapshots].multiply(t.df.sign, axis=1)
+                       .groupby(t.df.bus, axis=1).sum()
+                       for t in network.iterate_components(controllable_one_port_types)}) \
+              .sum(level=1) \
+              .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
 
         set_from_series(network.buses_t.marginal_price,
                         pd.Series(list(model.power_balance.values()),
@@ -495,32 +494,22 @@ def extract_optimisation_results(network,snapshots):
 
     # active branches
     controllable_branches = as_series(model.controllable_branch_p)
-    for typ in pypsa.components.controllable_branch_types:
+    for t in network.iterate_components(controllable_branch_types):
+        set_from_series(t.pnl.p0, controllable_branches.loc[t.name])
+        t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
 
-        df = getattr(network,typ.list_name)
-        pnl = getattr(network,typ.list_name+"_t")
-
-        if len(df):
-            set_from_series(pnl.p0, controllable_branches.loc[typ.__name__])
-            pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
-
-            network.buses_t.p.loc[snapshots] -= pnl.p0.loc[snapshots].groupby(df.bus0, axis=1).sum().reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
-            network.buses_t.p.loc[snapshots] -= pnl.p1.loc[snapshots].groupby(df.bus1, axis=1).sum().reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
+        network.buses_t.p.loc[snapshots] -= t.pnl.p0.loc[snapshots].groupby(t.df.bus0, axis=1).sum().reindex(columns=network.buses_t.p.columns, fill_value=0.)
+        network.buses_t.p.loc[snapshots] -= t.pnl.p1.loc[snapshots].groupby(t.df.bus1, axis=1).sum().reindex(columns=network.buses_t.p.columns, fill_value=0.)
 
     # passive branches
     def get_v_angs(buses):
         v = network.buses_t.v_ang.loc[snapshots,buses]
         v.set_axis(1, buses.index)
         return v
-    for typ in pypsa.components.passive_branch_types:
-
-        df = getattr(network,typ.list_name)
-        pnl = getattr(network,typ.list_name+"_t")
-
-        if len(df):
-            attrs = df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
-            pnl.p0.loc[snapshots] = (get_v_angs(df.bus0) - get_v_angs(df.bus1)).divide(df.lookup(attrs.index, attrs), axis=1)
-            pnl.p1.loc[snapshots] = - pnl.p0.loc[snapshots]
+    for t in network.iterate_components(passive_branch_types):
+        attrs = t.df.sub_network.map(network.sub_networks.current_type).map(dict(AC='x_pu', DC='r_pu'))
+        t.pnl.p0.loc[snapshots] = (get_v_angs(t.df.bus0) - get_v_angs(t.df.bus1)).divide(t.df.lookup(attrs.index, attrs), axis=1)
+        t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
 
     #now that we've used the angles to calculate the flow, set the DC ones to zero
     network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"] = 0.
@@ -536,11 +525,10 @@ def extract_optimisation_results(network,snapshots):
         as_series(network.model.storage_p_nom)
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
-    for typ in pypsa.components.branch_types:
-        df = getattr(network,typ.list_name)
-        df.s_nom_opt = df.s_nom
-        if len(df) and df.s_nom_extendable.any():
-            df.loc[df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_branches.loc[typ.__name__]
+    for t in network.iterate_components(branch_types):
+        t.df['s_nom_opt'] = t.df.s_nom
+        if t.df.s_nom_extendable.any():
+            t.df.loc[t.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_branches.loc[t.name]
 
 
 

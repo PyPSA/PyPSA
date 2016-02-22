@@ -369,14 +369,17 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])
 
-    pdf['branches']["bus0"] = np.array(pdf['branches']["bus0"],dtype=int)
-    pdf['branches']["bus1"] = np.array(pdf['branches']["bus1"],dtype=int)
+    pdf['branches']["bus0"] = pdf['branches']["bus0"].astype(int)
+    pdf['branches']["bus1"] = pdf['branches']["bus1"].astype(int)
 
-    #add bus voltages to branches to detect transformers
-    branches = pd.merge(pdf['branches'],pdf['buses'],how="left",left_on="bus0",right_index=True,suffixes=("","_0"))
-    branches = pd.merge(branches,pdf['buses'],how="left",left_on="bus1",right_index=True,suffixes=("","_1"))
+    # determine bus voltages of branches to detect transformers
+    v_nom = pdf['branches'].bus0.map(pdf['buses'].v_nom)
+    v_nom_1 = pdf['branches'].bus1.map(pdf['buses'].v_nom)
 
-    pdf['transformers'] = pdf['branches'][(branches.v_nom != branches.v_nom_1) | (branches.tap_ratio != 0) | (branches.phase_shift != 0)]
+    # split branches into transformers and lines
+    transformers = (v_nom != v_nom_1) | (pdf['branches'].tap_ratio != 0) | (pdf['branches'].phase_shift != 0)
+    pdf['transformers'] = pd.DataFrame(pdf['branches'][transformers])
+    pdf['lines'] = pdf['branches'][~ transformers].drop(["tap_ratio", "phase_shift"], axis=1)
 
     #convert transformers from base baseMVA to base s_nom
     pdf['transformers']['r'] = pdf['transformers']['r']*pdf['transformers']['s_nom']/baseMVA
@@ -384,12 +387,9 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     pdf['transformers']['b'] = pdf['transformers']['b']*baseMVA/pdf['transformers']['s_nom']
 
     #correct per unit impedances
-    pdf['branches']["r"] = branches["v_nom"]**2*pdf['branches']["r"]/baseMVA
-    pdf['branches']["x"] = branches["v_nom"]**2*pdf['branches']["x"]/baseMVA
-    pdf['branches']["b"] = pdf['branches']["b"]*baseMVA/branches["v_nom"]**2
-
-
-    pdf['lines'] = pdf['branches'].reindex(index=pdf['branches'].index.difference(pdf['transformers'].index)).drop(["tap_ratio","phase_shift"],axis=1)
+    pdf['lines']["r"] = v_nom**2*pdf['lines']["r"]/baseMVA
+    pdf['lines']["x"] = v_nom**2*pdf['lines']["x"]/baseMVA
+    pdf['lines']["b"] = pdf['lines']["b"]*baseMVA/v_nom**2
 
     #TODO
 
