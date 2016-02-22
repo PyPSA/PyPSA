@@ -42,7 +42,7 @@ from numpy.linalg import norm
 
 import time
 
-def _as_snapshots(snapshots, now=None):
+def _as_snapshots(network, snapshots, now):
     if snapshots is None:
         if now is None:
             now = network.now
@@ -370,7 +370,7 @@ def network_lpf(network, snapshots=None, verbose=True, skip_pre=False, now=None)
         network.determine_network_topology()
         calculate_dependent_values(network)
 
-    snapshots = _as_snapshots(snapshots, now=now)
+    snapshots = _as_snapshots(network, snapshots, now=now)
 
     #deal with transport links and converters
     network.converters_t.p0.loc[snapshots] = network.converters_t.p_set.loc[snapshots]
@@ -696,7 +696,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False, n
 
     network = sub_network.network
 
-    snapshots = _as_snapshots(snapshots, now=now)
+    snapshots = _as_snapshots(network, snapshots, now=now)
 
     if verbose:
         print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
