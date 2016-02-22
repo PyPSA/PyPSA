@@ -736,9 +736,8 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False, n
 
     v_diff = np.zeros((len(snapshots), len(buses_i)))
     if len(branches_i) > 0:
-        for i, now in enumerate(snapshots):
-            p = network.buses_t.loc['p', now, buses_i]
-            v_diff[i,1:] = spsolve(sub_network.B[1:, 1:], p[1:])
+        p = network.buses_t.loc['p', snapshots, buses_i].values
+        v_diff[:,1:] = spsolve(sub_network.B[1:, 1:], p[:,1:].T).T
         flows = pd.DataFrame(v_diff * sub_network.H.T,
                              columns=branches_i, index=snapshots)
 
