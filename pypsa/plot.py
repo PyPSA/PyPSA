@@ -109,11 +109,11 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
         bmap.drawcoastlines()
         x,y = bmap(network.buses["x"].values,network.buses["y"].values)
 
-    c = [bus_colors.get(bus,"b") for bus in network.buses.index]
+    c = pd.Series(bus_colors, index=network.buses.index).fillna("b")
 
-    s = [bus_sizes.get(bus,10) for bus in network.buses.index]
+    s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
 
-    ax.scatter(x, y,c=c,s=s,cmap=bus_cmap)
+    ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
     if line_cmap is not None:
         line_nums = pd.Series(line_colors,index=network.lines.index)
@@ -128,7 +128,7 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
 
         if basemap and basemap_present:
             x,y = bmap(x,y)
-        if type(line_colors) == pd.DataFrame:
+        if isinstance(line_colors, pd.DataFrame):
             color = line_colors.loc[line.name]
         else:
             color = line_colors.get(line.name,"g")
