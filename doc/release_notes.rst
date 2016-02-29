@@ -3,6 +3,20 @@ Release Notes
 #######################
 
 
+PyPSA 0.3.3 (29th February 2016)
+================================
+
+Additional features:
+
+* ``network.lpf`` can be called on an iterable of ``snapshots``
+  i.e. ``network.lpf(snapshots)``, which is more performant that
+  calling ``network.lpf`` on each snapshot separately.
+* Bug fix on import/export of transformers and shunt impedances (which
+  were left out before).
+* Refactoring of some internal code.
+* Better network clustering.
+
+
 PyPSA 0.3.2 (17th February 2016)
 ================================
 

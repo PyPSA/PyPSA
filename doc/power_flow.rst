@@ -13,6 +13,12 @@ Full non-linear power flow
 The non-linear power flow ``network.pf()`` works for AC networks and
 by extension for DC networks too (with a work-around described below).
 
+It can be called for a particular ``snapshot`` as
+``network.pf(snapshot)``, otherwise ``network.pf()`` will default to the snapshot
+``network.now``.
+
+
+
 Non-linear power flow for AC networks
 -------------------------------------
 
@@ -166,6 +172,15 @@ transport_link.{p0, q0, p1, q1}
 
 Linear power flow
 =================
+
+The linear power flow ``network.lpf()`` can be called for a particular
+``snapshot`` as ``network.lpf(snapshot)``, otherwise ``network.lpf()``
+will default to ``network.now``. It can also be called
+``network.lpf(snapshots)`` on an iterable of ``snapshots``
+to calculate the linear power flow on a selection of snapshots at once
+(which is more performant than calling ``network.lpf`` on each
+snapshot separately).
+
 
 For AC networks, it is assumed for the linear power flow that reactive
 power decouples, there are no voltage magnitude variations, voltage

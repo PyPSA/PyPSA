@@ -7,7 +7,7 @@ Free software
 =============
 
 
-`PYPOWER <https://github.com/rwl/PYPOWER>`_ - a Python, numpy, scipy port of `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_
+`PYPOWER <https://github.com/rwl/PYPOWER>`_ - a Python, numpy, scipy port of `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_, compared to PyPSA below
 
 `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_ - a Matlab-based tool for static power system computations
 
@@ -32,9 +32,21 @@ Free software
 
 `PowerGAMA <https://bitbucket.org/harald_g_svendsen/powergama/wiki/Home>`_
 
-https://nemo.ozlabs.org/
+`NEMO <https://nemo.ozlabs.org/>`_
 
-https://bitbucket.org/mosaik/mosaik-pypower
+`Mosaik-PYPOWER <https://bitbucket.org/mosaik/mosaik-pypower>`_
+
+
+PYPOWER
+-------
+
+PyPSA is compared to `PYPOWER <https://github.com/rwl/PYPOWER>`_ in the following table:
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: pypower.csv
+
 
 
 
