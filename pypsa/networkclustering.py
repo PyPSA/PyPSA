@@ -54,8 +54,7 @@ def aggregatebuses(network, busmap):
             .groupby(busmap).agg(strategies) \
             .reindex_axis([f for f in network.buses.columns if f in columns], axis=1)
 
-def aggregatelines(network, buses, interlines):
-
+def aggregatelines(network, buses, interlines, line_length_factor=1.0):
 
     #make sure all lines have same bus ordering
     positive_order = interlines.bus0_s < interlines.bus1_s
@@ -67,8 +66,9 @@ def aggregatelines(network, buses, interlines):
     columns = set(network.component_simple_descriptors[components.Line]).difference(('bus0', 'bus1'))
 
     def aggregatelinegroup(l):
+
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
-        length_s = _haversine(buses.loc[list(l.name),['x', 'y']])
+        length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
         v_nom_s = _consense(buses.loc[list(l.name),'v_nom'])
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
@@ -102,7 +102,7 @@ def aggregatelines(network, buses, interlines):
 
     return lines, linemap_p, linemap_n, linemap
 
-def get_buses_linemap_and_lines(network, busmap):
+def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0):
     # compute new buses
     buses = aggregatebuses(network, busmap)
 
@@ -113,7 +113,7 @@ def get_buses_linemap_and_lines(network, busmap):
 
     # lines between different clusters
     interlines = lines.loc[lines['bus0_s'] != lines['bus1_s']]
-    lines, linemap_p, linemap_n, linemap = aggregatelines(network, buses, interlines)
+    lines, linemap_p, linemap_n, linemap = aggregatelines(network, buses, interlines, line_length_factor)
     return (buses,
             linemap,
             linemap_p,
@@ -124,8 +124,8 @@ def get_buses_linemap_and_lines(network, busmap):
 
 Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap', 'linemap_positive', 'linemap_negative'])
 
-def get_clustering_from_busmap(network, busmap, with_time=True):
-    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap)
+def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0):
+    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor)
 
     network_c = Network()
 
@@ -265,7 +265,7 @@ try:
 
         return busmap
 
-    def kmeans_clustering(network, bus_weightings, n_clusters):
+    def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0):
         """
         Cluster then network according to k-means clustering of the
         buses.
@@ -284,6 +284,10 @@ try:
             Series of integer weights for buses, indexed by bus names.
         n_clusters : int
             Final number of clusters desired.
+        line_length_factor : float
+            Factor to multiply the crow-flies distance between new buses in order to get new
+            line lengths.
+
 
         Returns
         -------
@@ -292,7 +296,7 @@ try:
         """
 
         busmap = busmap_by_kmeans(network, bus_weightings, n_clusters)
-        return get_clustering_from_busmap(network, busmap)
+        return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
 except ImportError:
     pass
