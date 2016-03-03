@@ -16,7 +16,7 @@
 """Functions for computing network clusters
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, division
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -301,6 +301,15 @@ try:
 except ImportError:
     pass
 
+
+
+
+
+
+################
+# Rectangular grid clustering
+
+
 def busmap_by_rectangular_grid(buses, divisions=10):
     busmap = pd.Series(0, index=buses.index)
     if isinstance(divisions, tuple):
@@ -314,4 +323,69 @@ def busmap_by_rectangular_grid(buses, divisions=10):
 
 def rectangular_grid_clustering(network, divisions):
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
+    return get_clustering_from_busmap(network, busmap)
+
+
+
+
+
+################
+# Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
+
+def busmap_by_stubs(network):
+    """Create a busmap by reducing stubs and stubby trees
+    (i.e. sequentially reducing dead-ends).
+
+    Parameters
+    ----------
+    network : pypsa.Network
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of network.buses to k-means clusters (indexed by
+        non-negative integers).
+
+    """
+
+    busmap = pd.Series(network.buses.index,network.buses.index)
+
+    count = 0
+
+    while True:
+        old_count = count
+        print(len(network.buses),"buses")
+        network.build_graph()
+        graph = network.graph
+        for u in graph.node:
+            neighbours = list(network.graph.adj[u].keys())
+            if len(neighbours) == 1:
+                neighbour = neighbours[0]
+                count +=1
+                lines = list(network.graph.adj[u][neighbour].keys())
+                for line in lines:
+                    network.remove("Line",line.name)
+                network.remove("Bus",u)
+                busmap[busmap==u] = neighbour
+        print(count,"deleted")
+        if old_count == count:
+            break
+    return busmap
+
+def stubs_clustering(network):
+    """Cluster network by reducing stubs and stubby trees
+    (i.e. sequentially reducing dead-ends).
+
+    Parameters
+    ----------
+    network : pypsa.Network
+
+
+    Returns
+    -------
+    Clustering : named tuple
+        A named tuple containing network, busmap and linemap
+    """
+
+    busmap = busmap_by_stubs(network)
     return get_clustering_from_busmap(network, busmap)

@@ -167,8 +167,10 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         if k not in simple_attrs:
             new_df.loc[dataframe.index,k] = v.default
 
-        if v.typ == bool:
-            new_df.loc[:,k] = new_df.loc[:,k].astype(bool)
+        #This is definitely necessary to avoid boolean bugs - should
+        #we also do this for other types?
+        if v.typ == bool and new_df[k].dtype is not np.dtype(v.typ):
+            new_df.loc[:,k] = new_df.loc[:,k].astype(v.typ)
 
     new_df.loc[dataframe.index,"obj"] = [cls(network,str(i)) for i in dataframe.index]
 
@@ -354,7 +356,9 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     #add gens
 
-    #it is assumed that the p_nom is the p_max
+    #it is assumed that the pypower p_max is the p_nom
+
+    #could also do gen.p_min_pu_fixed = p_min/p_nom
 
     columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_nom, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
 

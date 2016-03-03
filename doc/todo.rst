@@ -30,6 +30,15 @@ generate those which they need.
 This requires the descriptors to be replaced with __get__ and __set__,
 since some time-dependent quantities will not exist in the _t dataframes.
 
+Replace pandas.Panels with xarray.DataArray
+-------------------------------------------
+
+This offers better interface, forces same datatype on
+e.g. network.generators_t (float).
+
+pandas.Panel can be buggy.
+
+
 
 Replace descriptors with __get__ and __set__ on objects
 -------------------------------------------------------
