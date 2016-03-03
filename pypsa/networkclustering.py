@@ -350,6 +350,8 @@ def busmap_by_stubs(network):
 
     busmap = pd.Series(network.buses.index,network.buses.index)
 
+    network = network.copy(with_time=False)
+
     count = 0
 
     while True:

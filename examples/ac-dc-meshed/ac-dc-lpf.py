@@ -22,8 +22,7 @@ network = pypsa.Network()
 folder_name = "ac-dc-data"
 network.import_from_csv_folder(folder_name)
 
-for snapshot in network.snapshots:
-    network.lpf(snapshot)
+network.lpf(network.snapshots)
 
 
 print("\nSub-Networks:")

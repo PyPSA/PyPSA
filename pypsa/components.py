@@ -40,7 +40,7 @@ from distutils.version import StrictVersion
 
 from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
-from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc
+from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc, import_components_from_dataframe
 
 from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y, calculate_PTDF, calculate_B_H, calculate_dependent_values
 
@@ -668,6 +668,38 @@ class Network(Basic):
         pnl.drop(name,axis=2,inplace=True)
 
         del obj
+
+    def copy(self, with_time=True):
+        """
+        Returns a deep copy of the Network object with all components and
+        time dependent data.
+
+        Returns
+        --------
+        network : pypsa.Network
+
+
+        Examples
+        --------
+        >>> network_copy = network.copy()
+
+        """
+
+        network = Network()
+
+        for component in self.iterate_components():
+            import_components_from_dataframe(network, component.df, component.name)
+
+        if with_time:
+            network.set_snapshots(self.snapshots)
+            for component in self.iterate_components():
+                setattr(network, component.typ.list_name+"_t", component.pnl.copy())
+
+        #catch all remaining attributes of network
+        for attr in ["now","co2_limit","srid"]:
+            setattr(network,attr,getattr(self,attr))
+
+        return network
 
 
     def branches(self):

@@ -1,10 +1,10 @@
-name,control,current_type,obj,sub_network,v_mag_max,v_mag_min,v_nom,x,y,generator
-London,PQ,AC,Bus London,1,,0.0,380.0,0.0,0.0,
-Norwich,PQ,AC,Bus Norwich,1,,0.0,380.0,0.0,0.0,
-Norwich DC,Slack,DC,Bus Norwich DC,0,,0.0,200.0,0.0,0.0,
-Manchester,Slack,AC,Bus Manchester,1,,0.0,380.0,0.0,0.0,Manchester Wind
-Bremen,PQ,AC,Bus Bremen,3,,0.0,380.0,0.0,0.0,
-Bremen DC,PQ,DC,Bus Bremen DC,0,,0.0,200.0,0.0,0.0,
-Frankfurt,Slack,AC,Bus Frankfurt,3,,0.0,380.0,0.0,0.0,Frankfurt Wind
-Norway,Slack,AC,Bus Norway,2,,0.0,380.0,0.0,0.0,Norway Wind
-Norway DC,PQ,DC,Bus Norway DC,0,,0.0,200.0,0.0,0.0,
+name,control,current_type,obj,sub_network,v_mag_pu_max,v_mag_pu_min,v_nom,x,y,generator
+London,PQ,AC,Bus London,0,,0.0,380.0,-0.13,51.5,
+Norwich,PQ,AC,Bus Norwich,0,,0.0,380.0,1.3,52.6,
+Norwich DC,Slack,DC,Bus Norwich DC,1,,0.0,200.0,1.3,52.5,
+Manchester,Slack,AC,Bus Manchester,0,,0.0,380.0,-2.2,53.47,Manchester Wind
+Bremen,PQ,AC,Bus Bremen,2,,0.0,380.0,8.8,53.08,
+Bremen DC,PQ,DC,Bus Bremen DC,1,,0.0,200.0,8.8,52.98,
+Frankfurt,Slack,AC,Bus Frankfurt,2,,0.0,380.0,8.7,50.12,Frankfurt Wind
+Norway,Slack,AC,Bus Norway,3,,0.0,380.0,10.75,60.0,Norway Wind
+Norway DC,PQ,DC,Bus Norway DC,1,,0.0,200.0,10.75,60.0,

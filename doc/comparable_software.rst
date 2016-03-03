@@ -36,6 +36,13 @@ Free software
 
 `Mosaik-PYPOWER <https://bitbucket.org/mosaik/mosaik-pypower>`_
 
+`OpenDSS <http://sourceforge.net/projects/electricdss/>`_
+
+`MatDyn <http://www.esat.kuleuven.be/electa/teaching/matdyn/>`_
+
+`GridLAB-D <http://sourceforge.net/projects/gridlab-d/>`_
+
+`PyCIM <http://www.pycim.org>`_
 
 PYPOWER
 -------
