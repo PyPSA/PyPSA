@@ -140,7 +140,7 @@ Mailing list
 ============
 
 PyPSA has a Google Group `forum / mailing list
-<https://groups.google.com/group/pypower>`_.
+<https://groups.google.com/group/pypsa>`_.
 
 
 Licence
