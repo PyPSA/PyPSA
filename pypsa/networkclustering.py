@@ -374,14 +374,15 @@ def busmap_by_stubs(network):
             break
     return busmap
 
-def stubs_clustering(network):
+def stubs_clustering(network,use_reduced_coordinates=True):
     """Cluster network by reducing stubs and stubby trees
     (i.e. sequentially reducing dead-ends).
 
     Parameters
     ----------
     network : pypsa.Network
-
+    use_reduced_coordinates : boolean
+        If True, do not average clusters, but take from busmap.
 
     Returns
     -------
@@ -390,4 +391,9 @@ def stubs_clustering(network):
     """
 
     busmap = busmap_by_stubs(network)
+
+    #reset coordinates to the new reduced guys, rather than taking an average
+    if use_reduced_coordinates:
+        network.buses.loc[busmap.index,['x','y']] = network.buses.loc[busmap,['x','y']].values
+
     return get_clustering_from_busmap(network, busmap)

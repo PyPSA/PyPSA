@@ -134,6 +134,15 @@ software Gurobi).
 The time-expensive calculations, such as solving sparse linear
 equations, are carried out using the scipy.sparse libraries.
 
+
+
+Mailing list
+============
+
+PyPSA has a Google Group `forum / mailing list
+<https://groups.google.com/group/pypower>`_.
+
+
 Licence
 ==========
 

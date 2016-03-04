@@ -13,18 +13,19 @@ for Windows, Mac OS X and GNU/Linux.
 
 
 For those rolling their own on unix-like systems (GNU/Linux, Mac OS X)
-it's always helpful to use a virtual environment for your python
-installation and even better with a `burrito
-<https://github.com/brainsik/virtualenv-burrito>`_, in case you
+it's always helpful to use a `virtual environment
+<https://pypi.python.org/pypi/virtualenv>`_ for your python
+installation (and even easier to use with a `virtualenv-burrito
+<https://github.com/brainsik/virtualenv-burrito>`_), in case you
 accidentally trash something.
 
 
 
-Getting a solver for OPF
-========================
+Getting a solver for linear optimisation
+========================================
 
-PyPSA is known to work with GLPK and Gurobi (and whatever else Pyomo
-works with).
+PyPSA is known to work with the free software GLPK and the non-free
+software Gurobi (and whatever else Pyomo works with).
 
 For Debian-based systems you can get GLPK with::
 
@@ -34,7 +35,6 @@ and there are similar packages for other GNU/Linux distributions.
 
 For Windows there is `WinGLPK <http://winglpk.sourceforge.net/>`_. For
 Mac OS X `brew <http://brew.sh/>`_ is your friend.
-
 
 
 
