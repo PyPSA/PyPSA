@@ -228,7 +228,7 @@ try:
     # available using pip as scikit-learn
     from sklearn.cluster import KMeans
 
-    def busmap_by_kmeans(network, bus_weightings, n_clusters):
+    def busmap_by_kmeans(network, bus_weightings, n_clusters, ** kwargs):
         """
         Create a bus map from the clustering of buses in space with a
         weighting.
@@ -241,6 +241,8 @@ try:
             Series of integer weights for buses, indexed by bus names.
         n_clusters : int
             Final number of clusters desired.
+        kwargs
+            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
 
         Returns
         -------
@@ -249,12 +251,13 @@ try:
             non-negative integers).
         """
 
-        # since one cannot weight points directly in k-means, just add
-        # additional points at same position
+        # since one cannot weight points directly in the scikit-learn
+        # implementation of k-means, just add additional points at
+        # same position
         points = (network.buses[["x","y"]].values
                   .repeat(bus_weightings.reindex(network.buses.index).astype(int), axis=0))
 
-        kmeans = KMeans(init='k-means++', n_clusters=n_clusters)
+        kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
 
         kmeans.fit(points)
 
@@ -265,7 +268,7 @@ try:
 
         return busmap
 
-    def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0):
+    def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0, ** kwargs):
         """
         Cluster then network according to k-means clustering of the
         buses.
@@ -287,6 +290,8 @@ try:
         line_length_factor : float
             Factor to multiply the crow-flies distance between new buses in order to get new
             line lengths.
+        kwargs
+            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
 
 
         Returns
@@ -295,7 +300,7 @@ try:
             A named tuple containing network, busmap and linemap
         """
 
-        busmap = busmap_by_kmeans(network, bus_weightings, n_clusters)
+        busmap = busmap_by_kmeans(network, bus_weightings, n_clusters, ** kwargs)
         return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
 except ImportError:
@@ -374,7 +379,7 @@ def busmap_by_stubs(network):
             break
     return busmap
 
-def stubs_clustering(network,use_reduced_coordinates=True):
+def stubs_clustering(network,use_reduced_coordinates=True, line_length_factor=1.0):
     """Cluster network by reducing stubs and stubby trees
     (i.e. sequentially reducing dead-ends).
 
@@ -383,6 +388,9 @@ def stubs_clustering(network,use_reduced_coordinates=True):
     network : pypsa.Network
     use_reduced_coordinates : boolean
         If True, do not average clusters, but take from busmap.
+    line_length_factor : float
+        Factor to multiply the crow-flies distance between new buses in order to get new
+        line lengths.
 
     Returns
     -------
@@ -396,4 +404,4 @@ def stubs_clustering(network,use_reduced_coordinates=True):
     if use_reduced_coordinates:
         network.buses.loc[busmap.index,['x','y']] = network.buses.loc[busmap,['x','y']].values
 
-    return get_clustering_from_busmap(network, busmap)
+    return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)

@@ -15,7 +15,7 @@ Power: MW/MVA/MVar (unless per unit of nominal power,
 e.g. generator.p_max_pu for variable generators is per unit of
 generator.p_nom)
 
-Voltage: kV phase-phase for bus.v_nom; per unit for v_mag, v_mag_set, v_mag_min etc.
+Voltage: kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc.
 
 Angles: radians, except transformer.phase_shift which is in degrees for easy input
 

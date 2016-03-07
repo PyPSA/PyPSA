@@ -50,7 +50,7 @@ PyPSA can calculate:
   network constraints, using the linear network equations)
 * total electricity system optimisation (using linear network
   equations, over several snapshots simultaneously for optimisation of
-  generation and storage dispatch and the capacities of generation,
+  generation and storage dispatch and investment in the capacities of generation,
   storage and transmission)
 
 It has models for:

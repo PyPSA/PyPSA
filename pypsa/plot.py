@@ -119,7 +119,7 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
         line_nums = pd.Series(line_colors,index=network.lines.index)
         line_colors = pd.DataFrame(line_cmap(line_nums.values),index=network.lines.index)
 
-    #should probably use LineCollection here instead
+    #should probably use LineCollection here instead - cf. networkx implementation
     for line in network.lines.obj:
         bus0 = network.buses.obj[line.bus0]
         bus1 = network.buses.obj[line.bus1]

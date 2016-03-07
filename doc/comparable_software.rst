@@ -44,6 +44,8 @@ Free software
 
 `PyCIM <http://www.pycim.org>`_
 
+`vSPD <https://github.com/ElectricityAuthority/vSPD>`_ - Vectorised Scheduling, Pricing and Dispatch (vSPD) - an audited, mathematical replica of SPD, the pricing and dispatch engine used in the New Zealand electricity market.
+
 PYPOWER
 -------
 

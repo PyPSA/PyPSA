@@ -110,7 +110,7 @@ No GUI: Use Jupyter notebooks
 
 PyPSA has no Graphical User Interface (GUI). However it has features
 for plotting time series and networks (e.g. ``network.plot()``), which
-works especially well in combination with ``Jupyter notebooks
+works especially well in combination with `Jupyter notebooks
 <http://jupyter.org/>`_.
 
 Internal use of per unit
@@ -136,7 +136,8 @@ Pyomo for the optimisation framework
 ====================================
 
 To enable portability between solvers, the OPF is formulated using the
-Python package `pyomo <http://www.pyomo.org/>`_ (which can be thought
-of as a Python version of `GAMS <http://www.gams.de/>`_).
+Python optimisation modelling package `pyomo <http://www.pyomo.org/>`_
+(which can be thought of as a Python version of `GAMS
+<http://www.gams.de/>`_).
 
 Pyomo also has useful features such as index sets, etc.
