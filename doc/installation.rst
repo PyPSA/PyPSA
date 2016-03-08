@@ -93,3 +93,21 @@ your python path with e.g.::
     sys.path.append("path/to/PyPSA")
 
     import pypsa
+
+Upgrade all packages to the latest versions
+===========================================
+
+PyPSA is only tested with the latest stable versions of all the
+dependent packages (pandas, networkx, etc.). Therefore it is very
+important that you upgrade these packages; otherwise
+PyPSA may not work.
+
+To upgrade a package such as ``pandas`` with pip, do at the command line::
+
+    pip install -U pandas
+
+
+
+In Anaconda the `user manual <http://conda.pydata.org/docs/using/pkgs.html>`_ suggests to upgrade packages with::
+
+    conda update pandas

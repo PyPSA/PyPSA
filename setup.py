@@ -19,7 +19,7 @@ setup(
     url='https://github.com/FRESNA/PyPSA',
     license='GPLv3',
     packages=find_packages(exclude=['doc', 'test']),
-    install_requires=['numpy','pyomo','scipy','pandas','networkx>=1.10'],
+    install_requires=['numpy','pyomo','scipy','pandas>=0.17.1','networkx>=1.10'],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
