@@ -33,6 +33,64 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
+class LExpression(object):
+    """Affine expression of optimisation variables.
+
+    Affine expression of the form:
+
+    constant + coeff1*var1 + coeff2*var2 + ....
+
+    Parameters
+    ----------
+    variables : list of tuples of coefficients and variables
+        e.g. [(coeff1,var1),(coeff2,var2),...]
+    constant : float
+
+    """
+
+    def __init__(self,variables=None,constant=0.):
+
+        if variables is None:
+            self.variables = []
+        else:
+            self.variables = variables
+
+        self.constant = constant
+
+    def __repr__(self):
+        return "{} + {}".format(self.variables, self.constant)
+
+
+
+class LConstraint(object):
+    """Constraint of optimisation variables.
+
+    Linear constraint of the form:
+
+    coeff1*var1 + coeff2*var2 + .... sense constant
+
+    Parameters
+    ----------
+    variables : list of tuples of coefficients and variables
+        e.g. [(coeff1,var1),(coeff2,var2),...]
+    sense : string
+        Must be one of "==","<=",">="
+    constant : float
+
+    """
+
+    def __init__(self,variables=None,sense="==",constant=0.):
+
+        if variables is None:
+            self.variables = []
+        else:
+            self.variables = variables
+
+        self.sense = sense
+        self.constant = constant
+
+    def __repr__(self):
+        return "{} + {}".format(self.variables, self.constant)
 
 
 def l_constraint(model,name,constraints,*args):
@@ -74,22 +132,31 @@ def l_constraint(model,name,constraints,*args):
     v = getattr(model,name)
     for i in v._index:
         c = constraints[i]
+        if type(c) is LConstraint:
+            variables = c.variables
+            sense = c.sense
+            constant = c.constant
+        else:
+            variables = c[0]
+            sense = c[1]
+            constant = c[2]
+
         v._data[i] = pyomo.core.base.constraint._GeneralConstraintData(None,v)
         v._data[i]._body = pyomo.core.base.expr_coopr3._SumExpression()
-        v._data[i]._body._args = [item[1] for item in c[0]]
-        v._data[i]._body._coef = [item[0] for item in c[0]]
+        v._data[i]._body._args = [item[1] for item in variables]
+        v._data[i]._body._coef = [item[0] for item in variables]
         v._data[i]._body._const = 0.
-        if c[1] == "==":
+        if sense == "==":
             v._data[i]._equality = True
-            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(c[2])
-            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(c[2])
-        elif c[1] == "<=":
+            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
+            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant)
+        elif sense == "<=":
             v._data[i]._equality = False
             v._data[i]._lower = None
-            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(c[2])
-        elif c[1] == ">=":
+            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant)
+        elif sense == ">=":
             v._data[i]._equality = False
-            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(c[2])
+            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
             v._data[i]._upper = None
 
 

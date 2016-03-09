@@ -34,14 +34,18 @@ from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Const
 
 from pyomo.opt import SolverFactory
 
-from .pf import calculate_dependent_values, find_slack_bus
+from .pf import calculate_dependent_values, find_slack_bus, find_bus_controls, calculate_B_H, calculate_PTDF, find_tree, find_cycles
 
-from .opt import l_constraint, l_objective
+from .opt import l_constraint, l_objective, LExpression, LConstraint
 
 from itertools import chain
 from distutils.version import StrictVersion
 
 import pandas as pd
+
+from scipy.sparse.linalg import spsolve
+
+
 
 #this function is necessary because pyomo doesn't deal with NaNs gracefully
 def replace_nan_with_none(val):
@@ -311,14 +315,73 @@ def define_passive_branch_flows(network,snapshots):
         y = 1/passive_branches[attribute][branch]
 
         for sn in snapshots:
-            network._flow[bt,bn,sn] = [(y,network.model.voltage_angles[bus0,sn]),(-y,network.model.voltage_angles[bus1,sn])]
+            network._flow[bt,bn,sn] = LExpression([(y,network.model.voltage_angles[bus0,sn]),(-y,network.model.voltage_angles[bus1,sn])])
 
 
-def define_passive_branch_flows_with_PTDF(network,snapshots):
-    pass
+def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
+
+    network._flow = {}
+
+    for sub_network in network.sub_networks.obj:
+        find_bus_controls(sub_network,verbose=False)
+
+        branches = sub_network.branches()
+        if len(branches) > 0:
+            calculate_B_H(sub_network,verbose=False)
+            calculate_PTDF(sub_network,verbose=False)
+
+            #kill small PTDF values
+            sub_network.PTDF[abs(sub_network.PTDF) < ptdf_tolerance] = 0
+
+        for i,branch in enumerate(branches.index):
+            bt = branch[0]
+            bn = branch[1]
+
+            for sn in snapshots:
+                expr = LExpression()
+                expr.variables = [(sub_network.PTDF[i,j]*item[0],item[1]) for j,bus in enumerate(sub_network.buses_o.index) if sub_network.PTDF[i,j] != 0 for item in network._p_balance[bus,sn].variables]
+                expr.constant = sum(sub_network.PTDF[i,j]*network._p_balance[bus,sn].constant for j,bus in enumerate(sub_network.buses_o.index) if sub_network.PTDF[i,j] != 0)
+                network._flow[bt,bn,sn] = expr
+
 
 def define_passive_branch_flows_with_cycles(network,snapshots):
-    pass
+
+    for sub_network in network.sub_networks.obj:
+        find_tree(sub_network)
+        find_cycles(sub_network)
+
+        #following is necessary to calculate angles post-facto
+        find_bus_controls(sub_network,verbose=False)
+        if len(sub_network.branches) > 0:
+            calculate_B_H(sub_network,verbose=False)
+
+
+    network.cycles = [(sub_network.name,i) for sub_network in network.sub_networks.obj for i in range(len(sub_network.cycles))]
+
+
+    network.model.cycles = Var(network.cycles,snapshots,domain=Reals, bounds=(None,None))
+
+    passive_branches = network.passive_branches
+
+    def flow(model,branch_type,branch_name,snapshot):
+        branch = passive_branches.obj[branch_type,branch_name]
+
+        return sum(network.model.cycles[sn_name,i,snapshot]*sign for sn_name,i,sign in branch.cycles)\
+    + sum(network.model.power_balance[bus_name,snapshot]*branch.tree_sign for bus_name in branch.tree_buses)
+
+
+    network.model.flow = Expression(list(passive_branches.index),snapshots,rule=flow)
+
+    def cycle_constraint(model,sn_name,cycle_i,snapshot):
+        sn = network.sub_networks.obj[sn_name]
+        cycle_branches = sn.cycle_branches[cycle_i]
+        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
+        return sum(getattr(branch,attribute)*network.model.flow[branch.__class__.__name__,branch.name,snapshot]*sign for branch,sign in cycle_branches) == 0
+
+
+    network.model.cycle_constraints = Constraint(network.cycles,snapshots,rule=cycle_constraint)
+
+
 
 def define_passive_branch_constraints(network,snapshots):
 
@@ -329,15 +392,15 @@ def define_passive_branch_constraints(network,snapshots):
 
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
-    flow_upper = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:],"<=",fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
+    flow_upper = {(b[0],b[1],sn) : [network._flow[b[0],b[1],sn].variables[:],"<=",fixed_branches.s_nom[b] - network._flow[b[0],b[1],sn].constant] for b in fixed_branches.index for sn in snapshots}
 
-    flow_upper.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:] + [(-1,network.model.branch_s_nom[b[0],b[1]])],"<=",0.] for b in extendable_branches.index for sn in snapshots})
+    flow_upper.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:] + [(-1,network.model.branch_s_nom[b[0],b[1]])],"<=",- network._flow[b[0],b[1],sn].constant] for b in extendable_branches.index for sn in snapshots})
 
     l_constraint(network.model,"flow_upper",flow_upper,list(passive_branches.index),snapshots)
 
-    flow_lower = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:],">=",-fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
+    flow_lower = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:],">=",-fixed_branches.s_nom[b] - network._flow[b[0],b[1],sn].constant] for b in fixed_branches.index for sn in snapshots}
 
-    flow_lower.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)][:] + [(1,network.model.branch_s_nom[b[0],b[1]])],">=",0.] for b in extendable_branches.index for sn in snapshots})
+    flow_lower.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:] + [(1,network.model.branch_s_nom[b[0],b[1]])],">=",- network._flow[b[0],b[1],sn].constant] for b in extendable_branches.index for sn in snapshots})
 
     l_constraint(network.model,"flow_lower",flow_lower,list(passive_branches.index),snapshots)
 
@@ -351,7 +414,7 @@ def define_nodal_balances(network,snapshots):
     controllable_branches = network.controllable_branches()
 
     #dictionary for constraints
-    network._p_balance = {(bus,sn) : [[],"==",0.] for bus in network.buses.index for sn in snapshots}
+    network._p_balance = {(bus,sn) : LExpression() for bus in network.buses.index for sn in snapshots}
 
     for cb in controllable_branches.index:
         bus0 = controllable_branches.bus0[cb]
@@ -359,28 +422,28 @@ def define_nodal_balances(network,snapshots):
         ct = cb[0]
         cn = cb[1]
         for sn in snapshots:
-            network._p_balance[(bus0,sn)][0].append((-1,network.model.controllable_branch_p[ct,cn,sn]))
-            network._p_balance[(bus1,sn)][0].append((1,network.model.controllable_branch_p[ct,cn,sn]))
+            network._p_balance[bus0,sn].variables.append((-1,network.model.controllable_branch_p[ct,cn,sn]))
+            network._p_balance[bus1,sn].variables.append((1,network.model.controllable_branch_p[ct,cn,sn]))
 
 
     for gen in network.generators.index:
         bus = network.generators.bus[gen]
         sign = network.generators.sign[gen]
         for sn in snapshots:
-            network._p_balance[(bus,sn)][0].append((sign,network.model.generator_p[gen,sn]))
+            network._p_balance[bus,sn].variables.append((sign,network.model.generator_p[gen,sn]))
 
     for load in network.loads.index:
         bus = network.loads.bus[load]
         sign = network.loads.sign[load]
         for sn in snapshots:
-            network._p_balance[(bus,sn)][2] -= sign*network.loads_t.at["p_set",sn,load]
+            network._p_balance[bus,sn].constant += sign*network.loads_t.at["p_set",sn,load]
 
     for su in network.storage_units.index:
         bus = network.storage_units.bus[su]
         sign = network.storage_units.sign[su]
         for sn in snapshots:
-            network._p_balance[(bus,sn)][0].append((sign,network.model.storage_p_dispatch[su,sn]))
-            network._p_balance[(bus,sn)][0].append((-sign,network.model.storage_p_store[su,sn]))
+            network._p_balance[bus,sn].variables.append((sign,network.model.storage_p_dispatch[su,sn]))
+            network._p_balance[bus,sn].variables.append((-sign,network.model.storage_p_store[su,sn]))
 
 
 def define_nodal_balance_constraints(network,snapshots):
@@ -394,14 +457,25 @@ def define_nodal_balance_constraints(network,snapshots):
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:
-            network._p_balance[(bus0,sn)][0].extend([(-1.*item[0],item[1]) for item in network._flow[(bt,bn,sn)]])
-            network._p_balance[(bus1,sn)][0].extend(network._flow[(bt,bn,sn)][:])
+            network._p_balance[bus0,sn].variables.extend([(-1.*item[0],item[1]) for item in network._flow[bt,bn,sn].variables])
+            network._p_balance[bus1,sn].variables.extend(network._flow[bt,bn,sn].variables[:])
 
-    l_constraint(network.model,"power_balance",network._p_balance,network.buses.index,snapshots)
+    l_constraint(network.model,"power_balance",
+                 {k: [v.variables,"==",-v.constant] for k,v in iteritems(network._p_balance)},network.buses.index,snapshots)
 
 
 def define_sub_network_balance_constraints(network,snapshots):
-    pass
+
+    sn_balance = {}
+
+    for sub_network in network.sub_networks.obj:
+        for sn in snapshots:
+            sn_balance[sub_network.name,sn] = LConstraint(sense="==")
+            for bus in sub_network.buses().index:
+                sn_balance[sub_network.name,sn].variables.extend(network._p_balance[bus,sn].variables)
+                sn_balance[sub_network.name,sn].constant -= network._p_balance[bus,sn].constant
+
+    l_constraint(network.model,"sub_network_balance_constraint", sn_balance, network.sub_networks.index, snapshots)
 
 
 def define_co2_constraint(network,snapshots):
@@ -490,12 +564,6 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
         network.loads_t["p"].loc[snapshots] = network.loads_t["p_set"].loc[snapshots]
 
     if len(network.buses):
-        set_from_series(network.buses_t.v_ang,
-                        as_series(model.voltage_angles))
-
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="AC"] = 1.
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
-
         network.buses_t.p.loc[snapshots] = \
             pd.concat({t.name:
                        t.pnl.p.loc[snapshots].multiply(t.df.sign, axis=1)
@@ -504,10 +572,6 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
               .sum(level=1) \
               .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
 
-        set_from_series(network.buses_t.marginal_price,
-                        pd.Series(list(model.power_balance.values()),
-                                  index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
-                        .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
 
     # active branches
     controllable_branches = as_series(model.controllable_branch_p)
@@ -517,6 +581,28 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
 
         network.buses_t.p.loc[snapshots] -= t.pnl.p0.loc[snapshots].groupby(t.df.bus0, axis=1).sum().reindex(columns=network.buses_t.p.columns, fill_value=0.)
         network.buses_t.p.loc[snapshots] -= t.pnl.p1.loc[snapshots].groupby(t.df.bus1, axis=1).sum().reindex(columns=network.buses_t.p.columns, fill_value=0.)
+
+
+    if len(network.buses):
+        if formulation == "angles":
+            set_from_series(network.buses_t.v_ang,
+                            as_series(model.voltage_angles))
+            set_from_series(network.buses_t.marginal_price,
+                            pd.Series(list(model.power_balance.values()),
+                                      index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
+                            .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
+
+        elif formulation in ["ptdf","cycles"]:
+
+            for sn in network.sub_networks.obj:
+                network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
+                if len(sn.pvpqs) > 0:
+                    network.buses_t.v_ang.loc[snapshots,sn.pvpqs.index] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs.index].T).T
+
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="AC"] = 1.
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
+
+
 
     # passive branches
     def get_v_angs(buses):
@@ -550,7 +636,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles"):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -574,6 +660,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
         Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be one of "angles" or "cycles" or "ptdf"
+    ptdf_tolerance : float
+        Value below which PTDF entries are ignored
 
     Returns
     -------
@@ -608,7 +696,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     if formulation == "angles":
         define_passive_branch_flows(network,snapshots)
     elif formulation == "ptdf":
-        define_passive_branch_flows_with_PTDF(network,snapshots)
+        define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance)
     elif formulation == "cycles":
         define_passive_branch_flows_with_cycles(network,snapshots)
 

@@ -34,6 +34,7 @@ from scipy.sparse.linalg import spsolve
 
 import numpy as np
 import pandas as pd
+import networkx as nx
 
 from itertools import chain
 
@@ -666,6 +667,95 @@ averaged).
     if verbose:
         print("Removed %d excess lines from sub-network %s and replaced with aggregated lines" % (count,sub_network.name))
 
+
+
+
+def find_tree(sub_network,verbose=True):
+    """Get the spanning tree of the graph, choose the node with the
+    highest degree as a central "tree slack" and then see for each
+    branch which paths from the slack to each node go through the
+    branch.
+
+    """
+
+    branches = sub_network.branches()
+    buses = sub_network.buses()
+
+    sub_network.tree = nx.minimum_spanning_tree(sub_network.graph)
+
+    #find bus with highest degree to use as slack
+
+    tree_slack_bus = None
+    slack_degree = -1
+
+    for bus,degree in sub_network.tree.degree_iter():
+        if degree > slack_degree:
+            tree_slack_bus = bus
+            slack_degree = degree
+
+    if verbose:
+        print("Tree slack bus is %s with degree %d." % (tree_slack_bus,slack_degree))
+
+
+    #determine which buses are supplied in tree through branch from slack
+
+    for branch in branches.obj:
+        branch.tree_buses = []
+        branch.tree_sign = None
+
+    for bus in buses.index:
+        path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
+        for i in range(len(path)-1):
+            branch = sub_network.graph[path[i]][path[i+1]].keys()[0]
+            if branch.bus0 == path[i]:
+                sign = +1
+            else:
+                sign = -1
+
+            branch.tree_buses.append(bus)
+            if len(branch.tree_buses) == 1:
+                branch.tree_sign = sign
+            else:
+                if sign != branch.tree_sign:
+                    print("Error, tree graph is not signing correctly!")
+
+
+
+def find_cycles(sub_network,verbose=True):
+    """Find all cycles in the network and record on the branches which cycles contain the branches."""
+
+    network = sub_network.network
+    branches = sub_network.branches()
+    buses = sub_network.buses()
+
+
+    for branch in branches.obj:
+        branch.cycles = []
+
+    #reduce to a non-multi-graph
+    graph = nx.OrderedGraph(sub_network.graph)
+
+    sub_network.cycles = nx.cycle_basis(graph)
+
+    if verbose:
+        print("Sub-network %s has %d cycles." % (sub_network.name,len(sub_network.cycles)))
+
+
+    sub_network.cycle_branches = []
+
+    for j,cycle in enumerate(sub_network.cycles):
+        cycle_branches = []
+        for i in range(len(cycle)):
+            branch = network.graph[cycle[i]][cycle[(i+1)%len(cycle)]].keys()[0]
+            if branch.bus0 == cycle[i]:
+                sign = +1
+            else:
+                sign = -1
+
+            branch.cycles.append((sub_network.name,j,sign))
+            cycle_branches.append((branch,sign))
+
+        sub_network.cycle_branches.append(cycle_branches)
 
 
 def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False, now=None):
