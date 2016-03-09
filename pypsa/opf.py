@@ -314,6 +314,11 @@ def define_passive_branch_flows(network,snapshots):
             network._flow[bt,bn,sn] = [(y,network.model.voltage_angles[bus0,sn]),(-y,network.model.voltage_angles[bus1,sn])]
 
 
+def define_passive_branch_flows_with_PTDF(network,snapshots):
+    pass
+
+def define_passive_branch_flows_with_cycles(network,snapshots):
+    pass
 
 def define_passive_branch_constraints(network,snapshots):
 
@@ -336,15 +341,51 @@ def define_passive_branch_constraints(network,snapshots):
 
     l_constraint(network.model,"flow_lower",flow_lower,list(passive_branches.index),snapshots)
 
-
-
 def define_nodal_balances(network,snapshots):
+    """Construct the nodal balance for all elements except the passive
+    branches.
 
-    passive_branches = network.passive_branches()
+    Store the nodal balance expression in network._p_balance.
+    """
+
     controllable_branches = network.controllable_branches()
 
     #dictionary for constraints
-    p_balance = {(bus,sn) : [[],"==",0.] for bus in network.buses.index for sn in snapshots}
+    network._p_balance = {(bus,sn) : [[],"==",0.] for bus in network.buses.index for sn in snapshots}
+
+    for cb in controllable_branches.index:
+        bus0 = controllable_branches.bus0[cb]
+        bus1 = controllable_branches.bus1[cb]
+        ct = cb[0]
+        cn = cb[1]
+        for sn in snapshots:
+            network._p_balance[(bus0,sn)][0].append((-1,network.model.controllable_branch_p[ct,cn,sn]))
+            network._p_balance[(bus1,sn)][0].append((1,network.model.controllable_branch_p[ct,cn,sn]))
+
+
+    for gen in network.generators.index:
+        bus = network.generators.bus[gen]
+        sign = network.generators.sign[gen]
+        for sn in snapshots:
+            network._p_balance[(bus,sn)][0].append((sign,network.model.generator_p[gen,sn]))
+
+    for load in network.loads.index:
+        bus = network.loads.bus[load]
+        sign = network.loads.sign[load]
+        for sn in snapshots:
+            network._p_balance[(bus,sn)][2] -= sign*network.loads_t.at["p_set",sn,load]
+
+    for su in network.storage_units.index:
+        bus = network.storage_units.bus[su]
+        sign = network.storage_units.sign[su]
+        for sn in snapshots:
+            network._p_balance[(bus,sn)][0].append((sign,network.model.storage_p_dispatch[su,sn]))
+            network._p_balance[(bus,sn)][0].append((-sign,network.model.storage_p_store[su,sn]))
+
+
+def define_nodal_balance_constraints(network,snapshots):
+
+    passive_branches = network.passive_branches()
 
 
     for branch in passive_branches.index:
@@ -353,39 +394,14 @@ def define_nodal_balances(network,snapshots):
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:
-            p_balance[(bus0,sn)][0].extend([(-1.*item[0],item[1]) for item in network._flow[(bt,bn,sn)]])
-            p_balance[(bus1,sn)][0].extend(network._flow[(bt,bn,sn)][:])
+            network._p_balance[(bus0,sn)][0].extend([(-1.*item[0],item[1]) for item in network._flow[(bt,bn,sn)]])
+            network._p_balance[(bus1,sn)][0].extend(network._flow[(bt,bn,sn)][:])
 
-    for cb in controllable_branches.index:
-        bus0 = controllable_branches.bus0[cb]
-        bus1 = controllable_branches.bus1[cb]
-        ct = cb[0]
-        cn = cb[1]
-        for sn in snapshots:
-            p_balance[(bus0,sn)][0].append((-1,network.model.controllable_branch_p[ct,cn,sn]))
-            p_balance[(bus1,sn)][0].append((1,network.model.controllable_branch_p[ct,cn,sn]))
+    l_constraint(network.model,"power_balance",network._p_balance,network.buses.index,snapshots)
 
 
-    for gen in network.generators.index:
-        bus = network.generators.bus[gen]
-        sign = network.generators.sign[gen]
-        for sn in snapshots:
-            p_balance[(bus,sn)][0].append((sign,network.model.generator_p[gen,sn]))
-
-    for load in network.loads.index:
-        bus = network.loads.bus[load]
-        sign = network.loads.sign[load]
-        for sn in snapshots:
-            p_balance[(bus,sn)][2] -= sign*network.loads_t.at["p_set",sn,load]
-
-    for su in network.storage_units.index:
-        bus = network.storage_units.bus[su]
-        sign = network.storage_units.sign[su]
-        for sn in snapshots:
-            p_balance[(bus,sn)][0].append((sign,network.model.storage_p_dispatch[su,sn]))
-            p_balance[(bus,sn)][0].append((-sign,network.model.storage_p_store[su,sn]))
-
-    l_constraint(network.model,"power_balance",p_balance,network.buses.index,snapshots)
+def define_sub_network_balance_constraints(network,snapshots):
+    pass
 
 
 def define_co2_constraint(network,snapshots):
@@ -433,7 +449,8 @@ def define_linear_objective(network,snapshots):
     l_objective(model,terms,constant)
 
 
-def extract_optimisation_results(network,snapshots):
+def extract_optimisation_results(network,snapshots,formulation="angles"):
+
     from .components import \
         controllable_branch_types, passive_branch_types, branch_types, \
         controllable_one_port_types
@@ -533,7 +550,7 @@ def extract_optimisation_results(network,snapshots):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles"):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -555,6 +572,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
+    formulation : string
+        Formulation of the linear power flow equations to use; must be one of "angles" or "cycles" or "ptdf"
 
     Returns
     -------
@@ -584,11 +603,21 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
     define_controllable_branch_flows(network,snapshots)
 
-    define_passive_branch_flows(network,snapshots)
+    define_nodal_balances(network,snapshots)
+
+    if formulation == "angles":
+        define_passive_branch_flows(network,snapshots)
+    elif formulation == "ptdf":
+        define_passive_branch_flows_with_PTDF(network,snapshots)
+    elif formulation == "cycles":
+        define_passive_branch_flows_with_cycles(network,snapshots)
 
     define_passive_branch_constraints(network,snapshots)
 
-    define_nodal_balances(network,snapshots)
+    if formulation == "angles":
+        define_nodal_balance_constraints(network,snapshots)
+    elif formulation in ["ptdf","cycles"]:
+        define_sub_network_balance_constraints(network,snapshots)
 
     if network.co2_limit is not None:
         define_co2_constraint(network,snapshots)
@@ -602,6 +631,11 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
         extra_functionality(network,snapshots)
 
 
+    #tidy up auxilliary expressions
+    del network._flow
+    del network._p_balance
+
+
     opt = SolverFactory(solver_name)
 
     network.results = opt.solve(network.model,suffixes=["dual"],keepfiles=keep_files,options=solver_options)
@@ -613,6 +647,6 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     termination_condition = network.results["Solver"][0]["Termination condition"].key
 
     if status == "ok" and termination_condition == "optimal":
-        extract_optimisation_results(network,snapshots)
+        extract_optimisation_results(network,snapshots,formulation)
     else:
         print("Optimisation failed with status %s and terminal condition %s" % (status,termination_condition))
