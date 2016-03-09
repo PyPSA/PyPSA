@@ -566,7 +566,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
         network.determine_network_topology()
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:
-            find_slack_bus(sub_network)
+            find_slack_bus(sub_network, verbose=verbose)
 
 
     if snapshots is None:
