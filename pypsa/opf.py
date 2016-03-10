@@ -338,10 +338,7 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
             bn = branch[1]
 
             for sn in snapshots:
-                expr = LExpression()
-                expr.variables = [(sub_network.PTDF[i,j]*item[0],item[1]) for j,bus in enumerate(sub_network.buses_o.index) if sub_network.PTDF[i,j] != 0 for item in network._p_balance[bus,sn].variables]
-                expr.constant = sum(sub_network.PTDF[i,j]*network._p_balance[bus,sn].constant for j,bus in enumerate(sub_network.buses_o.index) if sub_network.PTDF[i,j] != 0)
-                network._flow[bt,bn,sn] = expr
+                network._flow[bt,bn,sn] = sum(sub_network.PTDF[i,j]*network._p_balance[bus,sn] for j,bus in enumerate(sub_network.buses_o.index) if sub_network.PTDF[i,j] != 0)
 
 
 def define_passive_branch_flows_with_cycles(network,snapshots):
@@ -371,15 +368,8 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
         bn = branch.name
 
         for snapshot in snapshots:
-
-            expr = LExpression()
-
-            expr.variables = [(sign, network.model.cycles[sn_name,i,snapshot]) for sn_name,i,sign in branch.cycles]
-
-            expr.variables.extend([(branch.tree_sign*item[0],item[1]) for bus_name in branch.tree_buses for item in network._p_balance[bus_name,snapshot].variables])
-            expr.constant = sum(branch.tree_sign*network._p_balance[bus_name,snapshot].constant for bus_name in branch.tree_buses)
-
-            network._flow[bt,bn,snapshot] = expr
+            expr = LExpression([(sign, network.model.cycles[sn_name,i,snapshot]) for sn_name,i,sign in branch.cycles])
+            network._flow[bt,bn,snapshot] = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
 
     cycle_constraints = {}
 
@@ -390,8 +380,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
         for i, cycle_branches in enumerate(sn.cycle_branches):
 
             for snapshot in snapshots:
-                lhs = LExpression(variables=[(getattr(branch,attribute)*sign*item[0],item[1]) for branch,sign in cycle_branches for item in network._flow[branch.__class__.__name__,branch.name,snapshot].variables])
-                lhs.constant = sum(getattr(branch,attribute)*sign*network._flow[branch.__class__.__name__,branch.name,snapshot].constant  for branch,sign in cycle_branches)
+                lhs = sum(getattr(branch,attribute)*sign*network._flow[branch.__class__.__name__,branch.name,snapshot] for branch,sign in cycle_branches)
                 cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs=lhs)
 
     l_constraint(network.model,"cycle_constraints",cycle_constraints,network.cycles,snapshots)
@@ -652,7 +641,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="cycles",ptdf_tolerance=0.):
     """
     Linear optimal power flow for a group of snapshots.
 

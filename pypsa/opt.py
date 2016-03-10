@@ -66,6 +66,38 @@ class LExpression(object):
         return "{} + {}".format(self.variables, self.constant)
 
 
+    def __mul__(self,constant):
+        try:
+            constant = float(constant)
+        except:
+            print("Can only multiply an LExpression with a float!")
+            return None
+        return LExpression([(constant*item[0],item[1]) for item in self.variables],
+                           constant*self.constant)
+
+    def __rmul__(self,constant):
+        return self.__mul__(constant)
+
+    def __add__(self,other):
+        if type(other) is LExpression:
+            return LExpression(self.variables + other.variables,self.constant+other.constant)
+        else:
+            try:
+                constant = float(other)
+            except:
+                print("Can only add an LExpression to another LExpression or a constant!")
+                return None
+            return LExpression(self.variables[:],self.constant+constant)
+
+
+    def __radd__(self,other):
+        return self.__add__(other)
+
+    def __pos__(self):
+        return self
+
+    def __neg__(self):
+        return -1*self
 
 class LConstraint(object):
     """Constraint of optimisation variables.
