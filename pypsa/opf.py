@@ -352,7 +352,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network,verbose=False)
-        if len(sub_network.branches) > 0:
+        if len(sub_network.branches()) > 0:
             calculate_B_H(sub_network,verbose=False)
 
 
@@ -361,25 +361,40 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
     network.model.cycles = Var(network.cycles,snapshots,domain=Reals, bounds=(None,None))
 
-    passive_branches = network.passive_branches
-
-    def flow(model,branch_type,branch_name,snapshot):
-        branch = passive_branches.obj[branch_type,branch_name]
-
-        return sum(network.model.cycles[sn_name,i,snapshot]*sign for sn_name,i,sign in branch.cycles)\
-    + sum(network.model.power_balance[bus_name,snapshot]*branch.tree_sign for bus_name in branch.tree_buses)
+    passive_branches = network.passive_branches()
 
 
-    network.model.flow = Expression(list(passive_branches.index),snapshots,rule=flow)
+    network._flow = {}
 
-    def cycle_constraint(model,sn_name,cycle_i,snapshot):
-        sn = network.sub_networks.obj[sn_name]
-        cycle_branches = sn.cycle_branches[cycle_i]
+    for branch in passive_branches.obj:
+        bt = branch.__class__.__name__
+        bn = branch.name
+
+        for snapshot in snapshots:
+
+            expr = LExpression()
+
+            expr.variables = [(sign, network.model.cycles[sn_name,i,snapshot]) for sn_name,i,sign in branch.cycles]
+
+            expr.variables.extend([(branch.tree_sign*item[0],item[1]) for bus_name in branch.tree_buses for item in network._p_balance[bus_name,snapshot].variables])
+            expr.constant = sum(branch.tree_sign*network._p_balance[bus_name,snapshot].constant for bus_name in branch.tree_buses)
+
+            network._flow[bt,bn,snapshot] = expr
+
+    cycle_constraints = {}
+
+    for sn in network.sub_networks.obj:
+
         attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
-        return sum(getattr(branch,attribute)*network.model.flow[branch.__class__.__name__,branch.name,snapshot]*sign for branch,sign in cycle_branches) == 0
 
+        for i, cycle_branches in enumerate(sn.cycle_branches):
 
-    network.model.cycle_constraints = Constraint(network.cycles,snapshots,rule=cycle_constraint)
+            for snapshot in snapshots:
+                lhs = LExpression(variables=[(getattr(branch,attribute)*sign*item[0],item[1]) for branch,sign in cycle_branches for item in network._flow[branch.__class__.__name__,branch.name,snapshot].variables])
+                lhs.constant = sum(getattr(branch,attribute)*sign*network._flow[branch.__class__.__name__,branch.name,snapshot].constant  for branch,sign in cycle_branches)
+                cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs=lhs)
+
+    l_constraint(network.model,"cycle_constraints",cycle_constraints,network.cycles,snapshots)
 
 
 

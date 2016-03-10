@@ -633,7 +633,7 @@ averaged).
     for u,v in sub_network.graph.edges():
         if (u,v) in seen:
             continue
-        line_objs = sub_network.graph.edge[u][v].keys()
+        line_objs = list(sub_network.graph.edge[u][v].keys())
         if len(line_objs) > 1:
             lines = network.lines.loc[[l.name for l in line_objs]]
             aggregated = {}
@@ -706,7 +706,7 @@ def find_tree(sub_network,verbose=True):
     for bus in buses.index:
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
-            branch = sub_network.graph[path[i]][path[i+1]].keys()[0]
+            branch = list(sub_network.graph[path[i]][path[i+1]].keys())[0]
             if branch.bus0 == path[i]:
                 sign = +1
             else:
@@ -746,7 +746,7 @@ def find_cycles(sub_network,verbose=True):
     for j,cycle in enumerate(sub_network.cycles):
         cycle_branches = []
         for i in range(len(cycle)):
-            branch = network.graph[cycle[i]][cycle[(i+1)%len(cycle)]].keys()[0]
+            branch = list(network.graph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
             if branch.bus0 == cycle[i]:
                 sign = +1
             else:
