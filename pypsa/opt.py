@@ -15,7 +15,12 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Tools to override slow Pyomo problem building.
+"""
+Tools to override slow Pyomo problem building.
+
+Essentially this library replaces Pyomo expressions with more strict
+objects with a pre-defined structure, to avoid Pyomo having to think.
+
 """
 
 # make the code as Python 3 compatible as possible
@@ -67,30 +72,32 @@ class LConstraint(object):
 
     Linear constraint of the form:
 
-    coeff1*var1 + coeff2*var2 + .... sense constant
+    lhs sense rhs
 
     Parameters
     ----------
-    variables : list of tuples of coefficients and variables
-        e.g. [(coeff1,var1),(coeff2,var2),...]
+    lhs : LExpression
     sense : string
-        Must be one of "==","<=",">="
-    constant : float
+    rhs : LExpression
 
     """
 
-    def __init__(self,variables=None,sense="==",constant=0.):
+    def __init__(self,lhs=None,sense="==",rhs=None):
 
-        if variables is None:
-            self.variables = []
+        if lhs is None:
+            self.lhs = LExpression()
         else:
-            self.variables = variables
+            self.lhs = lhs
 
         self.sense = sense
-        self.constant = constant
+
+        if rhs is None:
+            self.rhs = LExpression()
+        else:
+            self.rhs = rhs
 
     def __repr__(self):
-        return "{} + {}".format(self.variables, self.constant)
+        return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
 
 def l_constraint(model,name,constraints,*args):
@@ -133,9 +140,9 @@ def l_constraint(model,name,constraints,*args):
     for i in v._index:
         c = constraints[i]
         if type(c) is LConstraint:
-            variables = c.variables
+            variables = c.lhs.variables + [(-item[0],item[1]) for item in c.rhs.variables]
             sense = c.sense
-            constant = c.constant
+            constant = c.rhs.constant - c.lhs.constant
         else:
             variables = c[0]
             sense = c[1]

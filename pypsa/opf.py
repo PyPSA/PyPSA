@@ -460,8 +460,9 @@ def define_nodal_balance_constraints(network,snapshots):
             network._p_balance[bus0,sn].variables.extend([(-1.*item[0],item[1]) for item in network._flow[bt,bn,sn].variables])
             network._p_balance[bus1,sn].variables.extend(network._flow[bt,bn,sn].variables[:])
 
-    l_constraint(network.model,"power_balance",
-                 {k: [v.variables,"==",-v.constant] for k,v in iteritems(network._p_balance)},network.buses.index,snapshots)
+    power_balance = {k: LConstraint(lhs=v) for k,v in iteritems(network._p_balance)}
+
+    l_constraint(network.model,"power_balance",power_balance,network.buses.index,snapshots)
 
 
 def define_sub_network_balance_constraints(network,snapshots):
@@ -470,10 +471,10 @@ def define_sub_network_balance_constraints(network,snapshots):
 
     for sub_network in network.sub_networks.obj:
         for sn in snapshots:
-            sn_balance[sub_network.name,sn] = LConstraint(sense="==")
+            sn_balance[sub_network.name,sn] = LConstraint()
             for bus in sub_network.buses().index:
-                sn_balance[sub_network.name,sn].variables.extend(network._p_balance[bus,sn].variables)
-                sn_balance[sub_network.name,sn].constant -= network._p_balance[bus,sn].constant
+                sn_balance[sub_network.name,sn].lhs.variables.extend(network._p_balance[bus,sn].variables)
+                sn_balance[sub_network.name,sn].lhs.constant += network._p_balance[bus,sn].constant
 
     l_constraint(network.model,"sub_network_balance_constraint", sn_balance, network.sub_networks.index, snapshots)
 
