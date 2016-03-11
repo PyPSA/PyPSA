@@ -633,7 +633,7 @@ averaged).
     for u,v in sub_network.graph.edges():
         if (u,v) in seen:
             continue
-        line_objs = list(sub_network.graph.edge[u][v].keys())
+        line_objs = list(sub_network.graph.adj[u][v].keys())
         if len(line_objs) > 1:
             lines = network.lines.loc[[l.name for l in line_objs]]
             aggregated = {}
