@@ -361,7 +361,9 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     passive_branches = network.passive_branches()
 
 
-    network._flow = {}
+    network.model.flows = Var(list(passive_branches.index), snapshots)
+
+    flows = {}
 
     for branch in passive_branches.obj:
         bt = branch.__class__.__name__
@@ -369,7 +371,13 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
         for snapshot in snapshots:
             expr = LExpression([(sign, network.model.cycles[sn_name,i,snapshot]) for sn_name,i,sign in branch.cycles])
-            network._flow[bt,bn,snapshot] = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
+            lhs = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
+
+            rhs = LExpression([(1,network.model.flows[bt,bn,snapshot])])
+
+            flows[bt,bn,snapshot] = LConstraint(lhs,"==",rhs)
+
+    l_constraint(network.model,"flow_definitions",flows,list(passive_branches.index),snapshots)
 
     cycle_constraints = {}
 
@@ -380,7 +388,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
         for i, cycle_branches in enumerate(sn.cycle_branches):
 
             for snapshot in snapshots:
-                lhs = sum(getattr(branch,attribute)*sign*network._flow[branch.__class__.__name__,branch.name,snapshot] for branch,sign in cycle_branches)
+                lhs = LExpression([(getattr(branch,attribute)*sign,network.model.flows[branch.__class__.__name__,branch.name,snapshot]) for branch,sign in cycle_branches])
                 cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model,"cycle_constraints",cycle_constraints,network.cycles,snapshots)
@@ -396,15 +404,15 @@ def define_passive_branch_constraints(network,snapshots):
 
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
-    flow_upper = {(b[0],b[1],sn) : [network._flow[b[0],b[1],sn].variables[:],"<=",fixed_branches.s_nom[b] - network._flow[b[0],b[1],sn].constant] for b in fixed_branches.index for sn in snapshots}
+    flow_upper = {(b[0],b[1],sn) : [[(1,network.model.flows[b[0],b[1],sn])],"<=",fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
 
-    flow_upper.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:] + [(-1,network.model.branch_s_nom[b[0],b[1]])],"<=",- network._flow[b[0],b[1],sn].constant] for b in extendable_branches.index for sn in snapshots})
+    flow_upper.update({(b[0],b[1],sn) : [[(1,network.model.flows[b[0],b[1],sn]),(-1,network.model.branch_s_nom[b[0],b[1]])],"<=",0] for b in extendable_branches.index for sn in snapshots})
 
     l_constraint(network.model,"flow_upper",flow_upper,list(passive_branches.index),snapshots)
 
-    flow_lower = {(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:],">=",-fixed_branches.s_nom[b] - network._flow[b[0],b[1],sn].constant] for b in fixed_branches.index for sn in snapshots}
+    flow_lower = {(b[0],b[1],sn) : [[(1,network.model.flows[b[0],b[1],sn])],">=",-fixed_branches.s_nom[b]] for b in fixed_branches.index for sn in snapshots}
 
-    flow_lower.update({(b[0],b[1],sn) : [network._flow[(b[0],b[1],sn)].variables[:] + [(1,network.model.branch_s_nom[b[0],b[1]])],">=",- network._flow[b[0],b[1],sn].constant] for b in extendable_branches.index for sn in snapshots})
+    flow_lower.update({(b[0],b[1],sn) : [[(1,network.model.flows[b[0],b[1],sn]),(1,network.model.branch_s_nom[b[0],b[1]])],">=",0] for b in extendable_branches.index for sn in snapshots})
 
     l_constraint(network.model,"flow_lower",flow_lower,list(passive_branches.index),snapshots)
 
@@ -637,7 +645,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="cycles",ptdf_tolerance=0.):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -721,7 +729,6 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
 
     #tidy up auxilliary expressions
-    del network._flow
     del network._p_balance
 
 
