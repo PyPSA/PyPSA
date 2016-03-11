@@ -26,24 +26,11 @@ def test_opf():
 
     network = pypsa.Network(csv_folder_name=csv_folder_name)
 
-    solver_search_order = ["glpk","gurobi"]
-
-    solver_executable = {"glpk" : "glpsol", "gurobi" : "gurobi_cl"}
-
-    solver_name = None
-
-    for s in solver_search_order:
-        if find_executable(solver_executable[s]) is not None:
-            solver_name = s
-            break
-
-    if solver_name is None:
-        print("No known solver found, quitting.")
-        sys.exit()
-
-    print("Using solver:",solver_name)
+    #test results were generated with GLPK and other solvers may differ
+    solver_name = "glpk"
 
     snapshots = network.snapshots
+
     network.lopf(snapshots=snapshots,solver_name=solver_name)
 
 
