@@ -146,6 +146,10 @@ def l_constraint(model,name,constraints,*args):
 
     where constraints is a dictionary of constraints of the form:
 
+    constraints[i] = LConstraint object
+
+    OR using the soon-to-be-deprecated list format:
+
     constraints[i] = [[(coeff1,var1),(coeff2,var2),...],sense,constant_term]
 
     i.e. the first argument is a list of tuples with the variables and their
