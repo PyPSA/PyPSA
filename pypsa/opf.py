@@ -381,7 +381,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
             for snapshot in snapshots:
                 lhs = sum(getattr(branch,attribute)*sign*network._flow[branch.__class__.__name__,branch.name,snapshot] for branch,sign in cycle_branches)
-                cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs=lhs)
+                cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model,"cycle_constraints",cycle_constraints,network.cycles,snapshots)
 
@@ -464,7 +464,7 @@ def define_nodal_balance_constraints(network,snapshots):
             network._p_balance[bus0,sn].variables.extend([(-1.*item[0],item[1]) for item in network._flow[bt,bn,sn].variables])
             network._p_balance[bus1,sn].variables.extend(network._flow[bt,bn,sn].variables[:])
 
-    power_balance = {k: LConstraint(lhs=v) for k,v in iteritems(network._p_balance)}
+    power_balance = {k: LConstraint(v,"==",LExpression()) for k,v in iteritems(network._p_balance)}
 
     l_constraint(network.model,"power_balance",power_balance,network.buses.index,snapshots)
 
@@ -475,7 +475,7 @@ def define_sub_network_balance_constraints(network,snapshots):
 
     for sub_network in network.sub_networks.obj:
         for sn in snapshots:
-            sn_balance[sub_network.name,sn] = LConstraint()
+            sn_balance[sub_network.name,sn] = LConstraint(LExpression(),"==",LExpression())
             for bus in sub_network.buses().index:
                 sn_balance[sub_network.name,sn].lhs.variables.extend(network._p_balance[bus,sn].variables)
                 sn_balance[sub_network.name,sn].lhs.constant += network._p_balance[bus,sn].constant
@@ -506,26 +506,25 @@ def define_linear_objective(network,snapshots):
 
     extendable_branches = branches[branches.s_nom_extendable]
 
-    terms = []
-    constant = 0.
+    objective = LExpression()
 
-    terms.extend([(network.generators.at[gen,"marginal_cost"]*network.snapshot_weightings[sn],model.generator_p[gen,sn]) for gen in network.generators.index for sn in snapshots])
+    objective.variables.extend([(network.generators.at[gen,"marginal_cost"]*network.snapshot_weightings[sn],model.generator_p[gen,sn]) for gen in network.generators.index for sn in snapshots])
 
-    terms.extend([(network.storage_units.at[su,"marginal_cost"]*network.snapshot_weightings[sn],model.storage_p_dispatch[su,sn]) for su in network.storage_units.index for sn in snapshots])
+    objective.variables.extend([(network.storage_units.at[su,"marginal_cost"]*network.snapshot_weightings[sn],model.storage_p_dispatch[su,sn]) for su in network.storage_units.index for sn in snapshots])
 
     #NB: for capital costs we subtract the costs of existing infrastructure p_nom/s_nom
 
-    terms.extend([(extendable_generators.at[gen,"capital_cost"],model.generator_p_nom[gen]) for gen in extendable_generators.index])
-    constant -= (extendable_generators.capital_cost*extendable_generators.p_nom).sum()
+    objective.variables.extend([(extendable_generators.at[gen,"capital_cost"],model.generator_p_nom[gen]) for gen in extendable_generators.index])
+    objective.constant -= (extendable_generators.capital_cost*extendable_generators.p_nom).sum()
 
-    terms.extend([(ext_sus.at[su,"capital_cost"],model.storage_p_nom[su]) for su in ext_sus.index])
-    constant -= (ext_sus.capital_cost*ext_sus.p_nom).sum()
+    objective.variables.extend([(ext_sus.at[su,"capital_cost"],model.storage_p_nom[su]) for su in ext_sus.index])
+    objective.constant -= (ext_sus.capital_cost*ext_sus.p_nom).sum()
 
-    terms.extend([(extendable_branches.at[b,"capital_cost"],model.branch_s_nom[b]) for b in extendable_branches.index])
-    constant -= (extendable_branches.capital_cost*extendable_branches.s_nom).sum()
+    objective.variables.extend([(extendable_branches.at[b,"capital_cost"],model.branch_s_nom[b]) for b in extendable_branches.index])
+    objective.constant -= (extendable_branches.capital_cost*extendable_branches.s_nom).sum()
 
 
-    l_objective(model,terms,constant)
+    l_objective(model,objective)
 
 
 def extract_optimisation_results(network,snapshots,formulation="angles"):
@@ -641,7 +640,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
 
 
 
-def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="cycles",ptdf_tolerance=0.):
+def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre=False,extra_functionality=None,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
     """
     Linear optimal power flow for a group of snapshots.
 

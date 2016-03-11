@@ -199,7 +199,7 @@ def l_constraint(model,name,constraints,*args):
             v._data[i]._upper = None
 
 
-def l_objective(model,linear_part,constant=0.):
+def l_objective(model,objective=None):
     """
     A replacement for pyomo's Objective that quickly builds linear
     objectives.
@@ -210,8 +210,9 @@ def l_objective(model,linear_part,constant=0.):
 
     call instead
 
-    l_objective(model,[(vars[i],coeffs[i]) for i in index],constant)
+    l_objective(model,objective)
 
+    where objective is an LExpression.
 
     Variables may be repeated with different coefficients, which pyomo
     will sum up.
@@ -220,15 +221,17 @@ def l_objective(model,linear_part,constant=0.):
     Parameters
     ----------
     model : pyomo.environ.ConcreteModel
-    linear_part : list of 2-tuples
-    constant : float
+    objective : LExpression
 
     """
+
+    if objective is None:
+        objective = LExpression()
 
     #initialise with a dummy
     model.objective = Objective(expr = 0.)
 
     model.objective._expr = pyomo.core.base.expr_coopr3._SumExpression()
-    model.objective._expr._args = [item[1] for item in linear_part]
-    model.objective._expr._coef = [item[0] for item in linear_part]
-    model.objective._expr._const = constant
+    model.objective._expr._args = [item[1] for item in objective.variables]
+    model.objective._expr._coef = [item[0] for item in objective.variables]
+    model.objective._expr._const = objective.constant
