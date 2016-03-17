@@ -303,6 +303,8 @@ def define_passive_branch_flows(network,snapshots,formulation="angles",ptdf_tole
         define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance)
     elif formulation == "cycles":
         define_passive_branch_flows_with_cycles(network,snapshots)
+    elif formulation == "kirchoff":
+        define_passive_branch_flows_with_kirchoff(network,snapshots)
 
 
 
@@ -404,6 +406,42 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
             flows[bt,bn,snapshot] = LConstraint(lhs,"==",rhs)
 
     l_constraint(network.model,"passive_branch_p_def",flows,list(passive_branches.index),snapshots)
+
+    cycle_constraints = {}
+
+    for sn in network.sub_networks.obj:
+
+        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
+
+        for i, cycle_branches in enumerate(sn.cycle_branches):
+
+            for snapshot in snapshots:
+                lhs = LExpression([(getattr(branch,attribute)*sign,network.model.passive_branch_p[branch.__class__.__name__,branch.name,snapshot]) for branch,sign in cycle_branches])
+                cycle_constraints[sn.name,i,snapshot] = LConstraint(lhs,"==",LExpression())
+
+    l_constraint(network.model,"cycle_constraints",cycle_constraints,network.cycles,snapshots)
+
+
+
+
+def define_passive_branch_flows_with_kirchoff(network,snapshots):
+
+    for sub_network in network.sub_networks.obj:
+        find_tree(sub_network)
+        find_cycles(sub_network)
+
+        #following is necessary to calculate angles post-facto
+        find_bus_controls(sub_network,verbose=False)
+        if len(sub_network.branches()) > 0:
+            calculate_B_H(sub_network,verbose=False)
+
+
+    network.cycles = [(sub_network.name,i) for sub_network in network.sub_networks.obj for i in range(len(sub_network.cycles))]
+
+    passive_branches = network.passive_branches()
+
+
+    network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
 
     cycle_constraints = {}
 
@@ -637,7 +675,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
                             .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
 
-        elif formulation in ["ptdf","cycles"]:
+        elif formulation in ["ptdf","cycles","kirchoff"]:
 
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
@@ -694,7 +732,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
     formulation : string
-        Formulation of the linear power flow equations to use; must be one of "angles" or "cycles" or "ptdf"
+        Formulation of the linear power flow equations to use; must be one of ["angles","cycles","kirchoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
 
@@ -732,7 +770,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
     define_passive_branch_constraints(network,snapshots)
 
-    if formulation == "angles":
+    if formulation in ["angles","kirchoff"]:
         define_nodal_balance_constraints(network,snapshots)
     elif formulation in ["ptdf","cycles"]:
         define_sub_network_balance_constraints(network,snapshots)
