@@ -350,7 +350,6 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
 
         branches = sub_network.branches()
         if len(branches) > 0:
-            calculate_B_H(sub_network,verbose=False)
             calculate_PTDF(sub_network,verbose=False)
 
             #kill small PTDF values

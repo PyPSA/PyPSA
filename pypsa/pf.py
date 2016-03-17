@@ -494,6 +494,7 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
     if not skip_pre:
         calculate_dependent_values(sub_network.network)
+        find_bus_controls(sub_network,verbose)
 
     if sub_network.current_type == "DC":
         attribute="r_pu"
@@ -510,18 +511,24 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
     index = r_[:num_branches,:num_branches]
 
+    if verbose and (branches[attribute] == 0).any():
+        print("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
+
     #susceptances
     b = 1/branches[attribute]
+
+    b_diag = csr_matrix((b.values,(r_[:num_branches],r_[:num_branches])))
 
     from_bus = branches.bus0.map(buses["i"]).values
     to_bus = branches.bus1.map(buses["i"]).values
 
-    #build weighted Laplacian
-    sub_network.H = csr_matrix((r_[b,-b],(index,r_[from_bus,to_bus])))
+    #incidence matrix
+    sub_network.K = csr_matrix((r_[ones(num_branches),-ones(num_branches)],(r_[from_bus,to_bus],index)),(num_buses,num_branches))
 
-    incidence = csr_matrix((r_[ones(num_branches),-ones(num_branches)],(index,r_[from_bus,to_bus])),(num_branches,num_buses))
+    sub_network.H = b_diag*sub_network.K.T
 
-    sub_network.B = incidence.T * sub_network.H
+    #weighted Laplacian
+    sub_network.B = sub_network.K * sub_network.H
 
 
 
@@ -529,8 +536,7 @@ def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
     """Calculate the PTDF for sub_network based on the already calculated sub_network.B and sub_network.H."""
 
     if not skip_pre:
-        calculate_dependent_values(sub_network.network)
-
+        calculate_B_H(sub_network,verbose)
 
     #calculate inverse of B with slack removed
 
