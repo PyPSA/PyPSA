@@ -741,7 +741,6 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     """
 
     if not skip_pre:
-        network.build_graph()
         network.determine_network_topology()
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:

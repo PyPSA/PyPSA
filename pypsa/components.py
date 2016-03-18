@@ -44,7 +44,7 @@ from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypowe
 
 from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y, calculate_PTDF, calculate_B_H, calculate_dependent_values
 
-
+from .contingency import calculate_LODF, network_lpf_contingency
 
 from .opf import network_lopf, network_opf
 
@@ -454,6 +454,7 @@ class Network(Basic):
 
     calculate_dependent_values = calculate_dependent_values
 
+    lpf_contingency = network_lpf_contingency
 
 
     def __init__(self, csv_folder_name=None, **kwargs):
@@ -729,8 +730,16 @@ class Network(Basic):
                                   for t in self.iterate_components(branch_types)
                                   for branch in t.df.itertuples())
 
-    def determine_network_topology(self):
-        """Build sub_networks from topology."""
+    def determine_network_topology(self,skip_pre=False):
+        """
+        Build sub_networks from topology.
+
+        skip_pre: bool, default False
+            Skip the preliminary step of building the graph.
+        """
+
+        if not skip_pre:
+            self.build_graph()
 
         #remove converters and transport links that could be connected networks
         # of different types or non-synchronous areas
@@ -803,6 +812,7 @@ class SubNetwork(Common):
 
     calculate_B_H = calculate_B_H
 
+    calculate_LODF = calculate_LODF
 
 
     def buses(self):

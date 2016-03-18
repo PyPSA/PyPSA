@@ -76,7 +76,6 @@ def network_pf(network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
 
 
     if not skip_pre:
-        network.build_graph()
         network.determine_network_topology()
         calculate_dependent_values(network)
 
@@ -367,7 +366,6 @@ def network_lpf(network, snapshots=None, verbose=True, skip_pre=False, now=None)
     """
 
     if not skip_pre:
-        network.build_graph()
         network.determine_network_topology()
         calculate_dependent_values(network)
 
@@ -533,7 +531,21 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
 
 def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
-    """Calculate the PTDF for sub_network based on the already calculated sub_network.B and sub_network.H."""
+    """
+    Calculate the Power Transfer Distribution Factor (PTDF) for
+    sub_network.
+
+    Sets sub_network.PTDF as a (dense) numpy array.
+
+    Parameters
+    ----------
+    sub_network : pypsa.SubNetwork
+    verbose: bool, default True
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating dependent values,
+        finding bus controls and computing B and H.
+
+    """
 
     if not skip_pre:
         calculate_B_H(sub_network,verbose)
