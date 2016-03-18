@@ -44,7 +44,8 @@ from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypowe
 
 from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y, calculate_PTDF, calculate_B_H, calculate_dependent_values
 
-from .contingency import calculate_BODF, network_lpf_contingency
+from .contingency import calculate_BODF, network_lpf_contingency, network_sclopf
+
 
 from .opf import network_lopf, network_opf
 
@@ -456,6 +457,8 @@ class Network(Basic):
 
     lpf_contingency = network_lpf_contingency
 
+    sclopf = network_sclopf
+
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
@@ -813,7 +816,6 @@ class SubNetwork(Common):
     calculate_B_H = calculate_B_H
 
     calculate_BODF = calculate_BODF
-
 
     def buses(self):
         return self.network.buses[self.network.buses.sub_network == self.name]
