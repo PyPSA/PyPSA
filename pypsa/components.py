@@ -44,7 +44,7 @@ from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypowe
 
 from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y, calculate_PTDF, calculate_B_H, calculate_dependent_values
 
-from .contingency import calculate_LODF, network_lpf_contingency
+from .contingency import calculate_BODF, network_lpf_contingency
 
 from .opf import network_lopf, network_opf
 
@@ -812,7 +812,7 @@ class SubNetwork(Common):
 
     calculate_B_H = calculate_B_H
 
-    calculate_LODF = calculate_LODF
+    calculate_BODF = calculate_BODF
 
 
     def buses(self):

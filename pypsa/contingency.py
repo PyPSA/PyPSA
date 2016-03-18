@@ -13,7 +13,7 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Functionality for contingency analysis, such as line outages.
+"""Functionality for contingency analysis, such as branch outages.
 """
 
 
@@ -37,21 +37,21 @@ import collections
 
 from .pf import calculate_PTDF
 
-def calculate_LODF(sub_network,verbose=True,skip_pre=False):
+def calculate_BODF(sub_network,verbose=True,skip_pre=False):
     """
-    Calculate the Line Outage Distribution Factor (LODF) for
+    Calculate the Branch Outage Distribution Factor (BODF) for
     sub_network.
 
-    Sets sub_network.LODF as a (dense) numpy array.
+    Sets sub_network.BODF as a (dense) numpy array.
 
-    The LODF is a num_branch x num_branch 2d array.
+    The BODF is a num_branch x num_branch 2d array.
 
     For the outage of branch l, the new flow on branch k is
     given in terms of the flow before the outage
 
-    f_k^after = f_k^before + LODF_{kl} f_l^before
+    f_k^after = f_k^before + BODF_{kl} f_l^before
 
-    Note that LODF_{ll} = -1.
+    Note that BODF_{ll} = -1.
 
     Parameters
     ----------
@@ -68,14 +68,14 @@ def calculate_LODF(sub_network,verbose=True,skip_pre=False):
     num_branches = sub_network.PTDF.shape[0]
 
     #build LxL version of PTDF
-    line_PTDF = sub_network.PTDF*sub_network.K
+    branch_PTDF = sub_network.PTDF*sub_network.K
 
-    denominator = csr_matrix((1/(1-np.diag(line_PTDF)),(r_[:num_branches],r_[:num_branches])))
+    denominator = csr_matrix((1/(1-np.diag(branch_PTDF)),(r_[:num_branches],r_[:num_branches])))
 
-    sub_network.LODF = line_PTDF*denominator
+    sub_network.BODF = branch_PTDF*denominator
 
     #make sure the flow on the branch itself is zero
-    np.fill_diagonal(sub_network.LODF,-1)
+    np.fill_diagonal(sub_network.BODF,-1)
 
 
 def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=True,skip_pre=True):
@@ -131,7 +131,7 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
-        sn.calculate_LODF(verbose)
+        sn.calculate_BODF(verbose)
 
     p0 = pd.DataFrame(index=passive_branches.index)
 
@@ -146,7 +146,7 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
 
         branch_i = sn._branches.index.get_loc(branch)
 
-        p0_new = p0_base + pd.Series(sn.LODF[:,branch_i]*p0_base[branch],sn._branches.index)
+        p0_new = p0_base + pd.Series(sn.BODF[:,branch_i]*p0_base[branch],sn._branches.index)
 
         p0[branch] = p0_new
 
