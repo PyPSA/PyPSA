@@ -739,9 +739,9 @@ def find_tree(sub_network,verbose=True):
 
 
 
-def find_cycles(network,verbose=True):
+def find_cycles(sub_network,verbose=True):
     """
-    Find all cycles in the network and record them in network.C.
+    Find all cycles in the sub_network and record them in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge cycles
     from the MultiGraph must be collected separately (for cases where there
@@ -749,47 +749,37 @@ def find_cycles(network,verbose=True):
 
     """
 
-
-    from .components import controllable_branch_types
-
-    branches = network.passive_branches()
-
-    #first remove controllable branches from graph
-    multigraph = network.graph.__class__(network.graph)
-    multigraph.remove_edges_from((branch.bus0, branch.bus1, branch.obj)
-                                 for t in network.iterate_components(controllable_branch_types)
-                                 for branch in t.df.itertuples())
-
+    branches = sub_network.branches()
 
     #reduce to a non-multi-graph for cycles with > 2 edges
-    graph = nx.OrderedGraph(multigraph)
+    graph = nx.OrderedGraph(sub_network.graph)
 
     cycles = nx.cycle_basis(graph)
 
     #number of 2-edge cycles
-    num_multi = len(multigraph.edges()) - len(graph.edges())
+    num_multi = len(sub_network.graph.edges()) - len(graph.edges())
 
-    network.C = dok_matrix((len(branches),len(cycles)+num_multi))
+    sub_network.C = dok_matrix((len(branches),len(cycles)+num_multi))
 
 
     for j,cycle in enumerate(cycles):
 
         for i in range(len(cycle)):
-            branch = list(multigraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
+            branch = list(sub_network.graph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
             if branch.bus0 == cycle[i]:
                 sign = +1
             else:
                 sign = -1
 
             branch_i = branches.index.get_loc((branch.__class__.__name__,branch.name))
-            network.C[branch_i,j] = sign
+            sub_network.C[branch_i,j] = sign
 
     #counter for multis
     c = len(cycles)
 
     #add multi-graph 2-edge cycles for multiple branches between same pairs of buses
     for u,v in graph.edges():
-        bs = list(multigraph[u][v].keys())
+        bs = list(sub_network.graph[u][v].keys())
         if len(bs) > 1:
             first = bs[0]
             first_i = branches.index.get_loc((first.__class__.__name__,first.name))
@@ -800,8 +790,8 @@ def find_cycles(network,verbose=True):
                 else:
                     sign = 1
 
-                network.C[first_i,c] = 1
-                network.C[b_i,c] = sign
+                sub_network.C[first_i,c] = 1
+                sub_network.C[b_i,c] = sign
                 c+=1
 
 def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False, now=None):

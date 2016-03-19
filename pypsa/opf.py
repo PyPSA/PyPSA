@@ -370,10 +370,9 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
 
 def define_passive_branch_flows_with_cycles(network,snapshots):
 
-    find_cycles(network)
-
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
+        find_cycles(sub_network)
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network,verbose=False)
@@ -381,7 +380,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
             calculate_B_H(sub_network,verbose=False)
 
 
-    cycle_index = range(network.C.shape[1])
+    cycle_index = [(sub_network.name,i) for sub_network in network.sub_networks.obj for i in range(sub_network.C.shape[1])]
 
     network.model.cycles = Var(cycle_index,snapshots,domain=Reals, bounds=(None,None))
 
@@ -392,36 +391,39 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
     flows = {}
 
-    for i,branch in enumerate(passive_branches.obj):
-        bt = branch.__class__.__name__
-        bn = branch.name
+    for sn in network.sub_networks.obj:
+        branches = sn.branches()
+        for i,branch in enumerate(branches.obj):
+            bt = branch.__class__.__name__
+            bn = branch.name
 
-        cycle_is = network.C[i,:].nonzero()[1]
+            cycle_is = sn.C[i,:].nonzero()[1]
 
-        for snapshot in snapshots:
-            expr = LExpression([(network.C[i,j], network.model.cycles[j,snapshot]) for j in cycle_is])
-            lhs = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
+            for snapshot in snapshots:
+                expr = LExpression([(sn.C[i,j], network.model.cycles[sn.name,j,snapshot]) for j in cycle_is])
+                lhs = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
 
-            rhs = LExpression([(1,network.model.passive_branch_p[bt,bn,snapshot])])
+                rhs = LExpression([(1,network.model.passive_branch_p[bt,bn,snapshot])])
 
-            flows[bt,bn,snapshot] = LConstraint(lhs,"==",rhs)
+                flows[bt,bn,snapshot] = LConstraint(lhs,"==",rhs)
 
     l_constraint(network.model,"passive_branch_p_def",flows,list(passive_branches.index),snapshots)
 
     cycle_constraints = {}
 
 
-    for j in cycle_index:
+    for sn in network.sub_networks.obj:
 
-        cycle_is = network.C[:,j].nonzero()[0]
+        branches = sn.branches()
+        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
 
-        current_type = network.sub_networks.at[passive_branches.at[passive_branches.index[cycle_is[0]],"sub_network"],"current_type"]
+        for j in range(sn.C.shape[1]):
 
-        attribute = "x_pu" if current_type == "AC" else "r_pu"
+            cycle_is = sn.C[:,j].nonzero()[0]
 
-        for snapshot in snapshots:
-            lhs = LExpression([(passive_branches.at[passive_branches.index[i],attribute]*network.C[i,j],network.model.passive_branch_p[passive_branches.index[i][0],passive_branches.index[i][1],snapshot]) for i in cycle_is])
-            cycle_constraints[j,snapshot] = LConstraint(lhs,"==",LExpression())
+            for snapshot in snapshots:
+                lhs = LExpression([(branches.at[branches.index[i],attribute]*sn.C[i,j],network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot]) for i in cycle_is])
+                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model,"cycle_constraints",cycle_constraints,cycle_index,snapshots)
 
@@ -430,19 +432,16 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
 def define_passive_branch_flows_with_kirchoff(network,snapshots):
 
-    find_cycles(network)
-
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
+        find_cycles(sub_network)
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network,verbose=False)
         if len(sub_network.branches()) > 0:
             calculate_B_H(sub_network,verbose=False)
 
-
-
-    cycle_index = range(network.C.shape[1])
+    cycle_index = [(sub_network.name,i) for sub_network in network.sub_networks.obj for i in range(sub_network.C.shape[1])]
 
     passive_branches = network.passive_branches()
 
@@ -451,20 +450,20 @@ def define_passive_branch_flows_with_kirchoff(network,snapshots):
 
     cycle_constraints = {}
 
-    for j in cycle_index:
+    for sn in network.sub_networks.obj:
 
-        cycle_is = network.C[:,j].nonzero()[0]
+        branches = sn.branches()
+        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
 
-        current_type = network.sub_networks.at[passive_branches.at[passive_branches.index[cycle_is[0]],"sub_network"],"current_type"]
+        for j in range(sn.C.shape[1]):
 
-        attribute = "x_pu" if current_type == "AC" else "r_pu"
+            cycle_is = sn.C[:,j].nonzero()[0]
 
-        for snapshot in snapshots:
-            lhs = LExpression([(passive_branches.at[passive_branches.index[i],attribute]*network.C[i,j],network.model.passive_branch_p[passive_branches.index[i][0],passive_branches.index[i][1],snapshot]) for i in cycle_is])
-            cycle_constraints[j,snapshot] = LConstraint(lhs,"==",LExpression())
+            for snapshot in snapshots:
+                lhs = LExpression([(branches.at[branches.index[i],attribute]*sn.C[i,j],network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot]) for i in cycle_is])
+                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model,"cycle_constraints",cycle_constraints,cycle_index,snapshots)
-
 
 def define_passive_branch_constraints(network,snapshots):
 
