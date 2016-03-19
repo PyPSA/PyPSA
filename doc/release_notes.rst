@@ -55,8 +55,8 @@ In this release some minor API changes were made:
 
 
 
-PyPSA 0.3 (January 2016)
-========================
+PyPSA 0.3.0 (27th January 2016)
+===============================
 
 In this release the pandas.Panel interface for time-dependent
 variables was introduced. This replaced the manual attachment of

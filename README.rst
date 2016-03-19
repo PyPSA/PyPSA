@@ -21,7 +21,7 @@ PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
-`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_ Research Initiative.
+`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
 
 Documentation
@@ -46,8 +46,9 @@ PyPSA can calculate:
 
 * static power flow (using both the full non-linear network equations and
   the linearised network equations)
-* optimal power flow (optimisation of power plant dispatch within
+* linear optimal power flow (optimisation of power plant dispatch within
   network constraints, using the linear network equations)
+* security-constrained linear optimal power flow
 * total electricity system optimisation (using linear network
   equations, over several snapshots simultaneously for optimisation of
   generation and storage dispatch and investment in the capacities of generation,
@@ -68,7 +69,6 @@ Functionality that will definitely by added soon (see also `doc/todo.rst <doc/to
 
 * Graphical plotting of networks with power flow
 * Integration of heating sector (CHPs, heat pumps, etc.)
-* Security Constrained Linear OPF
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_ in the complex plane

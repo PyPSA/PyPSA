@@ -21,6 +21,7 @@ Contents:
    import_export
    power_flow
    optimal_power_flow
+   contingency_analysis
    conventions
    examples
    pitfalls

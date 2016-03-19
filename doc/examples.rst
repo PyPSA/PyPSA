@@ -8,10 +8,10 @@ Jupyter/iPython notebooks available of these examples at
 `http://www.pypsa.org/examples/ <http://www.pypsa.org/examples/>`_.
 
 
-SciGRID LOPF and LPF
-====================
+SciGRID Germany LOPF, LPF and SCLOPF
+====================================
 
-See ``pypsa/examples/opf-scigrid-de``.
+See ``pypsa/examples/scigrid-de``.
 
 The script ``add_load_gen_to_scigrid.py`` takes the `SciGRID
 <http://scigrid.de/>`_ network for Germany, attaches load and
