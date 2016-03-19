@@ -717,11 +717,11 @@ def find_tree(sub_network,verbose=True):
 
     #determine which buses are supplied in tree through branch from slack
 
-    for branch in branches.obj:
-        branch.tree_buses = []
-        branch.tree_sign = None
+    #matrix to store tree structure
+    sub_network.T = dok_matrix((len(branches),len(buses)))
 
-    for bus in buses.index:
+
+    for j,bus in enumerate(buses.index):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
             branch = list(sub_network.graph[path[i]][path[i+1]].keys())[0]
@@ -730,13 +730,9 @@ def find_tree(sub_network,verbose=True):
             else:
                 sign = -1
 
-            branch.tree_buses.append(bus)
-            if len(branch.tree_buses) == 1:
-                branch.tree_sign = sign
-            else:
-                if sign != branch.tree_sign:
-                    print("Error, tree graph is not signing correctly!")
+            branch_i = branches.index.get_loc((branch.__class__.__name__,branch.name))
 
+            sub_network.T[branch_i,j] = sign
 
 
 def find_cycles(sub_network,verbose=True):

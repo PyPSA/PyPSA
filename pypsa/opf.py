@@ -393,15 +393,17 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
     for sn in network.sub_networks.obj:
         branches = sn.branches()
+        buses = sn.buses()
         for i,branch in enumerate(branches.obj):
             bt = branch.__class__.__name__
             bn = branch.name
 
             cycle_is = sn.C[i,:].nonzero()[1]
+            tree_is = sn.T[i,:].nonzero()[1]
 
             for snapshot in snapshots:
                 expr = LExpression([(sn.C[i,j], network.model.cycles[sn.name,j,snapshot]) for j in cycle_is])
-                lhs = expr + sum(branch.tree_sign*network._p_balance[bus,snapshot] for bus in branch.tree_buses)
+                lhs = expr + sum(sn.T[i,j]*network._p_balance[buses.index[j],snapshot] for j in tree_is)
 
                 rhs = LExpression([(1,network.model.passive_branch_p[bt,bn,snapshot])])
 
