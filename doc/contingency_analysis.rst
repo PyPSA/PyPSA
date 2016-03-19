@@ -40,11 +40,11 @@ from the PTDF and incidence matrix :math:`K`
    BPTDF_{bc} = \sum_{i} PTDF_{bi} K_{ic}
 
 :math:`BPTDF_{bc}` gives the change in flow on branch :math:`b` if a
-      unit of power is injected at the from-bus of branch :math:`c`
-      and withdrawn from the to-bus of branch :math:`c`. If branch
-      :math:`b` is the only branch connecting two regions, then
-      :math:`BPTDF_{bb} = 1`, since the power can only flow between
-      the two ends of the branch through the branch itself.
+unit of power is injected at the from-bus of branch :math:`c` and
+withdrawn from the to-bus of branch :math:`c`. If branch :math:`b` is
+the only branch connecting two regions, then :math:`BPTDF_{bb} = 1`,
+since the power can only flow between the two ends of the branch
+through the branch itself.
 
 The off-diagonal entries of the BODF :math:`b \neq c`  are given by:
 

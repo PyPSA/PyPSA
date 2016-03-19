@@ -116,7 +116,7 @@ works especially well in combination with `Jupyter notebooks
 Internal use of per unit
 ===========================
 
-Per unit values of voltage and impedance are used interally for
+Per unit values of voltage and impedance are used internally for
 network calculations. It is assumed internally that the base power is
 1 MVA. The base voltage depends on the component.
 
