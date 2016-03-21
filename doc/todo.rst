@@ -168,7 +168,10 @@ buses), P2H, heat pumps, etc.
 Allow elastic demand
 --------------------
 
-I.e. allow demand bid prices for blocks of demand
+I.e. allow demand bid prices for blocks of demand.
+
+As a work-around, dummy generators can be added to the nodes to
+artificially reduce the demand beyond a certain price.
 
 
 Changes which may be implemented

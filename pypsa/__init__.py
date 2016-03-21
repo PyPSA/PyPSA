@@ -26,7 +26,7 @@ from __future__ import absolute_import
 
 from .components import Network, Bus, Load, Generator, Line, Transformer, Converter, TransportLink, SubNetwork, Branch, OnePort
 
-from . import components, pf, opf, plot, networkclustering, io
+from . import components, pf, opf, plot, networkclustering, io, contingency, geo
 
 
 __version__ = "0.3.3"
