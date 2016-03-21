@@ -3,6 +3,29 @@ Release Notes
 #######################
 
 
+PyPSA 0.4.0 (21st March 2016)
+================================
+
+Additional features:
+
+* New module ``pypsa.contingency`` for contingency analysis and
+  security-constrained LOPF
+* New module ``pypsa.geo`` for basic manipulation of geographic data
+  (distances and areas)
+* Re-formulation of LOPF to improve optimisation solving time
+* New objects pypsa.opt.LExpression and pypsa.opt.LConstraint to make
+  the bypassing of pyomo for linear problem construction easier to use
+* Deep copying of networks with ``network.copy()`` (i.e. all
+  components, time series and network attributes are copied)
+* Stricter requirements for PyPI (e.g. pandas must be at least version
+  0.17.1 to get all the new features)
+* Updated SciGRID-based model of Germany
+* Various small bug fixes
+
+We thank Steffen Schroedter, Bjoern Laemmerzahl and Joao Gorenstein
+Dedecca for comments and bug fixes.
+
+
 PyPSA 0.3.3 (29th February 2016)
 ================================
 
