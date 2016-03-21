@@ -1,18 +1,27 @@
+## Security-Constrained LOPF with SciGRID
+#
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>.
+#
+#In this example, the dispatch of generators is optimised using the security-constrained linear OPF, to guaranteed that no branches are overloaded by certain branch outages.
+#
+#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#
+### Data sources and health warnings
+#
+#See the separate notebook at <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>.
 
 
 from __future__ import print_function, division, absolute_import
 
 import pypsa, os
 
-csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen/"
+csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"
 
 network = pypsa.Network(csv_folder_name=csv_folder_name)
 
-
-#There are some infeasibilities at the edge of the network where loads
-#are supplied by foreign lines - just add some extra capacity in Germany
-for line_name in ["350","583"]:
-    network.lines.loc[line_name,"s_nom"] += 500
+#There are some infeasibilities without line extensions                                                                                  
+for line_name in ["316","527","602"]:
+    network.lines.loc[line_name,"s_nom"] = 1200
 
 
 network.now = network.snapshots[0]
@@ -24,14 +33,20 @@ print("Performing security-constrained linear OPF:")
 network.sclopf(branch_outages=branch_outages)
 
 
-#For the PF, set the P to the optimised P
+
+#For the PF, set the P to the optimised P                                                                                                                 
 network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now]
 network.storage_units_t.p_set.loc[network.now] = network.storage_units_t.p.loc[network.now]
 
+#Check no lines are overloaded with the linear contingency analysis
 
 p0_test = network.lpf_contingency(branch_outages=branch_outages)
 
+p0_test
+
+#check loading as per unit of s_nom in each contingency
 
 max_loading = abs(p0_test.divide(network.passive_branches().s_nom,axis=0)).describe().loc["max"]
 
 print(max_loading)
+

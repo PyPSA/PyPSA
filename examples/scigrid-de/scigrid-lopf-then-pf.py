@@ -8,19 +8,26 @@
 #
 ### Data sources
 #
-#The data is generated in a separate notebook at <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
+#The data is generated in a separate notebook at <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>.
 #
-#Grid: from [SciGRID](http://scigrid.de/) which is based on [OpenStreetMap](http://www.openstreetmap.org/).
 #
-#Load size and location: based on Landkreise GDP and population.
+#Grid: based on [SciGRID](http://scigrid.de/) Version 0.2 which is based on [OpenStreetMap](http://www.openstreetmap.org/).
 #
-#Load time series: from ENTSO-E.
+#Load size and location: based on Landkreise (NUTS 3) GDP and population.
+#
+#Load time series: from ENTSO-E hourly data, scaled up uniformly by factor 1.12 (a simplification of the methodology in Schumacher, Hirth (2015)).
 #
 #Conventional power plant capacities and locations: BNetzA list.
 #
-#Wind and solar capacities and locations: EEG Stammdaten.
+#Wind and solar capacities and locations: EEG Stammdaten, based on  http://www.energymap.info/download.html, which represents capacities at the end of 2014. Units without PLZ are removed.
 #
 #Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+#
+#NB:
+#
+#All times in the dataset are UTC.
+#
+#Where SciGRID nodes have been split into 220kV and 380kV substations, all load and generation is attached to the 220kV substation.
 #
 ### Warning
 #
@@ -28,13 +35,13 @@
 #
 #Known problems include:
 #
-#i) Since SciGRID does not have transformers, it is assumed for convenience that all lines are run at 380 kV. This means that the 220 kV lines have (380/220)^2 less per unit impedance than they should do. You can fix this either by artificially re-adjusting the impedances line.x for the 220 kV lines or by carefully splitting the buses according to voltage level and putting in transformers.
+#i) Rough approximations have been made for missing grid data, e.g. 220kV-380kV transformers and connections between close sub-stations missing from OSM.
 #
 #ii) There appears to be some unexpected congestion in parts of the network, which may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
 #
 #iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
 #
-#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket 80% reduction in thermal limits or a proper security constrained OPF.
+#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket e.g. 70% reduction in thermal limits (as done here) or a proper security constrained OPF (see e.g.  <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>).
 #
 #v) The borders and neighbouring countries are not represented.
 #
@@ -42,9 +49,13 @@
 #
 #viii) The marginal costs are illustrative, not accurate.
 #
-#ix) Only the first day of 2011 is in the dataset, which is not representative.
+#ix) Only the first day of 2011 is in the github dataset, which is not representative. The full year of 2011 can be downloaded at <http://www.pypsa.org/examples/scigrid-with-load-gen-trafos-2011.zip>.
 #
-#x) The ENTSO-E total load for Germany may not be scaled correctly.
+#x) The ENTSO-E total load for Germany may not be scaled correctly; it is scaled up uniformly by factor 1.12 (a simplification of the methodology in Schumacher, Hirth (2015), which suggests monthly factors).
+#
+#xi) Biomass from the EEG Stammdaten are not read in at the moment.
+#
+#xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
 #make the code as Python 3 compatible as possible
 from __future__ import print_function, division, absolute_import
@@ -65,7 +76,7 @@ import matplotlib.pyplot as plt
 #you downloaded the github repository
 #https://github.com/FRESNA/PyPSA
 
-csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/scigrid-with-load-gen/"
+csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"
 
 network = pypsa.Network(csv_folder_name=csv_folder_name)
 
@@ -122,10 +133,29 @@ for i,tech in enumerate(techs):
 
 ### Run Linear Optimal Power Flow on the first day of 2011
 
-#There are some infeasibilities at the edge of the network where loads
-#are supplied by foreign lines - just add some extra capacity in Germany
-for line_name in ["350","583"]:
-    network.lines.loc[line_name,"s_nom"] += 500
+#to approximate n-1 security and allow room for reactive power flows,
+#don't allow any line to be loaded above 70% of their thermal rating
+
+contingency_factor = 0.7
+
+network.lines.s_nom = contingency_factor*network.lines.s_nom
+
+#There are some infeasibilities without small extensions                                                                                 
+for line_name in ["316","527","602"]:
+    network.lines.loc[line_name,"s_nom"] = 1200
+
+
+#the lines to extend to resolve infeasibilities can
+#be found by
+#uncommenting the lines below to allow the network to be extended
+
+#network.lines["s_nom_original"] = network.lines.s_nom
+
+#network.lines.s_nom_extendable = True
+#network.lines.s_nom_min = network.lines.s_nom
+
+#Assume 450 EUR/MVA/km
+#network.lines.capital_cost = 450*network.lines.length
 
 network.now = network.snapshots[0]
 
@@ -138,14 +168,16 @@ print("Performing linear OPF for one day, {} snapshots at a time:".format(group_
 network.storage_units.state_of_charge_initial = 0.
 
 for i in range(int(24/group_size)):
-    
     #set the initial state of charge based on previous round
     if i>0:
         network.storage_units.state_of_charge_initial = network.storage_units_t.state_of_charge.loc[network.snapshots[group_size*i-1]]
-
     network.lopf(network.snapshots[group_size*i:group_size*i+group_size],
                  solver_name=solver_name,
                  keep_files=True)
+    network.lines.s_nom = network.lines.s_nom_opt
+
+#if lines are extended, look at which ones are bigger
+#network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - contingency_factor*network.lines.s_nom_original) > 1]
 
 p_by_source = network.generators_t.p.groupby(network.generators.source, axis=1).sum()
 
@@ -160,7 +192,8 @@ colors = {"Brown Coal" : "brown",
           "Wind Onshore" : "blue",
           "Solar" : "yellow",
           "Wind Offshore" : "cyan",
-          "Waste" : "orange"}
+          "Waste" : "orange",
+          "Gas" : "orange"}
 
 fig,ax = plt.subplots(1,1)
 
@@ -245,6 +278,8 @@ p_df = pd.DataFrame({source + " available" : p_available_by_source[source],
 
 p_df[source + " capacity"] = capacity
 
+p_df["Wind Onshore curtailed"][p_df["Wind Onshore curtailed"] < 0.] = 0.
+
 fig,ax = plt.subplots(1,1)
 fig.set_size_inches(12,6)
 p_df[[source + " dispatched",source + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
@@ -252,7 +287,7 @@ p_df[[source+ " available",source + " capacity"]].plot(ax=ax,linewidth=3)
 
 ax.set_xlabel("")
 ax.set_ylabel("Power [MW]")
-ax.set_ylim([0,35000])
+ax.set_ylim([0,40000])
 ax.legend()
 
 fig.tight_layout()
@@ -262,9 +297,14 @@ fig.tight_layout()
 
 for bus in network.buses.index:
     bus_sum = network.buses_t.p.loc[network.now,bus]
-    lines_sum = network.lines_t.p0.loc[network.now,network.lines.bus0==bus].sum() - network.lines_t.p0.loc[network.now,network.lines.bus1==bus].sum()
-    if abs(bus_sum-lines_sum) > 1e-4:
-        print(bus,bus_sum,lines_sum)
+    branches_sum = 0
+    for comp in ["lines","transformers"]:
+        comps = getattr(network,comp)
+        comps_t = getattr(network,comp+"_t")
+        branches_sum += comps_t.p0.loc[network.now,comps.bus0==bus].sum() - comps_t.p0.loc[network.now,comps.bus1==bus].sum()
+
+    if abs(bus_sum-branches_sum) > 1e-4:
+        print(bus,bus_sum,branches_sum)
 
 ### Now perform a full Newton-Raphson power flow on the first hour
 
@@ -288,8 +328,8 @@ print("Performing non-linear PF on results of LOPF:")
 
 network.pf()
 
-print("With the non-linear load flow, there is the following per unit loading:")
-print((network.lines_t.p0.loc[network.now]/network.lines.s_nom).describe())
+print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
+print((network.lines_t.p0.loc[network.now]/network.lines.s_nom*contingency_factor).describe())
 
 #Get voltage angle differences
 
@@ -320,5 +360,4 @@ network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,title="Reactive power 
 
 fig.tight_layout()
 #fig.savefig("reactive-power.png")
-
 

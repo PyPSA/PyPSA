@@ -1,9 +1,54 @@
-## Investigate trafo situation
+## Script to add load and generators to SciGRID
 #
-#Which nodes are within 0.5 km of each other but not connected? ant which voltage levels?
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
+#
+#This script does some processing on the original SciGRID dataset and then adds load and generation data to the SciGRID nodes.
+#
+#Some of the libraries used below for attaching load and generation are NOT freely available, except on personal request - we're working on bringing them online. Similarly the datasets may not be totally open.
+#
+#
+### Data sources
+#
+#Grid: from [SciGRID](http://scigrid.de/) which is based on [OpenStreetMap](http://www.openstreetmap.org/).
+#
+#Load size and location: based on Landkreise GDP and population.
+#
+#Load time series: from ENTSO-E.
+#
+#Conventional power plant capacities and locations: BNetzA list.
+#
+#Wind and solar capacities and locations: EEG Stammdaten.
+#
+#Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+#
+### Warning
+#
+#This dataset is ONLY intended to demonstrate the capabilities of PyPSA and is NOT (yet) accurate enough to be used for research purposes.
+#
+#Known problems include:
+#
+#i) Since SciGRID does not have transformers, it is assumed for convenience that all lines are run at 380 kV. This means that the 220 kV lines have (380/220)^2 less per unit impedance than they should do. You can fix this either by artificially re-adjusting the impedances line.x for the 220 kV lines or by carefully splitting the buses according to voltage level and putting in transformers.  There is a provisional dataset which includes the transformers in the github repository <https://github.com/FRESNA/PyPSA/tree/master/examples/opf-scigrid-de>.
+#
+#ii) There appears to be some unexpected congestion in parts of the network, which may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
+#
+#iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
+#
+#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket 80% reduction in thermal limits or a proper security constrained OPF.
+#
+#v) The borders and neighbouring countries are not represented.
+#
+#vi) Hydroelectric power stations are not modelled accurately.
+#
+#viii) The marginal costs are illustrative, not accurate.
+#
+#ix) Only the first day of 2011 is in the dataset, which is not representative.
+#
+#x) The ENTSO-E total load for Germany may not be scaled correctly.
 
-# make the code as Python 3 compatible as possible
+
+# make the code as Python 3 compatible as possible                                                                                          
 from __future__ import print_function, division,absolute_import
+
 
 import pypsa
 
@@ -16,18 +61,19 @@ from six.moves import range
 
 import os
 
-import matplotlib.pyplot as plt
-
-#%matplotlib inline
-
 #You may have to adjust this path to where 
 #you downloaded the github repository
 #https://github.com/FRESNA/PyPSA
 
-folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/opf-scigrid-de/"
+folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 
 #note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(folder_prefix+"scigrid-151109/vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
+
+#Because there are no transformers in the dataset, for convenience we assume
+#all buses are at 380 kV - this affects the per unit impedance of the 220 kV lines,
+#see warning above.
+vertices["v_nom"] = 380.
 
 vertices.rename(columns={"lon":"x","lat":"y","name":"osm_name"},inplace=True)
 
@@ -55,14 +101,13 @@ links["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["
 
 links["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
 
-print(vertices["voltage"].value_counts(dropna=False))
-
 print(links["voltage"].value_counts(dropna=False))
 
-## Drop the DC lines
+print(links[links["length_m"] <=0])
 
-for voltage in [300000,400000,450000]:
-    links.drop(links[links.voltage == voltage].index,inplace=True)
+print(links[(links["voltage"] != 220000) & (links["voltage"] != 380000)])
+
+print(links[pd.isnull(links.cables)])
 
 network = pypsa.Network()
 
@@ -70,114 +115,7 @@ pypsa.io.import_components_from_dataframe(network,vertices,"Bus")
 
 pypsa.io.import_components_from_dataframe(network,links,"Line")
 
-network.build_graph()
-
-network.determine_network_topology()
-
-
-#remove small isolated networks
-for sn in network.sub_networks.obj:
-    buses = sn.buses()
-    branches = sn.branches()
-    print(sn,len(buses))
-    if len(buses) < 5:
-        print(branches,sn.buses)
-        for bus in buses.obj:
-            network.remove("Bus",bus.name)
-        for branch in branches.obj:
-            network.remove("Line",branch.name)
-
-network.build_graph()
-
-network.determine_network_topology()
-
-colors = network.lines.voltage.map(lambda v: "g" if v == 220000 else "r" if v == 380000 else "c")
-
-network.plot(line_colors=colors)
-
-#how many vertices are within x km of each other
-
-x = 0.2 #km
-
-count = 0
-
-for v in network.buses.index:
-    lon = np.deg2rad(network.buses["x"])
-    lat = np.deg2rad(network.buses["y"])
-    
-    lon_v = np.deg2rad(network.buses.at[v,"x"])
-    lat_v = np.deg2rad(network.buses.at[v,"y"])
-    
-    a = np.sin((lat-lat_v)/2.)**2 + np.cos(lat_v) * np.cos(lat) * np.sin((lon_v - lon)/2.)**2
-   
-    dist_km = 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
-
-    near = dist_km[dist_km < x]
-    
-    near = near.drop(v)
-    
-    for w in near.index:
-        if w not in network.graph.adj[v]:
-            print(v,w,near[w])
-    
-    if len(near) > 0:
-        count +=1
-print(count)
-
-### Split buses with more than one voltage; add trafos between
-#
-#This code splits the buses where you have 220 and 380 kV lines landing.
-
-buses_by_voltage = {}
-
-for voltage in network.lines.voltage.value_counts().index:
-    buses_by_voltage[voltage] = set(network.lines[network.lines.voltage == voltage].bus0)\
-                                | set(network.lines[network.lines.voltage == voltage].bus1)
-
-network.buses.loc[buses_by_voltage[220000],"v_nom"] = 220
-network.buses.loc[buses_by_voltage[380000],"v_nom"] = 380
-
-overlap = buses_by_voltage[220000] & buses_by_voltage[380000]
-len(overlap)
-
-## build up new buses and transformers to import
-
-
-buses_to_split = [str(i) for i in sorted([int(item) for item in overlap])]
-buses_to_split_df = network.buses.loc[buses_to_split]
-#displace the 220 kV buses slightly to the right so that
-#Voronoi partition will split them
-buses_to_split_df.x+=0.005
-
-buses_to_split_df.v_nom = 220
-
-buses_to_split_220kV = [name + "_220kV" for name in buses_to_split_df.index]
-
-buses_to_split_df.index = buses_to_split_220kV
-
-trafos_df = pd.DataFrame(index=buses_to_split)
-trafos_df["bus0"] = buses_to_split
-trafos_df["bus1"] = buses_to_split_220kV
-trafos_df["x"] = 0.1
-#This high a nominal power is required for feasibility in LOPF
-trafos_df["s_nom"] = 2000
-
-pypsa.io.import_components_from_dataframe(network,buses_to_split_df,"Bus")
-pypsa.io.import_components_from_dataframe(network,trafos_df,"Transformer")
-
-##reconnect lines to the correct voltage bus
-
-for line in network.lines.index:
-    bus0 = network.lines.at[line,"bus0"]
-    bus1 = network.lines.at[line,"bus1"]
-    v0 = network.buses.at[bus0,"v_nom"]
-    v1 = network.buses.at[bus1,"v_nom"]
-    v = network.lines.at[line,"voltage"]
-    if v0 != v/1000.:
-        print(line,v0,v)
-        network.lines.at[line,"bus0"] = bus0+"_220kV"
-    if v1 != v/1000.:
-        network.lines.at[line,"bus1"] = bus1+"_220kV"
+network.lines[["b","x","r","b_pu","x_pu","r_pu"]]
 
 network.build_graph()
 
@@ -198,8 +136,6 @@ for sn in network.sub_networks.obj:
 network.build_graph()
 
 network.determine_network_topology()                
-
-## Attach the load
 
 #import FIAS libraries for attaching data - sorry, not free software yet
 
@@ -227,15 +163,12 @@ poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
 for bus in network.buses.obj:
     network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
 
-network.graph.name = "scigrid-with_trafos"
+network.graph.name = "scigrid"
 
 vgraph.voronoi_partition(network.graph, poly)
 
 #NB: starts at midnight CET, 23:00 UTC
 load = DEload.timeseries(network.graph, years=[2011, 2012, 2013, 2014])
-
-#Kill the Timezone information to avoid pandas bugs
-load.index = load.index.values
 
 #Take the first day (in UTC time - we don't set time zone because of a Pandas bug)
 network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-01-01 23:00",freq="H"))
@@ -255,8 +188,6 @@ pd.DataFrame(load.sum(axis=1)).plot()
 load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
 
 network.plot(bus_sizes=load_distribution)
-
-## Attach conventional generators from BNetzA list
 
 from vresutils import shapes as vshapes
 
@@ -441,13 +372,11 @@ for tech in ["windoff",'windon',"solar"]:
                     bus=i,source=d[tech],
                     p_max_pu=generation[tech].loc[network.snapshots,i]/gens[i])
 
-csv_folder_name = "../../lib/pypsa/examples/opf-scigrid-de/scigrid-with-load-gen-trafos"
+csv_folder_name = "../../lib/pypsa/examples/scigrid-de/scigrid-with-load-gen"
 
 time_series = {"loads" : {"p_set" : None},
                "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
 
 
 network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
-
-network.transformers
 
