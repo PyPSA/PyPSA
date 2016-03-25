@@ -162,7 +162,7 @@ def define_storage_variables_constraints(network,snapshots):
     def su_p_spill_bounds(model,su_name,snapshot):
         return spill_bounds[su_name,snapshot]
 
-    network.model.storage_p_spill = Var(spill_index, domain=NonNegativeReals, bounds=su_p_spill_bounds)
+    network.model.storage_p_spill = Var(list(spill_index), domain=NonNegativeReals, bounds=su_p_spill_bounds)
 
 
 
