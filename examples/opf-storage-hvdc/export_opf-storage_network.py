@@ -185,10 +185,13 @@ network.storage_units_t.state_of_charge_set.at[network.snapshots[3],"Storage 3"]
 
 network.storage_units_t.state_of_charge_set.at[network.snapshots[2],"Storage 4"] = 25.
 
+network.storage_units_t.inflow[["Storage 0"]] = 20.
+
 
 time_series = {"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
                "loads" : {"p_set" : None},
-               "storage_units" : {"state_of_charge_set" : None},
+               "storage_units" : {"state_of_charge_set" : None,
+                                  "inflow" : None},
 }
 
 

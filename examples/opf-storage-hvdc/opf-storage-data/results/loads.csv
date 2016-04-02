@@ -1,7 +1,7 @@
-name,sign,bus,obj
-0,-1.0,0,Load 0
-1,-1.0,1,Load 1
-2,-1.0,2,Load 2
-3,-1.0,3,Load 3
-4,-1.0,4,Load 4
-5,-1.0,5,Load 5
+name,bus,sign,obj
+0,0,-1.0,Load 0
+1,1,-1.0,Load 1
+2,2,-1.0,Load 2
+3,3,-1.0,Load 3
+4,4,-1.0,Load 4
+5,5,-1.0,Load 5
