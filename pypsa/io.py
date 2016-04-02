@@ -362,13 +362,13 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_nom, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
 
-    index = np.array(ppc['gen'][:,0],dtype=int)
+    index = ["G"+str(i) for i in range(ppc['gen'].shape[0])]
 
     pdf['generators'] = pd.DataFrame(index=index,columns=columns,data=ppc['gen'])
 
 
     #make sure bus name is an integer
-    pdf['generators']['bus'] = index
+    pdf['generators']['bus'] = np.array(ppc['gen'][:,0],dtype=int)
 
     #add branchs
     ## branch data
@@ -416,4 +416,4 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
         gen.control = network.buses.control[gen.bus]
 
     #for consistency with pypower, take the v_mag set point from the generators
-    network.buses_t.v_mag_pu_set.loc[network.now,network.generators.bus] = network.generators["v_set_pu"]
+    network.buses_t.v_mag_pu_set.loc[network.now,network.generators.bus] = np.asarray(network.generators["v_set_pu"])

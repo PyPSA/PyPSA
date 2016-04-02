@@ -49,25 +49,23 @@ def test_pypower_case():
     network.import_from_pypower_ppc(ppc)
     network.pf()
 
-
-
-    #compare generator dispatch
-
-    p_pypsa = network.generators_t.p.loc[network.now]
-    p_pypower = results_df['gen']["p"]
-
-    np.testing.assert_array_almost_equal(p_pypsa,p_pypower)
-
-
     #compare branch flows
     for typ in pypsa.components.passive_branch_types:
         df = getattr(network,typ.list_name)
         pnl = getattr(network,typ.list_name+"_t")
         index = [int(i) for i in df.index]
-        p0_pypsa = pnl.p0.loc[network.now].values
-        p0_pypower = results_df['branch']["p0"][index].values
+        for si in ["p0","p1","q0","q1"]:
+            si_pypsa = getattr(pnl,si).loc[network.now].values
+            si_pypower = results_df['branch'][si][index].values
+            np.testing.assert_array_almost_equal(si_pypsa,si_pypower)
 
-        np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)
+
+    #compare generator dispatch
+    for s in ["p","q"]:
+        s_pypsa = getattr(network.generators_t,s).loc[network.now].values
+        s_pypower = results_df["gen"][s].values
+        np.testing.assert_array_almost_equal(s_pypsa,s_pypower)
+
 
     #compare voltages
     v_mag_pypsa = network.buses_t.v_mag_pu.loc[network.now]

@@ -340,7 +340,7 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     network.generators_t.q.loc[now,sub_network.slack_generator] += network.buses_t.q.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].imag
 
     #set the Q of the PV generators
-    network.generators_t.q.loc[now,sub_network.pvs.generator] += np.asarray(network.buses_t.q.loc[now,sub_network.pvs.index]) - s[sub_network.pvs.index].imag
+    network.generators_t.q.loc[now,sub_network.pvs.generator] += np.asarray(network.buses_t.q.loc[now,sub_network.pvs.index] - s[sub_network.pvs.index].imag)
 
 
 def network_lpf(network, snapshots=None, verbose=True, skip_pre=False, now=None):
