@@ -145,8 +145,19 @@ converter.{p_set}
 transport_link.{p_set}
 
 
+
+Note that the control strategy for active and reactive power
+PQ/PV/Slack is set on the generators NOT on the buses. Buses then
+inherit the control strategy from the generators attached at the bus
+(defaulting to PQ if there is no generator attached). Any PV generator
+will make the whole bus a PV bus. For PV buses, the voltage magnitude
+set point is set on the bus, not the generator, with bus.v_mag_pu_set
+since it is a bus property.
+
+
 Note that for lines and transformers you MUST make sure that
-:math:`r+jx` is non-zero, otherwise the bus admittance matrix will be singular.
+:math:`r+jx` is non-zero, otherwise the bus admittance matrix will be
+singular.
 
 Outputs
 -------

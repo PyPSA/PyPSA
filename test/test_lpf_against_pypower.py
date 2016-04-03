@@ -64,8 +64,8 @@ def test_pypower_case():
     for item in ["lines","transformers"]:
         df = getattr(network,item)
         pnl = getattr(network,item + "_t")
-        index = [int(i) for i in df.index]
-        p0_pypsa = pnl.p0.loc[network.now].values
-        p0_pypower = results_df['branch']["p0"][index].values
 
-        np.testing.assert_array_almost_equal(p0_pypsa,p0_pypower)
+        for si in ["p0","p1"]:
+            si_pypsa = getattr(pnl,si).loc[network.now].values
+            si_pypower = results_df['branch'][si][df.original_index].values
+            np.testing.assert_array_almost_equal(si_pypsa,si_pypower)

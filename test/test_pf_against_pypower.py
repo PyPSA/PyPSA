@@ -53,10 +53,9 @@ def test_pypower_case():
     for typ in pypsa.components.passive_branch_types:
         df = getattr(network,typ.list_name)
         pnl = getattr(network,typ.list_name+"_t")
-        index = [int(i) for i in df.index]
         for si in ["p0","p1","q0","q1"]:
             si_pypsa = getattr(pnl,si).loc[network.now].values
-            si_pypower = results_df['branch'][si][index].values
+            si_pypower = results_df['branch'][si][df.original_index].values
             np.testing.assert_array_almost_equal(si_pypsa,si_pypower)
 
 

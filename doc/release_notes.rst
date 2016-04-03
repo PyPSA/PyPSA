@@ -3,6 +3,27 @@ Release Notes
 #######################
 
 
+
+PyPSA 0.4.1 (3rd April 2016)
+============================
+
+This was mostly a bug-fixing and unit-testing release:
+
+* pf: A bug was fixed in the full non-linear power flow, whereby the
+  reactive power output of PV generators was not being set correctly.
+* io: When importing from PYPOWER ppc, the generators, lines,
+  transformers and shunt impedances are given names like G1, G2, ...,
+  L1, T1, S1, to help distinguish them. This change was introduced
+  because the above bug was not caught by the unit-testing because the
+  generators were named after the buses.
+* opf: A Python 3 dict.keys() list/iterator bug was fixed for the
+  spillage.
+* test: Unit-testing for the pf and opf with inflow was improved to
+  catch bugs better.
+
+We thank Joao Gorenstein Dedecca for a bug fix.
+
+
 PyPSA 0.4.0 (21st March 2016)
 ================================
 

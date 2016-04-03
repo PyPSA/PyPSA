@@ -344,6 +344,10 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     pdf['loads'].rename(columns={"Qd" : "q_set", "Pd" : "p_set"}, inplace=True)
 
+    pdf['loads'].index = ["L"+str(i) for i in range(len(pdf['loads']))]
+
+
+
     #add shunt impedances for any buses with Gs or Bs
 
     shunt = pdf["buses"][["v_nom","Gs","Bs"]][pdf["buses"][["Gs","Bs"]].any(axis=1)]
@@ -353,6 +357,7 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     shunt["b"] = shunt["Bs"]/shunt["v_nom"]**2
     pdf['shunt_impedances'] = shunt.reindex(columns=["g","b"])
     pdf['shunt_impedances']["bus"] = pdf['shunt_impedances'].index
+    pdf['shunt_impedances'].index = ["S"+str(i) for i in range(len(pdf['shunt_impedances']))]
 
     #add gens
 
@@ -379,6 +384,8 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])
 
+    pdf['branches']['original_index'] = pdf['branches'].index
+
     pdf['branches']["bus0"] = pdf['branches']["bus0"].astype(int)
     pdf['branches']["bus1"] = pdf['branches']["bus1"].astype(int)
 
@@ -400,6 +407,11 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     pdf['lines']["r"] = v_nom**2*pdf['lines']["r"]/baseMVA
     pdf['lines']["x"] = v_nom**2*pdf['lines']["x"]/baseMVA
     pdf['lines']["b"] = pdf['lines']["b"]*baseMVA/v_nom**2
+
+
+    #name them nicely
+    pdf['transformers'].index = ["T"+str(i) for i in range(len(pdf['transformers']))]
+    pdf['lines'].index = ["L"+str(i) for i in range(len(pdf['lines']))]
 
     #TODO
 
