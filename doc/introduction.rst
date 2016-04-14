@@ -34,7 +34,7 @@ PyPSA can calculate:
 * linear optimal power flow (optimisation of power plant dispatch within
   network constraints, using the linear network equations)
 * security-constrained linear optimal power flow
-* total electricity system optimisation (using linear network
+* total electricity system investment optimisation (using linear network
   equations, over several snapshots simultaneously for optimisation of
   generation and storage dispatch and investment in the capacities of generation,
   storage and transmission)
@@ -51,10 +51,10 @@ It has models for:
 
 
 
-Functionality that will definitely by added soon (see also :doc:`todo`):
+Functionality that will definitely be added soon (see also :doc:`todo`):
 
 * Graphical plotting of networks with power flow
-* Integration of heating sector (CHPs, heat pumps, etc.)
+* Integration of heating and gas sectors (CHPs, heat pumps, P2H, P2G, etc.)
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_ in the complex plane
