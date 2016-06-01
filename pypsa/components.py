@@ -706,16 +706,18 @@ class Network(Basic):
 
 
     def branches(self):
-        return pd.concat({typ.__name__: getattr(self, typ.list_name)
-                          for typ in branch_types})
+        return pd.concat((getattr(self, typ.list_name) for typ in branch_types),
+                         keys=[typ.__name__ for typ in branch_types])
 
     def passive_branches(self):
-        return pd.concat({typ.__name__: getattr(self, typ.list_name)
-                          for typ in passive_branch_types})
+        return pd.concat((getattr(self, typ.list_name)
+                          for typ in passive_branch_types),
+                         keys=[typ.__name__ for typ in passive_branch_types])
 
     def controllable_branches(self):
-        return pd.concat({typ.__name__: getattr(self, typ.list_name)
-                          for typ in controllable_branch_types})
+        return pd.concat((getattr(self, typ.list_name)
+                          for typ in controllable_branch_types),
+                         keys=[typ.__name__ for typ in controllable_branch_types])
 
 
     def build_graph(self):
