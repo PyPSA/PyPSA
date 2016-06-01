@@ -289,20 +289,21 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
     network.buses_t.v_ang.loc[now,sub_network.pvpqs.index] = roots[:len(sub_network.pvpqs)]
     network.buses_t.v_mag_pu.loc[now,sub_network.pqs.index] = roots[len(sub_network.pvpqs):]
 
-    v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses.index]
-    v_ang = network.buses_t.v_ang.loc[now,buses.index]
+    v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses.index].values
+    v_ang = network.buses_t.v_ang.loc[now,buses.index].values
 
     V = v_mag_pu*np.exp(1j*v_ang)
 
     #add voltages to branches
-    branches = pd.merge(branches,pd.DataFrame({"v0" :V}),how="left",left_on="bus0",right_index=True)
-    branches = pd.merge(branches,pd.DataFrame({"v1" :V}),how="left",left_on="bus1",right_index=True)
+    buses_indexer = buses.index.get_indexer
+    v0 = V[buses_indexer(branches.bus0)]
+    v1 = V[buses_indexer(branches.bus1)]
 
     i0 = sub_network.Y0*V
     i1 = sub_network.Y1*V
 
-    branches["s0"] = branches["v0"]*np.conj(i0)
-    branches["s1"] = branches["v1"]*np.conj(i1)
+    branches["s0"] = v0*np.conj(i0)
+    branches["s1"] = v1*np.conj(i1)
 
     for t in network.iterate_components(passive_branch_types):
         df = branches.loc[t.name]
@@ -313,27 +314,27 @@ def sub_network_pf(sub_network,now=None,verbose=True,skip_pre=False,x_tol=1e-6):
 
 
     s_calc = V*np.conj(sub_network.Y*V)
-
-    network.buses_t.p.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].real
-    network.buses_t.q.loc[now,sub_network.slack_bus] = s_calc[sub_network.slack_bus].imag
-    network.buses_t.q.loc[now,sub_network.pvs.index] = s_calc[sub_network.pvs.index].imag
+    slack_index = buses_indexer([sub_network.slack_bus])[0]
+    network.buses_t.p.loc[now,sub_network.slack_bus] = s_calc[slack_index].real
+    network.buses_t.q.loc[now,sub_network.slack_bus] = s_calc[slack_index].imag
+    network.buses_t.q.loc[now,sub_network.pvs.index] = s_calc[buses_indexer(sub_network.pvs.index)].imag
 
     #allow all loads to dispatch as set
-    loads = sub_network.loads()
-    network.loads_t.p.loc[now,loads.index] = network.loads_t.p_set.loc[now,loads.index]
-    network.loads_t.q.loc[now,loads.index] = network.loads_t.q_set.loc[now,loads.index]
+    loads_i = sub_network.loads_i()
+    network.loads_t.p.loc[now,loads_i] = network.loads_t.p_set.loc[now,loads_i]
+    network.loads_t.q.loc[now,loads_i] = network.loads_t.q_set.loc[now,loads_i]
 
     #set shunt impedance powers
-    shunt_impedances = sub_network.shunt_impedances()
+    shunt_impedances_i = sub_network.shunt_impedances_i()
     #add voltages
-    shunt_impedances = pd.merge(shunt_impedances,pd.DataFrame({"v_mag_pu" :v_mag_pu}),how="left",left_on="bus",right_index=True)
-    network.shunt_impedances_t.p.loc[now,shunt_impedances.index] = (shunt_impedances.v_mag_pu**2)*shunt_impedances.g_pu
-    network.shunt_impedances_t.q.loc[now,shunt_impedances.index] = (shunt_impedances.v_mag_pu**2)*shunt_impedances.b_pu
+    shunt_impedances_v_mag_pu = v_mag_pu[buses_indexer(network.shunt_impedances.loc[shunt_impedances_i, 'bus'])]
+    network.shunt_impedances_t.p.loc[now,shunt_impedances_i] = (shunt_impedances_v_mag_pu**2)*network.shunt_impedances.loc[shunt_impedances_i, 'g_pu']
+    network.shunt_impedances_t.q.loc[now,shunt_impedances_i] = (shunt_impedances_v_mag_pu**2)*network.shunt_impedances.loc[shunt_impedances_i, 'b_pu']
 
     #allow all generators to dispatch as set
-    generators = sub_network.generators()
-    network.generators_t.p.loc[now,generators.index] = network.generators_t.p_set.loc[now,generators.index]
-    network.generators_t.q.loc[now,generators.index] = network.generators_t.q_set.loc[now,generators.index]
+    generators_i = sub_network.generators_i()
+    network.generators_t.p.loc[now,generators_i] = network.generators_t.p_set.loc[now,generators_i]
+    network.generators_t.q.loc[now,generators_i] = network.generators_t.q_set.loc[now,generators_i]
 
     #let slack generator take up the slack
     network.generators_t.p.loc[now,sub_network.slack_generator] += network.buses_t.p.loc[now,sub_network.slack_bus] - s[sub_network.slack_bus].real
@@ -514,13 +515,12 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
     #susceptances
     b = 1/branches[attribute]
-
     b_diag = csr_matrix((b.values,(r_[:num_branches],r_[:num_branches])))
 
-    from_bus = branches.bus0.map(buses["i"]).values
-    to_bus = branches.bus1.map(buses["i"]).values
 
     #incidence matrix
+    from_bus = branches.bus0.map(buses["i"]).values
+    to_bus = branches.bus1.map(buses["i"]).values
     sub_network.K = csr_matrix((r_[ones(num_branches),-ones(num_branches)],(r_[from_bus,to_bus],index)),(num_buses,num_branches))
 
     sub_network.H = b_diag*sub_network.K.T
