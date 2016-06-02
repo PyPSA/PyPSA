@@ -125,7 +125,7 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
     diff = norm(F,np.Inf)
 
     if verbose:
-        print("Error at iteration %d: %f" % (n_iter,diff))
+        print("Error at iteration %d: %f" % (n_iter, diff))
 
     while diff > x_tol and n_iter < lim_iter:
 
@@ -137,10 +137,10 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
         diff = norm(F,np.Inf)
 
         if verbose:
-            print("Error at iteration %d: %f" % (n_iter,diff))
+            print("Error at iteration %d: %f" % (n_iter, diff))
 
-    if verbose and diff > x_tol:
-        print("Warning, looks like we didn't reach the required tolerance within %d iterations" % (n_iter,))
+    if diff > x_tol:
+        print("Warning, we didn't reach the required tolerance within %d iterations, error is at %f" % (n_iter, diff))
 
     return guess,n_iter,diff
 
