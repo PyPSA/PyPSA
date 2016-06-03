@@ -154,7 +154,9 @@ def l_constraint(model,name,constraints,*args):
 
     i.e. the first argument is a list of tuples with the variables and their
     coefficients, the second argument is the sense string (must be one of
-    "==","<=",">=") and the third argument is the constant term (a float).
+    "==","<=",">=","><") and the third argument is the constant term
+    (a float). The sense "><" allows lower and upper bounds and requires
+    `constant_term` to be a 2-tuple.
 
     Variables may be repeated with different coefficients, which pyomo
     will sum up.
@@ -201,7 +203,11 @@ def l_constraint(model,name,constraints,*args):
             v._data[i]._equality = False
             v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
             v._data[i]._upper = None
-
+        elif sense == "><":
+            v._data[i]._equality = False
+            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant[0])
+            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant[1])
+        else: raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
 
 def l_objective(model,objective=None):
     """
