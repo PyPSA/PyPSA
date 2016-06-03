@@ -810,5 +810,8 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
     if status == "ok" and termination_condition == "optimal":
         extract_optimisation_results(network,snapshots,formulation)
+    elif status == "warning" and termination_condition == "other":
+        print("WARNING! Optimization might be sub-optimal. Writing output anyway")
+        extract_optimisation_results(network,snapshots,formulation)
     else:
         print("Optimisation failed with status %s and terminal condition %s" % (status,termination_condition))
