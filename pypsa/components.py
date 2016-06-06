@@ -818,8 +818,22 @@ class SubNetwork(Common):
 
     calculate_BODF = calculate_BODF
 
-    def buses(self):
-        return self.network.buses[self.network.buses.sub_network == self.name]
+    def buses_i(self):
+        return self.network.buses.index[self.network.buses.sub_network == self.name]
+
+    def lines_i(self):
+        return self.network.lines.index[self.network.lines.sub_network == self.name]
+
+    def transformers_i(self):
+        return self.network.transformers.index[self.network.transformers.sub_network == self.name]
+
+    def branches_i(self):
+        types = []
+        names = []
+        for t in self.iterate_components(passive_branch_types):
+            types += len(t.ind) * [t.name]
+            names += list(t.ind)
+        return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
         branches = self.network.branches()
@@ -841,6 +855,9 @@ class SubNetwork(Common):
         sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
         return self.network.storage_units.index[sub_networks == self.name]
 
+    def buses(self):
+        return self.network.buses[self.buses_i()]
+
     def generators(self):
         return self.network.generators.loc[self.generators_i()]
 
@@ -856,7 +873,7 @@ class SubNetwork(Common):
     def iterate_components(self, types=None, skip_empty=True):
         for t in self.network.iterate_components(types=types, skip_empty=False):
             t = Type(*t[:-1], ind=getattr(self, t.typ.list_name + '_i')())
-            if not skip_empty or len(t.ind) > 0:
+            if not (skip_empty and t.df.empty):
                 yield t
 
 passive_one_port_types = {ShuntImpedance}
