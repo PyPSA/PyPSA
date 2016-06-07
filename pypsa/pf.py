@@ -311,10 +311,10 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     for t in network.iterate_components(passive_branch_types):
         s0t = s0.loc[:,t.name]
         s1t = s1.loc[:,t.name]
-        t.pnl.loc["p0",snapshots,s0t.columns] = s0t.values.real
-        t.pnl.loc["q0",snapshots,s0t.columns] = s0t.values.imag
-        t.pnl.loc["p1",snapshots,s1t.columns] = s1t.values.real
-        t.pnl.loc["q1",snapshots,s1t.columns] = s1t.values.imag
+        t.pnl.p0.loc[snapshots,s0t.columns] = s0t.values.real
+        t.pnl.q0.loc[snapshots,s0t.columns] = s0t.values.imag
+        t.pnl.p1.loc[snapshots,s1t.columns] = s1t.values.real
+        t.pnl.q1.loc[snapshots,s1t.columns] = s1t.values.imag
 
     s_calc = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     for i in np.arange(len(snapshots)):
