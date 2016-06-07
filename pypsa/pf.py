@@ -38,16 +38,18 @@ import pandas as pd
 import scipy as sp, scipy.sparse
 import networkx as nx
 
+import collections, six
 from itertools import chain
 import time
 
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = [network.now]
-    try:
-        return pd.Index(snapshots)
-    except TypeError:
+    if (isinstance(snapshots, six.string_types) or
+        not isinstance(snapshots, (collections.Sequence, pd.Index))):
         return pd.Index([snapshots])
+    else:
+        return pd.Index(snapshots)
 
 def _incidence_matrix(sub_network, busorder=None):
     from .components import passive_branch_types
