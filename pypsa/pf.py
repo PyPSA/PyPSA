@@ -267,11 +267,12 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     network.buses_t.v_mag_pu.loc[snapshots,sub_network.slack_bus] = network.buses_t.v_mag_pu_set.loc[snapshots,sub_network.slack_bus]
     network.buses_t.v_ang.loc[snapshots,sub_network.slack_bus] = 0.
 
+    ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs)))
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
         q = network.buses_t.q.loc[now,buses_o]
-        s = p + 1j*q
+        ss[i] = s = p + 1j*q
 
         #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
         guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
@@ -333,11 +334,11 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
         network.shunt_impedances_t.q.loc[snapshots,shunt_impedances_i] = (shunt_impedances_v_mag_pu**2)*network.shunt_impedances.loc[shunt_impedances_i, 'b_pu'].values
 
     #let slack generator take up the slack
-    network.generators_t.p.loc[snapshots,sub_network.slack_generator] += network.buses_t.p.loc[snapshots,sub_network.slack_bus] - s[sub_network.slack_bus].real
-    network.generators_t.q.loc[snapshots,sub_network.slack_generator] += network.buses_t.q.loc[snapshots,sub_network.slack_bus] - s[sub_network.slack_bus].imag
+    network.generators_t.p.loc[snapshots,sub_network.slack_generator] += network.buses_t.p.loc[snapshots,sub_network.slack_bus] - ss[:,slack_index].real
+    network.generators_t.q.loc[snapshots,sub_network.slack_generator] += network.buses_t.q.loc[snapshots,sub_network.slack_bus] - ss[:,slack_index].imag
 
     #set the Q of the PV generators
-    network.generators_t.q.loc[snapshots,network.buses.loc[sub_network.pvs, "generator"]] += np.asarray(network.buses_t.q.loc[snapshots,sub_network.pvs] - s[sub_network.pvs].imag)
+    network.generators_t.q.loc[snapshots,network.buses.loc[sub_network.pvs, "generator"]] += np.asarray(network.buses_t.q.loc[snapshots,sub_network.pvs] - ss[:,buses_indexer(sub_network.pvs)].imag)
 
 def network_lpf(network, snapshots=None, verbose=True, skip_pre=False):
     """
