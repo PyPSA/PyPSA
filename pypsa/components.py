@@ -87,7 +87,7 @@ class Source(Common):
 
     #emissions in CO2-tonnes-equivalent per MWh primary energy
     #(e.g. gas: 0.2 t_CO2/MWh_thermal)
-    co2_emissions = Float()
+    co2_emissions = Float(default=0.)
 
 
 class Bus(Common):
@@ -101,23 +101,23 @@ class Bus(Common):
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #2-d location data (e.g. longitude and latitude; Spatial Reference System Identifier (SRID) set in network.srid)
-    x = Float()
-    y = Float()
+    x = Float(default=0.)
+    y = Float(default=0.)
 
     p = Series()
     q = Series()
     v_mag_pu = Series(default=1.)
     v_ang = Series()
     v_mag_pu_set = Series(default=1.)
-    v_mag_pu_min = Float()
-    v_mag_pu_max = Float(np.nan)
+    v_mag_pu_min = Float(default=0.)
+    v_mag_pu_max = Float(default=np.nan)
 
     #optimisation output for power balance constraint at bus
     marginal_price = Series()
 
     current_type = String(default="AC",restricted=["AC","DC"])
 
-    sub_network = String()
+    sub_network = String(default="")
 
 
     def generators(self):
@@ -153,8 +153,8 @@ class Region(Common):
 class OnePort(Common):
     """Object which attaches to a single bus (e.g. load or generator)."""
 
-    bus = String()
-    sign = Float(1)
+    bus = String(default="")
+    sign = Float(default=1.)
     p = Series()
     q = Series()
 
@@ -168,10 +168,10 @@ class Generator(OnePort):
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = String()
+    source = String(default="")
 
     #rated power
-    p_nom = Float()
+    p_nom = Float(default=0.0)
 
     #switch to allow capacity to be extended
     p_nom_extendable = Boolean(False)
@@ -179,13 +179,13 @@ class Generator(OnePort):
     #technical potential
     p_nom_max = Float(np.nan)
 
-    p_nom_min = Float()
+    p_nom_min = Float(0.0)
 
     #optimised capacity
-    p_nom_opt = Float()
+    p_nom_opt = Float(0.0)
 
-    capital_cost = Float()
-    marginal_cost = Float()
+    capital_cost = Float(0.0)
+    marginal_cost = Float(0.0)
 
 
     #power limits for variable generators, which can change e.g. due
@@ -197,8 +197,8 @@ class Generator(OnePort):
 
     #non-variable power limits for de-rating and minimum limits for
     #flexible generators
-    p_max_pu_fixed = Float(1)
-    p_min_pu_fixed = Float()
+    p_max_pu_fixed = Float(1.)
+    p_min_pu_fixed = Float(0.)
 
 
     #operator's intended dispatch
@@ -208,7 +208,7 @@ class Generator(OnePort):
 
     #ratio between electrical energy and primary energy
     #(e.g. gas: 0.4 MWh_elec/MWh_thermal)
-    efficiency = Float(1)
+    efficiency = Float(1.)
 
 
 
@@ -217,7 +217,7 @@ class StorageUnit(Generator):
     list_name = "storage_units"
 
     #units for state of charge are MWh
-    state_of_charge_initial = Float()
+    state_of_charge_initial = Float(0.)
 
     #state of charge can be forced to a particular value
     state_of_charge_set = Series(default=np.nan)
@@ -244,7 +244,7 @@ class StorageUnit(Generator):
     efficiency_dispatch = Float(1)
 
     #per hour per unit loss in state of charge
-    standing_loss = Float()
+    standing_loss = Float(0.)
 
 
 
@@ -254,7 +254,7 @@ class Load(OnePort):
     list_name = "loads"
 
     #set sign convention for powers opposite to generator
-    sign = Float(-1)
+    sign = Float(-1.)
 
     p_set = Series()
     q_set = Series()
@@ -265,13 +265,13 @@ class ShuntImpedance(OnePort):
     list_name = "shunt_impedances"
 
     #set sign convention so that g>0 withdraws p from bus
-    sign = Float(-1)
+    sign = Float(-1.)
 
-    g = Float()
-    b = Float()
+    g = Float(0.)
+    b = Float(0.)
 
-    g_pu = Float()
-    b_pu = Float()
+    g_pu = Float(0.)
+    b_pu = Float(0.)
 
 
 class Branch(Common):
@@ -279,20 +279,20 @@ class Branch(Common):
 
     list_name = "branches"
 
-    bus0 = String()
-    bus1 = String()
+    bus0 = String("")
+    bus1 = String("")
 
-    capital_cost = Float()
+    capital_cost = Float(0.)
 
-    s_nom = Float()
+    s_nom = Float(0.)
 
     s_nom_extendable = Boolean(False)
 
     s_nom_max = Float(np.nan)
-    s_nom_min = Float()
+    s_nom_min = Float(0.)
 
     #optimised capacity
-    s_nom_opt = Float()
+    s_nom_opt = Float(0.)
 
     #{p,q}i is positive if power is flowing from bus i into the branch
     #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
@@ -309,17 +309,17 @@ class Line(Branch):
     list_name = "lines"
 
     #series impedance z = r + jx in Ohm
-    r = Float()
-    x = Float()
+    r = Float(0.)
+    x = Float(0.)
 
     #shunt reactance y = g + jb in 1/Ohm
-    g = Float()
-    b = Float()
+    g = Float(0.)
+    b = Float(0.)
 
-    x_pu = Float()
-    r_pu = Float()
-    g_pu = Float()
-    b_pu = Float()
+    x_pu = Float(0.)
+    r_pu = Float(0.)
+    g_pu = Float(0.)
+    b_pu = Float(0.)
 
     #voltage angle difference across branches
     v_ang_min = Float(np.nan)
@@ -329,7 +329,7 @@ class Line(Branch):
     terrain_factor = Float(default=1.0)
 
 
-    sub_network = String()
+    sub_network = String("")
 
 
 class Transformer(Branch):
@@ -338,15 +338,15 @@ class Transformer(Branch):
     list_name = "transformers"
 
     #per unit with reference to s_nom
-    x = Float()
-    r = Float()
-    g = Float()
-    b = Float()
+    x = Float(0.)
+    r = Float(0.)
+    g = Float(0.)
+    b = Float(0.)
 
-    x_pu = Float()
-    r_pu = Float()
-    g_pu = Float()
-    b_pu = Float()
+    x_pu = Float(0.)
+    r_pu = Float(0.)
+    g_pu = Float(0.)
+    b_pu = Float(0.)
 
     #voltage angle difference across branches
     v_ang_min = Float(np.nan)
@@ -356,9 +356,9 @@ class Transformer(Branch):
     tap_ratio = Float(1.)
 
     #in degrees
-    phase_shift = Float()
+    phase_shift = Float(0.)
 
-    sub_network = String()
+    sub_network = String("")
 
 
 class Converter(Branch):
@@ -797,7 +797,7 @@ class SubNetwork(Common):
 
     current_type = String(default="AC",restricted=["AC","DC"])
 
-    slack_bus = String()
+    slack_bus = String("")
 
     graph = GraphDesc()
 
@@ -818,8 +818,22 @@ class SubNetwork(Common):
 
     calculate_BODF = calculate_BODF
 
-    def buses(self):
-        return self.network.buses[self.network.buses.sub_network == self.name]
+    def buses_i(self):
+        return self.network.buses.index[self.network.buses.sub_network == self.name]
+
+    def lines_i(self):
+        return self.network.lines.index[self.network.lines.sub_network == self.name]
+
+    def transformers_i(self):
+        return self.network.transformers.index[self.network.transformers.sub_network == self.name]
+
+    def branches_i(self):
+        types = []
+        names = []
+        for t in self.iterate_components(passive_branch_types):
+            types += len(t.ind) * [t.name]
+            names += list(t.ind)
+        return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
         branches = self.network.branches()
@@ -841,6 +855,9 @@ class SubNetwork(Common):
         sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
         return self.network.storage_units.index[sub_networks == self.name]
 
+    def buses(self):
+        return self.network.buses[self.buses_i()]
+
     def generators(self):
         return self.network.generators.loc[self.generators_i()]
 
@@ -856,7 +873,7 @@ class SubNetwork(Common):
     def iterate_components(self, types=None, skip_empty=True):
         for t in self.network.iterate_components(types=types, skip_empty=False):
             t = Type(*t[:-1], ind=getattr(self, t.typ.list_name + '_i')())
-            if not skip_empty or len(t.ind) > 0:
+            if not (skip_empty and t.df.empty):
                 yield t
 
 passive_one_port_types = {ShuntImpedance}

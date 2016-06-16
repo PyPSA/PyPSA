@@ -88,98 +88,42 @@ else:
 #Some descriptors to control variables - idea is to do type checking
 #and in future facilitate interface with Database / GUI
 
-class Float(object):
-    """A descriptor to manage floats."""
-
-    typ = float
-
+class SimpleDescriptor(object):
     #the name is set by Network.__init__
     name = None
 
-    def __init__(self,default=0.0):
-        self.default = default
-
-    def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
-
-    def __set__(self,obj,val):
-        try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
-        except:
-            print("could not convert",val,"to a float")
-
-
-class Integer(object):
-    """A descriptor to manage integers."""
-
-    typ = int
-
-    #the name is set by Network.__init__
-    name = None
-
-    def __init__(self,default=0):
-        self.default = default
-
-    def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
-
-    def __set__(self,obj,val):
-        try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
-        except:
-            print("could not convert",val,"to an integer")
-
-
-
-class Boolean(object):
-    """A descriptor to manage booleans."""
-
-    typ = bool
-
-    #the name is set by Network.__init__
-    name = None
-
-    def __init__(self,default=True):
-        self.default = default
-
-    def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
-
-    def __set__(self,obj,val):
-        try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
-        except:
-            print("could not convert",val,"to a boolean")
-
-
-
-class String(object):
-    """A descriptor to manage strings."""
-
-    typ = str
-
-    #the name is set by Network.__init__
-    name = None
-
-    def __init__(self,default="",restricted=None):
+    def __init__(self, default, restricted=None):
         self.default = default
         self.restricted = restricted
 
-    def __get__(self,obj,cls):
-        return getattr(obj.network,obj.__class__.list_name).at[obj.name,self.name]
+    def __get__(self, obj, cls):
+        return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
 
-    def __set__(self,obj,val):
+    def __set__(self, obj, val):
         try:
-            getattr(obj.network,obj.__class__.list_name).loc[obj.name,self.name] = self.typ(val)
+            cast_value = self.typ(val)
+            getattr(obj.network, obj.__class__.list_name).loc[obj.name, self.name] = cast_value
         except:
-            print("could not convert",val,"to a string")
-            return
+            print("could not convert '{}' to a '{}'".format(val, self.typ))
 
-        if self.restricted is not None and self.typ(val) not in self.restricted:
-            print(val,"not in list of acceptable entries:",self.restricted)
+        if self.restricted is not None and cast_value not in self.restricted:
+            print("'{}' not in list of acceptable entries: {}".format(cast_value, self.restricted))
 
+class Float(SimpleDescriptor):
+    """A descriptor to manage floats."""
+    typ = float
 
+class Integer(SimpleDescriptor):
+    """A descriptor to manage integers."""
+    typ = int
 
+class Boolean(SimpleDescriptor):
+    """A descriptor to manage booleans."""
+    typ = bool
+
+class String(SimpleDescriptor):
+    """A descriptor to manage strings."""
+    typ = str
 
 class GraphDesc(object):
 
@@ -218,9 +162,9 @@ class Series(object):
         self.default = default
 
     def __get__(self, obj, cls):
-        return getattr(obj.network,obj.__class__.list_name+"_t").loc[self.name,:,obj.name]
+        return getattr(obj.network, obj.__class__.list_name+"_t").loc[self.name,:,obj.name]
 
-    def __set__(self,obj,val):
+    def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
             getattr(obj.network,obj.__class__.list_name+"_t").loc[self.name,:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)

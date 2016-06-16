@@ -48,4 +48,4 @@ def test_lpf():
 
 
 if __name__ == "__main__":
-    test_opf()
+    test_lpf()
