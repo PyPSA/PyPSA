@@ -3,6 +3,25 @@ Release Notes
 #######################
 
 
+PyPSA 0.4.2 (17th June 2016)
+============================
+
+This release improved the non-linear power flow performance and
+included other small refactorings:
+
+* pf: The non-linear power flow ``network.pf()`` now accepts a list of
+  snapshots ``network.pf(snapshots)`` and has been refactored to be much
+  more performant.
+* pf: Neither ``network.pf()`` nor ``network.lpf()`` accept the
+  ``now`` argument anymore - for the power flow on a specific
+  snapshot, either set ``network.now`` or pass the snapshot as an
+  argument.
+* descriptors: The code has been refactored and unified for each
+  simple descriptor.
+* opt: Constraints now except both an upper and lower bound with
+  ``><``.
+* opf: Sub-optimal solutions can also be read out of pyomo.
+
 
 PyPSA 0.4.1 (3rd April 2016)
 ============================
