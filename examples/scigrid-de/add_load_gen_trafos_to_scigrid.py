@@ -1,25 +1,38 @@
-## Script to add load and generators to SciGRID
+## Script to add load, generators, missing lines and transformers to SciGRID
 #
-#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_to_scigrid.ipynb>.
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>  and can be viewed as an HTML page at: http://pypsa.org/examples/add_load_gen_trafos_to_scigrid.html.
 #
-#This script does some processing on the original SciGRID dataset and then adds load and generation data to the SciGRID nodes.
+#This script does some post-processing on the original SciGRID dataset version 0.2 and then adds load, generation, transformers and missing lines to the SciGRID dataset.
 #
-#Some of the libraries used below for attaching load and generation are NOT freely available, except on personal request - we're working on bringing them online. Similarly the datasets may not be totally open.
+#The intention is to create a model of the German electricity system that is transparent in the sense that all steps from openly-available raw data to the final model can be followed. The model is NOT validated and may contain errors.
+#
+#Some of the libraries used for attaching the load and generation are not on github, but can be downloaded at
+#
+#http://fias.uni-frankfurt.de/~hoersch/
+#
+#The intention is to release these as free software soon. We cannot guarantee to support you when using these libraries.
+#
 #
 #
 ### Data sources
 #
-#Grid: from [SciGRID](http://scigrid.de/) which is based on [OpenStreetMap](http://www.openstreetmap.org/).
+#Grid: based on [SciGRID](http://scigrid.de/) Version 0.2 which is based on [OpenStreetMap](http://www.openstreetmap.org/).
 #
-#Load size and location: based on Landkreise GDP and population.
+#Load size and location: based on Landkreise (NUTS 3) GDP and population.
 #
-#Load time series: from ENTSO-E.
+#Load time series: from ENTSO-E hourly data, scaled up uniformly by factor 1.12 (a simplification of the methodology in Schumacher, Hirth (2015)).
 #
 #Conventional power plant capacities and locations: BNetzA list.
 #
-#Wind and solar capacities and locations: EEG Stammdaten.
+#Wind and solar capacities and locations: EEG Stammdaten, based on  http://www.energymap.info/download.html, which represents capacities at the end of 2014. Units without PLZ are removed.
 #
 #Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+#
+#NB:
+#
+#All times in the dataset are UTC.
+#
+#Where SciGRID nodes have been split into 220kV and 380kV substations, all load and generation is attached to the 220kV substation.
 #
 ### Warning
 #
@@ -27,13 +40,13 @@
 #
 #Known problems include:
 #
-#i) Since SciGRID does not have transformers, it is assumed for convenience that all lines are run at 380 kV. This means that the 220 kV lines have (380/220)^2 less per unit impedance than they should do. You can fix this either by artificially re-adjusting the impedances line.x for the 220 kV lines or by carefully splitting the buses according to voltage level and putting in transformers.  There is a provisional dataset which includes the transformers in the github repository <https://github.com/FRESNA/PyPSA/tree/master/examples/opf-scigrid-de>.
+#i) Rough approximations have been made for missing grid data, e.g. 220kV-380kV transformers and connections between close sub-stations missing from OSM.
 #
 #ii) There appears to be some unexpected congestion in parts of the network, which may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
 #
 #iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
 #
-#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket 80% reduction in thermal limits or a proper security constrained OPF.
+#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket e.g. 70% reduction in thermal limits (as done here) or a proper security constrained OPF (see e.g.  <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>).
 #
 #v) The borders and neighbouring countries are not represented.
 #
@@ -41,14 +54,16 @@
 #
 #viii) The marginal costs are illustrative, not accurate.
 #
-#ix) Only the first day of 2011 is in the dataset, which is not representative.
+#ix) Only the first day of 2011 is in the github dataset, which is not representative. The full year of 2011 can be downloaded at <http://www.pypsa.org/examples/scigrid-with-load-gen-trafos-2011.zip>.
 #
-#x) The ENTSO-E total load for Germany may not be scaled correctly.
+#x) The ENTSO-E total load for Germany may not be scaled correctly; it is scaled up uniformly by factor 1.12 (a simplification of the methodology in Schumacher, Hirth (2015), which suggests monthly factors).
+#
+#xi) Biomass from the EEG Stammdaten are not read in at the moment.
+#
+#xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
-
-# make the code as Python 3 compatible as possible                                                                                          
+# make the code as Python 3 compatible as possible
 from __future__ import print_function, division,absolute_import
-
 
 import pypsa
 
@@ -61,6 +76,12 @@ from six.moves import range
 
 import os
 
+import matplotlib.pyplot as plt
+
+#%matplotlib inline
+
+### Read in the raw SciGRID data
+
 #You may have to adjust this path to where 
 #you downloaded the github repository
 #https://github.com/FRESNA/PyPSA
@@ -70,12 +91,9 @@ folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 #note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(folder_prefix+"scigrid-151109/vertices_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 
-#Because there are no transformers in the dataset, for convenience we assume
-#all buses are at 380 kV - this affects the per unit impedance of the 220 kV lines,
-#see warning above.
-vertices["v_nom"] = 380.
-
 vertices.rename(columns={"lon":"x","lat":"y","name":"osm_name"},inplace=True)
+
+print(vertices["voltage"].value_counts(dropna=False))
 
 links = pd.read_csv(folder_prefix+"scigrid-151109/links_de_power_151109.csvdata",sep=",",quotechar="'",index_col=0)
 links.rename(columns={"v_id_1":"bus0","v_id_2":"bus1","name":"osm_name"},inplace=True)
@@ -85,29 +103,14 @@ links["wires"].fillna(2,inplace=True)
 
 links["length"] = links["length_m"]/1000.
 
-default = dict(wires_typical=2.0, r=0.08, x=0.32, c=11.5, i=1.3)
-
-coeffs = {
-        220000: dict(wires_typical=2.0, r=0.08, x=0.32, c=11.5, i=1.3),
-        380000: dict(wires_typical=4.0, r=0.025, x=0.25, c=13.7, i=2.6)
-    }
-
-links["r"] = [row["length"]*coeffs.get(row["voltage"],default)["r"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in links.iterrows()]
-
-links["x"] = [row["length"]*coeffs.get(row["voltage"],default)["x"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in links.iterrows()]
-
-# if g = 0, b = 2*pi*f*C; C is in nF
-links["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["c"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
-
-links["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in links.iterrows()]
-
 print(links["voltage"].value_counts(dropna=False))
 
-print(links[links["length_m"] <=0])
+## Drop the DC lines
 
-print(links[(links["voltage"] != 220000) & (links["voltage"] != 380000)])
+for voltage in [300000,400000,450000]:
+    links.drop(links[links.voltage == voltage].index,inplace=True)
 
-print(links[pd.isnull(links.cables)])
+## Build the network
 
 network = pypsa.Network()
 
@@ -115,9 +118,207 @@ pypsa.io.import_components_from_dataframe(network,vertices,"Bus")
 
 pypsa.io.import_components_from_dataframe(network,links,"Line")
 
-network.lines[["b","x","r","b_pu","x_pu","r_pu"]]
+### Add specific missing AC lines
 
-network.build_graph()
+# Add AC lines known to be missing in SciGRID                                                                                                             
+# E.g. lines missing because of OSM mapping errors.                                                                                                       
+# This is no systematic list, just what we noticed;                                                                                                       
+# please tell SciGRID and/or Tom Brown (brown@fias.uni-frankfurt.de)                                                                                      
+# if you know of more examples                                                                                                                            
+
+columns = ["bus0","bus1","wires","cables","voltage"]
+
+data = [["100","255",2,6,220000], # Niederstedem to Wengerohr                                                                                             
+        ["384","351",4,6,380000], # Raitersaich to Ingolstadt                                                                                             
+        ["351","353",4,6,380000], # Ingolstadt to Irsching                                                                                                
+        ]
+
+last_scigrid_line = int(network.lines.index[-1])
+
+index = [str(i) for i in range(last_scigrid_line+1,last_scigrid_line+1 + len(data))]
+
+missing_lines = pd.DataFrame(data,index,columns)
+
+#On average, SciGRID lines are 25% longer than the direct distance
+length_factor = 1.25
+
+missing_lines["length"] = [length_factor*pypsa.geo.haversine(network.buses.loc[r.bus0,["x","y"]],network.buses.loc[r.bus1,["x","y"]])[0,0] for i,r in missing_lines.iterrows()]
+
+pypsa.io.import_components_from_dataframe(network,missing_lines,"Line")
+
+network.lines.tail()
+
+### Determine the voltage of the buses by the lines which end there
+
+network.lines.voltage.value_counts()
+
+
+buses_by_voltage = {}
+
+for voltage in network.lines.voltage.value_counts().index:
+    buses_by_voltage[voltage] = set(network.lines[network.lines.voltage == voltage].bus0)\
+                                | set(network.lines[network.lines.voltage == voltage].bus1)
+
+# give priority to 380 kV
+network.buses["v_nom"] = 380
+network.buses.loc[buses_by_voltage[220000],"v_nom"] = 220
+network.buses.loc[buses_by_voltage[380000],"v_nom"] = 380
+
+network.buses.v_nom.value_counts(dropna=False)
+
+### Connect buses which are < 850m apart
+#
+#There are pairs of buses less than 850m apart which are not connected in SciGRID, but clearly connected in OpenStreetMap (OSM).
+#
+#The reason is that the relations for connections between close substations do not appear in OSM.
+#
+#Here they are connected with 2 circuits of the appropriate voltage level (an asumption).
+#
+#850m is chosen as a limit based on manually looking through the examples.
+#
+#The example 46-48 (Marzahn) at 892 m apart is the first example of close substations which are not connected in reality.
+
+# Compute the distances for unique pairs
+
+pairs = pd.Series()
+
+for i,u in enumerate(network.buses.index):
+    vs = network.buses[["x","y"]].iloc[i+1:]
+    distance_km = pypsa.geo.haversine(vs,network.buses.loc[u,["x","y"]])
+
+    to_add = pd.Series(data=distance_km[:,0],index=[(u,v) for v in vs.index])
+    
+    pairs = pd.concat((pairs,to_add))
+
+pairs.sort_values().head()
+
+# determine topology so we can look what's actually connected
+network.determine_network_topology()
+
+# Example all substations which are close to                                                                                                              
+# each other geographically by not connected in network.adj                                                                                               
+
+start = 0  #km                                                                                                                                            
+stop = 1 #km                                                                                                                                              
+
+for (u,v),dist in pairs.sort_values().iteritems():
+
+    if dist < start:
+        continue
+
+    #only go up to pairs stop km apart                                                                                                                    
+    if dist > stop:
+        break
+
+    #ignore if they're already connected                                                                                                                  
+    if u in network.graph.adj[v]:
+        continue
+
+
+    print(u,v,dist)
+
+    u_x = network.buses.at[u,"x"]
+    u_y = network.buses.at[u,"y"]
+    v_x = network.buses.at[v,"x"]
+    v_y = network.buses.at[v,"y"]
+
+    #have a look what's going on in OSM                                                                                                                   
+    print("https://www.openstreetmap.org/#map=18/{}/{}".format(u_y,u_x))
+    print("https://www.openstreetmap.org/#map=18/{}/{}".format(v_y,v_x))
+
+# From examining the map, it seems that all cases where substations                                                                                       
+# are less than 850m apart are connected in reality                                                                                                       
+# The first one to fail is 46-48 (Marzahn) at 892 m                                                                                                       
+
+# Connect these substations                                                                                                                               
+
+limit = 0.85
+
+for (u,v),dist in pairs.sort_values().iteritems():
+
+    #only go up to pairs stop km apart                                                                                                                    
+    if dist > limit:
+        break
+
+    #ignore if they're already connected                                                                                                                  
+    if u in network.graph.adj[v]:
+        continue
+
+
+    kv_u = network.buses.at[u,"v_nom"]
+    kv_v = network.buses.at[v,"v_nom"]
+
+    print(u,v,dist,kv_u,kv_v)
+    
+    last_scigrid_line = int(network.lines.index[-1])
+    
+    voltage = max(kv_u,kv_v)*1000
+    
+    wires = {220000 : 2, 380000 : 4}[voltage]
+    
+    cables = 6
+    
+    df = pd.DataFrame([[u,v,length_factor*dist,wires,cables,voltage]],columns=["bus0","bus1","length","wires","cables","voltage"],index=[str(last_scigrid_line+1)])
+
+    pypsa.io.import_components_from_dataframe(network,df,"Line")
+
+### Split buses with more than one voltage; add trafos between
+#
+#This code splits the buses where you have 220 and 380 kV lines landing.
+
+network.lines.voltage.value_counts()
+
+
+buses_by_voltage = {}
+
+for voltage in network.lines.voltage.value_counts().index:
+    buses_by_voltage[voltage] = set(network.lines[network.lines.voltage == voltage].bus0)\
+                                | set(network.lines[network.lines.voltage == voltage].bus1)
+
+network.buses.v_nom=380
+network.buses.loc[buses_by_voltage[220000],"v_nom"] = 220
+network.buses.loc[buses_by_voltage[380000],"v_nom"] = 380
+
+overlap = buses_by_voltage[220000] & buses_by_voltage[380000]
+len(overlap)
+
+## build up new buses and transformers to import
+
+
+buses_to_split = [str(i) for i in sorted([int(item) for item in overlap])]
+buses_to_split_df = network.buses.loc[buses_to_split]
+
+buses_to_split_df.v_nom = 220
+
+buses_to_split_220kV = [name + "_220kV" for name in buses_to_split_df.index]
+
+buses_to_split_df.index = buses_to_split_220kV
+
+trafos_df = pd.DataFrame(index=buses_to_split)
+trafos_df["bus0"] = buses_to_split
+trafos_df["bus1"] = buses_to_split_220kV
+trafos_df["x"] = 0.1
+#This high a nominal power is required for feasibility in LOPF
+trafos_df["s_nom"] = 2000
+
+pypsa.io.import_components_from_dataframe(network,buses_to_split_df,"Bus")
+pypsa.io.import_components_from_dataframe(network,trafos_df,"Transformer")
+
+##reconnect lines to the correct voltage bus
+
+for line in network.lines.index:
+    bus0 = network.lines.at[line,"bus0"]
+    bus1 = network.lines.at[line,"bus1"]
+    v0 = network.buses.at[bus0,"v_nom"]
+    v1 = network.buses.at[bus1,"v_nom"]
+    v = network.lines.at[line,"voltage"]
+    if v0 != v/1000.:
+        print(line,v0,v)
+        network.lines.at[line,"bus0"] = bus0+"_220kV"
+    if v1 != v/1000.:
+        network.lines.at[line,"bus1"] = bus1+"_220kV"
+
+#determine the connected components
 
 network.determine_network_topology()
 
@@ -126,16 +327,46 @@ network.determine_network_topology()
 for sn in network.sub_networks.obj:
     buses = sn.buses()
     branches = sn.branches()
-    print(sn,len(buses))
+    
     if len(buses) < 5:
-        print(branches,sn.buses)
+        print("Dropping Sub-Network {} because it only has {} buses".format(sn,len(buses)))
+        #print(buses.index)
+        #print(len(branches),branches.index)
         for bus in buses.obj:
             network.remove("Bus",bus.name)
         for branch in branches.obj:
             network.remove("Line",branch.name)
-network.build_graph()
+    else:
+        print("Keeping Sub-Network {} because it has {} buses".format(sn,len(buses)))
 
-network.determine_network_topology()                
+#rebuild topology
+
+network.determine_network_topology()
+
+colors = network.lines.voltage.map(lambda v: "g" if v == 220000 else "r" if v == 380000 else "c")
+
+network.plot(line_colors=colors)
+
+### Recalculate all electrical properties
+
+
+coeffs = {
+        220000: dict(wires_typical=2.0, r=0.08, x=0.32, c=11.5, i=1.3),
+        380000: dict(wires_typical=4.0, r=0.025, x=0.25, c=13.7, i=2.6)
+    }
+
+default = coeffs[220000]
+
+network.lines["r"] = [row["length"]*coeffs.get(row["voltage"],default)["r"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in network.lines.iterrows()]
+
+network.lines["x"] = [row["length"]*coeffs.get(row["voltage"],default)["x"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in network.lines.iterrows()]
+
+# if g = 0, b = 2*pi*f*C; C is in nF
+network.lines["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["c"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in network.lines.iterrows()]
+
+network.lines["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in network.lines.iterrows()]
+
+## Attach the load
 
 #import FIAS libraries for attaching data - sorry, not free software yet
 
@@ -152,34 +383,72 @@ from vresutils import grid as vgrid
 from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
 from load import germany as DEload
+import networkx as nx
 
 
 #bounding poly for Germany for the Voronoi - necessary
 #because some SciGRID points lie outside border vshapes.germany()
 poly = Polygon([[5.8,47.],[5.8,55.5],[15.2,55.5],[15.2,47.]])
 
+def generate_dummy_graph(network):
+    """Generate a dummy graph to feed to the FIAS libraries.
+    It adds the "pos" attribute and removes the 380 kV duplicate
+    buses when the buses have been split, so that all load and generation
+    is attached to the 220kV bus."""
+    
+    graph = pypsa.descriptors.OrderedGraph()
+    
+    graph.add_nodes_from([bus for bus in network.buses.index if bus not in buses_to_split])
+    
+    #add positions to graph for voronoi cell computation
+    for node in graph.nodes():
+        graph.node[node]["pos"] = np.array(network.buses.loc[node,["x","y"]],dtype=float)
+    
+    return graph
 
-#add positions to graph for voronoi cell computation
-for bus in network.buses.obj:
-    network.graph.node[bus.name]["pos"] = np.array([bus.x,bus.y])
+graph = generate_dummy_graph(network)
 
-network.graph.name = "scigrid"
+graph.name = "scigrid_v2"
 
-vgraph.voronoi_partition(network.graph, poly)
+def voronoi_partition(G, outline):
+    """                                                                                                                                                   
+    For 2D-embedded graph `G`, within the boundary given by the shapely polygon                                                                           
+    `outline`, returns `G` with the Voronoi cell region as an additional node                                                                             
+    attribute.                                                                                                                                            
+    """
+    #following line from vresutils.graph caused a bug
+    #G = polygon_subgraph(G, outline, copy=False)
+    points = list(vresutils.graph.get_node_attributes(G, 'pos').values())
+    regions = vresutils.graph.voronoi_partition_pts(points, outline, no_multipolygons=True)
+    nx.set_node_attributes(G, 'region', dict(zip(G.nodes(), regions)))
+
+    return G
+
+voronoi_partition(graph, poly)
 
 #NB: starts at midnight CET, 23:00 UTC
-load = DEload.timeseries(network.graph, years=[2011, 2012, 2013, 2014])
+load = DEload.timeseries(graph, years=[2011, 2012, 2013, 2014])
 
-#Take the first day (in UTC time - we don't set time zone because of a Pandas bug)
-network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-01-01 23:00",freq="H"))
+#Kill the Timezone information to avoid pandas bugs
+load.index = load.index.values
+
+#Take the first year (in UTC time - we don't set time zone because of a Pandas bug)
+network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-12-31 23:00",freq="H"))
 
 network.now = network.snapshots[0]
 
 print(network.snapshots)
 
-for bus in network.buses.obj:
-    network.add("Load",bus.name,bus=bus.name,
-                p_set = pd.Series(data=1000*load.loc[load.index[1:25],bus.name],index=network.snapshots))
+#temporary load scaling factor for Germany load in relation to ENTSO-E hourly load
+#based roughly on Schumacher & Hirth (2015)
+#http://www.feem.it/userfiles/attach/20151191122284NDL2015-088.pdf
+#In principle rescaling should happen on a monthly basis
+
+load_factor = 1.12
+
+for bus in graph.nodes():
+    network.add("Load",bus,bus=bus,
+                p_set = pd.Series(data=load_factor*1000*load.loc[network.snapshots,bus],index=network.snapshots))
 
 #%matplotlib inline
 
@@ -188,6 +457,14 @@ pd.DataFrame(load.sum(axis=1)).plot()
 load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
 
 network.plot(bus_sizes=load_distribution)
+
+total_load = load.sum(axis=1)
+
+monthly_load = total_load.resample("M").sum()
+
+monthly_load.plot(grid=True)
+
+## Attach conventional generators from BNetzA list
 
 from vresutils import shapes as vshapes
 
@@ -249,6 +526,8 @@ power_plants = read_kraftwerksliste()
 
 power_plants[power_plants[u"Unternehmen"] == "EEG-Anlagen < 10 MW"].groupby(u"Type").sum()
 
+power_plants.groupby(u"Type").sum()
+
 import random
 
 #NB: bnetza extracted from BNetzA using
@@ -289,7 +568,7 @@ def backup_capacity_german_grid(G):
 
     return capacity
 
-cap = backup_capacity_german_grid(network.graph)
+cap = backup_capacity_german_grid(graph)
 
 cap.describe(),cap.sum(),type(cap)
 
@@ -337,7 +616,7 @@ import generation.germany as DEgen
 
 reload(DEgen)
 
-generation = DEgen.timeseries_eeg(network.graph)
+generation = DEgen.timeseries_eeg(graph)
 
 
 generation.items
@@ -345,38 +624,114 @@ generation.items
 #Kill the Timezone information to avoid pandas bugs
 generation.major_axis = generation.major_axis.values
 
-generation.loc[["wind","solar"],network.snapshots,:].sum(axis=2).plot(kind="area")
+generation.loc[["wind","solar"],network.snapshots,:].sum(axis=2).plot()
+
+solar = generation.loc["solar",network.snapshots,:].sum(axis=1)
+solar.describe()
 
 #make sure the ordering of the minor axis is correc
-generation.minor_axis = network.graph.nodes()
+generation.minor_axis = graph.nodes()
 
-network.plot(bus_sizes=1000*generation.windoff.max())
+## Get the capacities correct
 
-network.plot(bus_sizes=1000*(generation.wind.mean()/generation.wind.max()))
+cutout = vresutils.reatlas.Cutout(cutoutname="Europe_2011_2014", username="becker")
 
-network.plot(bus_sizes=1000*generation.solar.max())
+def panel_capacity(panel):
+    """
+    Returns the panel capacity in MW.
+    
+    Parameters
+    ----------
+    panel : string
+        Panel name, e.g. "Sunpower"
+    
+    Returns
+    -------
+    capacity : float
+        In MW
+    """
+    c = vresutils.reatlas.solarpanelconf_to_solar_panel_config_object(panel)
+    return c['A'] + c['B'] * 1000 + c['C'] * np.log(1000)
 
-maxes = generation.max(axis=1)
+solar_layouts = DEgen.eeg_solarlayouts(graph,cutout)
+
+panel_cap = panel_capacity(solar_layouts[0]["panel"])
+solar_caps = pd.Series(solar_layouts[1].sum(axis=(1,2))*panel_cap,
+                       graph.nodes())
+
+solar_caps.describe(),solar_caps.sum()
+
+(generation.solar.max()/solar_caps).describe()
+
+windon_layouts = DEgen.eeg_windonlayouts_per_class(graph,cutout)
+
+windon_capacities = pd.DataFrame(index=graph.nodes())
+for turbine_items in windon_layouts:
+    name = turbine_items[0]["onshore"]
+    turbine_cap = np.array(vresutils.reatlas.turbineconf_to_powercurve_object(name)["POW"]).max()
+    print(name,turbine_cap)
+    windon_capacities[name] = turbine_items[1].sum(axis=(1,2))*turbine_cap/1000.
+
+windon_caps = windon_capacities.sum(axis=1)
+windon_caps.describe(),windon_caps.sum()
+
+(generation.windon.max()/windon_caps).describe()
+
+windoff_layouts = DEgen.eeg_windofflayouts_per_class(graph,cutout)
+
+windoff_capacities = pd.DataFrame(index=graph.nodes())
+for i,turbine_items in enumerate(windoff_layouts):
+    name = turbine_items[0]["offshore"]
+    turbine_cap = np.array(vresutils.reatlas.turbineconf_to_powercurve_object(name)["POW"]).max()
+    print(name,turbine_cap)
+    #add an index to name to avoid duplication of names
+    windoff_capacities[name+"-" + str(i)] = turbine_items[1].sum(axis=(1,2))*turbine_cap/1000.
+
+windoff_capacities.sum()
+
+windoff_caps = windoff_capacities.sum(axis=1)
+windoff_caps.describe(),windoff_caps.sum()
+
+(generation.windoff.max()/windoff_caps).describe()
+
+network.plot(bus_sizes=1000*windoff_caps)
+
+network.plot(bus_sizes=1000*windon_caps)
+
+network.plot(bus_sizes=1000*solar_caps)
 
 
-d = {"windoff" : "Wind Offshore",
-    "windon" : "Wind Onshore",
-    "solar" : "Solar"}
+d = {"windoff" : {"full_name" : "Wind Offshore", "caps" : windoff_caps},
+    "windon" : {"full_name" : "Wind Onshore", "caps" : windon_caps},
+    "solar" : {"full_name" : "Solar", "caps" : solar_caps},
+     }
 
 for tech in ["windoff",'windon',"solar"]:
-    gens = maxes[tech][maxes[tech] != 0.]
+    caps = d[tech]["caps"]
+    caps = caps[caps != 0]
     
-    for i in gens.index:
-        network.add("Generator","{} {}".format(i,d[tech]),
-                    p_nom=gens[i]*1000.,dispatch="variable",
-                    bus=i,source=d[tech],
-                    p_max_pu=generation[tech].loc[network.snapshots,i]/gens[i])
+    for i in caps.index:
+        network.add("Generator","{} {}".format(i,d[tech]["full_name"]),
+                    p_nom=caps[i]*1000.,dispatch="variable",
+                    bus=i,source=d[tech]["full_name"],
+                    p_max_pu=generation[tech].loc[network.snapshots,i]/caps[i])
 
-csv_folder_name = "../../lib/pypsa/examples/scigrid-de/scigrid-with-load-gen"
+csv_folder_name = "../../lib/data/de_model/scigrid-with-load-gen-trafos"
 
 time_series = {"loads" : {"p_set" : None},
                "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
 
 
 network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
+
+network.set_snapshots(network.snapshots[:24])
+
+csv_folder_name = "../../lib/pypsa/examples/scigrid-de/scigrid-with-load-gen-trafos"
+
+time_series = {"loads" : {"p_set" : None},
+               "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
+
+
+network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
+
 

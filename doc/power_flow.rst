@@ -13,9 +13,13 @@ Full non-linear power flow
 The non-linear power flow ``network.pf()`` works for AC networks and
 by extension for DC networks too (with a work-around described below).
 
-It can be called for a particular ``snapshot`` as
-``network.pf(snapshot)``, otherwise ``network.pf()`` will default to the snapshot
-``network.now``.
+The non-linear power flow ``network.pf()`` can be called for a particular
+``snapshot`` as ``network.pf(snapshot)``, otherwise ``network.pf()``
+will default to ``network.now``. It can also be called
+``network.pf(snapshots)`` on an iterable of ``snapshots``
+to calculate the non-linear power flow on a selection of snapshots at once
+(which is more performant than calling ``network.pf`` on each
+snapshot separately).
 
 
 

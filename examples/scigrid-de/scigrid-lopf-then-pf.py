@@ -1,6 +1,6 @@
 ## LOPF then non-linear power flow with SciGRID
 #
-#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb>.
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb> and can be viewed as an HTML page at: <http://pypsa.org/examples/scigrid-lopf-then-pf.html>.
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
@@ -181,7 +181,7 @@ for i in range(int(24/group_size)):
 
 p_by_source = network.generators_t.p.groupby(network.generators.source, axis=1).sum()
 
-p_by_source.drop((p_by_source.max()[p_by_source.max() < 1500.]).index,axis=1,inplace=True)
+p_by_source.drop((p_by_source.max()[p_by_source.max() < 1700.]).index,axis=1,inplace=True)
 
 p_by_source.columns
 
@@ -194,6 +194,9 @@ colors = {"Brown Coal" : "brown",
           "Wind Offshore" : "cyan",
           "Waste" : "orange",
           "Gas" : "orange"}
+#reorder
+cols = ["Nuclear","Run of River","Brown Coal","Hard Coal","Gas","Wind Offshore","Wind Onshore","Solar"]
+p_by_source = p_by_source[cols]
 
 fig,ax = plt.subplots(1,1)
 
@@ -202,7 +205,7 @@ fig.set_size_inches(12,6)
 (p_by_source/1e3).plot(kind="area",ax=ax,linewidth=4,colors=[colors[col] for col in p_by_source.columns])
 
 
-ax.legend(ncol=4)
+ax.legend(ncol=4,loc="upper left")
 
 ax.set_ylabel("GW")
 
@@ -360,4 +363,9 @@ network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,title="Reactive power 
 
 fig.tight_layout()
 #fig.savefig("reactive-power.png")
+
+network.generators_t.q.loc[network.now].sum()
+
+network.buses_t.q.loc[network.now].sum()
+
 

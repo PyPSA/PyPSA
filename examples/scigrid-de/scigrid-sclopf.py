@@ -1,6 +1,6 @@
 ## Security-Constrained LOPF with SciGRID
 #
-#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>.
+#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>  and can be viewed as an HTML page at: <http://pypsa.org/examples/scigrid-sclopf.html>.
 #
 #In this example, the dispatch of generators is optimised using the security-constrained linear OPF, to guaranteed that no branches are overloaded by certain branch outages.
 #
