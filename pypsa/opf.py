@@ -28,23 +28,20 @@ from six import iteritems
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
-
-
+import pandas as pd
+from scipy.sparse.linalg import spsolve
 from pyomo.environ import ConcreteModel, Var, Objective, NonNegativeReals, Constraint, Reals, Suffix, Expression
-
 from pyomo.opt import SolverFactory
+from itertools import chain
+
+from distutils.version import StrictVersion, LooseVersion
+try:
+    _pd_version = StrictVersion(pd.__version__)
+except ValueError:
+    _pd_version = LooseVersion(pd.__version__)
 
 from .pf import calculate_dependent_values, find_slack_bus, find_bus_controls, calculate_B_H, calculate_PTDF, find_tree, find_cycles
-
 from .opt import l_constraint, l_objective, LExpression, LConstraint
-
-from itertools import chain
-from distutils.version import StrictVersion
-
-import pandas as pd
-
-from scipy.sparse.linalg import spsolve
-
 
 
 #this function is necessary because pyomo doesn't deal with NaNs gracefully
@@ -613,7 +610,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
         controllable_branch_types, passive_branch_types, branch_types, \
         controllable_one_port_types
 
-    if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
+    if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
         snapshots = pd.Index(snapshots.values)
 
