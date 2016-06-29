@@ -379,7 +379,7 @@ def define_passive_branch_flows_with_angles(network,snapshots):
     network.model.voltage_angles = Var(network.buses.index, snapshots)
 
     slack = {(sub,sn) :
-             [[(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])], "== ",0.]
+             [[(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])], "==", 0.]
              for sub in network.sub_networks.index for sn in snapshots}
 
     l_constraint(network.model,"slack_angle",slack,network.sub_networks.index,snapshots)
@@ -419,20 +419,20 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
     for sub_network in network.sub_networks.obj:
         find_bus_controls(sub_network,verbose=False)
 
-        branches = sub_network.branches()
-        if len(branches) > 0:
+        branches_i = sub_network.branches_i()
+        if len(branches_i) > 0:
             calculate_PTDF(sub_network,verbose=False)
 
             #kill small PTDF values
             sub_network.PTDF[abs(sub_network.PTDF) < ptdf_tolerance] = 0
 
-        for i,branch in enumerate(branches.index):
+        for i,branch in enumerate(branches_i):
             bt = branch[0]
             bn = branch[1]
 
             for sn in snapshots:
                 lhs = sum(sub_network.PTDF[i,j]*network._p_balance[bus,sn]
-                          for j,bus in enumerate(sub_network.buses_o.index)
+                          for j,bus in enumerate(sub_network.buses_o)
                           if sub_network.PTDF[i,j] != 0)
                 rhs = LExpression([(1,network.model.passive_branch_p[bt,bn,sn])])
                 flows[bt,bn,sn] = LConstraint(lhs,"==",rhs)
@@ -450,7 +450,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network,verbose=False)
-        if len(sub_network.branches()) > 0:
+        if len(sub_network.branches_i()) > 0:
             calculate_B_H(sub_network,verbose=False)
 
 
@@ -522,7 +522,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network,verbose=False)
-        if len(sub_network.branches()) > 0:
+        if len(sub_network.branches_i()) > 0:
             calculate_B_H(sub_network,verbose=False)
 
     cycle_index = [(sub_network.name,i)
@@ -809,7 +809,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
                 if len(sn.pvpqs) > 0:
-                    network.buses_t.v_ang.loc[snapshots,sn.pvpqs.index] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs.index].T).T
+                    network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T
 
         network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="AC"] = 1.
         network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
