@@ -300,8 +300,8 @@ def define_passive_branch_flows(network,snapshots,formulation="angles",ptdf_tole
         define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance)
     elif formulation == "cycles":
         define_passive_branch_flows_with_cycles(network,snapshots)
-    elif formulation == "kirchoff":
-        define_passive_branch_flows_with_kirchoff(network,snapshots)
+    elif formulation == "kirchhoff":
+        define_passive_branch_flows_with_kirchhoff(network,snapshots)
 
 
 
@@ -429,7 +429,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
 
 
-def define_passive_branch_flows_with_kirchoff(network,snapshots):
+def define_passive_branch_flows_with_kirchhoff(network,snapshots):
 
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
@@ -680,7 +680,7 @@ def extract_optimisation_results(network,snapshots,formulation="angles"):
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
                             .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
 
-        elif formulation in ["ptdf","cycles","kirchoff"]:
+        elif formulation in ["ptdf","cycles","kirchhoff"]:
 
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
@@ -737,7 +737,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
     formulation : string
-        Formulation of the linear power flow equations to use; must be one of ["angles","cycles","kirchoff","ptdf"]
+        Formulation of the linear power flow equations to use; must be one of ["angles","cycles","kirchhoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
 
@@ -774,7 +774,7 @@ def network_lopf(network,snapshots=None,solver_name="glpk",verbose=True,skip_pre
 
     define_passive_branch_constraints(network,snapshots)
 
-    if formulation in ["angles","kirchoff"]:
+    if formulation in ["angles","kirchhoff"]:
         define_nodal_balance_constraints(network,snapshots)
     elif formulation in ["ptdf","cycles"]:
         define_sub_network_balance_constraints(network,snapshots)
