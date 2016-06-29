@@ -861,7 +861,7 @@ class SubNetwork(Common):
         return self.network.storage_units.index[sub_networks == self.name]
 
     def buses(self):
-        return self.network.buses[self.buses_i()]
+        return self.network.buses.loc[self.buses_i()]
 
     def generators(self):
         return self.network.generators.loc[self.generators_i()]
