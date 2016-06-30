@@ -35,7 +35,12 @@ import pandas as pd
 from itertools import chain
 from collections import namedtuple
 from operator import itemgetter
-from distutils.version import StrictVersion
+
+from distutils.version import StrictVersion, LooseVersion
+try:
+    _pd_version = StrictVersion(pd.__version__)
+except ValueError:
+    _pd_version = LooseVersion(pd.__version__)
 
 from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
 
@@ -550,7 +555,7 @@ class Network(Basic):
         self.snapshots = snapshots
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
-        if isinstance(snapshots, pd.DatetimeIndex) and StrictVersion(pd.__version__) < '0.18.0':
+        if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
             snapshots = pd.Index(snapshots.values)
 
         for cls in component_types:
@@ -856,7 +861,7 @@ class SubNetwork(Common):
         return self.network.storage_units.index[sub_networks == self.name]
 
     def buses(self):
-        return self.network.buses[self.buses_i()]
+        return self.network.buses.loc[self.buses_i()]
 
     def generators(self):
         return self.network.generators.loc[self.generators_i()]
