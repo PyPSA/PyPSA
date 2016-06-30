@@ -97,7 +97,7 @@ def _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_netwo
                 sub_network_prepare_fun(sub_network, verbose=verbose, skip_pre=True)
         sub_network_pf_fun(sub_network, snapshots=snapshots, verbose=verbose, skip_pre=True, **kwargs)
 
-def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6):
+def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
     Full non-linear power flow for generic network.
 
@@ -111,13 +111,15 @@ def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
         Tolerance for Newton-Raphson power flow.
+    use_seed : bool, default False
+        Use a seed for the initial guess for the Newton-Raphson algorithm.
 
     Returns
     -------
     None
     """
 
-    _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_pf, calculate_Y, x_tol=x_tol)
+    _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_pf, calculate_Y, x_tol=x_tol, use_seed=use_seed)
 
 
 def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
@@ -153,7 +155,7 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
 
 
 
-def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6):
+def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
     Non-linear power flow for connected sub-network.
 
@@ -167,6 +169,8 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
         Tolerance for Newton-Raphson power flow.
+    use_seed : bool, default False
+        Use a seed for the initial guess for the Newton-Raphson algorithm.
 
     Returns
     -------
@@ -267,6 +271,10 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     network.buses_t.v_mag_pu.loc[snapshots,sub_network.slack_bus] = network.buses_t.v_mag_pu_set.loc[snapshots,sub_network.slack_bus]
     network.buses_t.v_ang.loc[snapshots,sub_network.slack_bus] = 0.
 
+    if not use_seed:
+        network.buses_t.v_mag_pu.loc[snapshots,sub_network.pqs] = 1.
+        network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = 0.
+
     ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs)))
     for i, now in enumerate(snapshots):
@@ -275,7 +283,7 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
         ss[i] = s = p + 1j*q
 
         #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
-        guess = r_[zeros(len(sub_network.pvpqs)),ones(len(sub_network.pqs))]
+        guess = r_[network.buses_t.v_ang.loc[now,sub_network.pvpqs],network.buses_t.v_mag_pu.loc[now,sub_network.pqs]]
 
         #Now try and solve
         start = time.time()
