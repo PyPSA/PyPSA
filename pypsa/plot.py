@@ -25,7 +25,7 @@ from __future__ import absolute_import
 from six import iteritems
 
 import pandas as pd
-
+import numpy as np
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -34,6 +34,7 @@ __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 plt_present = True
 try:
     import matplotlib.pyplot as plt
+    from matplotlib.collections import LineCollection
 except:
     plt_present = False
 
@@ -45,10 +46,9 @@ except:
 
 
 
-def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
-         line_colors={},bus_sizes={},line_widths={},title="",
-         line_cmap=None,bus_cmap=None,
-         boundaries=None):
+def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
+         line_colors='g', bus_sizes=10, line_widths=2, title="",
+         line_cmap=None, bus_cmap=None, boundaries=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -89,67 +89,69 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
     if ax is None:
         ax = plt.gca()
 
-    #set margins
-    if boundaries is None:
+    def compute_bbox_with_margins(margin, x, y):
+        #set margins
+        pos = np.asarray((x, y))
+        minxy, maxxy = pos.min(axis=1), pos.max(axis=1)
+        xy1 = minxy - margin*(maxxy - minxy)
+        xy2 = maxxy + margin*(maxxy - minxy)
+        return tuple(xy1), tuple(xy2)
 
-        mn = network.buses["x"].min()
-        mx = network.buses["x"].max()
-
-        if mn == mx:
-            mx = mn+1
-
-        x1 = mn - margin*(mx-mn)
-        x2 = mx + margin*(mx-mn)
-
-        mn = network.buses["y"].min()
-        mx = network.buses["y"].max()
-
-        if mn == mx:
-            mx = mn+1
-
-        y1 = mn - margin*(mx-mn)
-        y2 = mx + margin*(mx-mn)
-
-    else:
-        x1, x2, y1, y2 = boundaries
-
-    x = network.buses["x"].values
-    y = network.buses["y"].values
+    x = network.buses["x"]
+    y = network.buses["y"]
 
     if basemap and basemap_present:
-        bmap = Basemap(resolution='l',epsg=network.srid,llcrnrlat=y1,urcrnrlat=y2,llcrnrlon=x1,urcrnrlon=x2,ax=ax)
+        if boundaries is None:
+            (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
+        else:
+            x1, x2, y1, y2 = boundaries
+        bmap = Basemap(resolution='l', epsg=network.srid,
+                       llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
+                       urcrnrlon=x2, ax=ax)
         bmap.drawcountries()
         bmap.drawcoastlines()
-        x,y = bmap(network.buses["x"].values,network.buses["y"].values)
 
-    c = pd.Series(bus_colors, index=network.buses.index).fillna("b")
+        x, y = bmap(x.values, y.values)
+        x = pd.Series(x, network.buses.index)
+        y = pd.Series(y, network.buses.index)
 
+    c = pd.Series(bus_colors, index=network.buses.index)
+    if c.dtype == np.dtype('O'):
+        c.fillna("b", inplace=True)
     s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-
-    ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
+    bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
     if line_cmap is not None:
-        line_nums = pd.Series(line_colors,index=network.lines.index)
-        line_colors = pd.DataFrame(line_cmap(line_nums.values),index=network.lines.index)
+        line_nums = pd.Series(line_colors, index=network.lines.index)
+        line_colors = None
 
-    #should probably use LineCollection here instead - cf. networkx implementation
-    for line in network.lines.obj:
-        bus0 = network.buses.obj[line.bus0]
-        bus1 = network.buses.obj[line.bus1]
+    line_widths = pd.Series(line_widths, index=network.lines.index)
 
-        x,y = ([bus0.x,bus1.x],[bus0.y,bus1.y])
+    segments = (np.asarray(((network.lines.bus0.map(x),
+                             network.lines.bus0.map(y)),
+                            (network.lines.bus1.map(x),
+                             network.lines.bus1.map(y))))
+                .transpose(2, 0, 1))
 
-        if basemap and basemap_present:
-            x,y = bmap(x,y)
-        if isinstance(line_colors, pd.DataFrame):
-            color = line_colors.loc[line.name]
-        else:
-            color = line_colors.get(line.name,"g")
-        alpha = 0.7
-        width = line_widths.get(line.name,2.)
+    line_collection = LineCollection(segments,
+                                     linewidths=line_widths,
+                                     antialiaseds=(1,),
+                                     colors=line_colors,
+                                     transOffset=ax.transData)
 
-        ax.plot(x,y,color=color,alpha=alpha,linewidth=width)
+    if line_colors is None:
+        line_collection.set_array(np.asarray(line_nums))
+        line_collection.set_cmap(line_cmap)
+        line_collection.autoscale()
+
+    ax.add_collection(line_collection)
+
+    bus_collection.set_zorder(2)
+    line_collection.set_zorder(1)
+
+    ax.update_datalim(compute_bbox_with_margins(margin, x, y))
+    ax.autoscale_view()
 
     ax.set_title(title)
 
-    return ax
+    return bus_collection, line_collection
