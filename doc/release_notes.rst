@@ -18,7 +18,7 @@ included other small refactorings:
   argument.
 * descriptors: The code has been refactored and unified for each
   simple descriptor.
-* opt: Constraints now except both an upper and lower bound with
+* opt: Constraints now accept both an upper and lower bound with
   ``><``.
 * opf: Sub-optimal solutions can also be read out of pyomo.
 

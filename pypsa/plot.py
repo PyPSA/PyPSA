@@ -47,7 +47,8 @@ except:
 
 def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
          line_colors={},bus_sizes={},line_widths={},title="",
-         line_cmap=None,bus_cmap=None):
+         line_cmap=None,bus_cmap=None,
+         boundaries=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -73,6 +74,8 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
         If line_colors are floats, this color map will assign the colors
     bus_cmap : plt.cm.ColorMap
         If bus_colors are floats, this color map will assign the colors
+    boundaries : list of four floats
+        Boundaries of the plot in format [x1,x2,y1,y2]
 
     Returns
     -------
@@ -87,18 +90,28 @@ def plot(network,margin=0.05,ax=None,basemap=True,bus_colors={},
         ax = plt.gca()
 
     #set margins
+    if boundaries is None:
 
-    mn = network.buses["x"].min()
-    mx = network.buses["x"].max()
+        mn = network.buses["x"].min()
+        mx = network.buses["x"].max()
 
-    x1 = mn - margin*(mx-mn)
-    x2 = mx + margin*(mx-mn)
+        if mn == mx:
+            mx = mn+1
 
-    mn = network.buses["y"].min()
-    mx = network.buses["y"].max()
+        x1 = mn - margin*(mx-mn)
+        x2 = mx + margin*(mx-mn)
 
-    y1 = mn - margin*(mx-mn)
-    y2 = mx + margin*(mx-mn)
+        mn = network.buses["y"].min()
+        mx = network.buses["y"].max()
+
+        if mn == mx:
+            mx = mn+1
+
+        y1 = mn - margin*(mx-mn)
+        y2 = mx + margin*(mx-mn)
+
+    else:
+        x1, x2, y1, y2 = boundaries
 
     x = network.buses["x"].values
     y = network.buses["y"].values
