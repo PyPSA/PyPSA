@@ -22,10 +22,14 @@
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 from __future__ import absolute_import
+import six
 from six import iteritems
 
 import pandas as pd
 import numpy as np
+
+from . import components
+
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -48,7 +52,8 @@ except:
 
 def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
          line_colors='g', bus_sizes=10, line_widths=2, title="",
-         line_cmap=None, bus_cmap=None, boundaries=None):
+         line_cmap=None, bus_cmap=None, boundaries=None,
+         geometry=False, branch_types=['Line', 'TransportLink']):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -65,22 +70,34 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     bus_sizes : dict/pandas.Series
         Sizes of bus points, defaults to 10
     line_colors : dict/pandas.Series
-        Colors for the lines, defaults to "g"
+        Colors for the lines, defaults to "g" for Lines and "cyan" for
+        TransportLinks. Colors for branches other than Lines can be
+        specified using a pandas Series with a MultiIndex.
     line_widths : dict/pandas.Series
-        Widths of lines, defaults to 2
+        Widths of lines, defaults to 2. Widths for branches other
+        than Lines can be specified using a pandas Series with a
+        MultiIndex.
     title : string
         Graph title
-    line_cmap : plt.cm.ColorMap
-        If line_colors are floats, this color map will assign the colors
-    bus_cmap : plt.cm.ColorMap
+    line_cmap : plt.cm.ColorMap/str|dict
+        If line_colors are floats, this color map will assign the colors.
+        Use a dict to specify colormaps for more than one branch type.
+    bus_cmap : plt.cm.ColorMap/str
         If bus_colors are floats, this color map will assign the colors
     boundaries : list of four floats
         Boundaries of the plot in format [x1,x2,y1,y2]
+    branch_types : list of str or pypsa.component
+        Branch types to be plotted, defaults to Line and TransportLink.
 
     Returns
     -------
-    ax : matplotlib axis
+    bus_collection, branch_collection1, ... : tuple of Collections
+        Collections for buses and branches.
     """
+    defaults_for_branches = {
+        'TransportLink': dict(color="cyan", width=2),
+        'Line': dict(color="b", width=2)
+    }
 
     if not plt_present:
         print("Matplotlib is not present, so plotting won't work.")
@@ -121,37 +138,81 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
     bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
-    if line_cmap is not None:
-        line_nums = pd.Series(line_colors, index=network.lines.index)
-        line_colors = None
+    def as_branch_series(ser):
+        if isinstance(ser, pd.Series):
+            if isinstance(ser.index, pd.MultiIndex):
+                return ser
+            index = ser.index
+            ser = ser.values
+        else:
+            index = network.lines.index
+        return pd.Series(ser,
+                         index=pd.MultiIndex(levels=(["Line"], index),
+                                             labels=(np.zeros(len(index)),
+                                                     np.arange(len(index)))))
 
-    line_widths = pd.Series(line_widths, index=network.lines.index)
+    line_colors = as_branch_series(line_colors)
+    line_widths = as_branch_series(line_widths)
+    if not isinstance(line_cmap, dict):
+        line_cmap = {'Line': line_cmap}
 
-    segments = (np.asarray(((network.lines.bus0.map(x),
-                             network.lines.bus0.map(y)),
-                            (network.lines.bus1.map(x),
-                             network.lines.bus1.map(y))))
-                .transpose(2, 0, 1))
+    branch_collections = []
+    branch_types = [getattr(components, t)
+                    if isinstance(t, six.string_types)
+                    else t
+                    for t in branch_types]
+    for t in network.iterate_components(branch_types):
+        l_defaults = defaults_for_branches[t.name]
+        l_widths = line_widths.get(t.name, l_defaults['width'])
+        l_nums = None
+        if t.name in line_colors:
+            l_colors = line_colors[t.name]
 
-    line_collection = LineCollection(segments,
-                                     linewidths=line_widths,
-                                     antialiaseds=(1,),
-                                     colors=line_colors,
-                                     transOffset=ax.transData)
+            if issubclass(l_colors.dtype.type, np.number):
+                l_nums = l_colors
+                l_colors = None
+            else:
+                l_colors.fillna(l_defaults['color'], inplace=True)
+        else:
+            l_colors = l_defaults['color']
 
-    if line_colors is None:
-        line_collection.set_array(np.asarray(line_nums))
-        line_collection.set_cmap(line_cmap)
-        line_collection.autoscale()
+        if not geometry:
+            segments = (np.asarray(((t.df.bus0.map(x),
+                                     t.df.bus0.map(y)),
+                                    (t.df.bus1.map(x),
+                                     t.df.bus1.map(y))))
+                        .transpose(2, 0, 1))
+        else:
+            from shapely.wkt import loads
+            from shapely.geometry import LineString
+            linestrings = t.df.geometry.map(loads)
+            assert all(isinstance(ls, LineString) for ls in linestrings), \
+                "The WKT-encoded geometry in the 'geometry' column must be composed of LineStrings"
+            segments = np.asarray(list(linestrings.map(np.asarray)))
+            if basemap and basemap_present:
+                segments = np.transpose(bmap(*np.transpose(segments, (2, 0, 1))), (1, 2, 0))
 
-    ax.add_collection(line_collection)
+        l_collection = LineCollection(segments,
+                                      linewidths=l_widths,
+                                      antialiaseds=(1,),
+                                      colors=l_colors,
+                                      transOffset=ax.transData)
+
+        if l_nums is not None:
+            l_collection.set_array(np.asarray(l_nums))
+            l_collection.set_cmap(line_cmap.get(t.name, None))
+            l_collection.autoscale()
+
+        ax.add_collection(l_collection)
+        l_collection.set_zorder(1)
+
+        branch_collections.append(l_collection)
 
     bus_collection.set_zorder(2)
-    line_collection.set_zorder(1)
 
     ax.update_datalim(compute_bbox_with_margins(margin, x, y))
     ax.autoscale_view()
 
     ax.set_title(title)
 
-    return bus_collection, line_collection
+    return (bus_collection,) + tuple(branch_collections)
