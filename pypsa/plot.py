@@ -28,8 +28,6 @@ from six import iteritems
 import pandas as pd
 import numpy as np
 
-from . import components
-
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -94,6 +92,9 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
+
+    from . import components
+
     defaults_for_branches = {
         'TransportLink': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2)
