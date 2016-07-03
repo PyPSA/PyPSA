@@ -38,29 +38,43 @@ import pypsa
 import numpy as np
 
 
-def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
+
+def export_to_csv_folder(network,csv_folder_name,verbose=True):
     """
     Export network and components to a folder of CSVs.
+
+    Both static and series attributes of components are exported, but only
+    if they have non-default values.
+
+    If csv_folder_name does not already exist, it is created.
 
     Parameters
     ----------
     csv_folder_name : string
         Name of folder to which to export.
-    time_series : dictionary of callable functions per component type, defaults to {}
-        This allows you to select which components' time series are exported with
-        the format {list_name : {attribute_name : filter/None}}
     verbose : boolean, default True
 
     Examples
     --------
-    >>> export_to_csv(network,csv_folder_name,time_series={"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
-    "loads" : {"p_set" : None}})
+    >>> export_to_csv(network,csv_folder_name)
+    OR
+    >>> network.export_to_csv(csv_folder_name)
     """
 
 
     #exportable component types
-    #what about None????
+    #what about None???? - nan is float?
     allowed_types = [float,int,str,bool] + list(np.typeDict.values())
+
+    #derived components are excluded
+    excluded_components = ["branches","sub_networks"]
+
+    #make sure directory exists
+    if not os.path.isdir(csv_folder_name):
+        if verbose:
+            "Directory {} does not exist, creating it".format(csv_folder_name)
+        os.mkdir(csv_folder_name)
+
 
     #first export network properties
 
@@ -69,8 +83,6 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
     df = pd.DataFrame(index=index,columns=columns,data = [[getattr(network,col) for col in columns]])
     df.index.name = "name"
 
-    if verbose:
-        print("\n"*3+"network\n",df)
     df.to_csv(os.path.join(csv_folder_name,"network.csv"))
 
     #now export snapshots
@@ -79,45 +91,56 @@ def export_to_csv_folder(network,csv_folder_name,time_series={},verbose=True):
     df["weightings"] = network.snapshot_weightings
     df.index.name = "name"
 
-    if verbose:
-        print("\n"*3+"snapshots\n",df)
     df.to_csv(os.path.join(csv_folder_name,"snapshots.csv"))
 
+    #now export all other components static attributes
 
-    #now export all other components
-
-    for list_name in ["buses","generators","storage_units","loads","shunt_impedances","transport_links","lines","transformers","converters","sources"]:
-        list_df = getattr(network,list_name)
-        if len(list_df) == 0:
-            if verbose:
-                print("No",list_name)
+    for key, od in network.component_simple_descriptors.items():
+        if key.list_name in excluded_components:
             continue
-
-        if verbose:
-            print("\n"*3+list_name+"\n",list_df)
-
-        list_df.to_csv(os.path.join(csv_folder_name,list_name+".csv"))
-
-    for list_name in time_series:
-
-        if verbose:
-            print("\n"*3 + "Exporting time series for:",list_name)
-
-        pnl = getattr(network,list_name+"_t")
-
-        for attr in time_series[list_name]:
+        df = getattr(network,key.list_name)
+        if df.empty:
             if verbose:
-                print(attr)
-            filter_f = time_series[list_name][attr]
+                print("No",key.list_name)
+            continue
+        col_export = []
+        for col in df.columns:
+            #do not export derived attributes
+            if col in ["obj","sub_network","r_pu","x_pu","g_pu","b_pu"]:
+                continue
+            if col in od and pd.isnull(od[col].default) and pd.isnull(df[col]).all():
+                continue
+            if col in od and (df[col] == od[col].default).all():
+                continue
 
-            sub_selection = list(filter(filter_f,getattr(network,list_name).obj))
+            col_export.append(col)
 
-            df = pnl.loc[attr,:,[s.name for s in sub_selection]]
+        df[col_export].to_csv(os.path.join(csv_folder_name,key.list_name+".csv"))
 
-            df.to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"))
+
+    #now export all other components series attributes
+
+    for key, od in network.component_series_descriptors.items():
+        if key.list_name in excluded_components:
+            continue
+        pnl = getattr(network,key.list_name+"_t")
+        if pnl.empty:
             if verbose:
-                print(df)
+                print("No",key.list_name+"_t")
+            continue
+        for attr in pnl:
+            if attr not in od:
+                col_export = pnl.minor_axis
+            else:
+                default = od[attr].default
 
+                if pd.isnull(default):
+                    col_export = pnl.minor_axis[(~pd.isnull(pnl[attr])).any()]
+                else:
+                    col_export = pnl.minor_axis[(pnl[attr] != default).any()]
+
+            if len(col_export) > 0:
+                pnl.loc[attr,:,col_export].to_csv(os.path.join(csv_folder_name,key.list_name+"-" + attr + ".csv"))
 
 
 
