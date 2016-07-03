@@ -1,3 +1,3 @@
-name,s_nom_min,bus0,bus1,capital_cost,s_nom_extendable,s_nom_opt,s_nom,s_nom_max,p_max_pu,p_min_pu,obj
-TL 0,0.0,0,3,0.0408904499463,True,0.0,1000.0,,0.9,-0.9,TransportLink TL 0
-TL 1,0.0,1,4,0.175623487278,False,0.0,300.0,,0.9,-0.9,TransportLink TL 1
+name,bus0,bus1,capital_cost,s_nom_extendable,s_nom,p_max_pu,p_min_pu
+TL 0,0,3,0.0408904499463,True,1000.0,0.9,-0.9
+TL 1,1,4,0.175623487278,False,300.0,0.9,-0.9

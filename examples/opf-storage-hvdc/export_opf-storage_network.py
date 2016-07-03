@@ -187,14 +187,6 @@ network.storage_units_t.state_of_charge_set.at[network.snapshots[2],"Storage 4"]
 
 network.storage_units_t.inflow[["Storage 0"]] = 20.
 
-
-time_series = {"generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"},
-               "loads" : {"p_set" : None},
-               "storage_units" : {"state_of_charge_set" : None,
-                                  "inflow" : None},
-}
-
-
 network.name = "Test 6 bus"
 
-network.export_to_csv_folder(csv_folder_name,time_series)
+network.export_to_csv_folder(csv_folder_name)

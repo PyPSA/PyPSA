@@ -30,7 +30,7 @@ Note that is is NOT necessary to add every single column, only those where value
 Adding components one-by-one
 ============================
 
-Networks can also be built "manually" by calling
+Networks can also be built "manually" in code by calling
 
 ``network.add(class_name,name,**kwargs)``
 
@@ -65,9 +65,17 @@ version 2.
 Export to CSV
 =============
 
-Exporting the network is easy:
+The network can be exported as a folder of csv files:
 
 ``network.export_to_csv_folder(csv_folder_name)``
 
-The time-dependent quantities to be exported must be specified
-explicitly, see the docstring of this function.
+If the folder does not exist it will be created.
+
+All non-default static and series attributes of all components will be
+exported.
+
+Static attributes are exported in one CSV file per component,
+e.g. ``generators.csv``.
+
+Series attributes are exported in one CSV file per component per
+attribute, e.g. ``generators-p_set.csv``.

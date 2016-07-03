@@ -41,9 +41,7 @@ def test_opf():
 
     results_folder_name = "results"
 
-    network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                                  "storage_units" : {"p" : None},
-                                                                  "buses" : {"marginal_price" : None}})
+    network.export_to_csv_folder(results_folder_name)
 
     np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
 

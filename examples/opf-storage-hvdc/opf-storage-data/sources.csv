@@ -1,4 +1,4 @@
-name,co2_emissions,obj
-gas,0.24,Source gas
-wind,0.0,Source wind
-battery,0.0,Source battery
+name,co2_emissions
+gas,0.24
+wind,0.0
+battery,0.0

@@ -59,7 +59,4 @@ print(sum(network.loads_t.p.loc[now]))
 results_folder_name = os.path.join(folder_name,"results-lopf")
 
 if True:
-    network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                            "lines" : {"p0" : None},
-                                                            "converters" : {"p0" : None},
-                                                             "transport_links" : {"p0" : None}})
+    network.export_to_csv_folder(results_folder_name)

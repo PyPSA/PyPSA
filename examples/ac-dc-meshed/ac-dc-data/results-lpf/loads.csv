@@ -1,7 +1,7 @@
-name,bus,obj,sign
-London,London,Load London,-1.0
-Frankfurt,Frankfurt,Load Frankfurt,-1.0
-Norway,Norway,Load Norway,-1.0
-Norwich,Norwich,Load Norwich,-1.0
-Bremen,Bremen,Load Bremen,-1.0
-Manchester,Manchester,Load Manchester,-1.0
+name,bus
+London,London
+Frankfurt,Frankfurt
+Norway,Norway
+Norwich,Norwich
+Bremen,Bremen
+Manchester,Manchester

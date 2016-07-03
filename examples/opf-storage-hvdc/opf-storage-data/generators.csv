@@ -1,13 +1,13 @@
-name,bus,sign,control,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom_max,p_nom,p_nom_opt,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost,obj
-Wind 0,0,1.0,PQ,0.0,2558.68982845,True,variable,,100.0,0.0,100.0,1.0,1.0,wind,0.00417304802367,Generator Wind 0
-Gas 0,0,1.0,PQ,0.02,119.810148908,False,flexible,,350.0,0.0,0.0,0.85,0.358007445687,gas,2.56154775438,Generator Gas 0
-Wind 1,1,1.0,PQ,0.0,2876.3891523,True,variable,,100.0,0.0,100.0,1.0,1.0,wind,0.00692322615669,Generator Wind 1
-Gas 1,1,1.0,PQ,0.02,108.504421137,True,flexible,,0.0,0.0,0.0,0.85,0.350390547832,gas,5.57842665402,Generator Gas 1
-Wind 2,2,1.0,PQ,0.0,2421.10762501,False,variable,,150.0,0.0,100.0,1.0,1.0,wind,0.000983468338331,Generator Wind 2
-Gas 2,2,1.0,PQ,0.02,153.316528497,True,flexible,,0.0,0.0,0.0,0.85,0.35691877114,gas,5.8315581206,Generator Gas 2
-Wind 3,3,1.0,PQ,0.0,2018.28827734,True,variable,,100.0,0.0,100.0,1.0,1.0,wind,0.00834625671897,Generator Wind 3
-Gas 3,3,1.0,PQ,0.02,198.886108891,True,flexible,,0.0,0.0,0.0,0.85,0.357481656544,gas,5.00057725978,Generator Gas 3
-Wind 4,4,1.0,PQ,0.0,2447.89352618,True,variable,,100.0,0.0,100.0,1.0,1.0,wind,0.00103226006578,Generator Wind 4
-Gas 4,4,1.0,PQ,0.02,129.361414837,True,flexible,,0.0,0.0,0.0,0.85,0.352877753386,gas,5.63438201237,Generator Gas 4
-Wind 5,5,1.0,PQ,0.0,2211.628116,True,variable,,100.0,0.0,100.0,1.0,1.0,wind,0.0067883553294,Generator Wind 5
-Gas 5,5,1.0,PQ,0.02,149.157315928,True,flexible,,0.0,0.0,0.0,0.85,0.350533625451,gas,3.06218663749,Generator Gas 5
+name,bus,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost
+Wind 0,0,0.0,2558.68982845,True,variable,100.0,100.0,1.0,1.0,wind,0.00417304802367
+Gas 0,0,0.02,119.810148908,False,flexible,350.0,0.0,0.85,0.358007445687,gas,2.56154775438
+Wind 1,1,0.0,2876.3891523,True,variable,100.0,100.0,1.0,1.0,wind,0.00692322615669
+Gas 1,1,0.02,108.504421137,True,flexible,0.0,0.0,0.85,0.350390547832,gas,5.57842665402
+Wind 2,2,0.0,2421.10762501,False,variable,150.0,100.0,1.0,1.0,wind,0.000983468338331
+Gas 2,2,0.02,153.316528497,True,flexible,0.0,0.0,0.85,0.35691877114,gas,5.8315581206
+Wind 3,3,0.0,2018.28827734,True,variable,100.0,100.0,1.0,1.0,wind,0.00834625671897
+Gas 3,3,0.02,198.886108891,True,flexible,0.0,0.0,0.85,0.357481656544,gas,5.00057725978
+Wind 4,4,0.0,2447.89352618,True,variable,100.0,100.0,1.0,1.0,wind,0.00103226006578
+Gas 4,4,0.02,129.361414837,True,flexible,0.0,0.0,0.85,0.352877753386,gas,5.63438201237
+Wind 5,5,0.0,2211.628116,True,variable,100.0,100.0,1.0,1.0,wind,0.0067883553294
+Gas 5,5,0.02,149.157315928,True,flexible,0.0,0.0,0.85,0.350533625451,gas,3.06218663749

@@ -66,7 +66,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
     #what about None???? - nan is float?
     allowed_types = [float,int,str,bool] + list(np.typeDict.values())
 
-    #derived components are excluded
+    #derived components are excluded from the export
     excluded_components = ["branches","sub_networks"]
 
     #make sure directory exists

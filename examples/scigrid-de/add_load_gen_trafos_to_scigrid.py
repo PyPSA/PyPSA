@@ -718,20 +718,13 @@ for tech in ["windoff",'windon',"solar"]:
 
 csv_folder_name = "../../lib/data/de_model/scigrid-with-load-gen-trafos"
 
-time_series = {"loads" : {"p_set" : None},
-               "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
-
-
-network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
+network.export_to_csv_folder(csv_folder_name)
 
 network.set_snapshots(network.snapshots[:24])
 
 csv_folder_name = "../../lib/pypsa/examples/scigrid-de/scigrid-with-load-gen-trafos"
 
-time_series = {"loads" : {"p_set" : None},
-               "generators" : {"p_max_pu" : lambda g: g.dispatch == "variable"}}
 
-
-network.export_to_csv_folder(csv_folder_name,time_series,verbose=False)
+network.export_to_csv_folder(csv_folder_name)
 
 

@@ -126,8 +126,4 @@ for gen in network.generators.obj:
 results_folder_name = os.path.join(csv_folder_name,"results")
 
 
-network.export_to_csv_folder(results_folder_name,time_series={"generators" : {"p" : None},
-                                                              "storage_units" : {"p" : None},
-                                                              "transport_links": {"p0" : None},
-                                                              "lines": {"p0" : None}
-},verbose=False)
+network.export_to_csv_folder(results_folder_name)

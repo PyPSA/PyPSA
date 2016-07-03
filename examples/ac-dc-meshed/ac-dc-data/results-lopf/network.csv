@@ -1,2 +1,2 @@
-name,co2_limit,dependent_values_calculated,now,nr_x_tol,objective,opf_keep_files,srid,topology_determined
-Test 6 bus,1000,False,2015-01-01 04:00:00,1e-06,-3472859.36704,False,4326,False
+name,co2_limit,now,objective,srid
+AC-DC,1000,2015-01-01 04:00:00,-3474256.04055,4326
