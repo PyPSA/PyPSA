@@ -120,7 +120,8 @@ class Bus(Common):
     #optimisation output for power balance constraint at bus
     marginal_price = Series()
 
-    current_type = String(default="AC",restricted=["AC","DC"])
+    #energy carrier could be "AC", "DC", "heat", "gas"
+    carrier = String(default="AC")
 
     sub_network = String(default="")
 
@@ -392,6 +393,26 @@ class TransportLink(Branch):
     p_set = Series()
 
 
+class Link(Branch):
+    """Controllable link between two buses - can be used for a transport
+    power flow model OR as a simplified version of point-to-point DC
+    connection OR as a lossy energy converter.
+
+    NB: for a lossess bi-directional HVDC or transport link, set
+    p_min_pu = -1 and efficiency = 1.
+
+    """
+
+    list_name = "links"
+
+    #limits per unit of s_nom
+    p_min_pu = Float(0.)
+    p_max_pu = Float(1.)
+
+    efficiency = Float(1.)
+
+    p_set = Series()
+
 class ThreePort(Common):
     """Placeholder for 3-winding transformers."""
 
@@ -579,7 +600,7 @@ class Network(Basic):
         class_name : string
             Component class name
         name : string
-            Component name in ["Bus","Generator","Load","StorageUnit","ShuntImpedance","Line","Transformer","Converter","TransportLink"]
+            Component name in ["Bus","Generator","Load","StorageUnit","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
         kwargs
 
         Returns
@@ -771,7 +792,7 @@ class Network(Basic):
             sub_network = self.add("SubNetwork", i, graph=sub_graph)
 
             #grab data from first bus
-            sub_network.current_type = self.buses.loc[next(sub_graph.nodes_iter()), "current_type"]
+            sub_network.current_type = self.buses.loc[next(sub_graph.nodes_iter()), "carrier"]
 
             for bus in sub_graph.nodes():
                 self.buses.loc[bus,"sub_network"] = sub_network.name
@@ -800,7 +821,7 @@ class SubNetwork(Common):
 
     list_name = "sub_networks"
 
-    current_type = String(default="AC",restricted=["AC","DC"])
+    current_type = String(default="AC")
 
     slack_bus = String("")
 
@@ -886,7 +907,7 @@ controllable_one_port_types = {Load, Generator, StorageUnit}
 one_port_types = passive_one_port_types|controllable_one_port_types
 
 passive_branch_types = {Line, Transformer}
-controllable_branch_types = {Converter, TransportLink}
+controllable_branch_types = {Converter, TransportLink, Link}
 branch_types = passive_branch_types|controllable_branch_types
 
 component_types = branch_types|one_port_types|{Bus, SubNetwork, Source}

@@ -87,6 +87,9 @@ def _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_netwo
     if not network.transport_links.empty:
         network.transport_links_t.p0.loc[snapshots] = network.transport_links_t.p_set.loc[snapshots]
         network.transport_links_t.p1.loc[snapshots] = -network.transport_links_t.p_set.loc[snapshots]
+    if not network.links.empty:
+        network.links_t.p0.loc[snapshots] = network.links_t.p_set.loc[snapshots]
+        network.links_t.p1.loc[snapshots] = -network.links_t.p_set.loc[snapshots].multiply(network.links.efficiency)
 
     for sub_network in network.sub_networks.obj:
         if not skip_pre:

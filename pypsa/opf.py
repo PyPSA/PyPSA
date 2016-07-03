@@ -605,9 +605,14 @@ def define_nodal_balances(network,snapshots):
         bus1 = controllable_branches.bus1[cb]
         ct = cb[0]
         cn = cb[1]
+        if ct == "Link":
+            efficiency = controllable_branches.efficiency[cb]
+        else:
+            efficiency = 1.
+
         for sn in snapshots:
             network._p_balance[bus0,sn].variables.append((-1,network.model.controllable_branch_p[ct,cn,sn]))
-            network._p_balance[bus1,sn].variables.append((1,network.model.controllable_branch_p[ct,cn,sn]))
+            network._p_balance[bus1,sn].variables.append((efficiency,network.model.controllable_branch_p[ct,cn,sn]))
 
 
     for gen in network.generators.index:
@@ -785,7 +790,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     controllable_branches = as_series(model.controllable_branch_p)
     for t in network.iterate_components(controllable_branch_types):
         set_from_series(t.pnl.p0, controllable_branches.loc[t.name])
-        t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
+        if t.name == "Link":
+            t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots].multiply(t.df.efficiency)
+        else:
+            t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
 
         network.buses_t.p.loc[snapshots] -= (t.pnl.p0.loc[snapshots]
                                              .groupby(t.df.bus0, axis=1).sum()
@@ -811,13 +819,13 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                 if len(sn.pvpqs) > 0:
                     network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T
 
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="AC"] = 1.
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.current_type=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"]
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="AC"] = 1.
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"]
 
 
 
     #now that we've used the angles to calculate the flow, set the DC ones to zero
-    network.buses_t.v_ang.loc[snapshots,network.buses.current_type=="DC"] = 0.
+    network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"] = 0.
 
     network.generators.p_nom_opt = network.generators.p_nom
 
