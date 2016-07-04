@@ -782,6 +782,13 @@ class Network(Basic):
     def iterate_components(self, types=None, skip_empty=True):
         if types is None:
             types = component_types
+        else:
+            from . import components
+            types = [getattr(components, t)
+                     if isinstance(t, six.string_types)
+                     else t
+                     for t in types]
+
         return (Type(typ=typ, name=typ.__name__,
                      df=getattr(self, typ.list_name),
                      pnl=getattr(self, typ.list_name + '_t'),

@@ -158,10 +158,6 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         line_cmap = {'Line': line_cmap}
 
     branch_collections = []
-    branch_types = [getattr(components, t)
-                    if isinstance(t, six.string_types)
-                    else t
-                    for t in branch_types]
     for t in network.iterate_components(branch_types):
         l_defaults = defaults_for_branches[t.name]
         l_widths = line_widths.get(t.name, l_defaults['width'])
