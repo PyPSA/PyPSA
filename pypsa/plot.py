@@ -93,8 +93,6 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         Collections for buses and branches.
     """
 
-    from . import components
-
     defaults_for_branches = {
         'TransportLink': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2)
