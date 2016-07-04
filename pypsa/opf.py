@@ -396,7 +396,7 @@ def define_passive_branch_flows_with_angles(network,snapshots):
         bt = branch[0]
         bn = branch[1]
         sub = passive_branches.sub_network[branch]
-        attribute = "x_pu" if network.sub_networks.current_type[sub] == "AC" else "r_pu"
+        attribute = "r_pu" if network.sub_networks.carrier[sub] == "DC" else "x_pu"
         y = 1/passive_branches[attribute][bt,bn]
         for sn in snapshots:
             lhs = LExpression([(y,network.model.voltage_angles[bus0,sn]),
@@ -496,7 +496,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     for sn in network.sub_networks.obj:
 
         branches = sn.branches()
-        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
+        attribute = "r_pu" if sn.carrier == "DC" else "x_pu"
 
         for j in range(sn.C.shape[1]):
 
@@ -539,7 +539,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
     for sn in network.sub_networks.obj:
 
         branches = sn.branches()
-        attribute = "x_pu" if sn.current_type == "AC" else "r_pu"
+        attribute = "r_pu" if sn.carrier == "DC" else "x_pu"
 
         for j in range(sn.C.shape[1]):
 

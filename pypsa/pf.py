@@ -183,7 +183,7 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     snapshots = _as_snapshots(sub_network.network, snapshots)
     if verbose:
         print("Performing non-linear load-flow on {} sub-network {} for snapshots {}"
-              .format(sub_network.current_type, sub_network, snapshots))
+              .format(sub_network.carrier, sub_network, snapshots))
 
     # _sub_network_prepare_pf(sub_network, snapshots, verbose, skip_pre, calculate_Y)
     network = sub_network.network
@@ -471,9 +471,9 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
         calculate_dependent_values(sub_network.network)
         find_bus_controls(sub_network,verbose)
 
-    if sub_network.current_type == "DC":
+    if sub_network.carrier == "DC":
         attribute="r_pu"
-    elif sub_network.current_type == "AC":
+    else:
         attribute="x_pu"
 
     #following leans heavily on pypower.makeBdc
@@ -543,8 +543,8 @@ def calculate_Y(sub_network,verbose=True,skip_pre=False):
     if not skip_pre:
         calculate_dependent_values(sub_network.network)
 
-    if sub_network.current_type == "DC":
-        print("DC networks not supported for Y!")
+    if sub_network.carrier != "AC":
+        print("Non-AC networks not supported for Y!")
         return
 
     branches = sub_network.branches()
@@ -775,7 +775,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
     snapshots = _as_snapshots(sub_network.network, snapshots)
     if verbose:
         print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
-              .format(sub_network.current_type,sub_network,snapshots))
+              .format(sub_network.carrier,sub_network,snapshots))
 
     from .components import \
         one_port_types, controllable_one_port_types, \
@@ -828,12 +828,12 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
             t.pnl.p0.loc[snapshots, f.columns] = f
             t.pnl.p1.loc[snapshots, f.columns] = -f
 
-    if sub_network.current_type == "AC":
-        network.buses_t.v_ang.loc[snapshots, buses_o] = v_diff
-        network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1.
-    elif sub_network.current_type == "DC":
+    if sub_network.carrier == "DC":
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1 + v_diff
         network.buses_t.v_ang.loc[snapshots, buses_o] = 0.
+    else:
+        network.buses_t.v_ang.loc[snapshots, buses_o] = v_diff
+        network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1.
 
     # set slack bus power to pick up remained
     slack_adjustment = (- network.buses_t.loc['p', snapshots, buses_o[1:]].sum(axis=1)

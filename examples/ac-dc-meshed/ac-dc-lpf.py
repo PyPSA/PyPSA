@@ -28,7 +28,7 @@ network.lpf(network.snapshots)
 print("\nSub-Networks:")
 
 for sn in network.sub_networks.obj:
-    print(sn,sn.current_type,len(sn.buses()),len(sn.branches()))
+    print(sn,sn.carrier,len(sn.buses()),len(sn.branches()))
 
 
 print("\nControllable branches:")

@@ -28,7 +28,7 @@ list(network.controllable_branches().index)
 network.lopf(network.snapshots)
 
 for sn in network.sub_networks.obj:
-    print(sn,sn.current_type,len(sn.buses()),len(sn.branches()))
+    print(sn,sn.carrier,len(sn.buses()),len(sn.branches()))
 
 
 for t in chain(network.transport_links.obj,network.converters.obj):
