@@ -39,7 +39,7 @@ import numpy as np
 
 
 
-def export_to_csv_folder(network,csv_folder_name,verbose=True):
+def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
     """
     Export network and components to a folder of CSVs.
 
@@ -53,6 +53,10 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
     csv_folder_name : string
         Name of folder to which to export.
     verbose : boolean, default True
+    encoding : str, default None
+        Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
+        standard encodings
+        <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
 
     Examples
     --------
@@ -83,7 +87,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
     df = pd.DataFrame(index=index,columns=columns,data = [[getattr(network,col) for col in columns]])
     df.index.name = "name"
 
-    df.to_csv(os.path.join(csv_folder_name,"network.csv"))
+    df.to_csv(os.path.join(csv_folder_name,"network.csv"),encoding=encoding)
 
     #now export snapshots
 
@@ -91,7 +95,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
     df["weightings"] = network.snapshot_weightings
     df.index.name = "name"
 
-    df.to_csv(os.path.join(csv_folder_name,"snapshots.csv"))
+    df.to_csv(os.path.join(csv_folder_name,"snapshots.csv"),encoding=encoding)
 
     #now export all other components static attributes
 
@@ -115,7 +119,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
 
             col_export.append(col)
 
-        df[col_export].to_csv(os.path.join(csv_folder_name,key.list_name+".csv"))
+        df[col_export].to_csv(os.path.join(csv_folder_name,key.list_name+".csv"),encoding=encoding)
 
 
     #now export all other components series attributes
@@ -140,7 +144,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True):
                     col_export = pnl.minor_axis[(pnl[attr] != default).any()]
 
             if len(col_export) > 0:
-                pnl.loc[attr,:,col_export].to_csv(os.path.join(csv_folder_name,key.list_name+"-" + attr + ".csv"))
+                pnl.loc[attr,:,col_export].to_csv(os.path.join(csv_folder_name,key.list_name+"-" + attr + ".csv"),encoding=encoding)
 
 
 
@@ -239,7 +243,7 @@ def import_series_from_dataframe(network,dataframe,cls_name,attr):
 
     pnl.loc[attr].loc[:,dataframe.columns] = dataframe
 
-def import_from_csv_folder(network,csv_folder_name,verbose=False):
+def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     """
     Import network data from CSVs in a folder.
 
@@ -249,6 +253,11 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
     ----------
     csv_folder_name : string
         Name of folder
+    verbose : boolean, default True
+    encoding : str, default None
+        Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
+        standard encodings
+        <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
     """
 
     if not os.path.isdir(csv_folder_name):
@@ -260,7 +269,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
     file_name = os.path.join(csv_folder_name,"network.csv")
 
     if os.path.isfile(file_name):
-        df = pd.read_csv(file_name,index_col=0)
+        df = pd.read_csv(file_name,index_col=0,encoding=encoding)
         if verbose:
             print(df)
         network.name = df.index[0]
@@ -272,7 +281,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
     file_name = os.path.join(csv_folder_name,"snapshots.csv")
 
     if os.path.isfile(file_name):
-        df = pd.read_csv(file_name,index_col=0)
+        df = pd.read_csv(file_name,index_col=0,encoding=encoding)
         network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
@@ -296,14 +305,14 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False):
                     print("No",list_name+".csv","found.")
                 continue
 
-        df = pd.read_csv(file_name,index_col=0)
+        df = pd.read_csv(file_name,index_col=0,encoding=encoding)
 
         import_components_from_dataframe(network,df,cls.__name__)
 
         file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
         for file_name in file_attrs:
-            df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0)
+            df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
             import_series_from_dataframe(network,df,class_name,file_name[len(list_name)+1:-4])
 
         if verbose:
