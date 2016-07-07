@@ -21,6 +21,7 @@
 
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division, absolute_import
+import six
 from six import iteritems
 from six.moves import map
 
@@ -812,6 +813,13 @@ class Network(Basic):
     def iterate_components(self, types=None, skip_empty=True):
         if types is None:
             types = component_types
+        else:
+            from . import components
+            types = [getattr(components, t)
+                     if isinstance(t, six.string_types)
+                     else t
+                     for t in types]
+
         return (Type(typ=typ, name=typ.__name__,
                      df=getattr(self, typ.list_name),
                      pnl=getattr(self, typ.list_name + '_t'),
