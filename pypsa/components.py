@@ -369,7 +369,10 @@ class Transformer(Branch):
 
 
 class Converter(Branch):
-    """Converter between AC and DC. Bus 0 is AC, bus 1 is DC."""
+    """Converter between AC and DC. Bus 0 is AC, bus 1 is DC.
+
+    This object is deprecated. Please use Link instead.
+    """
 
     list_name = "converters"
 
@@ -383,6 +386,8 @@ class TransportLink(Branch):
     """Controllable link between two buses - can be used for a transport
     power flow model OR as a simplified version of point-to-point DC
     connection.
+
+    This object is deprecated. Please use Link instead.
     """
 
     list_name = "transport_links"
@@ -394,17 +399,42 @@ class TransportLink(Branch):
     p_set = Series()
 
 
-class Link(Branch):
-    """Controllable link between two buses - can be used for a transport
-    power flow model OR as a simplified version of point-to-point DC
-    connection OR as a lossy energy converter.
+class Link(Common):
+    """Link between two buses with controllable active power - can be used
+    for a transport power flow model OR as a simplified version of
+    point-to-point DC connection OR as a lossy energy converter.
 
-    NB: for a lossess bi-directional HVDC or transport link, set
+    NB: for a lossless bi-directional HVDC or transport link, set
     p_min_pu = -1 and efficiency = 1.
+
+    NB: It is assumed that the links neither produce nor consume
+    reactive power.
 
     """
 
     list_name = "links"
+
+    bus0 = String("")
+    bus1 = String("")
+
+    capital_cost = Float(0.)
+
+    #This should really be p_nom, since we exclude q for the link.
+    #It is kept as s_nom to maintain consistency with other branches.
+    s_nom = Float(0.)
+
+    s_nom_extendable = Boolean(False)
+
+    s_nom_max = Float(np.nan)
+    s_nom_min = Float(0.)
+
+    #optimised capacity
+    s_nom_opt = Float(0.)
+
+    #pi is positive if power is flowing from bus i into the branch
+    #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
+    p0 = Series()
+    p1 = Series()
 
     #limits per unit of s_nom
     p_min_pu = Float(0.)
@@ -412,7 +442,9 @@ class Link(Branch):
 
     efficiency = Float(1.)
 
+    #The set point for p0.
     p_set = Series()
+
 
 class ThreePort(Common):
     """Placeholder for 3-winding transformers."""
