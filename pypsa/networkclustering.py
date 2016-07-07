@@ -147,7 +147,6 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
         network_c.generators_t = network.generators_t.copy()
         network_c.loads_t = network.loads_t.copy()
 
-    network_c.build_graph()
     network_c.determine_network_topology()
 
     return Clustering(network_c, busmap, linemap, linemap_p, linemap_n)
@@ -261,7 +260,7 @@ try:
 
         kmeans.fit(points)
 
-        # clusters = kmeans.cluster_centers_
+        # clusters = kmeans.cluster_centnetworkers_
 
         busmap = pd.Series(data=[str(i) for i in kmeans.predict(network.buses[["x","y"]])],
                            index=network.buses.index)
@@ -362,14 +361,13 @@ def busmap_by_stubs(network):
     while True:
         old_count = count
         print(len(network.buses),"buses")
-        network.build_graph()
-        graph = network.graph
+        graph = network.graph()
         for u in graph.node:
-            neighbours = list(network.graph.adj[u].keys())
+            neighbours = list(graph.adj[u].keys())
             if len(neighbours) == 1:
                 neighbour = neighbours[0]
                 count +=1
-                lines = list(network.graph.adj[u][neighbour].keys())
+                lines = list(graph.adj[u][neighbour].keys())
                 for line in lines:
                     network.remove("Line",line.name)
                 network.remove("Bus",u)

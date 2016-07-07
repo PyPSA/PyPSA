@@ -33,6 +33,7 @@ import networkx as nx
 
 import numpy as np
 import pandas as pd
+import scipy as sp, scipy.sparse
 from itertools import chain
 from collections import namedtuple
 from operator import itemgetter
@@ -43,18 +44,26 @@ try:
 except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
-from .descriptors import Float, String, Series, GraphDesc, OrderedGraph, Integer, Boolean, get_simple_descriptors, get_series_descriptors
+from .descriptors import (Float, String, Series, Integer, Boolean,
+                          get_simple_descriptors,
+                          get_series_descriptors)
 
-from .io import export_to_csv_folder, import_from_csv_folder, import_from_pypower_ppc, import_components_from_dataframe
+from .io import (export_to_csv_folder, import_from_csv_folder,
+                 import_from_pypower_ppc, import_components_from_dataframe)
 
-from .pf import network_lpf, sub_network_lpf, network_pf, sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y, calculate_PTDF, calculate_B_H, calculate_dependent_values
+from .pf import (network_lpf, sub_network_lpf, network_pf,
+                 sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
+                 calculate_PTDF, calculate_B_H, calculate_dependent_values)
 
-from .contingency import calculate_BODF, network_lpf_contingency, network_sclopf
+from .contingency import (calculate_BODF, network_lpf_contingency,
+                          network_sclopf)
 
 
 from .opf import network_lopf, network_opf
 
 from .plot import plot
+
+from .graph import graph, incidence_matrix, adjacency_matrix
 
 import inspect
 
@@ -491,8 +500,6 @@ class Network(Basic):
     #Spatial Reference System Identifier (SRID) for x,y - defaults to longitude and latitude
     srid = 4326
 
-    graph = GraphDesc()
-
     #methods imported from other sub-modules
 
     import_from_csv_folder = import_from_csv_folder
@@ -517,6 +524,11 @@ class Network(Basic):
 
     sclopf = network_sclopf
 
+    graph = graph
+
+    incidence_matrix = incidence_matrix
+
+    adjacency_matrix = adjacency_matrix
 
     def __init__(self, csv_folder_name=None, **kwargs):
 
@@ -778,69 +790,37 @@ class Network(Basic):
                           for typ in controllable_branch_types),
                          keys=[typ.__name__ for typ in controllable_branch_types])
 
-
-    def build_graph(self):
-        """Build networkx graph."""
-
-        #reset the graph
-        self.graph = OrderedGraph()
-
-        #add nodes first, in case there are isolated buses not connected with branches
-        self.graph.add_nodes_from(self.buses.index)
-
-        #Multigraph uses object itself as key
-        self.graph.add_edges_from((branch.bus0, branch.bus1, branch.obj, {})
-                                  for t in self.iterate_components(branch_types)
-                                  for branch in t.df.itertuples())
-
-    def determine_network_topology(self,skip_pre=False):
+    def determine_network_topology(self):
         """
         Build sub_networks from topology.
-
-        skip_pre: bool, default False
-            Skip the preliminary step of building the graph.
         """
 
-        if not skip_pre:
-            self.build_graph()
+        adjacency_matrix = self.adjacency_matrix(passive_branch_types)
+        n_components, labels = sp.sparse.csgraph.connected_components(adjacency_matrix, directed=False)
 
-        #remove converters and transport links that could be connected networks
-        # of different types or non-synchronous areas
-
-        graph = self.graph.__class__(self.graph)
-
-        graph.remove_edges_from((branch.bus0, branch.bus1, branch.obj)
-                                for t in self.iterate_components(controllable_branch_types)
-                                for branch in t.df.itertuples())
-
-        #now build connected graphs of same type AC/DC
-        sub_graphs = nx.connected_component_subgraphs(graph, copy=False)
-
-        #remove all old sub_networks
+        # remove all old sub_networks
         for sub_network in self.sub_networks.index:
-            self.remove("SubNetwork",sub_network)
+            self.remove("SubNetwork", sub_network)
 
-        for i, sub_graph in enumerate(sub_graphs):
-            #name using i for now
-            sub_network = self.add("SubNetwork", i, graph=sub_graph)
+        for i in np.arange(n_components):
+            # index of first bus
+            buses_i = (labels == i).nonzero()[0]
+            carrier = self.buses.carrier.iat[buses_i[0]]
 
-            #grab data from first bus
-            sub_network.carrier = self.buses.loc[next(sub_graph.nodes_iter()), "carrier"]
+            if carrier not in ["AC","DC"] and len(buses_i) > 1:
+                print("Warning, sub network {} is not electric but contains multiple buses\n"
+                      "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
-            buses = [bus for bus in sub_graph.nodes()]
+            if (self.buses.carrier.iloc[buses_i] != carrier).any():
+                print("Warning, sub network {} contains buses with mixed carriers! Value counts:".format(i))
+                print(self.buses.carrier.iloc[buses_i].value_counts())
 
-            self.buses.loc[buses,"sub_network"] = sub_network.name
+            sub_network = self.add("SubNetwork", i, carrier=carrier)
 
-            if not (self.buses.loc[buses,"carrier"] == sub_network.carrier).all():
-                print("Warning, sub network {} contains buses with mixed carriers! Value counts:".format(sub_network.name))
-                print(self.buses.loc[buses,"carrier"].value_counts())
+        self.buses.loc[:, "sub_network"] = labels.astype(str)
 
-            if sub_network.carrier not in ["AC","DC"] and len(buses) > 1:
-                print("""Warning, sub network {} is not electric but contains multiple buses
-                and branches. Passive flows are not allowed for non-electric networks!""")
-
-            for (u,v,branch) in sub_graph.edges_iter(keys=True):
-                branch.sub_network = sub_network.name
+        for t in self.iterate_components(passive_branch_types):
+            t.df["sub_network"] = t.df.bus0.map(self.buses["sub_network"])
 
     def iterate_components(self, types=None, skip_empty=True):
         if types is None:
@@ -876,9 +856,6 @@ class SubNetwork(Common):
 
     slack_bus = String("")
 
-    graph = GraphDesc()
-
-
     lpf = sub_network_lpf
 
     pf = sub_network_pf
@@ -894,6 +871,12 @@ class SubNetwork(Common):
     calculate_B_H = calculate_B_H
 
     calculate_BODF = calculate_BODF
+
+    graph = graph
+
+    incidence_matrix = incidence_matrix
+
+    adjacency_matrix = adjacency_matrix
 
     def buses_i(self):
         return self.network.buses.index[self.network.buses.sub_network == self.name]

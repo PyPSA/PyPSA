@@ -51,27 +51,6 @@ def _as_snapshots(network, snapshots):
     else:
         return pd.Index(snapshots)
 
-def _incidence_matrix(sub_network, busorder=None):
-    from .components import passive_branch_types
-
-    if busorder is None:
-        busorder = sub_network.buses_i()
-
-    num_buses = len(busorder)
-    num_branches = 0
-    bus0_indices = []
-    bus1_indices = []
-    for t in sub_network.iterate_components(passive_branch_types):
-        num_branches += len(t.ind)
-        bus0_indices.append(busorder.get_indexer(t.df.loc[t.ind, 'bus0']))
-        bus1_indices.append(busorder.get_indexer(t.df.loc[t.ind, 'bus1']))
-    bus0_indices = np.concatenate(bus0_indices)
-    bus1_indices = np.concatenate(bus1_indices)
-    K = sp.sparse.csr_matrix((np.r_[np.ones(num_branches), -np.ones(num_branches)],
-                              (np.r_[bus0_indices, bus1_indices], np.r_[:num_branches, :num_branches])),
-                             (num_buses, num_branches))
-    return K
-
 def _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_pf_fun, sub_network_prepare_fun, **kwargs):
 
     if not skip_pre:
@@ -486,7 +465,7 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
     b_diag = csr_matrix((b, (r_[:len(b)], r_[:len(b)])))
 
     #incidence matrix
-    sub_network.K = _incidence_matrix(sub_network, sub_network.buses_o)
+    sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
 
     sub_network.H = b_diag*sub_network.K.T
 
@@ -611,10 +590,11 @@ averaged).
 
     count = 0
     seen = []
-    for u,v in sub_network.graph.edges():
+    graph = sub_network.graph()
+    for u,v in graph.edges():
         if (u,v) in seen:
             continue
-        line_objs = list(sub_network.graph.adj[u][v].keys())
+        line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
             lines = network.lines.loc[[l.name for l in line_objs]]
             aggregated = {}
@@ -662,7 +642,8 @@ def find_tree(sub_network,verbose=True):
     branches_i = sub_network.branches_i()
     buses_i = sub_network.buses_i()
 
-    sub_network.tree = nx.minimum_spanning_tree(sub_network.graph)
+    graph = sub_network.graph()
+    sub_network.tree = nx.minimum_spanning_tree(graph)
 
     #find bus with highest degree to use as slack
 
@@ -687,7 +668,7 @@ def find_tree(sub_network,verbose=True):
     for j,bus in enumerate(buses_i):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
-            branch = list(sub_network.graph[path[i]][path[i+1]].keys())[0]
+            branch = list(graph[path[i]][path[i+1]].keys())[0]
             if branch.bus0 == path[i]:
                 sign = +1
             else:
@@ -711,12 +692,13 @@ def find_cycles(sub_network,verbose=True):
     branches_i = sub_network.branches_i()
 
     #reduce to a non-multi-graph for cycles with > 2 edges
-    graph = nx.OrderedGraph(sub_network.graph)
+    mgraph = sub_network.graph()
+    graph = nx.OrderedGraph(mgraph)
 
     cycles = nx.cycle_basis(graph)
 
     #number of 2-edge cycles
-    num_multi = len(sub_network.graph.edges()) - len(graph.edges())
+    num_multi = len(mgraph.edges()) - len(graph.edges())
 
     sub_network.C = dok_matrix((len(branches_i),len(cycles)+num_multi))
 
@@ -724,7 +706,7 @@ def find_cycles(sub_network,verbose=True):
     for j,cycle in enumerate(cycles):
 
         for i in range(len(cycle)):
-            branch = list(sub_network.graph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
+            branch = list(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
             if branch.bus0 == cycle[i]:
                 sign = +1
             else:
@@ -738,7 +720,7 @@ def find_cycles(sub_network,verbose=True):
 
     #add multi-graph 2-edge cycles for multiple branches between same pairs of buses
     for u,v in graph.edges():
-        bs = list(sub_network.graph[u][v].keys())
+        bs = list(mgraph[u][v].keys())
         if len(bs) > 1:
             first = bs[0]
             first_i = branches_i.get_loc((first.__class__.__name__,first.name))
