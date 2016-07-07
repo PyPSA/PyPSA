@@ -37,19 +37,16 @@ def test_opf():
 
     snapshots = network.snapshots
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name)
+    for formulation in ["angles", "cycles", "kirchoff", "ptdf"]:
+        network.lopf(snapshots=snapshots,solver_name=solver_name,formulation="kirchhoff")
 
-    results_folder_name = "results"
+        np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
 
-    network.export_to_csv_folder(results_folder_name)
+        np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
 
-    np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
+        np.testing.assert_array_almost_equal(network.transport_links_t.p0,network_r.transport_links_t.p0)
 
-    np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
-
-    np.testing.assert_array_almost_equal(network.transport_links_t.p0,network_r.transport_links_t.p0)
-
-    np.testing.assert_array_almost_equal(network.converters_t.p0,network_r.converters_t.p0)
+        np.testing.assert_array_almost_equal(network.converters_t.p0,network_r.converters_t.p0)
 
 
 

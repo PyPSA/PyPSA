@@ -21,6 +21,8 @@
 import scipy as sp, scipy.sparse
 import numpy as np
 
+from .descriptors import OrderedGraph
+
 def graph(network, branch_types=None):
     """Build networkx graph."""
     from . import components
