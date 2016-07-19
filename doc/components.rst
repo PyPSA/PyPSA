@@ -47,8 +47,11 @@ user.
 Sub-networks are subsets of buses and passive branches (i.e. lines and
 transformers) that are connected.
 
-They are either "DC" or "AC". In the case of "AC" sub-networks, these
-correspond to synchronous areas.
+They must have a uniform energy "carrier" inherited from the buses,
+such as "DC", "AC", "heat" or "gas". In the case of "AC" sub-networks,
+these correspond to synchronous areas. Only "AC" and "DC" sub-networks
+can contain passive branches; all other sub-networks must contain a
+single isolated bus.
 
 The power flow in sub-networks is determined by the passive flow
 through passive branches due to the impedances of the passive branches.
@@ -65,7 +68,7 @@ Sub-Network are determined by calling
 Bus
 =======
 
-Fundamental electrical node of system.
+The bus is the fundamental node of the network.
 
 
 
@@ -186,10 +189,12 @@ an capacitor).
    :file: shunt_impedances.csv
 
 
-Branches: Lines, Transformers, Converters, Transport Links
-===========================================================
+Passive Branches: Lines, Transformers
+=====================================
 
-Have bus0 and bus1 to which they attached.
+Have bus0 and bus1 to which they attached; power flow through passive
+branches is not directly controllable, but is determined passively by
+their impedances and the nodal power imbalances.
 
 Power flow at bus recorded in p0, p1, q0, q1.
 
@@ -221,9 +226,49 @@ Converts from one AC voltage level to another.
    :header-rows: 1
    :file: transformers.csv
 
+Controllable Branch: Link
+=========================
 
-Converter
-----------
+The ``Link`` is a component introduced in PyPSA 0.5.0 for controllable
+directed flows between two buses with arbitrary energy carriers. It
+can have an efficiency loss; for this reason it's default settings
+allow only for power flow in one direction, from ``bus0`` to ``bus1``
+(i.e. ``p_min_pu = 0``). To build a bidirectional lossless link, set
+``efficiency = 1`` and ``p_min_pu = -1``.
+
+The ``Link`` component can be used for any element with a controllable
+power flow: a bidirectional point-to-point HVDC link, a unidirectional
+lossy HVDC link, a converter between an AC and a DC network, a heat
+pump or resistive heater from an AC/DC bus to a heat bus, etc.
+
+It replaces the ``Converter`` component for linking AC with DC buses
+and the ``TransportLink`` component for providing controllable flows
+between AC buses.
+
+NB: If you want to replace ``Converter`` and ``TransportLink``
+components in your code, use the ``Link`` with ``efficiency = 1``,
+``p_min_pu = -1`` and ``p_max_pu = 1``.
+
+.. csv-table::
+   :header-rows: 1
+   :file: links.csv
+
+
+Deprecated: Converters, Transport Links
+=======================================
+
+These components are deprecated as of PyPSA 0.5.0. They will be
+completely removed in PyPSA 0.5.1. Please use the ``Link`` component
+instead.
+
+
+
+Converter (deprecated)
+----------------------
+
+This component is deprecated as of PyPSA 0.5.0. It will be completely
+removed in PyPSA 0.5.1. Please use the ``Link`` component instead.
+
 
 Converts AC to DC power.
 
@@ -233,11 +278,11 @@ Converts AC to DC power.
    :file: converters.csv
 
 
-Transport Link
---------------
+Transport Link (deprecated)
+---------------------------
 
-Like a controllable point-to-point HVDC connector; equivalent to
-converter-(DC line)-converter.
+This component is deprecated as of PyPSA 0.5.0. It will be completely
+removed in PyPSA 0.5.1. Please use the ``Link`` component instead.
 
 
 .. csv-table::

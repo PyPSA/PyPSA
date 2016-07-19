@@ -7,37 +7,55 @@ Changes which definitely will be implemented
 ============================================
 
 
+Redefine interface for time-varying parameters
+----------------------------------------------
 
-Do not define empty timeseries contents until called
-----------------------------------------------------
+These changes will be implemented in the 0.6.0 release of PyPSA in the
+late summer of 2016.
+
+The problems: At the moment component attributes are either static
+(like ``generator.p_nom`` for the generator nominal power stored in
+the 2d pandas.DataFrame ``network.generators``) or time-dependent
+series (like ``generator.p_max_pu`` for the generator available power
+in the 3d pandas.Panel ``network.generators_t``). There is no
+flexibility to have some items static and some time-dependent. The
+current setup also involves generating all time-dependent variables
+when the components are instantiated, even if they're not used, which
+often leads to a giant pandas.Panel with many unnecessary parts
+(such as ``p_set, q_set, q`` for the linear optimal power flow
+(LOPF)). This is not very memory efficient. The pandas.Panel is
+also buggy and will soon be deprecated in ``pandas`` in favour of
+``xarray``.
+
+The solution: For each variable that can be time-varying, such as
+``generator.p_max_pu``, there will be in the component
+pandas.DataFrame (``network.generators``) both a static attribute
+``generator.p_max_pu`` as well as a static boolean switch
+``generator.p_max_pu_t``. If the switch is False, the static attribute
+``generator.p_max_pu`` in ``network.generators`` will be used for all
+snapshots; if the switch is True, PyPSA will look in the DataFrame
+``network.generators_t.p_max_pu`` for the value for the appropriate
+snapshot.
+
+The pandas.Panel ``network.generators_t`` will be replaced by a
+dictionary of pandas.DataFrame (with the small modification that
+dictionary values can also be accessed as attributes with
+e.g. ``d.key`` - see ``pypsa.addict``). The pandas.DataFrame,
+e.g. ``network.generators_t.p_max_pu`` will have an index of the
+``network.snapshots`` and a column of all components with
+``generator.p_max_pu_t == True``. This is very similar to the
+pandas.Panel, except that the components column can be of variable
+length.
+
+When running calculations, like the power flow or optimal power flow,
+any missing series inputs will be filled in with the default
+values. All series results (such as ``generator.p,q``) will only be
+generated during the calculation and will not be instantiated before
+they are written.
 
 
-At the moment all time-varying series are instantiated at startup in
-e.g. ``network.generators_t.q_set`` even if they're not used - this
-is memory inefficient.
-
-Could instantiate them as set, then check before PF and OPF if they're
-there.
-
-Results need only to be instantiated if things are actually
-calculated, e.g. instantiate ``network.buses_t.q`` only after a
-non-linear power flow.
-
-Or have switch network.memory_saving, so that all items generated
-automatically for newbies, and experts can turn it off and only
-generate those which they need.
-
-This requires the descriptors to be replaced with __get__ and __set__,
-since some time-dependent quantities will not exist in the _t dataframes.
-
-Replace pandas.Panels with xarray.DataArray
--------------------------------------------
-
-This offers better interface, forces same datatype on
-e.g. network.generators_t (float).
-
-pandas.Panel can be buggy.
-
+What about objects? Don't want a gen.p_max_pu to have to check first
+the boolean, then return the static or varying?
 
 
 Replace descriptors with __get__ and __set__ on objects

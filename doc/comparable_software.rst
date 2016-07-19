@@ -9,12 +9,13 @@ Free software
 
 `PYPOWER <https://github.com/rwl/PYPOWER>`_ - a Python, numpy, scipy port of `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_, compared to PyPSA below
 
+`GridCal <https://github.com/SanPen/GridCal>`_ - a Python-based extension of PYPOWER that includes time series and load flow methods using analytic continuation
+
 `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_ - a Matlab-based tool for static power system computations
 
 `PSAT <http://faraday1.ucd.ie/psat.html>`_ - a general Matlab-based tool for (most) power system calculations
 
 `Open Energy Modelling Framework <https://github.com/oemof/oemof>`_ - Python and Pyomo based framework for optimisation which includes all energy sectors in a general framework
-
 
 `Calliope <http://docs.callio.pe/en/stable/index.html>`_ - Python and Pyomo based framework for energy system optimisation
 

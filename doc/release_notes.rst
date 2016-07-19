@@ -2,6 +2,52 @@
 Release Notes
 #######################
 
+PyPSA 0.5.0 (July 2016)
+========================
+
+This is a relatively major release with some API changes, primarily
+aimed at allowing coupling with other energy carriers (heat, gas,
+etc.). The specification for a change and refactoring to the handling
+of time series has also been prepared (see XX :doc:`todo`), which will
+be implemented in the next major release PyPSA 0.6.0 in the late
+summer of 2016.
+
+* components: To allow other energy carriers, the attribute
+  ``current_type`` fur buses and sub-neworks (sub-networks inherit the
+  attribute from their buses) has been replaced by ``carrier`` which
+  can take generic string values (such as "heat" or "gas"). The values
+  "DC" and "AC" have a special meaning and PyPSA will treat lines and
+  transformers within these sub-networks according to the load flow
+  equations. Other carriers can only have single buses in sub-networks
+  connected by passive branches (since they have no load flow).
+
+* components: A new component for a controllable directed link
+  ``Link`` has been introduced; ``TransportLink`` and ``Converter``
+  are now *deprecated* and will be removed in the next release
+  0.6.1. Please move your code over now. See XX :doc:`components` for
+  more details.
+
+* graph: A new sub-module ``pypsa.graph`` has been introduced to
+  replace most of the networkx functionality with scipy.sparse
+  methods, which are more performant the the pure python methods of
+  networkx. The discovery of network connected components is now
+  significantly faster.
+
+* io: The function ``network.export_to_csv_folder()`` has been
+  rewritten to only export non-default values of static and series
+  component attributes. Static and series attributes of all components
+  are not exported if they are default values.  The functionality to
+  selectively export series has been removed from the export function,
+  because it was clumsy and hard to use.  See
+  :ref:`import_export` XX #export-to-csv.
+
+* plot: Plotting networks is now more performant (using matplotlib
+  LineCollections) and allows generic branches to be plotted, not just
+  lines.
+
+* test: Unit testing for Security-Constrained Linear Optimal Power
+  Flow (SCLOPF) has been introduced.
+
 
 PyPSA 0.4.2 (17th June 2016)
 ============================

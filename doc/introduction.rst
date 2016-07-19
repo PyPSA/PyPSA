@@ -6,10 +6,10 @@ PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah"
 
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
-simulating and optimising modern electric power systems that include
-features such as variable wind and solar generation, storage units and
-mixed alternating and direct current networks.  PyPSA is designed to
-scale well with large networks and long time series.
+simulating and optimising modern power systems that include features
+such as variable wind and solar generation, storage units, sector
+coupling and mixed alternating and direct current networks.  PyPSA is
+designed to scale well with large networks and long time series.
 
 
 As of 2016 PyPSA is under heavy development and therefore it
@@ -49,16 +49,19 @@ It has models for:
   wind and solar generators
 * storage units with efficiency losses
 * simple hydroelectricity with inflow and spillage
-
+* coupling with other energy carriers
 
 
 Functionality that will definitely be added soon (see also :doc:`todo`):
 
-* Graphical plotting of networks with power flow
-* Integration of heating and gas sectors (CHPs, heat pumps, P2H, P2G, etc.)
+* More explicit integration of heating and gas sectors (CHPs, heat
+  pumps, P2H, P2G, etc.)
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
-* Non-linear power flow solution using `analytic continuation <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_ in the complex plane
+* Non-linear power flow solution using `analytic continuation
+  <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_
+  in the complex plane following `GridCal
+  <https://github.com/SanPen/GridCal>`_
 
 Functionality that may be added in the future:
 

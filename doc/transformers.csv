@@ -12,7 +12,7 @@ s_nom_min,float,MVA,0.,"If s_nom is extendable in OPF, set its minimum value.", 
 s_nom_max,float,MVA,NaN,"If s_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
 capital_cost,float,currency/MVA,0.,"Capital cost of extending s_nom by 1 MVA.",Input (optional)
 tap_ratio,float,1.,"Ratio of per unit voltages at each bus.",Input (optional)
-pashe_shift,float,Degrees,"Voltage phase angle shift.",Input (optional)
+phase_shift,float,Degrees,"Voltage phase angle shift.",Input (optional)
 p0,series of floats,MW,0.,Active power at bus0 (positive if bus is withdrawing power).,Output
 q0,series of floats,MVar,0.,Reactive power at bus0 (positive if bus is withdrawing power).,Output
 p1,series of floats,MW,0.,Active power at bus1 (positive if bus is withdrawing power).,Output
