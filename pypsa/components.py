@@ -508,6 +508,8 @@ class Network(Basic):
 
     import_from_pypower_ppc = import_from_pypower_ppc
 
+    import_components_from_dataframe = import_components_from_dataframe
+
     lpf = network_lpf
 
     pf = network_pf
