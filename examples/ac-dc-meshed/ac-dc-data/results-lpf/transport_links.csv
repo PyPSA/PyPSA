@@ -1,2 +1,0 @@
-name,bus0,bus1,capital_cost,p_max_pu,p_min_pu,s_nom,s_nom_extendable
-DC link,London,Bremen,0.8765342,0.9,-0.9,1000.0,True

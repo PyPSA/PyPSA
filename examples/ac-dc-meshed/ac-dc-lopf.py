@@ -21,17 +21,13 @@ network.import_from_csv_folder(folder_name)
 now = network.snapshots[4]
 network.now = now
 
-network.controllable_branches().obj["Converter","Norway Converter"]
-
-list(network.controllable_branches().index)
-
 network.lopf(network.snapshots)
 
 for sn in network.sub_networks.obj:
     print(sn,sn.carrier,len(sn.buses()),len(sn.branches()))
 
 
-for t in chain(network.transport_links.obj,network.converters.obj):
+for t in network.links.obj:
     print(t)
 
 

@@ -67,9 +67,9 @@ Capacity optimisation can be turned off so that only the dispatch is
 optimised, like a short-run electricity market model.
 
 For simplified transmission representation using Net Transfer
-Capacities (NTCs), there is a TransportLink component which does
-controllable power flow like a transport model (and can also represent
-a point-to-point HVDC link).
+Capacities (NTCs), there is a Link component which does controllable
+power flow like a transport model (and can also represent a
+point-to-point HVDC link).
 
 
 
@@ -262,10 +262,8 @@ See ``pypsa.opf.define_controllable_branch_flows(network,snapshots)``
 and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
 
 
-For converters and transport links, whose power flow is controllable,
-there is simply an optimisation variable for each component which satisfies
-
-
+For links, whose power flow is controllable, there is simply an
+optimisation variable for each component which satisfies
 
 .. math::
    |f_{l,t}| \leq F_l
@@ -329,9 +327,7 @@ line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
-converter.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
-
-transport_link.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+link.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 source.{co2_emissions}
 
@@ -353,6 +349,4 @@ line.{p0, p1, s_nom_opt}
 
 transformer.{p0, p1, s_nom_opt}
 
-converter.{p0, p1, s_nom_opt}
-
-transport_link.{p0, p1, s_nom_opt}
+link.{p0, p1, s_nom_opt}

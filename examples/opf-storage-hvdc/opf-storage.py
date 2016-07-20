@@ -33,8 +33,6 @@ print(network,network.co2_limit)
 #useful for debugging
 network.opf_keep_files = True
 
-network.build_graph()
-
 network.determine_network_topology()
 
 print("Connected networks:\n",network.sub_networks)
@@ -96,7 +94,7 @@ for sub_network in network.sub_networks.obj:
 
         print("\n%s" % bus)
 
-        print("power injection (generators - loads + Transport feed-in):",bus.p[network.now])
+        print("power injection (generators - loads + link feed-in):",bus.p[network.now])
 
         print("generators - loads:",sum([g.sign*g.p[network.now] for g in bus.generators().obj])  + sum([l.sign*l.p[network.now] for l in bus.loads().obj]))
 

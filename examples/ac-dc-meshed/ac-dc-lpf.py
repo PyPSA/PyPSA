@@ -33,7 +33,7 @@ for sn in network.sub_networks.obj:
 
 print("\nControllable branches:")
 
-for t in chain(network.transport_links.obj,network.converters.obj):
+for t in network.links.obj:
     print(t)
 
 now = network.snapshots[5]

@@ -1,10 +1,10 @@
-name,control,current_type,v_nom,x,y,generator
-London,PQ,AC,380.0,-0.13,51.5,
-Norwich,PQ,AC,380.0,1.3,52.6,
-Norwich DC,Slack,DC,200.0,1.3,52.5,
-Manchester,Slack,AC,380.0,-2.2,53.47,Manchester Wind
-Bremen,PQ,AC,380.0,8.8,53.08,
-Bremen DC,PQ,DC,200.0,8.8,52.98,
-Frankfurt,Slack,AC,380.0,8.7,50.12,Frankfurt Wind
-Norway,Slack,AC,380.0,10.75,60.0,Norway Wind
-Norway DC,PQ,DC,200.0,10.75,60.0,
+name,carrier,control,v_nom,x,y,generator
+London,AC,PQ,380.0,-0.13,51.5,
+Norwich,AC,PQ,380.0,1.3,52.6,
+Norwich DC,DC,Slack,200.0,1.3,52.5,
+Manchester,AC,Slack,380.0,-2.2,53.47,Manchester Wind
+Bremen,AC,PQ,380.0,8.8,53.08,
+Bremen DC,DC,PQ,200.0,8.8,52.98,
+Frankfurt,AC,Slack,380.0,8.7,50.12,Frankfurt Wind
+Norway,AC,Slack,380.0,10.75,60.0,Norway Wind
+Norway DC,DC,PQ,200.0,10.75,60.0,

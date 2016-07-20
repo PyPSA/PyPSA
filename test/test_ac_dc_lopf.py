@@ -20,7 +20,7 @@ from distutils.spawn import find_executable
 
 
 
-def test_opf():
+def test_lopf():
 
 
     csv_folder_name = "../examples/ac-dc-meshed/ac-dc-data"
@@ -37,18 +37,16 @@ def test_opf():
 
     snapshots = network.snapshots
 
-    for formulation in ["angles", "cycles", "kirchoff", "ptdf"]:
-        network.lopf(snapshots=snapshots,solver_name=solver_name,formulation="kirchhoff")
+    for formulation in ["angles", "cycles", "kirchhoff", "ptdf"]:
+        network.lopf(snapshots=snapshots,solver_name=solver_name,formulation=formulation)
 
         np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
 
         np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
 
-        np.testing.assert_array_almost_equal(network.transport_links_t.p0,network_r.transport_links_t.p0)
-
-        np.testing.assert_array_almost_equal(network.converters_t.p0,network_r.converters_t.p0)
+        np.testing.assert_array_almost_equal(network.links_t.p0,network_r.links_t.p0)
 
 
 
 if __name__ == "__main__":
-    test_opf()
+    test_lopf()

@@ -36,15 +36,14 @@ def test_lpf():
 
     np.testing.assert_array_almost_equal(network.generators_t.p.iloc[:2],network_r.generators_t.p.iloc[:2])
     np.testing.assert_array_almost_equal(network.lines_t.p0.iloc[:2],network_r.lines_t.p0.iloc[:2])
-    np.testing.assert_array_almost_equal(network.transport_links_t.p0.iloc[:2],network_r.transport_links_t.p0.iloc[:2])
-    np.testing.assert_array_almost_equal(network.converters_t.p0.iloc[:2],network_r.converters_t.p0.iloc[:2])
+    np.testing.assert_array_almost_equal(network.links_t.p0.iloc[:2],network_r.links_t.p0.iloc[:2])
+
 
     network.lpf(snapshots=network.snapshots)
 
     np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
     np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
-    np.testing.assert_array_almost_equal(network.transport_links_t.p0,network_r.transport_links_t.p0)
-    np.testing.assert_array_almost_equal(network.converters_t.p0,network_r.converters_t.p0)
+    np.testing.assert_array_almost_equal(network.links_t.p0,network_r.links_t.p0)
 
 
 if __name__ == "__main__":

@@ -144,9 +144,7 @@ line.{x, r, b, g}
 
 transformer.{x, r, b, g}
 
-converter.{p_set}
-
-transport_link.{p_set}
+link.{p_set}
 
 
 
@@ -180,9 +178,7 @@ line.{p0, q0, p1, q1}
 
 transformer.{p0, q0, p1, q1}
 
-converter.{p0, q0, p1, q1}
-
-transport_link.{p0, q0, p1, q1}
+link.{p0, p1}
 
 
 Linear power flow
@@ -256,9 +252,7 @@ line.{x}
 
 transformer.{x}
 
-converter.{p_set}
-
-transport_link.{p_set}
+link.{p_set}
 
 Note that for lines and transformers you MUST make sure that
 :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
@@ -280,6 +274,4 @@ line.{p0, p1}
 
 transformer.{p0, p1}
 
-converter.{p0, p1}
-
-transport_link.{p0, p1}
+link.{p0, p1}

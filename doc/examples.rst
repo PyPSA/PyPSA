@@ -37,8 +37,7 @@ This computes an example with three synchronous AC areas:
 * Germany (Frankfurt and Bremen)
 * Norway (a single node)
 
-London and Bremen are connected by a point-to-point HVDC Transport
-Link.
+London and Bremen are connected by a point-to-point HVDC Link.
 
 
 Norwich, Bremen and Norway are connected by a three-node, three-line

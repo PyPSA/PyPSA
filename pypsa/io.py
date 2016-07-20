@@ -288,7 +288,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
 
     #now read in other components
 
-    for class_name in ["Bus","Source","Generator","StorageUnit","Load","ShuntImpedance","TransportLink","Line","Transformer","Converter"]:
+    for class_name in ["Bus","Source","Generator","StorageUnit","Load","ShuntImpedance","TransportLink","Line","Transformer","Converter","Link"]:
         cls = getattr(pypsa.components,class_name)
         if verbose:
             print(class_name,cls)

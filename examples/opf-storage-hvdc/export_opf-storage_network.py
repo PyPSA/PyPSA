@@ -94,7 +94,7 @@ network.lines.at["2","s_nom_extendable"] = False
 
 #add HVDC lines
 for i in range(2):
-    network.add("TransportLink","TL %d" % (i),
+    network.add("Link","TL %d" % (i),
                 bus0=str(i),
                 bus1=str(3+i),
                 p_max_pu=0.9,
@@ -106,8 +106,8 @@ for i in range(2):
 
 
 #make one HVDC non-extendable
-network.transport_links.at["TL 1","s_nom"] = 300.
-network.transport_links.at["TL 1","s_nom_extendable"] = False
+network.links.at["TL 1","s_nom"] = 300.
+network.links.at["TL 1","s_nom_extendable"] = False
 
 
 #add loads

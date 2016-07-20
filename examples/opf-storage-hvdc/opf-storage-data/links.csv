@@ -1,0 +1,3 @@
+name,capital_cost,p_min_pu,bus0,bus1,s_nom_extendable,p_max_pu,s_nom
+TL 0,0.0408904499463,-0.9,0,3,True,0.9,1000.0
+TL 1,0.175623487278,-0.9,1,4,False,0.9,300.0
