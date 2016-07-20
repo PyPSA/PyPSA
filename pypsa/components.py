@@ -428,6 +428,9 @@ class Link(Common):
 
     capital_cost = Float(0.)
 
+    #NB: marginal cost only makes sense in OPF if p_max_pu >= 0
+    marginal_cost = Float(0.)
+
     #This should really be p_nom, since we exclude q for the link.
     #It is kept as s_nom to maintain consistency with other branches.
     s_nom = Float(0.)

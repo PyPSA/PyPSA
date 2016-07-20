@@ -712,6 +712,13 @@ def define_linear_objective(network,snapshots):
                                 for su in network.storage_units.index
                                 for sn in snapshots])
 
+    objective.variables.extend([(network.links.at[link,"marginal_cost"]
+                                 * network.snapshot_weightings[sn],
+                                 model.controllable_branch_p["Link",link,sn])
+                                for link in network.links.index
+                                for sn in snapshots])
+
+
     #NB: for capital costs we subtract the costs of existing infrastructure p_nom/s_nom
 
     objective.variables.extend([(extendable_generators.at[gen,"capital_cost"], model.generator_p_nom[gen])

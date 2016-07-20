@@ -233,10 +233,11 @@ Controllable Branch: Link
 
 The ``Link`` is a component introduced in PyPSA 0.5.0 for controllable
 directed flows between two buses with arbitrary energy carriers. It
-can have an efficiency loss; for this reason it's default settings
-allow only for power flow in one direction, from ``bus0`` to ``bus1``
-(i.e. ``p_min_pu = 0``). To build a bidirectional lossless link, set
-``efficiency = 1`` and ``p_min_pu = -1``.
+can have an efficiency loss and a marginal cost; for this reason its
+default settings allow only for power flow in one direction, from
+``bus0`` to ``bus1`` (i.e. ``p_min_pu = 0``). To build a bidirectional
+lossless link, set ``efficiency = 1``, ``marginal_cost = 0`` and
+``p_min_pu = -1``.
 
 The ``Link`` component can be used for any element with a controllable
 power flow: a bidirectional point-to-point HVDC link, a unidirectional
@@ -249,7 +250,7 @@ between AC buses.
 
 NB: If you want to replace ``Converter`` and ``TransportLink``
 components in your code, use the ``Link`` with ``efficiency = 1``,
-``p_min_pu = -1`` and ``p_max_pu = 1``.
+``marginal_cost = 0``, ``p_min_pu = -1`` and ``p_max_pu = 1``.
 
 .. csv-table::
    :header-rows: 1
