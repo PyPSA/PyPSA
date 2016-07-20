@@ -39,8 +39,8 @@ from weakref import WeakKeyDictionary
 from collections import OrderedDict
 
 import networkx as nx
-
 import pandas as pd
+import re
 
 import inspect
 
@@ -84,6 +84,58 @@ elif _nx_version >= '1.10':
                     nx.convert.to_networkx_graph(data, create_using=self)
 else:
     raise ImportError("NetworkX version {} is too old. At least 1.10 is needed.".format(nx.__version__))
+
+class Dict(dict):
+    """
+    Dict is a subclass of dict, which allows you to get AND SET
+    items in the dict using the attribute syntax!
+
+    Stripped down from addict https://github.com/mewwts/addict/ .
+    """
+
+    def __setattr__(self, name, value):
+        """
+        setattr is called when the syntax a.b = 2 is used to set a value.
+        """
+        if hasattr(Dict, name):
+            raise AttributeError("'Dict' object attribute "
+                                 "'{0}' is read-only".format(name))
+        else:
+            self[name] = value
+
+    def __getattr__(self, item):
+        try:
+            return self.__getitem__(item)
+        except KeyError as e:
+            raise AttributeError(e.args[0])
+
+    def __delattr__(self, name):
+        """
+        Is invoked when del some_addict.b is called.
+        """
+        del self[name]
+
+    _re_pattern = re.compile('[a-zA-Z_][a-zA-Z0-9_]*')
+
+    def __dir__(self):
+        """
+        Return a list of object attributes.
+
+        This includes key names of any dict entries, filtered to the
+        subset of valid attribute names (e.g. alphanumeric strings
+        beginning with a letter or underscore).  Also includes
+        attributes of parent dict class.
+        """
+        dict_keys = []
+        for k in self.keys():
+            if isinstance(k, str):
+                m = self._re_pattern.match(k)
+                if m:
+                    dict_keys.append(m.string)
+
+        obj_attrs = list(dir(Dict))
+
+        return dict_keys + obj_attrs
 
 #Some descriptors to control variables - idea is to do type checking
 #and in future facilitate interface with Database / GUI
