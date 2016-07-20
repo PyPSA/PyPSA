@@ -2,13 +2,13 @@
 Release Notes
 #######################
 
-PyPSA 0.5.0 (July 2016)
-========================
+PyPSA 0.5.0 (21st July 2016)
+============================
 
 This is a relatively major release with some API changes, primarily
 aimed at allowing coupling with other energy carriers (heat, gas,
 etc.). The specification for a change and refactoring to the handling
-of time series has also been prepared (see XX :doc:`todo`), which will
+of time series has also been prepared (see :ref:`time-varying`), which will
 be implemented in the next major release PyPSA 0.6.0 in the late
 summer of 2016.
 
@@ -23,9 +23,10 @@ summer of 2016.
 
 * components: A new component for a controllable directed link
   ``Link`` has been introduced; ``TransportLink`` and ``Converter``
-  are now *deprecated* and will be removed in the next release
-  0.6.1. Please move your code over now. See XX :doc:`components` for
-  more details.
+  are now *deprecated* and will be removed soon in an 0.6.x
+  release. Please move your code over now. See
+  :ref:`controllable-link` for more details and a description of how
+  to update your code to work with the new ``Link`` component.
 
 * graph: A new sub-module ``pypsa.graph`` has been introduced to
   replace most of the networkx functionality with scipy.sparse
@@ -38,8 +39,9 @@ summer of 2016.
   component attributes. Static and series attributes of all components
   are not exported if they are default values.  The functionality to
   selectively export series has been removed from the export function,
-  because it was clumsy and hard to use.  See
-  :ref:`import_export` XX #export-to-csv.
+  because it was clumsy and hard to use.  See :ref:`export-csv` for
+  more details.
+
 
 * plot: Plotting networks is now more performant (using matplotlib
   LineCollections) and allows generic branches to be plotted, not just

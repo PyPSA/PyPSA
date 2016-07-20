@@ -7,6 +7,8 @@ Changes which definitely will be implemented
 ============================================
 
 
+.. _time-varying:
+
 Redefine interface for time-varying parameters
 ----------------------------------------------
 
@@ -40,9 +42,9 @@ snapshot.
 The pandas.Panel ``network.generators_t`` will be replaced by a
 dictionary of pandas.DataFrame (with the small modification that
 dictionary values can also be accessed as attributes with
-e.g. ``d.key`` - see ``pypsa.addict``). The pandas.DataFrame,
-e.g. ``network.generators_t.p_max_pu`` will have an index of the
-``network.snapshots`` and a column of all components with
+e.g. ``d.key`` - see ``pypsa.descriptors.Dict``). The
+pandas.DataFrame, e.g. ``network.generators_t.p_max_pu`` will have an
+index of the ``network.snapshots`` and a column of all components with
 ``generator.p_max_pu_t == True``. This is very similar to the
 pandas.Panel, except that the components column can be of variable
 length.
