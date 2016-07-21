@@ -29,6 +29,6 @@ from .components import Network, Bus, Load, Generator, ShuntImpedance, Line, Tra
 from . import components, pf, opf, plot, networkclustering, io, contingency, geo
 
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
