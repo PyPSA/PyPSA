@@ -5,7 +5,7 @@
 
 See ``pypsa/examples/`` and ``pypsa/test/`` in the `PyPSA github repository <https://github.com/FRESNA/PyPSA>`_ for usage cases; there are
 Jupyter/iPython notebooks available of these examples at
-`http://www.pypsa.org/examples/ <http://www.pypsa.org/examples/>`_.
+`<http://www.pypsa.org/examples/>`_.
 
 
 SciGRID Germany LOPF, LPF and SCLOPF
@@ -52,3 +52,20 @@ Storage and HVDC OPF example
 See ``pypsa/examples/opf-storage-hvdc/``
 
 System capacity optimisation with storage, AC and DC.
+
+
+
+Example of linear optimal power flow with coupling to the heating sector
+========================================================================
+
+
+See ``pypsa/examples/coupling-with-heating/`` and
+`<http://www.pypsa.org/examples/lopf-with-heating.html>`_.
+
+
+In this example three locations are optimised, each with an electric
+bus and a heating bus and corresponding loads. At each location the
+electric and heating buses are connected with heat pumps; heat can
+also be supplied to the heat bus with a boiler. The electric buses are
+connected with transmission lines and there are electrical generators
+at two of the nodes.

@@ -50,14 +50,15 @@ pandas.Panel, except that the components column can be of variable
 length.
 
 When running calculations, like the power flow or optimal power flow,
-any missing series inputs will be filled in with the default
-values. All series results (such as ``generator.p,q``) will only be
-generated during the calculation and will not be instantiated before
-they are written.
+any missing series inputs will be filled in with the default values
+(whether it is on a sub-network or a network). All series results
+(such as ``generator.p,q``) will only be generated during the
+calculation and will not be instantiated before the calculation is
+run.
 
 
-What about objects? Don't want a gen.p_max_pu to have to check first
-the boolean, then return the static or varying?
+Open: What about object interface? Don't want a gen.p_max_pu to have
+to check first the boolean, then return the static or varying?
 
 
 Replace descriptors with __get__ and __set__ on objects

@@ -12,6 +12,12 @@ of time series has also been prepared (see :ref:`time-varying`), which will
 be implemented in the next major release PyPSA 0.6.0 in the late
 summer of 2016.
 
+An example of the coupling between electric and heating sectors can be
+found in the GitHub repository at
+``pypsa/examples/coupling-with-heating/`` and at
+`<http://www.pypsa.org/examples/lopf-with-heating.html>`_.
+
+
 * components: To allow other energy carriers, the attribute
   ``current_type`` fur buses and sub-neworks (sub-networks inherit the
   attribute from their buses) has been replaced by ``carrier`` which
@@ -26,7 +32,9 @@ summer of 2016.
   are now *deprecated* and will be removed soon in an 0.6.x
   release. Please move your code over now. See
   :ref:`controllable-link` for more details and a description of how
-  to update your code to work with the new ``Link`` component.
+  to update your code to work with the new ``Link`` component. All the
+  examples in the GitHub repository in ``pypsa/examples/`` have been
+  updated to us the ``Link``.
 
 * graph: A new sub-module ``pypsa.graph`` has been introduced to
   replace most of the networkx functionality with scipy.sparse

@@ -149,7 +149,7 @@ It leans heavily on the following Python packages:
 * `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
-* `networkx <https://networkx.github.io/>`_ for some network calculations (such as discovering connected networks)
+* `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 
 The optimisation uses pyomo so that it is independent of the preferred
