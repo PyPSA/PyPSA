@@ -29,10 +29,15 @@ from __future__ import absolute_import
 from six.moves import range
 
 
-from pyomo.environ import Constraint, Objective
+from pyomo.environ import Constraint, Objective, Var, ComponentUID
+from weakref import ref as weakref_ref
 
 import pyomo
-
+from contextlib import contextmanager
+from six import iteritems
+from six.moves import cPickle as pickle
+import pandas as pd
+import gc, os, tempfile
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -245,3 +250,85 @@ def l_objective(model,objective=None):
     model.objective._expr._args = [item[1] for item in objective.variables]
     model.objective._expr._coef = [item[0] for item in objective.variables]
     model.objective._expr._const = objective.constant
+
+@contextmanager
+def empty_model(model):
+    rules = {}
+    for obj in model.component_objects(ctype=Constraint):
+        if obj.rule is not None:
+            rules[obj.name] = obj.rule
+            obj.rule = None
+
+    bounds = {}
+    for obj in model.component_objects(ctype=Var):
+        if obj._bounds_init_rule is not None:
+            bounds[obj.name] = obj._bounds_init_rule
+            obj._bounds_init_rule = None
+
+    smap_id, symbol_map = (next(iteritems(model.solutions.symbol_map))
+               if model.solutions.symbol_map
+               else (None, None))
+    if smap_id is not None:
+        for m in ('bySymbol', 'aliases'):
+            setattr(symbol_map, m,
+                    {n: ComponentUID(obj())
+                     for n, obj in iteritems(getattr(symbol_map, m))})
+
+    fd, fn = tempfile.mkstemp()
+    with os.fdopen(fd, 'wb') as f:
+        pickle.dump(model.__getstate__(), f, -1)
+
+    model.__dict__.clear()
+    yield
+
+    with open(fn, 'rb') as f:
+        state = pickle.load(f)
+    os.remove(fn)
+    model.__setstate__(state)
+
+    for n, rule in iteritems(rules):
+        getattr(model, n).rule = rule
+
+    for n, bound in iteritems(bounds):
+        getattr(model, n)._bounds_init_rule = bound
+
+    if smap_id is not None:
+        for m in ('bySymbol', 'aliases'):
+            setattr(symbol_map, m,
+                    {n: weakref_ref(cuid.find_component(model))
+                     for n, cuid in iteritems(getattr(symbol_map, m))})
+        symbol_map.byObject = {id(obj()): symb
+                               for symb, obj in iteritems(symbol_map.bySymbol)}
+        model.solutions.symbol_map[smap_id] = symbol_map
+
+@contextmanager
+def empty_network(network):
+    from .components import component_types
+
+    panels = {}
+    for c in component_types:
+        attr = c.list_name + "_t"
+        pnl = getattr(network, attr)
+        panels[attr] = pnl if pnl.empty else pd.Panel(dict(pnl))
+        setattr(network, attr, None)
+
+    fd, fn = tempfile.mkstemp()
+    with os.fdopen(fd, 'wb') as f:
+        pickle.dump(panels, f, -1)
+
+    del panels
+    yield
+
+    with open(fn, 'rb') as f:
+        panels = pickle.load(f)
+    os.remove(fn)
+    for attr, pnl in iteritems(panels):
+        setattr(network, attr, pnl)
+
+def patch_optsolver_free_model_and_network_before_solving(opt, model, network):
+    orig_apply_solver = opt._apply_solver
+    def wrapper():
+        with empty_model(model), empty_network(network):
+            gc.collect()
+            return orig_apply_solver()
+    opt._apply_solver = wrapper

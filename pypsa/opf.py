@@ -45,8 +45,8 @@ except ValueError:
 from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
                  find_cycles)
-from .opt import l_constraint, l_objective, LExpression, LConstraint
-
+from .opt import (l_constraint, l_objective, LExpression, LConstraint,
+                  patch_optsolver_free_model_and_network_before_solving)
 
 #this function is necessary because pyomo doesn't deal with NaNs gracefully
 def replace_nan_with_none(val):
@@ -855,7 +855,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
                  skip_pre=False, extra_functionality=None, solver_options={},
-                 keep_files=False, formulation="angles", ptdf_tolerance=0.):
+                 keep_files=False, formulation="angles", ptdf_tolerance=0.,
+                 free_memory_hack=False):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -888,6 +889,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
         one of ["angles","cycles","kirchhoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
+    free_memory_hack : bool, default False
+        Stash time series data and pyomo model away while the solver runs
 
     Returns
     -------
@@ -944,6 +947,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
 
 
     opt = SolverFactory(solver_name)
+    if free_memory_hack:
+        patch_optsolver_free_model_and_network_before_solving(opt, network.model, network)
 
     network.results = opt.solve(network.model, suffixes=["dual"],
                                 keepfiles=keep_files, options=solver_options)

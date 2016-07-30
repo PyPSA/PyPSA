@@ -10,7 +10,7 @@ import networkx as nx
 
 import numpy as np
 
-from itertools import chain
+from itertools import chain, product
 
 import os
 
@@ -37,8 +37,9 @@ def test_lopf():
 
     snapshots = network.snapshots
 
-    for formulation in ["angles", "cycles", "kirchhoff", "ptdf"]:
-        network.lopf(snapshots=snapshots,solver_name=solver_name,formulation=formulation)
+    for formulation, free_memory_hack in product(["angles", "cycles", "kirchhoff", "ptdf"],
+                                                 [False, True]):
+        network.lopf(snapshots=snapshots,solver_name=solver_name,formulation=formulation, free_memory_hack=free_memory_hack)
 
         np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
 
