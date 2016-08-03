@@ -21,7 +21,7 @@
 from __future__ import print_function, division
 from __future__ import absolute_import
 from six import iteritems
-from six.moves import filter
+from six.moves import filter, range
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
@@ -360,29 +360,23 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_pu_set","v_ang_set","v_nom","zone","v_mag_pu_max","v_mag_pu_min"]
 
-    pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:])
+    pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:len(columns)+1])
 
 
     #rename controls
     controls = ["","PQ","PV","Slack"]
-    pdf['buses']["control"] = [controls[int(pdf["buses"]["type"][i])] for i in pdf["buses"].index]
-
-
+    pdf["buses"]["control"] = pdf["buses"]["type"].map(lambda i: controls[int(i)])
 
     #add loads for any buses with Pd or Qd
-    pdf['loads'] = pdf["buses"][["Pd","Qd"]][pdf["buses"][["Pd","Qd"]].any(axis=1)]
-
+    pdf['loads'] = pdf["buses"].loc[pdf["buses"][["Pd","Qd"]].any(axis=1), ["Pd","Qd"]]
     pdf['loads']['bus'] = pdf['loads'].index
-
     pdf['loads'].rename(columns={"Qd" : "q_set", "Pd" : "p_set"}, inplace=True)
-
     pdf['loads'].index = ["L"+str(i) for i in range(len(pdf['loads']))]
-
 
 
     #add shunt impedances for any buses with Gs or Bs
 
-    shunt = pdf["buses"][["v_nom","Gs","Bs"]][pdf["buses"][["Gs","Bs"]].any(axis=1)]
+    shunt = pdf["buses"].loc[pdf["buses"][["Gs","Bs"]].any(axis=1), ["v_nom","Gs","Bs"]]
 
     #base power for shunt is 1 MVA, so no need to rebase here
     shunt["g"] = shunt["Gs"]/shunt["v_nom"]**2
@@ -399,9 +393,9 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_nom, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
 
-    index = ["G"+str(i) for i in range(ppc['gen'].shape[0])]
+    index = ["G"+str(i) for i in range(len(ppc['gen']))]
 
-    pdf['generators'] = pd.DataFrame(index=index,columns=columns,data=ppc['gen'])
+    pdf['generators'] = pd.DataFrame(index=index,columns=columns,data=ppc['gen'][:,:len(columns)])
 
 
     #make sure bus name is an integer
@@ -414,7 +408,7 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     columns = 'bus0, bus1, r, x, b, s_nom, rateB, rateC, tap_ratio, phase_shift, status, v_ang_min, v_ang_max'.split(", ")
 
 
-    pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'])
+    pdf['branches'] = pd.DataFrame(columns=columns,data=ppc['branch'][:,:len(columns)])
 
     pdf['branches']['original_index'] = pdf['branches'].index
 
