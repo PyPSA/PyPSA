@@ -24,6 +24,7 @@ from __future__ import print_function, division, absolute_import
 import six
 from six import iteritems
 from six.moves import map
+from weakref import ref
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
@@ -90,10 +91,12 @@ class Common(Basic):
     network = None
 
     def __init__(self, network, name=""):
-
         Basic.__init__(self, name)
+        self._network = ref(network)
 
-        self.network = network
+    @property
+    def network(self):
+        return self._network()
 
 class Source(Common):
     """Energy source, such as wind, PV or coal."""
