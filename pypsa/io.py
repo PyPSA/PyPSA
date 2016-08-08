@@ -321,7 +321,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
 
 
 
-def import_from_pypower_ppc(network,ppc,verbose=True):
+def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=None):
     """
     Import network from PYPOWER PPC dictionary format version 2.
 
@@ -333,6 +333,7 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
     ----------
     ppc : PYPOWER PPC dict
     verbose : bool, default True
+    overwrite_zero_s_nom : Float or None, default None
 
     Examples
     --------
@@ -414,6 +415,17 @@ def import_from_pypower_ppc(network,ppc,verbose=True):
 
     pdf['branches']["bus0"] = pdf['branches']["bus0"].astype(int)
     pdf['branches']["bus1"] = pdf['branches']["bus1"].astype(int)
+
+    # s_nom = 0 indicates an unconstrained line
+    zero_s_nom = pdf['branches']["s_nom"] == 0.
+    if zero_s_nom.any():
+        if overwrite_zero_s_nom is not None:
+            pdf['branches'].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
+        else:
+            print("Warning: there are {} branches with s_nom equal to zero, "
+                  "they will probably lead to infeasibilities and should be "
+                  "replaced with a high value using the `overwrite_zero_s_nom` "
+                  "argument.".format(zero_s_nom.sum()))
 
     # determine bus voltages of branches to detect transformers
     v_nom = pdf['branches'].bus0.map(pdf['buses'].v_nom)
