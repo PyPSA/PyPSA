@@ -725,7 +725,7 @@ def find_cycles(sub_network,verbose=True):
             first = bs[0]
             first_i = branches_i.get_loc((first.__class__.__name__,first.name))
             for b in bs[1:]:
-                b_i = branches_i.index.get_loc((b.__class__.__name__,b.name))
+                b_i = branches_i.get_loc((b.__class__.__name__,b.name))
                 if b.bus0 == first.bus0:
                     sign = -1
                 else:
