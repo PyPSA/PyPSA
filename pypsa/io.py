@@ -432,7 +432,9 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     v_nom_1 = pdf['branches'].bus1.map(pdf['buses'].v_nom)
 
     # split branches into transformers and lines
-    transformers = (v_nom != v_nom_1) | (pdf['branches'].tap_ratio != 0) | (pdf['branches'].phase_shift != 0)
+    transformers = ((v_nom != v_nom_1)
+                    # | (pdf['branches'].tap_ratio != 0)
+                    | (pdf['branches'].phase_shift != 0))
     pdf['transformers'] = pd.DataFrame(pdf['branches'][transformers])
     pdf['lines'] = pdf['branches'][~ transformers].drop(["tap_ratio", "phase_shift"], axis=1)
 
