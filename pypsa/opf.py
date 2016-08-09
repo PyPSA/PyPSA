@@ -759,12 +759,21 @@ def define_sub_network_balance_constraints(network,snapshots):
 def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
-        return sum(network.sources.obj[gen.source].co2_emissions
-                   * (1/gen.efficiency)
-                   * model.generator_p[gen.name,snapshot]
-                   *network.snapshot_weightings[snapshot]
-                   for gen in network.generators.obj
-                   for snapshot in snapshots) <= network.co2_limit
+
+        co2_gens = sum(network.sources.at[network.generators.at[gen,"source"],"co2_emissions"]
+                       * (1/network.generators.at[gen,"efficiency"])
+                       * network.snapshot_weightings[sn]
+                       * model.generator_p[gen,sn]
+                       for gen in network.generators.index
+                       for sn in snapshots)
+
+        co2_stores = sum(network.sources.at[network.stores.at[store,"source"],"co2_emissions"]
+                         * network.snapshot_weightings[sn]
+                         * model.store_p[store,sn]
+                         for store in network.stores.index
+                         for sn in snapshots)
+
+        return  co2_gens + co2_stores <= network.co2_limit
 
     network.model.co2_constraint = Constraint(rule=co2_constraint)
 
