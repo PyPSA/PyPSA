@@ -350,8 +350,8 @@ def define_store_variables_constraints(network,snapshots):
     network.model.store_e_upper = Constraint(ext_stores, snapshots, rule=store_e_upper)
 
     def store_e_lower(model,store,snapshot):
-        return (model.store_e[store,snapshot] <=
-                -model.store_e_nom[store]*stores.at[store,"e_min_pu_fixed"])
+        return (model.store_e[store,snapshot] >=
+                model.store_e_nom[store]*stores.at[store,"e_min_pu_fixed"])
 
     network.model.store_e_lower = Constraint(ext_stores, snapshots, rule=store_e_lower)
 

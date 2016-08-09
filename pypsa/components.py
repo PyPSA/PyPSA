@@ -70,6 +70,8 @@ import inspect
 import sys
 
 
+inf = float("inf")
+
 class Basic(object):
     """Common to every object."""
 
@@ -287,7 +289,7 @@ class Store(Common):
     e_nom_extendable = Boolean(False)
 
     #technical potential
-    e_nom_max = Float(np.nan)
+    e_nom_max = Float(inf)
 
     e_nom_min = Float(0.0)
 
