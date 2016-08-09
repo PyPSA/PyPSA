@@ -263,6 +263,54 @@ class StorageUnit(Generator):
     standing_loss = Float(0.)
 
 
+class Store(Common):
+    """Generic store, whose capacity may be optimised."""
+
+    list_name = "stores"
+
+    bus = String(default="")
+    sign = Float(default=1.)
+    p = Series()
+    q = Series()
+    e = Series()
+
+    p_set = Series()
+    q_set = Series()
+
+    #i.e. coal, CCGT, onshore wind, PV, CSP,....
+    source = String(default="")
+
+    #rated energy capacity
+    e_nom = Float(default=0.0)
+
+    #switch to allow energy capacity to be extended
+    e_nom_extendable = Boolean(False)
+
+    #technical potential
+    e_nom_max = Float(np.nan)
+
+    e_nom_min = Float(0.0)
+
+    #optimised capacity
+    e_nom_opt = Float(0.0)
+
+    e_max_pu_fixed = Float(1.)
+    e_min_pu_fixed = Float(0.)
+
+    e_cyclic = Boolean(False)
+
+    e_initial = Float(0.)
+
+    #cost of increasing e_nom
+    capital_cost = Float(0.0)
+
+    #cost of dispatching from the store
+    marginal_cost = Float(0.0)
+
+    #per hour per unit loss in state of charge
+    standing_loss = Float(0.)
+
+
 
 class Load(OnePort):
     """PQ load."""
@@ -650,7 +698,7 @@ class Network(Basic):
         class_name : string
             Component class name
         name : string
-            Component name in ["Bus","Generator","Load","StorageUnit","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
+            Component name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
         kwargs
 
         Returns
@@ -920,6 +968,11 @@ class SubNetwork(Common):
         sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
         return self.network.storage_units.index[sub_networks == self.name]
 
+    def stores_i(self):
+        sub_networks = self.network.stores.bus.map(self.network.buses.sub_network)
+        return self.network.stores.index[sub_networks == self.name]
+
+
     def buses(self):
         return self.network.buses.loc[self.buses_i()]
 
@@ -942,7 +995,7 @@ class SubNetwork(Common):
                 yield t
 
 passive_one_port_types = {ShuntImpedance}
-controllable_one_port_types = {Load, Generator, StorageUnit}
+controllable_one_port_types = {Load, Generator, StorageUnit, Store}
 one_port_types = passive_one_port_types|controllable_one_port_types
 
 passive_branch_types = {Line, Transformer}
