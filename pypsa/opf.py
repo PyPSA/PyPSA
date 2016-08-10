@@ -929,7 +929,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             set_from_series(network.buses_t.marginal_price,
                             pd.Series(list(model.power_balance.values()),
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
-                            .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
+                            .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
 
         elif formulation in ["ptdf","cycles","kirchhoff"]:
 
