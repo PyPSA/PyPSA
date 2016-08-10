@@ -98,6 +98,10 @@ def adjacency_matrix(network, branch_types=None, busorder=None):
             no_branches += len(t.ind)
         bus0_inds.append(busorder.get_indexer(t.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(t.df.loc[sel, "bus1"]))
+
+    if no_branches == 0:
+        return sp.sparse.coo_matrix((no_buses, no_buses))
+
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 
