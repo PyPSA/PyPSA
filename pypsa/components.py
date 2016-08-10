@@ -752,8 +752,6 @@ class Network(Basic):
         for key,value in iteritems(kwargs):
             setattr(obj,key,value)
 
-        return obj
-
 
     def add_from(self,object_list):
         """Add objects from a list."""
