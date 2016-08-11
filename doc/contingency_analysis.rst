@@ -64,7 +64,7 @@ The diagonal entries of the BODF are simply:
 
 
 
-Linear Power Flow Contingency Aanlysis
+Linear Power Flow Contingency Analysis
 ======================================
 
 ``network.lpf_contingency(snapshot, branch_outages)`` computes a base

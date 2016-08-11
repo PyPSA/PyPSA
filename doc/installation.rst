@@ -24,8 +24,9 @@ accidentally trash something.
 Getting a solver for linear optimisation
 ========================================
 
-PyPSA is known to work with the free software GLPK and the non-free
-software Gurobi (and whatever else Pyomo works with).
+PyPSA is known to work with the free software GLPK (versions below
+4.58) and the non-free software Gurobi (and whatever else Pyomo works
+with).
 
 For Debian-based systems you can get GLPK with::
 
@@ -36,6 +37,9 @@ and there are similar packages for other GNU/Linux distributions.
 For Windows there is `WinGLPK <http://winglpk.sourceforge.net/>`_. For
 Mac OS X `brew <http://brew.sh/>`_ is your friend.
 
+WARNING: PyPSA uses the library Pyomo, which is `known not to work
+<https://software.sandia.gov/trac/pyomo/ticket/4641>`_ with GLPK
+versions >= 4.58. Please install an older version of GLPK.
 
 
 

@@ -77,8 +77,8 @@ The bus is the fundamental node of the network.
    :file: buses.csv
 
 
-One-Ports: Generators, Storage Units, Loads, Shunt Impedances
-============================================================
+One-Ports: Generators, Storage Units, Loads, Stores, Shunt Impedances
+=====================================================================
 
 These components share the property that they all connect to a single
 bus.
@@ -150,6 +150,27 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :header-rows: 1
    :file: storage_units.csv
+
+
+Store
+-----
+
+The Store is a more fundamental component for storing energy only (it
+cannot convert between energy carriers).
+
+The Store, Bus and Link are fundamental components with which one can
+build more complicated components (Generators, Storage Units, CHPs,
+etc.).
+
+The Store has controls and optimisation on the size of its energy
+capacity, but not it's power output; to control the power output, you
+must put a link in front of it.
+
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: stores.csv
 
 
 Load
