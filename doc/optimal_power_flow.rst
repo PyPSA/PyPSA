@@ -28,10 +28,13 @@ Overview
 Execute:
 
 
-``network.lopf(snapshots,solver_name)``
+``network.lopf(snapshots, solver_name="glpk", extra_functionality=None, solver_options={}, keep_files=False)``
 
-where ``snapshots`` is an iterable of snapshots and ``solver_name`` is a
-string, e.g. "gurobi" or "glpk".
+where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
+string, e.g. "gurobi" or "glpk", ``extra_functionality`` is a function
+of network and snapshots that is called before the solver,
+``solver_options`` is a dictionary of flags to pass to the solver and
+``keep_files`` means that the ``.lp`` file is saved.
 
 The linear OPF module can optimises the dispatch of generation and storage
 and the capacities of generation, storage and transmission.
@@ -39,14 +42,17 @@ and the capacities of generation, storage and transmission.
 It is assumed that the load is inelastic and must be met in every
 snapshot (this will be relaxed in future versions).
 
-The optimisation currently uses continuous variables. MILP unit commitment may be
-added in the future.
+The optimisation currently uses continuous variables. MILP unit
+commitment may be added in the future.
 
 The objective function is the total system cost for the snapshots
 optimised.
 
 Each snapshot can be given a weighting :math:`w_t` to represent
 e.g. multiple hours.
+
+This set-up can also be used for stochastic optimisation, if you
+interpret the weighting as a probability.
 
 Each transmission asset has a capital cost.
 
@@ -89,8 +95,42 @@ annum, h/a) are chosen such that
 In this case the objective function gives total system cost in EUR/a
 to meet the total load.
 
+Stochastic optimisation
+-----------------------
+
+Use the weightings ``w_t`` as probabilities for the snapshots, which
+can represent different load/weather conditions.
 
 
+
+Variables and notation summary
+------------------------------
+
+:math:`n \in N = \{0,\dots |N|-1\}` label the buses
+
+:math:`t \in T = \{0,\dots |T|-1\}` label the snapshots
+
+:math:`l \in L = \{0,\dots |L|-1\}` label the branches
+
+:math:`s \in S = \{0,\dots |S|-1\}` label the different generator/storage types at each bus
+
+:math:`w_t` weighting of time :math:`t` in the objective function
+
+:math:`g_{n,s,t}` dispatch of generator :math:`s` at bus :math:`n` at time :math:`t`
+
+:math:`\bar{g}_{n,s}` nominal power of generator :math:`s` at bus :math:`n`
+
+:math:`\bar{g}_{n,s,t}` availability of  generator :math:`s` at bus :math:`n` at time :math:`t` per unit of nominal power
+
+:math:`c_{n,s}` capital cost of extending generator nominal power by one MW
+
+:math:`o_{n,s}` marginal cost of dispatch generator for one MWh
+
+:math:`f_{l,t}` flow of power in branch :math:`l` at time :math:`t`
+
+:math:`F_{l}` capacity of branch :math:`l`
+
+Further definitions are given below.
 
 Objective function
 ------------------
@@ -160,7 +200,7 @@ These are defined in ``pypsa.opf.define_storage_variables_constraints(network,sn
 
 Storage nominal power and dispatch for each snapshot may be optimised.
 
-The maximum state of charge may not be independently optimised at the moment.
+With a storage unit the maximum state of charge may not be independently optimised from the maximum power output (they're linked by the maximum hours variable) and the maximum power output is linked to the maximum power input. To optimise these capacities independently, build a storage unit out of the more fundamental ``Store`` and ``Link`` components.
 
 The storage nominal power is given by :math:`\bar{h}_{n,s}`.
 
@@ -209,6 +249,45 @@ values which are not NaNs, then it will be assumed that these are
 fixed state of charges desired for that time :math:`t` and these will
 be added as extra constraints. (A possible usage case would be a
 storage unit where the state of charge must empty every day.)
+
+
+Store constraints
+------------------------
+
+These are defined in ``pypsa.opf.define_store_variables_constraints(network,snapshots)``.
+
+Store nominal energy and dispatch for each snapshot may be optimised.
+
+The store nominal energy is given by :math:`\bar{e}_{n,s}`.
+
+The store has two time-dependent variables:
+
+The store dispatch :math:`h_{n,s,t}`:
+
+.. math::
+   -\infty \leq h_{n,s,t} \leq +\infty
+
+and the energy:
+
+.. math::
+   \tilde{e}_{n,s} \leq e_{n,s,t} \leq \bar{e}_{n,s}
+
+
+The variables are related by
+
+.. math::
+   e_{n,s,t} = \eta_{\textrm{stand};n,s}^{w_t} e_{n,s,t-1} - w_t h_{n,s,t}
+
+:math:`\eta_{\textrm{stand};n,s}` is the standing losses dues to
+e.g. thermal losses for thermal
+storage.
+
+There are two options for specifying the initial energy
+:math:`e_{n,s,t=-1}`: you can set
+``store.e_cyclic = False`` (the default) and the
+value of ``store.e_initial`` in MWh; or you can
+set ``store.e_cyclic = True`` and then the
+optimisation assumes :math:`e_{n,s,t=-1} = e_{n,s,t=|T|-1}`.
 
 
 
@@ -292,20 +371,6 @@ This depends on the power plant efficiency and specific CO2 emissions
 of the fuel source.
 
 
-Variables and notation summary
-------------------------------
-
-TODO - see objective function.
-
-:math:`n \in N = \{0,\dots |N|-1\}` label the buses
-
-:math:`t \in T = \{0,\dots |T|-1\}` label the snapshots
-
-:math:`l \in L = \{0,\dots |L|-1\}` label the branches
-
-:math:`s \in S = \{0,\dots |S|-1\}` label the different generator/storage types at each bus
-
-
 Inputs
 ------
 
@@ -319,9 +384,11 @@ bus.{v_nom}
 
 load.{p_set}
 
-generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency}
+generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency, source}
 
 storage_unit.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
+
+store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu_fixed, e_max_pu_fixed, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss, source}
 
 line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
@@ -344,6 +411,8 @@ load.{p}
 generator.{p, p_nom_opt}
 
 storage_unit.{p, p_nom_opt, state_of_charge, spill}
+
+store.{p, e_nom_opt, e}
 
 line.{p0, p1, s_nom_opt}
 

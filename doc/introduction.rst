@@ -35,10 +35,10 @@ PyPSA can calculate:
   dispatch within network constraints, using the linear network
   equations, over several snapshots)
 * security-constrained linear optimal power flow
-* total electricity system investment optimisation (using linear network
-  equations, over several snapshots simultaneously for optimisation of
-  generation and storage dispatch and investment in the capacities of generation,
-  storage and transmission)
+* total electricity system investment optimisation (using linear
+  network equations, over several snapshots simultaneously for
+  optimisation of generation and storage dispatch and investment in
+  the capacities of generation, storage and transmission)
 
 It has models for:
 
@@ -50,12 +50,15 @@ It has models for:
 * storage units with efficiency losses
 * simple hydroelectricity with inflow and spillage
 * coupling with other energy carriers
+* basic components out of which more complicated assets can be built,
+  such as Combined Heat and Power (CHP) units, heat pumps, resistive
+  Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
+  (BEVs), etc.; each of these is demonstrated in the `examples
+  <http://www.pypsa.org/examples/>`_
 
 
 Functionality that will definitely be added soon (see also :doc:`todo`):
 
-* More explicit integration of heating and gas sectors (CHPs, heat
-  pumps, P2H, P2G, etc.)
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation
@@ -69,7 +72,7 @@ Functionality that may be added in the future:
 * Short-circuit current calculations
 * Dynamic RMS simulations
 * Small signal stability analysis
-* Interactive web-based GUI
+* Interactive web-based GUI with SVG
 * OPF with the full non-linear network equations
 * Dynamic EMT simulations
 * Unbalanced load flow
