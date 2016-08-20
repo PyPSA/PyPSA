@@ -45,13 +45,13 @@ for i in range(3):
 
 print(network.links)
 
-#add sources
-network.add("Source","gas",
+#add carriers
+network.add("Carrier","gas",
            co2_emissions=0.27)
-network.add("Source","biomass",
+network.add("Carrier","biomass",
            co2_emissions=0.)
 
-print(network.sources)
+print(network.carriers)
 
 
 #add a gas generator at bus 0
@@ -59,7 +59,7 @@ network.add("Generator","gas generator",
             bus="electric bus 0",
             p_nom=100,
             marginal_cost=50,
-            source="gas",
+            carrier="gas",
             efficiency=0.3)
 
 #add a biomass generator at bus 1
@@ -68,7 +68,7 @@ network.add("Generator","biomass generator",
             p_nom=100,
             marginal_cost=100,
             efficiency=0.3,
-            source="biomass")
+            carrier="biomass")
 
 #add a boiler at all heat buses
 for i in range(3):
@@ -77,7 +77,7 @@ for i in range(3):
             p_nom=1000,
             efficiency=0.9,
             marginal_cost=20.,
-            source="gas")
+            carrier="gas")
 
 print(network.generators)
 

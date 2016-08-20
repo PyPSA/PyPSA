@@ -207,7 +207,7 @@ def define_storage_variables_constraints(network,snapshots):
 
 
 
-    ## Define generator capacity variables if generator is extendble ##
+    ## Define generator capacity variables if generator is extendable ##
 
     def su_p_nom_bounds(model, su_name):
         return (replace_nan_with_none(ext_sus.at[su_name,"p_nom_min"]),
@@ -300,6 +300,86 @@ def define_storage_variables_constraints(network,snapshots):
     l_constraint(model, "state_of_charge_constraint_fixed",
                  fixed_soc, list(fixed_soc.keys()))
 
+
+
+def define_store_variables_constraints(network,snapshots):
+
+    stores = network.stores
+    ext_stores = stores.index[stores.e_nom_extendable]
+    fix_stores = stores.index[~ stores.e_nom_extendable]
+
+    model = network.model
+
+    ## Define store dispatch variables ##
+
+    network.model.store_p = Var(stores.index, snapshots, domain=Reals)
+
+
+    ## Define store energy variables ##
+
+    bounds = {(store,sn) : (None,None) for store in ext_stores for sn in snapshots}
+
+    bounds.update({(store,sn) :
+                   (stores.at[store,"e_nom"]*stores.at[store,"e_min_pu_fixed"],stores.at[store,"e_nom"]*stores.at[store,"e_max_pu_fixed"])
+                   for store in fix_stores for sn in snapshots})
+
+    def store_e_bounds(model,store,snapshot):
+        return bounds[store,snapshot]
+
+
+    network.model.store_e = Var(stores.index, snapshots, domain=Reals,
+                                bounds=store_e_bounds)
+
+
+    ## Define energy capacity variables if store is extendable ##
+
+    def store_e_nom_bounds(model, store):
+        return (replace_nan_with_none(stores.at[store,"e_nom_min"]),
+                replace_nan_with_none(stores.at[store,"e_nom_max"]))
+
+    network.model.store_e_nom = Var(ext_stores, domain=Reals,
+                                    bounds=store_e_nom_bounds)
+
+
+    ## Define energy capacity constraints for extendable generators ##
+
+    def store_e_upper(model,store,snapshot):
+        return (model.store_e[store,snapshot] <=
+                model.store_e_nom[store]*stores.at[store,"e_max_pu_fixed"])
+
+    network.model.store_e_upper = Constraint(ext_stores, snapshots, rule=store_e_upper)
+
+    def store_e_lower(model,store,snapshot):
+        return (model.store_e[store,snapshot] >=
+                model.store_e_nom[store]*stores.at[store,"e_min_pu_fixed"])
+
+    network.model.store_e_lower = Constraint(ext_stores, snapshots, rule=store_e_lower)
+
+    ## Builds the constraint previous_e - p == e ##
+
+    e = {}
+
+    for store in stores.index:
+        for i,sn in enumerate(snapshots):
+
+            e[store,sn] =  LConstraint(sense="==")
+
+            e[store,sn].lhs.variables.append((-1,model.store_e[store,sn]))
+
+            elapsed_hours = network.snapshot_weightings[sn]
+
+            if i == 0 and not stores.at[store,"e_cyclic"]:
+                previous_e = stores.at[store,"e_initial"]
+                e[store,sn].lhs.constant += ((1-stores.at[store,"standing_loss"])**elapsed_hours
+                                         * previous_e)
+            else:
+                previous_e = model.store_e[store,snapshots[i-1]]
+                e[store,sn].lhs.variables.append(((1-stores.at[store,"standing_loss"])**elapsed_hours,
+                                              previous_e))
+
+            e[store,sn].lhs.variables.append((-elapsed_hours, model.store_p[store,sn]))
+
+    l_constraint(model,"store_constraint", e, stores.index, snapshots)
 
 
 
@@ -634,6 +714,12 @@ def define_nodal_balances(network,snapshots):
             network._p_balance[bus,sn].variables.append((sign,network.model.storage_p_dispatch[su,sn]))
             network._p_balance[bus,sn].variables.append((-sign,network.model.storage_p_store[su,sn]))
 
+    for store in network.stores.index:
+        bus = network.stores.bus[store]
+        sign = network.stores.sign[store]
+        for sn in snapshots:
+            network._p_balance[bus,sn].variables.append((sign,network.model.store_p[store,sn]))
+
 
 def define_nodal_balance_constraints(network,snapshots):
 
@@ -673,12 +759,23 @@ def define_sub_network_balance_constraints(network,snapshots):
 def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
-        return sum(network.sources.obj[gen.source].co2_emissions
-                   * (1/gen.efficiency)
-                   * model.generator_p[gen.name,snapshot]
-                   *network.snapshot_weightings[snapshot]
-                   for gen in network.generators.obj
-                   for snapshot in snapshots) <= network.co2_limit
+
+        #use the prime mover carrier
+        co2_gens = sum(network.carriers.at[network.generators.at[gen,"carrier"],"co2_emissions"]
+                       * (1/network.generators.at[gen,"efficiency"])
+                       * network.snapshot_weightings[sn]
+                       * model.generator_p[gen,sn]
+                       for gen in network.generators.index
+                       for sn in snapshots)
+
+        #store inherits the carrier from the bus
+        co2_stores = sum(network.carriers.at[network.buses.at[network.stores.at[store,"bus"],"carrier"],"co2_emissions"]
+                         * network.snapshot_weightings[sn]
+                         * model.store_p[store,sn]
+                         for store in network.stores.index
+                         for sn in snapshots)
+
+        return  co2_gens + co2_stores <= network.co2_limit
 
     network.model.co2_constraint = Constraint(rule=co2_constraint)
 
@@ -693,6 +790,8 @@ def define_linear_objective(network,snapshots):
     extendable_generators = network.generators[network.generators.p_nom_extendable]
 
     ext_sus = network.storage_units[network.storage_units.p_nom_extendable]
+
+    ext_stores = network.stores[network.stores.e_nom_extendable]
 
     branches = network.branches()
 
@@ -712,6 +811,12 @@ def define_linear_objective(network,snapshots):
                                 for su in network.storage_units.index
                                 for sn in snapshots])
 
+    objective.variables.extend([(network.stores.at[store,"marginal_cost"]
+                                 * network.snapshot_weightings[sn],
+                                 model.store_p[store,sn])
+                                for store in network.stores.index
+                                for sn in snapshots])
+
     objective.variables.extend([(network.links.at[link,"marginal_cost"]
                                  * network.snapshot_weightings[sn],
                                  model.controllable_branch_p["Link",link,sn])
@@ -728,6 +833,10 @@ def define_linear_objective(network,snapshots):
     objective.variables.extend([(ext_sus.at[su,"capital_cost"], model.storage_p_nom[su])
                                 for su in ext_sus.index])
     objective.constant -= (ext_sus.capital_cost*ext_sus.p_nom).sum()
+
+    objective.variables.extend([(ext_stores.at[store,"capital_cost"], model.store_e_nom[store])
+                                for store in ext_stores.index])
+    objective.constant -= (ext_stores.capital_cost*ext_stores.e_nom).sum()
 
     objective.variables.extend([(extendable_branches.at[b,"capital_cost"], model.branch_s_nom[b])
                                 for b in extendable_branches.index])
@@ -773,6 +882,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                             as_series(model.storage_p_spill))
         network.storage_units_t.spill.fillna(0,inplace=True) #p_spill doesn't exist if inflow=0
 
+    if len(network.stores):
+        set_from_series(network.stores_t.p, as_series(model.store_p))
+
+        set_from_series(network.stores_t.e, as_series(model.store_e))
+
     if len(network.loads):
         network.loads_t["p"].loc[snapshots] = network.loads_t["p_set"].loc[snapshots]
 
@@ -817,7 +931,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             set_from_series(network.buses_t.marginal_price,
                             pd.Series(list(model.power_balance.values()),
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
-                            .map(pd.Series(list(model.dual.values()), index=list(model.dual.keys()))))
+                            .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
 
         elif formulation in ["ptdf","cycles","kirchhoff"]:
 
@@ -843,6 +957,12 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom_opt'] = \
         as_series(network.model.storage_p_nom)
+
+    network.stores.e_nom_opt = network.stores.e_nom
+
+    network.stores.loc[network.stores.e_nom_extendable, 'e_nom_opt'] = \
+        as_series(network.model.store_e_nom)
+
 
     s_nom_extendable_branches = as_series(model.branch_s_nom)
     for t in network.iterate_components(branch_types):
@@ -914,6 +1034,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     define_generator_variables_constraints(network,snapshots)
 
     define_storage_variables_constraints(network,snapshots)
+
+    define_store_variables_constraints(network,snapshots)
 
     define_branch_extension_variables(network,snapshots)
 

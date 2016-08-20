@@ -15,11 +15,17 @@ Power: MW/MVA/MVar (unless per unit of nominal power,
 e.g. generator.p_max_pu for variable generators is per unit of
 generator.p_nom)
 
+Time: h
+
+Energy: MWh
+
 Voltage: kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc.
 
 Angles: radians, except transformer.phase_shift which is in degrees for easy input
 
 Impedance: Ohm, except transformers which are pu, using transformer.s_nom for the base power
+
+CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of energy carrier
 
 
 Sign Conventions

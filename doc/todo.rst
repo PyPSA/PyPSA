@@ -258,7 +258,7 @@ need to watch out for isinstance(Branch)
 Check branch.bus0 and branch.bus1 in network.buses
 --------------------------------------------------
 
-Similarly for generator.source
+Similarly for generator.carrier
 
 try:
 network.buses.loc[branch.bus0]

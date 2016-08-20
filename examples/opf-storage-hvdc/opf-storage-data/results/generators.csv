@@ -1,4 +1,4 @@
-name,bus,capital_cost,control,dispatch,efficiency,marginal_cost,p_max_pu_fixed,p_min_pu_fixed,p_nom,p_nom_extendable,p_nom_min,p_nom_opt,source
+name,bus,capital_cost,control,dispatch,efficiency,marginal_cost,p_max_pu_fixed,p_min_pu_fixed,p_nom,p_nom_extendable,p_nom_min,p_nom_opt,carrier
 Wind 0,0,2558.68982845,Slack,variable,1.0,0.00417304802367,1.0,0.0,100.0,True,100.0,100.0,wind
 Gas 0,0,119.810148908,PQ,flexible,0.358007445687,2.56154775438,0.85,0.02,350.0,False,0.0,350.0,gas
 Wind 1,1,2876.3891523,PQ,variable,1.0,0.00692322615669,1.0,0.0,100.0,True,100.0,1236.97875589,wind

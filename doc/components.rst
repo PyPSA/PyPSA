@@ -77,8 +77,8 @@ The bus is the fundamental node of the network.
    :file: buses.csv
 
 
-One-Ports: Generators, Storage Units, Loads, Shunt Impedances
-============================================================
+One-Ports: Generators, Storage Units, Loads, Stores, Shunt Impedances
+=====================================================================
 
 These components share the property that they all connect to a single
 bus.
@@ -150,6 +150,28 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :header-rows: 1
    :file: storage_units.csv
+
+
+Store
+-----
+
+The Store is a more fundamental component for storing energy only (it
+cannot convert between energy carriers). It inherits its energy
+carrier from the bus to which it is attached.
+
+The Store, Bus and Link are fundamental components with which one can
+build more complicated components (Generators, Storage Units, CHPs,
+etc.).
+
+The Store has controls and optimisation on the size of its energy
+capacity, but not it's power output; to control the power output, you
+must put a link in front of it.
+
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: stores.csv
 
 
 Load
@@ -293,12 +315,14 @@ removed in PyPSA 0.5.1. Please use the ``Link`` component instead.
    :file: transport_links.csv
 
 
-Source
-======
+Carrier
+=======
 
-For storing information about fuel sources, e.g. $CO_2$ emissions of gas or coal or wind.
+For storing information about energy carriers, e.g. $CO_2$ emissions of gas or coal or wind.
+
+(In versions of PyPSA < 0.6.0, this was called Source.)
 
 
 .. csv-table::
    :header-rows: 1
-   :file: sources.csv
+   :file: carriers.csv

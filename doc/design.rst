@@ -31,6 +31,16 @@ links attach.
 You can have as many components attached to a bus as you want.
 
 
+Energy flow in the model
+========================
+
+Energy enters the model in generators, storage units or stores with
+higher energy before than after the simulation, and any components
+with efficiency greater than 1 (e.g. heat pumps).
+
+Energy leaves the model in loads, storage units or stores with higher
+energy after than before the simulation, and in lines, links or
+storage units with efficiency less than 1.
 
 
 

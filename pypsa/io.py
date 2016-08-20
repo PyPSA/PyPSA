@@ -176,7 +176,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     simple_attrs = set(network.component_simple_descriptors[cls].keys()) & set(dataframe.columns)
     series_attrs = set(network.component_series_descriptors[cls].keys()) & set(dataframe.columns)
-    string_attrs = {"bus","bus0","bus1","source"} & set(dataframe.columns)
+    string_attrs = {"bus","bus0","bus1","carrier"} & set(dataframe.columns)
 
     for col in string_attrs:
         dataframe[col] = [str(v) for v in dataframe[col]]
@@ -287,17 +287,17 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
     #now read in other components
+    for cls in pypsa.components.component_types - {pypsa.components.SubNetwork}:
 
-    for class_name in ["Bus","Source","Generator","StorageUnit","Load","ShuntImpedance","TransportLink","Line","Transformer","Converter","Link"]:
-        cls = getattr(pypsa.components,class_name)
         if verbose:
-            print(class_name,cls)
+            print(cls)
+
         list_name = cls.list_name
 
         file_name = os.path.join(csv_folder_name,list_name+".csv")
 
         if not os.path.isfile(file_name):
-            if class_name == "Buses":
+            if cls.__name__ == "Bus":
                 print("Error, no buses found")
                 return
             else:
@@ -313,7 +313,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
 
         for file_name in file_attrs:
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
-            import_series_from_dataframe(network,df,class_name,file_name[len(list_name)+1:-4])
+            import_series_from_dataframe(network,df,cls.__name__,file_name[len(list_name)+1:-4])
 
         if verbose:
             print(getattr(network,list_name))

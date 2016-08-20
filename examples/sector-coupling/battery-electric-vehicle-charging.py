@@ -1,0 +1,77 @@
+## Battery Electric Vehicle Charging
+#
+#In this example a battery electric vehicle (BEV) is driven 100 km in the morning and 100 km in the evening, to simulate commuting, and charged during the day by a solar panel at the driver's place of work. The size of the panel is computed by the optimisation.
+#
+#The BEV has a battery of size 100 kWh and an electricity consumption of 0.18 kWh/km.
+
+import pypsa
+
+import pandas as pd
+
+#%matplotlib inline
+
+# NB: this example will use units of kW and kWh, unlike the PyPSA defaults
+
+# use 24 hour period for consideration
+index = pd.date_range("2016-01-01 00:00","2016-01-01 23:00",freq="H")
+
+# consumption pattern of BEV
+bev_usage = pd.Series([0.]*7 + [9.]*2 + [0.]*8 + [9.]*2 + [0.]*5,index)
+
+# solar PV panel generation per unit of capacity - this is only available while parked at place of work
+pv_pu = pd.Series([0.]*9 + [0.6,0.75,0.85,0.9,0.85,0.75,0.6,0.4] + [0.]*7,index)
+
+bev_usage.plot()
+pv_pu.plot()
+
+
+network = pypsa.Network()
+
+network.set_snapshots(index)
+
+network.add("Bus",
+            "place of work",
+            carrier="AC")
+
+network.add("Bus",
+            "battery",
+            carrier="Li-ion")
+
+network.add("Generator",
+            "PV panel",
+            bus="place of work",
+            dispatch="variable",
+            p_nom_extendable=True,
+            p_max_pu=pv_pu)
+
+network.add("Load",
+            "driving",
+            bus="battery",
+            p_set=bev_usage)
+
+network.add("Link",
+            "charger",
+            bus0="place of work",
+            bus1="battery",
+            p_nom="120",  #super-charger
+            efficiency=0.9,
+            s_nom_extendable=True)    
+
+
+network.add("Store",
+            "battery storage",
+            bus="battery",
+            e_cyclic=True,
+            e_nom=100) 
+
+network.lopf(network.snapshots)
+
+print("Pannel size [kW]:",network.generators.p_nom_opt["PV panel"])
+
+network.generators_t.p.plot()
+
+network.stores_t.loc[["p","e"],:,"battery storage"].plot(grid=True)
+
+print("Losses [kWh/d]:",network.generators_t.loc["p",:,"PV panel"].sum() - network.loads_t.loc["p",:,"driving"].sum())
+
+

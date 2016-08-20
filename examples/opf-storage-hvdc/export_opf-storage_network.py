@@ -55,9 +55,9 @@ print("snapshots:",network.snapshots)
 
 
 #add fuel types
-network.add("Source","gas",co2_emissions=0.24)
-network.add("Source","wind")
-network.add("Source","battery")
+network.add("Carrier","gas",co2_emissions=0.24)
+network.add("Carrier","wind")
+network.add("Carrier","battery")
 
 
 # in kg CO2e
@@ -119,7 +119,7 @@ for i in range(n*c):
     #storage
     network.add("StorageUnit","Storage %d" % (i),
                 bus=str(i),
-                p_nom=0,source="battery",
+                p_nom=0,carrier="battery",
                 marginal_cost=4*np.random.random(),
                 capital_cost=1000*np.random.random(),
                 p_nom_extendable=True,
@@ -131,7 +131,7 @@ for i in range(n*c):
                 max_hours=6)
     #wind generator
     network.add("Generator","Wind %d" % (i),bus=str(i),
-                p_nom=100,source="wind",dispatch="variable",
+                p_nom=100,carrier="wind",dispatch="variable",
                 marginal_cost=0 + 0.01*np.random.random(), #non-zero marginal cost ensures unique optimisation result
                 capital_cost=2000 + 1000*np.random.random(),
                 p_nom_extendable=True,
@@ -139,7 +139,7 @@ for i in range(n*c):
                 p_nom_min=100)
     #gas generator
     network.add("Generator","Gas %d" % (i),bus=str(i),
-                p_nom=0,source="gas",dispatch="flexible",
+                p_nom=0,carrier="gas",dispatch="flexible",
                 marginal_cost=2 + 4*np.random.random(),
                 capital_cost=100 + 100*np.random.random(),
                 efficiency=0.35 + 0.01*np.random.random(),
@@ -167,7 +167,7 @@ network.loads_t.p_set = pd.DataFrame(index = network.snapshots,
                                      data = 1000*np.random.rand(len(network.snapshots), len(network.loads)))
 
 
-wind_generators = network.generators[network.generators.source == "wind"]
+wind_generators = network.generators[network.generators.carrier == "wind"]
 
 network.generators_t.p_max_pu.loc[:,wind_generators.index] = pd.DataFrame(index = network.snapshots,
                                                                           columns = wind_generators.index,

@@ -71,6 +71,8 @@ import inspect
 import sys
 
 
+inf = float("inf")
+
 class Basic(object):
     """Common to every object."""
 
@@ -98,10 +100,13 @@ class Common(Basic):
     def network(self):
         return self._network()
 
-class Source(Common):
-    """Energy source, such as wind, PV or coal."""
+class Carrier(Common):
+    """Energy carrier, such as wind, PV or coal. The Carrier tracks co2
+    emissions if there is a network.co2_limit.  Buses have direct
+    carriers and Generators indicate their primary energy carriers.
+    """
 
-    list_name = "sources"
+    list_name = "carriers"
 
     #emissions in CO2-tonnes-equivalent per MWh primary energy
     #(e.g. gas: 0.2 t_CO2/MWh_thermal)
@@ -187,7 +192,7 @@ class Generator(OnePort):
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = String(default="")
+    carrier = String(default="")
 
     #rated power
     p_nom = Float(default=0.0)
@@ -261,6 +266,51 @@ class StorageUnit(Generator):
     efficiency_store = Float(1)
 
     efficiency_dispatch = Float(1)
+
+    #per hour per unit loss in state of charge
+    standing_loss = Float(0.)
+
+
+class Store(Common):
+    """Generic store, whose capacity may be optimised."""
+
+    list_name = "stores"
+
+    bus = String(default="")
+    sign = Float(default=1.)
+    p = Series()
+    q = Series()
+    e = Series()
+
+    p_set = Series()
+    q_set = Series()
+
+    #rated energy capacity
+    e_nom = Float(default=0.0)
+
+    #switch to allow energy capacity to be extended
+    e_nom_extendable = Boolean(False)
+
+    #technical potential
+    e_nom_max = Float(inf)
+
+    e_nom_min = Float(0.0)
+
+    #optimised capacity
+    e_nom_opt = Float(0.0)
+
+    e_max_pu_fixed = Float(1.)
+    e_min_pu_fixed = Float(0.)
+
+    e_cyclic = Boolean(False)
+
+    e_initial = Float(0.)
+
+    #cost of increasing e_nom
+    capital_cost = Float(0.0)
+
+    #cost of dispatching from the store
+    marginal_cost = Float(0.0)
 
     #per hour per unit loss in state of charge
     standing_loss = Float(0.)
@@ -653,7 +703,7 @@ class Network(Basic):
         class_name : string
             Component class name
         name : string
-            Component name in ["Bus","Generator","Load","StorageUnit","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
+            Component name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
         kwargs
 
         Returns
@@ -704,8 +754,6 @@ class Network(Basic):
 
         for key,value in iteritems(kwargs):
             setattr(obj,key,value)
-
-        return obj
 
 
     def add_from(self,object_list):
@@ -923,6 +971,11 @@ class SubNetwork(Common):
         sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
         return self.network.storage_units.index[sub_networks == self.name]
 
+    def stores_i(self):
+        sub_networks = self.network.stores.bus.map(self.network.buses.sub_network)
+        return self.network.stores.index[sub_networks == self.name]
+
+
     def buses(self):
         return self.network.buses.loc[self.buses_i()]
 
@@ -945,11 +998,11 @@ class SubNetwork(Common):
                 yield t
 
 passive_one_port_types = {ShuntImpedance}
-controllable_one_port_types = {Load, Generator, StorageUnit}
+controllable_one_port_types = {Load, Generator, StorageUnit, Store}
 one_port_types = passive_one_port_types|controllable_one_port_types
 
 passive_branch_types = {Line, Transformer}
 controllable_branch_types = {Converter, TransportLink, Link}
 branch_types = passive_branch_types|controllable_branch_types
 
-component_types = branch_types|one_port_types|{Bus, SubNetwork, Source}
+component_types = branch_types|one_port_types|{Bus, SubNetwork, Carrier}

@@ -1,4 +1,4 @@
-name,bus,capital_cost,p_nom_extendable,p_nom,source,marginal_cost,standing_loss,cyclic_state_of_charge,max_hours,efficiency_store,efficiency_dispatch
+name,bus,capital_cost,p_nom_extendable,p_nom,carrier,marginal_cost,standing_loss,cyclic_state_of_charge,max_hours,efficiency_store,efficiency_dispatch
 Storage 0,0,670.467510178,True,0.0,battery,0.109550372792,0.01,False,6.0,0.9,0.95
 Storage 1,1,313.424178159,False,25.0,battery,3.87304630288,0.01,False,6.0,0.9,0.95
 Storage 2,2,878.142503429,True,0.0,battery,0.679321678258,0.01,True,6.0,0.9,0.95
