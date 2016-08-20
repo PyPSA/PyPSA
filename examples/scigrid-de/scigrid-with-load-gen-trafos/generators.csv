@@ -1,4 +1,4 @@
-name,bus,dispatch,p_nom,source,marginal_cost
+name,bus,dispatch,p_nom,carrier,marginal_cost
 1 Gas,1,flexible,121.0,Gas,50.0
 1 Hard Coal,1,flexible,272.0,Hard Coal,25.0
 102 Gas,102,flexible,67.9,Gas,50.0

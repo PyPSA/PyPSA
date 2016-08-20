@@ -116,7 +116,7 @@ for su in network.storage_units.obj:
 
 
 for gen in network.generators.obj:
-    print(gen,network.sources.loc[gen.source,"co2_emissions"]*(1/gen.efficiency))
+    print(gen,network.carriers.loc[gen.carrier,"co2_emissions"]*(1/gen.efficiency))
 
 
 

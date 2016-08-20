@@ -23,10 +23,10 @@ network.add("Bus",
             "0 gas",
             carrier="gas")
 
-network.add("Source",
+network.add("Carrier",
             "wind")
 
-network.add("Source",
+network.add("Carrier",
             "gas",
             co2_emissions=0.9)
 
@@ -34,7 +34,7 @@ network.add("Source",
 network.add("Generator",
             "wind turbine",
             bus="0",
-            source="wind",
+            carrier="wind",
             dispatch="variable",
             p_nom_extendable=True,
             p_max_pu=[0.,0.2,0.7,0.4],
@@ -68,8 +68,7 @@ network.add("Store",
             "gas depot",
             bus="0 gas",
             e_cyclic=True,
-            e_nom_extendable=True,
-            source="gas")
+            e_nom_extendable=True)
 
 
 if heat:
@@ -78,7 +77,7 @@ if heat:
             "0 heat",
             carrier="heat")
     
-    network.add("Source",
+    network.add("Carrier",
                "heat")
 
     network.add("Load",
@@ -98,8 +97,7 @@ if heat:
             "water tank",
             bus="0 heat",
             e_cyclic=True,
-            e_nom_extendable=True,
-            source="heat")    
+            e_nom_extendable=True)    
 
 
 if heat and chp:

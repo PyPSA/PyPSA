@@ -93,9 +93,9 @@ network.plot(bus_sizes=0.5*load_distribution,ax=ax,title="Load distribution")
 fig.tight_layout()
 #fig.savefig('load-distribution.png')
 
-network.generators.groupby("source")["p_nom"].sum()
+network.generators.groupby("carrier")["p_nom"].sum()
 
-network.storage_units.groupby("source")["p_nom"].sum()
+network.storage_units.groupby("carrier")["p_nom"].sum()
 
 techs = ["Gas","Brown Coal","Hard Coal","Wind Offshore","Wind Onshore","Solar"]
 
@@ -121,7 +121,7 @@ for i,tech in enumerate(techs):
     
     ax = axes[i_row,i_col]
     
-    gens = network.generators[network.generators.source == tech]
+    gens = network.generators[network.generators.carrier == tech]
     
     gen_distribution = gens.groupby("bus").sum()["p_nom"].reindex(network.buses.index,fill_value=0.)
     
@@ -179,11 +179,11 @@ for i in range(int(24/group_size)):
 #if lines are extended, look at which ones are bigger
 #network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - contingency_factor*network.lines.s_nom_original) > 1]
 
-p_by_source = network.generators_t.p.groupby(network.generators.source, axis=1).sum()
+p_by_carrier = network.generators_t.p.groupby(network.generators.carrier, axis=1).sum()
 
-p_by_source.drop((p_by_source.max()[p_by_source.max() < 1700.]).index,axis=1,inplace=True)
+p_by_carrier.drop((p_by_carrier.max()[p_by_carrier.max() < 1700.]).index,axis=1,inplace=True)
 
-p_by_source.columns
+p_by_carrier.columns
 
 colors = {"Brown Coal" : "brown",
           "Hard Coal" : "k",
@@ -196,13 +196,13 @@ colors = {"Brown Coal" : "brown",
           "Gas" : "orange"}
 #reorder
 cols = ["Nuclear","Run of River","Brown Coal","Hard Coal","Gas","Wind Offshore","Wind Onshore","Solar"]
-p_by_source = p_by_source[cols]
+p_by_carrier = p_by_carrier[cols]
 
 fig,ax = plt.subplots(1,1)
 
 fig.set_size_inches(12,6)
 
-(p_by_source/1e3).plot(kind="area",ax=ax,linewidth=4,colors=[colors[col] for col in p_by_source.columns])
+(p_by_carrier/1e3).plot(kind="area",ax=ax,linewidth=4,colors=[colors[col] for col in p_by_carrier.columns])
 
 
 ax.legend(ncol=4,loc="upper left")
@@ -265,28 +265,28 @@ fig.tight_layout()
 
 ### Look at variable curtailment
 
-source = "Wind Onshore"
+carrier = "Wind Onshore"
 
-capacity = network.generators.groupby("source").sum().at[source,"p_nom"]
+capacity = network.generators.groupby("carrier").sum().at[carrier,"p_nom"]
 
 p_available = network.generators_t.p_max_pu.multiply(network.generators["p_nom"])
 
-p_available_by_source =p_available.groupby(network.generators.source, axis=1).sum()
+p_available_by_carrier =p_available.groupby(network.generators.carrier, axis=1).sum()
 
-p_curtailed_by_source = p_available_by_source - p_by_source
+p_curtailed_by_carrier = p_available_by_carrier - p_by_carrier
 
-p_df = pd.DataFrame({source + " available" : p_available_by_source[source],
-                     source + " dispatched" : p_by_source[source],
-                     source + " curtailed" : p_curtailed_by_source[source]})
+p_df = pd.DataFrame({carrier + " available" : p_available_by_carrier[carrier],
+                     carrier + " dispatched" : p_by_carrier[carrier],
+                     carrier + " curtailed" : p_curtailed_by_carrier[carrier]})
 
-p_df[source + " capacity"] = capacity
+p_df[carrier + " capacity"] = capacity
 
 p_df["Wind Onshore curtailed"][p_df["Wind Onshore curtailed"] < 0.] = 0.
 
 fig,ax = plt.subplots(1,1)
 fig.set_size_inches(12,6)
-p_df[[source + " dispatched",source + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
-p_df[[source+ " available",source + " capacity"]].plot(ax=ax,linewidth=3)
+p_df[[carrier + " dispatched",carrier + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
+p_df[[carrier + " available",carrier + " capacity"]].plot(ax=ax,linewidth=3)
 
 ax.set_xlabel("")
 ax.set_ylabel("Power [MW]")

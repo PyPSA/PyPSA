@@ -600,7 +600,7 @@ for (bus_name,tech_name) in cap.index:
         network.add("StorageUnit",bus_name + " " + tech_name,
                 bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],
                 marginal_cost=m_costs.get(tech_name,default_cost),
-                source=tech_name,
+                carrier=tech_name,
                 max_hours = 6,
                 efficiency_store=0.95,
                 efficiency_dispatch=0.95)
@@ -608,7 +608,7 @@ for (bus_name,tech_name) in cap.index:
         network.add("Generator",bus_name + " " + tech_name,
                 bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],
                 marginal_cost=m_costs.get(tech_name,default_cost),
-                source=tech_name)   
+                carrier=tech_name)   
 
 ## Add renewables
 
@@ -713,7 +713,7 @@ for tech in ["windoff",'windon',"solar"]:
     for i in caps.index:
         network.add("Generator","{} {}".format(i,d[tech]["full_name"]),
                     p_nom=caps[i]*1000.,dispatch="variable",
-                    bus=i,source=d[tech]["full_name"],
+                    bus=i,carrier=d[tech]["full_name"],
                     p_max_pu=generation[tech].loc[network.snapshots,i]/caps[i])
 
 csv_folder_name = "../../lib/data/de_model/scigrid-with-load-gen-trafos"

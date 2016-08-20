@@ -29,16 +29,16 @@ network.add("Bus",
             "1 reservoir",
             carrier="reservoir")
 
-network.add("Source",
+network.add("Carrier",
             "reservoir")
     
-network.add("Source",
+network.add("Carrier",
             "rain")
 
 network.add("Generator",
             "rain",
             bus="0 reservoir",
-            source="rain",
+            carrier="rain",
             dispatch="variable",
             p_nom=1000,
             p_max_pu=[0.,0.2,0.7,0.4])
@@ -89,16 +89,14 @@ network.add("Store",
             "0 reservoir",
             bus="0 reservoir",
             e_cyclic=True,
-            e_nom_extendable=True,
-            source="reservoir") 
+            e_nom_extendable=True) 
 
 
 network.add("Store",
             "1 reservoir",
             bus="1 reservoir",
             e_cyclic=True,
-            e_nom_extendable=True,
-            source="reservoir")
+            e_nom_extendable=True)
 
 network.lopf(network.snapshots)
 

@@ -1,4 +1,4 @@
-name,bus,p_nom,source,marginal_cost,max_hours,efficiency_store,efficiency_dispatch
+name,bus,p_nom,carrier,marginal_cost,max_hours,efficiency_store,efficiency_dispatch
 100_220kV Pumped Hydro,100_220kV,144.5,Pumped Hydro,3.0,6.0,0.95,0.95
 114 Pumped Hydro,114,138.0,Pumped Hydro,3.0,6.0,0.95,0.95
 121 Pumped Hydro,121,238.0,Pumped Hydro,3.0,6.0,0.95,0.95

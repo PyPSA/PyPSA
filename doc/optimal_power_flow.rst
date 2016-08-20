@@ -368,7 +368,7 @@ CO2 constraint
 See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
 
 This depends on the power plant efficiency and specific CO2 emissions
-of the fuel source.
+of the energy carriers.
 
 
 Inputs
@@ -380,15 +380,15 @@ explicitly set. For the defaults and units, see :doc:`components`.
 
 network{snapshot_weightings,co2_limit}
 
-bus.{v_nom}
+bus.{v_nom, carrier}
 
 load.{p_set}
 
-generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency, source}
+generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency, carrier}
 
 storage_unit.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
 
-store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu_fixed, e_max_pu_fixed, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss, source}
+store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu_fixed, e_max_pu_fixed, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss}
 
 line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
@@ -396,7 +396,7 @@ transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 link.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
-source.{co2_emissions}
+carrier.{co2_emissions}
 
 Note that for lines and transformers you MUST make sure that
 :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.

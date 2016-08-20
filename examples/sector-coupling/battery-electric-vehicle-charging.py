@@ -55,14 +55,14 @@ network.add("Link",
             bus1="battery",
             p_nom="120",  #super-charger
             efficiency=0.9,
-            s_nom_extendable=True)
+            s_nom_extendable=True)    
 
 
 network.add("Store",
             "battery storage",
             bus="battery",
             e_cyclic=True,
-            e_nom=100)
+            e_nom=100) 
 
 network.lopf(network.snapshots)
 
@@ -73,3 +73,5 @@ network.generators_t.p.plot()
 network.stores_t.loc[["p","e"],:,"battery storage"].plot(grid=True)
 
 print("Losses [kWh/d]:",network.generators_t.loc["p",:,"PV panel"].sum() - network.loads_t.loc["p",:,"driving"].sum())
+
+

@@ -1,4 +1,4 @@
-name,bus,capital_cost,control,dispatch,efficiency,marginal_cost,p_nom,p_nom_extendable,p_nom_min,source
+name,bus,capital_cost,control,dispatch,efficiency,marginal_cost,p_nom,p_nom_extendable,p_nom_min,carrier
 Manchester Wind,Manchester,2793.65160293,Slack,variable,1.0,0.11,80.0,True,100.0,wind
 Manchester Gas,Manchester,196.615167969,PQ,flexible,0.3500264336,4.5323676307,50000.0,True,0.0,gas
 Norway Wind,Norway,2184.37479609,Slack,variable,1.0,0.09,100.0,True,100.0,wind

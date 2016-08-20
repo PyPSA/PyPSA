@@ -1,4 +1,4 @@
-name,bus,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom,p_nom_min,p_max_pu_fixed,efficiency,source,marginal_cost
+name,bus,p_min_pu_fixed,capital_cost,p_nom_extendable,dispatch,p_nom,p_nom_min,p_max_pu_fixed,efficiency,carrier,marginal_cost
 Wind 0,0,0.0,2558.68982845,True,variable,100.0,100.0,1.0,1.0,wind,0.00417304802367
 Gas 0,0,0.02,119.810148908,False,flexible,350.0,0.0,0.85,0.358007445687,gas,2.56154775438
 Wind 1,1,0.0,2876.3891523,True,variable,100.0,100.0,1.0,1.0,wind,0.00692322615669

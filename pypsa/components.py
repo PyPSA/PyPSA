@@ -97,10 +97,13 @@ class Common(Basic):
 
         self.network = network
 
-class Source(Common):
-    """Energy source, such as wind, PV or coal."""
+class Carrier(Common):
+    """Energy carrier, such as wind, PV or coal. The Carrier tracks co2
+    emissions if there is a network.co2_limit.  Buses have direct
+    carriers and Generators indicate their primary energy carriers.
+    """
 
-    list_name = "sources"
+    list_name = "carriers"
 
     #emissions in CO2-tonnes-equivalent per MWh primary energy
     #(e.g. gas: 0.2 t_CO2/MWh_thermal)
@@ -186,7 +189,7 @@ class Generator(OnePort):
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = String(default="")
+    carrier = String(default="")
 
     #rated power
     p_nom = Float(default=0.0)
@@ -278,9 +281,6 @@ class Store(Common):
 
     p_set = Series()
     q_set = Series()
-
-    #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    source = String(default="")
 
     #rated energy capacity
     e_nom = Float(default=0.0)
@@ -1002,4 +1002,4 @@ passive_branch_types = {Line, Transformer}
 controllable_branch_types = {Converter, TransportLink, Link}
 branch_types = passive_branch_types|controllable_branch_types
 
-component_types = branch_types|one_port_types|{Bus, SubNetwork, Source}
+component_types = branch_types|one_port_types|{Bus, SubNetwork, Carrier}

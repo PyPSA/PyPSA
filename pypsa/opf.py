@@ -760,14 +760,16 @@ def define_co2_constraint(network,snapshots):
 
     def co2_constraint(model):
 
-        co2_gens = sum(network.sources.at[network.generators.at[gen,"source"],"co2_emissions"]
+        #use the prime mover carrier
+        co2_gens = sum(network.carriers.at[network.generators.at[gen,"carrier"],"co2_emissions"]
                        * (1/network.generators.at[gen,"efficiency"])
                        * network.snapshot_weightings[sn]
                        * model.generator_p[gen,sn]
                        for gen in network.generators.index
                        for sn in snapshots)
 
-        co2_stores = sum(network.sources.at[network.stores.at[store,"source"],"co2_emissions"]
+        #store inherits the carrier from the bus
+        co2_stores = sum(network.carriers.at[network.buses.at[network.stores.at[store,"bus"],"carrier"],"co2_emissions"]
                          * network.snapshot_weightings[sn]
                          * model.store_p[store,sn]
                          for store in network.stores.index

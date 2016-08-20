@@ -25,7 +25,7 @@ Angles: radians, except transformer.phase_shift which is in degrees for easy inp
 
 Impedance: Ohm, except transformers which are pu, using transformer.s_nom for the base power
 
-CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of fuel source
+CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of energy carrier
 
 
 Sign Conventions

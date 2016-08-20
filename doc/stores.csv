@@ -12,7 +12,6 @@ e_cyclic,boolean,n/a,False,"Switch: if True, then e_initial is ignored and the i
 p_set,series,MW,0.,active power set point (for PF),Input (optional)
 q_set,series,MVar,0.,reactive power set point (for PF),Input (optional)
 sign,float,n/a,1.,power sign,Input (optional)
-source,string,n/a,n/a,"Energy carrier (e.g. coal, gas, heat); required for CO2 calculation in OPF",Input (optional)
 marginal_cost,float,currency/MWh,0.,"Marginal cost of production of 1 MWh.",Input (optional)
 capital_cost,float,currency/MWh,0.,"Capital cost of extending e_nom by 1 MWh.",Input (optional)
 standing_loss,float,per unit,0.,Losses per hour to energy.,Input (optional)

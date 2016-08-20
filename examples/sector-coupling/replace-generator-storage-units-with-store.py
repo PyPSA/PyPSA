@@ -22,13 +22,13 @@ def replace_gen(network,gen_to_replace):
         raise NotImplementedError("Until time-dependent p_max_pu is introduced for Links, only\
         fully flexible generators can be replaced!")
 
-    bus_name = "{} {}".format(gen["bus"], gen["source"])
-    link_name = "{} converter {} to AC".format(gen_to_replace,gen["source"])
-    store_name = "{} store {}".format(gen_to_replace,gen["source"])
+    bus_name = "{} {}".format(gen["bus"], gen["carrier"])
+    link_name = "{} converter {} to AC".format(gen_to_replace,gen["carrier"])
+    store_name = "{} store {}".format(gen_to_replace,gen["carrier"])
 
     network.add("Bus",
             bus_name,
-            carrier=gen["source"])
+            carrier=gen["carrier"])
 
     network.add("Link",
             link_name,
@@ -47,7 +47,6 @@ def replace_gen(network,gen_to_replace):
     network.add("Store",
             store_name,
             bus=bus_name,
-            source=gen["source"],
             e_nom_min=-float("inf"),
             e_nom_max=0,
             e_nom_extendable=True,
@@ -76,19 +75,19 @@ def replace_su(network,su_to_replace):
         raise NotImplementedError("Until time-dependent e_min_pu and e_max_pu are introduced for Stores, \
         no state_of_charge_set can be set!")
 
-    bus_name = "{} {}".format(su["bus"],su["source"])
+    bus_name = "{} {}".format(su["bus"],su["carrier"])
 
-    link_1_name = "{} converter {} to AC".format(su_to_replace,su["source"])
+    link_1_name = "{} converter {} to AC".format(su_to_replace,su["carrier"])
 
-    link_2_name = "{} converter AC to {}".format(su_to_replace,su["source"])
+    link_2_name = "{} converter AC to {}".format(su_to_replace,su["carrier"])
 
-    store_name = "{} store {}".format(su_to_replace,su["source"])
+    store_name = "{} store {}".format(su_to_replace,su["carrier"])
 
     gen_name = "{} inflow".format(su_to_replace)
 
     network.add("Bus",
             bus_name,
-            carrier=su["source"])
+            carrier=su["carrier"])
 
     #dispatch link
     network.add("Link",
@@ -119,7 +118,6 @@ def replace_su(network,su_to_replace):
     network.add("Store",
             store_name,
             bus=bus_name,
-            source=su["source"],
             e_nom=su["p_nom"]*su["max_hours"],
             e_nom_min=su["p_nom_min"]/su["efficiency_dispatch"]*su["max_hours"],
             e_nom_max=su["p_nom_max"]/su["efficiency_dispatch"]*su["max_hours"],
@@ -128,7 +126,7 @@ def replace_su(network,su_to_replace):
             e_cyclic=su['cyclic_state_of_charge'],
             e_initial=su['state_of_charge_initial'])
 
-    network.add("Source",
+    network.add("Carrier",
                 "rain",
                 co2_emissions=0.)
 
@@ -143,7 +141,7 @@ def replace_su(network,su_to_replace):
     network.add("Generator",
                gen_name,
                bus=bus_name,
-               source="rain",
+               carrier="rain",
                dispatch="variable",
                p_nom=inflow_max,
                p_max_pu=inflow_pu)

@@ -20,16 +20,16 @@ network.add("Bus",
             "0 heat",
             carrier="heat")
 
-network.add("Source",
+network.add("Carrier",
             "wind")
     
-network.add("Source",
+network.add("Carrier",
             "heat")
 
 network.add("Generator",
             "wind turbine",
             bus="0",
-            source="wind",
+            carrier="wind",
             dispatch="variable",
             p_nom_extendable=True,
             p_max_pu=[0.,0.2,0.7,0.4],
@@ -54,7 +54,6 @@ network.add("Store",
             bus="0 heat",
             e_cyclic=True,
             e_nom_extendable=True,
-            source="heat",
             standing_loss=0.01)    
 
 network.lopf(network.snapshots)
@@ -66,4 +65,5 @@ print(network.links_t.loc[["p0","p1"],:,"heat pump"])
 print(network.stores.loc["water tank"])
 
 print(network.generators.loc["wind turbine"])
+
 
