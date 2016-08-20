@@ -144,29 +144,6 @@ class Bus(Common):
     sub_network = String(default="")
 
 
-    def generators(self):
-        return self.network.generators[self.network.generators.bus == self.name]
-
-    def generators_t(self):
-        return self.network.generators_t.loc[:,:,self.network.generators.bus == self.name]
-
-    def loads(self):
-        return self.network.loads[self.network.loads.bus == self.name]
-
-    def loads_t(self):
-        return self.network.loads_t.loc[:,:,self.network.loads.bus == self.name]
-
-    def storage_units(self):
-        return self.network.storage_units[self.network.storage_units.bus == self.name]
-
-    def storage_units_t(self):
-        return self.network.storage_units_t.loc[:,:,self.network.storage_units.bus == self.name]
-
-
-    def shunt_impedances(self):
-        return self.network.shunt_impedances[self.network.shunt_impedances.bus == self.name]
-
-
 class SubStation(Common):
     """Placeholder for a group of buses."""
 

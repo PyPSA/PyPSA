@@ -211,7 +211,7 @@ for (u,v),dist in pairs.sort_values().iteritems():
         break
 
     #ignore if they're already connected                                                                                                                  
-    if u in network.graph.adj[v]:
+    if u in network.graph().adj[v]:
         continue
 
 
@@ -241,7 +241,7 @@ for (u,v),dist in pairs.sort_values().iteritems():
         break
 
     #ignore if they're already connected                                                                                                                  
-    if u in network.graph.adj[v]:
+    if u in network.graph().adj[v]:
         continue
 
 
@@ -325,17 +325,17 @@ network.determine_network_topology()
 
 #remove small isolated networks
 for sn in network.sub_networks.obj:
-    buses = sn.buses()
-    branches = sn.branches()
+    buses = sn.buses().index
+    branches = sn.branches().index
     
     if len(buses) < 5:
         print("Dropping Sub-Network {} because it only has {} buses".format(sn,len(buses)))
         #print(buses.index)
         #print(len(branches),branches.index)
-        for bus in buses.obj:
-            network.remove("Bus",bus.name)
-        for branch in branches.obj:
-            network.remove("Line",branch.name)
+        for bus in buses:
+            network.remove("Bus",bus)
+        for branch in branches:
+            network.remove("Line",branch[1])
     else:
         print("Keeping Sub-Network {} because it has {} buses".format(sn,len(buses)))
 

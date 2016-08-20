@@ -1,11 +1,15 @@
 
 
+#Compute Linear Power Flow for each snapshot for AC-DC network in
+#folder ac-dc-data/
+
+
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 from __future__ import absolute_import
 
 
-import pypsa,os
+import pypsa, os
 
 import pandas as pd
 
@@ -18,13 +22,14 @@ network = pypsa.Network()
 folder_name = "ac-dc-data"
 network.import_from_csv_folder(folder_name)
 
-now = network.snapshots[4]
-network.now = now
+network.lpf(network.snapshots)
 
-network.lopf(network.snapshots)
+
+print("\nSub-Networks:")
 
 for sn in network.sub_networks.obj:
     print(sn,sn.carrier,len(sn.buses()),len(sn.branches()))
+
 
 print("\nControllable branches:")
 
@@ -64,9 +69,10 @@ for bus in network.buses.index:
             print(cls.__name__,"\n",pnl.p1.loc[now,bs])
             p1 += pnl.p1.loc[now,bs].sum()
 
+
     print("Branches",p0+p1)
 
-    np.testing.assert_allclose(generators-loads+1.,p0+p1+1.)
+    np.testing.assert_allclose(p0+p1,generators-loads)
 
     print("")
 
@@ -74,7 +80,8 @@ print(sum(network.generators_t.p.loc[now]))
 
 print(sum(network.loads_t.p.loc[now]))
 
-results_folder_name = os.path.join(folder_name,"results-lopf")
+
+results_folder_name = os.path.join(folder_name,"results-lpf")
 
 if True:
     network.export_to_csv_folder(results_folder_name)

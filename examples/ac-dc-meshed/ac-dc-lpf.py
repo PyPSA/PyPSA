@@ -33,30 +33,48 @@ for sn in network.sub_networks.obj:
 
 print("\nControllable branches:")
 
-for t in network.links.obj:
-    print(t)
+print(network.links)
 
 now = network.snapshots[5]
 
 
 print("\nCheck power balance at each branch:")
 
+branches = network.branches()
 
-for bus in network.buses.obj:
-    print("\n"*3+bus.name)
-    print("Generators:",sum(bus.generators_t().p.loc[now]))
-    print("Loads:",sum(bus.loads_t().p.loc[now]))
-    print("Total:",sum(item.p[now]*item.sign for item in chain(bus.generators().obj,bus.loads().obj)))
+for bus in network.buses.index:
+    print("\n"*3+bus)
+    generators = sum(network.generators_t.p.loc[now,network.generators.bus==bus])
+    loads = sum(network.loads_t.p.loc[now,network.loads.bus==bus])
+    print("Generators:",generators)
+    print("Loads:",loads)
+    print("Total:",generators-loads)
 
-    print("Branches",sum(b.p0[now] for b in network.branches().obj if b.bus0 == bus.name)+sum(b.p1[now] for b in network.branches().obj if b.bus1 == bus.name))
+    p0 = 0.
+    p1 = 0.
+
+    for cls in pypsa.components.branch_types:
+        df = getattr(network,cls.list_name)
+        pnl = getattr(network,cls.list_name+"_t")
+
+        bs = (df.bus0 == bus)
+
+        if len(bs) > 0:
+            print(cls.__name__,"\n",pnl.p0.loc[now,bs])
+            p0 += pnl.p0.loc[now,bs].sum()
+
+        bs = (df.bus1 == bus)
+
+        if len(bs) > 0:
+            print(cls.__name__,"\n",pnl.p1.loc[now,bs])
+            p1 += pnl.p1.loc[now,bs].sum()
+
+
+    print("Branches",p0+p1)
+
+    np.testing.assert_allclose(p0+p1,generators-loads)
 
     print("")
-
-    for b in network.branches().obj:
-        if b.bus0 == bus.name:
-            print(b,b.p0[now])
-        elif b.bus1 == bus.name:
-            print(b,b.p1[now])
 
 print(sum(network.generators_t.p.loc[now]))
 
