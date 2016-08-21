@@ -42,7 +42,8 @@ network.add("Generator",
             bus="place of work",
             dispatch="variable",
             p_nom_extendable=True,
-            p_max_pu=pv_pu)
+            p_max_pu=pv_pu,
+            capital_cost=1000.)
 
 network.add("Load",
             "driving",
@@ -53,9 +54,8 @@ network.add("Link",
             "charger",
             bus0="place of work",
             bus1="battery",
-            p_nom="120",  #super-charger
-            efficiency=0.9,
-            p_nom_extendable=True)    
+            p_nom="120",  #super-charger with 120 kW
+            efficiency=0.9)    
 
 
 network.add("Store",
@@ -73,5 +73,4 @@ network.generators_t.p.plot()
 network.stores_t.loc[["p","e"],:,"battery storage"].plot(grid=True)
 
 print("Losses [kWh/d]:",network.generators_t.loc["p",:,"PV panel"].sum() - network.loads_t.loc["p",:,"driving"].sum())
-
 
