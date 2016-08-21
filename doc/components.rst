@@ -266,53 +266,16 @@ power flow: a bidirectional point-to-point HVDC link, a unidirectional
 lossy HVDC link, a converter between an AC and a DC network, a heat
 pump or resistive heater from an AC/DC bus to a heat bus, etc.
 
-It replaces the ``Converter`` component for linking AC with DC buses
-and the ``TransportLink`` component for providing controllable flows
-between AC buses.
-
-NB: If you want to replace ``Converter`` and ``TransportLink``
-components in your code, use the ``Link`` with ``efficiency = 1``,
-``marginal_cost = 0``, ``p_min_pu = -1`` and ``p_max_pu = 1``.
+NB: ``Link`` has replaced the ``Converter`` component for linking AC
+with DC buses and the ``TransportLink`` component for providing
+controllable flows between AC buses. If you want to replace
+``Converter`` and ``TransportLink`` components in your old code, use
+the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
+``p_min_pu = -1`` and ``p_max_pu = 1``.
 
 .. csv-table::
    :header-rows: 1
    :file: links.csv
-
-
-Deprecated: Converters, Transport Links
-=======================================
-
-These components are deprecated as of PyPSA 0.5.0. They will be
-completely removed in PyPSA 0.5.1. Please use the ``Link`` component
-instead.
-
-
-
-Converter (deprecated)
-----------------------
-
-This component is deprecated as of PyPSA 0.5.0. It will be completely
-removed in PyPSA 0.5.1. Please use the ``Link`` component instead.
-
-
-Converts AC to DC power.
-
-
-.. csv-table::
-   :header-rows: 1
-   :file: converters.csv
-
-
-Transport Link (deprecated)
----------------------------
-
-This component is deprecated as of PyPSA 0.5.0. It will be completely
-removed in PyPSA 0.5.1. Please use the ``Link`` component instead.
-
-
-.. csv-table::
-   :header-rows: 1
-   :file: transport_links.csv
 
 
 Carrier

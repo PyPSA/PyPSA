@@ -25,8 +25,8 @@ Buses are the fundamental nodes
 ===============================
 
 The ``pypsa.components.Bus`` is the fundamental node to which all
-loads, generators, storage units, lines, transformers, converters and
-links attach.
+loads, generators, storage units, lines, transformers and links
+attach.
 
 You can have as many components attached to a bus as you want.
 

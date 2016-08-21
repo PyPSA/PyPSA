@@ -33,6 +33,7 @@ Documentation
 
 `Quick start <http://www.pypsa.org/doc/quick_start.html>`_
 
+`Examples <http://www.pypsa.org/examples/>`_
 
 Documentation is in `sphinx
 <http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in

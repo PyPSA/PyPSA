@@ -407,37 +407,6 @@ class Transformer(Branch):
     sub_network = String("")
 
 
-class Converter(Branch):
-    """Converter between AC and DC. Bus 0 is AC, bus 1 is DC.
-
-    This object is deprecated. Please use Link instead.
-    """
-
-    list_name = "converters"
-
-    #limits per unit of s_nom
-    p_min_pu = Float(-1.)
-    p_max_pu = Float(1.)
-
-    p_set = Series()
-
-class TransportLink(Branch):
-    """Controllable link between two buses - can be used for a transport
-    power flow model OR as a simplified version of point-to-point DC
-    connection.
-
-    This object is deprecated. Please use Link instead.
-    """
-
-    list_name = "transport_links"
-
-    #limits per unit of s_nom
-    p_min_pu = Float(-1.)
-    p_max_pu = Float(1.)
-
-    p_set = Series()
-
-
 class Link(Common):
     """Link between two buses with controllable active power - can be used
     for a transport power flow model OR as a simplified version of
@@ -680,7 +649,7 @@ class Network(Basic):
         class_name : string
             Component class name
         name : string
-            Component name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Converter","TransportLink","Link"]
+            Component name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Link"]
         kwargs
 
         Returns
@@ -979,7 +948,7 @@ controllable_one_port_types = {Load, Generator, StorageUnit, Store}
 one_port_types = passive_one_port_types|controllable_one_port_types
 
 passive_branch_types = {Line, Transformer}
-controllable_branch_types = {Converter, TransportLink, Link}
+controllable_branch_types = {Link}
 branch_types = passive_branch_types|controllable_branch_types
 
 component_types = branch_types|one_port_types|{Bus, SubNetwork, Carrier}

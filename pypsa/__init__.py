@@ -24,7 +24,7 @@ Grid calculation library.
 
 from __future__ import absolute_import
 
-from .components import Network, Bus, Load, Generator, ShuntImpedance, Line, Transformer, Converter, TransportLink, Link, SubNetwork, Branch, OnePort
+from .components import Network, Bus, Load, Generator, StorageUnit, Store, ShuntImpedance, Line, Transformer, Link, SubNetwork, Branch, OnePort
 
 from . import components, pf, opf, plot, networkclustering, io, contingency, geo
 

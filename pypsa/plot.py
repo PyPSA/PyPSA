@@ -51,7 +51,7 @@ except:
 def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
          line_colors='g', bus_sizes=10, line_widths=2, title="",
          line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_types=['Line', 'TransportLink', 'Link']):
+         geometry=False, branch_types=['Line', 'Link']):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -69,7 +69,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         Sizes of bus points, defaults to 10
     line_colors : dict/pandas.Series
         Colors for the lines, defaults to "g" for Lines and "cyan" for
-        TransportLinks and Links. Colors for branches other than Lines can be
+        Links. Colors for branches other than Lines can be
         specified using a pandas Series with a MultiIndex.
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 2. Widths for branches other
@@ -85,7 +85,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     boundaries : list of four floats
         Boundaries of the plot in format [x1,x2,y1,y2]
     branch_types : list of str or pypsa.component
-        Branch types to be plotted, defaults to Line, TransportLink and Link.
+        Branch types to be plotted, defaults to Line and Link.
 
     Returns
     -------
@@ -94,7 +94,6 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     """
 
     defaults_for_branches = {
-        'TransportLink': dict(color="cyan", width=2),
         'Link': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2)
     }
