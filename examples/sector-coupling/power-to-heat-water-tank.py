@@ -47,7 +47,7 @@ network.add("Link",
             bus1="0 heat",
             efficiency=3.,
             capital_cost=1000,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
     
 network.add("Store",
             "water tank",
@@ -65,5 +65,4 @@ print(network.links_t.loc[["p0","p1"],:,"heat pump"])
 print(network.stores.loc["water tank"])
 
 print(network.generators.loc["wind turbine"])
-
 

@@ -40,7 +40,7 @@ for i in range(3):
                 "heat pump {}".format(i),
                 bus0="electric bus {}".format(i),
                 bus1="heat bus {}".format(i),
-                s_nom=100,
+                p_nom=100,
                 efficiency=3.)
 
 print(network.links)
@@ -117,5 +117,4 @@ run_lopf()
 network.co2_limit = 0.
 
 run_lopf()
-
 

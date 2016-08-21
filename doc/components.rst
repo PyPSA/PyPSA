@@ -271,7 +271,7 @@ with DC buses and the ``TransportLink`` component for providing
 controllable flows between AC buses. If you want to replace
 ``Converter`` and ``TransportLink`` components in your old code, use
 the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
-``p_min_pu = -1`` and ``p_max_pu = 1``.
+``p_min_pu = -1``, ``p_max_pu = 1`` and ``p_nom* = s_nom*``.
 
 .. csv-table::
    :header-rows: 1

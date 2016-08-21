@@ -385,59 +385,68 @@ def define_store_variables_constraints(network,snapshots):
 
 def define_branch_extension_variables(network,snapshots):
 
-    branches = network.branches()
+    passive_branches = network.passive_branches()
 
-    extendable_branches = branches[branches.s_nom_extendable]
+    extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
 
-    bounds = {b : (replace_nan_with_none(extendable_branches.s_nom_min[b]),
-                   replace_nan_with_none(extendable_branches.s_nom_max[b]))
-              for b in extendable_branches.index}
+    bounds = {b : (replace_nan_with_none(extendable_passive_branches.s_nom_min[b]),
+                   replace_nan_with_none(extendable_passive_branches.s_nom_max[b]))
+              for b in extendable_passive_branches.index}
 
     def branch_s_nom_bounds(model, branch_type, branch_name):
         return bounds[branch_type,branch_name]
 
-    network.model.branch_s_nom = Var(list(extendable_branches.index),
-                                     domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+    network.model.passive_branch_s_nom = Var(list(extendable_passive_branches.index),
+                                             domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+
+    extendable_links = network.links[network.links.p_nom_extendable]
+
+    bounds = {b : (replace_nan_with_none(extendable_links.p_nom_min[b]),
+                   replace_nan_with_none(extendable_links.p_nom_max[b]))
+              for b in extendable_links.index}
+
+    def branch_p_nom_bounds(model, branch_name):
+        return bounds[branch_name]
+
+    network.model.link_p_nom = Var(extendable_links.index,
+                                   domain=NonNegativeReals, bounds=branch_p_nom_bounds)
 
 
+def define_link_flows(network,snapshots):
 
-def define_controllable_branch_flows(network,snapshots):
+    extendable_links = network.links[network.links.p_nom_extendable]
 
-    controllable_branches = network.controllable_branches()
+    fixed_links = network.links[~ network.links.p_nom_extendable]
 
-    extendable_branches = controllable_branches[controllable_branches.s_nom_extendable]
+    fixed_lower = fixed_links.p_min_pu*fixed_links.p_nom
 
-    fixed_branches = controllable_branches[~ controllable_branches.s_nom_extendable]
+    fixed_upper = fixed_links.p_max_pu*fixed_links.p_nom
 
-    fixed_lower = fixed_branches.p_min_pu*fixed_branches.s_nom
+    bounds = {(cb,sn) : (fixed_lower[cb],fixed_upper[cb])
+              for cb in fixed_links.index for sn in snapshots}
+    bounds.update({(cb,sn) : (None,None)
+                   for cb in extendable_links.index for sn in snapshots})
 
-    fixed_upper = fixed_branches.p_max_pu*fixed_branches.s_nom
+    def cb_p_bounds(model,cb_name,snapshot):
+        return bounds[cb_name,snapshot]
 
-    bounds = {(cb[0],cb[1],sn) : (fixed_lower[cb],fixed_upper[cb])
-              for cb in fixed_branches.index for sn in snapshots}
-    bounds.update({(cb[0],cb[1],sn) : (None,None)
-                   for cb in extendable_branches.index for sn in snapshots})
+    network.model.link_p = Var(network.links.index,
+                               snapshots, domain=Reals, bounds=cb_p_bounds)
 
-    def cb_p_bounds(model,cb_type,cb_name,snapshot):
-        return bounds[cb_type,cb_name,snapshot]
+    def cb_p_upper(model,cb_name,snapshot):
+        return (model.link_p[cb_name,snapshot] <=
+                model.link_p_nom[cb_name]
+                * extendable_links.at[cb_name,"p_max_pu"])
 
-    network.model.controllable_branch_p = Var(list(controllable_branches.index),
-                                              snapshots, domain=Reals, bounds=cb_p_bounds)
-
-    def cb_p_upper(model,cb_type,cb_name,snapshot):
-        return (model.controllable_branch_p[cb_type,cb_name,snapshot] <=
-                model.branch_s_nom[cb_type,cb_name]
-                * extendable_branches.at[(cb_type,cb_name),"p_max_pu"])
-
-    network.model.controllable_branch_p_upper = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_upper)
+    network.model.link_p_upper = Constraint(extendable_links.index,snapshots,rule=cb_p_upper)
 
 
-    def cb_p_lower(model,cb_type,cb_name,snapshot):
-        return (model.controllable_branch_p[cb_type,cb_name,snapshot] >=
-                model.branch_s_nom[cb_type,cb_name]
-                * extendable_branches.at[(cb_type,cb_name),"p_min_pu"])
+    def cb_p_lower(model,cb_name,snapshot):
+        return (model.link_p[cb_name,snapshot] >=
+                model.link_p_nom[cb_name]
+                * extendable_links.at[cb_name,"p_min_pu"])
 
-    network.model.controllable_branch_p_lower = Constraint(list(extendable_branches.index),snapshots,rule=cb_p_lower)
+    network.model.link_p_lower = Constraint(extendable_links.index,snapshots,rule=cb_p_lower)
 
 
 
@@ -646,7 +655,7 @@ def define_passive_branch_constraints(network,snapshots):
                   for sn in snapshots}
 
     flow_upper.update({(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),
-                                          (-1,network.model.branch_s_nom[b[0],b[1]])],"<=",0]
+                                          (-1,network.model.passive_branch_s_nom[b[0],b[1]])],"<=",0]
                        for b in extendable_branches.index
                        for sn in snapshots})
 
@@ -659,7 +668,7 @@ def define_passive_branch_constraints(network,snapshots):
                   for sn in snapshots}
 
     flow_lower.update({(b[0],b[1],sn): [[(1,network.model.passive_branch_p[b[0],b[1],sn]),
-                                         (1,network.model.branch_s_nom[b[0],b[1]])],">=",0]
+                                         (1,network.model.passive_branch_s_nom[b[0],b[1]])],">=",0]
                        for b in extendable_branches.index
                        for sn in snapshots})
 
@@ -673,26 +682,19 @@ def define_nodal_balances(network,snapshots):
     Store the nodal balance expression in network._p_balance.
     """
 
-    controllable_branches = network.controllable_branches()
-
     #dictionary for constraints
     network._p_balance = {(bus,sn) : LExpression()
                           for bus in network.buses.index
                           for sn in snapshots}
 
-    for cb in controllable_branches.index:
-        bus0 = controllable_branches.bus0[cb]
-        bus1 = controllable_branches.bus1[cb]
-        ct = cb[0]
-        cn = cb[1]
-        if ct == "Link":
-            efficiency = controllable_branches.efficiency[cb]
-        else:
-            efficiency = 1.
+    for cb in network.links.index:
+        bus0 = network.links.at[cb,"bus0"]
+        bus1 = network.links.at[cb,"bus1"]
+        efficiency = network.links.at[cb,"efficiency"]
 
         for sn in snapshots:
-            network._p_balance[bus0,sn].variables.append((-1,network.model.controllable_branch_p[ct,cn,sn]))
-            network._p_balance[bus1,sn].variables.append((efficiency,network.model.controllable_branch_p[ct,cn,sn]))
+            network._p_balance[bus0,sn].variables.append((-1,network.model.link_p[cb,sn]))
+            network._p_balance[bus1,sn].variables.append((efficiency,network.model.link_p[cb,sn]))
 
 
     for gen in network.generators.index:
@@ -793,9 +795,11 @@ def define_linear_objective(network,snapshots):
 
     ext_stores = network.stores[network.stores.e_nom_extendable]
 
-    branches = network.branches()
+    passive_branches = network.passive_branches()
 
-    extendable_branches = branches[branches.s_nom_extendable]
+    extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
+
+    extendable_links = network.links[network.links.p_nom_extendable]
 
     objective = LExpression()
 
@@ -819,7 +823,7 @@ def define_linear_objective(network,snapshots):
 
     objective.variables.extend([(network.links.at[link,"marginal_cost"]
                                  * network.snapshot_weightings[sn],
-                                 model.controllable_branch_p["Link",link,sn])
+                                 model.link_p[link,sn])
                                 for link in network.links.index
                                 for sn in snapshots])
 
@@ -838,9 +842,13 @@ def define_linear_objective(network,snapshots):
                                 for store in ext_stores.index])
     objective.constant -= (ext_stores.capital_cost*ext_stores.e_nom).sum()
 
-    objective.variables.extend([(extendable_branches.at[b,"capital_cost"], model.branch_s_nom[b])
-                                for b in extendable_branches.index])
-    objective.constant -= (extendable_branches.capital_cost * extendable_branches.s_nom).sum()
+    objective.variables.extend([(extendable_passive_branches.at[b,"capital_cost"], model.passive_branch_s_nom[b])
+                                for b in extendable_passive_branches.index])
+    objective.constant -= (extendable_passive_branches.capital_cost * extendable_passive_branches.s_nom).sum()
+
+    objective.variables.extend([(extendable_links.at[b,"capital_cost"], model.link_p_nom[b])
+                                for b in extendable_links.index])
+    objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).sum()
 
     l_objective(model,objective)
 
@@ -848,8 +856,7 @@ def define_linear_objective(network,snapshots):
 def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     from .components import \
-        controllable_branch_types, passive_branch_types, branch_types, \
-        controllable_one_port_types
+        passive_branch_types, branch_types, controllable_one_port_types
 
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
@@ -908,19 +915,16 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 
     # active branches
-    controllable_branches = as_series(model.controllable_branch_p)
-    for t in network.iterate_components(controllable_branch_types):
-        set_from_series(t.pnl.p0, controllable_branches.loc[t.name])
-        if t.name == "Link":
-            t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots].multiply(t.df.efficiency)
-        else:
-            t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
+    if len(network.links):
+        set_from_series(network.links_t.p0, as_series(model.link_p))
+        network.links_t.p1.loc[snapshots] = - network.links_t.p0.loc[snapshots].multiply(network.links.efficiency)
 
-        network.buses_t.p.loc[snapshots] -= (t.pnl.p0.loc[snapshots]
-                                             .groupby(t.df.bus0, axis=1).sum()
+        network.buses_t.p.loc[snapshots] -= (network.links_t.p0.loc[snapshots]
+                                             .groupby(network.links.bus0, axis=1).sum()
                                              .reindex(columns=network.buses_t.p.columns, fill_value=0.))
-        network.buses_t.p.loc[snapshots] -= (t.pnl.p1.loc[snapshots]
-                                             .groupby(t.df.bus1, axis=1).sum()
+
+        network.buses_t.p.loc[snapshots] -= (network.links_t.p1.loc[snapshots]
+                                             .groupby(network.links.bus1, axis=1).sum()
                                              .reindex(columns=network.buses_t.p.columns, fill_value=0.))
 
 
@@ -964,12 +968,16 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         as_series(network.model.store_e_nom)
 
 
-    s_nom_extendable_branches = as_series(model.branch_s_nom)
-    for t in network.iterate_components(branch_types):
+    s_nom_extendable_passive_branches = as_series(model.passive_branch_s_nom)
+    for t in network.iterate_components(passive_branch_types):
         t.df['s_nom_opt'] = t.df.s_nom
         if t.df.s_nom_extendable.any():
-            t.df.loc[t.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_branches.loc[t.name]
+            t.df.loc[t.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[t.name]
 
+    network.links.p_nom_opt = network.links.p_nom
+
+    network.links.loc[network.links.p_nom_extendable, "p_nom_opt"] = \
+        as_series(network.model.link_p_nom)
 
 
 
@@ -1039,7 +1047,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
 
     define_branch_extension_variables(network,snapshots)
 
-    define_controllable_branch_flows(network,snapshots)
+    define_link_flows(network,snapshots)
 
     define_nodal_balances(network,snapshots)
 

@@ -60,7 +60,7 @@ network.add("Link",
             bus1="0",
             efficiency=0.9,
             capital_cost=1000,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
 
 network.add("Link",
             "1 turbine",
@@ -68,7 +68,7 @@ network.add("Link",
             bus1="1",
             efficiency=0.9,
             capital_cost=1000,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
 
 
 
@@ -82,7 +82,7 @@ network.add("Link",
             bus0="0 reservoir",
             bus1="1 reservoir",
             efficiency=0.5,
-            s_nom_extendable=True)    
+            p_nom_extendable=True)    
 
 
 network.add("Store",

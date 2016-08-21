@@ -53,7 +53,7 @@ network.add("Link",
             bus1="0 gas",
             efficiency=0.3,
             capital_cost=1000,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
 
 network.add("Link",
             "generator",
@@ -61,7 +61,7 @@ network.add("Link",
             bus1="0",
             efficiency=0.4,
             capital_cost=200,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
 
 
 network.add("Store",
@@ -91,7 +91,7 @@ if heat:
             bus1="0 heat",
             efficiency=0.9,
             capital_cost=100,
-            s_nom_extendable=True)
+            p_nom_extendable=True)
     
     network.add("Store",
             "water tank",
@@ -116,10 +116,10 @@ if heat and chp:
     
     def extra_functionality(network,snapshots):
 
-        network.model.chp_nom = Constraint(rule=lambda model : nom_r*model.branch_s_nom["Link","generator"] == model.branch_s_nom["Link","boiler"])
+        network.model.chp_nom = Constraint(rule=lambda model : nom_r*model.link_p_nom["generator"] == model.link_p_nom["boiler"])
 
         def backpressure(model,snapshot):
-            return c_m*model.controllable_branch_p["Link","boiler",snapshot] <= model.controllable_branch_p["Link","generator",snapshot] 
+            return c_m*model.link_p["boiler",snapshot] <= model.link_p["generator",snapshot] 
         
         network.model.backpressure = Constraint(snapshots,rule=backpressure)
         
@@ -139,7 +139,7 @@ print(network.stores.loc["gas depot"])
 
 print(network.generators.loc["wind turbine"])
 
-print(network.links.s_nom_opt)
+print(network.links.p_nom_opt)
 
 #Calculate the overall efficiency of the CHP
 
@@ -152,5 +152,4 @@ r = 1/c_m
 #P_h = r*P_e
 
 print((1+r)/((1/eta_elec)*(1+c_v*r)))
-
 

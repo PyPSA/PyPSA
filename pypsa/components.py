@@ -430,24 +430,22 @@ class Link(Common):
     #NB: marginal cost only makes sense in OPF if p_max_pu >= 0
     marginal_cost = Float(0.)
 
-    #This should really be p_nom, since we exclude q for the link.
-    #It is kept as s_nom to maintain consistency with other branches.
-    s_nom = Float(0.)
+    p_nom = Float(0.)
 
-    s_nom_extendable = Boolean(False)
+    p_nom_extendable = Boolean(False)
 
-    s_nom_max = Float(np.nan)
-    s_nom_min = Float(0.)
+    p_nom_max = Float(np.nan)
+    p_nom_min = Float(0.)
 
     #optimised capacity
-    s_nom_opt = Float(0.)
+    p_nom_opt = Float(0.)
 
     #pi is positive if power is flowing from bus i into the branch
     #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
     p0 = Series()
     p1 = Series()
 
-    #limits per unit of s_nom
+    #limits per unit of p_nom
     p_min_pu = Float(0.)
     p_max_pu = Float(1.)
 
@@ -778,6 +776,8 @@ class Network(Basic):
         return network
 
 
+    #beware, this turns bools like s_nom_extendable into objects because of
+    #presence of links without s_nom_extendable
     def branches(self):
         return pd.concat((getattr(self, typ.list_name) for typ in branch_types),
                          keys=[typ.__name__ for typ in branch_types])
@@ -898,7 +898,7 @@ class SubNetwork(Common):
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
-        branches = self.network.branches()
+        branches = self.network.passive_branches()
         return branches[branches.sub_network == self.name]
 
     def generators_i(self):

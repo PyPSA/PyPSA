@@ -35,10 +35,10 @@ def replace_gen(network,gen_to_replace):
             bus0=bus_name,
             bus1=gen["bus"],
             capital_cost=gen["capital_cost"]*gen["efficiency"],
-            s_nom = gen["p_nom"]/gen["efficiency"],
-            s_nom_extendable=gen["p_nom_extendable"],
-            s_nom_max = gen["p_nom_max"]/gen["efficiency"],
-            s_nom_min = gen["p_nom_min"]/gen["efficiency"],
+            p_nom = gen["p_nom"]/gen["efficiency"],
+            p_nom_extendable=gen["p_nom_extendable"],
+            p_nom_max = gen["p_nom_max"]/gen["efficiency"],
+            p_nom_min = gen["p_nom_min"]/gen["efficiency"],
             p_max_pu = gen["p_max_pu_fixed"],
             p_min_pu = gen["p_min_pu_fixed"],
             marginal_cost=gen["marginal_cost"]*gen["efficiency"],
@@ -95,10 +95,10 @@ def replace_su(network,su_to_replace):
             bus0=bus_name,
             bus1=su["bus"],
             capital_cost=su["capital_cost"]*su["efficiency_dispatch"],
-            s_nom = su["p_nom"]/su["efficiency_dispatch"],
-            s_nom_extendable=su["p_nom_extendable"],
-            s_nom_max = su["p_nom_max"]/su["efficiency_dispatch"],
-            s_nom_min = su["p_nom_min"]/su["efficiency_dispatch"],
+            p_nom = su["p_nom"]/su["efficiency_dispatch"],
+            p_nom_extendable=su["p_nom_extendable"],
+            p_nom_max = su["p_nom_max"]/su["efficiency_dispatch"],
+            p_nom_min = su["p_nom_min"]/su["efficiency_dispatch"],
             p_max_pu = su["p_max_pu_fixed"],
             marginal_cost=su["marginal_cost"]*su["efficiency_dispatch"],
             efficiency=su["efficiency_dispatch"])
@@ -108,10 +108,10 @@ def replace_su(network,su_to_replace):
             link_2_name,
             bus1=bus_name,
             bus0=su["bus"],
-            s_nom = su["p_nom"],
-            s_nom_extendable=su["p_nom_extendable"],
-            s_nom_max = su["p_nom_max"],
-            s_nom_min = su["p_nom_min"],
+            p_nom = su["p_nom"],
+            p_nom_extendable=su["p_nom_extendable"],
+            p_nom_max = su["p_nom_max"],
+            p_nom_min = su["p_nom_min"],
             p_max_pu = -su["p_min_pu_fixed"],
             efficiency=su["efficiency_store"])
 
@@ -151,8 +151,8 @@ def replace_su(network,su_to_replace):
         ratio1 = ratio2*su["efficiency_dispatch"]
         def extra_functionality(network,snapshots):
             model = network.model
-            model.store_fix_1 = Constraint(rule=lambda model : model.store_e_nom[store_name] == model.branch_s_nom["Link",link_1_name]*ratio1)
-            model.store_fix_2 = Constraint(rule=lambda model : model.store_e_nom[store_name] == model.branch_s_nom["Link",link_2_name]*ratio2)
+            model.store_fix_1 = Constraint(rule=lambda model : model.store_e_nom[store_name] == model.link_p_nom[link_1_name]*ratio1)
+            model.store_fix_2 = Constraint(rule=lambda model : model.store_e_nom[store_name] == model.link_p_nom[link_2_name]*ratio2)
 
     else:
         extra_functionality=None
@@ -189,8 +189,8 @@ np.testing.assert_array_almost_equal(network_r.storage_units_t.state_of_charge[s
 np.testing.assert_array_almost_equal(network_r.storage_units_t.p[su_to_replace],-network.links_t.p1[link_1_name]-network.links_t.p0[link_2_name])
 
 #check optimised size
-np.testing.assert_allclose(network_r.storage_units.at[su_to_replace,"p_nom_opt"],network.links.at[link_2_name,"s_nom_opt"])
-np.testing.assert_allclose(network_r.storage_units.at[su_to_replace,"p_nom_opt"],network.links.at[link_1_name,"s_nom_opt"]*network_r.storage_units.at[su_to_replace,"efficiency_dispatch"])
+np.testing.assert_allclose(network_r.storage_units.at[su_to_replace,"p_nom_opt"],network.links.at[link_2_name,"p_nom_opt"])
+np.testing.assert_allclose(network_r.storage_units.at[su_to_replace,"p_nom_opt"],network.links.at[link_1_name,"p_nom_opt"]*network_r.storage_units.at[su_to_replace,"efficiency_dispatch"])
 
 
 
@@ -209,7 +209,7 @@ np.testing.assert_allclose(network_r.objective,network.objective)
 np.testing.assert_allclose(-network.links_t.p1[link_name],network_r.generators_t.p[gen_to_replace])
 
 #check optimised size
-np.testing.assert_allclose(network_r.generators.at[gen_to_replace,"p_nom_opt"],network.links.at[link_name,"s_nom_opt"]*network.links.at[link_name,"efficiency"])
+np.testing.assert_allclose(network_r.generators.at[gen_to_replace,"p_nom_opt"],network.links.at[link_name,"p_nom_opt"]*network.links.at[link_name,"efficiency"])
 
 
 ## Take another example from the git repo which has already been solved
@@ -233,5 +233,4 @@ network.lopf(network.snapshots)
 np.testing.assert_almost_equal(network_r.objective,network.objective,decimal=5)
 
 np.testing.assert_array_almost_equal(-network.links_t.p1[link_name],network_r.generators_t.p[gen_to_replace])
-
 

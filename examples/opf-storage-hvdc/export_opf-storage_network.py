@@ -83,9 +83,7 @@ for i in range(n*c):
                 bus0=str(i),
                 bus1=str(n*(i // n)+ (i+1) % n),
                 x=np.random.random(),
-                s_nom=0,
                 capital_cost=0.2*np.random.random(),
-                s_nom_min=0,
                 s_nom_extendable=True)
 
 #make one line non-extendable
@@ -99,15 +97,14 @@ for i in range(2):
                 bus1=str(3+i),
                 p_max_pu=0.9,
                 p_min_pu=-0.9,
-                s_nom=1000,
+                p_nom=1000,
                 capital_cost=0.2*np.random.random(),
-                s_nom_min=0,
-                s_nom_extendable=True)
+                p_nom_extendable=True)
 
 
 #make one HVDC non-extendable
-network.links.at["TL 1","s_nom"] = 300.
-network.links.at["TL 1","s_nom_extendable"] = False
+network.links.at["TL 1","p_nom"] = 300.
+network.links.at["TL 1","p_nom_extendable"] = False
 
 
 #add loads

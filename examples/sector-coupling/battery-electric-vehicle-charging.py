@@ -55,7 +55,7 @@ network.add("Link",
             bus1="battery",
             p_nom="120",  #super-charger
             efficiency=0.9,
-            s_nom_extendable=True)    
+            p_nom_extendable=True)    
 
 
 network.add("Store",
