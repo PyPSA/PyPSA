@@ -59,13 +59,13 @@ for bus in network.buses.index:
 
         bs = (df.bus0 == bus)
 
-        if len(bs) > 0:
+        if bs.any():
             print(cls.__name__,"\n",pnl.p0.loc[now,bs])
             p0 += pnl.p0.loc[now,bs].sum()
 
         bs = (df.bus1 == bus)
 
-        if len(bs) > 0:
+        if bs.any():
             print(cls.__name__,"\n",pnl.p1.loc[now,bs])
             p1 += pnl.p1.loc[now,bs].sum()
 
