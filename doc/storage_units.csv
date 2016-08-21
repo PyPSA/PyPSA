@@ -6,7 +6,7 @@ control,string,n/a , """PQ""","P,Q,V control strategy for PF, must be ""PQ"", ""
 p_nom,float,MW,0.,Nominal power for limits in OPF., Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF., Input (optional)
 p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.", Input (optional)
-p_nom_max,float,MW,NaN,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
 p_min_pu,series,per unit,0.,"If control=""variable"" this gives the minimum output for each snapshot per unit of p_nom for the OPF.",Input (optional)
 p_max_pu,series,per unit,1.,"If control=""variable"" this gives the maximum output for each snapshot per unit of p_nom for the OPF, relevant e.g. if for renewables the power output is limited by the weather.",Input (optional)
 p_min_pu_fixed,float,per unit,-1.,"If control=""flexible"" this gives the minimum output per unit of p_nom for the OPF.",Input (optional)

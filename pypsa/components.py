@@ -133,7 +133,7 @@ class Bus(Common):
     v_ang = Series()
     v_mag_pu_set = Series(default=1.)
     v_mag_pu_min = Float(default=0.)
-    v_mag_pu_max = Float(default=np.nan)
+    v_mag_pu_max = Float(default=inf)
 
     #optimisation output for power balance constraint at bus
     marginal_price = Series()
@@ -178,7 +178,7 @@ class Generator(OnePort):
     p_nom_extendable = Boolean(False)
 
     #technical potential
-    p_nom_max = Float(np.nan)
+    p_nom_max = Float(inf)
 
     p_nom_min = Float(0.0)
 
@@ -334,7 +334,7 @@ class Branch(Common):
 
     s_nom_extendable = Boolean(False)
 
-    s_nom_max = Float(np.nan)
+    s_nom_max = Float(inf)
     s_nom_min = Float(0.)
 
     #optimised capacity
@@ -368,8 +368,8 @@ class Line(Branch):
     b_pu = Float(0.)
 
     #voltage angle difference across branches
-    v_ang_min = Float(np.nan)
-    v_ang_max = Float(np.nan)
+    v_ang_min = Float(-inf)
+    v_ang_max = Float(inf)
 
     length = Float(default=1.0)
     terrain_factor = Float(default=1.0)
@@ -395,8 +395,8 @@ class Transformer(Branch):
     b_pu = Float(0.)
 
     #voltage angle difference across branches
-    v_ang_min = Float(np.nan)
-    v_ang_max = Float(np.nan)
+    v_ang_min = Float(-inf)
+    v_ang_max = Float(inf)
 
     #ratio of per unit voltages
     tap_ratio = Float(1.)
@@ -434,7 +434,7 @@ class Link(Common):
 
     p_nom_extendable = Boolean(False)
 
-    p_nom_max = Float(np.nan)
+    p_nom_max = Float(inf)
     p_nom_min = Float(0.)
 
     #optimised capacity

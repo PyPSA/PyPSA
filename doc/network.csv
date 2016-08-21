@@ -11,5 +11,5 @@ lines,pandas.DataFrame,n/a,n/a,"All static line information compiled by PyPSA fr
 lines_t,pandas.Panel,n/a,n/a,"All time-dependent line information compiled by PyPSA from inputs. Items are time-dependent series attributes, major-axis is network.snapshots, minor-axis is line names.",Output
 components,pandas.DataFrame,n/a,n/a,"For each component type (buses, lines, etc.): static component information compiled by PyPSA from inputs. Index is component names, columns are component attributes.",Output
 components_t,pandas.Panel,n/a,n/a,"For each component type (buses, lines, etc.): time-dependent component information compiled by PyPSA from inputs. Items are time-dependent series attributes, major-axis is network.snapshots, minor-axis is component names.",Output
-branches(),pandas.DataFrame,n/a,n/a,"Dynamically generated concatenation of branch DataFrames: network.lines, network.transformers, network.converters and network.transport_links. Note that this is a copy and therefore changing entries will NOT update the original.",Output
+branches(),pandas.DataFrame,n/a,n/a,"Dynamically generated concatenation of branch DataFrames: network.lines, network.transformers and network.links. Note that this is a copy and therefore changing entries will NOT update the original.",Output
 graph(),networkx.OrderedMultiGraph,n/a,n/a,Graph of network., Output

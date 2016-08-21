@@ -48,12 +48,6 @@ from .pf import (calculate_dependent_values, find_slack_bus,
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_and_network_before_solving)
 
-#this function is necessary because pyomo doesn't deal with NaNs gracefully
-def replace_nan_with_none(val):
-    if pd.isnull(val):
-        return None
-    else:
-        return val
 
 
 def network_opf(network,snapshots=None):
@@ -107,8 +101,8 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator capacity variables if generator is extendable ##
 
     def gen_p_nom_bounds(model, gen_name):
-        return (replace_nan_with_none(extendable_gens.p_nom_min[gen_name]),
-                replace_nan_with_none(extendable_gens.p_nom_max[gen_name]))
+        return (extendable_gens.at[gen_name,"p_nom_min"],
+                extendable_gens.at[gen_name,"p_nom_max"])
 
     network.model.generator_p_nom = Var(extendable_gens.index,
                                         domain=NonNegativeReals, bounds=gen_p_nom_bounds)
@@ -210,8 +204,8 @@ def define_storage_variables_constraints(network,snapshots):
     ## Define generator capacity variables if generator is extendable ##
 
     def su_p_nom_bounds(model, su_name):
-        return (replace_nan_with_none(ext_sus.at[su_name,"p_nom_min"]),
-                replace_nan_with_none(ext_sus.at[su_name,"p_nom_max"]))
+        return (ext_sus.at[su_name,"p_nom_min"],
+                ext_sus.at[su_name,"p_nom_max"])
 
     network.model.storage_p_nom = Var(ext_sus.index, domain=NonNegativeReals,
                                       bounds=su_p_nom_bounds)
@@ -334,8 +328,8 @@ def define_store_variables_constraints(network,snapshots):
     ## Define energy capacity variables if store is extendable ##
 
     def store_e_nom_bounds(model, store):
-        return (replace_nan_with_none(stores.at[store,"e_nom_min"]),
-                replace_nan_with_none(stores.at[store,"e_nom_max"]))
+        return (stores.at[store,"e_nom_min"],
+                stores.at[store,"e_nom_max"])
 
     network.model.store_e_nom = Var(ext_stores, domain=Reals,
                                     bounds=store_e_nom_bounds)
@@ -389,8 +383,8 @@ def define_branch_extension_variables(network,snapshots):
 
     extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
 
-    bounds = {b : (replace_nan_with_none(extendable_passive_branches.s_nom_min[b]),
-                   replace_nan_with_none(extendable_passive_branches.s_nom_max[b]))
+    bounds = {b : (extendable_passive_branches.at[b,"s_nom_min"],
+                   extendable_passive_branches.at[b,"s_nom_max"])
               for b in extendable_passive_branches.index}
 
     def branch_s_nom_bounds(model, branch_type, branch_name):
@@ -401,8 +395,8 @@ def define_branch_extension_variables(network,snapshots):
 
     extendable_links = network.links[network.links.p_nom_extendable]
 
-    bounds = {b : (replace_nan_with_none(extendable_links.p_nom_min[b]),
-                   replace_nan_with_none(extendable_links.p_nom_max[b]))
+    bounds = {b : (extendable_links.at[b,"p_nom_min"],
+                   extendable_links.at[b,"p_nom_max"])
               for b in extendable_links.index}
 
     def branch_p_nom_bounds(model, branch_name):

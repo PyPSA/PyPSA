@@ -132,7 +132,6 @@ for i in range(n*c):
                 marginal_cost=0 + 0.01*np.random.random(), #non-zero marginal cost ensures unique optimisation result
                 capital_cost=2000 + 1000*np.random.random(),
                 p_nom_extendable=True,
-                p_nom_max=np.nan,
                 p_nom_min=100)
     #gas generator
     network.add("Generator","Gas %d" % (i),bus=str(i),
@@ -143,7 +142,6 @@ for i in range(n*c):
                 p_max_pu_fixed = 0.85,
                 p_min_pu_fixed = 0.02,
                 p_nom_extendable=True,
-                p_nom_max=np.nan,
                 p_nom_min=0)
 
 #make some objects non-extendable - useful for unit testing
