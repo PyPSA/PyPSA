@@ -30,9 +30,11 @@ attach.
 
 You can have as many components attached to a bus as you want.
 
-
 The bus's role is to enforce energy conservation for all elements
 feeding in and out of it (i.e. like Kirchhoff's Current Law).
+
+
+.. image:: img/buses.png
 
 
 Energy flow in the model

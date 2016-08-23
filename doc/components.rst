@@ -68,7 +68,14 @@ Sub-Network are determined by calling
 Bus
 =======
 
-The bus is the fundamental node of the network.
+The bus is the fundamental node of the network, to which components
+like loads, generators and transmission lines attach. It enforces
+energy conservation for all elements feeding in and out of it
+(i.e. like Kirchhoff's Current Law).
+
+
+.. image:: img/buses.png
+
 
 
 

@@ -33,3 +33,7 @@ pypsa.egg-info/
 files.txt
 
 *.org
+
+*.pdf
+
+*.aux

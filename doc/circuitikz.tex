@@ -1,0 +1,46 @@
+
+% Can anyone get circuitikz working with sphinz?
+
+% Vanilla tikz was straightforward thanks to:
+% https://bitbucket.org/philexander/tikz
+
+\documentclass[10pt]{article}
+%\usetheme[everytitleformat=uppercase]{m}
+
+\usepackage{tikz}
+
+
+\usepackage[europeanresistors,americaninductors]{circuitikz}
+
+\begin{document}
+\centering
+\begin{circuitikz}
+  \draw (1.5,14.5) to [short,i^=$f_1$] (1.5,13);
+  \draw [ultra thick] (0,13) node[anchor=south]{bus $m$} -- (4,13);
+  \draw(2.5,13) |- +(0,0.5) to [short,i^=$f_2$] +(5,0.5) |- +(0,-0.5);
+  \draw [ultra thick] (6,13) node[anchor=south]{bus $n$} -- +(4,0);
+  \draw (8.5,14.5) to [short,i^=$f_3$] +(0,-1.5);
+  \draw (0,-0.5) ;
+  \draw (0.5,13) -- +(0,-0.5) node[sground]{};
+  \draw (2,12) node[vsourcesinshape, rotate=270](V2){}
+  (V2.left) -- +(0,0.6);
+  \draw (3.5,12) node[vsourcesinshape, rotate=270](V2){}
+  (V2.left) -- +(0,0.6);
+  \draw (0.5,11) node{$d_m$};
+  \draw (2,11) node{$g_{m,w}$};
+  \draw (3.5,11) node{$g_{m,s}$};
+  \draw (2,10.3) node{$g_{m,w} + g_{m,s} - d_m =  f_2 - f_1$};
+  \draw (6.5,13) -- +(0,-0.5) node[sground]{};
+  \draw (8,12) node[vsourcesinshape, rotate=270](V2){}
+  (V2.left) -- +(0,0.6);
+  \draw (9.5,12) node[vsourcesinshape, rotate=270](V2){}
+  (V2.left) -- +(0,0.6);
+  \draw (6.5,11) node{$d_n$};
+  \draw (8,11) node{$g_{n,w}$};
+  \draw (9.5,11) node{$g_{n,s}$};
+  \draw (8,10.3) node{$g_{n,w} + g_{n,s} - d_n =  - f_2 - f_3$};
+
+\end{circuitikz}
+
+
+\end{document}

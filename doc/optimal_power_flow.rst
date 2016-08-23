@@ -130,6 +130,13 @@ Variables and notation summary
 
 :math:`F_{l}` capacity of branch :math:`l`
 
+:math:`\eta_{n,s}` efficiency of generator :math:`s` at bus :math:`n`
+
+:math:`\eta_{l}` efficiency of controllable link :math:`l`
+
+:math:`e_s` CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s`
+
+
 Further definitions are given below.
 
 Objective function
@@ -291,8 +298,8 @@ optimisation assumes :math:`e_{n,s,t=-1} = e_{n,s,t=|T|-1}`.
 
 
 
-Passive branch flows
-------------------------
+Passive branch flows: lines and transformers
+--------------------------------------------
 
 See ``pypsa.opf.define_passive_branch_flows(network,snapshots)`` and
 ``pypsa.opf.define_passive_branch_constraints(network,snapshots)`` and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
@@ -334,8 +341,8 @@ line impedance.
 
 
 
-Controllable branch flows
--------------------------
+Controllable branch flows: links
+---------------------------------
 
 See ``pypsa.opf.define_controllable_branch_flows(network,snapshots)``
 and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
@@ -347,7 +354,9 @@ optimisation variable for each component which satisfies
 .. math::
    |f_{l,t}| \leq F_l
 
-
+If the link flow is positive :math:`f_{l,t} > 0` then it withdraws
+:math:`f_{l,t}` from bus0 and feeds in :math:`\eta_l f_{l,t}` to bus1,
+where :math:`\eta_l` is the link efficiency.
 
 Nodal power balances
 --------------------
@@ -358,9 +367,16 @@ This is the most important equation, which guarantees that the power
 balances at each bus :math:`n` for each time :math:`t`.
 
 .. math::
-   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{s} \ell_{n,s,t} + \sum_{l} K_{nl} f_{l,t} = 0
+   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{s} d_{n,s,t} = \sum_{l} K_{nl} f_{l,t}
 
-Where :math:`\ell_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus.
+Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus.
+
+
+The bus's role is to enforce energy conservation for all elements
+feeding in and out of it (i.e. like Kirchhoff's Current Law).
+
+.. image:: img/buses.png
+
 
 CO2 constraint
 --------------
@@ -369,6 +385,18 @@ See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
 
 This depends on the power plant efficiency and specific CO2 emissions
 of the energy carriers.
+
+If the generator :math:`s` at node :math:`n` has efficiency
+:math:`\eta_{n,s}` and its fuel carrier (``generator.carrier``) has
+specific emissions of :math:`e_s` (``carrier.co2_emissions``)
+CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s` then the
+CO2 constraint is
+
+.. math::
+   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} \leq  \textrm{CAP}_{CO2}
+
+where ``network.co2_limit`` is the CO2 cap. If ``network.co2_limit``
+is ``None``, no cap is implemented.
 
 
 Inputs
