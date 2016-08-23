@@ -2,6 +2,79 @@
 Release Notes
 #######################
 
+
+PyPSA 0.6.0 (23rd August 2016)
+==============================
+
+Like the 0.5.0 release, this release contains API changes, which
+complete the integration of sector coupling. You may have to update
+your old code. Models for Combined Heat and Power (CHP) units, heat
+pumps, resistive Power-to-Heat (P2H), Power-to-Gas (P2G), battery
+electric vehicles (BEVs) and chained hydro reservoirs can now be built
+(see the `sector coupling examples
+<http://www.pypsa.org/examples/#coupling-to-other-energy-sectors>`_). The
+refactoring of time-dependent variable handling has been postponed
+until the 0.7.0 release. In 0.7.0 the object interface to attributes
+may also be removed; see below.
+
+All `examples <http://www.pypsa.org/examples/>`_ have been updated to
+accommodate the changes listed below.
+
+Sector coupling
+---------------
+
+* components, opt: A new ``Store`` component has been introduced which
+  stores energy, inheriting the energy carrier from the bus to which
+  it is attached. The component is more fundamental than the
+  ``StorageUnit``, which is equivalent to a ``Store`` and two ``Link``
+  for storing and dispatching. The ``Generator`` is equivalent to a
+  ``Store`` with a lossy ``Link``. There is an `example which shows
+  the equivalences
+  <http://www.pypsa.org/examples/replace-generator-storage-units-with-store.html>`_.
+
+* components, opt: The ``Source`` component and the ``Generator``
+  attribute ``gen.source`` have been renamed ``Carrier`` and
+  ``gen.carrier``, to be consistent with the ``bus.carrier``
+  attribute. Please update your old code.
+
+* components, opt: The ``Link`` attributes ``link.s_nom*`` have been
+  renamed ``link.p_nom*`` to reflect the fact that the link can only
+  dispatch active power. Please update your old code.
+
+* components, opt: The ``TransportLink`` and ``Converter`` components,
+  which were deprecated in 0.5.0, have been now completely
+  removed. Please update your old code to use ``Link`` instead.
+
+Downgrading object interface
+----------------------------
+
+The intention is to have only the pandas DataFrame interface for
+accessing component attributes, to make the code simpler. The
+automatic generation of objects with descriptor access to attributes
+may be removed altogether.
+
+* examples: Patterns of for loops through ``network.components.obj`` have
+  been removed.
+
+* components: The methods on ``Bus`` like ``bus.generators()`` and
+  ``bus.loads()`` have been removed.
+
+* components: ``network.add()`` no longer returns the object.
+
+Other
+-----
+
+* components, opf: Unlimited upper bounds for
+  e.g. ``generator.p_nom_max`` or ``line.s_nom_max`` were previous set
+  using ``np.nan``; now they are set using ``float("inf")`` which is
+  more logical. You may have to update your old code accordingly.
+
+* components: A memory leak whereby references to
+  ``component.network`` were not being correctly deleted has been
+  fixed.
+
+
+
 PyPSA 0.5.0 (21st July 2016)
 ============================
 

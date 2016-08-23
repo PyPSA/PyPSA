@@ -454,6 +454,8 @@ class Link(Common):
     #The set point for p0.
     p_set = Series()
 
+    length = Float(default=1.0)
+    terrain_factor = Float(default=1.0)
 
 class ThreePort(Common):
     """Placeholder for 3-winding transformers."""
@@ -645,16 +647,11 @@ class Network(Basic):
         Parameters
         ----------
         class_name : string
-            Component class name
+            Component class name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Link"]
         name : string
-            Component name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Link"]
+            Component name
         kwargs
-
-        Returns
-        -------
-        obj : component class
-            Object corresponding to component
-
+            Component attributes, e.g. x=0.1,length=123
 
         Examples
         --------
@@ -700,12 +697,6 @@ class Network(Basic):
             setattr(obj,key,value)
 
 
-    def add_from(self,object_list):
-        """Add objects from a list."""
-
-        raise NotImplementedError("Batch adding of components not implemented yet.")
-
-
     def remove(self,class_name,name):
         """
         Remove a single component to the network.
@@ -721,7 +712,7 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.remove("Line","line 12345")
+        >>> network.remove("Line","my_line 12345")
 
         """
 
@@ -746,7 +737,7 @@ class Network(Basic):
     def copy(self, with_time=True):
         """
         Returns a deep copy of the Network object with all components and
-        time dependent data.
+        time-dependent data.
 
         Returns
         --------
