@@ -93,7 +93,7 @@ def define_generator_variables_constraints(network,snapshots):
     def gen_p_bounds_f(model,gen_name,snapshot):
         return gen_p_bounds[gen_name,snapshot]
 
-    network.model.generator_p = Var(network.generators.index, snapshots,
+    network.model.generator_p = Var(list(network.generators.index), snapshots,
                                     domain=Reals, bounds=gen_p_bounds_f)
 
 
@@ -104,7 +104,7 @@ def define_generator_variables_constraints(network,snapshots):
         return (extendable_gens.at[gen_name,"p_nom_min"],
                 extendable_gens.at[gen_name,"p_nom_max"])
 
-    network.model.generator_p_nom = Var(extendable_gens.index,
+    network.model.generator_p_nom = Var(list(extendable_gens.index),
                                         domain=NonNegativeReals, bounds=gen_p_nom_bounds)
 
 
@@ -124,7 +124,7 @@ def define_generator_variables_constraints(network,snapshots):
                         for sn in snapshots})
 
     l_constraint(network.model, "generator_p_lower", gen_p_lower,
-                 extendable_gens.index, snapshots)
+                 list(extendable_gens.index), snapshots)
 
 
 
@@ -143,7 +143,7 @@ def define_generator_variables_constraints(network,snapshots):
                         for sn in snapshots})
 
     l_constraint(network.model, "generator_p_upper", gen_p_upper,
-                 extendable_gens.index, snapshots)
+                 list(extendable_gens.index), snapshots)
 
 
 
@@ -165,7 +165,7 @@ def define_storage_variables_constraints(network,snapshots):
     def su_p_dispatch_bounds(model,su_name,snapshot):
         return bounds[su_name,snapshot]
 
-    network.model.storage_p_dispatch = Var(network.storage_units.index, snapshots,
+    network.model.storage_p_dispatch = Var(list(network.storage_units.index), snapshots,
                                            domain=NonNegativeReals, bounds=su_p_dispatch_bounds)
 
 
@@ -179,7 +179,7 @@ def define_storage_variables_constraints(network,snapshots):
     def su_p_store_bounds(model,su_name,snapshot):
         return bounds[su_name,snapshot]
 
-    network.model.storage_p_store = Var(network.storage_units.index, snapshots,
+    network.model.storage_p_store = Var(list(network.storage_units.index), snapshots,
                                         domain=NonNegativeReals, bounds=su_p_store_bounds)
 
     ## Define spillage variables only for hours with inflow>0. ##
@@ -207,7 +207,7 @@ def define_storage_variables_constraints(network,snapshots):
         return (ext_sus.at[su_name,"p_nom_min"],
                 ext_sus.at[su_name,"p_nom_max"])
 
-    network.model.storage_p_nom = Var(ext_sus.index, domain=NonNegativeReals,
+    network.model.storage_p_nom = Var(list(ext_sus.index), domain=NonNegativeReals,
                                       bounds=su_p_nom_bounds)
 
 
@@ -218,20 +218,20 @@ def define_storage_variables_constraints(network,snapshots):
         return (model.storage_p_dispatch[su_name,snapshot] <=
                 model.storage_p_nom[su_name]*ext_sus.at[su_name,"p_max_pu_fixed"])
 
-    network.model.storage_p_upper = Constraint(ext_sus.index,snapshots,rule=su_p_upper)
+    network.model.storage_p_upper = Constraint(list(ext_sus.index),snapshots,rule=su_p_upper)
 
 
     def su_p_lower(model,su_name,snapshot):
         return (model.storage_p_store[su_name,snapshot] <=
                 -model.storage_p_nom[su_name]*ext_sus.at[su_name,"p_min_pu_fixed"])
 
-    network.model.storage_p_lower = Constraint(ext_sus.index,snapshots,rule=su_p_lower)
+    network.model.storage_p_lower = Constraint(list(ext_sus.index),snapshots,rule=su_p_lower)
 
 
 
     ## Now define state of charge constraints ##
 
-    network.model.state_of_charge = Var(network.storage_units.index, snapshots,
+    network.model.state_of_charge = Var(list(network.storage_units.index), snapshots,
                                         domain=NonNegativeReals, bounds=(0,None))
 
     upper = {(su,sn) : [[(1,model.state_of_charge[su,sn]),
@@ -242,7 +242,7 @@ def define_storage_variables_constraints(network,snapshots):
                   for su in fix_sus.index for sn in snapshots})
 
     l_constraint(model, "state_of_charge_upper", upper,
-                 network.storage_units.index, snapshots)
+                 list(network.storage_units.index), snapshots)
 
 
     #this builds the constraint previous_soc + p_store - p_dispatch + inflow - spill == soc
@@ -289,7 +289,7 @@ def define_storage_variables_constraints(network,snapshots):
         soc[su,sn][0].append((-1.*elapsed_hours,storage_p_spill))
 
     l_constraint(model,"state_of_charge_constraint",
-                 soc,network.storage_units.index, snapshots)
+                 soc,list(network.storage_units.index), snapshots)
 
     l_constraint(model, "state_of_charge_constraint_fixed",
                  fixed_soc, list(fixed_soc.keys()))
@@ -306,7 +306,7 @@ def define_store_variables_constraints(network,snapshots):
 
     ## Define store dispatch variables ##
 
-    network.model.store_p = Var(stores.index, snapshots, domain=Reals)
+    network.model.store_p = Var(list(stores.index), snapshots, domain=Reals)
 
 
     ## Define store energy variables ##
@@ -321,7 +321,7 @@ def define_store_variables_constraints(network,snapshots):
         return bounds[store,snapshot]
 
 
-    network.model.store_e = Var(stores.index, snapshots, domain=Reals,
+    network.model.store_e = Var(list(stores.index), snapshots, domain=Reals,
                                 bounds=store_e_bounds)
 
 
@@ -331,7 +331,7 @@ def define_store_variables_constraints(network,snapshots):
         return (stores.at[store,"e_nom_min"],
                 stores.at[store,"e_nom_max"])
 
-    network.model.store_e_nom = Var(ext_stores, domain=Reals,
+    network.model.store_e_nom = Var(list(ext_stores), domain=Reals,
                                     bounds=store_e_nom_bounds)
 
 
@@ -341,13 +341,13 @@ def define_store_variables_constraints(network,snapshots):
         return (model.store_e[store,snapshot] <=
                 model.store_e_nom[store]*stores.at[store,"e_max_pu_fixed"])
 
-    network.model.store_e_upper = Constraint(ext_stores, snapshots, rule=store_e_upper)
+    network.model.store_e_upper = Constraint(list(ext_stores), snapshots, rule=store_e_upper)
 
     def store_e_lower(model,store,snapshot):
         return (model.store_e[store,snapshot] >=
                 model.store_e_nom[store]*stores.at[store,"e_min_pu_fixed"])
 
-    network.model.store_e_lower = Constraint(ext_stores, snapshots, rule=store_e_lower)
+    network.model.store_e_lower = Constraint(list(ext_stores), snapshots, rule=store_e_lower)
 
     ## Builds the constraint previous_e - p == e ##
 
@@ -373,7 +373,7 @@ def define_store_variables_constraints(network,snapshots):
 
             e[store,sn].lhs.variables.append((-elapsed_hours, model.store_p[store,sn]))
 
-    l_constraint(model,"store_constraint", e, stores.index, snapshots)
+    l_constraint(model,"store_constraint", e, list(stores.index), snapshots)
 
 
 
@@ -402,7 +402,7 @@ def define_branch_extension_variables(network,snapshots):
     def branch_p_nom_bounds(model, branch_name):
         return bounds[branch_name]
 
-    network.model.link_p_nom = Var(extendable_links.index,
+    network.model.link_p_nom = Var(list(extendable_links.index),
                                    domain=NonNegativeReals, bounds=branch_p_nom_bounds)
 
 
@@ -424,7 +424,7 @@ def define_link_flows(network,snapshots):
     def cb_p_bounds(model,cb_name,snapshot):
         return bounds[cb_name,snapshot]
 
-    network.model.link_p = Var(network.links.index,
+    network.model.link_p = Var(list(network.links.index),
                                snapshots, domain=Reals, bounds=cb_p_bounds)
 
     def cb_p_upper(model,cb_name,snapshot):
@@ -432,7 +432,7 @@ def define_link_flows(network,snapshots):
                 model.link_p_nom[cb_name]
                 * extendable_links.at[cb_name,"p_max_pu"])
 
-    network.model.link_p_upper = Constraint(extendable_links.index,snapshots,rule=cb_p_upper)
+    network.model.link_p_upper = Constraint(list(extendable_links.index),snapshots,rule=cb_p_upper)
 
 
     def cb_p_lower(model,cb_name,snapshot):
@@ -440,7 +440,7 @@ def define_link_flows(network,snapshots):
                 model.link_p_nom[cb_name]
                 * extendable_links.at[cb_name,"p_min_pu"])
 
-    network.model.link_p_lower = Constraint(extendable_links.index,snapshots,rule=cb_p_lower)
+    network.model.link_p_lower = Constraint(list(extendable_links.index),snapshots,rule=cb_p_lower)
 
 
 
@@ -459,13 +459,13 @@ def define_passive_branch_flows(network,snapshots,formulation="angles",ptdf_tole
 
 def define_passive_branch_flows_with_angles(network,snapshots):
 
-    network.model.voltage_angles = Var(network.buses.index, snapshots)
+    network.model.voltage_angles = Var(list(network.buses.index), snapshots)
 
     slack = {(sub,sn) :
              [[(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])], "==", 0.]
              for sub in network.sub_networks.index for sn in snapshots}
 
-    l_constraint(network.model,"slack_angle",slack,network.sub_networks.index,snapshots)
+    l_constraint(network.model,"slack_angle",slack,list(network.sub_networks.index),snapshots)
 
 
     passive_branches = network.passive_branches()
@@ -541,7 +541,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
                    for sub_network in network.sub_networks.obj
                    for i in range(sub_network.C.shape[1])]
 
-    network.model.cycles = Var(cycle_index, snapshots, domain=Reals, bounds=(None,None))
+    network.model.cycles = Var(list(cycle_index), snapshots, domain=Reals, bounds=(None,None))
 
     passive_branches = network.passive_branches()
 
@@ -734,7 +734,7 @@ def define_nodal_balance_constraints(network,snapshots):
     power_balance = {k: LConstraint(v,"==",LExpression()) for k,v in iteritems(network._p_balance)}
 
     l_constraint(network.model, "power_balance", power_balance,
-                 network.buses.index, snapshots)
+                 list(network.buses.index), snapshots)
 
 
 def define_sub_network_balance_constraints(network,snapshots):
@@ -749,7 +749,7 @@ def define_sub_network_balance_constraints(network,snapshots):
                 sn_balance[sub_network.name,sn].lhs.constant += network._p_balance[bus,sn].constant
 
     l_constraint(network.model,"sub_network_balance_constraint", sn_balance,
-                 network.sub_networks.index, snapshots)
+                 list(network.sub_networks.index), snapshots)
 
 
 def define_co2_constraint(network,snapshots):
