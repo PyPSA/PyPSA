@@ -541,7 +541,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
                    for sub_network in network.sub_networks.obj
                    for i in range(sub_network.C.shape[1])]
 
-    network.model.cycles = Var(list(cycle_index), snapshots, domain=Reals, bounds=(None,None))
+    network.model.cycles = Var(cycle_index, snapshots, domain=Reals, bounds=(None,None))
 
     passive_branches = network.passive_branches()
 

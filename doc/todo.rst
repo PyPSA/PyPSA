@@ -12,7 +12,7 @@ Changes which definitely will be implemented
 Redefine interface for time-varying parameters
 ----------------------------------------------
 
-These changes will be implemented in the 0.6.0 release of PyPSA in the
+These changes will be implemented in the 0.7.0 release of PyPSA in the
 late summer of 2016.
 
 The problems: At the moment component attributes are either static
@@ -143,15 +143,6 @@ Need one slack
 Generic branch impedance component
 ----------------------------------
 
-Option to separate optimisation of max state of charge from nominal power for storage
--------------------------------------------------------------------------------------
-
-For storage units, the maximum state of charge is currently fixed by
-the "max_hours" variable multiplied by the nominal power "p_nom"
-("p_nom" can be optimised). It would be nice to include the option to
-de-link p_nom and state_of_charge_max and optimise them separately
-with separate costs.
-
 
 
 Include transformer tap ratio and phase shift for trafos in linear pf
@@ -178,13 +169,6 @@ Introduced "active" switch/boolean for each component
 
 To allow easy deactivation of components without full removal.
 
-
-Include heating sector
-----------------------
-
-Along the lines of abstraction in oemof, include heat buses, with heat
-loads, gas boilers, CHP (with output to both heat and electricity
-buses), P2H, heat pumps, etc.
 
 Allow elastic demand
 --------------------

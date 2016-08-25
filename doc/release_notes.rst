@@ -3,6 +3,21 @@ Release Notes
 #######################
 
 
+PyPSA 0.6.1 (25th August 2016)
+==============================
+
+This release fixes a single critical bug:
+
+* opf: The latest version of Pyomo (4.4.1) had a bad interaction with
+  pandas when a pandas.Index was used to index variables. To fix this,
+  the indices are now cast to lists; compatibility with less recent
+  versions of Pyomo is also retained.
+
+We thank Joao Gorenstein Dedecca for promptly notifying us of this
+bug.
+
+
+
 PyPSA 0.6.0 (23rd August 2016)
 ==============================
 
