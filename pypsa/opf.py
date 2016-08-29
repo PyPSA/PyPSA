@@ -474,13 +474,13 @@ def define_passive_branch_flows_with_angles(network,snapshots):
 
     flows = {}
     for branch in passive_branches.index:
-        bus0 = passive_branches.bus0[branch]
-        bus1 = passive_branches.bus1[branch]
+        bus0 = passive_branches.at[branch,"bus0"]
+        bus1 = passive_branches.at[branch,"bus1"]
         bt = branch[0]
         bn = branch[1]
-        sub = passive_branches.sub_network[branch]
-        attribute = "r_pu" if network.sub_networks.carrier[sub] == "DC" else "x_pu"
-        y = 1/passive_branches[attribute][bt,bn]
+        sub = passive_branches.at[branch,"sub_network"]
+        attribute = "r_pu" if network.sub_networks.at[sub,"carrier"] == "DC" else "x_pu"
+        y = 1/(passive_branches.at[branch,attribute]*(passive_branches.at[branch,"tap_ratio"] if bt == "Transformer" else 1.))
         for sn in snapshots:
             lhs = LExpression([(y,network.model.voltage_angles[bus0,sn]),
                                (-y,network.model.voltage_angles[bus1,sn]),
@@ -586,7 +586,8 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
             cycle_is = sn.C[:,j].nonzero()[0]
 
             for snapshot in snapshots:
-                lhs = LExpression([(branches.at[branches.index[i],attribute]*sn.C[i,j],
+                lhs = LExpression([(branches.at[branches.index[i],attribute]*
+                                   (branches.at[branches.index[i],"tap_ratio"] if branches.index[i][0] == "Transformer" else 1.)*sn.C[i,j],
                                     network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot])
                                    for i in cycle_is])
                 cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
@@ -629,7 +630,8 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
             cycle_is = sn.C[:,j].nonzero()[0]
 
             for snapshot in snapshots:
-                lhs = LExpression([(branches.at[branches.index[i],attribute]*sn.C[i,j],
+                lhs = LExpression([(branches.at[branches.index[i],attribute]*
+                                    (branches.at[branches.index[i],"tap_ratio"] if branches.index[i][0] == "Transformer" else 1.)*sn.C[i,j],
                                     network.model.passive_branch_p[branches.index[i][0], branches.index[i][1], snapshot])
                                    for i in cycle_is])
                 cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())

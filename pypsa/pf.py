@@ -440,8 +440,10 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
     from .components import passive_branch_types
 
+    network = sub_network.network
+
     if not skip_pre:
-        calculate_dependent_values(sub_network.network)
+        calculate_dependent_values(network)
         find_bus_controls(sub_network,verbose)
 
     if sub_network.carrier == "DC":
@@ -452,8 +454,11 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
     #following leans heavily on pypower.makeBdc
 
     #susceptances
-    b = 1./np.concatenate([t.df.loc[t.ind, attribute].values
+    b = 1./np.concatenate([(t.df.loc[t.ind, attribute]*t.df.loc[t.ind, "tap_ratio"]).values if t.name == "Transformer"
+                           else t.df.loc[t.ind, attribute].values
                            for t in sub_network.iterate_components(passive_branch_types)])
+
+
     if verbose and np.isnan(b).any():
         print("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
     b_diag = csr_matrix((b, (r_[:len(b)], r_[:len(b)])))

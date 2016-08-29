@@ -345,7 +345,7 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     if int(version) != 2:
         print("Warning, importing from PYPOWER may not work if PPC version is not 2!")
 
-    print("Warning: some PYPOWER features not supported: areas, gencosts, component status, branch: ratio, phase angle")
+    print("Warning: Note that when importing from PYPOWER, some PYPOWER features not supported: areas, gencosts, component status")
 
 
     baseMVA = ppc["baseMVA"]
@@ -362,6 +362,10 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     columns = ["type","Pd","Qd","Gs","Bs","area","v_mag_pu_set","v_ang_set","v_nom","zone","v_mag_pu_max","v_mag_pu_min"]
 
     pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:len(columns)+1])
+
+    if (pdf["buses"]["v_nom"] == 0.).any():
+        print("Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1.")
+        pdf['buses'].loc[pdf['buses']['v_nom'] == 0.,'v_nom'] = 1.
 
 
     #rename controls
@@ -433,7 +437,7 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
 
     # split branches into transformers and lines
     transformers = ((v_nom != v_nom_1)
-                    # | (pdf['branches'].tap_ratio != 0)
+                    | ((pdf['branches'].tap_ratio != 0.) & (pdf['branches'].tap_ratio != 1.)) #NB: PYPOWER has strange default of 0. for tap ratio
                     | (pdf['branches'].phase_shift != 0))
     pdf['transformers'] = pd.DataFrame(pdf['branches'][transformers])
     pdf['lines'] = pdf['branches'][~ transformers].drop(["tap_ratio", "phase_shift"], axis=1)
@@ -447,6 +451,11 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     pdf['lines']["r"] = v_nom**2*pdf['lines']["r"]/baseMVA
     pdf['lines']["x"] = v_nom**2*pdf['lines']["x"]/baseMVA
     pdf['lines']["b"] = pdf['lines']["b"]*baseMVA/v_nom**2
+
+
+    if (pdf['transformers']['tap_ratio'] == 0.).any():
+        print("Warning, some transformers have a tap ratio of 0., setting the tap ratio of these to 1.")
+        pdf['transformers'].loc[pdf['transformers']['tap_ratio'] == 0.,'tap_ratio'] = 1.
 
 
     #name them nicely
