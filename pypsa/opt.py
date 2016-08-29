@@ -308,8 +308,7 @@ def empty_network(network):
     panels = {}
     for c in component_types:
         attr = c.list_name + "_t"
-        pnl = getattr(network, attr)
-        panels[attr] = pnl if pnl.empty else pd.Panel(dict(pnl))
+        panels[attr] = getattr(network, attr)
         setattr(network, attr, None)
 
     fd, fn = tempfile.mkstemp()

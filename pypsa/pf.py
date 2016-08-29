@@ -186,7 +186,7 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
                   .reindex(columns=buses_o, fill_value=0.))
                  for t in sub_network.iterate_components(controllable_one_port_types)]
                 +
-                [(- t.pnl.loc[n+str(i), snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
+                [(- t.pnl[n+str(i)].loc[snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
                   .reindex(columns=buses_o, fill_value=0))
                  for t in network.iterate_components(controllable_branch_types)
                  for i in [0,1]])
@@ -789,7 +789,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
               .reindex(columns=buses_o, fill_value=0.))
              for t in sub_network.iterate_components(one_port_types)]
             +
-            [(- t.pnl.loc["p"+str(i), snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
+            [(- t.pnl["p"+str(i)].loc[snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
               .reindex(columns=buses_o, fill_value=0))
              for t in network.iterate_components(controllable_branch_types)
              for i in [0,1]])
@@ -799,7 +799,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
 
     v_diff = np.zeros((len(snapshots), len(buses_o)))
     if len(branches_i) > 0:
-        p = network.buses_t.loc['p', snapshots, buses_o].values
+        p = network.buses_t['p'].loc[snapshots, buses_o].values
         v_diff[:,1:] = spsolve(sub_network.B[1:, 1:], p[:,1:].T).T
         flows = pd.DataFrame(v_diff * sub_network.H.T,
                              columns=branches_i, index=snapshots)
@@ -817,9 +817,9 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1.
 
     # set slack bus power to pick up remained
-    slack_adjustment = (- network.buses_t.loc['p', snapshots, buses_o[1:]].sum(axis=1)
-                        - network.buses_t.loc['p', snapshots, buses_o[0]])
-    network.buses_t.loc["p", snapshots, buses_o[0]] += slack_adjustment
+    slack_adjustment = (- network.buses_t.p.loc[snapshots, buses_o[1:]].sum(axis=1)
+                        - network.buses_t.p.loc[snapshots, buses_o[0]])
+    network.buses_t.p.loc[snapshots, buses_o[0]] += slack_adjustment
 
     # let slack generator take up the slack
     if sub_network.slack_generator is not None:

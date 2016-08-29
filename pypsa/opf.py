@@ -118,7 +118,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_lower.update({(gen,sn) :
                         [[(1,network.model.generator_p[gen,sn]),
-                          (-network.generators_t.at["p_min_pu",sn,gen],
+                          (-network.generators_t["p_min_pu"].at[sn,gen],
                            network.model.generator_p_nom[gen])], ">=",0.]
                         for gen in extendable_var_gens.index
                         for sn in snapshots})
@@ -137,7 +137,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_upper.update({(gen,sn) :
                         [[(1,network.model.generator_p[gen,sn]),
-                          (-network.generators_t.at["p_max_pu",sn,gen],
+                          (-network.generators_t["p_max_pu"].at[sn,gen],
                            network.model.generator_p_nom[gen])],"<=",0.]
                         for gen in extendable_var_gens.index
                         for sn in snapshots})
@@ -269,7 +269,7 @@ def define_storage_variables_constraints(network,snapshots):
                                       previous_state_of_charge))
 
 
-            state_of_charge = network.storage_units_t.at["state_of_charge_set",sn,su]
+            state_of_charge = network.storage_units_t["state_of_charge_set"].at[sn,su]
             if pd.isnull(state_of_charge):
                 state_of_charge = model.state_of_charge[su,sn]
                 soc[su,sn][0].append((-1,state_of_charge))
@@ -282,7 +282,7 @@ def define_storage_variables_constraints(network,snapshots):
                                   * elapsed_hours,model.storage_p_store[su,sn]))
             soc[su,sn][0].append((-(1/sus.at[su,"efficiency_dispatch"]) * elapsed_hours,
                                   model.storage_p_dispatch[su,sn]))
-            soc[su,sn][2] -= network.storage_units_t.at["inflow",sn,su] * elapsed_hours
+            soc[su,sn][2] -= network.storage_units_t["inflow"].at[sn,su] * elapsed_hours
 
     for su,sn in spill_index:
         storage_p_spill = model.storage_p_spill[su,sn]
@@ -703,7 +703,7 @@ def define_nodal_balances(network,snapshots):
         bus = network.loads.bus[load]
         sign = network.loads.sign[load]
         for sn in snapshots:
-            network._p_balance[bus,sn].constant += sign*network.loads_t.at["p_set",sn,load]
+            network._p_balance[bus,sn].constant += sign*network.loads_t["p_set"].at[sn,load]
 
     for su in network.storage_units.index:
         bus = network.storage_units.bus[su]

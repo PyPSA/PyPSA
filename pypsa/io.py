@@ -127,24 +127,23 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
     for key, od in network.component_series_descriptors.items():
         if key.list_name in excluded_components:
             continue
+        df = getattr(network,key.list_name)
         pnl = getattr(network,key.list_name+"_t")
-        if pnl.empty:
-            if verbose:
-                print("No",key.list_name+"_t")
+        if df.empty:
             continue
         for attr in pnl:
             if attr not in od:
-                col_export = pnl.minor_axis
+                col_export = pnl[attr].columns
             else:
                 default = od[attr].default
 
                 if pd.isnull(default):
-                    col_export = pnl.minor_axis[(~pd.isnull(pnl[attr])).any()]
+                    col_export = pnl[attr].columns[(~pd.isnull(pnl[attr])).any()]
                 else:
-                    col_export = pnl.minor_axis[(pnl[attr] != default).any()]
+                    col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
             if len(col_export) > 0:
-                pnl.loc[attr,:,col_export].to_csv(os.path.join(csv_folder_name,key.list_name+"-" + attr + ".csv"),encoding=encoding)
+                pnl[attr].loc[:,col_export].to_csv(os.path.join(csv_folder_name,key.list_name+"-" + attr + ".csv"),encoding=encoding)
 
 
 
@@ -208,10 +207,9 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     pnl = getattr(network,cls.list_name+"_t")
 
-    pnl = pnl.reindex(minor_axis=pnl.minor_axis.append(dataframe.index))
-
     for k,v in network.component_series_descriptors[cls].items():
-        pnl.loc[k,:,dataframe.index] = v.default
+        pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(dataframe.index))
+        pnl[k].loc[:,dataframe.index] = v.default
         if k in series_attrs:
             pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
@@ -241,7 +239,7 @@ def import_series_from_dataframe(network,dataframe,cls_name,attr):
 
     pnl = getattr(network,cls.list_name+"_t")
 
-    pnl.loc[attr].loc[:,dataframe.columns] = dataframe
+    pnl[attr].loc[:,dataframe.columns] = dataframe
 
 def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     """

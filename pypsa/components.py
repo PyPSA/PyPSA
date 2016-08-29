@@ -22,7 +22,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division, absolute_import
 import six
-from six import iteritems
+from six import iteritems, itervalues, iterkeys
 from six.moves import map
 from weakref import ref
 
@@ -47,7 +47,7 @@ except ValueError:
 
 from .descriptors import (Float, String, Series, Integer, Boolean,
                           get_simple_descriptors,
-                          get_series_descriptors)
+                          get_series_descriptors, Dict)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe)
@@ -596,11 +596,11 @@ class Network(Basic):
 
             setattr(self,cls.list_name,df)
 
-            pnl = pd.Panel(items=self.component_series_descriptors[cls].keys(),
-                           major_axis=self.snapshots,
-                           minor_axis=getattr(self,cls.list_name).index,
-                           #it's currently hard to image non-float series, but this should be generalised
-                           dtype=float)
+            pnl = Dict({k : pd.DataFrame(index=self.snapshots,
+                                         columns=getattr(self,cls.list_name).index,
+                                         #it's currently hard to imagine non-float series, but this could be generalised
+                                         dtype=float)
+                        for k in  self.component_series_descriptors[cls].keys()})
 
             setattr(self,cls.list_name+"_t",pnl)
 
@@ -630,12 +630,10 @@ class Network(Basic):
 
         for cls in component_types:
             pnl = getattr(self,cls.list_name+"_t")
-            pnl = pnl.reindex(major_axis=self.snapshots)
 
             for k,v in self.component_series_descriptors[cls].items():
-                pnl.loc[k,snapshots,:] = pnl.loc[k,self.snapshots,:].fillna(v.default)
-
-            setattr(self,cls.list_name+"_t",pnl)
+                pnl[k] = pnl[k].reindex(self.snapshots)
+                pnl[k].loc[snapshots,:] = pnl[k].loc[self.snapshots,:].fillna(v.default)
 
 
     def add(self,class_name,name,**kwargs):
@@ -685,12 +683,9 @@ class Network(Basic):
         #now deal with time-dependent variables
         pnl = getattr(self,cls.list_name+"_t")
 
-        pnl = pnl.reindex(minor_axis=pnl.minor_axis.append(pd.Index([obj.name])))
-
-        setattr(self,cls.list_name+"_t",pnl)
-
         for k,v in iteritems(self.component_series_descriptors[cls]):
-            pnl.loc[k,:,obj.name] = v.default
+            pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(pd.Index([obj.name])))
+            pnl[k].loc[:,obj.name] = v.default
 
 
         for key,value in iteritems(kwargs):
@@ -730,7 +725,8 @@ class Network(Basic):
 
         pnl = getattr(self,cls.list_name+"_t")
 
-        pnl.drop(name,axis=2,inplace=True)
+        for df in itervalues(pnl):
+            df.drop(name,axis=1,inplace=True)
 
         del obj
 
@@ -758,7 +754,9 @@ class Network(Basic):
         if with_time:
             network.set_snapshots(self.snapshots)
             for component in self.iterate_components():
-                setattr(network, component.typ.list_name+"_t", component.pnl.copy())
+                pnl = getattr(network, component.typ.list_name+"_t")
+                for k in iterkeys(component.pnl):
+                    pnl[k] = component.pnl[k].copy()
 
         #catch all remaining attributes of network
         for attr in ["now","co2_limit","srid"]:
