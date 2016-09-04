@@ -1,5 +1,5 @@
 
-% Can anyone get circuitikz working with sphinz?
+% Can anyone get circuitikz working with sphinx?
 
 % Vanilla tikz was straightforward thanks to:
 % https://bitbucket.org/philexander/tikz
@@ -40,6 +40,75 @@
   \draw (9.5,11) node{$g_{n,s}$};
   \draw (8,10.3) node{$g_{n,w} + g_{n,s} - d_n =  - f_2 - f_3$};
 
+\end{circuitikz}
+
+\vspace{2cm}
+
+
+
+\begin{circuitikz}[scale=1.2]
+  \draw
+  (0,0)
+  to [open, v>=$v_0$] (0,4)
+  to [short,i^=$i_0$,o-*] (2,4)
+  to [R=$\frac{y}{2}$, -*] (2,0)
+  to [short,*-o] (0,0)
+
+  (2,4)
+  to [short] (3,4)
+  to [R=$z$] (4,4)
+  to [short] (5,4)
+  to [R=$\frac{y}{2}$, -*] (5,0)
+  to [short] (2,0)
+
+  (5,0)
+  to [short,*-o] (7,0)
+  to [open, v^>=$v_1$] (7,4)
+  to [short,i_=$i_1$,o-*] (5,4)
+  ;
+\end{circuitikz}
+
+\vspace{2cm}
+
+
+\begin{circuitikz}[scale=1.2]
+
+  \draw (-3,0)
+  to [open, v>=$v_0$] (-3,4)
+  to [short,i^=$i_0$,o-*] (-1,4) ;
+
+  \draw (-1,0) to [short,*-o] (-3,0);
+
+
+  \draw (-1,4 ) to [american inductor] (-1,0) ;
+
+  \draw (0,0 ) to [american inductor] (0,4) ;
+
+  \draw (-0.5,-0.5) node{$N = \tau e^{j\theta_{shift}}$};
+
+  \draw (0.8,2) node{$v_2 =  \frac{v_0}{N}$};
+
+  \draw (1,4.2) node{$i_2 = N^*i_0$};
+
+  \draw
+  (0,0)
+  to [open, v>=$$] (0,4)
+  to [short,i^=$$,*-*] (2,4)
+  to [R=$\frac{y}{2}$, -*] (2,0)
+  to [short,*-*] (0,0)
+
+  (2,4)
+  to [short] (3,4)
+  to [R=$z$] (4,4)
+  to [short] (5,4)
+  to [R=$\frac{y}{2}$, -*] (5,0)
+  to [short] (2,0)
+
+  (5,0)
+  to [short,*-o] (7,0)
+  to [open, v^>=$v_1$] (7,4)
+  to [short,i_=$i_1$,o-*] (5,4)
+  ;
 \end{circuitikz}
 
 

@@ -68,6 +68,9 @@ These equations :math:`f(x) = 0` are solved using the `Newton-Raphson method <ht
 and the initial "flat" guess of :math:`\theta_i = 0` and :math:`|V_i| = 1` for unknown quantities.
 
 
+
+.. _branch-model:
+
 Branch model
 ------------
 
@@ -83,7 +86,30 @@ and the shunt admittance is given by
 .. math::
    y = g + jb
 
-then the currents and voltages at buses 0 and 1 are related by
+then the currents and voltages at buses 0 and 1 for a line:
+
+
+.. image:: img/line-equivalent.png
+
+are related by
+
+.. math::
+  \left( \begin{array}{c}
+    i_0 \\ i_1
+  \end{array}
+  \right) =   \left( \begin{array}{cc} \frac{1}{z} + \frac{y}{2} &      -\frac{1}{z}  \\
+   -\frac{1}{z} & \frac{1}{z} + \frac{y}{2}
+   \end{array}
+   \right)  \left( \begin{array}{c}
+    v_0 \\ v_1
+  \end{array}
+    \right)
+
+For a transformer with tap ratio :math:`\tau` between the per unit voltages bus0:bus1 and phase shift :math:`\theta`:
+
+.. image:: img/transformer-equivalent.png
+
+the currents and voltages are related by:
 
 .. math::
   \left( \begin{array}{c}
@@ -97,7 +123,6 @@ then the currents and voltages at buses 0 and 1 are related by
   \end{array}
     \right)
 
-where :math:`\tau` is the tap ratio between the per unit voltages bus0:bus1 and :math:`\theta` is the phase shift in the transformer.
 
 
 

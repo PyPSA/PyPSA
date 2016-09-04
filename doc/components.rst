@@ -239,6 +239,7 @@ Line
 
 A transmission line connected line.bus0 to line.bus1. Can be DC or AC.
 
+To see how the impedances are used in the power flow, see :ref:`branch-model`.
 
 .. csv-table::
    :header-rows: 1
@@ -249,6 +250,8 @@ Transformer
 ------------
 
 Converts from one AC voltage level to another.
+
+To see how the impedances are used in the power flow, see :ref:`branch-model`.
 
 
 .. csv-table::

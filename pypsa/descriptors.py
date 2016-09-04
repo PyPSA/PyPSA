@@ -214,12 +214,12 @@ class Series(object):
         self.default = default
 
     def __get__(self, obj, cls):
-        return getattr(obj.network, obj.__class__.list_name+"_t").loc[self.name,:,obj.name]
+        return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
 
     def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
-            getattr(obj.network,obj.__class__.list_name+"_t").loc[self.name,:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
+            getattr(obj.network,obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
         except AttributeError:
             print("count not assign",val,"to series")
 
