@@ -42,6 +42,8 @@ import collections, six
 from itertools import chain
 import time
 
+from .descriptors import get_switchable_as_dense
+
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = [network.now]
@@ -177,7 +179,8 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
         for t in sub_network.iterate_components(controllable_one_port_types):
-            t.pnl[n].loc[snapshots, t.ind] = t.pnl[n+"_set"].loc[snapshots, t.ind]
+            t_n_set = get_switchable_as_dense(network, t.typ, n + '_set', snapshots, t.ind)
+            t.pnl[n].loc[snapshots, t.ind] = t_n_set
 
         # set the power injection at each node from controllable components
         network.buses_t[n].loc[snapshots, buses_o] = \
@@ -780,7 +783,8 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
 
     # allow all one ports to dispatch as set
     for t in sub_network.iterate_components(controllable_one_port_types):
-        t.pnl.p.loc[snapshots, t.ind] = t.pnl.p_set.loc[snapshots, t.ind]
+        t_p_set = get_switchable_as_dense(network, t.typ, 'p_set', snapshots, t.ind)
+        t.pnl.p.loc[snapshots, t.ind] = t_p_set
 
     # set the power injection at each node
     network.buses_t.p.loc[snapshots, buses_o] = \

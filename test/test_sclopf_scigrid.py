@@ -29,11 +29,11 @@ def test_sclopf():
 
     network.sclopf(branch_outages=branch_outages)
 
-
-
     #For the PF, set the P to the optimised P
-    network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now]
-    network.storage_units_t.p_set.loc[network.now] = network.storage_units_t.p.loc[network.now]
+    network.generators_t.p_set = network.generators_t.p.copy()
+    network.generators.loc[:,'p_set_t'] = True
+    network.storage_units_t.p_set = network.storage_units_t.p.copy()
+    network.storage_units.loc[:,'p_set_t'] = True
 
     #Check no lines are overloaded with the linear contingency analysis
 

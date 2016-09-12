@@ -22,7 +22,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 from __future__ import absolute_import
-from six import iteritems
+from six import iteritems, string_types
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
@@ -40,6 +40,7 @@ from collections import OrderedDict
 
 import networkx as nx
 import pandas as pd
+import numpy as np
 import re
 
 import inspect
@@ -214,19 +215,29 @@ class Series(object):
         self.default = default
 
     def __get__(self, obj, cls):
-        return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
+        switch_attr = self.name + "_t"
+        if (switch_attr in obj.network.component_simple_descriptors[obj.__class__] and
+            not getattr(obj.network, obj.__class__.list_name).at[obj.name, switch_attr]):
+            return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
+        else:
+            return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
 
     def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
-            getattr(obj.network,obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
+            switch_attr = self.name + "_t"
+            if (switch_attr in obj.network.component_simple_descriptors[obj.__class__] and
+                not getattr(obj.network, obj.__class__.list_name).at[obj.name, switch_attr]):
+                getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name] = self.dtype(val)
+            else:
+                getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
         except AttributeError:
             print("count not assign",val,"to series")
 
 
 
 
-def get_descriptors(cls,allowed_descriptors=[]):
+def get_descriptors(cls, allowed_descriptors=[]):
     d = OrderedDict()
 
     mro = list(inspect.getmro(cls))
@@ -249,3 +260,29 @@ def get_simple_descriptors(cls):
 
 def get_series_descriptors(cls):
     return get_descriptors(cls,[Series])
+
+def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
+    switch = attr + '_t'
+    if isinstance(component, string_types):
+        from . import components
+        component = getattr(components, component)
+    assert switch in network.component_simple_descriptors[component], "`{}` needs to have a boolean descriptor called `{}`".format(obj.__name__, switch)
+
+    df = getattr(network, component.list_name)
+    pnl = getattr(network, component.list_name + '_t')
+
+    index = df.index
+    varying_i = index[df.loc[:, switch]]
+    fixed_i = index[~ df.loc[:, switch]]
+    index = df.index
+    if inds is not None:
+        index = index.intersection(inds)
+        varying_i = varying_i.intersection(inds)
+        fixed_i = fixed_i.intersection(inds)
+    if snapshots is None:
+        snapshots = network.snapshots
+    return (pd.concat([
+        pd.DataFrame(np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
+                     index=snapshots, columns=fixed_i),
+        pnl[attr].loc[snapshots, varying_i]
+    ], axis=1).reindex(columns=index))

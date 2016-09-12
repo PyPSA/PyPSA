@@ -116,6 +116,10 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
                 continue
             if col in od and (df[col] == od[col].default).all():
                 continue
+            series_descriptors = network.component_series_descriptors[key]
+            if (col + '_t' in od and col in series_descriptors
+                and (df[col] == series_descriptors[col].default).all()):
+                continue
 
             col_export.append(col)
 
@@ -173,13 +177,15 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     cls = getattr(pypsa.components,cls_name)
 
-    simple_attrs = set(network.component_simple_descriptors[cls].keys()) & set(dataframe.columns)
-    series_attrs = set(network.component_series_descriptors[cls].keys()) & set(dataframe.columns)
+    simple_descriptors = network.component_simple_descriptors[cls]
+    series_descriptors = network.component_series_descriptors[cls]
+
+    simple_attrs = set(simple_descriptors) & set(dataframe.columns)
+    series_attrs = set(series_descriptors) & set(dataframe.columns)
     string_attrs = {"bus","bus0","bus1","carrier"} & set(dataframe.columns)
 
     for col in string_attrs:
-        dataframe[col] = [str(v) for v in dataframe[col]]
-
+        dataframe[col] = dataframe[col].astype(str)
 
     old_df = getattr(network,cls.list_name)
 
@@ -189,9 +195,9 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         print("Error, new components for",cls_name,"are not unique")
         return
 
-    for k,v in network.component_simple_descriptors[cls].items():
+    for k, v in iteritems(simple_descriptors):
         if k not in simple_attrs:
-            new_df.loc[dataframe.index,k] = v.default
+            new_df.loc[dataframe.index, k] = v.default
 
         #This is definitely necessary to avoid boolean bugs - should
         #we also do this for other types?
@@ -207,11 +213,21 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     pnl = getattr(network,cls.list_name+"_t")
 
-    for k,v in network.component_series_descriptors[cls].items():
-        pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(dataframe.index))
-        pnl[k].loc[:,dataframe.index] = v.default
-        if k in series_attrs:
-            pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
+    for k, v in iteritems(series_descriptors):
+        switch_attr = k + '_t'
+        if switch_attr in simple_descriptors:
+            new_df.loc[dataframe.index, k] = (dataframe.loc[:,k].values
+                                              if k in series_attrs
+                                              else v.default)
+            index = new_df.index[new_df.loc[dataframe.index, switch_attr]]
+        else:
+            index = dataframe.index
+
+        pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(index))
+        if len(index):
+            pnl[k].loc[:,index] = (dataframe.loc[index,k].values
+                                   if k in series_attrs
+                                   else v.default)
 
     setattr(network,cls.list_name+"_t",pnl)
 
@@ -239,7 +255,21 @@ def import_series_from_dataframe(network,dataframe,cls_name,attr):
 
     pnl = getattr(network,cls.list_name+"_t")
 
-    pnl[attr].loc[:,dataframe.columns] = dataframe
+    columns = dataframe.columns
+    switch_attr = attr + '_t'
+    if switch_attr in network.component_simple_descriptors[cls]:
+        df = getattr(network,cls.list_name)
+        off = columns.difference(df.index[df[switch_attr]])
+
+        if len(off):
+            # there are components in the dataframe which are marked
+            # as not time-dependent, we set them time-dependent
+            df.loc[off, switch_attr] = True
+            pnl[attr] = (pd.concat((pnl[attr], dataframe.loc[:,off]), axis=1)
+                         .reindex(columns=df.index[df[switch_attr]]))
+            columns = columns.difference(off)
+
+    pnl[attr].loc[:,columns] = dataframe.loc[:,columns]
 
 def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     """

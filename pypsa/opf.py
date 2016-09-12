@@ -47,6 +47,7 @@ from .pf import (calculate_dependent_values, find_slack_bus,
                  find_cycles)
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_and_network_before_solving)
+from .descriptors import get_switchable_as_dense
 
 
 
@@ -59,36 +60,25 @@ def network_opf(network,snapshots=None):
 
 def define_generator_variables_constraints(network,snapshots):
 
-    extendable_gens = network.generators[network.generators.p_nom_extendable]
+    extendable_gens_i = network.generators.index[network.generators.p_nom_extendable]
+    fixed_gens_i = network.generators.index[~ network.generators.p_nom_extendable]
 
-    fixed_gens = network.generators[~ network.generators.p_nom_extendable]
-
-    fixed_var_gens = fixed_gens[fixed_gens.dispatch == "variable"]
-    fixed_flex_gens = fixed_gens[fixed_gens.dispatch == "flexible"]
-
-    extendable_var_gens = extendable_gens[extendable_gens.dispatch == "variable"]
-    extendable_flex_gens = extendable_gens[extendable_gens.dispatch == "flexible"]
-
+    p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu')
+    p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu')
 
     ## Define generator dispatch variables ##
 
     gen_p_bounds = {(gen,sn) : (None,None)
-                    for gen in extendable_gens.index
+                    for gen in extendable_gens_i
                     for sn in snapshots}
 
-    var_lower = network.generators_t.p_min_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
-    var_upper = network.generators_t.p_max_pu[fixed_var_gens.index].multiply(fixed_var_gens.p_nom)
+    if len(fixed_gens_i):
+        var_lower = p_min_pu.loc[:,fixed_gens_i].multiply(network.generators.loc[fixed_gens_i, 'p_nom'])
+        var_upper = p_max_pu.loc[:,fixed_gens_i].multiply(network.generators.loc[fixed_gens_i, 'p_nom'])
 
-    gen_p_bounds.update({(gen,sn) : (var_lower[gen][sn],var_upper[gen][sn])
-                         for gen in fixed_var_gens.index
-                         for sn in snapshots})
-
-    flex_lower = fixed_flex_gens["p_nom"]*fixed_flex_gens.p_min_pu_fixed
-    flex_upper = fixed_flex_gens["p_nom"]*fixed_flex_gens.p_max_pu_fixed
-    gen_p_bounds.update({(gen,sn) : (flex_lower[gen],flex_upper[gen])
-                         for gen in fixed_flex_gens.index
-                         for sn in snapshots})
-
+        gen_p_bounds.update({(gen,sn) : (var_lower[gen][sn],var_upper[gen][sn])
+                             for gen in fixed_gens_i
+                             for sn in snapshots})
 
     def gen_p_bounds_f(model,gen_name,snapshot):
         return gen_p_bounds[gen_name,snapshot]
@@ -96,15 +86,13 @@ def define_generator_variables_constraints(network,snapshots):
     network.model.generator_p = Var(list(network.generators.index), snapshots,
                                     domain=Reals, bounds=gen_p_bounds_f)
 
-
-
     ## Define generator capacity variables if generator is extendable ##
 
     def gen_p_nom_bounds(model, gen_name):
-        return (extendable_gens.at[gen_name,"p_nom_min"],
-                extendable_gens.at[gen_name,"p_nom_max"])
+        return (network.generators.at[gen_name,"p_nom_min"],
+                network.generators.at[gen_name,"p_nom_max"])
 
-    network.model.generator_p_nom = Var(list(extendable_gens.index),
+    network.model.generator_p_nom = Var(list(extendable_gens_i),
                                         domain=NonNegativeReals, bounds=gen_p_nom_bounds)
 
 
@@ -112,55 +100,39 @@ def define_generator_variables_constraints(network,snapshots):
 
     gen_p_lower = {(gen,sn) :
                    [[(1,network.model.generator_p[gen,sn]),
-                     (-extendable_flex_gens.at[gen,"p_min_pu_fixed"],
+                     (-p_min_pu.at[sn, gen],
                       network.model.generator_p_nom[gen])],">=",0.]
-                   for gen in extendable_flex_gens.index for sn in snapshots}
-
-    gen_p_lower.update({(gen,sn) :
-                        [[(1,network.model.generator_p[gen,sn]),
-                          (-network.generators_t["p_min_pu"].at[sn,gen],
-                           network.model.generator_p_nom[gen])], ">=",0.]
-                        for gen in extendable_var_gens.index
-                        for sn in snapshots})
-
+                   for gen in extendable_gens_i for sn in snapshots}
     l_constraint(network.model, "generator_p_lower", gen_p_lower,
-                 list(extendable_gens.index), snapshots)
-
-
+                 list(extendable_gens_i), snapshots)
 
     gen_p_upper = {(gen,sn) :
                    [[(1,network.model.generator_p[gen,sn]),
-                     (-extendable_flex_gens.at[gen,"p_max_pu_fixed"],
+                     (-p_max_pu.at[sn, gen],
                       network.model.generator_p_nom[gen])],"<=",0.]
-                   for gen in extendable_flex_gens.index
-                   for sn in snapshots}
-
-    gen_p_upper.update({(gen,sn) :
-                        [[(1,network.model.generator_p[gen,sn]),
-                          (-network.generators_t["p_max_pu"].at[sn,gen],
-                           network.model.generator_p_nom[gen])],"<=",0.]
-                        for gen in extendable_var_gens.index
-                        for sn in snapshots})
-
+                   for gen in extendable_gens_i for sn in snapshots}
     l_constraint(network.model, "generator_p_upper", gen_p_upper,
-                 list(extendable_gens.index), snapshots)
+                 list(extendable_gens_i), snapshots)
 
 
 
 def define_storage_variables_constraints(network,snapshots):
 
     sus = network.storage_units
-    ext_sus = sus[sus.p_nom_extendable]
-    fix_sus = sus[~ sus.p_nom_extendable]
+    ext_sus_i = sus.index[sus.p_nom_extendable]
+    fix_sus_i = sus.index[~ sus.p_nom_extendable]
 
     model = network.model
 
     ## Define storage dispatch variables ##
 
-    bounds = {(su,sn) : (0,None) for su in ext_sus.index for sn in snapshots}
+    p_max_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_max_pu')
+    p_min_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_min_pu')
+
+    bounds = {(su,sn) : (0,None) for su in ext_sus_i for sn in snapshots}
     bounds.update({(su,sn) :
-                   (0,fix_sus.at[su,"p_nom"]*fix_sus.at[su,"p_max_pu_fixed"])
-                   for su in fix_sus.index for sn in snapshots})
+                   (0,sus.at[su,"p_nom"]*p_max_pu.at[sn, su])
+                   for su in fix_sus_i for sn in snapshots})
 
     def su_p_dispatch_bounds(model,su_name,snapshot):
         return bounds[su_name,snapshot]
@@ -170,10 +142,10 @@ def define_storage_variables_constraints(network,snapshots):
 
 
 
-    bounds = {(su,sn) : (0,None) for su in ext_sus.index for sn in snapshots}
+    bounds = {(su,sn) : (0,None) for su in ext_sus_i for sn in snapshots}
     bounds.update({(su,sn) :
-                   (0,-fix_sus.at[su,"p_nom"]*fix_sus.at[su,"p_min_pu_fixed"])
-                   for su in fix_sus.index
+                   (0,-sus.at[su,"p_nom"]*p_min_pu.at[sn, su])
+                   for su in fix_sus_i
                    for sn in snapshots})
 
     def su_p_store_bounds(model,su_name,snapshot):
@@ -185,12 +157,12 @@ def define_storage_variables_constraints(network,snapshots):
     ## Define spillage variables only for hours with inflow>0. ##
 
     inflow = network.storage_units_t.inflow
-    spill_sus = sus[inflow.max()>0] #skip storage units without any inflow
-    inflow_gt0 = inflow>0
+    spill_sus_i = sus.index[inflow.max()>0] #skip storage units without any inflow
+    inflow_gt0_b = inflow>0
     spill_bounds = {(su,sn) : (0,inflow.at[sn,su])
-                    for su in spill_sus.index
+                    for su in spill_sus_i
                     for sn in snapshots
-                    if inflow_gt0.at[sn,su]}
+                    if inflow_gt0_b.at[sn,su]}
     spill_index = spill_bounds.keys()
 
     def su_p_spill_bounds(model,su_name,snapshot):
@@ -204,10 +176,10 @@ def define_storage_variables_constraints(network,snapshots):
     ## Define generator capacity variables if generator is extendable ##
 
     def su_p_nom_bounds(model, su_name):
-        return (ext_sus.at[su_name,"p_nom_min"],
-                ext_sus.at[su_name,"p_nom_max"])
+        return (sus.at[su_name,"p_nom_min"],
+                sus.at[su_name,"p_nom_max"])
 
-    network.model.storage_p_nom = Var(list(ext_sus.index), domain=NonNegativeReals,
+    network.model.storage_p_nom = Var(list(ext_sus_i), domain=NonNegativeReals,
                                       bounds=su_p_nom_bounds)
 
 
@@ -216,16 +188,16 @@ def define_storage_variables_constraints(network,snapshots):
 
     def su_p_upper(model,su_name,snapshot):
         return (model.storage_p_dispatch[su_name,snapshot] <=
-                model.storage_p_nom[su_name]*ext_sus.at[su_name,"p_max_pu_fixed"])
+                model.storage_p_nom[su_name]*p_max_pu.at[snapshot, su_name])
 
-    network.model.storage_p_upper = Constraint(list(ext_sus.index),snapshots,rule=su_p_upper)
+    network.model.storage_p_upper = Constraint(list(ext_sus_i),snapshots,rule=su_p_upper)
 
 
     def su_p_lower(model,su_name,snapshot):
         return (model.storage_p_store[su_name,snapshot] <=
-                -model.storage_p_nom[su_name]*ext_sus.at[su_name,"p_min_pu_fixed"])
+                -model.storage_p_nom[su_name]*p_min_pu.at[snapshot, su_name])
 
-    network.model.storage_p_lower = Constraint(list(ext_sus.index),snapshots,rule=su_p_lower)
+    network.model.storage_p_lower = Constraint(list(ext_sus_i),snapshots,rule=su_p_lower)
 
 
 
@@ -235,11 +207,11 @@ def define_storage_variables_constraints(network,snapshots):
                                         domain=NonNegativeReals, bounds=(0,None))
 
     upper = {(su,sn) : [[(1,model.state_of_charge[su,sn]),
-                         (-ext_sus.at[su,"max_hours"],model.storage_p_nom[su])],"<=",0.]
-             for su in ext_sus.index for sn in snapshots}
+                         (-sus.at[su,"max_hours"],model.storage_p_nom[su])],"<=",0.]
+             for su in ext_sus_i for sn in snapshots}
     upper.update({(su,sn) : [[(1,model.state_of_charge[su,sn])],"<=",
-                             fix_sus.at[su,"max_hours"]*fix_sus.at[su,"p_nom"]]
-                  for su in fix_sus.index for sn in snapshots})
+                             sus.at[su,"max_hours"]*sus.at[su,"p_nom"]]
+                  for su in fix_sus_i for sn in snapshots})
 
     l_constraint(model, "state_of_charge_upper", upper,
                  list(network.storage_units.index), snapshots)
@@ -408,18 +380,20 @@ def define_branch_extension_variables(network,snapshots):
 
 def define_link_flows(network,snapshots):
 
-    extendable_links = network.links[network.links.p_nom_extendable]
+    extendable_links_i = network.links.index[network.links.p_nom_extendable]
 
-    fixed_links = network.links[~ network.links.p_nom_extendable]
+    fixed_links_i = network.links.index[~ network.links.p_nom_extendable]
 
-    fixed_lower = fixed_links.p_min_pu*fixed_links.p_nom
+    p_max_pu = get_switchable_as_dense(network, 'Link', 'p_max_pu')
+    p_min_pu = get_switchable_as_dense(network, 'Link', 'p_min_pu')
 
-    fixed_upper = fixed_links.p_max_pu*fixed_links.p_nom
+    fixed_lower = p_min_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
+    fixed_upper = p_max_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
 
-    bounds = {(cb,sn) : (fixed_lower[cb],fixed_upper[cb])
-              for cb in fixed_links.index for sn in snapshots}
+    bounds = {(cb,sn) : (fixed_lower.at[sn, cb],fixed_upper.at[sn, cb])
+              for cb in fixed_links_i for sn in snapshots}
     bounds.update({(cb,sn) : (None,None)
-                   for cb in extendable_links.index for sn in snapshots})
+                   for cb in extendable_links_i for sn in snapshots})
 
     def cb_p_bounds(model,cb_name,snapshot):
         return bounds[cb_name,snapshot]
@@ -430,17 +404,17 @@ def define_link_flows(network,snapshots):
     def cb_p_upper(model,cb_name,snapshot):
         return (model.link_p[cb_name,snapshot] <=
                 model.link_p_nom[cb_name]
-                * extendable_links.at[cb_name,"p_max_pu"])
+                * p_max_pu.at[snapshot, cb_name])
 
-    network.model.link_p_upper = Constraint(list(extendable_links.index),snapshots,rule=cb_p_upper)
+    network.model.link_p_upper = Constraint(list(extendable_links_i),snapshots,rule=cb_p_upper)
 
 
     def cb_p_lower(model,cb_name,snapshot):
         return (model.link_p[cb_name,snapshot] >=
                 model.link_p_nom[cb_name]
-                * extendable_links.at[cb_name,"p_min_pu"])
+                * p_min_pu.at[snapshot, cb_name])
 
-    network.model.link_p_lower = Constraint(list(extendable_links.index),snapshots,rule=cb_p_lower)
+    network.model.link_p_lower = Constraint(list(extendable_links_i),snapshots,rule=cb_p_lower)
 
 
 
@@ -699,11 +673,12 @@ def define_nodal_balances(network,snapshots):
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.generator_p[gen,sn]))
 
+    load_p_set = get_switchable_as_dense(network, 'Load', 'p_set')
     for load in network.loads.index:
         bus = network.loads.bus[load]
         sign = network.loads.sign[load]
         for sn in snapshots:
-            network._p_balance[bus,sn].constant += sign*network.loads_t["p_set"].at[sn,load]
+            network._p_balance[bus,sn].constant += sign*load_p_set.at[sn,load]
 
     for su in network.storage_units.index:
         bus = network.storage_units.bus[su]
@@ -891,7 +866,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         set_from_series(network.stores_t.e, as_series(model.store_e))
 
     if len(network.loads):
-        network.loads_t["p"].loc[snapshots] = network.loads_t["p_set"].loc[snapshots]
+        load_p_set = get_switchable_as_dense(network, 'Load', 'p_set')
+        network.loads_t["p"].loc[snapshots] = load_p_set.loc[snapshots]
 
     if len(network.buses):
         network.buses_t.p.loc[snapshots] = \

@@ -164,8 +164,6 @@ class Generator(OnePort):
 
     list_name = "generators"
 
-    dispatch = String(default="flexible",restricted=["variable","flexible","inflexible"])
-
     control = String(default="PQ",restricted=["PQ","PV","Slack"])
 
     #i.e. coal, CCGT, onshore wind, PV, CSP,....
@@ -179,7 +177,6 @@ class Generator(OnePort):
 
     #technical potential
     p_nom_max = Float(inf)
-
     p_nom_min = Float(0.0)
 
     #optimised capacity
@@ -192,25 +189,21 @@ class Generator(OnePort):
     #power limits for variable generators, which can change e.g. due
     #to weather conditions; per unit to ease multiplication with
     #p_nom, which may be optimised
+    p_max_pu_t = Boolean(False)
     p_max_pu = Series(default=1.)
-    p_min_pu = Series()
-
-
-    #non-variable power limits for de-rating and minimum limits for
-    #flexible generators
-    p_max_pu_fixed = Float(1.)
-    p_min_pu_fixed = Float(0.)
-
+    p_min_pu_t = Boolean(False)
+    p_min_pu = Series(default=0.)
 
     #operator's intended dispatch
+    p_set_t = Boolean(False)
     p_set = Series()
+    q_set_t = Boolean(False)
     q_set = Series()
 
 
     #ratio between electrical energy and primary energy
     #(e.g. gas: 0.4 MWh_elec/MWh_thermal)
     efficiency = Float(1.)
-
 
 
 class StorageUnit(Generator):
@@ -234,7 +227,8 @@ class StorageUnit(Generator):
     max_hours = Float(1)
 
     #the minimum power dispatch is negative
-    p_min_pu_fixed = Float(-1)
+    p_min_pu_t = Boolean(False)
+    p_min_pu = Series(default=-1)
 
     #in MW
     inflow = Series()
@@ -259,7 +253,9 @@ class Store(Common):
     q = Series()
     e = Series()
 
+    p_set_t = Boolean(False)
     p_set = Series()
+    q_set_t = Boolean(False)
     q_set = Series()
 
     #rated energy capacity
@@ -302,7 +298,9 @@ class Load(OnePort):
     #set sign convention for powers opposite to generator
     sign = Float(-1.)
 
+    p_set_t = Boolean(False)
     p_set = Series()
+    q_set_t = Boolean(False)
     q_set = Series()
 
 class ShuntImpedance(OnePort):
@@ -446,12 +444,15 @@ class Link(Common):
     p1 = Series()
 
     #limits per unit of p_nom
-    p_min_pu = Float(0.)
-    p_max_pu = Float(1.)
+    p_min_pu_t = Boolean(False)
+    p_min_pu = Series(default=0.)
+    p_max_pu_t = Boolean(False)
+    p_max_pu = Series(default=1.)
 
     efficiency = Float(1.)
 
     #The set point for p0.
+    p_set_t = Boolean(False)
     p_set = Series()
 
     length = Float(default=1.0)
@@ -585,9 +586,11 @@ class Network(Basic):
             for k,v in iteritems(self.component_simple_descriptors[cls]):
                 v.name = k
 
+            simple_descriptors = self.component_simple_descriptors[cls]
             for k,v in iteritems(self.component_series_descriptors[cls]):
                 v.name = k
-
+                if k + '_t' in simple_descriptors:
+                    columns.append((k, v.dtype))
 
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
                               columns=list(map(itemgetter(0), columns)))
@@ -636,7 +639,7 @@ class Network(Basic):
                 pnl[k].loc[snapshots,:] = pnl[k].loc[self.snapshots,:].fillna(v.default)
 
 
-    def add(self,class_name,name,**kwargs):
+    def add(self, class_name, name, **kwargs):
         """
         Add a single component to the network.
 
@@ -649,50 +652,59 @@ class Network(Basic):
         name : string
             Component name
         kwargs
-            Component attributes, e.g. x=0.1,length=123
+            Component attributes, e.g. x=0.1, length=123
 
         Examples
         --------
-        >>> network.add("Line","line 12345",x=0.1)
+        >>> network.add("Line", "line 12345", x=0.1)
 
         """
 
         try:
             cls = globals()[class_name]
         except KeyError:
-            print(class_name,"not found")
+            print(class_name, "not found")
             return None
 
-        cls_df = getattr(self,cls.list_name)
+        cls_df = getattr(self, cls.list_name)
 
         if str(name) in cls_df.index:
-            print("Failed to add",name,"because there is already an object with this name in",cls.list_name)
+            print("Failed to add", name, "because there is already an object with this name in",cls.list_name)
             return
 
-        obj = cls(self,str(name))
+        obj = cls(self, str(name))
 
-        #build a single-index df of default values to concatenate with cls_df
-        cols = list(self.component_simple_descriptors[cls].keys())
-        values = [self.component_simple_descriptors[cls][col].default for col in cols]
+        simple_descriptors = self.component_simple_descriptors[cls]
+        series_descriptors = self.component_series_descriptors[cls]
+
+        #build a single-index df of values to concatenate with cls_df
+        cols = list(simple_descriptors)
+        values = [(kwargs.pop(col)
+                   if col in kwargs
+                   else simple_descriptors[col].default)
+                  for col in cols]
 
         obj_df = pd.DataFrame(data=[values+[obj]],index=[obj.name],columns=cols+["obj"])
+        new_df = pd.concat((cls_df, obj_df))
 
-        setattr(self,cls.list_name,pd.concat((cls_df,obj_df)))
-
+        setattr(self, cls.list_name, new_df)
 
         #now deal with time-dependent variables
         pnl = getattr(self,cls.list_name+"_t")
 
-        for k,v in iteritems(self.component_series_descriptors[cls]):
-            pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(pd.Index([obj.name])))
-            pnl[k].loc[:,obj.name] = v.default
+        for k,v in iteritems(series_descriptors):
+            switch_attr = k + '_t'
+            if switch_attr in simple_descriptors:
+                new_df.at[obj.name, k] = v.default
+                if not obj_df.at[obj.name, switch_attr]:
+                    continue
+            pnl[k][obj.name] = v.default
+
+        for key, value in iteritems(kwargs):
+            setattr(obj, key, value)
 
 
-        for key,value in iteritems(kwargs):
-            setattr(obj,key,value)
-
-
-    def remove(self,class_name,name):
+    def remove(self, class_name, name):
         """
         Remove a single component to the network.
 
@@ -714,19 +726,20 @@ class Network(Basic):
         try:
             cls = globals()[class_name]
         except KeyError:
-            print(class_name,"not found")
+            print(class_name, "not found")
             return None
 
-        cls_df = getattr(self,cls.list_name)
+        cls_df = getattr(self, cls.list_name)
 
         obj = cls_df.obj[name]
 
-        cls_df.drop(name,inplace=True)
+        cls_df.drop(name, inplace=True)
 
-        pnl = getattr(self,cls.list_name+"_t")
+        pnl = getattr(self, cls.list_name+"_t")
 
         for df in itervalues(pnl):
-            df.drop(name,axis=1,inplace=True)
+            if name in df:
+                df.drop(name, axis=1, inplace=True)
 
         del obj
 
