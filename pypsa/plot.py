@@ -134,6 +134,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     c = pd.Series(bus_colors, index=network.buses.index)
     if c.dtype == np.dtype('O'):
         c.fillna("b", inplace=True)
+        c = list(c.values)
     s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
     bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
