@@ -246,8 +246,9 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
 
 
     #Set what we know: slack V and v_mag_pu for PV buses
-    network.buses_t.v_mag_pu.loc[snapshots,sub_network.pvs] = network.buses_t.v_mag_pu_set.loc[snapshots,sub_network.pvs]
-    network.buses_t.v_mag_pu.loc[snapshots,sub_network.slack_bus] = network.buses_t.v_mag_pu_set.loc[snapshots,sub_network.slack_bus]
+    v_mag_pu_set = get_switchable_as_dense(network, 'Bus', 'v_mag_pu_set', snapshots)
+    network.buses_t.v_mag_pu.loc[snapshots,sub_network.pvs] = v_mag_pu_set.loc[:,sub_network.pvs]
+    network.buses_t.v_mag_pu.loc[snapshots,sub_network.slack_bus] = v_mag_pu_set.loc[:,sub_network.slack_bus]
     network.buses_t.v_ang.loc[snapshots,sub_network.slack_bus] = 0.
 
     if not use_seed:

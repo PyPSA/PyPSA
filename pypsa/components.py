@@ -129,9 +129,10 @@ class Bus(Common):
 
     p = Series()
     q = Series()
-    v_mag_pu = Series(default=1.)
     v_ang = Series()
+    v_mag_pu_set_t = Boolean(False)
     v_mag_pu_set = Series(default=1.)
+
     v_mag_pu_min = Float(default=0.)
     v_mag_pu_max = Float(default=inf)
 
@@ -214,6 +215,7 @@ class StorageUnit(Generator):
     state_of_charge_initial = Float(0.)
 
     #state of charge can be forced to a particular value
+    state_of_charge_set_t = Boolean(False)
     state_of_charge_set = Series(default=np.nan)
 
     #optimisation results are stored here
@@ -231,6 +233,7 @@ class StorageUnit(Generator):
     p_min_pu = Series(default=-1)
 
     #in MW
+    inflow_t = Boolean(False)
     inflow = Series()
     spill = Series()
 

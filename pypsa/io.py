@@ -214,12 +214,14 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     pnl = getattr(network,cls.list_name+"_t")
 
     for k, v in iteritems(series_descriptors):
+        if k not in pnl: continue
+
         switch_attr = k + '_t'
         if switch_attr in simple_descriptors:
             new_df.loc[dataframe.index, k] = (dataframe.loc[:,k].values
                                               if k in series_attrs
                                               else v.default)
-            index = new_df.index[new_df.loc[dataframe.index, switch_attr]]
+            index = dataframe.index[new_df.loc[dataframe.index, switch_attr]]
         else:
             index = dataframe.index
 
@@ -234,7 +236,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
 
 
-def import_series_from_dataframe(network,dataframe,cls_name,attr):
+def import_series_from_dataframe(network, dataframe, cls_name, attr):
     """
     Import time series from a pandas DataFrame.
 
@@ -258,18 +260,19 @@ def import_series_from_dataframe(network,dataframe,cls_name,attr):
     columns = dataframe.columns
     switch_attr = attr + '_t'
     if switch_attr in network.component_simple_descriptors[cls]:
-        df = getattr(network,cls.list_name)
-        off = columns.difference(df.index[df[switch_attr]])
+        df = getattr(network, cls.list_name)
+        off = columns.difference(pnl[attr].columns) # df.index[df[switch_attr]]
 
         if len(off):
-            # there are components in the dataframe which are marked
-            # as not time-dependent, we set them time-dependent
+            # there are components in the dataframe that are new, we
+            # set them to time-dependent automatically
             df.loc[off, switch_attr] = True
-            pnl[attr] = (pd.concat((pnl[attr], dataframe.loc[:,off]), axis=1)
+            pnl[attr] = (pd.concat((pnl[attr], dataframe.loc[network.snapshots, off]), axis=1)
                          .reindex(columns=df.index[df[switch_attr]]))
+
             columns = columns.difference(off)
 
-    pnl[attr].loc[:,columns] = dataframe.loc[:,columns]
+    pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
 
 def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     """

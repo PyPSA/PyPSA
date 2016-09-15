@@ -155,8 +155,7 @@ def define_storage_variables_constraints(network,snapshots):
                                         domain=NonNegativeReals, bounds=su_p_store_bounds)
 
     ## Define spillage variables only for hours with inflow>0. ##
-
-    inflow = network.storage_units_t.inflow
+    inflow = get_switchable_as_dense(network, 'StorageUnit', 'inflow', snapshots)
     spill_sus_i = sus.index[inflow.max()>0] #skip storage units without any inflow
     inflow_gt0_b = inflow>0
     spill_bounds = {(su,sn) : (0,inflow.at[sn,su])
@@ -224,6 +223,8 @@ def define_storage_variables_constraints(network,snapshots):
     #store the combinations with a fixed soc
     fixed_soc = {}
 
+    state_of_charge_set = get_switchable_as_dense(network, 'StorageUnit', 'state_of_charge_set', snapshots)
+
     for su in sus.index:
         for i,sn in enumerate(snapshots):
 
@@ -241,7 +242,7 @@ def define_storage_variables_constraints(network,snapshots):
                                       previous_state_of_charge))
 
 
-            state_of_charge = network.storage_units_t["state_of_charge_set"].at[sn,su]
+            state_of_charge = state_of_charge_set.at[sn,su]
             if pd.isnull(state_of_charge):
                 state_of_charge = model.state_of_charge[su,sn]
                 soc[su,sn][0].append((-1,state_of_charge))
@@ -254,7 +255,7 @@ def define_storage_variables_constraints(network,snapshots):
                                   * elapsed_hours,model.storage_p_store[su,sn]))
             soc[su,sn][0].append((-(1/sus.at[su,"efficiency_dispatch"]) * elapsed_hours,
                                   model.storage_p_dispatch[su,sn]))
-            soc[su,sn][2] -= network.storage_units_t["inflow"].at[sn,su] * elapsed_hours
+            soc[su,sn][2] -= inflow.at[sn,su] * elapsed_hours
 
     for su,sn in spill_index:
         storage_p_spill = model.storage_p_spill[su,sn]
