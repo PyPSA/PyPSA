@@ -127,9 +127,11 @@ class Bus(Common):
     x = Float(default=0.)
     y = Float(default=0.)
 
-    p = Series()
-    q = Series()
-    v_ang = Series()
+    p = Series(output=True)
+    q = Series(output=True)
+    v_mag_pu = Series(default=1., output=True)
+    v_ang = Series(output=True)
+
     v_mag_pu_set_t = Boolean(False)
     v_mag_pu_set = Series(default=1.)
 
@@ -137,7 +139,7 @@ class Bus(Common):
     v_mag_pu_max = Float(default=inf)
 
     #optimisation output for power balance constraint at bus
-    marginal_price = Series()
+    marginal_price = Series(output=True)
 
     #energy carrier could be "AC", "DC", "heat", "gas"
     carrier = String(default="AC")
@@ -157,8 +159,8 @@ class OnePort(Common):
 
     bus = String(default="")
     sign = Float(default=1.)
-    p = Series()
-    q = Series()
+    p = Series(output=True)
+    q = Series(output=True)
 
 
 class Generator(OnePort):
@@ -219,7 +221,7 @@ class StorageUnit(Generator):
     state_of_charge_set = Series(default=np.nan)
 
     #optimisation results are stored here
-    state_of_charge = Series(default=np.nan)
+    state_of_charge = Series(default=np.nan, output=True)
 
     #switch to disregard state_of_charge_initial; instead soc[-1] =
     #soc[len(snapshots)-1]
@@ -235,7 +237,7 @@ class StorageUnit(Generator):
     #in MW
     inflow_t = Boolean(False)
     inflow = Series()
-    spill = Series()
+    spill = Series(output=True)
 
     efficiency_store = Float(1)
 
@@ -252,9 +254,9 @@ class Store(Common):
 
     bus = String(default="")
     sign = Float(default=1.)
-    p = Series()
-    q = Series()
-    e = Series()
+    p = Series(output=True)
+    q = Series(output=True)
+    e = Series(output=True)
 
     p_set_t = Boolean(False)
     p_set = Series()
@@ -343,11 +345,11 @@ class Branch(Common):
 
     #{p,q}i is positive if power is flowing from bus i into the branch
     #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
-    p0 = Series()
-    p1 = Series()
+    p0 = Series(output=True)
+    p1 = Series(output=True)
 
-    q0 = Series()
-    q1 = Series()
+    q0 = Series(output=True)
+    q1 = Series(output=True)
 
 
 class Line(Branch):
@@ -443,8 +445,8 @@ class Link(Common):
 
     #pi is positive if power is flowing from bus i into the branch
     #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
-    p0 = Series()
-    p1 = Series()
+    p0 = Series(output=True)
+    p1 = Series(output=True)
 
     #limits per unit of p_nom
     p_min_pu_t = Boolean(False)
@@ -602,11 +604,13 @@ class Network(Basic):
 
             setattr(self,cls.list_name,df)
 
-            pnl = Dict({k : pd.DataFrame(index=self.snapshots,
+            pnl = Dict({k : pd.DataFrame(index=[] if desc.output else self.snapshots,
                                          columns=getattr(self,cls.list_name).index,
                                          #it's currently hard to imagine non-float series, but this could be generalised
                                          dtype=float)
-                        for k in  self.component_series_descriptors[cls].keys()})
+                        for k, desc in iteritems(self.component_series_descriptors[cls])
+                        #if not desc.output
+                       })
 
             setattr(self,cls.list_name+"_t",pnl)
 
@@ -627,7 +631,6 @@ class Network(Basic):
         None
         """
 
-
         self.snapshots = snapshots
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
@@ -638,9 +641,8 @@ class Network(Basic):
             pnl = getattr(self,cls.list_name+"_t")
 
             for k,v in self.component_series_descriptors[cls].items():
-                pnl[k] = pnl[k].reindex(self.snapshots)
-                pnl[k].loc[snapshots,:] = pnl[k].loc[self.snapshots,:].fillna(v.default)
-
+                if v.output and len(pnl[k].index) == 0: continue
+                pnl[k] = pnl[k].reindex(self.snapshots).fillna(v.default)
 
     def add(self, class_name, name, **kwargs):
         """

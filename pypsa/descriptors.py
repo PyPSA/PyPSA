@@ -210,9 +210,10 @@ class Series(object):
     #the name is set by Network.__init__
     name = None
 
-    def __init__(self, dtype=float, default=0.0):
+    def __init__(self, dtype=float, default=0.0, output=False):
         self.dtype = dtype
         self.default = default
+        self.output = output
 
     def __get__(self, obj, cls):
         switch_attr = self.name + "_t"
