@@ -24,10 +24,12 @@ Grid calculation library.
 
 from __future__ import absolute_import
 
-from .components import Network, Bus, Load, Generator, StorageUnit, Store, ShuntImpedance, Line, Transformer, Link, SubNetwork, Branch, OnePort
+from . import components
+from . import pf, opf, plot, networkclustering, io, contingency, geo
 
-from . import components, pf, opf, plot, networkclustering, io, contingency, geo
-
+from .components import (Network, Bus, Load, Generator, StorageUnit,
+                         Store, ShuntImpedance, Line, Transformer,
+                         Link, SubNetwork, Branch, OnePort)
 
 __version__ = "0.6.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
