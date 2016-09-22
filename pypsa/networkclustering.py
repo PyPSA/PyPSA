@@ -30,8 +30,9 @@ from six.moves import zip, range
 from six import itervalues
 
 from .descriptors import OrderedGraph
+from .components import Network
+
 from . import components, io
-from . import Network
 
 def _consense(x):
     v = x.iat[0]
