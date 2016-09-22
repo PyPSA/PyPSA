@@ -50,7 +50,8 @@ from .descriptors import (Float, String, Series, Integer, Boolean,
                           get_series_descriptors, Dict)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
-                 import_from_pypower_ppc, import_components_from_dataframe)
+                 import_from_pypower_ppc, import_components_from_dataframe,
+                 import_series_from_dataframe)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
@@ -517,6 +518,8 @@ class Network(Basic):
     import_from_pypower_ppc = import_from_pypower_ppc
 
     import_components_from_dataframe = import_components_from_dataframe
+
+    import_series_from_dataframe = import_series_from_dataframe
 
     lpf = network_lpf
 
