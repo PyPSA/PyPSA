@@ -28,6 +28,7 @@ from collections import OrderedDict, namedtuple
 from itertools import repeat
 from six.moves import zip, range
 from six import itervalues, iteritems
+import six
 
 from .descriptors import OrderedGraph
 from .components import Network
@@ -60,16 +61,19 @@ def aggregategenerators(network, busmap, with_time=True):
 
     new_pnl = dict()
     if with_time:
-        for attr, df in iteritems(old_pnl):
+        for attr, df in iteritems(network.generators_t):
             if not df.empty:
-                if attr + '_t':
-                    time_dependent_b  = (new_df[attr + '_t']
-                                         if attr + '_t' in new_df
-                                         else slice(None))
+                time_dependent_b1 = (generators[attr + '_t']
+                                     if attr + '_t' in generators
+                                     else slice(None))
+                time_dependent_b2 = (new_df[attr + '_t']
+                                     if attr + '_t' in new_df
+                                     else slice(None))
+
                 if attr == 'p_max_pu':
-                    df = df.multiply(weighting.loc[time_dependent_b], axis=1)
-                pnl_df = df.groupby(grouper, axis=1).sum().reindex(columns=new_df.index[time_dependent_b])
-                pnl_df.columns = new_index[time_dependent_b]
+                    df = df.multiply(weighting.loc[time_dependent_b1], axis=1)
+                pnl_df = df.groupby(grouper, axis=1).sum().reindex(columns=new_df.index[time_dependent_b2])
+                pnl_df.columns = new_index[time_dependent_b2]
                 new_pnl[attr] = pnl_df
 
     new_df.set_index(new_index, inplace=True)
@@ -198,7 +202,7 @@ Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
                                        'linemap_positive', 'linemap_negative'])
 
 def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
-                               aggregate_generators_by_carrier=False, aggregate_one_ports={},
+                               aggregate_generators_weighted=False, aggregate_one_ports={},
                                bus_strategies=dict()):
 
     buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies)
@@ -213,7 +217,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 
     one_port_types = components.one_port_types.copy()
 
-    if aggregate_generators_by_carrier:
+    if aggregate_generators_weighted:
         one_port_types.remove(components.Generator)
         generators, generators_pnl = aggregategenerators(network, busmap, with_time=with_time)
         io.import_components_from_dataframe(network_c, generators, "Generator")
@@ -227,9 +231,9 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             one_port = getattr(components, one_port)
         one_port_types.remove(one_port)
         new_df, new_pnl = aggregateoneport(network, busmap, component=one_port, with_time=with_time)
-        io.import_components_from_dataframe(network_c, new_df, one_port.name)
+        io.import_components_from_dataframe(network_c, new_df, one_port.__name__)
         for attr, df in iteritems(new_pnl):
-            io.import_series_from_dataframe(network_c, df, one_port.name, attr)
+            io.import_series_from_dataframe(network_c, df, one_port.__name__, attr)
 
 
     for t in network.iterate_components(one_port_types):
@@ -250,6 +254,12 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
         network.links.assign(bus0=network.links.bus0.map(busmap),
                              bus1=network.links.bus1.map(busmap)),
         "Link"
+    )
+
+    io.import_components_from_dataframe(
+        network_c,
+        network.carriers,
+        "Carrier"
     )
 
     if with_time:
