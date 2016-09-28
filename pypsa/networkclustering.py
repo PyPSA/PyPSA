@@ -56,7 +56,7 @@ def aggregategenerators(network, busmap, with_time=True):
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
 
-    new_index = pd.Index([network.carriers.at[carrier, 'short_name'] + bus
+    new_index = pd.Index([bus + ' ' + carrier
                           for bus, carrier in new_df.index.get_values()])
 
     new_pnl = dict()
@@ -95,7 +95,7 @@ def aggregateoneport(network, busmap, component, with_time=True):
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
     if 'carrier' in columns:
-        new_index = pd.Index([network.carriers.at[carrier, 'short_name'] + bus
+        new_index = pd.Index([bus + ' ' + carrier
                               for bus, carrier in new_df.index.get_values()])
     else:
         new_index = new_df.index
