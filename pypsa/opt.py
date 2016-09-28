@@ -28,6 +28,8 @@ from __future__ import print_function, division
 from __future__ import absolute_import
 from six.moves import range
 
+import logging
+logger = logging.getLogger(__name__)
 
 from pyomo.environ import Constraint, Objective, Var, ComponentUID
 from weakref import ref as weakref_ref
@@ -253,6 +255,7 @@ def l_objective(model,objective=None):
 
 @contextmanager
 def empty_model(model):
+    logger.debug("Storing pyomo model to disk")
     rules = {}
     for obj in model.component_objects(ctype=Constraint):
         if obj.rule is not None:
@@ -279,8 +282,11 @@ def empty_model(model):
         pickle.dump(model.__getstate__(), f, -1)
 
     model.__dict__.clear()
+    logger.debug("Stored pyomo model to disk")
+
     yield
 
+    logger.debug("Reloading pyomo model")
     with open(fn, 'rb') as f:
         state = pickle.load(f)
     os.remove(fn)
@@ -300,9 +306,11 @@ def empty_model(model):
         symbol_map.byObject = {id(obj()): symb
                                for symb, obj in iteritems(symbol_map.bySymbol)}
         model.solutions.symbol_map[smap_id] = symbol_map
+    logger.debug("Reloaded pyomo model")
 
 @contextmanager
 def empty_network(network):
+    logger.debug("Storing pypsa timeseries to disk")
     from .components import component_types
 
     panels = {}
@@ -316,8 +324,10 @@ def empty_network(network):
         pickle.dump(panels, f, -1)
 
     del panels
+
     yield
 
+    logger.debug("Reloading pypsa timeseries from disk")
     with open(fn, 'rb') as f:
         panels = pickle.load(f)
     os.remove(fn)

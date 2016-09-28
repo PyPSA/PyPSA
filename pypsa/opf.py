@@ -35,6 +35,8 @@ from pyomo.environ import (ConcreteModel, Var, Objective,
                            Suffix, Expression)
 from pyomo.opt import SolverFactory
 from itertools import chain
+import logging
+logger = logging.getLogger(__name__)
 
 from distutils.version import StrictVersion, LooseVersion
 try:
@@ -54,7 +56,7 @@ from .descriptors import get_switchable_as_dense, allocate_series_dataframes
 def network_opf(network,snapshots=None):
     """Optimal power flow for snapshots."""
 
-    raise NotImplementedError("Non-linear optimal power flow not supported yet.")
+    raise NotImplementedError("Non-linear optimal power flow not supported yet")
 
 
 
@@ -475,11 +477,11 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
     flows = {}
 
     for sub_network in network.sub_networks.obj:
-        find_bus_controls(sub_network,verbose=False)
+        find_bus_controls(sub_network)
 
         branches_i = sub_network.branches_i()
         if len(branches_i) > 0:
-            calculate_PTDF(sub_network,verbose=False)
+            calculate_PTDF(sub_network)
 
             #kill small PTDF values
             sub_network.PTDF[abs(sub_network.PTDF) < ptdf_tolerance] = 0
@@ -507,9 +509,9 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
         find_cycles(sub_network)
 
         #following is necessary to calculate angles post-facto
-        find_bus_controls(sub_network,verbose=False)
+        find_bus_controls(sub_network)
         if len(sub_network.branches_i()) > 0:
-            calculate_B_H(sub_network,verbose=False)
+            calculate_B_H(sub_network)
 
 
     cycle_index = [(sub_network.name,i)
@@ -580,9 +582,9 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
         find_cycles(sub_network)
 
         #following is necessary to calculate angles post-facto
-        find_bus_controls(sub_network,verbose=False)
+        find_bus_controls(sub_network)
         if len(sub_network.branches_i()) > 0:
-            calculate_B_H(sub_network,verbose=False)
+            calculate_B_H(sub_network)
 
     cycle_index = [(sub_network.name,i)
                    for sub_network in network.sub_networks.obj
@@ -852,7 +854,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         return pd.Series(indexedvar.get_values())
 
     def set_from_series(df, series):
-        df.loc[snapshots] = series.unstack(0).reindex_axis(df.columns, axis=1)
+        df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
 
     if len(network.generators):
         set_from_series(network.generators_t.p, as_series(model.generator_p))
@@ -868,11 +870,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         if (network.storage_units_t.inflow.max() > 0).any():
             set_from_series(network.storage_units_t.spill,
                             as_series(model.storage_p_spill))
-        network.storage_units_t.spill.fillna(0,inplace=True) #p_spill doesn't exist if inflow=0
+        network.storage_units_t.spill.fillna(0, inplace=True) #p_spill doesn't exist if inflow=0
 
     if len(network.stores):
         set_from_series(network.stores_t.p, as_series(model.store_p))
-
         set_from_series(network.stores_t.e, as_series(model.store_e))
 
     if len(network.loads):
@@ -920,7 +921,6 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                             .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
 
         elif formulation in ["ptdf","cycles","kirchhoff"]:
-
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
                 if len(sn.pvpqs) > 0:
@@ -928,7 +928,6 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
         network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="AC"] = 1.
         network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"]
-
 
 
     #now that we've used the angles to calculate the flow, set the DC ones to zero
@@ -978,7 +977,6 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -1011,13 +1009,16 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
         network.determine_network_topology()
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:
-            find_slack_bus(sub_network, verbose=verbose)
+            find_slack_bus(sub_network)
+        logger.info("Performed preliminary steps")
+
 
 
     if snapshots is None:
         snapshots = [network.now]
 
 
+    logger.info("Starting to build pyomo model")
     network.model = ConcreteModel("Linear Optimal Power Flow")
 
 
@@ -1057,11 +1058,13 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     #tidy up auxilliary expressions
     del network._p_balance
 
+    logger.info("Finished building pyomo model")
 
     opt = SolverFactory(solver_name)
     if free_memory_hack:
         patch_optsolver_free_model_and_network_before_solving(opt, network.model, network)
 
+    logger.info("Starting solver %s", solver_name)
     network.results = opt.solve(network.model, suffixes=["dual"],
                                 keepfiles=keep_files, options=solver_options)
 
@@ -1072,10 +1075,11 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     termination_condition = network.results["Solver"][0]["Termination condition"].key
 
     if status == "ok" and termination_condition == "optimal":
+        logger.info("Optimization successful")
         extract_optimisation_results(network,snapshots,formulation)
     elif status == "warning" and termination_condition == "other":
-        print("WARNING! Optimization might be sub-optimal. Writing output anyway")
+        logger.warn("WARNING! Optimization might be sub-optimal. Writing output anyway")
         extract_optimisation_results(network,snapshots,formulation)
     else:
-        print("Optimisation failed with status %s and terminal condition %s"
+        logger.error("Optimisation failed with status %s and terminal condition %s"
               % (status,termination_condition))

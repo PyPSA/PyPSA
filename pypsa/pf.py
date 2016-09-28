@@ -16,7 +16,6 @@
 """Power flow functionality.
 """
 
-
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 from __future__ import absolute_import
@@ -25,7 +24,8 @@ from six.moves import range
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
-
+import logging
+logger = logging.getLogger(__name__)
 
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack, dok_matrix
 
@@ -53,7 +53,7 @@ def _as_snapshots(network, snapshots):
     else:
         return pd.Index(snapshots)
 
-def _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_pf_fun, sub_network_prepare_fun, **kwargs):
+def _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_pf_fun, sub_network_prepare_fun, **kwargs):
 
     if not skip_pre:
         network.determine_network_topology()
@@ -68,14 +68,14 @@ def _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_netwo
 
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
-            find_bus_controls(sub_network, verbose=verbose)
+            find_bus_controls(sub_network)
 
             branches_i = sub_network.branches_i()
             if len(branches_i) > 0:
-                sub_network_prepare_fun(sub_network, verbose=verbose, skip_pre=True)
-        sub_network_pf_fun(sub_network, snapshots=snapshots, verbose=verbose, skip_pre=True, **kwargs)
+                sub_network_prepare_fun(sub_network, skip_pre=True)
+        sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
 
-def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6, use_seed=False):
+def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
     Full non-linear power flow for generic network.
 
@@ -84,7 +84,6 @@ def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to [now]
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
@@ -97,10 +96,10 @@ def network_pf(network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6
     None
     """
 
-    _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_pf, calculate_Y, x_tol=x_tol, use_seed=use_seed)
+    _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_pf, calculate_Y, x_tol=x_tol, use_seed=use_seed)
 
 
-def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
+def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
     """Solve f(x) = 0 with initial guess for x and dfdx(x). dfdx(x) should
     return a sparse Jacobian.  Terminate if error on norm of f(x) is <
     x_tol or there were more than lim_iter iterations.
@@ -111,8 +110,7 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
     F = f(guess)
     diff = norm(F,np.Inf)
 
-    if verbose:
-        print("Error at iteration %d: %f" % (n_iter, diff))
+    logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     while diff > x_tol and n_iter < lim_iter:
 
@@ -123,17 +121,16 @@ def newton_raphson_sparse(f,guess,dfdx,x_tol=1e-10,lim_iter=100,verbose=True):
         F = f(guess)
         diff = norm(F,np.Inf)
 
-        if verbose:
-            print("Error at iteration %d: %f" % (n_iter, diff))
+        logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     if diff > x_tol:
-        print("Warning, we didn't reach the required tolerance within %d iterations, error is at %f" % (n_iter, diff))
+        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f", n_iter, diff)
 
-    return guess,n_iter,diff
+    return guess, n_iter, diff
 
 
 
-def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_tol=1e-6, use_seed=False):
+def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
     Non-linear power flow for connected sub-network.
 
@@ -142,7 +139,6 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to [now]
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
@@ -156,25 +152,23 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
-    if verbose:
-        print("Performing non-linear load-flow on {} sub-network {} for snapshots {}"
-              .format(sub_network.carrier, sub_network, snapshots))
+    logger.info("Performing non-linear load-flow on %s sub-network %s for snapshots {}", sub_network.carrier, sub_network, snapshots)
 
-    # _sub_network_prepare_pf(sub_network, snapshots, verbose, skip_pre, calculate_Y)
+    # _sub_network_prepare_pf(sub_network, snapshots, skip_pre, calculate_Y)
     network = sub_network.network
 
     from .components import passive_branch_types, controllable_branch_types, controllable_one_port_types
 
     if not skip_pre:
         calculate_dependent_values(network)
-        find_bus_controls(sub_network,verbose=verbose)
+        find_bus_controls(sub_network)
 
     # get indices for the components on this subnetwork
     branches_i = sub_network.branches_i()
     buses_o = sub_network.buses_o
 
     if not skip_pre and len(branches_i) > 0:
-        calculate_Y(sub_network,verbose=verbose,skip_pre=True)
+        calculate_Y(sub_network, skip_pre=True)
 
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
@@ -267,9 +261,8 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
 
         #Now try and solve
         start = time.time()
-        roots[i], n_iter, diff = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol,verbose=verbose)
-        if verbose:
-            print("Newton-Raphson solved in %d iterations with error of %f in %f seconds" % (n_iter,diff,time.time()-start))
+        roots[i], n_iter, diff = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol)
+        logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
 
     #now set everything
     network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = roots[:,:len(sub_network.pvpqs)]
@@ -328,7 +321,7 @@ def sub_network_pf(sub_network, snapshots=None, verbose=True, skip_pre=False, x_
     #set the Q of the PV generators
     network.generators_t.q.loc[snapshots,network.buses.loc[sub_network.pvs, "generator"]] += np.asarray(network.buses_t.q.loc[snapshots,sub_network.pvs] - ss[:,buses_indexer(sub_network.pvs)].imag)
 
-def network_lpf(network, snapshots=None, verbose=True, skip_pre=False):
+def network_lpf(network, snapshots=None, skip_pre=False):
     """
     Linear power flow for generic network.
 
@@ -337,7 +330,6 @@ def network_lpf(network, snapshots=None, verbose=True, skip_pre=False):
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to [now]
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -347,7 +339,7 @@ def network_lpf(network, snapshots=None, verbose=True, skip_pre=False):
     None
     """
 
-    _network_prepare_and_run_pf(network, snapshots, verbose, skip_pre, sub_network_lpf, calculate_B_H)
+    _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_lpf, calculate_B_H)
 
 
 def calculate_dependent_values(network):
@@ -371,14 +363,13 @@ def calculate_dependent_values(network):
     network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
 
 
-def find_slack_bus(sub_network,verbose=True):
+def find_slack_bus(sub_network):
     """Find the slack bus in a connected sub-network."""
 
     gens = sub_network.generators()
 
     if len(gens) == 0:
-        if verbose:
-            print("No generators in %s, better hope power is already balanced" % sub_network)
+        logger.warn("No generators in %s, better hope power is already balanced", sub_network)
         sub_network.slack_generator = None
         sub_network.slack_bus = sub_network.buses_i()[0]
 
@@ -389,31 +380,28 @@ def find_slack_bus(sub_network,verbose=True):
         if len(slacks) == 0:
             sub_network.slack_generator = gens.index[0]
             sub_network.network.generators.loc[sub_network.slack_generator,"control"] = "Slack"
-            if verbose:
-                print("No slack generator found, using %s as the slack generator" % sub_network.slack_generator)
+            logger.debug("No slack generator found, using %s as the slack generator", sub_network.slack_generator)
 
         elif len(slacks) == 1:
             sub_network.slack_generator = slacks[0]
         else:
             sub_network.slack_generator = slacks[0]
             sub_network.network.generators.loc[slacks[1:],"control"] = "PV"
-            if verbose:
-                print("More than one slack generator found, taking %s to be the slack generator" % sub_network.slack_generator)
+            logger.debug("More than one slack generator found, taking %s to be the slack generator", sub_network.slack_generator)
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
 
-    if verbose:
-        print("Slack bus is %s" % sub_network.slack_bus)
+        logger.info("Slack bus is %s" % sub_network.slack_bus)
 
 
-def find_bus_controls(sub_network,verbose=True):
+def find_bus_controls(sub_network):
     """Find slack and all PV and PQ buses for a sub_network.
     This function also fixes sub_network.buses_o, a DataFrame
     ordered by control type."""
 
     network = sub_network.network
 
-    find_slack_bus(sub_network,verbose)
+    find_slack_bus(sub_network)
 
     gens = sub_network.generators()
     buses_i = sub_network.buses_i()
@@ -439,7 +427,7 @@ def find_bus_controls(sub_network,verbose=True):
     sub_network.buses_o = sub_network.pvpqs.insert(0, sub_network.slack_bus)
 
 
-def calculate_B_H(sub_network,verbose=True,skip_pre=False):
+def calculate_B_H(sub_network,skip_pre=False):
     """Calculate B and H matrices for AC or DC sub-networks."""
 
     from .components import passive_branch_types
@@ -448,7 +436,7 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
     if not skip_pre:
         calculate_dependent_values(network)
-        find_bus_controls(sub_network,verbose)
+        find_bus_controls(sub_network)
 
     if sub_network.carrier == "DC":
         attribute="r_pu"
@@ -463,8 +451,8 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
                            for t in sub_network.iterate_components(passive_branch_types)])
 
 
-    if verbose and np.isnan(b).any():
-        print("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
+    if np.isnan(b).any():
+        logger.warn("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
     b_diag = csr_matrix((b, (r_[:len(b)], r_[:len(b)])))
 
     #incidence matrix
@@ -477,7 +465,7 @@ def calculate_B_H(sub_network,verbose=True,skip_pre=False):
 
 
 
-def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
+def calculate_PTDF(sub_network,skip_pre=False):
     """
     Calculate the Power Transfer Distribution Factor (PTDF) for
     sub_network.
@@ -487,7 +475,6 @@ def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
@@ -495,7 +482,7 @@ def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
     """
 
     if not skip_pre:
-        calculate_B_H(sub_network,verbose)
+        calculate_B_H(sub_network)
 
     #calculate inverse of B with slack removed
 
@@ -519,14 +506,14 @@ def calculate_PTDF(sub_network,verbose=True,skip_pre=False):
     sub_network.PTDF = sub_network.H*B_inverse
 
 
-def calculate_Y(sub_network,verbose=True,skip_pre=False):
+def calculate_Y(sub_network,skip_pre=False):
     """Calculate bus admittance matrices for AC sub-networks."""
 
     if not skip_pre:
         calculate_dependent_values(sub_network.network)
 
     if sub_network.carrier != "AC":
-        print("Non-AC networks not supported for Y!")
+        logger.warn("Non-AC networks not supported for Y!")
         return
 
     branches = sub_network.branches()
@@ -582,7 +569,7 @@ def calculate_Y(sub_network,verbose=True,skip_pre=False):
 
 
 
-def aggregate_multi_graph(sub_network,verbose=True):
+def aggregate_multi_graph(sub_network):
     """Aggregate branches between same buses and replace with a single
 branch with aggregated properties (e.g. s_nom is summed, length is
 averaged).
@@ -628,13 +615,12 @@ averaged).
 
             seen.append((u,v))
 
-    if verbose:
-        print("Removed %d excess lines from sub-network %s and replaced with aggregated lines" % (count,sub_network.name))
+    logger.info("Removed %d excess lines from sub-network %s and replaced with aggregated lines", count,sub_network.name)
 
 
 
 
-def find_tree(sub_network,verbose=True):
+def find_tree(sub_network):
     """Get the spanning tree of the graph, choose the node with the
     highest degree as a central "tree slack" and then see for each
     branch which paths from the slack to each node go through the
@@ -658,8 +644,7 @@ def find_tree(sub_network,verbose=True):
             tree_slack_bus = bus
             slack_degree = degree
 
-    if verbose:
-        print("Tree slack bus is %s with degree %d." % (tree_slack_bus,slack_degree))
+    logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
 
     #determine which buses are supplied in tree through branch from slack
@@ -682,7 +667,7 @@ def find_tree(sub_network,verbose=True):
             sub_network.T[branch_i,j] = sign
 
 
-def find_cycles(sub_network,verbose=True):
+def find_cycles(sub_network):
     """
     Find all cycles in the sub_network and record them in sub_network.C.
 
@@ -738,7 +723,7 @@ def find_cycles(sub_network,verbose=True):
                 sub_network.C[b_i,c] = sign
                 c+=1
 
-def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
+def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     """
     Linear power flow for connected sub-network.
 
@@ -747,7 +732,6 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to [now]
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -758,9 +742,8 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
-    if verbose:
-        print("Performing linear load-flow on {} sub-network {} for snapshot(s) {}"
-              .format(sub_network.carrier,sub_network,snapshots))
+    logger.info("Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
+                sub_network.carrier, sub_network, snapshots)
 
     from .components import \
         one_port_types, controllable_one_port_types, \
@@ -771,7 +754,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
 
     if not skip_pre:
         calculate_dependent_values(network)
-        find_bus_controls(sub_network,verbose=verbose)
+        find_bus_controls(sub_network)
 
     # get indices for the components on this subnetwork
     buses_o = sub_network.buses_o
@@ -800,7 +783,7 @@ def sub_network_lpf(sub_network, snapshots=None, verbose=True, skip_pre=False):
              for i in [0,1]])
 
     if not skip_pre and len(branches_i) > 0:
-        calculate_B_H(sub_network, verbose=verbose, skip_pre=True)
+        calculate_B_H(sub_network, skip_pre=True)
 
     v_diff = np.zeros((len(snapshots), len(buses_o)))
     if len(branches_i) > 0:
