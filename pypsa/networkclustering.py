@@ -82,7 +82,7 @@ def aggregategenerators(network, busmap, with_time=True):
 def aggregateoneport(network, busmap, component, with_time=True):
     if isinstance(component, six.string_types):
         component = getattr(components, component)
-    columns = set(network.component_simple_descriptors[components.Load])
+    columns = set(network.component_simple_descriptors[component])
     old_df = getattr(network, component.list_name).assign(bus=lambda df: df.bus.map(busmap))
     if 'carrier' in columns:
         grouper = [old_df.bus, old_df.carrier]
