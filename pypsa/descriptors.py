@@ -287,3 +287,15 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
                      index=snapshots, columns=fixed_i),
         pnl[attr].loc[snapshots, varying_i]
     ], axis=1).reindex(columns=index))
+
+def allocate_series_dataframes(network, series):
+    from . import components
+    for component, attributes in iteritems(series):
+        if isinstance(component, string_types):
+            component = getattr(components, component)
+        series_descriptors = network.component_series_descriptors[component]
+
+        for attr in attributes:
+            pnl = getattr(network, component.list_name + '_t')
+            pnl[attr] = pnl[attr].reindex(index=network.snapshots,
+                                          fill_value=series_descriptors[attr].default)

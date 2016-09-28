@@ -47,7 +47,7 @@ from .pf import (calculate_dependent_values, find_slack_bus,
                  find_cycles)
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_and_network_before_solving)
-from .descriptors import get_switchable_as_dense
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes
 
 
 
@@ -833,6 +833,15 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
         snapshots = pd.Index(snapshots.values)
+
+    allocate_series_dataframes(network, {'Generator': ['p'],
+                                         'Load': ['p'],
+                                         'StorageUnit': ['p', 'state_of_charge', 'spill'],
+                                         'Store': ['p', 'e'],
+                                         'Bus': ['p', 'v_ang', 'v_mag_pu', 'marginal_price'],
+                                         'Line': ['p0', 'p1'],
+                                         'Transformer': ['p0', 'p1'],
+                                         'Link': ['p0', 'p1']})
 
     #get value of objective function
     network.objective = network.results["Problem"][0]["Lower bound"]
