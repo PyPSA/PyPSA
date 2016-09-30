@@ -51,8 +51,8 @@ def aggregategenerators(network, busmap, with_time=True):
     grouper = [generators.bus, generators.carrier]
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
-    generators['p_nom_max'] *= weighting
-    strategies = {'p_nom_max': lambda x: 1./x.max(), 'weight': np.sum, 'p_nom': np.sum}
+    generators['p_nom_max'] /= weighting
+    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
 
@@ -63,17 +63,15 @@ def aggregategenerators(network, busmap, with_time=True):
     if with_time:
         for attr, df in iteritems(network.generators_t):
             if not df.empty:
-                time_dependent_b1 = (generators[attr + '_t']
-                                     if attr + '_t' in generators
-                                     else slice(None))
-                time_dependent_b2 = (new_df[attr + '_t']
-                                     if attr + '_t' in new_df
-                                     else slice(None))
+                time_dependent_old_b, time_dependent_new_b = \
+                    ((generators[attr + '_t'], new_df[attr + '_t'])
+                     if attr + '_t' in generators
+                     else (slice(None), slice(None)))
 
                 if attr == 'p_max_pu':
-                    df = df.multiply(weighting.loc[time_dependent_b1], axis=1)
-                pnl_df = df.groupby(grouper, axis=1).sum().reindex(columns=new_df.index[time_dependent_b2])
-                pnl_df.columns = new_index[time_dependent_b2]
+                    df = df.multiply(weighting.loc[time_dependent_old_b], axis=1)
+                pnl_df = df.groupby(grouper, axis=1).sum().reindex(columns=new_df.index[time_dependent_new_b])
+                pnl_df.columns = new_index[time_dependent_new_b]
                 new_pnl[attr] = pnl_df
 
     new_df.set_index(new_index, inplace=True)
