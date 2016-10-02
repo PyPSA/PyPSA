@@ -257,9 +257,13 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     pnl = getattr(network,cls.list_name+"_t")
 
+    series_descriptor = network.component_series_descriptors[cls][attr]
     columns = dataframe.columns
     switch_attr = attr + '_t'
-    if switch_attr in network.component_simple_descriptors[cls]:
+
+    if series_descriptor.output:
+        pnl[attr] = pnl[attr].reindex(network.snapshots, fill_value=series_descriptor.default)
+    elif switch_attr in network.component_simple_descriptors[cls]:
         df = getattr(network, cls.list_name)
         off = columns.difference(pnl[attr].columns) # df.index[df[switch_attr]]
 
