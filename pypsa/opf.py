@@ -1022,7 +1022,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
         snapshots = [network.now]
 
 
-    logger.info("Starting to build pyomo model")
+    logger.info("Building pyomo model using `%s` formulation", formulation)
     network.model = ConcreteModel("Linear Optimal Power Flow")
 
 
@@ -1062,13 +1062,10 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     #tidy up auxilliary expressions
     del network._p_balance
 
-    logger.info("Finished building pyomo model")
-
+    logger.info("Solving model using %s", solver_name)
     opt = SolverFactory(solver_name)
 
-    logger.info("Starting solver %s", solver_name)
     patch_optsolver_record_memusage_before_solving(opt, network)
-
 
     if isinstance(free_memory, string_types):
         free_memory = {free_memory}
