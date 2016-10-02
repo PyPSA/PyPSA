@@ -22,7 +22,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division
 from __future__ import absolute_import
-from six import iteritems
+from six import iteritems, string_types
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
@@ -48,7 +48,9 @@ from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
                  find_cycles)
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
-                  patch_optsolver_free_model_and_network_before_solving)
+                  patch_optsolver_free_model_before_solving,
+                  patch_optsolver_record_memusage_before_solving,
+                  empty_network)
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes
 
 
@@ -965,7 +967,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
                  skip_pre=False, extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles", ptdf_tolerance=0.,
-                 free_memory_hack=False):
+                 free_memory={}):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -997,8 +999,10 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
         one of ["angles","cycles","kirchhoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
-    free_memory_hack : bool, default False
-        Stash time series data and pyomo model away while the solver runs
+    free_memory : set, default {}
+        Any subset of {'pypsa', 'pyomo_hack'}. Beware that the
+        pyomo_hack is slow and only tested on small systems.  Stash
+        time series data and/or pyomo model away while the solver runs.
 
     Returns
     -------
@@ -1061,12 +1065,25 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     logger.info("Finished building pyomo model")
 
     opt = SolverFactory(solver_name)
-    if free_memory_hack:
-        patch_optsolver_free_model_and_network_before_solving(opt, network.model, network)
 
     logger.info("Starting solver %s", solver_name)
-    network.results = opt.solve(network.model, suffixes=["dual"],
-                                keepfiles=keep_files, options=solver_options)
+    patch_optsolver_record_memusage_before_solving(opt, network)
+
+
+    if isinstance(free_memory, string_types):
+        free_memory = {free_memory}
+
+    if 'pyomo_hack' in free_memory:
+        patch_optsolver_free_network_before_solving(opt, network.model)
+
+    if 'pypsa' in free_memory:
+        with empty_network(network):
+            network.results = opt.solve(network.model, suffixes=["dual"],
+                                        keepfiles=keep_files, options=solver_options)
+    else:
+        network.results = opt.solve(network.model, suffixes=["dual"],
+                                    keepfiles=keep_files, options=solver_options)
+
 
     if verbose:
         network.results.write()

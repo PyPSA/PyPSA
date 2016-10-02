@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 from pyomo.environ import Constraint, Objective, Var, ComponentUID
 from weakref import ref as weakref_ref
 
+import resource
 import pyomo
 from contextlib import contextmanager
 from six import iteritems
@@ -284,6 +285,7 @@ def empty_model(model):
     model.__dict__.clear()
     logger.debug("Stored pyomo model to disk")
 
+    gc.collect()
     yield
 
     logger.debug("Reloading pyomo model")
@@ -325,6 +327,7 @@ def empty_network(network):
 
     del panels
 
+    gc.collect()
     yield
 
     logger.debug("Reloading pypsa timeseries from disk")
@@ -334,10 +337,16 @@ def empty_network(network):
     for attr, pnl in iteritems(panels):
         setattr(network, attr, pnl)
 
-def patch_optsolver_free_model_and_network_before_solving(opt, model, network):
+def patch_optsolver_free_model_before_solving(opt, model):
     orig_apply_solver = opt._apply_solver
     def wrapper():
-        with empty_model(model), empty_network(network):
-            gc.collect()
+        with empty_model(model):
             return orig_apply_solver()
+    opt._apply_solver = wrapper
+
+def patch_optsolver_record_memusage_before_solving(opt, network):
+    orig_apply_solver = opt._apply_solver
+    def wrapper():
+        network.max_memusage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return orig_apply_solver()
     opt._apply_solver = wrapper
