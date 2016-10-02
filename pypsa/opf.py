@@ -1097,3 +1097,5 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
     else:
         logger.error("Optimisation failed with status %s and terminal condition %s"
               % (status,termination_condition))
+
+    return status, termination_condition
