@@ -962,6 +962,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     network.links.loc[network.links.p_nom_extendable, "p_nom_opt"] = \
         as_series(network.model.link_p_nom)
 
+    if network.co2_limit is not None:
+        network.co2_price = network.model.dual[network.model.co2_constraint]
 
 
 def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
