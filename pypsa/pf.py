@@ -418,7 +418,7 @@ def find_bus_controls(sub_network,verbose=True):
     network.buses.loc[buses_i, "control"] = "PQ"
 
     #find all buses with one or more gens with PV
-    pvs = gens[gens.control == 'PV'].reset_index().groupby('bus').first()['name']
+    pvs = gens[gens.control == 'PV'].index.to_series().groupby(gens.bus).first()
     network.buses.loc[pvs.index, "control"] = "PV"
     network.buses.loc[pvs.index, "generator"] = pvs
 
