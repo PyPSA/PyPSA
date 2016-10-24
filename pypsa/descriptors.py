@@ -263,6 +263,31 @@ def get_series_descriptors(cls):
     return get_descriptors(cls,[Series])
 
 def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
+    """
+    Return a Dataframe for a time-varying component attribute with values for all
+    non-time-varying components filled in with the default values for the
+    attribute.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    component : string
+        Component object name, e.g. 'Generator' or 'Link'
+    snapshots : pandas.Index
+        Restrict to these snapshots rather than network.snapshots.
+    inds : pandas.Index
+        Restrict to these components rather than network.components.index
+
+    Returns
+    -------
+    pandas.DataFrame
+
+    Examples
+    --------
+    >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
+
+"""
+
     switch = attr + '_t'
     if isinstance(component, string_types):
         from . import components
@@ -275,7 +300,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     index = df.index
     varying_i = index[df.loc[:, switch]]
     fixed_i = index[~ df.loc[:, switch]]
-    index = df.index
+
     if inds is not None:
         index = index.intersection(inds)
         varying_i = varying_i.intersection(inds)
@@ -288,7 +313,28 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
         pnl[attr].loc[snapshots, varying_i]
     ], axis=1).reindex(columns=index))
 
+
 def allocate_series_dataframes(network, series):
+    """
+    Populate time-varying outputs with default values.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    series : dict
+        Dictionary of components and their attributes to populate (see example)
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> allocate_series_dataframes(network, {'Generator': ['p'],
+                                         'Load': ['p']})
+
+"""
+
     from . import components
     for component, attributes in iteritems(series):
         if isinstance(component, string_types):

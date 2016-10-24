@@ -3,6 +3,14 @@ Release Notes
 #######################
 
 
+PyPSA 0.7.0
+
+* _t overhall
+* logging
+* pandas 0.19.0 fix
+
+
+
 PyPSA 0.6.1 (25th August 2016)
 ==============================
 
