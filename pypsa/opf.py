@@ -914,14 +914,15 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 
     if len(network.buses):
-        if formulation == "angles":
-            set_from_series(network.buses_t.v_ang,
-                            as_series(model.voltage_angles))
+        if formulation in {'angles', 'kirchhoff'}:
             set_from_series(network.buses_t.marginal_price,
                             pd.Series(list(model.power_balance.values()),
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
                             .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
 
+        if formulation == "angles":
+            set_from_series(network.buses_t.v_ang,
+                            as_series(model.voltage_angles))
         elif formulation in ["ptdf","cycles","kirchhoff"]:
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
