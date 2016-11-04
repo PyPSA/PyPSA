@@ -3,6 +3,18 @@ Release Notes
 #######################
 
 
+PyPSA 0.6.2 (4th November 2016)
+===============================
+
+This release fixes a single library dependency issue:
+
+* pf: A single line has been fixed so that it works with new pandas
+  versions >= 0.19.0.
+
+We thank Thorben Meiners for promptly pointing out this issue with the
+new versions of pandas.
+
+
 PyPSA 0.6.1 (25th August 2016)
 ==============================
 
