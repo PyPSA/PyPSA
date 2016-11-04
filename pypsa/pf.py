@@ -712,7 +712,7 @@ def find_cycles(sub_network,verbose=True):
                 sign = -1
 
             branch_i = branches_i.get_loc((branch.__class__.__name__,branch.name))
-            sub_network.C[branch_i,j] = sign
+            sub_network.C[branch_i,j] += sign
 
     #counter for multis
     c = len(cycles)
