@@ -565,7 +565,7 @@ class Network(Basic):
         self.component_simple_descriptors = {obj : get_simple_descriptors(obj)
                                              for obj in descriptors}
 
-        #make a dictionary of all simple descriptors
+        #make a dictionary of all series descriptors
         self.component_series_descriptors = {obj : get_series_descriptors(obj)
                                              for obj in descriptors}
 

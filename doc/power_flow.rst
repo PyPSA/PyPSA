@@ -163,6 +163,8 @@ generator.{control, p_set, q_set (for control PQ)}
 
 storage_unit.{control, p_set, q_set (for control PQ)}
 
+store.{p_set, q_set}
+
 shunt_impedance.{b, g}
 
 line.{x, r, b, g}
@@ -196,6 +198,8 @@ load.{p, q}
 generator.{p, q}
 
 storage_unit.{p, q}
+
+store.{p, q}
 
 shunt_impedance.{p, q}
 
@@ -271,6 +275,8 @@ generator.{p_set}
 
 storage_unit.{p_set}
 
+store.{p_set}
+
 shunt_impedance.{g}
 
 line.{x}
@@ -292,6 +298,8 @@ load.{p}
 generator.{p}
 
 storage_unit.{p}
+
+store.{p}
 
 shunt_impedance.{p}
 

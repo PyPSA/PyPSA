@@ -65,7 +65,7 @@ def calculate_BODF(sub_network,verbose=True,skip_pre=False):
     """
 
     if not skip_pre:
-        calculate_PTDF(sub_network,verbose)
+        calculate_PTDF(sub_network)
 
     num_branches = sub_network.PTDF.shape[0]
 

@@ -53,22 +53,43 @@ def _as_snapshots(network, snapshots):
     else:
         return pd.Index(snapshots)
 
-def _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_pf_fun, sub_network_prepare_fun, **kwargs):
+
+def _allocate_pf_outputs(network, linear=False):
+
+    to_allocate = {'Generator': ['p'],
+                   'Load': ['p'],
+                   'StorageUnit': ['p'],
+                   'Store': ['p'],
+                   'ShuntImpedance': ['p'],
+                   'Bus': ['p', 'v_ang', 'v_mag_pu'],
+                   'Line': ['p0', 'p1'],
+                   'Transformer': ['p0', 'p1'],
+                   'Link': ['p0', 'p1']}
+
+    if not linear:
+        for component, attrs in to_allocate.items():
+            if "p" in attrs:
+                attrs.append("q")
+            if "p0" in attrs and component != 'Link':
+                attrs.extend(["q0","q1"])
+
+    allocate_series_dataframes(network, to_allocate)
+
+
+
+def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kwargs):
+
+    if linear:
+        sub_network_pf_fun = sub_network_lpf
+        sub_network_prepare_fun = calculate_B_H
+    else:
+        sub_network_pf_fun = sub_network_pf
+        sub_network_prepare_fun = calculate_Y
 
     if not skip_pre:
         network.determine_network_topology()
         calculate_dependent_values(network)
-        allocate_series_dataframes(network, {'Generator': ['p', 'q'],
-                                             'Load': ['p', 'q'],
-                                             'StorageUnit': ['p', 'q'],
-                                             'Store': ['p'],
-                                             'ShuntImpedance': ['p', 'q'],
-                                             'Bus': ['p', 'q', 'v_ang', 'v_mag_pu'],
-                                             'Line': ['p0', 'p1', 'q0', 'q1'],
-                                             'Transformer': ['p0', 'p1', 'q0', 'q1'],
-                                             'Link': ['p0', 'p1']})
-
-
+        _allocate_pf_outputs(network, linear)
 
     snapshots = _as_snapshots(network, snapshots)
 
@@ -108,7 +129,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     None
     """
 
-    _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_pf, calculate_Y, x_tol=x_tol, use_seed=use_seed)
+    _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
 
 
 def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
@@ -174,6 +195,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     if not skip_pre:
         calculate_dependent_values(network)
         find_bus_controls(sub_network)
+        _allocate_pf_outputs(network, linear=False)
+
 
     # get indices for the components on this subnetwork
     branches_i = sub_network.branches_i()
@@ -351,7 +374,7 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     None
     """
 
-    _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_lpf, calculate_B_H)
+    _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=True)
 
 
 def calculate_dependent_values(network):
@@ -767,6 +790,8 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     if not skip_pre:
         calculate_dependent_values(network)
         find_bus_controls(sub_network)
+        _allocate_pf_outputs(network, linear=True)
+
 
     # get indices for the components on this subnetwork
     buses_o = sub_network.buses_o

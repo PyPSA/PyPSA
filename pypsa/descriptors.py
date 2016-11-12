@@ -262,6 +262,7 @@ def get_simple_descriptors(cls):
 def get_series_descriptors(cls):
     return get_descriptors(cls,[Series])
 
+
 def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
     """
     Return a Dataframe for a time-varying component attribute with values for all
@@ -331,7 +332,7 @@ def allocate_series_dataframes(network, series):
     Examples
     --------
     >>> allocate_series_dataframes(network, {'Generator': ['p'],
-                                         'Load': ['p']})
+                                             'Load': ['p']})
 
 """
 
