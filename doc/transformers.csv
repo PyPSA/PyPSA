@@ -13,10 +13,10 @@ s_nom_max,float,MVA,inf,"If s_nom is extendable in OPF, set its maximum value (e
 capital_cost,float,currency/MVA,0.,"Capital cost of extending s_nom by 1 MVA.",Input (optional)
 tap_ratio,float,1.,"Ratio of per unit voltages at each bus.",Input (optional)
 phase_shift,float,Degrees,"Voltage phase angle shift.",Input (optional)
-p0,series of floats,MW,0.,Active power at bus0 (positive if bus is withdrawing power).,Output
-q0,series of floats,MVar,0.,Reactive power at bus0 (positive if bus is withdrawing power).,Output
-p1,series of floats,MW,0.,Active power at bus1 (positive if bus is withdrawing power).,Output
-q1,series of floats,MVar,0.,Reactive power at bus1 (positive if bus is withdrawing power).,Output
+p0,series of floats,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
+q0,series of floats,MVar,0.,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
+p1,series of floats,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
+q1,series of floats,MVar,0.,Reactive power at bus1 (positive if branch is withdrawing power from bus1).,Output
 x_pu,float,per unit,0.,Per unit series reactance calculated by PyPSA from x and bus.v_nom.,Output
 r_pu,float,per unit,0.,Per unit series resistance calculated by PyPSA from r and bus.v_nom,Output
 g_pu,float,per unit,0.,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output

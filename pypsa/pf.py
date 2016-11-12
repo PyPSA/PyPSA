@@ -422,7 +422,7 @@ def find_bus_controls(sub_network):
     network.buses.loc[buses_i, "control"] = "PQ"
 
     #find all buses with one or more gens with PV
-    pvs = gens[gens.control == 'PV'].reset_index().groupby('bus').first()['name']
+    pvs = gens[gens.control == 'PV'].index.to_series().groupby(gens.bus).first()
     network.buses.loc[pvs.index, "control"] = "PV"
     network.buses.loc[pvs.index, "generator"] = pvs
 
@@ -713,7 +713,7 @@ def find_cycles(sub_network):
                 sign = -1
 
             branch_i = branches_i.get_loc((branch.__class__.__name__,branch.name))
-            sub_network.C[branch_i,j] = sign
+            sub_network.C[branch_i,j] += sign
 
     #counter for multis
     c = len(cycles)
