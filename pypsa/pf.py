@@ -42,7 +42,7 @@ import collections, six
 from itertools import chain
 import time
 
-from .descriptors import get_switchable_as_dense
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes
 
 def _as_snapshots(network, snapshots):
     if snapshots is None:
@@ -58,13 +58,25 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, sub_network_pf_fun
     if not skip_pre:
         network.determine_network_topology()
         calculate_dependent_values(network)
+        allocate_series_dataframes(network, {'Generator': ['p', 'q'],
+                                             'Load': ['p', 'q'],
+                                             'StorageUnit': ['p', 'q'],
+                                             'Store': ['p'],
+                                             'ShuntImpedance': ['p', 'q'],
+                                             'Bus': ['p', 'q', 'v_ang', 'v_mag_pu'],
+                                             'Line': ['p0', 'p1', 'q0', 'q1'],
+                                             'Transformer': ['p0', 'p1', 'q0', 'q1'],
+                                             'Link': ['p0', 'p1']})
+
+
 
     snapshots = _as_snapshots(network, snapshots)
 
     #deal with links
     if not network.links.empty:
-        network.links_t.p0.loc[snapshots] = network.links_t.p_set.loc[snapshots]
-        network.links_t.p1.loc[snapshots] = -network.links_t.p_set.loc[snapshots].multiply(network.links.efficiency)
+        p_set = get_switchable_as_dense(network, 'Link', 'p_set', snapshots)
+        network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
+        network.links_t.p1.loc[snapshots] = -p_set.loc[snapshots].multiply(network.links.efficiency)
 
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
