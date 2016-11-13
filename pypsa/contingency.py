@@ -30,9 +30,7 @@ from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vs
 from numpy import r_, ones, zeros, newaxis
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -113,7 +111,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     if snapshots is None:
         snapshot = network.now
     elif isinstance(snapshots, collections.Iterable):
-        logging.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
+        logger.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
         snapshot = snapshots[0]
     else:
         snapshot = snapshots

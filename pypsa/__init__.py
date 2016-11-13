@@ -31,6 +31,9 @@ from .components import (Network, Bus, Load, Generator, StorageUnit,
                          Store, ShuntImpedance, Line, Transformer,
                          Link, SubNetwork, Branch, OnePort)
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 __version__ = "0.6.2"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"

@@ -36,9 +36,7 @@ from pyomo.opt import SolverFactory
 from itertools import chain
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+logger = logging.getLogger(__name__)
 
 
 from distutils.version import StrictVersion, LooseVersion

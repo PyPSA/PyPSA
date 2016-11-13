@@ -31,8 +31,7 @@ from six import itervalues, iteritems
 import six
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 from .descriptors import OrderedGraph
@@ -486,7 +485,7 @@ def busmap_by_stubs(network):
 
     while True:
         old_count = count
-        logging.info("{} buses".format(len(network.buses)))
+        logger.info("{} buses".format(len(network.buses)))
         graph = network.graph()
         for u in graph.node:
             neighbours = list(graph.adj[u].keys())
@@ -498,7 +497,7 @@ def busmap_by_stubs(network):
                     network.remove("Line",line.name)
                 network.remove("Bus",u)
                 busmap[busmap==u] = neighbour
-        logging.info("{} deleted".format(count))
+        logger.info("{} deleted".format(count))
         if old_count == count:
             break
     return busmap

@@ -29,6 +29,8 @@ __copyright__ = "Copyright 2016 Tom Brown (FIAS), GNU GPL 3"
 import numpy as np
 import pandas as pd
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 def haversine(a0,a1):
@@ -67,7 +69,7 @@ def haversine(a0,a1):
             a[i] = np.reshape(a[i],(1,a[i].shape[0]))
 
         if a[i].shape[1] != 2:
-            logging.error("Inputs to haversine have the wrong shape!")
+            logger.error("Inputs to haversine have the wrong shape!")
             return
 
         a[i] = np.deg2rad(a[i])

@@ -27,9 +27,7 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+logger = logging.getLogger(__name__)
 
 
 import pandas as pd
@@ -77,7 +75,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
 
     #make sure directory exists
     if not os.path.isdir(csv_folder_name):
-        logging.warning("Directory {} does not exist, creating it".format(csv_folder_name))
+        logger.warning("Directory {} does not exist, creating it".format(csv_folder_name))
         os.mkdir(csv_folder_name)
 
 
@@ -105,7 +103,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
             continue
         df = getattr(network,key.list_name)
         if df.empty:
-            logging.warning("No {}".format(key.list_name))
+            logger.warning("No {}".format(key.list_name))
             continue
         col_export = []
         for col in df.columns:
@@ -192,7 +190,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     new_df = pd.concat((old_df,dataframe.drop(series_attrs,axis=1)))
 
     if not new_df.index.is_unique:
-        logging.error("Error, new components for {} are not unique".format(cls_name))
+        logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
     for k, v in iteritems(simple_descriptors):
@@ -295,7 +293,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
     """
 
     if not os.path.isdir(csv_folder_name):
-        logging.error("Directory {} does not exist.".format(csv_folder_name))
+        logger.error("Directory {} does not exist.".format(csv_folder_name))
         return
 
     #if there is network.csv, read in network data
@@ -304,7 +302,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
 
     if os.path.isfile(file_name):
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
-        logging.info(df)
+        logger.info(df)
         network.name = df.index[0]
         for col in df.columns:
             setattr(network,col,df[col][network.name])
@@ -322,7 +320,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
     #now read in other components
     for cls in pypsa.components.component_types - {pypsa.components.SubNetwork}:
 
-        logging.info(cls)
+        logger.info(cls)
 
         list_name = cls.list_name
 
@@ -330,10 +328,10 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
 
         if not os.path.isfile(file_name):
             if cls.__name__ == "Bus":
-                logging.error("Error, no buses found")
+                logger.error("Error, no buses found")
                 return
             else:
-                logging.warning("No {}.csv found.".format(list_name))
+                logger.warning("No {}.csv found.".format(list_name))
                 continue
 
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
@@ -346,7 +344,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
             import_series_from_dataframe(network,df,cls.__name__,file_name[len(list_name)+1:-4])
 
-        logging.info(getattr(network,list_name))
+        logger.info(getattr(network,list_name))
 
 
 
@@ -372,9 +370,9 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     version = ppc["version"]
     if int(version) != 2:
-        logging.warning("Warning, importing from PYPOWER may not work if PPC version is not 2!")
+        logger.warning("Warning, importing from PYPOWER may not work if PPC version is not 2!")
 
-    logging.warning("Warning: Note that when importing from PYPOWER, some PYPOWER features not supported: areas, gencosts, component status")
+    logger.warning("Warning: Note that when importing from PYPOWER, some PYPOWER features not supported: areas, gencosts, component status")
 
 
     baseMVA = ppc["baseMVA"]
@@ -393,7 +391,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:len(columns)+1])
 
     if (pdf["buses"]["v_nom"] == 0.).any():
-        logging.warning("Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1.")
+        logger.warning("Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1.")
         pdf['buses'].loc[pdf['buses']['v_nom'] == 0.,'v_nom'] = 1.
 
 
@@ -455,7 +453,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         if overwrite_zero_s_nom is not None:
             pdf['branches'].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
         else:
-            logging.warning("Warning: there are {} branches with s_nom equal to zero, "
+            logger.warning("Warning: there are {} branches with s_nom equal to zero, "
                   "they will probably lead to infeasibilities and should be "
                   "replaced with a high value using the `overwrite_zero_s_nom` "
                   "argument.".format(zero_s_nom.sum()))
@@ -483,7 +481,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
 
     if (pdf['transformers']['tap_ratio'] == 0.).any():
-        logging.warning("Warning, some transformers have a tap ratio of 0., setting the tap ratio of these to 1.")
+        logger.warning("Warning, some transformers have a tap ratio of 0., setting the tap ratio of these to 1.")
         pdf['transformers'].loc[pdf['transformers']['tap_ratio'] == 0.,'tap_ratio'] = 1.
 
 

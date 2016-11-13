@@ -24,9 +24,7 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+logger = logging.getLogger(__name__)
 
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack, dok_matrix
 
@@ -186,7 +184,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
-    logger.info("Performing non-linear load-flow on %s sub-network %s for snapshots {}", sub_network.carrier, sub_network, snapshots)
+    logger.info("Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(sub_network.carrier, sub_network, snapshots))
 
     # _sub_network_prepare_pf(sub_network, snapshots, skip_pre, calculate_Y)
     network = sub_network.network

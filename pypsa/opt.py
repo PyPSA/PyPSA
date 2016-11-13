@@ -28,8 +28,7 @@ from __future__ import division, absolute_import
 from six.moves import range
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 from pyomo.environ import Constraint, Objective, Var, ComponentUID
@@ -79,7 +78,7 @@ class LExpression(object):
         try:
             constant = float(constant)
         except:
-            logging.error("Can only multiply an LExpression with a float!")
+            logger.error("Can only multiply an LExpression with a float!")
             return None
         return LExpression([(constant*item[0],item[1]) for item in self.variables],
                            constant*self.constant)
@@ -94,7 +93,7 @@ class LExpression(object):
             try:
                 constant = float(other)
             except:
-                logging.error("Can only add an LExpression to another LExpression or a constant!")
+                logger.error("Can only add an LExpression to another LExpression or a constant!")
                 return None
             return LExpression(self.variables[:],self.constant+constant)
 

@@ -46,8 +46,7 @@ import re
 import inspect
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 from distutils.version import StrictVersion, LooseVersion
@@ -162,10 +161,10 @@ class SimpleDescriptor(object):
             cast_value = self.typ(val)
             getattr(obj.network, obj.__class__.list_name).loc[obj.name, self.name] = cast_value
         except:
-            logging.error("could not convert '{}' to a '{}'".format(val, self.typ))
+            logger.error("could not convert '{}' to a '{}'".format(val, self.typ))
 
         if self.restricted is not None and cast_value not in self.restricted:
-            logging.warning("'{}' not in list of acceptable entries: {}".format(cast_value, self.restricted))
+            logger.warning("'{}' not in list of acceptable entries: {}".format(cast_value, self.restricted))
 
 class Float(SimpleDescriptor):
     """A descriptor to manage floats."""
@@ -238,7 +237,7 @@ class Series(object):
             else:
                 getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
         except AttributeError:
-            logging.error("count not assign {} to series".format(val))
+            logger.error("count not assign {} to series".format(val))
 
 
 

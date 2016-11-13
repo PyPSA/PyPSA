@@ -72,8 +72,8 @@ import inspect
 import sys
 
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 
 
@@ -676,13 +676,13 @@ class Network(Basic):
         try:
             cls = globals()[class_name]
         except KeyError:
-            logging.error("Component class {} not found".format(class_name))
+            logger.error("Component class {} not found".format(class_name))
             return None
 
         cls_df = getattr(self, cls.list_name)
 
         if str(name) in cls_df.index:
-            logging.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, cls.list_name))
+            logger.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, cls.list_name))
             return
 
         obj = cls(self, str(name))
@@ -739,7 +739,7 @@ class Network(Basic):
         try:
             cls = globals()[class_name]
         except KeyError:
-            logging.error("Class {} not found".format(class_name))
+            logger.error("Class {} not found".format(class_name))
             return None
 
         cls_df = getattr(self, cls.list_name)
@@ -825,11 +825,11 @@ class Network(Basic):
             carrier = self.buses.carrier.iat[buses_i[0]]
 
             if carrier not in ["AC","DC"] and len(buses_i) > 1:
-                logging.warning("Warning, sub network {} is not electric but contains multiple buses\n"
+                logger.warning("Warning, sub network {} is not electric but contains multiple buses\n"
                                 "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
-                logging.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
+                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
                                 self.buses.carrier.iloc[buses_i].value_counts())
 
             sub_network = self.add("SubNetwork", i, carrier=carrier)

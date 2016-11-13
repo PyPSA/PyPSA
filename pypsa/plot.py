@@ -99,7 +99,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     }
 
     if not plt_present:
-        logging.error("Matplotlib is not present, so plotting won't work.")
+        logger.error("Matplotlib is not present, so plotting won't work.")
         return
 
     if ax is None:
