@@ -20,7 +20,7 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
+from __future__ import division
 from __future__ import absolute_import
 from six import iteritems, string_types
 
@@ -44,6 +44,11 @@ import numpy as np
 import re
 
 import inspect
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 from distutils.version import StrictVersion, LooseVersion
 try:
@@ -157,10 +162,10 @@ class SimpleDescriptor(object):
             cast_value = self.typ(val)
             getattr(obj.network, obj.__class__.list_name).loc[obj.name, self.name] = cast_value
         except:
-            print("could not convert '{}' to a '{}'".format(val, self.typ))
+            logging.error("could not convert '{}' to a '{}'".format(val, self.typ))
 
         if self.restricted is not None and cast_value not in self.restricted:
-            print("'{}' not in list of acceptable entries: {}".format(cast_value, self.restricted))
+            logging.warning("'{}' not in list of acceptable entries: {}".format(cast_value, self.restricted))
 
 class Float(SimpleDescriptor):
     """A descriptor to manage floats."""
@@ -233,7 +238,7 @@ class Series(object):
             else:
                 getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
         except AttributeError:
-            print("count not assign",val,"to series")
+            logging.error("count not assign {} to series".format(val))
 
 
 

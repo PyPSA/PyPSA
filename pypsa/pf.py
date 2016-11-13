@@ -17,15 +17,16 @@
 """
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
+from __future__ import division, absolute_import
 from six.moves import range
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack, dok_matrix
 

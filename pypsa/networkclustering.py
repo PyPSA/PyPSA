@@ -16,7 +16,7 @@
 """Functions for computing network clusters
 """
 
-from __future__ import absolute_import, print_function, division
+from __future__ import absolute_import, division
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -30,10 +30,17 @@ from six.moves import zip, range
 from six import itervalues, iteritems
 import six
 
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
 from .descriptors import OrderedGraph
 from .components import Network
 
 from . import components, io
+
+
 
 def _consense(x):
     v = x.iat[0]
@@ -479,7 +486,7 @@ def busmap_by_stubs(network):
 
     while True:
         old_count = count
-        print(len(network.buses),"buses")
+        logging.info("{} buses".format(len(network.buses)))
         graph = network.graph()
         for u in graph.node:
             neighbours = list(graph.adj[u].keys())
@@ -491,7 +498,7 @@ def busmap_by_stubs(network):
                     network.remove("Line",line.name)
                 network.remove("Bus",u)
                 busmap[busmap==u] = neighbour
-        print(count,"deleted")
+        logging.info("{} deleted".format(count))
         if old_count == count:
             break
     return busmap

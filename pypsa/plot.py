@@ -20,7 +20,7 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
+from __future__ import division
 from __future__ import absolute_import
 import six
 from six import iteritems
@@ -99,7 +99,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     }
 
     if not plt_present:
-        print("Matplotlib is not present, so plotting won't work.")
+        logging.error("Matplotlib is not present, so plotting won't work.")
         return
 
     if ax is None:

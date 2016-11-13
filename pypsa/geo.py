@@ -20,7 +20,7 @@ distances/areas.
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division, absolute_import
+from __future__ import division, absolute_import
 
 
 __author__ = "Tom Brown (FIAS)"
@@ -67,7 +67,7 @@ def haversine(a0,a1):
             a[i] = np.reshape(a[i],(1,a[i].shape[0]))
 
         if a[i].shape[1] != 2:
-            print("Inputs to haversine have the wrong shape!")
+            logging.error("Inputs to haversine have the wrong shape!")
             return
 
         a[i] = np.deg2rad(a[i])

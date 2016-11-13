@@ -20,7 +20,7 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division, absolute_import
+from __future__ import division, absolute_import
 import six
 from six import iteritems, itervalues, iterkeys
 from six.moves import map
@@ -70,6 +70,11 @@ from .graph import graph, incidence_matrix, adjacency_matrix
 import inspect
 
 import sys
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 
 inf = float("inf")
@@ -671,13 +676,13 @@ class Network(Basic):
         try:
             cls = globals()[class_name]
         except KeyError:
-            print(class_name, "not found")
+            logging.error("Component class {} not found".format(class_name))
             return None
 
         cls_df = getattr(self, cls.list_name)
 
         if str(name) in cls_df.index:
-            print("Failed to add", name, "because there is already an object with this name in",cls.list_name)
+            logging.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, cls.list_name))
             return
 
         obj = cls(self, str(name))
@@ -734,7 +739,7 @@ class Network(Basic):
         try:
             cls = globals()[class_name]
         except KeyError:
-            print(class_name, "not found")
+            logging.error("Class {} not found".format(class_name))
             return None
 
         cls_df = getattr(self, cls.list_name)
@@ -820,12 +825,12 @@ class Network(Basic):
             carrier = self.buses.carrier.iat[buses_i[0]]
 
             if carrier not in ["AC","DC"] and len(buses_i) > 1:
-                print("Warning, sub network {} is not electric but contains multiple buses\n"
-                      "and branches. Passive flows are not allowed for non-electric networks!".format(i))
+                logging.warning("Warning, sub network {} is not electric but contains multiple buses\n"
+                                "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
-                print("Warning, sub network {} contains buses with mixed carriers! Value counts:".format(i))
-                print(self.buses.carrier.iloc[buses_i].value_counts())
+                logging.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
+                                self.buses.carrier.iloc[buses_i].value_counts())
 
             sub_network = self.add("SubNetwork", i, carrier=carrier)
 

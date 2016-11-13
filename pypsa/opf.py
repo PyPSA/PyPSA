@@ -20,8 +20,7 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
+from __future__ import division, absolute_import
 from six import iteritems, string_types
 
 
@@ -35,8 +34,12 @@ from pyomo.environ import (ConcreteModel, Var, Objective,
                            Suffix, Expression)
 from pyomo.opt import SolverFactory
 from itertools import chain
+
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
 
 from distutils.version import StrictVersion, LooseVersion
 try:
@@ -967,7 +970,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         network.co2_price = network.model.dual[network.model.co2_constraint]
 
 
-def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
+def network_lopf(network, snapshots=None, solver_name="glpk",
                  skip_pre=False, extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles", ptdf_tolerance=0.,
                  free_memory={}):
@@ -1085,7 +1088,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", verbose=True,
                                     keepfiles=keep_files, options=solver_options)
 
 
-    if verbose:
+    if logger.level > 0:
         network.results.write()
 
     status = network.results["Solver"][0]["Status"].key

@@ -18,7 +18,7 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division, absolute_import
+from __future__ import division, absolute_import
 
 
 __author__ = "Tom Brown (FIAS)"
@@ -28,6 +28,11 @@ __copyright__ = "Copyright 2016 Tom Brown (FIAS), GNU GPL 3"
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
 
 from numpy import r_, ones, zeros, newaxis
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 import numpy as np
 import pandas as pd
@@ -39,7 +44,7 @@ from .pf import calculate_PTDF
 from .opt import l_constraint
 
 
-def calculate_BODF(sub_network,verbose=True,skip_pre=False):
+def calculate_BODF(sub_network, skip_pre=False):
     """
     Calculate the Branch Outage Distribution Factor (BODF) for
     sub_network.
@@ -58,7 +63,6 @@ def calculate_BODF(sub_network,verbose=True,skip_pre=False):
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary step of computing the PTDF.
 
@@ -80,7 +84,7 @@ def calculate_BODF(sub_network,verbose=True,skip_pre=False):
     np.fill_diagonal(sub_network.BODF,-1)
 
 
-def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=True,skip_pre=True):
+def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     """
     Computes linear power flow for a selection of branch outages.
 
@@ -93,10 +97,6 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
     branch_outages : list-like
         A list of passive branches which are to be tested for outages.
         If None, it's take as all network.passive_branches_i()
-    verbose: bool, default True
-    skip_pre: bool, default False
-        Skip the preliminary steps of computing topology, calculating
-        dependent values and finding bus controls.
     now : object
         Deprecated: A member of network.snapshots on which to run the
         power flow, defaults to network.now
@@ -113,7 +113,7 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
     if snapshots is None:
         snapshot = network.now
     elif isinstance(snapshots, collections.Iterable):
-        print("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
+        logging.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
         snapshot = snapshots[0]
     else:
         snapshot = snapshots
@@ -136,15 +136,15 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
-        sn.calculate_BODF(verbose)
+        sn.calculate_BODF()
 
     p0 = pd.DataFrame(index=passive_branches.index)
 
     p0["base"] = p0_base
 
     for branch in branch_outages:
-        if type(branch) is not tuple and verbose:
-            print("No type given for {}, assuming it is a line".format(branch))
+        if type(branch) is not tuple:
+            logger.warning("No type given for {}, assuming it is a line".format(branch))
             branch = ("Line",branch)
 
         sn = network.sub_networks.obj[passive_branches.sub_network[branch]]
@@ -160,7 +160,7 @@ def network_lpf_contingency(network,snapshots=None,branch_outages=None,verbose=T
 
 
 
-def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk",verbose=True,skip_pre=False,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
+def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk",skip_pre=False,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
     """
     Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
 
@@ -175,7 +175,6 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
         If None, it's take as all network.passive_branches_i()
     solver_name : string
         Must be a solver name that pyomo recognises and that is installed, e.g. "glpk", "gurobi"
-    verbose: bool, default True
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     solver_options : dictionary
@@ -208,7 +207,7 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
 
     for sn in network.sub_networks.obj:
 
-        sn.calculate_BODF(verbose)
+        sn.calculate_BODF()
 
         sn._branches = sn.branches()
         sn._branches["_i"] = range(sn._branches.shape[0])
@@ -225,8 +224,8 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
         flow_lower = {}
 
         for branch in branch_outages:
-            if type(branch) is not tuple and verbose:
-                print("No type given for {}, assuming it is a line".format(branch))
+            if type(branch) is not tuple:
+                logger.warning("No type given for {}, assuming it is a line".format(branch))
                 branch = ("Line",branch)
 
             sub = network.sub_networks.obj[passive_branches.sub_network[branch]]
@@ -253,4 +252,4 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
 
     #need to skip preparation otherwise it recalculates the sub-networks
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name,verbose=verbose,skip_pre=True,extra_functionality=add_contingency_constraints,solver_options=solver_options,keep_files=keep_files,formulation=formulation,ptdf_tolerance=ptdf_tolerance)
+    network.lopf(snapshots=snapshots,solver_name=solver_name,skip_pre=True,extra_functionality=add_contingency_constraints,solver_options=solver_options,keep_files=keep_files,formulation=formulation,ptdf_tolerance=ptdf_tolerance)

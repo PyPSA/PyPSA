@@ -18,14 +18,17 @@
 
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
+from __future__ import division, absolute_import
 from six import iteritems
 from six.moves import filter, range
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 
@@ -39,7 +42,7 @@ import numpy as np
 
 
 
-def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
+def export_to_csv_folder(network, csv_folder_name, encoding=None):
     """
     Export network and components to a folder of CSVs.
 
@@ -52,7 +55,6 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
     ----------
     csv_folder_name : string
         Name of folder to which to export.
-    verbose : boolean, default True
     encoding : str, default None
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
@@ -75,8 +77,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
 
     #make sure directory exists
     if not os.path.isdir(csv_folder_name):
-        if verbose:
-            "Directory {} does not exist, creating it".format(csv_folder_name)
+        logging.warning("Directory {} does not exist, creating it".format(csv_folder_name))
         os.mkdir(csv_folder_name)
 
 
@@ -104,8 +105,7 @@ def export_to_csv_folder(network,csv_folder_name,verbose=True,encoding=None):
             continue
         df = getattr(network,key.list_name)
         if df.empty:
-            if verbose:
-                print("No",key.list_name)
+            logging.warning("No {}".format(key.list_name))
             continue
         col_export = []
         for col in df.columns:
@@ -192,7 +192,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     new_df = pd.concat((old_df,dataframe.drop(series_attrs,axis=1)))
 
     if not new_df.index.is_unique:
-        print("Error, new components for",cls_name,"are not unique")
+        logging.error("Error, new components for {} are not unique".format(cls_name))
         return
 
     for k, v in iteritems(simple_descriptors):
@@ -278,7 +278,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
 
-def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
+def import_from_csv_folder(network, csv_folder_name, encoding=None):
     """
     Import network data from CSVs in a folder.
 
@@ -288,7 +288,6 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     ----------
     csv_folder_name : string
         Name of folder
-    verbose : boolean, default True
     encoding : str, default None
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
@@ -296,7 +295,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     """
 
     if not os.path.isdir(csv_folder_name):
-        print("Directory {} does not exist.".format(csv_folder_name))
+        logging.error("Directory {} does not exist.".format(csv_folder_name))
         return
 
     #if there is network.csv, read in network data
@@ -305,8 +304,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
 
     if os.path.isfile(file_name):
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
-        if verbose:
-            print(df)
+        logging.info(df)
         network.name = df.index[0]
         for col in df.columns:
             setattr(network,col,df[col][network.name])
@@ -324,8 +322,7 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
     #now read in other components
     for cls in pypsa.components.component_types - {pypsa.components.SubNetwork}:
 
-        if verbose:
-            print(cls)
+        logging.info(cls)
 
         list_name = cls.list_name
 
@@ -333,11 +330,10 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
 
         if not os.path.isfile(file_name):
             if cls.__name__ == "Bus":
-                print("Error, no buses found")
+                logging.error("Error, no buses found")
                 return
             else:
-                if verbose:
-                    print("No",list_name+".csv","found.")
+                logging.warning("No {}.csv found.".format(list_name))
                 continue
 
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
@@ -350,13 +346,12 @@ def import_from_csv_folder(network,csv_folder_name,verbose=False,encoding=None):
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
             import_series_from_dataframe(network,df,cls.__name__,file_name[len(list_name)+1:-4])
 
-        if verbose:
-            print(getattr(network,list_name))
+        logging.info(getattr(network,list_name))
 
 
 
 
-def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=None):
+def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     """
     Import network from PYPOWER PPC dictionary format version 2.
 
@@ -367,7 +362,6 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     Parameters
     ----------
     ppc : PYPOWER PPC dict
-    verbose : bool, default True
     overwrite_zero_s_nom : Float or None, default None
 
     Examples
@@ -378,9 +372,9 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
 
     version = ppc["version"]
     if int(version) != 2:
-        print("Warning, importing from PYPOWER may not work if PPC version is not 2!")
+        logging.warning("Warning, importing from PYPOWER may not work if PPC version is not 2!")
 
-    print("Warning: Note that when importing from PYPOWER, some PYPOWER features not supported: areas, gencosts, component status")
+    logging.warning("Warning: Note that when importing from PYPOWER, some PYPOWER features not supported: areas, gencosts, component status")
 
 
     baseMVA = ppc["baseMVA"]
@@ -399,7 +393,7 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
     pdf["buses"] = pd.DataFrame(index=index,columns=columns,data=ppc['bus'][:,1:len(columns)+1])
 
     if (pdf["buses"]["v_nom"] == 0.).any():
-        print("Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1.")
+        logging.warning("Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1.")
         pdf['buses'].loc[pdf['buses']['v_nom'] == 0.,'v_nom'] = 1.
 
 
@@ -461,7 +455,7 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
         if overwrite_zero_s_nom is not None:
             pdf['branches'].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
         else:
-            print("Warning: there are {} branches with s_nom equal to zero, "
+            logging.warning("Warning: there are {} branches with s_nom equal to zero, "
                   "they will probably lead to infeasibilities and should be "
                   "replaced with a high value using the `overwrite_zero_s_nom` "
                   "argument.".format(zero_s_nom.sum()))
@@ -489,7 +483,7 @@ def import_from_pypower_ppc(network, ppc, verbose=True, overwrite_zero_s_nom=Non
 
 
     if (pdf['transformers']['tap_ratio'] == 0.).any():
-        print("Warning, some transformers have a tap ratio of 0., setting the tap ratio of these to 1.")
+        logging.warning("Warning, some transformers have a tap ratio of 0., setting the tap ratio of these to 1.")
         pdf['transformers'].loc[pdf['transformers']['tap_ratio'] == 0.,'tap_ratio'] = 1.
 
 

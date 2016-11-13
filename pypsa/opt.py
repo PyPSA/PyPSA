@@ -24,12 +24,13 @@ objects with a pre-defined structure, to avoid Pyomo having to think.
 """
 
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
+from __future__ import division, absolute_import
 from six.moves import range
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 from pyomo.environ import Constraint, Objective, Var, ComponentUID
 from weakref import ref as weakref_ref
@@ -78,7 +79,7 @@ class LExpression(object):
         try:
             constant = float(constant)
         except:
-            print("Can only multiply an LExpression with a float!")
+            logging.error("Can only multiply an LExpression with a float!")
             return None
         return LExpression([(constant*item[0],item[1]) for item in self.variables],
                            constant*self.constant)
@@ -93,7 +94,7 @@ class LExpression(object):
             try:
                 constant = float(other)
             except:
-                print("Can only add an LExpression to another LExpression or a constant!")
+                logging.error("Can only add an LExpression to another LExpression or a constant!")
                 return None
             return LExpression(self.variables[:],self.constant+constant)
 
