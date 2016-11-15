@@ -8,6 +8,8 @@ PyPSA 0.7.0
 ===========
 
 * _t overhall
+* property dispatch=flexible/variable replaced by p_max_pu_t
+* efficiency_t, e_max_pu_t etc.
 * logging
 
 
