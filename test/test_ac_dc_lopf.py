@@ -40,12 +40,14 @@ def test_lopf():
     for formulation, free_memory in product(["angles", "cycles", "kirchhoff", "ptdf"],
                                             [{}, {"pypsa"}, {"pypsa", "pyomo-hack"}]):
         network.lopf(snapshots=snapshots,solver_name=solver_name,formulation=formulation, free_memory=free_memory)
+        print(network.generators_t.p.loc[:,network.generators.index])
+        print(network_r.generators_t.p.loc[:,network.generators.index])
 
-        np.testing.assert_array_almost_equal(network.generators_t.p,network_r.generators_t.p)
+        np.testing.assert_array_almost_equal(network.generators_t.p.loc[:,network.generators.index],network_r.generators_t.p.loc[:,network.generators.index])
 
-        np.testing.assert_array_almost_equal(network.lines_t.p0,network_r.lines_t.p0)
+        np.testing.assert_array_almost_equal(network.lines_t.p0.loc[:,network.lines.index],network_r.lines_t.p0.loc[:,network.lines.index])
 
-        np.testing.assert_array_almost_equal(network.links_t.p0,network_r.links_t.p0)
+        np.testing.assert_array_almost_equal(network.links_t.p0.loc[:,network.links.index],network_r.links_t.p0.loc[:,network.links.index])
 
 
 
