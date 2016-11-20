@@ -4,8 +4,8 @@ Release Notes
 
 
 
-PyPSA 0.7.0 (November 2016)
-===========================
+PyPSA 0.7.0 (20th November 2016)
+================================
 
 This is a major release which contains changes to the API,
 particularly regarding time-varying component attributes.

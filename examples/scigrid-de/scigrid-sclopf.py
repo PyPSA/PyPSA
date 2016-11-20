@@ -31,11 +31,14 @@ branch_outages = network.lines.index[:15]
 print("Performing security-constrained linear OPF:")
 
 network.sclopf(branch_outages=branch_outages)
+print("Objective:",network.objective)
 
 
 
-#For the PF, set the P to the optimised P                                                                                                                 
+#For the PF, set the P to the optimised P
+network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
 network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now]
+network.storage_units_t.p_set = network.storage_units_t.p_set.reindex(columns=network.storage_units.index)
 network.storage_units_t.p_set.loc[network.now] = network.storage_units_t.p.loc[network.now]
 
 #Check no lines are overloaded with the linear contingency analysis
@@ -52,5 +55,4 @@ print(max_loading)
 
 import numpy as np
 np.testing.assert_array_almost_equal(max_loading,np.ones((len(max_loading))))
-
 
