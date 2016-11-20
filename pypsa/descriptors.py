@@ -346,7 +346,9 @@ def allocate_series_dataframes(network, series):
             component = getattr(components, component)
         series_descriptors = network.component_series_descriptors[component]
 
+        df = getattr(network, component.list_name)
+        pnl = getattr(network, component.list_name + '_t')
+
         for attr in attributes:
-            pnl = getattr(network, component.list_name + '_t')
-            pnl[attr] = pnl[attr].reindex(index=network.snapshots,
+            pnl[attr] = pnl[attr].reindex(columns=df.index,
                                           fill_value=series_descriptors[attr].default)

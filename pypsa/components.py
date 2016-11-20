@@ -575,7 +575,7 @@ class Network(Basic):
                                              for obj in descriptors}
 
 
-        self.build_dataframes()
+        self._build_dataframes()
 
 
 
@@ -588,7 +588,9 @@ class Network(Basic):
 
 
 
-    def build_dataframes(self):
+    def _build_dataframes(self):
+        """Function called when network is created to build component pandas.DataFrames."""
+
         for cls in component_types:
             columns = list((k, v.typ) for k, v in iteritems(self.component_simple_descriptors[cls]))
 
@@ -612,8 +614,8 @@ class Network(Basic):
 
             setattr(self,cls.list_name,df)
 
-            pnl = Dict({k : pd.DataFrame(index=[] if desc.output else self.snapshots,
-                                         columns=getattr(self,cls.list_name).index,
+            pnl = Dict({k : pd.DataFrame(index=self.snapshots,
+                                         columns=[],
                                          #it's currently hard to imagine non-float series, but this could be generalised
                                          dtype=float)
                         for k, desc in iteritems(self.component_series_descriptors[cls])
@@ -649,7 +651,6 @@ class Network(Basic):
             pnl = getattr(self,cls.list_name+"_t")
 
             for k,v in self.component_series_descriptors[cls].items():
-                if v.output and len(pnl[k].index) == 0: continue
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(v.default)
 
     def add(self, class_name, name, **kwargs):
@@ -709,9 +710,8 @@ class Network(Basic):
             switch_attr = k + '_t'
             if switch_attr in simple_descriptors:
                 new_df.at[obj.name, k] = v.default
-                if not obj_df.at[obj.name, switch_attr]:
-                    continue
-            pnl[k][obj.name] = v.default
+                if obj_df.at[obj.name, switch_attr]:
+                    pnl[k][obj.name] = v.default
 
         for key, value in iteritems(kwargs):
             setattr(obj, key, value)
