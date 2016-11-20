@@ -180,13 +180,12 @@ and :math:`\tilde{g}_{n,s,t}` and :math:`\bar{g}_{n,s,t}` are
 time-dependent restrictions on the dispatch (per unit of nominal
 power) due to e.g. wind availability or power plant de-rating.
 
-For generators with ``generator.dispatch == "variable"`` the per unit
-availability :math:`\bar{g}_{n,s,t}` is a time series
-``generator_t.p_max_pu``.
+For generators with time-varying ``p_max_pu`` in ``network.generators_t`` the per unit
+availability :math:`\bar{g}_{n,s,t}` is a time series.
 
 
-For generators with ``generator.dispatch == "flexible"`` the per unit
-availability is a constant ``generator.p_max_pu_fixed``.
+For generators with static ``p_max_pu`` in ``network.generators`` the per unit
+availability is a constant.
 
 
 If the generator's nominal power :math:`\bar{g}_{n,s}` is also the
@@ -412,17 +411,17 @@ bus.{v_nom, carrier}
 
 load.{p_set}
 
-generator.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed (if control is "flexible"), p_min/max_pu (if control is "variable"), marginal_cost, capital_cost, efficiency, carrier}
+generator.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency, carrier}
 
-storage_unit.{dispatch, p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min/max_pu_fixed, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
+storage_unit.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
 
-store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu_fixed, e_max_pu_fixed, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss}
+store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu, e_max_pu, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss}
 
 line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
-link.{p_set, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
 
 carrier.{co2_emissions}
 
@@ -446,4 +445,4 @@ line.{p0, p1, s_nom_opt}
 
 transformer.{p0, p1, s_nom_opt}
 
-link.{p0, p1, s_nom_opt}
+link.{p0, p1, p_nom_opt}

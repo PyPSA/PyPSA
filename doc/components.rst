@@ -12,6 +12,8 @@ components, e.g. ``network.buses.v_nom`` for static attributes or
 
 All attributes are listed below for each component.
 
+Please also read :ref:`time-varying`.
+
 Their status is either "Input" for those which the user specifies or
 "Output" for those results which PyPSA calculates.
 
@@ -103,30 +105,34 @@ They have attributes:
 Generator
 ---------
 
-Can have generator.dispatch in ["variable","flexible"], which dictates
-how they behave in the OPF.
+In the LOPF the limits which a generator can output are set by
+``gen.p_nom*gen.p_max_pu`` and ``gen.p_nom*gen.p_min_pu``, i.e. by limits defined per unit of the nominal power ``gen.p_nom``.
 
-"flexible" generators can dispatch anywhere between
-``gen.p_nom*(gen.p_nom_min_pu_fixed)`` and
-``gen.p_nom*(gen.p_nom_max_pu_fixed)`` at all times. The factor
-``gen.p_nom_max_pu_fixed`` essentially acts like a de-rating
-factor. In the following example ``gen.p_nom_max_pu_fixed = 0.9`` and ``gen.p_nom_min_pu_fixed = 0``. Since ``gen.p_nom`` is 12000 MW, the maximum dispatchable active power is 0.9*12000 MW = 10800 MW.
+
+Generators can either have static or time-varying ``gen.p_max_pu`` and
+``gen.p_min_pu``.
+
+Generators with static limits are like controllable conventional
+generators which can dispatch anywhere between
+``gen.p_nom*gen.p_min_pu`` and
+``gen.p_nom*gen.p_max_pu`` at all times. The static factor
+``gen.p_max_pu``, stored at ``network.generator.loc[gen.name,"p_max_pu"]`` essentially acts like a de-rating
+factor. In the following example ``gen.p_max_pu = 0.9`` and
+``gen.p_min_pu = 0``. Since ``gen.p_nom`` is 12000 MW, the
+maximum dispatchable active power is 0.9*12000 MW = 10800 MW.
 
 .. image:: img/nuclear-dispatch.png
 
 
-
-
-
-"variable" generators have a time series ``gen.p_max_pu`` which
+Generators with time-varying limits are like variable weather-dependent renewable generators. The time series ``gen.p_max_pu``, stored as a series in ``network.generators_t.p_max_pu[gen.name]``,
 dictates the active power availability for each snapshot per unit of the nominal power ``gen.p_nom`` and another
 time series ``gen.p_min_pu`` which dictates the minimum dispatch. These time
-series can take values between 0 and 1, e.g.
+series can take values between 0 and 1, e.g. ``network.generators_t.p_max_pu[gen.name]`` could be
 
 .. image:: img/p_max_pu.png
 
 This time series is then multiplied by ``gen.p_nom`` to get the
-available power dispatch, which is the maximum that may be dispatched. The actual dispatch may be below this value, e.g.
+available power dispatch, which is the maximum that may be dispatched. The actual dispatch ``gen.p``, stored in  ``network.generators_t.p[gen.name]``, may be below this value, e.g.
 
 .. image:: img/scigrid-curtailment.png
 

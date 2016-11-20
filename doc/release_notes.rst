@@ -4,14 +4,45 @@ Release Notes
 
 
 
-PyPSA 0.7.0
-===========
+PyPSA 0.7.0 (November 2016)
+===========================
 
-* _t overhall
-* property dispatch=flexible/variable replaced by p_max_pu_t
-* efficiency_t, e_max_pu_t etc.
-* logging
+This is a major release which contains changes to the API,
+particularly regarding time-varying component attributes.
 
+* ``network.generators_t`` are no longer pandas.Panels but
+  dictionaries of pandas.DataFrames, with variable columns, so that
+  you can be flexible about which components have time-varying
+  attributes; please read :ref:`time-varying` carefully. Essentially
+  you can either set a component attribute e.g. ``p_max_pu`` of
+  ``Generator``, to be static by setting it in the DataFrame
+  ``network.generators``, or you can let it be time-varying by
+  defining a new column labelled by the generator name in the
+  DataFrame ``network.generators_t["p_max_pu"]`` as a series, which
+  causes the static value in ``network.generators`` for that generator
+  to be ignored. The DataFrame ``network.generators_t["p_max_pu"]``
+  now only includes columns which are specifically defined to be
+  time-varying, thus saving memory.
+* The following component attributes can now be time-varing:
+  ``Link.p_max_pu``, ``Link.p_min_pu``, ``Store.e_max_pu`` and
+  ``Store.e_min_pu``. This allows the demand-side management scheme of
+  `<https://arxiv.org/abs/1401.4121>`_ to be implemented in PyPSA.
+* The properties ``dispatch``, ``p_max_pu_fixed`` and
+  ``p_min_pu_fixed`` of ``Generator`` and ``StorageUnit`` are now
+  removed, because the ability to make ``p_max_pu`` and
+  ``p_min_pu`` either static or time-varying removes the need for this
+  distinction.
+* All messages are sent through the standard Python library
+  ``logging``, so you can control the level of messages to be
+  e.g. ``debug``, ``info``, ``warning`` or ``error``. All verbose
+  switches and print statements have been removed.
+* There are now more warnings.
+* You can call ``network.consistency_check()`` to make sure all your
+  components are well defined; see :doc:`troubleshooting`.
+
+
+All `examples <http://www.pypsa.org/examples/>`_ have been updated to
+accommodate the changes listed below.
 
 
 PyPSA 0.6.2 (4th November 2016)

@@ -34,8 +34,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
 #    'sphinx.ext.mathjax',
-    'sphinx.ext.pngmath',
-    'sphinxcontrib.tikz',
+    'sphinx.ext.imgmath',
+#    'sphinxcontrib.tikz',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

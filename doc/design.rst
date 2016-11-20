@@ -50,12 +50,11 @@ storage units with efficiency less than 1.
 
 
 
-Data storage uses pandas DataFrames and Panels
-==============================================
+Data is stored in pandas DataFrames
+===================================
 
 To enable efficient calculations on the different dimensions of the
-data, data is stored in memory using pandas DataFrames and Panels
-(three-dimensional DataFrames).
+data, data is stored in memory using pandas DataFrames.
 
 Other power system toolboxes use databases for data storage; given
 modern RAM availability and speed considerations, pandas DataFrames
@@ -65,46 +64,89 @@ were felt to be preferable and simpler.
 To see which data is stored for each component, see :doc:`components`.
 
 
-Static component data is stored in pandas DataFrames
-====================================================
+Static component data
+=====================
 
 For each component type (line, transformer, generator, etc.), which
 must be uniquely named for each network, its basic static data is
 stored in a pandas DataFrame, which is an attribute of the network
-object, e.g.
+object, with names that follow the component names:
 
+* network.buses
+* network.generators
+* network.loads
 * network.lines
 * network.transformers
-* network.generators
 
 These are all pandas DataFrames, indexed by the unique name of the
 component.
 
-The columns contain data such as impedance, capacity, etc.
+The columns contain data such as impedance, capacity and the buses to
+which components are attached. All attributes for each component type
+are listed in :doc:`components`.
+
 
 Network components cannot exist without a network to hold them.
 
 
 
-Time-varying data are stored in pandas Panels
-=================================================
+.. _time-varying:
+
+Time-varying data
+=================
 
 Some quantities, such as generator.p_set (generator active power set
 point), generator.p (generator calculated active power), line.p0 (line
-active power at bus0) and line.p1 (line active power at bus1) vary
-over time and therefore are stored as pandas Series. They are stored
-together in a three-dimensional pandas Panel, indexed by the attribute
-("p_set" or "p"), the component names and the network's time steps in
-``network.snapshots``.
+active power at bus0) and line.p1 (line active power at bus1) may vary
+over time, so PyPSA offers the possibility to store different values
+of these attributes for the different snapshots in
+``network.snapshots`` in the following attributes of the network
+object:
 
-They all have names like ``network.generators_t`` and the atttributes
-are accessed like:
+* network.buses_t
+* network.generators_t
+* network.loads_t
+* network.lines_t
+* network.transformers_t
 
-* network.generators_t.p_set
-* network.generators_t.p
-* network.lines_t.p0
-* network.lines_t.p1
+These are all dictionaries of pandas DataFrames, so that for example
+``network.generators_t["p_set"]`` is a DataFrame with columns
+corresponding to generator names and index corresponding to
+``network.snapshots``. You can also access the dictionary like an
+attribute ``network.generators_t.p_set``.
 
+Time-varying data are defined as ``series`` in the listings in  :doc:`components`.
+
+
+For **input data** such as ``p_set`` of a generator you can store the
+value statically in ``network.generators`` if the value does not
+change over ``network.snapshots`` **or** you can define it to be
+time-varying by adding a column to ``network.generators_t.p_set``. If
+the name of the generator is in the columns of
+``network.generators_t.p_set``, then the static value in
+``network.generators`` will be ignored. Some example definitions of
+input data:
+
+
+.. code:: python
+
+    #four snapshots are defined by integers
+    network.set_snapshots(range(4))
+
+    network.add("Bus", "my bus")
+
+    #add a generator whose output does not change over time
+    network.add("Generator", "Coal", bus="my bus", p_set=100)
+
+    #add a generator whose output does change over time
+    network.add("Generator", "Wind", bus="my bus", p_set=[10,50,20,30])
+
+In this case only the generator "Wind" will appear in the columns of
+``network.generators_t.p_set``.
+
+For **output data**, all time-varying data is stored in the
+``network.components_t`` dictionaries, but it is only defined once a
+simulation has been run.
 
 
 Object model with descriptor properties point to DataFrames

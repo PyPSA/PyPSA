@@ -280,6 +280,11 @@ def define_store_variables_constraints(network,snapshots):
     ext_stores = stores.index[stores.e_nom_extendable]
     fix_stores = stores.index[~ stores.e_nom_extendable]
 
+    e_max_pu = get_switchable_as_dense(network, 'Store', 'e_max_pu')
+    e_min_pu = get_switchable_as_dense(network, 'Store', 'e_min_pu')
+
+
+
     model = network.model
 
     ## Define store dispatch variables ##
@@ -292,7 +297,7 @@ def define_store_variables_constraints(network,snapshots):
     bounds = {(store,sn) : (None,None) for store in ext_stores for sn in snapshots}
 
     bounds.update({(store,sn) :
-                   (stores.at[store,"e_nom"]*stores.at[store,"e_min_pu_fixed"],stores.at[store,"e_nom"]*stores.at[store,"e_max_pu_fixed"])
+                   (stores.at[store,"e_nom"]*e_min_pu.at[sn,store],stores.at[store,"e_nom"]*e_max_pu.at[sn,store])
                    for store in fix_stores for sn in snapshots})
 
     def store_e_bounds(model,store,snapshot):
@@ -317,13 +322,13 @@ def define_store_variables_constraints(network,snapshots):
 
     def store_e_upper(model,store,snapshot):
         return (model.store_e[store,snapshot] <=
-                model.store_e_nom[store]*stores.at[store,"e_max_pu_fixed"])
+                model.store_e_nom[store]*e_max_pu.at[snapshot,store])
 
     network.model.store_e_upper = Constraint(list(ext_stores), snapshots, rule=store_e_upper)
 
     def store_e_lower(model,store,snapshot):
         return (model.store_e[store,snapshot] >=
-                model.store_e_nom[store]*stores.at[store,"e_min_pu_fixed"])
+                model.store_e_nom[store]*e_min_pu.at[snapshot,store])
 
     network.model.store_e_lower = Constraint(list(ext_stores), snapshots, rule=store_e_lower)
 

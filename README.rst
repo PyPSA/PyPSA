@@ -75,6 +75,7 @@ It has models for:
 
 Functionality that will definitely be added soon (see also `doc/todo.rst <doc/todo.rst>`_):
 
+* Standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation

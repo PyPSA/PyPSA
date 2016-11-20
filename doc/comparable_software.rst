@@ -9,6 +9,8 @@ Free software
 
 `PYPOWER <https://github.com/rwl/PYPOWER>`_ - a Python, numpy, scipy port of `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_, compared to PyPSA below
 
+`pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_ - a Python based extension of PYPOWER that uses pandas "to create an easy to use network calculation program aimed at automation of power system analysis and optimization in distribution and sub-transmission networks"
+
 `GridCal <https://github.com/SanPen/GridCal>`_ - a Python-based extension of PYPOWER that includes time series and load flow methods using analytic continuation
 
 `MATPOWER <http://www.pserc.cornell.edu/matpower/>`_ - a Matlab-based tool for static power system computations

@@ -174,7 +174,11 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     if cls_name == "Generator" and "source" in dataframe.columns:
         logger.warning("'source' for generators is deprecated, use 'carrier' instead.")
     if cls_name == "Generator" and "dispatch" in dataframe.columns:
-        logger.warning("'dispatch' for generators is deprecated, use 'p_max_pu_t=True' for 'variable' and 'p_max_pu_t=False' for 'flexible'.")
+        logger.warning("'dispatch' for generators is deprecated, use time-varing 'p_max_pu' for 'variable' and static 'p_max_pu' for 'flexible'.")
+    if cls_name in ["Generator","StorageUnit"] and "p_max_pu_fixed" in dataframe.columns:
+        logger.warning("'p_max_pu_fixed' for generators is deprecated, use static 'p_max_pu' instead.")
+    if cls_name in ["Generator","StorageUnit"] and "p_min_pu_fixed" in dataframe.columns:
+        logger.warning("'p_min_pu_fixed' for generators is deprecated, use static 'p_min_pu' instead.")
     if cls_name == "Bus" and "current_type" in dataframe.columns:
         logger.warning("'current_type' for buses is deprecated, use 'carrier' instead.")
     if cls_name == "Link" and "s_nom" in dataframe.columns:
@@ -432,7 +436,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     #it is assumed that the pypower p_max is the p_nom
 
-    #could also do gen.p_min_pu_fixed = p_min/p_nom
+    #could also do gen.p_min_pu = p_min/p_nom
 
     columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_nom, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
 

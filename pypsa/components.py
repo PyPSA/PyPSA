@@ -273,8 +273,8 @@ class Store(Common):
     #optimised capacity
     e_nom_opt = Float(0.0)
 
-    e_max_pu_fixed = Float(1.)
-    e_min_pu_fixed = Float(0.)
+    e_max_pu = Series(default=1.)
+    e_min_pu = Series(default=0.)
 
     e_cyclic = Boolean(False)
 
@@ -836,6 +836,56 @@ class Network(Basic):
                      ind=None)
                 for typ in types
                 if not skip_empty or len(getattr(self, typ.list_name)) > 0)
+
+
+    def consistency_check(self):
+        """
+        Checks the network for consistency, including bus definitions and impedances.
+
+
+        Examples
+        --------
+        >>> network.consistency_check()
+
+        """
+
+
+        for t in one_port_types:
+            list_name = t.list_name
+            df = getattr(self,list_name)
+            missing = df.index[pd.isnull(df.bus.map(self.buses.v_nom))]
+            if len(missing) > 0:
+                logger.warning("The following {} have buses which are not defined:\n{}".format(list_name,missing))
+
+        for t in branch_types:
+            list_name = t.list_name
+            df = getattr(self,list_name)
+            for end in ["0","1"]:
+                missing = df.index[pd.isnull(df["bus"+end].map(self.buses.v_nom))]
+                if len(missing) > 0:
+                    logger.warning("The following {} have bus {} which are not defined:\n{}".format(list_name,end,missing))
+
+
+        for t in passive_branch_types:
+            list_name = t.list_name
+            df = getattr(self,list_name)
+            for attr in ["x","r"]:
+                bad = df.index[df[attr] == 0.]
+                if len(bad) > 0:
+                    logger.warning("The following {} have zero {}, which could break the linear load flow:\n{}".format(list_name,attr,bad))
+
+            bad = df.index[(df["x"] == 0.) & (df["r"] == 0.)]
+            if len(bad) > 0:
+                logger.warning("The following {} have zero series impedance, which will break the load flow:\n{}".format(list_name,bad))
+
+
+        for t in [Transformer]:
+            list_name = t.list_name
+            df = getattr(self,list_name)
+
+            bad = df.index[df["s_nom"] == 0.]
+            if len(bad) > 0:
+                logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(list_name,bad))
 
 
 class SubNetwork(Common):

@@ -24,7 +24,7 @@ Contents:
    contingency_analysis
    conventions
    examples
-   pitfalls
+   troubleshooting
    unit_testing
    todo
    comparable_software
