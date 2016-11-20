@@ -120,27 +120,27 @@ for i in range(n*c):
                 marginal_cost=4*np.random.random(),
                 capital_cost=1000*np.random.random(),
                 p_nom_extendable=True,
-                p_max_pu_fixed=1,
-                p_min_pu_fixed=-1,
+                p_max_pu=1,
+                p_min_pu=-1,
                 efficiency_store=0.9,
                 efficiency_dispatch=0.95,
                 standing_loss=0.01,
                 max_hours=6)
     #wind generator
     network.add("Generator","Wind %d" % (i),bus=str(i),
-                p_nom=100,carrier="wind",dispatch="variable",
+                p_nom=100,carrier="wind",
                 marginal_cost=0 + 0.01*np.random.random(), #non-zero marginal cost ensures unique optimisation result
                 capital_cost=2000 + 1000*np.random.random(),
                 p_nom_extendable=True,
                 p_nom_min=100)
     #gas generator
     network.add("Generator","Gas %d" % (i),bus=str(i),
-                p_nom=0,carrier="gas",dispatch="flexible",
+                p_nom=0,carrier="gas",
                 marginal_cost=2 + 4*np.random.random(),
                 capital_cost=100 + 100*np.random.random(),
                 efficiency=0.35 + 0.01*np.random.random(),
-                p_max_pu_fixed = 0.85,
-                p_min_pu_fixed = 0.02,
+                p_max_pu = 0.85,
+                p_min_pu = 0.02,
                 p_nom_extendable=True,
                 p_nom_min=0)
 
@@ -164,6 +164,8 @@ network.loads_t.p_set = pd.DataFrame(index = network.snapshots,
 
 wind_generators = network.generators[network.generators.carrier == "wind"]
 
+network.generators_t.p_max_pu = network.generators_t.p_max_pu.reindex(columns=wind_generators.index)
+
 network.generators_t.p_max_pu.loc[:,wind_generators.index] = pd.DataFrame(index = network.snapshots,
                                                                           columns = wind_generators.index,
                                                                           data = np.random.rand(len(network.snapshots), len(wind_generators)))
@@ -175,11 +177,13 @@ network.storage_units.at["Storage 2","cyclic_state_of_charge"] = True
 network.storage_units.at["Storage 4","cyclic_state_of_charge"] = True
 
 
+network.storage_units_t.state_of_charge_set.loc[:,"Storage 3"] = np.nan
 network.storage_units_t.state_of_charge_set.at[network.snapshots[3],"Storage 3"] = 50.
 
-
+network.storage_units_t.state_of_charge_set.loc[:,"Storage 4"] = np.nan
 network.storage_units_t.state_of_charge_set.at[network.snapshots[2],"Storage 4"] = 25.
 
+network.storage_units_t.inflow.loc[:,"Storage 0"] = 0.
 network.storage_units_t.inflow[["Storage 0"]] = 20.
 
 network.name = "Test 6 bus"

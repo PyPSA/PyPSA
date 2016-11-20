@@ -1,7 +1,7 @@
-name,bus,sign,p_set_t
-London,London,-1,True
-Frankfurt,Frankfurt,-1,True
-Norway,Norway,-1,True
-Norwich,Norwich,-1,True
-Bremen,Bremen,-1,True
-Manchester,Manchester,-1,True
+name,bus,sign
+London,London,-1
+Frankfurt,Frankfurt,-1
+Norway,Norway,-1
+Norwich,Norwich,-1
+Bremen,Bremen,-1
+Manchester,Manchester,-1

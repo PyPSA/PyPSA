@@ -220,22 +220,19 @@ class Series(object):
         self.output = output
 
     def __get__(self, obj, cls):
-        switch_attr = self.name + "_t"
-        if (switch_attr in obj.network.component_simple_descriptors[obj.__class__] and
-            not getattr(obj.network, obj.__class__.list_name).at[obj.name, switch_attr]):
-            return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
-        else:
+        if obj.name in getattr(obj.network, obj.__class__.list_name+"_t").columns:
             return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
+        else:
+            return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
 
     def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
-            switch_attr = self.name + "_t"
-            if (switch_attr in obj.network.component_simple_descriptors[obj.__class__] and
-                not getattr(obj.network, obj.__class__.list_name).at[obj.name, switch_attr]):
-                getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name] = self.dtype(val)
-            else:
+            if type(val) in [pd.DataFrame, np.ndarray, list]:
                 getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
+            else:
+                getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name] = self.dtype(val)
+
         except AttributeError:
             logger.error("count not assign {} to series".format(val))
 
@@ -293,18 +290,17 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
 
 """
 
-    switch = attr + '_t'
+
     if isinstance(component, string_types):
         from . import components
         component = getattr(components, component)
-    assert switch in network.component_simple_descriptors[component], "`{}` needs to have a boolean descriptor called `{}`".format(obj.__name__, switch)
 
     df = getattr(network, component.list_name)
     pnl = getattr(network, component.list_name + '_t')
 
     index = df.index
-    varying_i = index[df.loc[:, switch]]
-    fixed_i = index[~ df.loc[:, switch]]
+    varying_i = pnl[attr].columns
+    fixed_i = df.index.difference(varying_i)
 
     if inds is not None:
         index = index.intersection(inds)

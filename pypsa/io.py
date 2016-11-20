@@ -102,6 +102,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         if key.list_name in excluded_components:
             continue
         df = getattr(network,key.list_name)
+        df.index.name = "name"
         if df.empty:
             logger.warning("No {}".format(key.list_name))
             continue
@@ -115,7 +116,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
             if col in od and (df[col] == od[col].default).all():
                 continue
             series_descriptors = network.component_series_descriptors[key]
-            if (col + '_t' in od and col in series_descriptors
+            if (col in series_descriptors
                 and (df[col] == series_descriptors[col].default).all()):
                 continue
 
@@ -227,23 +228,14 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
         if v.output:
             if k in series_attrs:
-                index = dataframe.index
-            else:
-                index = []
-
+                #If reading in outputs, fill the outputs
+                pnl[k] = pnl[k].reindex(columns=new_df.index, fill_value=v.default)
+                pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
         else:
-            switch_attr = k + '_t'
             new_df.loc[dataframe.index, k] = (dataframe.loc[:,k].values
                                               if k in series_attrs
                                               else v.default)
-            index = dataframe.index[new_df.loc[dataframe.index, switch_attr]]
 
-
-        if len(index):
-            pnl[k] = pnl[k].reindex(columns=(pnl[k].columns | index))
-            pnl[k].loc[:,index] = (dataframe.loc[index,k].values
-                                   if k in series_attrs
-                                   else v.default)
 
     setattr(network,cls.list_name+"_t",pnl)
 
@@ -288,14 +280,11 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
         #If reading in outputs, fill the outputs
         pnl[attr] = pnl[attr].reindex(columns=df.index, fill_value=series_descriptor.default)
     else:
-        switch_attr = attr + '_t'
-        not_set_t = columns[~df.loc[columns, switch_attr]]
-        if len(not_set_t) > 0:
-            logger.warning("Warning, {} from {} of {} have time-varying series but have {} set to False".format(not_set_t,attr,cls_name,switch_attr))
         pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
-
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
+
+
 
 def import_from_csv_folder(network, csv_folder_name, encoding=None):
     """

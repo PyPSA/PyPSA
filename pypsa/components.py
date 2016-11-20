@@ -138,7 +138,6 @@ class Bus(Common):
     v_mag_pu = Series(default=1., output=True)
     v_ang = Series(output=True)
 
-    v_mag_pu_set_t = Boolean(False)
     v_mag_pu_set = Series(default=1.)
 
     v_mag_pu_min = Float(default=0.)
@@ -198,15 +197,11 @@ class Generator(OnePort):
     #power limits for variable generators, which can change e.g. due
     #to weather conditions; per unit to ease multiplication with
     #p_nom, which may be optimised
-    p_max_pu_t = Boolean(False)
     p_max_pu = Series(default=1.)
-    p_min_pu_t = Boolean(False)
     p_min_pu = Series(default=0.)
 
     #operator's intended dispatch
-    p_set_t = Boolean(False)
     p_set = Series()
-    q_set_t = Boolean(False)
     q_set = Series()
 
 
@@ -223,7 +218,6 @@ class StorageUnit(Generator):
     state_of_charge_initial = Float(0.)
 
     #state of charge can be forced to a particular value
-    state_of_charge_set_t = Boolean(False)
     state_of_charge_set = Series(default=np.nan)
 
     #optimisation results are stored here
@@ -237,11 +231,9 @@ class StorageUnit(Generator):
     max_hours = Float(1)
 
     #the minimum power dispatch is negative
-    p_min_pu_t = Boolean(False)
     p_min_pu = Series(default=-1)
 
     #in MW
-    inflow_t = Boolean(False)
     inflow = Series()
     spill = Series(output=True)
 
@@ -264,9 +256,7 @@ class Store(Common):
     q = Series(output=True)
     e = Series(output=True)
 
-    p_set_t = Boolean(False)
     p_set = Series()
-    q_set_t = Boolean(False)
     q_set = Series()
 
     #rated energy capacity
@@ -309,9 +299,7 @@ class Load(OnePort):
     #set sign convention for powers opposite to generator
     sign = Float(-1.)
 
-    p_set_t = Boolean(False)
     p_set = Series()
-    q_set_t = Boolean(False)
     q_set = Series()
 
 class ShuntImpedance(OnePort):
@@ -455,15 +443,12 @@ class Link(Common):
     p1 = Series(output=True)
 
     #limits per unit of p_nom
-    p_min_pu_t = Boolean(False)
     p_min_pu = Series(default=0.)
-    p_max_pu_t = Boolean(False)
     p_max_pu = Series(default=1.)
 
     efficiency = Float(1.)
 
     #The set point for p0.
-    p_set_t = Boolean(False)
     p_set = Series()
 
     length = Float(default=1.0)
@@ -601,10 +586,9 @@ class Network(Basic):
             for k,v in iteritems(self.component_simple_descriptors[cls]):
                 v.name = k
 
-            simple_descriptors = self.component_simple_descriptors[cls]
             for k,v in iteritems(self.component_series_descriptors[cls]):
                 v.name = k
-                if k + '_t' in simple_descriptors:
+                if not v.output:
                     columns.append((k, v.dtype))
 
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
@@ -707,11 +691,8 @@ class Network(Basic):
         pnl = getattr(self,cls.list_name+"_t")
 
         for k,v in iteritems(series_descriptors):
-            switch_attr = k + '_t'
-            if switch_attr in simple_descriptors:
+            if not v.output:
                 new_df.at[obj.name, k] = v.default
-                if obj_df.at[obj.name, switch_attr]:
-                    pnl[k][obj.name] = v.default
 
         for key, value in iteritems(kwargs):
             setattr(obj, key, value)

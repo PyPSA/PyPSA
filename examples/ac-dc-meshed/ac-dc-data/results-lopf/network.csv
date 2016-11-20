@@ -1,2 +1,2 @@
-name,co2_limit,now,objective,srid
-AC-DC,1000,2015-01-01 04:00:00,-3474256.04055,4326
+name,co2_limit,co2_price,max_memusage,now,objective,srid
+AC-DC,1000,-2178.29179922,133472,2015-01-01 04:00:00,-3474256.04055,4326
