@@ -170,6 +170,14 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     >>> import_components_from_dataframe(dataframe,"Line")
     """
 
+    if cls_name == "Generator" and "source" in dataframe.columns:
+        logger.warning("'source' for generators is deprecated, use 'carrier' instead.")
+    if cls_name == "Generator" and "dispatch" in dataframe.columns:
+        logger.warning("'dispatch' for generators is deprecated, use 'p_max_pu_t=True' for 'variable' and 'p_max_pu_t=False' for 'flexible'.")
+    if cls_name == "Bus" and "current_type" in dataframe.columns:
+        logger.warning("'current_type' for buses is deprecated, use 'carrier' instead.")
+    if cls_name == "Link" and "s_nom" in dataframe.columns:
+        logger.warning("'s_nom*' for links is deprecated, use 'p_nom*' instead.")
 
     dataframe.index = [str(i) for i in dataframe.index]
 
@@ -212,19 +220,27 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     pnl = getattr(network,cls.list_name+"_t")
 
     for k, v in iteritems(series_descriptors):
-        if k not in pnl: continue
+        if k not in pnl:
+            logger.warning("{} not in {}_t".format(k,cls.list_name))
+            continue
 
-        switch_attr = k + '_t'
-        if switch_attr in simple_descriptors:
+
+        if v.output:
+            if k in series_attrs:
+                index = dataframe.index
+            else:
+                index = []
+
+        else:
+            switch_attr = k + '_t'
             new_df.loc[dataframe.index, k] = (dataframe.loc[:,k].values
                                               if k in series_attrs
                                               else v.default)
             index = dataframe.index[new_df.loc[dataframe.index, switch_attr]]
-        else:
-            index = dataframe.index
 
-        pnl[k] = pnl[k].reindex(columns=pnl[k].columns.append(index))
+
         if len(index):
+            pnl[k] = pnl[k].reindex(columns=(pnl[k].columns | index))
             pnl[k].loc[:,index] = (dataframe.loc[index,k].values
                                    if k in series_attrs
                                    else v.default)
@@ -253,26 +269,31 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     cls = getattr(pypsa.components,cls_name)
 
+    df = getattr(network,cls.list_name)
     pnl = getattr(network,cls.list_name+"_t")
+
+    diff = dataframe.columns.difference(df.index)
+    if len(diff) > 0:
+        logger.warning("Components {} for attribute {} of {} are not in main components dataframe {}".format(diff,attr,cls_name,cls.list_name))
+
+    diff = network.snapshots.difference(dataframe.index)
+    if len(diff):
+        logger.warning("Snapshots {} are missing from {} of {}".format(diff,attr,cls_name))
+
 
     series_descriptor = network.component_series_descriptors[cls][attr]
     columns = dataframe.columns
-    switch_attr = attr + '_t'
 
     if series_descriptor.output:
-        pnl[attr] = pnl[attr].reindex(network.snapshots, fill_value=series_descriptor.default)
-    elif switch_attr in network.component_simple_descriptors[cls]:
-        df = getattr(network, cls.list_name)
-        off = columns.difference(pnl[attr].columns) # df.index[df[switch_attr]]
+        #If reading in outputs, fill the outputs
+        pnl[attr] = pnl[attr].reindex(columns=df.index, fill_value=series_descriptor.default)
+    else:
+        switch_attr = attr + '_t'
+        not_set_t = columns[~df.loc[columns, switch_attr]]
+        if len(not_set_t) > 0:
+            logger.warning("Warning, {} from {} of {} have time-varying series but have {} set to False".format(not_set_t,attr,cls_name,switch_attr))
+        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
-        if len(off):
-            # there are components in the dataframe that are new, we
-            # set them to time-dependent automatically
-            df.loc[off, switch_attr] = True
-            pnl[attr] = (pd.concat((pnl[attr], dataframe.loc[network.snapshots, off]), axis=1)
-                         .reindex(columns=df.index[df[switch_attr]]))
-
-            columns = columns.difference(off)
 
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
 
@@ -302,7 +323,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
 
     if os.path.isfile(file_name):
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
-        logger.info(df)
+        logger.debug("networks.csv:")
+        logger.debug(df)
         network.name = df.index[0]
         for col in df.columns:
             setattr(network,col,df[col][network.name])
@@ -320,8 +342,6 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
     #now read in other components
     for cls in pypsa.components.component_types - {pypsa.components.SubNetwork}:
 
-        logger.info(cls)
-
         list_name = cls.list_name
 
         file_name = os.path.join(csv_folder_name,list_name+".csv")
@@ -331,8 +351,10 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
                 logger.error("Error, no buses found")
                 return
             else:
-                logger.warning("No {}.csv found.".format(list_name))
+                logger.info("No {}.csv found.".format(list_name))
                 continue
+        else:
+            logger.info("{}.csv found.".format(list_name))
 
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
 
@@ -344,7 +366,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
             df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
             import_series_from_dataframe(network,df,cls.__name__,file_name[len(list_name)+1:-4])
 
-        logger.info(getattr(network,list_name))
+        logger.debug(getattr(network,list_name))
 
 
 
