@@ -18,10 +18,6 @@ def replace_gen(network,gen_to_replace):
 
     gen = network.generators.loc[gen_to_replace]
 
-    if gen["dispatch"] != "flexible":
-        raise NotImplementedError("Until time-dependent p_max_pu is introduced for Links, only\
-        fully flexible generators can be replaced!")
-
     bus_name = "{} {}".format(gen["bus"], gen["carrier"])
     link_name = "{} converter {} to AC".format(gen_to_replace,gen["carrier"])
     store_name = "{} store {}".format(gen_to_replace,gen["carrier"])
@@ -39,8 +35,8 @@ def replace_gen(network,gen_to_replace):
             p_nom_extendable=gen["p_nom_extendable"],
             p_nom_max = gen["p_nom_max"]/gen["efficiency"],
             p_nom_min = gen["p_nom_min"]/gen["efficiency"],
-            p_max_pu = gen["p_max_pu_fixed"],
-            p_min_pu = gen["p_min_pu_fixed"],
+            p_max_pu = network.generators_t.p_max_pu.loc[:,gen_to_replace] if gen_to_replace in network.generators_t.p_max_pu.columns else gen["p_max_pu"],
+            p_min_pu = network.generators_t.p_min_pu.loc[:,gen_to_replace] if gen_to_replace in network.generators_t.p_min_pu.columns else gen["p_min_pu"],
             marginal_cost=gen["marginal_cost"]*gen["efficiency"],
             efficiency=gen["efficiency"])
 
@@ -50,8 +46,8 @@ def replace_gen(network,gen_to_replace):
             e_nom_min=-float("inf"),
             e_nom_max=0,
             e_nom_extendable=True,
-            e_min_pu_fixed=1.,
-            e_max_pu_fixed=0.)
+            e_min_pu=1.,
+            e_max_pu=0.)
 
     network.remove("Generator",gen_to_replace)
 
@@ -70,10 +66,6 @@ def replace_su(network,su_to_replace):
 
     su = network.storage_units.loc[su_to_replace]
 
-
-    if (~pd.isnull(network.storage_units_t.state_of_charge_set[su_to_replace])).any():
-        raise NotImplementedError("Until time-dependent e_min_pu and e_max_pu are introduced for Stores, \
-        no state_of_charge_set can be set!")
 
     bus_name = "{} {}".format(su["bus"],su["carrier"])
 
@@ -99,7 +91,7 @@ def replace_su(network,su_to_replace):
             p_nom_extendable=su["p_nom_extendable"],
             p_nom_max = su["p_nom_max"]/su["efficiency_dispatch"],
             p_nom_min = su["p_nom_min"]/su["efficiency_dispatch"],
-            p_max_pu = su["p_max_pu_fixed"],
+            p_max_pu = su["p_max_pu"],
             marginal_cost=su["marginal_cost"]*su["efficiency_dispatch"],
             efficiency=su["efficiency_dispatch"])
 
@@ -112,9 +104,20 @@ def replace_su(network,su_to_replace):
             p_nom_extendable=su["p_nom_extendable"],
             p_nom_max = su["p_nom_max"],
             p_nom_min = su["p_nom_min"],
-            p_max_pu = -su["p_min_pu_fixed"],
+            p_max_pu = -su["p_min_pu"],
             efficiency=su["efficiency_store"])
 
+    
+    if su_to_replace in network.storage_units_t.state_of_charge_set.columns and (~pd.isnull(network.storage_units_t.state_of_charge_set[su_to_replace])).any():
+        e_max_pu = pd.Series(data=1.,index=network.snapshots)
+        e_min_pu = pd.Series(data=0.,index=network.snapshots)
+        non_null = ~pd.isnull(network.storage_units_t.state_of_charge_set[su_to_replace])
+        e_max_pu[non_null] = network.storage_units_t.state_of_charge_set[su_to_replace][non_null]
+        e_min_pu[non_null] = network.storage_units_t.state_of_charge_set[su_to_replace][non_null]
+    else:
+        e_max_pu = 1.
+        e_min_pu = 0.
+    
     network.add("Store",
             store_name,
             bus=bus_name,
@@ -122,6 +125,8 @@ def replace_su(network,su_to_replace):
             e_nom_min=su["p_nom_min"]/su["efficiency_dispatch"]*su["max_hours"],
             e_nom_max=su["p_nom_max"]/su["efficiency_dispatch"]*su["max_hours"],
             e_nom_extendable=su["p_nom_extendable"],
+            e_max_pu=e_max_pu,
+            e_min_pu=e_min_pu,
             standing_loss=su["standing_loss"],
             e_cyclic=su['cyclic_state_of_charge'],
             e_initial=su['state_of_charge_initial'])
@@ -138,11 +143,12 @@ def replace_su(network,su_to_replace):
     else:
         inflow_pu = network.storage_units_t.inflow[su_to_replace]/inflow_max
 
+    print(inflow_pu,type(inflow_pu),type(inflow_pu) in [pd.Series])
+        
     network.add("Generator",
                gen_name,
                bus=bus_name,
                carrier="rain",
-               dispatch="variable",
                p_nom=inflow_max,
                p_max_pu=inflow_pu)
 

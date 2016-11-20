@@ -95,12 +95,13 @@ for i in range(3):
 
 print(network.loads)
 
-print(network.loads_t.p_set)
+print(network.loads.p_set)
 
 #function for the LOPF
 
 def run_lopf():
     network.lopf(keep_files=True)
+    print("Objective:",network.objective)
     print(network.generators_t.p)
     print(network.links_t.p0)
     print(network.loads_t.p)

@@ -40,7 +40,6 @@ network.add("Bus",
 network.add("Generator",
             "PV panel",
             bus="place of work",
-            dispatch="variable",
             p_nom_extendable=True,
             p_max_pu=pv_pu,
             capital_cost=1000.)
@@ -54,7 +53,7 @@ network.add("Link",
             "charger",
             bus0="place of work",
             bus1="battery",
-            p_nom="120",  #super-charger with 120 kW
+            p_nom=120,  #super-charger with 120 kW
             efficiency=0.9)    
 
 
@@ -62,15 +61,16 @@ network.add("Store",
             "battery storage",
             bus="battery",
             e_cyclic=True,
-            e_nom=100) 
+            e_nom=100.)
 
 network.lopf(network.snapshots)
+print("Objective:",network.objective)
 
 print("Pannel size [kW]:",network.generators.p_nom_opt["PV panel"])
 
 network.generators_t.p.plot()
 
-network.stores_t.loc[["p","e"],:,"battery storage"].plot(grid=True)
+pd.DataFrame({attr: network.stores_t[attr]["battery storage"] for attr in ["p","e"]}).plot(grid=True)
 
-print("Losses [kWh/d]:",network.generators_t.loc["p",:,"PV panel"].sum() - network.loads_t.loc["p",:,"driving"].sum())
+print("Losses [kWh/d]:",network.generators_t.p.loc[:,"PV panel"].sum() - network.loads_t.p.loc[:,"driving"].sum())
 

@@ -39,7 +39,6 @@ network.add("Generator",
             "rain",
             bus="0 reservoir",
             carrier="rain",
-            dispatch="variable",
             p_nom=1000,
             p_max_pu=[0.,0.2,0.7,0.4])
 
@@ -99,10 +98,11 @@ network.add("Store",
             e_nom_extendable=True)
 
 network.lopf(network.snapshots)
+print("Objective:",network.objective)
 
-print(network.stores_t.loc[["p","e"],:,"0 reservoir"])
+print(pd.DataFrame({attr: network.stores_t[attr]["0 reservoir"] for attr in ["p","e"]}))
 
-print(network.stores_t.loc[["p","e"],:,"1 reservoir"])
+print(pd.DataFrame({attr: network.stores_t[attr]["1 reservoir"] for attr in ["p","e"]}))
 
 print(network.links_t.p0)
 

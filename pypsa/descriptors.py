@@ -228,7 +228,7 @@ class Series(object):
     def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size
         try:
-            if type(val) in [pd.DataFrame, np.ndarray, list]:
+            if type(val) in [pd.Series, np.ndarray, list]:
                 getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
             else:
                 getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name] = self.dtype(val)

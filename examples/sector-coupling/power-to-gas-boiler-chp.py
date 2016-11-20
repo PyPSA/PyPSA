@@ -35,7 +35,6 @@ network.add("Generator",
             "wind turbine",
             bus="0",
             carrier="wind",
-            dispatch="variable",
             p_nom_extendable=True,
             p_max_pu=[0.,0.2,0.7,0.4],
             capital_cost=500)
@@ -121,19 +120,20 @@ if heat and chp:
         def backpressure(model,snapshot):
             return c_m*model.link_p["boiler",snapshot] <= model.link_p["generator",snapshot] 
         
-        network.model.backpressure = Constraint(snapshots,rule=backpressure)
+        network.model.backpressure = Constraint(list(snapshots),rule=backpressure)
         
 else:
     extra_functionality = None
 
 network.co2_limit=0.
 network.lopf(network.snapshots, extra_functionality=extra_functionality)
+print("Objective:",network.objective)
 
-print(network.stores_t.loc[["p","e"],:,"gas depot"])
+print(pd.DataFrame({attr: network.stores_t[attr]["gas depot"] for attr in ["p","e"]}))
 
 if heat:
-    print(network.stores_t.loc[["p","e"],:,"water tank"])
-    print(network.links_t.loc[["p0","p1"],:,"boiler"])
+    print(pd.DataFrame({attr: network.stores_t[attr]["water tank"] for attr in ["p","e"]}))
+    print(pd.DataFrame({attr: network.links_t[attr]["boiler"] for attr in ["p0","p1"]}))
 
 print(network.stores.loc["gas depot"])
 

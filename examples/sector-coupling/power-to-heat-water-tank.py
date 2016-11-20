@@ -30,7 +30,6 @@ network.add("Generator",
             "wind turbine",
             bus="0",
             carrier="wind",
-            dispatch="variable",
             p_nom_extendable=True,
             p_max_pu=[0.,0.2,0.7,0.4],
             capital_cost=500)
@@ -58,9 +57,9 @@ network.add("Store",
 
 network.lopf(network.snapshots)
 
-print(network.stores_t.loc[["p","e"],:,"water tank"])
+print(pd.DataFrame({attr: network.stores_t[attr]["water tank"] for attr in ["p","e"]}))
 
-print(network.links_t.loc[["p0","p1"],:,"heat pump"])
+print(pd.DataFrame({attr: network.links_t[attr]["heat pump"] for attr in ["p0","p1"]}))
 
 print(network.stores.loc["water tank"])
 
