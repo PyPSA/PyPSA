@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 from pyomo.environ import Constraint, Objective, Var, ComponentUID
 from weakref import ref as weakref_ref
 
-import resource
 import pyomo
 from contextlib import contextmanager
 from six import iteritems
@@ -345,8 +344,15 @@ def patch_optsolver_free_model_before_solving(opt, model):
     opt._apply_solver = wrapper
 
 def patch_optsolver_record_memusage_before_solving(opt, network):
-    orig_apply_solver = opt._apply_solver
-    def wrapper():
-        network.max_memusage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        return orig_apply_solver()
-    opt._apply_solver = wrapper
+    try:
+        import resource
+
+        orig_apply_solver = opt._apply_solver
+        def wrapper():
+            network.max_memusage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            return orig_apply_solver()
+        opt._apply_solver = wrapper
+        return True
+    except ImportError:
+        logger.debug("Unable to measure memory usage, since the resource library is missing")
+        return False
