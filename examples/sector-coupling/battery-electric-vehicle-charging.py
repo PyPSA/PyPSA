@@ -19,10 +19,15 @@ index = pd.date_range("2016-01-01 00:00","2016-01-01 23:00",freq="H")
 bev_usage = pd.Series([0.]*7 + [9.]*2 + [0.]*8 + [9.]*2 + [0.]*5,index)
 
 # solar PV panel generation per unit of capacity - this is only available while parked at place of work
-pv_pu = pd.Series([0.]*9 + [0.6,0.75,0.85,0.9,0.85,0.75,0.6,0.4] + [0.]*7,index)
+pv_pu = pd.Series([0.]*7 + [0.2,0.4,0.6,0.75,0.85,0.9,0.85,0.75,0.6,0.4,0.2,0.1] + [0.]*5,index)
+
+# availability of charging - i.e. only when parked at office
+charger_p_max_pu = pd.Series(0.,index=index)
+charger_p_max_pu["2016-01-01 09:00":"2016-01-01 16:00"] = 1.
 
 bev_usage.plot()
 pv_pu.plot()
+charger_p_max_pu.plot()
 
 
 network = pypsa.Network()
@@ -54,6 +59,7 @@ network.add("Link",
             bus0="place of work",
             bus1="battery",
             p_nom=120,  #super-charger with 120 kW
+            p_max_pu=charger_p_max_pu,
             efficiency=0.9)    
 
 
@@ -73,4 +79,6 @@ network.generators_t.p.plot()
 pd.DataFrame({attr: network.stores_t[attr]["battery storage"] for attr in ["p","e"]}).plot(grid=True)
 
 print("Losses [kWh/d]:",network.generators_t.p.loc[:,"PV panel"].sum() - network.loads_t.p.loc[:,"driving"].sum())
+
+network.links_t.p0.plot()
 
