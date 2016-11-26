@@ -34,6 +34,6 @@ from .components import (Network, Bus, Load, Generator, StorageUnit,
 import logging
 logging.basicConfig(level=logging.INFO)
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"

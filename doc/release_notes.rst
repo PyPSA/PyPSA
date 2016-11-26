@@ -2,23 +2,24 @@
 Release Notes
 #######################
 
-PyPSA 0.7.1 (November 2016)
-===========================
+PyPSA 0.7.1 (26th November 2016)
+================================
 
-This release contains a bug fix, a minor new feature and more
+This release contains bug fixes, a minor new feature and more
 warnings.
 
 * The unix-only library ``resource`` is no longer imported by default,
   which was causing errors for Windows users.
+* Bugs in the setting and getting of time-varying attributes for the
+  object interface have been fixed.
 * The ``Link`` attribute ``efficiency`` can now be make time-varying
   so that e.g. heat pump Coefficient of Performance (COP) can change
   over time due to ambient temperature variations (see the `heat pump
   example
   <http://www.pypsa.org/examples/power-to-heat-water-tank.html>`_).
-* Bugs in the setting and getting of time-varying attributes for the
-  object interface have been fixed.
 * ``network.snapshots`` is now cast to a ``pandas.Index``.
-
+* There are new warnings, including when you attach components to
+  non-existent buses.
 
 
 Thanks to Marius Vespermann for promptly pointing out the ``resource``
