@@ -222,8 +222,11 @@ class Series(object):
     def __get__(self, obj, cls):
         if obj.name in getattr(obj.network, obj.__class__.list_name+"_t")[self.name].columns:
             return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
-        else:
+        elif not self.output:
             return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
+        else:
+            logger.warning("{} has not yet been defined for {}; you need to first run a simulation".format(self.name,obj.name))
+            return None
 
     def __set__(self, obj, val):
         #following should work for ints, floats, numpy ints/floats, series and numpy arrays of right size

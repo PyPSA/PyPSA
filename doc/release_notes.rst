@@ -17,6 +17,7 @@ warnings.
   <http://www.pypsa.org/examples/power-to-heat-water-tank.html>`_).
 * Bugs in the setting and getting of time-varying attributes for the
   object interface have been fixed.
+* ``network.snapshots`` is now cast to a ``pandas.Index``.
 
 
 

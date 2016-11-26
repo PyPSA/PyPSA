@@ -2,7 +2,7 @@ Attribute,Type,Unit,Default,Description,Status
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of first bus to which link is attached.,Input (required)
 bus1,string,n/a,n/a,Name of second bus to which link is attached.,Input (required)
-efficiency,float,per unit,1.,Efficiency of power transfer from bus0 to bus1.,Input (optional)
+efficiency,static or series of floats,per unit,1.,Efficiency of power transfer from bus0 to bus1. (Can be time-dependent to represent temperature-dependent Coefficient of Performance of a heat pump from an electric to a heat bus.),Input (optional)
 p_nom,float,MVA,0.,Limit of active power which can pass through link.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
 p_nom_min,float,MVA,0.,"If p_nom is extendable in OPF, set its minimum value.", Input (optional)

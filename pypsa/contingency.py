@@ -130,7 +130,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for typ in passive_branch_types:
         pnl = getattr(network,typ.list_name + "_t")
-        p0_base[typ.__name__] = pnl.p0.loc[network.now]
+        p0_base[typ.__name__] = pnl.p0.loc[snapshot]
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()

@@ -541,7 +541,7 @@ class Network(Basic):
         self.network = self
 
         #a list/index of scenarios/times
-        self.snapshots = [self.now]
+        self.snapshots = pd.Index([self.now])
 
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
@@ -625,7 +625,7 @@ class Network(Basic):
         None
         """
 
-        self.snapshots = snapshots
+        self.snapshots = pd.Index(snapshots)
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
         if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
@@ -636,6 +636,11 @@ class Network(Basic):
 
             for k,v in self.component_series_descriptors[cls].items():
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(v.default)
+
+        if self.now not in self.snapshots:
+            logger.warning("Attribute network.now is not in newly-defined snapshots.")
+
+
 
     def add(self, class_name, name, **kwargs):
         """
@@ -841,7 +846,7 @@ class Network(Basic):
     def consistency_check(self):
         """
         Checks the network for consistency, including bus definitions and impedances.
-
+        Prints warnings if anything is potentially inconsistent.
 
         Examples
         --------
@@ -886,6 +891,30 @@ class Network(Basic):
             bad = df.index[df["s_nom"] == 0.]
             if len(bad) > 0:
                 logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(list_name,bad))
+
+
+        for t in component_types:
+            list_name = t.list_name
+            df = getattr(self,list_name)
+            pnl = getattr(self,list_name + "_t")
+
+            for attr,desc in iteritems(self.component_series_descriptors[t]):
+                if not desc.output:
+                    attr_df = pnl[attr]
+
+                    diff = attr_df.columns.difference(df.index)
+                    if len(diff) > 0:
+                        logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(list_name,attr,list_name,list_name,diff))
+
+                    diff = self.snapshots.difference(attr_df.index)
+                    if len(diff) > 0:
+                        logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,list_name,diff))
+
+                    diff = attr_df.index.difference(self.snapshots)
+                    if len(diff) > 0:
+                        logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,list_name,diff))
+
+
 
 
 class SubNetwork(Common):
