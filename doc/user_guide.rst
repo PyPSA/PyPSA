@@ -37,7 +37,7 @@ interface
 
     for gen in network.generators.obj:
         print(gen.p_nom)
-	print(gen.p[network.now])
+	print(gen.p_set)
 
 
 Python experts

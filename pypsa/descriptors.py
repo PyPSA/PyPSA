@@ -220,7 +220,7 @@ class Series(object):
         self.output = output
 
     def __get__(self, obj, cls):
-        if obj.name in getattr(obj.network, obj.__class__.list_name+"_t").columns:
+        if obj.name in getattr(obj.network, obj.__class__.list_name+"_t")[self.name].columns:
             return getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name]
         else:
             return getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name]
@@ -232,6 +232,9 @@ class Series(object):
                 getattr(obj.network, obj.__class__.list_name+"_t")[self.name].loc[:,obj.name] = self.typ(data=val, index=obj.network.snapshots, dtype=self.dtype)
             else:
                 getattr(obj.network, obj.__class__.list_name).at[obj.name, self.name] = self.dtype(val)
+                if obj.name in getattr(obj.network, obj.__class__.list_name+"_t")[self.name].columns:
+                    getattr(obj.network, obj.__class__.list_name+"_t")[self.name].drop(obj.name, axis=1, inplace=True)
+
 
         except AttributeError:
             logger.error("count not assign {} to series".format(val))

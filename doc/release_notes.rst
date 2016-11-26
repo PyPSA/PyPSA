@@ -15,7 +15,8 @@ warnings.
   over time due to ambient temperature variations (see the `heat pump
   example
   <http://www.pypsa.org/examples/power-to-heat-water-tank.html>`_).
-
+* Bugs in the setting and getting of time-varying attributes for the
+  object interface have been fixed.
 
 
 
