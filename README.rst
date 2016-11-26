@@ -118,7 +118,7 @@ Some screenshots:
 
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 
-.. image:: http://www.pypsa.org/img/europe-map.png
+.. image:: http://www.pypsa.org/img/pre-4-network-181-LV-2.png
 
 
 
@@ -136,6 +136,7 @@ It leans heavily on the following Python packages:
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
+* `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver (you can use e.g. the free software GLPK or the commercial

@@ -638,7 +638,7 @@ class Network(Basic):
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(v.default)
 
         if self.now not in self.snapshots:
-            logger.warning("Attribute network.now is not in newly-defined snapshots.")
+            logger.warning("Attribute network.now is not in newly-defined snapshots. (network.now is only relevant if you call e.g. network.pf() without specifying snapshots.)")
 
 
 
@@ -701,6 +701,12 @@ class Network(Basic):
 
         for key, value in iteritems(kwargs):
             setattr(obj, key, value)
+
+        for attr in ["bus","bus0","bus1"]:
+            if attr in new_df.columns:
+                bus_name = new_df.at[obj.name,attr]
+                if bus_name not in self.buses.index:
+                    logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,cls.__name__,obj.name))
 
 
     def remove(self, class_name, name):

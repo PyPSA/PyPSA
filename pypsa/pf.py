@@ -403,7 +403,7 @@ def find_slack_bus(sub_network):
     gens = sub_network.generators()
 
     if len(gens) == 0:
-        logger.warn("No generators in %s, better hope power is already balanced", sub_network)
+        logger.warn("No generators in sub-network {}, better hope power is already balanced".format(sub_network.name))
         sub_network.slack_generator = None
         sub_network.slack_bus = sub_network.buses_i()[0]
 
