@@ -677,7 +677,7 @@ class Network(Basic):
 
         #build a single-index df of values to concatenate with cls_df
         cols = list(simple_descriptors)
-        values = [(kwargs.pop(col)
+        values = [(simple_descriptors[col].typ(kwargs.pop(col))
                    if col in kwargs
                    else simple_descriptors[col].default)
                   for col in cols]

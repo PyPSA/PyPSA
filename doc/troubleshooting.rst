@@ -20,7 +20,7 @@ If your ``network.pf()`` is not converging there are two possible reasons:
 * The problem you have defined is not solvable (e.g. because in
   reality you would have a voltage collapse)
 * The problem is solvable, but there are numerical instabilities in
-  the solving algorithm (e.g. Newton-Raphson is know to sometimes not
+  the solving algorithm (e.g. Newton-Raphson is known to sometimes not
   converge even for solvable problems)
 
 There are some steps you can take to distinguish these two cases:
@@ -41,7 +41,7 @@ There are some steps you can take to distinguish these two cases:
    (angle_diff*180/np.pi).describe()
 
 * You can seed the ``network.pf()`` with the voltage angles from the
-  linear power flow by calling after the lienar power flow
+  linear power flow by calling after the linear power flow
   ``network.pf(use_seed=True)``.
 * Reduce all power values ``p_set`` and ``q_set`` of generators and
   loads to a fraction, e.g. 10%, solve the load flow and use it as a

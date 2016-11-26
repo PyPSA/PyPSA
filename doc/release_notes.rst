@@ -23,7 +23,7 @@ particularly regarding time-varying component attributes.
   to be ignored. The DataFrame ``network.generators_t["p_max_pu"]``
   now only includes columns which are specifically defined to be
   time-varying, thus saving memory.
-* The following component attributes can now be time-varing:
+* The following component attributes can now be time-varying:
   ``Link.p_max_pu``, ``Link.p_min_pu``, ``Store.e_max_pu`` and
   ``Store.e_min_pu``. This allows the demand-side management scheme of
   `<https://arxiv.org/abs/1401.4121>`_ to be implemented in PyPSA.
