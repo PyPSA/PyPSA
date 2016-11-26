@@ -39,12 +39,13 @@ network.add("Load",
             bus="0 heat",
             p_set=20.)
 
-
+#NB: Heat pump has changing efficiency (properly the Coefficient of Performance, COP)
+#due to changing ambient temperature
 network.add("Link",
             "heat pump",
             bus0="0",
             bus1="0 heat",
-            efficiency=3.,
+            efficiency=[2.5,3.,3.2,3.],
             capital_cost=1000,
             p_nom_extendable=True)
     

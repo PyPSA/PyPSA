@@ -2,6 +2,28 @@
 Release Notes
 #######################
 
+PyPSA 0.7.1 (November 2016)
+===========================
+
+This release contains a bug fix, a minor new feature and more
+warnings.
+
+* The unix-only library ``resource`` is no longer imported by default,
+  which was causing errors for Windows users.
+* The ``Link`` attribute ``efficiency`` can now be make time-varying
+  so that e.g. heat pump Coefficient of Performance (COP) can change
+  over time due to ambient temperature variations (see the `heat pump
+  example
+  <http://www.pypsa.org/examples/power-to-heat-water-tank.html>`_).
+
+
+
+
+Thanks to Marius Vespermann for promptly pointing out the ``resource``
+bug.
+
+
+
 
 
 PyPSA 0.7.0 (20th November 2016)

@@ -446,7 +446,7 @@ class Link(Common):
     p_min_pu = Series(default=0.)
     p_max_pu = Series(default=1.)
 
-    efficiency = Float(1.)
+    efficiency = Series(default=1.)
 
     #The set point for p0.
     p_set = Series()

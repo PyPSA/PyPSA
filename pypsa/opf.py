@@ -668,14 +668,15 @@ def define_nodal_balances(network,snapshots):
                           for bus in network.buses.index
                           for sn in snapshots}
 
+    efficiency = get_switchable_as_dense(network, 'Link', 'efficiency')
+
     for cb in network.links.index:
         bus0 = network.links.at[cb,"bus0"]
         bus1 = network.links.at[cb,"bus1"]
-        efficiency = network.links.at[cb,"efficiency"]
 
         for sn in snapshots:
             network._p_balance[bus0,sn].variables.append((-1,network.model.link_p[cb,sn]))
-            network._p_balance[bus1,sn].variables.append((efficiency,network.model.link_p[cb,sn]))
+            network._p_balance[bus1,sn].variables.append((efficiency.at[sn,cb],network.model.link_p[cb,sn]))
 
 
     for gen in network.generators.index:
@@ -908,7 +909,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     # active branches
     if len(network.links):
         set_from_series(network.links_t.p0, as_series(model.link_p))
-        network.links_t.p1.loc[snapshots] = - network.links_t.p0.loc[snapshots].multiply(network.links.efficiency)
+
+        efficiency = get_switchable_as_dense(network, 'Link', 'efficiency')
+
+        network.links_t.p1.loc[snapshots] = - network.links_t.p0.loc[snapshots]*efficiency.loc[snapshots,:]
 
         network.buses_t.p.loc[snapshots] -= (network.links_t.p0.loc[snapshots]
                                              .groupby(network.links.bus0, axis=1).sum()
