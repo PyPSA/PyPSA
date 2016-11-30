@@ -339,8 +339,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
-    #now read in other components
-    for cls in pypsa.components.component_types - {pypsa.components.SubNetwork}:
+    #now read in other components; make sure buses and carriers come first
+    for cls in sorted(pypsa.components.component_types - {pypsa.components.SubNetwork},key=lambda cls:cls.__name__):
 
         list_name = cls.list_name
 

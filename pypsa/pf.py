@@ -414,18 +414,18 @@ def find_slack_bus(sub_network):
         if len(slacks) == 0:
             sub_network.slack_generator = gens.index[0]
             sub_network.network.generators.loc[sub_network.slack_generator,"control"] = "Slack"
-            logger.debug("No slack generator found, using %s as the slack generator", sub_network.slack_generator)
+            logger.debug("No slack generator found in sub-network {}, using {} as the slack generator".format(sub_network.name, sub_network.slack_generator))
 
         elif len(slacks) == 1:
             sub_network.slack_generator = slacks[0]
         else:
             sub_network.slack_generator = slacks[0]
             sub_network.network.generators.loc[slacks[1:],"control"] = "PV"
-            logger.debug("More than one slack generator found, taking %s to be the slack generator", sub_network.slack_generator)
+            logger.debug("More than one slack generator found in sub-network {}, using {} as the slack generator".format(sub_network.name, sub_network.slack_generator))
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
 
-        logger.info("Slack bus is %s" % sub_network.slack_bus)
+    logger.info("Slack bus for sub-network {} is {}".format(sub_network.name, sub_network.slack_bus))
 
 
 def find_bus_controls(sub_network):
