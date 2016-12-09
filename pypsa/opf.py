@@ -974,7 +974,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         as_series(network.model.link_p_nom)
 
     if network.co2_limit is not None:
-        network.co2_price = network.model.dual[network.model.co2_constraint]
+        try:
+            network.co2_price = network.model.dual[network.model.co2_constraint]
+        except AttributeError, KeyError:
+            logger.warning("Could not read out co2_price, although a co2_limit was set")
 
 
 def network_lopf(network, snapshots=None, solver_name="glpk",
@@ -1063,7 +1066,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk",
     if network.co2_limit is not None:
         define_co2_constraint(network,snapshots)
 
-    define_linear_objective(network,snapshots)
+    define_linear_objective(network, snapshots)
 
     #force solver to also give us the dual prices
     network.model.dual = Suffix(direction=Suffix.IMPORT_EXPORT)
