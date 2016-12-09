@@ -1,8 +1,18 @@
-|badge_pypi| |badge_license|
-
 
 Python for Power System Analysis
 ================================
+
+
+----
+
+.. contents::
+
+.. section-numbering::
+
+----
+
+About
+=====
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
