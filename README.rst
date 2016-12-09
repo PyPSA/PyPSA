@@ -1,3 +1,4 @@
+|badge_pypi| |badge_license|
 
 
 Python for Power System Analysis
@@ -157,6 +158,15 @@ PyPSA has a Google Group `forum / mailing list
 Licence
 ==========
 
-PyPSA is released as free software under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_, see `LICENSE.txt
-<LICENSE.txt>`_.
+Copyright 2015-2016 Tom Brown (FIAS), Jonas Hörsch (FIAS), David
+Schlachtberger (FIAS)
+
+This program is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either `version 3 of the
+License <LICENSE.txt>`_, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+`GNU General Public License <LICENSE.txt>`_ for more details.
