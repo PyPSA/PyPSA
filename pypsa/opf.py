@@ -975,7 +975,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     if network.co2_limit is not None:
         try:
-            network.co2_price = network.model.dual[network.model.co2_constraint]
+            network.co2_price = - network.model.dual[network.model.co2_constraint]
         except AttributeError, KeyError:
             logger.warning("Could not read out co2_price, although a co2_limit was set")
 
