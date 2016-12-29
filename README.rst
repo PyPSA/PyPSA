@@ -2,14 +2,10 @@
 Python for Power System Analysis
 ################################
 
-
-----
-
 .. contents::
 
 .. section-numbering::
 
-----
 
 About
 =====

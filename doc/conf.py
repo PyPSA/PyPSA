@@ -36,6 +36,7 @@ extensions = [
 #    'sphinx.ext.mathjax',
     'sphinx.ext.imgmath',
 #    'sphinxcontrib.tikz',
+    'rinoh.frontend.sphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -232,6 +233,14 @@ latex_documents = [
   (master_doc, 'PyPSA.tex', u'PyPSA Documentation',
    u'Tom Brown (FIAS)', 'manual'),
 ]
+
+
+#Added for rinoh http://www.mos6581.org/rinohtype/quickstart.html
+rinoh_documents = [(master_doc,            # top-level file (index.rst)
+                    'PyPSA',           # output (target.pdf)
+                    'PyPSA Documentation',   # document title
+                    'Tom Brown (FIAS)')]   # document author
+
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
