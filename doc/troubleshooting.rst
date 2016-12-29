@@ -2,6 +2,15 @@
 Troubleshooting
 ################
 
+Library dependency issues
+=========================
+
+If you are experiencing problems with PyPSA or with the importing of
+the libraries on which PyPSA depends, please first check that you are
+working with the latest versions of all packages.
+
+See :ref:`upgrading-packages` and :ref:`upgrading-pypsa`.
+
 
 Consistency check on network
 ============================
@@ -61,3 +70,16 @@ For example:
   of ``network.lines`` and ``network.transformers``
 * ``sub_network.generators()`` returns a DataFrame consisting of
   generators in ``sub_network``
+
+
+Reporting bugs/issues
+=====================
+
+Please do not contact the developers directly.
+
+Please report questions to the `mailing list
+<https://groups.google.com/group/pypsa>`_.
+
+If you're relatively certain you've found a bug, raise it as an issue
+on the `PyPSA Github Issues page
+<https://github.com/FRESNA/PyPSA/issues>`_.

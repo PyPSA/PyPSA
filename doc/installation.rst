@@ -24,9 +24,8 @@ accidentally trash something.
 Getting a solver for linear optimisation
 ========================================
 
-PyPSA is known to work with the free software GLPK (versions below
-4.58) and the non-free software Gurobi (and whatever else Pyomo works
-with).
+PyPSA is known to work with the free software GLPK and the non-free
+software Gurobi (and whatever else Pyomo works with).
 
 For Debian-based systems you can get GLPK with::
 
@@ -36,11 +35,6 @@ and there are similar packages for other GNU/Linux distributions.
 
 For Windows there is `WinGLPK <http://winglpk.sourceforge.net/>`_. For
 Mac OS X `brew <http://brew.sh/>`_ is your friend.
-
-WARNING: PyPSA uses the library Pyomo, which is `known not to work
-<https://software.sandia.gov/trac/pyomo/ticket/4641>`_ with GLPK
-versions >= 4.58. Please install an older version of GLPK.
-
 
 
 Installing PyPSA with pip
@@ -98,20 +92,40 @@ your python path with e.g.::
 
     import pypsa
 
+
+.. _upgrading-packages:
+
 Upgrade all packages to the latest versions
 ===========================================
 
 PyPSA is only tested with the latest stable versions of all the
-dependent packages (pandas, networkx, etc.). Therefore it is very
-important that you upgrade these packages; otherwise
-PyPSA may not work.
+dependent packages (pandas, pyomo, networkx, etc.). Therefore it is
+very important that you upgrade these packages; otherwise PyPSA may
+not work.
 
-To upgrade a package such as ``pandas`` with pip, do at the command line::
+To upgrade a package such as ``pandas`` with pip, do at the command
+line::
 
     pip install -U pandas
 
 
-
-In Anaconda the `user manual <http://conda.pydata.org/docs/using/pkgs.html>`_ suggests to upgrade packages with::
+In Anaconda the `user manual
+<http://conda.pydata.org/docs/using/pkgs.html>`_ suggests to upgrade
+packages with::
 
     conda update pandas
+
+
+.. _upgrading-pypsa:
+
+Upgrading PyPSA
+===============
+
+We recommend always keeping your PyPSA installation up-to-date, since
+bugs get fixed and new features are added. To upgrade PyPSA with pip,
+do at the command line::
+
+    pip install -U pandas
+
+Don't forget to read the :doc:`release_notes` regarding API changes
+that might require you to update your code.
