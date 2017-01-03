@@ -4,7 +4,7 @@ bus,string,n/a,n/a,"Name of bus to which store is attached.",Input (required)
 e_nom,float,MWh,0.,Nominal energy capacity.,Input (optional)
 e_nom_extendable,boolean,n/a,False,Switch to allow capacity e_nom to be extended in OPF.,Input (optional)
 e_nom_min,float,MWh,0.,"If e_nom is extendable in OPF, set its minimum value.",Input (optional)
-e_nom_max,float,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
+e_nom_max,float,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e.g. limited by technical potential).",Input (optional)
 e_min_pu,static or series,per unit,0.,"Minimal value of e relative to e_nom for the OPF.",Input (optional)
 e_max_pu,static or series,per unit,1.,"Maximal value of e relative to e_nom for the OPF.",Input (optional)
 e_initial,float,MWh,0.,Energy before the snapshots in the OPF.,Input (optional)
@@ -18,4 +18,4 @@ standing_loss,float,per unit,0.,Losses per hour to energy.,Input (optional)
 p,series,MW,0.,active power at bus (positive if net generation),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 e,series,MWh,0.,Energy as calculated by the OPF.,Output
-e_nom_opt,float,MW,0.,Optimised nominal power.,Output
+e_nom_opt,float,MW,0.,Optimised nominal energy capacity outputed by OPF.,Output
