@@ -38,6 +38,8 @@ import scipy as sp, scipy.sparse
 from itertools import chain
 from collections import namedtuple
 from operator import itemgetter
+import os
+
 
 from distutils.version import StrictVersion, LooseVersion
 try:
@@ -78,6 +80,8 @@ logger = logging.getLogger(__name__)
 
 
 inf = float("inf")
+
+
 
 class Basic(object):
     """Common to every object."""

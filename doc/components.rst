@@ -36,7 +36,7 @@ has the major functions as methods, such as ``network.lopf()`` and
 
 .. csv-table::
    :header-rows: 1
-   :file: network.csv
+   :file: ../pypsa/component_attrs/network.csv
 
 
 
@@ -64,7 +64,7 @@ Sub-Network are determined by calling
 
 .. csv-table::
    :header-rows: 1
-   :file: sub_network.csv
+   :file: ../pypsa/component_attrs/sub_network.csv
 
 
 Bus
@@ -83,7 +83,7 @@ energy conservation for all elements feeding in and out of it
 
 .. csv-table::
    :header-rows: 1
-   :file: buses.csv
+   :file: ../pypsa/component_attrs/buses.csv
 
 
 One-Ports: Generators, Storage Units, Loads, Stores, Shunt Impedances
@@ -97,7 +97,7 @@ They have attributes:
 
 .. csv-table::
    :header-rows: 1
-   :file: one_ports.csv
+   :file: ../pypsa/component_attrs/one_ports.csv
 
 
 
@@ -145,7 +145,7 @@ to the bus and if :math:`q>0` it is supplying reactive power
 
 .. csv-table::
    :header-rows: 1
-   :file: generators.csv
+   :file: ../pypsa/component_attrs/generators.csv
 
 
 
@@ -162,7 +162,7 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 
 .. csv-table::
    :header-rows: 1
-   :file: storage_units.csv
+   :file: ../pypsa/component_attrs/storage_units.csv
 
 
 Store
@@ -184,7 +184,7 @@ must put a link in front of it.
 
 .. csv-table::
    :header-rows: 1
-   :file: stores.csv
+   :file: ../pypsa/component_attrs/stores.csv
 
 
 Load
@@ -199,7 +199,7 @@ like an inductor).
 
 .. csv-table::
    :header-rows: 1
-   :file: loads.csv
+   :file: ../pypsa/component_attrs/loads.csv
 
 
 Shunt Impedance
@@ -221,7 +221,7 @@ an capacitor).
 
 .. csv-table::
    :header-rows: 1
-   :file: shunt_impedances.csv
+   :file: ../pypsa/component_attrs/shunt_impedances.csv
 
 
 Passive Branches: Lines, Transformers
@@ -237,7 +237,7 @@ Power flow at bus recorded in p0, p1, q0, q1.
 
 .. csv-table::
    :header-rows: 1
-   :file: branches.csv
+   :file: ../pypsa/component_attrs/branches.csv
 
 
 Line
@@ -249,7 +249,7 @@ To see how the impedances are used in the power flow, see :ref:`branch-model`.
 
 .. csv-table::
    :header-rows: 1
-   :file: lines.csv
+   :file: ../pypsa/component_attrs/lines.csv
 
 
 Transformer
@@ -262,7 +262,7 @@ To see how the impedances are used in the power flow, see :ref:`branch-model`.
 
 .. csv-table::
    :header-rows: 1
-   :file: transformers.csv
+   :file: ../pypsa/component_attrs/transformers.csv
 
 .. _controllable-link:
 
@@ -291,7 +291,7 @@ the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
 
 .. csv-table::
    :header-rows: 1
-   :file: links.csv
+   :file: ../pypsa/component_attrs/links.csv
 
 
 Carrier
@@ -304,4 +304,4 @@ For storing information about energy carriers, e.g. $CO_2$ emissions of gas or c
 
 .. csv-table::
    :header-rows: 1
-   :file: carriers.csv
+   :file: ../pypsa/component_attrs/carriers.csv
