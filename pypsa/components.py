@@ -652,8 +652,6 @@ class Network(Basic):
 
             setattr(self,self.components[component]["list_name"],df)
 
-            self.components[component]["df"] = df
-
             pnl = Dict({k : pd.DataFrame(index=self.snapshots,
                                          columns=[],
                                          #it's currently hard to imagine non-float series, but this could be generalised
@@ -663,7 +661,6 @@ class Network(Basic):
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
-            self.components[component]["pnl"] = pnl
 
     def set_snapshots(self,snapshots):
         """
@@ -726,44 +723,52 @@ class Network(Basic):
             logger.error("Component class {} not found".format(class_name))
             return None
 
-        cls_df = getattr(self, cls.list_name)
+        cls_df = getattr(self, self.components[class_name]["list_name"])
+        cls_pnl = getattr(self, self.components[class_name]["list_name"]+"_t")
 
-        if str(name) in cls_df.index:
-            logger.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, cls.list_name))
+        name = str(name)
+
+        if name in cls_df.index:
+            logger.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, self.components[class_name]["list_name"]))
             return
 
         obj = cls(self, str(name))
 
-        simple_descriptors = self.component_simple_descriptors[cls]
-        series_descriptors = self.component_series_descriptors[cls]
+        attrs = self.components[class_name]["attrs"]
+
+        non_varying_attrs = attrs[~attrs.varying].drop("name")
+        potentially_varying_attrs = attrs[(attrs.varying) & (attrs.static)]
 
         #build a single-index df of values to concatenate with cls_df
-        cols = list(simple_descriptors)
-        values = [(simple_descriptors[col].typ(kwargs.pop(col))
-                   if col in kwargs
-                   else simple_descriptors[col].default)
-                  for col in cols]
+        values = [(r.typ(kwargs.pop(i))
+                   if i in kwargs
+                   else r.default)
+                  for i,r in non_varying_attrs.iterrows()]
 
-        obj_df = pd.DataFrame(data=[values+[obj]],index=[obj.name],columns=cols+["obj"])
+        obj_df = pd.DataFrame(data=[values+[obj]],index=[name],columns=list(non_varying_attrs.index) + ["obj"])
         new_df = pd.concat((cls_df, obj_df))
 
-        setattr(self, cls.list_name, new_df)
+        setattr(self, self.components[class_name]["list_name"], new_df)
 
-        #now deal with time-dependent variables
-        pnl = getattr(self,cls.list_name+"_t")
+        #now deal with varying attributes
+        new_df.loc[name, potentially_varying_attrs.index] = potentially_varying_attrs.default
 
-        for k,v in iteritems(series_descriptors):
-            if not v.output:
-                new_df.at[obj.name, k] = v.default
+        for k,v in iteritems(kwargs):
+            if k not in attrs.index:
+                logger.warning("{} has no attribute {}, ignoring this passed value.".format(class_name,k))
+                continue
+            typ = attrs.loc[k,"typ"]
+            if attrs.loc[k,"static"] and type(v) not in [pd.Series, np.ndarray, list]:
+                new_df.loc[name,k] = typ(v)
+            else:
+                cls_pnl[k].loc[:,name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
-        for key, value in iteritems(kwargs):
-            setattr(obj, key, value)
 
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:
-                bus_name = new_df.at[obj.name,attr]
+                bus_name = new_df.at[name,attr]
                 if bus_name not in self.buses.index:
-                    logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,cls.__name__,obj.name))
+                    logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
 
 
     def remove(self, class_name, name):
