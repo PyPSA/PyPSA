@@ -11,8 +11,11 @@ s_nom_extendable,boolean,n/a,False,Switch to allow capacity s_nom to be extended
 s_nom_min,float,MVA,0.,"If s_nom is extendable in OPF, set its minimum value.", Input (optional)
 s_nom_max,float,MVA,inf,"If s_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
 capital_cost,float,currency/MVA,0.,"Capital cost of extending s_nom by 1 MVA.",Input (optional)
-tap_ratio,float,1.,"Ratio of per unit voltages at each bus.",Input (optional)
-phase_shift,float,Degrees,"Voltage phase angle shift.",Input (optional)
+tap_ratio,float,per unit,1.,"Ratio of per unit voltages at each bus.",Input (optional)
+phase_shift,float,Degrees,0.,"Voltage phase angle shift.",Input (optional)
+v_ang_min,float,Degrees,-inf,"Minimum voltage angle difference across the transformer.",Input (optional)
+v_ang_max,float,Degrees,inf,"Maximum voltage angle difference across the transformer.",Input (optional)
+sub_network,string,n/a,n/a,"Name of connected sub-network to which transformer belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.",Output
 p0,series of floats,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 q0,series of floats,MVar,0.,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series of floats,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output

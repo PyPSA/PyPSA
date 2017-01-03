@@ -36,7 +36,7 @@ has the major functions as methods, such as ``network.lopf()`` and
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/network.csv
+   :file: ../pypsa/component_attrs/networks.csv
 
 
 
@@ -64,7 +64,7 @@ Sub-Network are determined by calling
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/sub_network.csv
+   :file: ../pypsa/component_attrs/sub_networks.csv
 
 
 Bus

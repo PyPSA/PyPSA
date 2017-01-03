@@ -1,0 +1,14 @@
+component,list_name,description
+Network,networks
+SubNetwork,sub_networks
+Bus,buses
+Carrier,carriers
+Branch,branches
+Line,lines
+Transformer,transformers
+Link,links
+Load,loads
+Generator,generators
+StorageUnit,storage_units
+Store,stores
+ShuntImpedance,shunt_impedances

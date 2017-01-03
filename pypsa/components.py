@@ -78,6 +78,11 @@ logger = logging.getLogger(__name__)
 
 
 
+dir_name = os.path.dirname(__file__)
+
+component_attrs_dir_name = "component_attrs"
+
+
 
 inf = float("inf")
 
@@ -550,6 +555,22 @@ class Network(Basic):
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
+        components = pd.read_csv(os.path.join(dir_name,
+                                              "components.csv"),
+                                 index_col=0)
+
+        self.components = Dict(components.T.to_dict())
+
+        for component in self.components.keys():
+
+            file_name = os.path.join(dir_name,
+                                     component_attrs_dir_name,
+                                     self.components[component]["list_name"] + ".csv")
+
+            print(file_name)
+
+            self.components[component]["attrs"] = pd.read_csv(file_name,
+                                                              index_col=0)
 
         descriptors = [obj
                        for name, obj in inspect.getmembers(sys.modules[__name__])
