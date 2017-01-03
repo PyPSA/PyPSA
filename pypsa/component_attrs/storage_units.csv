@@ -1,12 +1,12 @@
-Attribute,Type,Unit,Default,Description,Status
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,"Name of bus to which storage unit is attached.",Input (required)
-control,string,n/a , """PQ""","P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
-p_nom,float,MW,0.,Nominal power for limits in OPF., Input (optional)
-p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF., Input (optional)
-p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.", Input (optional)
-p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
-p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of p_nom for the OPF.",Input (optional)
+control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
+p_nom,float,MW,0.,Nominal power for limits in OPF.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
+p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
+p_min_pu,static or series,per unit,-1.,"The minimum output for each snapshot per unit of p_nom for the OPF.",Input (optional)
 p_max_pu,static or series,per unit,1.,"The maximum output for each snapshot per unit of p_nom for the OPF, relevant e.g. if for renewables the power output is limited by the weather.",Input (optional)
 p_set,static or series,MW,0.,active power set point (for PF),Input (optional)
 q_set,static or series,MVar,0.,reactive power set point (for PF),Input (optional)
@@ -16,15 +16,15 @@ marginal_cost,float,currency/MWh,0.,"Marginal cost of production of 1 MWh.",Inpu
 capital_cost,float,currency/MW,0.,"Capital cost of extending p_nom by 1 MW.",Input (optional)
 efficiency,float,per unit,1.,"Ratio between primary energy and electrical energy, e.g. takes value 0.4 for gas. This is important for determining CO2 emissions per MWh.",Input (optional)
 state_of_charge_initial,float,MWh,0.,State of charge before the snapshots in the OPF.,Input (optional)
-state_of_charge_set,static or series of floats,MWh,NaN,State of charge set points for snapshots in the OPF.,Input (optional)
+state_of_charge_set,static or series,MWh,NaN,State of charge set points for snapshots in the OPF.,Input (optional)
 cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then state_of_charge_initial is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the OPF.",Input (optional)
 max_hours,float,hours,1.,Maximum state of charge capacity in terms of hours at full output capacity p_nom,Input (optional)
 efficiency_store,float,per unit,1.,Efficiency of storage on the way into the storage.,Input (optional)
 efficiency_dispatch,float,per unit,1.,Efficiency of storage on the way out of the storage.,Input (optional)
 standing_loss,float,per unit,0.,Losses per hour to state of charge.,Input (optional)
-inflow,static or series of floats,MW,0.,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir.",Input (optional)
-p,series of floats,MW,0.,active power at bus (positive if net generation),Output
-q,series of floats,MVar,0.,reactive power (positive if net generation),Output
-state_of_charge,series of floats,MWh,NaN,State of charge as calculated by the OPF.,Output
-spill,series of floats,MW,0.,Spillage for each snapshot.,Output
+inflow,static or series,MW,0.,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir.",Input (optional)
+p,series,MW,0.,active power at bus (positive if net generation),Output
+q,series,MVar,0.,reactive power (positive if net generation),Output
+state_of_charge,series,MWh,NaN,State of charge as calculated by the OPF.,Output
+spill,series,MW,0.,Spillage for each snapshot.,Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output

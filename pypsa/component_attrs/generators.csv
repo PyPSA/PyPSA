@@ -1,11 +1,11 @@
-Attribute,Type,Unit,Default,Description,Status
+attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,name of bus to which generator is attached,Input (required)
-control,string,n/a , """PQ""","P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
-p_nom,float,MW,0.,Nominal power for limits in OPF., Input (optional)
-p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF., Input (optional)
-p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.", Input (optional)
-p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).", Input (optional)
+control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
+p_nom,float,MW,0.,Nominal power for limits in OPF.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
+p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
 p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of p_nom for the OPF.",Input (optional)
 p_max_pu,static or series,per unit,1.,"The maximum output for each snapshot per unit of p_nom for the OPF, relevant e.g. if for renewables the power output is limited by the weather.",Input (optional)
 p_set,static or series,MW,0.,active power set point (for PF),Input (optional)
@@ -15,6 +15,6 @@ carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar)
 marginal_cost,float,currency/MWh,0.,"Marginal cost of production of 1 MWh.",Input (optional)
 capital_cost,float,currency/MW,0.,"Capital cost of extending p_nom by 1 MW.",Input (optional)
 efficiency,float,per unit,1.,"Ratio between primary energy and electrical energy, e.g. takes value 0.4 for gas. This is important for determining CO2 emissions per MWh.",Input (optional)
-p,series of floats,MW,0.,active power at bus (positive if net generation),Output
-q,series of floats,MVar,0.,reactive power (positive if net generation),Output
+p,series,MW,0.,active power at bus (positive if net generation),Output
+q,series,MVar,0.,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output

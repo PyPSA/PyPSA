@@ -377,7 +377,7 @@ class Line(Branch):
     v_ang_min = Float(-inf)
     v_ang_max = Float(inf)
 
-    length = Float(default=1.0)
+    length = Float(default=0.0)
     terrain_factor = Float(default=1.0)
 
 
@@ -460,7 +460,7 @@ class Link(Common):
     #The set point for p0.
     p_set = Series()
 
-    length = Float(default=1.0)
+    length = Float(default=0.0)
     terrain_factor = Float(default=1.0)
 
 class ThreePort(Common):
