@@ -563,14 +563,42 @@ class Network(Basic):
 
         for component in self.components.keys():
 
+            if component == "Network":
+                continue
+
             file_name = os.path.join(dir_name,
                                      component_attrs_dir_name,
                                      self.components[component]["list_name"] + ".csv")
 
-            print(file_name)
+            attrs = pd.read_csv(file_name,
+                                index_col=0)
 
-            self.components[component]["attrs"] = pd.read_csv(file_name,
-                                                              index_col=0)
+            attrs = attrs.reindex(columns = attrs.columns | ["typ", "static", "varying"])
+
+            attrs["static"] = True
+            attrs.loc[attrs.type == "series","static"] = False
+
+            attrs["varying"] = False
+            attrs.loc[attrs.type == "series","varying"] = True
+            attrs.loc[attrs.type == "static or series","varying"] = True
+
+            attrs["typ"] = float
+            attrs.loc[attrs.type == "boolean","typ"] = bool
+            attrs.loc[attrs.type == "int","typ"] = int
+
+            #RHS is bizarre because pd.types.common.is_list_like(str) is True and prevents setting
+            attrs.loc[attrs.type == "string","typ"] = [str]*len(attrs.index[attrs.type == "string"])
+
+            bools = attrs.type == "boolean"
+
+            attrs.loc[bools,"default"] = [i in [True,"True"] for i in attrs.loc[bools,"default"]]
+
+            for typ in [str, float, int]:
+                attrs.loc[attrs.typ == typ,"default"] = attrs.loc[attrs.typ == typ,"default"].apply(typ)
+
+            attrs.loc[attrs.default == "n/a","default"] = ""
+
+            self.components[component]["attrs"] = attrs
 
         descriptors = [obj
                        for name, obj in inspect.getmembers(sys.modules[__name__])
@@ -602,10 +630,6 @@ class Network(Basic):
         """Function called when network is created to build component pandas.DataFrames."""
 
         for cls in component_types:
-            columns = list((k, v.typ) for k, v in iteritems(self.component_simple_descriptors[cls]))
-
-            #store also the objects themselves
-            columns.append(("obj", object))
 
             #very important! must tell the descriptor what it's name is
             for k,v in iteritems(self.component_simple_descriptors[cls]):
@@ -613,25 +637,33 @@ class Network(Basic):
 
             for k,v in iteritems(self.component_series_descriptors[cls]):
                 v.name = k
-                if not v.output:
-                    columns.append((k, v.dtype))
 
-            df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in columns},
-                              columns=list(map(itemgetter(0), columns)))
+
+        for component in all_components:
+
+            attrs = self.components[component]["attrs"]
+
+            static_typs = attrs.typ[attrs.static].drop(["name"])
+
+            df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_typs.iteritems()},
+                              columns=static_typs.index)
 
             df.index.name = "name"
 
-            setattr(self,cls.list_name,df)
+            setattr(self,self.components[component]["list_name"],df)
+
+            self.components[component]["df"] = df
 
             pnl = Dict({k : pd.DataFrame(index=self.snapshots,
                                          columns=[],
                                          #it's currently hard to imagine non-float series, but this could be generalised
                                          dtype=float)
-                        for k, desc in iteritems(self.component_series_descriptors[cls])
-                        #if not desc.output
+                        for k in attrs.index[attrs.varying]
                        })
 
-            setattr(self,cls.list_name+"_t",pnl)
+            setattr(self,self.components[component]["list_name"]+"_t",pnl)
+
+            self.components[component]["pnl"] = pnl
 
     def set_snapshots(self,snapshots):
         """
@@ -1058,3 +1090,15 @@ controllable_branch_types = {Link}
 branch_types = passive_branch_types|controllable_branch_types
 
 component_types = branch_types|one_port_types|{Bus, SubNetwork, Carrier}
+
+
+passive_one_port_components = {"ShuntImpedance"}
+controllable_one_port_components = {"Load", "Generator", "StorageUnit", "Store"}
+one_port_components = passive_one_port_components|controllable_one_port_components
+
+passive_branch_components = {"Line", "Transformer"}
+controllable_branch_components = {"Link"}
+branch_components = passive_branch_components|controllable_branch_components
+
+#i.e. everything except "Network"
+all_components = branch_components|one_port_components|{"Bus", "SubNetwork", "Carrier"}
