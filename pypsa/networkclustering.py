@@ -52,7 +52,8 @@ def _haversine(coords):
     return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
 
 def aggregategenerators(network, busmap, with_time=True):
-    columns = set(network.component_simple_descriptors[components.Generator]) | {'weight'}
+    attrs = network.components["Generator"]["attrs"]
+    columns = set(attrs.index[~attrs.varying]) | {'weight'}
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
     grouper = [generators.bus, generators.carrier]
 
@@ -86,7 +87,10 @@ def aggregategenerators(network, busmap, with_time=True):
 def aggregateoneport(network, busmap, component, with_time=True):
     if isinstance(component, six.string_types):
         component = getattr(components, component)
-    columns = set(network.component_simple_descriptors[component])
+
+    attrs = network.components[component.__name__]["attrs"]
+    columns = set(attrs.index[~attrs.varying])
+
     old_df = getattr(network, component.list_name).assign(bus=lambda df: df.bus.map(busmap))
     if 'carrier' in columns:
         grouper = [old_df.bus, old_df.carrier]
@@ -121,7 +125,9 @@ def aggregateoneport(network, busmap, component, with_time=True):
     return new_df, new_pnl
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
-    columns = set(network.component_simple_descriptors[components.Bus])
+    attrs = network.components["Bus"]["attrs"]
+    columns = set(attrs.index[~attrs.varying])
+
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
                       v_mag_pu_max=np.min, v_mag_pu_min=np.max)
@@ -142,8 +148,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_n = interlines[~ positive_order].rename(columns={"bus0_s":"bus1_s", "bus1_s":"bus0_s"})
     interlines_c = pd.concat((interlines_p,interlines_n))
 
-
-    columns = set(network.component_simple_descriptors[components.Line]).difference(('bus0', 'bus1'))
+    attrs = network.components["Line"]["attrs"]
+    columns = set(attrs.index[~attrs.varying]).difference(('bus0', 'bus1'))
 
     def aggregatelinegroup(l):
 

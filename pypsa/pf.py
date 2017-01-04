@@ -184,7 +184,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
-    logger.info("Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(sub_network.carrier, sub_network, snapshots))
+    logger.info("Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(sub_network.network.sub_networks.at[sub_network.name,"carrier"], sub_network, snapshots))
 
     # _sub_network_prepare_pf(sub_network, snapshots, skip_pre, calculate_Y)
     network = sub_network.network
@@ -425,6 +425,9 @@ def find_slack_bus(sub_network):
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
 
+    #also put it into the dataframe
+    sub_network.network.sub_networks.at[sub_network.name,"slack_bus"] = sub_network.slack_bus
+
     logger.info("Slack bus for sub-network {} is {}".format(sub_network.name, sub_network.slack_bus))
 
 
@@ -472,7 +475,7 @@ def calculate_B_H(sub_network,skip_pre=False):
         calculate_dependent_values(network)
         find_bus_controls(sub_network)
 
-    if sub_network.carrier == "DC":
+    if network.sub_networks.at[sub_network.name,"carrier"] == "DC":
         attribute="r_pu"
     else:
         attribute="x_pu"
@@ -546,7 +549,7 @@ def calculate_Y(sub_network,skip_pre=False):
     if not skip_pre:
         calculate_dependent_values(sub_network.network)
 
-    if sub_network.carrier != "AC":
+    if sub_network.network.sub_networks.at[sub_network.name,"carrier"] != "AC":
         logger.warn("Non-AC networks not supported for Y!")
         return
 
@@ -777,7 +780,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info("Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
-                sub_network.carrier, sub_network, snapshots)
+                sub_network.network.sub_networks.at[sub_network.name,"carrier"], sub_network, snapshots)
 
     from .components import \
         one_port_types, controllable_one_port_types, \
@@ -833,7 +836,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
             t.pnl.p0.loc[snapshots, f.columns] = f
             t.pnl.p1.loc[snapshots, f.columns] = -f
 
-    if sub_network.carrier == "DC":
+    if network.sub_networks.at[sub_network.name,"carrier"] == "DC":
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1 + v_diff
         network.buses_t.v_ang.loc[snapshots, buses_o] = 0.
     else:

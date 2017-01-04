@@ -48,8 +48,7 @@ except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
 from .descriptors import (Float, String, Series, Integer, Boolean,
-                          get_simple_descriptors,
-                          get_series_descriptors, Dict)
+                          Dict)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe,
@@ -600,18 +599,6 @@ class Network(Basic):
 
             self.components[component]["attrs"] = attrs
 
-        descriptors = [obj
-                       for name, obj in inspect.getmembers(sys.modules[__name__])
-                       if inspect.isclass(obj) and hasattr(obj,"list_name")]
-
-        #make a dictionary of all simple descriptors
-        self.component_simple_descriptors = {obj : get_simple_descriptors(obj)
-                                             for obj in descriptors}
-
-        #make a dictionary of all series descriptors
-        self.component_series_descriptors = {obj : get_series_descriptors(obj)
-                                             for obj in descriptors}
-
 
         self._build_dataframes()
 
@@ -628,16 +615,6 @@ class Network(Basic):
 
     def _build_dataframes(self):
         """Function called when network is created to build component pandas.DataFrames."""
-
-        for cls in component_types:
-
-            #very important! must tell the descriptor what it's name is
-            for k,v in iteritems(self.component_simple_descriptors[cls]):
-                v.name = k
-
-            for k,v in iteritems(self.component_series_descriptors[cls]):
-                v.name = k
-
 
         for component in all_components:
 
@@ -717,11 +694,14 @@ class Network(Basic):
         if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
             snapshots = pd.Index(snapshots.values)
 
-        for cls in component_types:
-            pnl = getattr(self,cls.list_name+"_t")
+        for component in all_components:
+            pnl = self.pnl(component)
+            attrs = self.components[component]["attrs"]
 
-            for k,v in self.component_series_descriptors[cls].items():
-                pnl[k] = pnl[k].reindex(self.snapshots).fillna(v.default)
+            for k,default in attrs.default[attrs.varying].iteritems():
+                pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
+
+        #NB: No need to rebind pnl to self, since haven't changed it
 
         if self.now not in self.snapshots:
             logger.warning("Attribute network.now is not in newly-defined snapshots. (network.now is only relevant if you call e.g. network.pf() without specifying snapshots.)")
@@ -984,26 +964,26 @@ class Network(Basic):
                 logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(list_name,bad))
 
 
-        for t in component_types:
-            list_name = t.list_name
-            df = getattr(self,list_name)
-            pnl = getattr(self,list_name + "_t")
+        for component in all_components:
+            list_name = self.components["list_name"]
+            df = self.df(component)
+            pnl = self.pnl(component)
+            attrs = self.components[component]["attrs"]
 
-            for attr,desc in iteritems(self.component_series_descriptors[t]):
-                if not desc.output:
-                    attr_df = pnl[attr]
+            for attr in attrs.index[attrs.varying & attrs.static]:
+                attr_df = pnl[attr]
 
-                    diff = attr_df.columns.difference(df.index)
-                    if len(diff) > 0:
-                        logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(list_name,attr,list_name,list_name,diff))
+                diff = attr_df.columns.difference(df.index)
+                if len(diff) > 0:
+                    logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(list_name,attr,list_name,list_name,diff))
 
-                    diff = self.snapshots.difference(attr_df.index)
-                    if len(diff) > 0:
-                        logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,list_name,diff))
+                diff = self.snapshots.difference(attr_df.index)
+                if len(diff) > 0:
+                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,list_name,diff))
 
-                    diff = attr_df.index.difference(self.snapshots)
-                    if len(diff) > 0:
-                        logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,list_name,diff))
+                diff = attr_df.index.difference(self.snapshots)
+                if len(diff) > 0:
+                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,list_name,diff))
 
 
 
@@ -1018,11 +998,6 @@ class SubNetwork(Common):
     """
 
     list_name = "sub_networks"
-
-    #carrier is inherited from the buses
-    carrier = String(default="AC")
-
-    slack_bus = String("")
 
     lpf = sub_network_lpf
 

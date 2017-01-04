@@ -243,33 +243,6 @@ class Series(object):
             logger.error("count not assign {} to series".format(val))
 
 
-
-
-def get_descriptors(cls, allowed_descriptors=[]):
-    d = OrderedDict()
-
-    mro = list(inspect.getmro(cls))
-
-    #make sure get closest descriptor in inheritance tree
-    mro.reverse()
-
-    for kls in mro:
-        for k,v in iteritems(vars(kls)):
-            if type(v) in allowed_descriptors:
-                d[k] = v
-    return d
-
-
-simple_descriptors = [Integer, Float, String, Boolean]
-
-
-def get_simple_descriptors(cls):
-    return get_descriptors(cls,simple_descriptors)
-
-def get_series_descriptors(cls):
-    return get_descriptors(cls,[Series])
-
-
 def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
     """
     Return a Dataframe for a time-varying component attribute with values for all
@@ -342,15 +315,11 @@ def allocate_series_dataframes(network, series):
 
 """
 
-    from . import components
     for component, attributes in iteritems(series):
-        if isinstance(component, string_types):
-            component = getattr(components, component)
-        series_descriptors = network.component_series_descriptors[component]
 
-        df = getattr(network, component.list_name)
-        pnl = getattr(network, component.list_name + '_t')
+        df = network.df(component)
+        pnl = network.pnl(component)
 
         for attr in attributes:
             pnl[attr] = pnl[attr].reindex(columns=df.index,
-                                          fill_value=series_descriptors[attr].default)
+                                          fill_value=network.components[component]["attrs"].at[attr,"default"])

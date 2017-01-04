@@ -564,7 +564,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     for sn in network.sub_networks.obj:
 
         branches = sn.branches()
-        attribute = "r_pu" if sn.carrier == "DC" else "x_pu"
+        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
 
         for j in range(sn.C.shape[1]):
 
@@ -608,7 +608,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
     for sn in network.sub_networks.obj:
 
         branches = sn.branches()
-        attribute = "r_pu" if sn.carrier == "DC" else "x_pu"
+        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
 
         for j in range(sn.C.shape[1]):
 
