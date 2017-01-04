@@ -538,9 +538,9 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     for sn in network.sub_networks.obj:
         branches = sn.branches()
         buses = sn.buses()
-        for i,branch in enumerate(branches.obj):
-            bt = branch.__class__.__name__
-            bn = branch.name
+        for i,branch in enumerate(branches.index):
+            bt = branch[0]
+            bn = branch[1]
 
             cycle_is = sn.C[i,:].nonzero()[1]
             tree_is = sn.T[i,:].nonzero()[1]

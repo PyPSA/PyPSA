@@ -109,7 +109,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         col_export = []
         for col in df.columns:
             #do not export derived attributes
-            if col in ["obj","sub_network","r_pu","x_pu","g_pu","b_pu"]:
+            if col in ["sub_network","r_pu","x_pu","g_pu","b_pu"]:
                 continue
             if col in od and pd.isnull(od[col].default) and pd.isnull(df[col]).all():
                 continue
@@ -214,8 +214,6 @@ def import_components_from_dataframe(network,dataframe,cls_name):
         #we also do this for other types?
         if v.typ == bool and new_df[k].dtype is not np.dtype(v.typ):
             new_df.loc[:,k] = new_df.loc[:,k].astype(v.typ)
-
-    new_df.loc[dataframe.index,"obj"] = [cls(network,str(i)) for i in dataframe.index]
 
     setattr(network,cls.list_name,new_df)
 
@@ -522,8 +520,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         cls = getattr(pypsa.components,component)
         import_components_from_dataframe(network,pdf[cls.list_name],component)
 
-    for gen in network.generators.obj:
-        gen.control = network.buses.control[gen.bus]
+    network.generators["control"] = network.generators.bus.map(network.buses["control"])
 
     #for consistency with pypower, take the v_mag set point from the generators
     network.buses.loc[network.generators.bus,"v_mag_pu_set"] = np.asarray(network.generators["v_set_pu"])

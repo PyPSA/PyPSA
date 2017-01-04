@@ -662,6 +662,38 @@ class Network(Basic):
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
 
+    def df(self, component_name):
+        """
+        Return the DataFrame of static components for component_name,
+        i.e. network.component_names
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        pandas.DataFrame
+        """
+        return getattr(self, self.components[component_name]["list_name"])
+
+
+    def pnl(self, component_name):
+        """
+        Return the dictionary of DataFrames of varying components for component_name,
+        i.e. network.component_names_t
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        dict of pandas.DataFrame
+        """
+        return getattr(self, self.components[component_name]["list_name"]+"_t")
+
+
     def set_snapshots(self,snapshots):
         """
         Set the snapshots and reindex all time-dependent data.
@@ -717,14 +749,12 @@ class Network(Basic):
 
         """
 
-        try:
-            cls = globals()[class_name]
-        except KeyError:
+        if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
 
-        cls_df = getattr(self, self.components[class_name]["list_name"])
-        cls_pnl = getattr(self, self.components[class_name]["list_name"]+"_t")
+        cls_df = self.df(class_name)
+        cls_pnl = self.pnl(class_name)
 
         name = str(name)
 
@@ -732,36 +762,29 @@ class Network(Basic):
             logger.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, self.components[class_name]["list_name"]))
             return
 
-        obj = cls(self, str(name))
 
         attrs = self.components[class_name]["attrs"]
 
-        non_varying_attrs = attrs[~attrs.varying].drop("name")
-        potentially_varying_attrs = attrs[(attrs.varying) & (attrs.static)]
+        static_attrs = attrs[attrs.static].drop("name")
 
-        #build a single-index df of values to concatenate with cls_df
-        values = [(r.typ(kwargs.pop(i))
-                   if i in kwargs
-                   else r.default)
-                  for i,r in non_varying_attrs.iterrows()]
-
-        obj_df = pd.DataFrame(data=[values+[obj]],index=[name],columns=list(non_varying_attrs.index) + ["obj"])
+        #This guarantees that the correct attribute type is maintained
+        obj_df = pd.DataFrame(data=[static_attrs.default],index=[name],columns=static_attrs.index)
         new_df = pd.concat((cls_df, obj_df))
 
         setattr(self, self.components[class_name]["list_name"], new_df)
-
-        #now deal with varying attributes
-        new_df.loc[name, potentially_varying_attrs.index] = potentially_varying_attrs.default
 
         for k,v in iteritems(kwargs):
             if k not in attrs.index:
                 logger.warning("{} has no attribute {}, ignoring this passed value.".format(class_name,k))
                 continue
-            typ = attrs.loc[k,"typ"]
-            if attrs.loc[k,"static"] and type(v) not in [pd.Series, np.ndarray, list]:
-                new_df.loc[name,k] = typ(v)
+            typ = attrs.at[k,"typ"]
+            if not attrs.at[k,"varying"]:
+                new_df.at[name,k] = typ(v)
             else:
-                cls_pnl[k].loc[:,name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                if attrs.loc[k,"static"] and type(v) not in [pd.Series, np.ndarray, list]:
+                    new_df.at[name,k] = typ(v)
+                else:
+                    cls_pnl[k].loc[:,name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
 
         for attr in ["bus","bus0","bus1"]:
@@ -790,25 +813,20 @@ class Network(Basic):
 
         """
 
-        try:
-            cls = globals()[class_name]
-        except KeyError:
-            logger.error("Class {} not found".format(class_name))
+        if class_name not in self.components:
+            logger.error("Component class {} not found".format(class_name))
             return None
 
-        cls_df = getattr(self, cls.list_name)
-
-        obj = cls_df.obj[name]
+        cls_df = getattr(self, self.components[class_name]["list_name"])
 
         cls_df.drop(name, inplace=True)
 
-        pnl = getattr(self, cls.list_name+"_t")
+        pnl = getattr(self, self.components[class_name]["list_name"] + "_t")
 
         for df in itervalues(pnl):
             if name in df:
                 df.drop(name, axis=1, inplace=True)
 
-        del obj
 
     def copy(self, with_time=True):
         """
@@ -871,7 +889,9 @@ class Network(Basic):
 
         # remove all old sub_networks
         for sub_network in self.sub_networks.index:
+            obj = self.sub_networks.at[sub_network,"obj"]
             self.remove("SubNetwork", sub_network)
+            del obj
 
         for i in np.arange(n_components):
             # index of first bus
@@ -886,7 +906,10 @@ class Network(Basic):
                 logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
                                 self.buses.carrier.iloc[buses_i].value_counts())
 
-            sub_network = self.add("SubNetwork", i, carrier=carrier)
+            self.add("SubNetwork", i, carrier=carrier)
+
+        #add objects
+        self.sub_networks["obj"] = [SubNetwork(self, name) for name in self.sub_networks.index]
 
         self.buses.loc[:, "sub_network"] = labels.astype(str)
 

@@ -620,7 +620,7 @@ averaged).
             continue
         line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
-            lines = network.lines.loc[[l.name for l in line_objs]]
+            lines = network.lines.loc[[l[1] for l in line_objs]]
             aggregated = {}
 
             attr_inv = ["x","r"]
@@ -640,7 +640,7 @@ averaged).
 
             #remove all but first line
             for line in line_objs[1:]:
-                network.remove("Line",line.name)
+                network.remove("Line",line[1])
 
             rep = line_objs[0]
 
@@ -691,12 +691,12 @@ def find_tree(sub_network):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
             branch = list(graph[path[i]][path[i+1]].keys())[0]
-            if branch.bus0 == path[i]:
+            if sub_network.network.df(branch[0]).at[branch[1],"bus0"] == path[i]:
                 sign = +1
             else:
                 sign = -1
 
-            branch_i = branches_i.get_loc((branch.__class__.__name__, branch.name))
+            branch_i = branches_i.get_loc(branch)
 
             sub_network.T[branch_i,j] = sign
 
@@ -729,12 +729,12 @@ def find_cycles(sub_network):
 
         for i in range(len(cycle)):
             branch = list(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
-            if branch.bus0 == cycle[i]:
+            if sub_network.network.df(branch[0]).at[branch[1],"bus0"] == cycle[i]:
                 sign = +1
             else:
                 sign = -1
 
-            branch_i = branches_i.get_loc((branch.__class__.__name__,branch.name))
+            branch_i = branches_i.get_loc(branch)
             sub_network.C[branch_i,j] += sign
 
     #counter for multis
@@ -745,10 +745,10 @@ def find_cycles(sub_network):
         bs = list(mgraph[u][v].keys())
         if len(bs) > 1:
             first = bs[0]
-            first_i = branches_i.get_loc((first.__class__.__name__,first.name))
+            first_i = branches_i.get_loc(first)
             for b in bs[1:]:
-                b_i = branches_i.get_loc((b.__class__.__name__,b.name))
-                if b.bus0 == first.bus0:
+                b_i = branches_i.get_loc(b)
+                if sub_network.network.df(b[0]).at[b[1],"bus0"] == sub_network.network.df(first[0]).at[first[1],"bus0"]:
                     sign = -1
                 else:
                     sign = 1

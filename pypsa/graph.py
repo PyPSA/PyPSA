@@ -43,8 +43,8 @@ def graph(network, branch_types=None):
     # add nodes first, in case there are isolated buses not connected with branches
     graph.add_nodes_from(buses_i)
 
-    # Multigraph uses object itself as key
-    graph.add_edges_from((branch.bus0, branch.bus1, branch.obj, {})
+    # Multigraph uses the branch type and name as key
+    graph.add_edges_from((branch.bus0, branch.bus1, (t.name, branch.Index), {})
                          for t in network.iterate_components(branch_types)
                          for branch in t.df.loc[slice(None)
                                                 if t.ind is None
