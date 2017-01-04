@@ -47,8 +47,7 @@ try:
 except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
-from .descriptors import (Float, String, Series, Integer, Boolean,
-                          Dict)
+from .descriptors import Dict
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe,
@@ -115,50 +114,10 @@ class Common(Basic):
         return self._network()
 
 class Carrier(Common):
-    """Energy carrier, such as wind, PV or coal. The Carrier tracks co2
-    emissions if there is a network.co2_limit.  Buses have direct
-    carriers and Generators indicate their primary energy carriers.
-    """
-
     list_name = "carriers"
 
-    #emissions in CO2-tonnes-equivalent per MWh primary energy
-    #(e.g. gas: 0.2 t_CO2/MWh_thermal)
-    co2_emissions = Float(default=0.)
-
-
 class Bus(Common):
-    """Electrically fundamental node where x-port objects attach."""
-
     list_name = "buses"
-
-    v_nom = Float(default=1.)
-
-    #should be removed and set by program based on generators at bus
-    control = String(default="PQ",restricted=["PQ","PV","Slack"])
-
-    #2-d location data (e.g. longitude and latitude; Spatial Reference System Identifier (SRID) set in network.srid)
-    x = Float(default=0.)
-    y = Float(default=0.)
-
-    p = Series(output=True)
-    q = Series(output=True)
-    v_mag_pu = Series(default=1., output=True)
-    v_ang = Series(output=True)
-
-    v_mag_pu_set = Series(default=1.)
-
-    v_mag_pu_min = Float(default=0.)
-    v_mag_pu_max = Float(default=inf)
-
-    #optimisation output for power balance constraint at bus
-    marginal_price = Series(output=True)
-
-    #energy carrier could be "AC", "DC", "heat", "gas"
-    carrier = String(default="AC")
-
-    sub_network = String(default="")
-
 
 class SubStation(Common):
     """Placeholder for a group of buses."""
@@ -170,297 +129,33 @@ class Region(Common):
 class OnePort(Common):
     """Object which attaches to a single bus (e.g. load or generator)."""
 
-    bus = String(default="")
-    sign = Float(default=1.)
-    p = Series(output=True)
-    q = Series(output=True)
-
-
 class Generator(OnePort):
-
     list_name = "generators"
 
-    control = String(default="PQ",restricted=["PQ","PV","Slack"])
-
-    #i.e. coal, CCGT, onshore wind, PV, CSP,....
-    carrier = String(default="")
-
-    #rated power
-    p_nom = Float(default=0.0)
-
-    #switch to allow capacity to be extended
-    p_nom_extendable = Boolean(False)
-
-    #technical potential
-    p_nom_max = Float(inf)
-    p_nom_min = Float(0.0)
-
-    #optimised capacity
-    p_nom_opt = Float(0.0)
-
-    capital_cost = Float(0.0)
-    marginal_cost = Float(0.0)
-
-
-    #power limits for variable generators, which can change e.g. due
-    #to weather conditions; per unit to ease multiplication with
-    #p_nom, which may be optimised
-    p_max_pu = Series(default=1.)
-    p_min_pu = Series(default=0.)
-
-    #operator's intended dispatch
-    p_set = Series()
-    q_set = Series()
-
-
-    #ratio between electrical energy and primary energy
-    #(e.g. gas: 0.4 MWh_elec/MWh_thermal)
-    efficiency = Float(1.)
-
-
 class StorageUnit(Generator):
-
     list_name = "storage_units"
 
-    #units for state of charge are MWh
-    state_of_charge_initial = Float(0.)
-
-    #state of charge can be forced to a particular value
-    state_of_charge_set = Series(default=np.nan)
-
-    #optimisation results are stored here
-    state_of_charge = Series(default=np.nan, output=True)
-
-    #switch to disregard state_of_charge_initial; instead soc[-1] =
-    #soc[len(snapshots)-1]
-    cyclic_state_of_charge = Boolean(False)
-
-    #maximum state of charge capacity in terms of hours at full output capacity p_nom
-    max_hours = Float(1)
-
-    #the minimum power dispatch is negative
-    p_min_pu = Series(default=-1)
-
-    #in MW
-    inflow = Series()
-    spill = Series(output=True)
-
-    efficiency_store = Float(1)
-
-    efficiency_dispatch = Float(1)
-
-    #per hour per unit loss in state of charge
-    standing_loss = Float(0.)
-
-
 class Store(Common):
-    """Generic store, whose capacity may be optimised."""
-
     list_name = "stores"
 
-    bus = String(default="")
-    sign = Float(default=1.)
-    p = Series(output=True)
-    q = Series(output=True)
-    e = Series(output=True)
-
-    p_set = Series()
-    q_set = Series()
-
-    #rated energy capacity
-    e_nom = Float(default=0.0)
-
-    #switch to allow energy capacity to be extended
-    e_nom_extendable = Boolean(False)
-
-    #technical potential
-    e_nom_max = Float(inf)
-
-    e_nom_min = Float(0.0)
-
-    #optimised capacity
-    e_nom_opt = Float(0.0)
-
-    e_max_pu = Series(default=1.)
-    e_min_pu = Series(default=0.)
-
-    e_cyclic = Boolean(False)
-
-    e_initial = Float(0.)
-
-    #cost of increasing e_nom
-    capital_cost = Float(0.0)
-
-    #cost of dispatching from the store
-    marginal_cost = Float(0.0)
-
-    #per hour per unit loss in state of charge
-    standing_loss = Float(0.)
-
-
-
 class Load(OnePort):
-    """PQ load."""
-
     list_name = "loads"
 
-    #set sign convention for powers opposite to generator
-    sign = Float(-1.)
-
-    p_set = Series()
-    q_set = Series()
-
 class ShuntImpedance(OnePort):
-    """Shunt y = g + jb."""
-
     list_name = "shunt_impedances"
 
-    #set sign convention so that g>0 withdraws p from bus
-    sign = Float(-1.)
-
-    g = Float(0.)
-    b = Float(0.)
-
-    g_pu = Float(0.)
-    b_pu = Float(0.)
-
-
 class Branch(Common):
-    """Object which attaches to two buses (e.g. line or 2-winding transformer)."""
-
     list_name = "branches"
 
-    bus0 = String("")
-    bus1 = String("")
-
-    capital_cost = Float(0.)
-
-    s_nom = Float(0.)
-
-    s_nom_extendable = Boolean(False)
-
-    s_nom_max = Float(inf)
-    s_nom_min = Float(0.)
-
-    #optimised capacity
-    s_nom_opt = Float(0.)
-
-    #{p,q}i is positive if power is flowing from bus i into the branch
-    #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
-    p0 = Series(output=True)
-    p1 = Series(output=True)
-
-    q0 = Series(output=True)
-    q1 = Series(output=True)
-
-
 class Line(Branch):
-    """Lines include distribution and transmission lines, overhead lines and cables."""
-
     list_name = "lines"
 
-    #series impedance z = r + jx in Ohm
-    r = Float(0.)
-    x = Float(0.)
-
-    #shunt reactance y = g + jb in 1/Ohm
-    g = Float(0.)
-    b = Float(0.)
-
-    x_pu = Float(0.)
-    r_pu = Float(0.)
-    g_pu = Float(0.)
-    b_pu = Float(0.)
-
-    #voltage angle difference across branches
-    v_ang_min = Float(-inf)
-    v_ang_max = Float(inf)
-
-    length = Float(default=0.0)
-    terrain_factor = Float(default=1.0)
-
-
-    sub_network = String("")
-
-
 class Transformer(Branch):
-    """2-winding transformer."""
-
     list_name = "transformers"
-
-    #per unit with reference to s_nom
-    x = Float(0.)
-    r = Float(0.)
-    g = Float(0.)
-    b = Float(0.)
-
-    x_pu = Float(0.)
-    r_pu = Float(0.)
-    g_pu = Float(0.)
-    b_pu = Float(0.)
-
-    #voltage angle difference across branches
-    v_ang_min = Float(-inf)
-    v_ang_max = Float(inf)
-
-    #ratio of per unit voltages
-    tap_ratio = Float(1.)
-
-    #in degrees
-    phase_shift = Float(0.)
-
-    sub_network = String("")
 
 
 class Link(Common):
-    """Link between two buses with controllable active power - can be used
-    for a transport power flow model OR as a simplified version of
-    point-to-point DC connection OR as a lossy energy converter.
-
-    NB: for a lossless bi-directional HVDC or transport link, set
-    p_min_pu = -1 and efficiency = 1.
-
-    NB: It is assumed that the links neither produce nor consume
-    reactive power.
-
-    """
-
     list_name = "links"
-
-    bus0 = String("")
-    bus1 = String("")
-
-    capital_cost = Float(0.)
-
-    #NB: marginal cost only makes sense in OPF if p_max_pu >= 0
-    marginal_cost = Float(0.)
-
-    p_nom = Float(0.)
-
-    p_nom_extendable = Boolean(False)
-
-    p_nom_max = Float(inf)
-    p_nom_min = Float(0.)
-
-    #optimised capacity
-    p_nom_opt = Float(0.)
-
-    #pi is positive if power is flowing from bus i into the branch
-    #so if power flows from bus0 to bus1, p0 is positive, p1 is negative
-    p0 = Series(output=True)
-    p1 = Series(output=True)
-
-    #limits per unit of p_nom
-    p_min_pu = Series(default=0.)
-    p_max_pu = Series(default=1.)
-
-    efficiency = Series(default=1.)
-
-    #The set point for p0.
-    p_set = Series()
-
-    length = Float(default=0.0)
-    terrain_factor = Float(default=1.0)
 
 class ThreePort(Common):
     """Placeholder for 3-winding transformers."""
