@@ -113,61 +113,8 @@ class Common(Basic):
     def network(self):
         return self._network()
 
-class Carrier(Common):
-    list_name = "carriers"
 
-class Bus(Common):
-    list_name = "buses"
-
-class SubStation(Common):
-    """Placeholder for a group of buses."""
-
-class Region(Common):
-    """A group of buses such as a country or county."""
-
-
-class OnePort(Common):
-    """Object which attaches to a single bus (e.g. load or generator)."""
-
-class Generator(OnePort):
-    list_name = "generators"
-
-class StorageUnit(Generator):
-    list_name = "storage_units"
-
-class Store(Common):
-    list_name = "stores"
-
-class Load(OnePort):
-    list_name = "loads"
-
-class ShuntImpedance(OnePort):
-    list_name = "shunt_impedances"
-
-class Branch(Common):
-    list_name = "branches"
-
-class Line(Branch):
-    list_name = "lines"
-
-class Transformer(Branch):
-    list_name = "transformers"
-
-
-class Link(Common):
-    list_name = "links"
-
-class ThreePort(Common):
-    """Placeholder for 3-winding transformers."""
-
-class ThreeTransformer(ThreePort):
-    pass
-
-class LineType(Common):
-    """Placeholder for future functionality to automatically generate line
-    parameters from standard parameters (e.g. r/km)."""
-
-Type = namedtuple("Type", ['typ', 'name', 'df', 'pnl', 'ind'])
+Component = namedtuple("Component", ['name', 'list_name', 'attrs', 'df', 'pnl', 'ind'])
 
 class Network(Basic):
     """
@@ -527,7 +474,7 @@ class Network(Basic):
         if with_time:
             network.set_snapshots(self.snapshots)
             for component in self.iterate_components():
-                pnl = getattr(network, component.typ.list_name+"_t")
+                pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
                     pnl[k] = component.pnl[k].copy()
 
@@ -541,25 +488,23 @@ class Network(Basic):
     #beware, this turns bools like s_nom_extendable into objects because of
     #presence of links without s_nom_extendable
     def branches(self):
-        return pd.concat((getattr(self, typ.list_name) for typ in branch_types),
-                         keys=[typ.__name__ for typ in branch_types])
+        return pd.concat((self.df(c) for c in branch_components),
+                         keys=branch_components)
 
     def passive_branches(self):
-        return pd.concat((getattr(self, typ.list_name)
-                          for typ in passive_branch_types),
-                         keys=[typ.__name__ for typ in passive_branch_types])
+        return pd.concat((self.df(c) for c in passive_branch_components),
+                         keys=passive_branch_components)
 
     def controllable_branches(self):
-        return pd.concat((getattr(self, typ.list_name)
-                          for typ in controllable_branch_types),
-                         keys=[typ.__name__ for typ in controllable_branch_types])
+        return pd.concat((self.df(c) for c in controllable_branch_components),
+                         keys=controllable_branch_components)
 
     def determine_network_topology(self):
         """
         Build sub_networks from topology.
         """
 
-        adjacency_matrix = self.adjacency_matrix(passive_branch_types)
+        adjacency_matrix = self.adjacency_matrix(passive_branch_components)
         n_components, labels = sp.sparse.csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
@@ -588,25 +533,21 @@ class Network(Basic):
 
         self.buses.loc[:, "sub_network"] = labels.astype(str)
 
-        for t in self.iterate_components(passive_branch_types):
-            t.df["sub_network"] = t.df.bus0.map(self.buses["sub_network"])
+        for c in self.iterate_components(passive_branch_components):
+            c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
 
-    def iterate_components(self, types=None, skip_empty=True):
-        if types is None:
-            types = component_types
-        else:
-            from . import components
-            types = [getattr(components, t)
-                     if isinstance(t, six.string_types)
-                     else t
-                     for t in types]
+    def iterate_components(self, components=None, skip_empty=True):
+        if components is None:
+            components = all_components
 
-        return (Type(typ=typ, name=typ.__name__,
-                     df=getattr(self, typ.list_name),
-                     pnl=getattr(self, typ.list_name + '_t'),
-                     ind=None)
-                for typ in types
-                if not skip_empty or len(getattr(self, typ.list_name)) > 0)
+        return (Component(name=c,
+                          list_name=self.components[c]["list_name"],
+                          attrs=self.components[c]["attrs"],
+                          df=self.df(c),
+                          pnl=self.pnl(c),
+                          ind=None)
+                for c in components
+                if not (skip_empty and self.df(c).empty))
 
 
     def consistency_check(self):
@@ -621,64 +562,50 @@ class Network(Basic):
         """
 
 
-        for t in one_port_types:
-            list_name = t.list_name
-            df = getattr(self,list_name)
-            missing = df.index[pd.isnull(df.bus.map(self.buses.v_nom))]
+        for c in self.iterate_components(one_port_components):
+            missing = c.df.index[pd.isnull(c.df.bus.map(self.buses.v_nom))]
             if len(missing) > 0:
-                logger.warning("The following {} have buses which are not defined:\n{}".format(list_name,missing))
+                logger.warning("The following {} have buses which are not defined:\n{}".format(c.list_name,missing))
 
-        for t in branch_types:
-            list_name = t.list_name
-            df = getattr(self,list_name)
+        for c in self.iterate_components(branch_components):
             for end in ["0","1"]:
-                missing = df.index[pd.isnull(df["bus"+end].map(self.buses.v_nom))]
+                missing = c.df.index[pd.isnull(c.df["bus"+end].map(self.buses.v_nom))]
                 if len(missing) > 0:
-                    logger.warning("The following {} have bus {} which are not defined:\n{}".format(list_name,end,missing))
+                    logger.warning("The following {} have bus {} which are not defined:\n{}".format(c.list_name,end,missing))
 
 
-        for t in passive_branch_types:
-            list_name = t.list_name
-            df = getattr(self,list_name)
+        for c in self.iterate_components(passive_branch_components):
             for attr in ["x","r"]:
-                bad = df.index[df[attr] == 0.]
+                bad = c.df.index[c.df[attr] == 0.]
                 if len(bad) > 0:
-                    logger.warning("The following {} have zero {}, which could break the linear load flow:\n{}".format(list_name,attr,bad))
+                    logger.warning("The following {} have zero {}, which could break the linear load flow:\n{}".format(c.list_name,attr,bad))
 
-            bad = df.index[(df["x"] == 0.) & (df["r"] == 0.)]
+            bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.)]
             if len(bad) > 0:
-                logger.warning("The following {} have zero series impedance, which will break the load flow:\n{}".format(list_name,bad))
+                logger.warning("The following {} have zero series impedance, which will break the load flow:\n{}".format(c.list_name,bad))
 
 
-        for t in [Transformer]:
-            list_name = t.list_name
-            df = getattr(self,list_name)
-
-            bad = df.index[df["s_nom"] == 0.]
+        for c in self.iterate_components({"Transformer"}):
+            bad = c.df.index[c.df["s_nom"] == 0.]
             if len(bad) > 0:
-                logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(list_name,bad))
+                logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(c.list_name,bad))
 
 
-        for component in all_components:
-            list_name = self.components["list_name"]
-            df = self.df(component)
-            pnl = self.pnl(component)
-            attrs = self.components[component]["attrs"]
+        for c in self.iterate_components(all_components):
+            for attr in c.attrs.index[c.attrs.varying & c.attrs.static]:
+                attr_df = c.pnl[attr]
 
-            for attr in attrs.index[attrs.varying & attrs.static]:
-                attr_df = pnl[attr]
-
-                diff = attr_df.columns.difference(df.index)
+                diff = attr_df.columns.difference(c.df.index)
                 if len(diff) > 0:
-                    logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(list_name,attr,list_name,list_name,diff))
+                    logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(c.list_name,attr,c.list_name,c.list_name,diff))
 
                 diff = self.snapshots.difference(attr_df.index)
                 if len(diff) > 0:
-                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,list_name,diff))
+                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,c.list_name,diff))
 
                 diff = attr_df.index.difference(self.snapshots)
                 if len(diff) > 0:
-                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,list_name,diff))
+                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,c.list_name,diff))
 
 
 
@@ -728,9 +655,9 @@ class SubNetwork(Common):
     def branches_i(self):
         types = []
         names = []
-        for t in self.iterate_components(passive_branch_types):
-            types += len(t.ind) * [t.name]
-            names += list(t.ind)
+        for c in self.iterate_components(passive_branch_components):
+            types += len(c.ind) * [c.name]
+            names += list(c.ind)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
@@ -773,21 +700,11 @@ class SubNetwork(Common):
     def storage_units(self):
         return self.network.storage_units.loc[self.storage_units_i()]
 
-    def iterate_components(self, types=None, skip_empty=True):
-        for t in self.network.iterate_components(types=types, skip_empty=False):
-            t = Type(*t[:-1], ind=getattr(self, t.typ.list_name + '_i')())
-            if not (skip_empty and t.df.empty):
-                yield t
-
-passive_one_port_types = {ShuntImpedance}
-controllable_one_port_types = {Load, Generator, StorageUnit, Store}
-one_port_types = passive_one_port_types|controllable_one_port_types
-
-passive_branch_types = {Line, Transformer}
-controllable_branch_types = {Link}
-branch_types = passive_branch_types|controllable_branch_types
-
-component_types = branch_types|one_port_types|{Bus, SubNetwork, Carrier}
+    def iterate_components(self, components=None, skip_empty=True):
+        for c in self.network.iterate_components(components=components, skip_empty=False):
+            c = Component(*c[:-1], ind=getattr(self, c.list_name + '_i')())
+            if not (skip_empty and c.df.empty):
+                yield c
 
 
 passive_one_port_components = {"ShuntImpedance"}

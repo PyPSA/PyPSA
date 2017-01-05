@@ -189,7 +189,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     # _sub_network_prepare_pf(sub_network, snapshots, skip_pre, calculate_Y)
     network = sub_network.network
 
-    from .components import passive_branch_types, controllable_branch_types, controllable_one_port_types
+    from .components import passive_branch_components, controllable_branch_components, controllable_one_port_components
 
     if not skip_pre:
         calculate_dependent_values(network)
@@ -206,20 +206,20 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
-        for t in sub_network.iterate_components(controllable_one_port_types):
-            t_n_set = get_switchable_as_dense(network, t.typ, n + '_set', snapshots, t.ind)
-            t.pnl[n].loc[snapshots, t.ind] = t_n_set
+        for c in sub_network.iterate_components(controllable_one_port_components):
+            c_n_set = get_switchable_as_dense(network, c.name, n + '_set', snapshots, c.ind)
+            c.pnl[n].loc[snapshots, c.ind] = c_n_set
 
         # set the power injection at each node from controllable components
         network.buses_t[n].loc[snapshots, buses_o] = \
-            sum([((t.pnl[n].loc[snapshots, t.ind] * t.df.loc[t.ind, 'sign'])
-                  .groupby(t.df.loc[t.ind, 'bus'], axis=1).sum()
+            sum([((c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, 'sign'])
+                  .groupby(c.df.loc[c.ind, 'bus'], axis=1).sum()
                   .reindex(columns=buses_o, fill_value=0.))
-                 for t in sub_network.iterate_components(controllable_one_port_types)]
+                 for c in sub_network.iterate_components(controllable_one_port_components)]
                 +
-                [(- t.pnl[n+str(i)].loc[snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
+                [(- c.pnl[n+str(i)].loc[snapshots].groupby(c.df["bus"+str(i)], axis=1).sum()
                   .reindex(columns=buses_o, fill_value=0))
-                 for t in network.iterate_components(controllable_branch_types)
+                 for c in network.iterate_components(controllable_branch_components)
                  for i in [0,1]])
 
     def f(guess):
@@ -310,9 +310,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     #add voltages to branches
     buses_indexer = buses_o.get_indexer
     branch_bus0 = []; branch_bus1 = []
-    for t in sub_network.iterate_components(passive_branch_types):
-        branch_bus0 += list(t.df.loc[t.ind, 'bus0'])
-        branch_bus1 += list(t.df.loc[t.ind, 'bus1'])
+    for c in sub_network.iterate_components(passive_branch_components):
+        branch_bus0 += list(c.df.loc[c.ind, 'bus0'])
+        branch_bus1 += list(c.df.loc[c.ind, 'bus1'])
     v0 = V[:,buses_indexer(branch_bus0)]
     v1 = V[:,buses_indexer(branch_bus1)]
 
@@ -324,13 +324,13 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     s0 = pd.DataFrame(v0*np.conj(i0), columns=branches_i, index=snapshots)
     s1 = pd.DataFrame(v1*np.conj(i1), columns=branches_i, index=snapshots)
-    for t in network.iterate_components(passive_branch_types):
-        s0t = s0.loc[:,t.name]
-        s1t = s1.loc[:,t.name]
-        t.pnl.p0.loc[snapshots,s0t.columns] = s0t.values.real
-        t.pnl.q0.loc[snapshots,s0t.columns] = s0t.values.imag
-        t.pnl.p1.loc[snapshots,s1t.columns] = s1t.values.real
-        t.pnl.q1.loc[snapshots,s1t.columns] = s1t.values.imag
+    for c in network.iterate_components(passive_branch_components):
+        s0t = s0.loc[:,c.name]
+        s1t = s1.loc[:,c.name]
+        c.pnl.p0.loc[snapshots,s0t.columns] = s0t.values.real
+        c.pnl.q0.loc[snapshots,s0t.columns] = s0t.values.imag
+        c.pnl.p1.loc[snapshots,s1t.columns] = s1t.values.real
+        c.pnl.q1.loc[snapshots,s1t.columns] = s1t.values.imag
 
     s_calc = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     for i in np.arange(len(snapshots)):
@@ -467,7 +467,7 @@ def find_bus_controls(sub_network):
 def calculate_B_H(sub_network,skip_pre=False):
     """Calculate B and H matrices for AC or DC sub-networks."""
 
-    from .components import passive_branch_types
+    from .components import passive_branch_components
 
     network = sub_network.network
 
@@ -483,9 +483,9 @@ def calculate_B_H(sub_network,skip_pre=False):
     #following leans heavily on pypower.makeBdc
 
     #susceptances
-    b = 1./np.concatenate([(t.df.loc[t.ind, attribute]*t.df.loc[t.ind, "tap_ratio"]).values if t.name == "Transformer"
-                           else t.df.loc[t.ind, attribute].values
-                           for t in sub_network.iterate_components(passive_branch_types)])
+    b = 1./np.concatenate([(c.df.loc[c.ind, attribute]*c.df.loc[c.ind, "tap_ratio"]).values if c.name == "Transformer"
+                           else c.df.loc[c.ind, attribute].values
+                           for c in sub_network.iterate_components(passive_branch_components)])
 
 
     if np.isnan(b).any():
@@ -783,8 +783,8 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
                 sub_network.network.sub_networks.at[sub_network.name,"carrier"], sub_network, snapshots)
 
     from .components import \
-        one_port_types, controllable_one_port_types, \
-        passive_branch_types, controllable_branch_types
+        one_port_components, controllable_one_port_components, \
+        passive_branch_components, controllable_branch_components
 
     network = sub_network.network
 
@@ -805,20 +805,20 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
 
     # allow all one ports to dispatch as set
-    for t in sub_network.iterate_components(controllable_one_port_types):
-        t_p_set = get_switchable_as_dense(network, t.typ, 'p_set', snapshots, t.ind)
-        t.pnl.p.loc[snapshots, t.ind] = t_p_set
+    for c in sub_network.iterate_components(controllable_one_port_components):
+        c_p_set = get_switchable_as_dense(network, c.name, 'p_set', snapshots, c.ind)
+        c.pnl.p.loc[snapshots, c.ind] = c_p_set
 
     # set the power injection at each node
     network.buses_t.p.loc[snapshots, buses_o] = \
-        sum([((t.pnl.p.loc[snapshots, t.ind] * t.df.loc[t.ind, 'sign'])
-              .groupby(t.df.loc[t.ind, 'bus'], axis=1).sum()
+        sum([((c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, 'sign'])
+              .groupby(c.df.loc[c.ind, 'bus'], axis=1).sum()
               .reindex(columns=buses_o, fill_value=0.))
-             for t in sub_network.iterate_components(one_port_types)]
+             for c in sub_network.iterate_components(one_port_components)]
             +
-            [(- t.pnl["p"+str(i)].loc[snapshots].groupby(t.df["bus"+str(i)], axis=1).sum()
+            [(- c.pnl["p"+str(i)].loc[snapshots].groupby(c.df["bus"+str(i)], axis=1).sum()
               .reindex(columns=buses_o, fill_value=0))
-             for t in network.iterate_components(controllable_branch_types)
+             for c in network.iterate_components(controllable_branch_components)
              for i in [0,1]])
 
     if not skip_pre and len(branches_i) > 0:
@@ -831,10 +831,10 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         flows = pd.DataFrame(v_diff * sub_network.H.T,
                              columns=branches_i, index=snapshots)
 
-        for t in network.iterate_components(passive_branch_types):
-            f = flows.loc[:, t.name]
-            t.pnl.p0.loc[snapshots, f.columns] = f
-            t.pnl.p1.loc[snapshots, f.columns] = -f
+        for c in network.iterate_components(passive_branch_components):
+            f = flows.loc[:, c.name]
+            c.pnl.p0.loc[snapshots, f.columns] = f
+            c.pnl.p1.loc[snapshots, f.columns] = -f
 
     if network.sub_networks.at[sub_network.name,"carrier"] == "DC":
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1 + v_diff

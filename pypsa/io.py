@@ -493,8 +493,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     # 2 startup shutdown n c(n-1) ... c0
 
     for component in ["Bus","Load","Generator","Line","Transformer","ShuntImpedance"]:
-        cls = getattr(pypsa.components,component)
-        import_components_from_dataframe(network,pdf[cls.list_name],component)
+        import_components_from_dataframe(network,pdf[network.components[component]["list_name"]],component)
 
     network.generators["control"] = network.generators.bus.map(network.buses["control"])
 

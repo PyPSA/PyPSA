@@ -50,12 +50,10 @@ def test_pypower_case():
     network.pf()
 
     #compare branch flows
-    for typ in pypsa.components.passive_branch_types:
-        df = getattr(network,typ.list_name)
-        pnl = getattr(network,typ.list_name+"_t")
+    for c in network.iterate_components(pypsa.components.passive_branch_components):
         for si in ["p0","p1","q0","q1"]:
-            si_pypsa = getattr(pnl,si).loc[network.now].values
-            si_pypower = results_df['branch'][si][df.original_index].values
+            si_pypsa = getattr(c.pnl,si).loc[network.now].values
+            si_pypower = results_df['branch'][si][c.df.original_index].values
             np.testing.assert_array_almost_equal(si_pypsa,si_pypower)
 
 

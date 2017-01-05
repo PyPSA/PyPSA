@@ -106,7 +106,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     """
 
-    from .components import passive_branch_types
+    from .components import passive_branch_components
 
     if snapshots is None:
         snapshot = network.now
@@ -128,9 +128,9 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     p0_base = pd.Series(index=passive_branches.index)
 
-    for typ in passive_branch_types:
-        pnl = getattr(network,typ.list_name + "_t")
-        p0_base[typ.__name__] = pnl.p0.loc[snapshot]
+    for c in passive_branch_components:
+        pnl = network.pnl(c)
+        p0_base[c] = pnl.p0.loc[snapshot]
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()

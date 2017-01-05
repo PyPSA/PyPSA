@@ -834,7 +834,7 @@ def define_linear_objective(network,snapshots):
 def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     from .components import \
-        passive_branch_types, branch_types, controllable_one_port_types
+        passive_branch_components, branch_components, controllable_one_port_components
 
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
@@ -886,19 +886,19 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     if len(network.buses):
         network.buses_t.p.loc[snapshots] = \
-            pd.concat({t.name:
-                       t.pnl.p.loc[snapshots].multiply(t.df.sign, axis=1)
-                       .groupby(t.df.bus, axis=1).sum()
-                       for t in network.iterate_components(controllable_one_port_types)}) \
+            pd.concat({c.name:
+                       c.pnl.p.loc[snapshots].multiply(c.df.sign, axis=1)
+                       .groupby(c.df.bus, axis=1).sum()
+                       for c in network.iterate_components(controllable_one_port_components)}) \
               .sum(level=1) \
               .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
 
 
     # passive branches
     passive_branches = as_series(model.passive_branch_p)
-    for t in network.iterate_components(passive_branch_types):
-        set_from_series(t.pnl.p0, passive_branches.loc[t.name])
-        t.pnl.p1.loc[snapshots] = - t.pnl.p0.loc[snapshots]
+    for c in network.iterate_components(passive_branch_components):
+        set_from_series(c.pnl.p0, passive_branches.loc[c.name])
+        c.pnl.p1.loc[snapshots] = - c.pnl.p0.loc[snapshots]
 
 
     # active branches
@@ -958,10 +958,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 
     s_nom_extendable_passive_branches = as_series(model.passive_branch_s_nom)
-    for t in network.iterate_components(passive_branch_types):
-        t.df['s_nom_opt'] = t.df.s_nom
-        if t.df.s_nom_extendable.any():
-            t.df.loc[t.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[t.name]
+    for c in network.iterate_components(passive_branch_components):
+        c.df['s_nom_opt'] = c.df.s_nom
+        if c.df.s_nom_extendable.any():
+            c.df.loc[c.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
 
     network.links.p_nom_opt = network.links.p_nom
 

@@ -108,21 +108,19 @@ for sub_network in network.sub_networks.obj:
         p0 = 0.
         p1 = 0.
 
-        for cls in pypsa.components.branch_types:
-            df = getattr(network,cls.list_name)
-            pnl = getattr(network,cls.list_name+"_t")
+        for c in network.iterate_components(pypsa.components.branch_components):
 
-            bs = (df.bus0 == bus)
+            bs = (c.df.bus0 == bus)
 
             if bs.any():
-                print(cls.__name__,"\n",pnl.p0.loc[now,bs])
-                p0 += pnl.p0.loc[now,bs].sum()
+                print(c,"\n",c.pnl.p0.loc[now,bs])
+                p0 += c.pnl.p0.loc[now,bs].sum()
 
-            bs = (df.bus1 == bus)
+            bs = (c.df.bus1 == bus)
 
             if bs.any():
-                print(cls.__name__,"\n",pnl.p1.loc[now,bs])
-                p1 += pnl.p1.loc[now,bs].sum()
+                print(c,"\n",c.pnl.p1.loc[now,bs])
+                p1 += c.pnl.p1.loc[now,bs].sum()
 
 
         print("Branch injections:",p0+p1)

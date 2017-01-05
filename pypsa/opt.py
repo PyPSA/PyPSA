@@ -312,11 +312,11 @@ def empty_model(model):
 @contextmanager
 def empty_network(network):
     logger.debug("Storing pypsa timeseries to disk")
-    from .components import component_types
+    from .components import all_components
 
     panels = {}
-    for c in component_types:
-        attr = c.list_name + "_t"
+    for c in all_components:
+        attr = network.components[c]["list_name"] + "_t"
         panels[attr] = getattr(network, attr)
         setattr(network, attr, None)
 

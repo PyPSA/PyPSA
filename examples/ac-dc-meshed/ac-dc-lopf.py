@@ -24,7 +24,7 @@ network.now = now
 network.lopf(network.snapshots)
 
 for sn in network.sub_networks.obj:
-    print(sn,sn.carrier,len(sn.buses()),len(sn.branches()))
+    print(sn,network.sub_networks.at[sn.name,"carrier"],len(sn.buses()),len(sn.branches()))
 
 print("\nControllable branches:")
 
@@ -48,21 +48,19 @@ for bus in network.buses.index:
     p0 = 0.
     p1 = 0.
 
-    for cls in pypsa.components.branch_types:
-        df = getattr(network,cls.list_name)
-        pnl = getattr(network,cls.list_name+"_t")
+    for c in network.iterate_components(pypsa.components.branch_components):
 
-        bs = (df.bus0 == bus)
+        bs = (c.df.bus0 == bus)
 
         if bs.any():
-            print(cls.__name__,"\n",pnl.p0.loc[now,bs])
-            p0 += pnl.p0.loc[now,bs].sum()
+            print(c,"\n",c.pnl.p0.loc[now,bs])
+            p0 += c.pnl.p0.loc[now,bs].sum()
 
-        bs = (df.bus1 == bus)
+        bs = (c.df.bus1 == bus)
 
         if bs.any():
-            print(cls.__name__,"\n",pnl.p1.loc[now,bs])
-            p1 += pnl.p1.loc[now,bs].sum()
+            print(c,"\n",c.pnl.p1.loc[now,bs])
+            p1 += c.pnl.p1.loc[now,bs].sum()
 
     print("Branches",p0+p1)
 

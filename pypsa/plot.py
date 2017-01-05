@@ -51,7 +51,7 @@ except:
 def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
          line_colors='g', bus_sizes=10, line_widths=2, title="",
          line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_types=['Line', 'Link']):
+         geometry=False, branch_components=['Line', 'Link']):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -84,8 +84,8 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         If bus_colors are floats, this color map will assign the colors
     boundaries : list of four floats
         Boundaries of the plot in format [x1,x2,y1,y2]
-    branch_types : list of str or pypsa.component
-        Branch types to be plotted, defaults to Line and Link.
+    branch_components : list of str
+        Branch components to be plotted, defaults to Line and Link.
 
     Returns
     -------
@@ -157,12 +157,12 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         line_cmap = {'Line': line_cmap}
 
     branch_collections = []
-    for t in network.iterate_components(branch_types):
-        l_defaults = defaults_for_branches[t.name]
-        l_widths = line_widths.get(t.name, l_defaults['width'])
+    for c in network.iterate_components(branch_components):
+        l_defaults = defaults_for_branches[c.name]
+        l_widths = line_widths.get(c.name, l_defaults['width'])
         l_nums = None
-        if t.name in line_colors:
-            l_colors = line_colors[t.name]
+        if c.name in line_colors:
+            l_colors = line_colors[c.name]
 
             if issubclass(l_colors.dtype.type, np.number):
                 l_nums = l_colors
@@ -173,15 +173,15 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
             l_colors = l_defaults['color']
 
         if not geometry:
-            segments = (np.asarray(((t.df.bus0.map(x),
-                                     t.df.bus0.map(y)),
-                                    (t.df.bus1.map(x),
-                                     t.df.bus1.map(y))))
+            segments = (np.asarray(((c.df.bus0.map(x),
+                                     c.df.bus0.map(y)),
+                                    (c.df.bus1.map(x),
+                                     c.df.bus1.map(y))))
                         .transpose(2, 0, 1))
         else:
             from shapely.wkt import loads
             from shapely.geometry import LineString
-            linestrings = t.df.geometry.map(loads)
+            linestrings = c.df.geometry.map(loads)
             assert all(isinstance(ls, LineString) for ls in linestrings), \
                 "The WKT-encoded geometry in the 'geometry' column must be composed of LineStrings"
             segments = np.asarray(list(linestrings.map(np.asarray)))
@@ -196,7 +196,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
         if l_nums is not None:
             l_collection.set_array(np.asarray(l_nums))
-            l_collection.set_cmap(line_cmap.get(t.name, None))
+            l_collection.set_cmap(line_cmap.get(c.name, None))
             l_collection.autoscale()
 
         ax.add_collection(l_collection)

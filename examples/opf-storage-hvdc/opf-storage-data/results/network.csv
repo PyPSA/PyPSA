@@ -1,2 +1,2 @@
 name,co2_limit,co2_price,max_memusage,now,objective,opf_keep_files,srid
-Test 6 bus,1000,-394.4658709,135008,2015-01-01 00:00:00,14670508.8254,True,4326
+Test 6 bus,1000,394.4658709,138452,2015-01-01 00:00:00,14670508.8254,True,4326

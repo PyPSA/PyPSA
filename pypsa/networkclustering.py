@@ -85,13 +85,11 @@ def aggregategenerators(network, busmap, with_time=True):
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True):
-    if isinstance(component, six.string_types):
-        component = getattr(components, component)
 
-    attrs = network.components[component.__name__]["attrs"]
+    attrs = network.components[component]["attrs"]
     columns = set(attrs.index[~attrs.varying])
 
-    old_df = getattr(network, component.list_name).assign(bus=lambda df: df.bus.map(busmap))
+    old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     if 'carrier' in columns:
         grouper = [old_df.bus, old_df.carrier]
     else:
@@ -110,7 +108,7 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
     new_pnl = dict()
     if with_time:
-        old_pnl = getattr(network, component.list_name + '_t')
+        old_pnl = network.pnl(component)
         for attr, df in iteritems(old_pnl):
             if not df.empty:
                 pnl_df = df.groupby(grouper, axis=1).sum()
@@ -225,10 +223,10 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     if with_time:
         network_c.set_snapshots(network.snapshots)
 
-    one_port_types = components.one_port_types.copy()
+    one_port_components = components.one_port_components
 
     if aggregate_generators_weighted:
-        one_port_types.remove(components.Generator)
+        one_port_components.remove("Generator")
         generators, generators_pnl = aggregategenerators(network, busmap, with_time=with_time)
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
@@ -237,27 +235,25 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                     io.import_series_from_dataframe(network_c, df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
-        if isinstance(one_port, six.string_types):
-            one_port = getattr(components, one_port)
-        one_port_types.remove(one_port)
+        one_port_components.remove(one_port)
         new_df, new_pnl = aggregateoneport(network, busmap, component=one_port, with_time=with_time)
-        io.import_components_from_dataframe(network_c, new_df, one_port.__name__)
+        io.import_components_from_dataframe(network_c, new_df, one_port)
         for attr, df in iteritems(new_pnl):
-            io.import_series_from_dataframe(network_c, df, one_port.__name__, attr)
+            io.import_series_from_dataframe(network_c, df, one_port, attr)
 
 
-    for t in network.iterate_components(one_port_types):
+    for c in network.iterate_components(one_port_components):
         io.import_components_from_dataframe(
             network_c,
-            t.df.assign(bus=t.df.bus.map(busmap)),
-            t.name
+            c.df.assign(bus=c.df.bus.map(busmap)),
+            c.name
         )
 
     if with_time:
-        for t in network.iterate_components(one_port_types):
-            for attr, df in iteritems(t.pnl):
+        for c in network.iterate_components(one_port_components):
+            for attr, df in iteritems(c.pnl):
                 if not df.empty:
-                    io.import_series_from_dataframe(network_c, df, t.name, attr)
+                    io.import_series_from_dataframe(network_c, df, c.name, attr)
 
     io.import_components_from_dataframe(
         network_c,

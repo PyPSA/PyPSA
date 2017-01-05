@@ -169,13 +169,8 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
 
 """
 
-
-    if isinstance(component, string_types):
-        from . import components
-        component = getattr(components, component)
-
-    df = getattr(network, component.list_name)
-    pnl = getattr(network, component.list_name + '_t')
+    df = network.df(component)
+    pnl = network.pnl(component)
 
     index = df.index
     varying_i = pnl[attr].columns

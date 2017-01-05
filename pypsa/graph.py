@@ -23,17 +23,17 @@ import numpy as np
 
 from .descriptors import OrderedGraph
 
-def graph(network, branch_types=None):
+def graph(network, branch_components=None):
     """Build networkx graph."""
     from . import components
 
     if isinstance(network, components.Network):
-        if branch_types is None:
-            branch_types = components.branch_types
+        if branch_components is None:
+            branch_components = components.branch_components
         buses_i = network.buses.index
     elif isinstance(network, components.SubNetwork):
-        if branch_types is None:
-            branch_types = components.passive_branch_types
+        if branch_components is None:
+            branch_components = components.passive_branch_components
         buses_i = network.buses_i()
     else:
         raise TypeError("build_graph must be called with a Network or a SubNetwork")
@@ -44,23 +44,23 @@ def graph(network, branch_types=None):
     graph.add_nodes_from(buses_i)
 
     # Multigraph uses the branch type and name as key
-    graph.add_edges_from((branch.bus0, branch.bus1, (t.name, branch.Index), {})
-                         for t in network.iterate_components(branch_types)
-                         for branch in t.df.loc[slice(None)
-                                                if t.ind is None
-                                                else t.ind].itertuples())
+    graph.add_edges_from((branch.bus0, branch.bus1, (c.name, branch.Index), {})
+                         for c in network.iterate_components(branch_components)
+                         for branch in c.df.loc[slice(None)
+                                                if c.ind is None
+                                                else c.ind].itertuples())
 
     return graph
 
-def adjacency_matrix(network, branch_types=None, busorder=None):
+def adjacency_matrix(network, branch_components=None, busorder=None):
     """
     Construct a sparse adjacency matrix (directed)
 
     Parameters
     ----------
-    branch_types : iterable sublist of `branch_types`
+    branch_componentss : iterable sublist of `branch_components`
        Buses connected by any of the selected branches are adjacent
-       (default: branch_types (network) or passive_branch_types (sub_network))
+       (default: branch_components (network) or passive_branch_components (sub_network))
     busorder : pd.Index subset of network.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
@@ -73,13 +73,13 @@ def adjacency_matrix(network, branch_types=None, busorder=None):
     from . import components
 
     if isinstance(network, components.Network):
-        if branch_types is None:
-            branch_types = components.branch_types
+        if branch_components is None:
+            branch_components = components.branch_components
         if busorder is None:
             busorder = network.buses.index
     elif isinstance(network, components.SubNetwork):
-        if branch_types is None:
-            branch_types = components.passive_branch_types
+        if branch_components is None:
+            branch_components = components.passive_branch_components
         if busorder is None:
             busorder = network.buses_i()
     else:
@@ -89,15 +89,15 @@ def adjacency_matrix(network, branch_types=None, busorder=None):
     no_branches = 0
     bus0_inds = []
     bus1_inds = []
-    for t in network.iterate_components(branch_types):
-        if t.ind is None:
+    for c in network.iterate_components(branch_components):
+        if c.ind is None:
             sel = slice(None)
-            no_branches += len(t.df)
+            no_branches += len(c.df)
         else:
-            sel = t.ind
-            no_branches += len(t.ind)
-        bus0_inds.append(busorder.get_indexer(t.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(t.df.loc[sel, "bus1"]))
+            sel = c.ind
+            no_branches += len(c.ind)
+        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
 
     if no_branches == 0:
         return sp.sparse.coo_matrix((no_buses, no_buses))
@@ -108,15 +108,15 @@ def adjacency_matrix(network, branch_types=None, busorder=None):
     return sp.sparse.coo_matrix((np.ones(no_branches), (bus0_inds, bus1_inds)),
                                 shape=(no_buses, no_buses))
 
-def incidence_matrix(network, branch_types=None, busorder=None):
+def incidence_matrix(network, branch_components=None, busorder=None):
     """
     Construct a sparse incidence matrix (directed)
 
     Parameters
     ----------
-    branch_types : iterable sublist of `branch_types`
+    branch_components : iterable sublist of `branch_components`
        Buses connected by any of the selected branches are adjacent
-       (default: branch_types (network) or passive_branch_types (sub_network))
+       (default: branch_components (network) or passive_branch_components (sub_network))
     busorder : pd.Index subset of network.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
@@ -129,13 +129,13 @@ def incidence_matrix(network, branch_types=None, busorder=None):
     from . import components
 
     if isinstance(network, components.Network):
-        if branch_types is None:
-            branch_types = components.branch_types
+        if branch_components is None:
+            branch_components = components.branch_components
         if busorder is None:
             busorder = network.buses.index
     elif isinstance(network, components.SubNetwork):
-        if branch_types is None:
-            branch_types = components.passive_branch_types
+        if branch_components is None:
+            branch_components = components.passive_branch_components
         if busorder is None:
             busorder = network.buses_i()
     else:
@@ -145,15 +145,15 @@ def incidence_matrix(network, branch_types=None, busorder=None):
     no_branches = 0
     bus0_inds = []
     bus1_inds = []
-    for t in network.iterate_components(branch_types):
-        if t.ind is None:
+    for c in network.iterate_components(branch_components):
+        if c.ind is None:
             sel = slice(None)
-            no_branches += len(t.df)
+            no_branches += len(c.df)
         else:
-            sel = t.ind
-            no_branches += len(t.ind)
-        bus0_inds.append(busorder.get_indexer(t.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(t.df.loc[sel, "bus1"]))
+            sel = c.ind
+            no_branches += len(c.ind)
+        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 
