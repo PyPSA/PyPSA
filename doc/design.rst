@@ -1,13 +1,13 @@
-###########
+#######
  Design
-###########
+#######
 
 
 Python 2 and Python 3 compatible
 ================================
 
 PyPSA is written and tested to be compatible with both Python 2.7 and
-Python 3.4.
+Python 3.5.
 
 
 
@@ -83,7 +83,9 @@ component.
 
 The columns contain data such as impedance, capacity and the buses to
 which components are attached. All attributes for each component type
-are listed in :doc:`components`.
+are listed with their properties (defaults, etc.) in :doc:`components`
+and are accessible from the network object in
+e.g. ``network.components["Bus"]["attrs"]``.
 
 
 Network components cannot exist without a network to hold them.
@@ -95,13 +97,13 @@ Network components cannot exist without a network to hold them.
 Time-varying data
 =================
 
-Some quantities, such as generator.p_set (generator active power set
-point), generator.p (generator calculated active power), line.p0 (line
-active power at bus0) and line.p1 (line active power at bus1) may vary
-over time, so PyPSA offers the possibility to store different values
-of these attributes for the different snapshots in
-``network.snapshots`` in the following attributes of the network
-object:
+Some quantities, such as generator ``p_set`` (generator active power
+set point), generator ``p`` (generator calculated active power), line
+``p0`` (line active power at ``bus0``) and line ``p1`` (line active
+power at ``bus1``) may vary over time, so PyPSA offers the possibility
+to store different values of these attributes for the different
+snapshots in ``network.snapshots`` in the following attributes of the
+network object:
 
 * network.buses_t
 * network.generators_t
@@ -148,19 +150,6 @@ For **output data**, all time-varying data is stored in the
 ``network.components_t`` dictionaries, but it is only defined once a
 simulation has been run.
 
-
-Object model with descriptor properties point to DataFrames
-===========================================================
-
-Sometimes it is useful to access the components as objects instead of
-using the pandas DataFrames and Panels.
-
-For this each component DataFrame has a column "obj" containing
-objects, which have the various component data as attributes, e.g.
-
-bus.v_nom
-
-is a descriptor which points at network.buses.loc["bus_name","v_nom"].
 
 
 No GUI: Use Jupyter notebooks

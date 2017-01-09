@@ -3,12 +3,11 @@ Network,networks,"Container for all components and functions which act upon the 
 SubNetwork,sub_networks
 Bus,buses,"Electrically fundamental node where x-port objects attach."
 Carrier,carriers,"Energy carrier, such as wind, PV or coal. The Carrier tracks co2 emissions if there is a network.co2_limit.  Buses have direct carriers and Generators indicate their primary energy carriers."
-Branch,branches,"Object which attaches to two buses (e.g. line or 2-winding transformer)."
 Line,lines,"Lines include distribution and transmission lines, overhead lines and cables."
 Transformer,transformers,"2-winding transformer."
 Link,links,"Link between two buses with controllable active power - can be used for a transport power flow model OR as a simplified version of point-to-point DC connection OR as a lossy energy converter. NB: for a lossless bi-directional HVDC or transport link, set p_min_pu = -1 and efficiency = 1. NB: It is assumed that the links neither produce nor consume reactive power."
 Load,loads,"PQ power consumer."
 Generator,generators,"Power generator."
-StorageUnit,storage_units,"Storage unit with fixed energy-to-power ratio."
+StorageUnit,storage_units,"Storage unit with fixed nominal-energy-to-nominal-power ratio."
 Store,stores,"Generic store, whose capacity may be optimised."
 ShuntImpedance,shunt_impedances,"Shunt y = g + jb."

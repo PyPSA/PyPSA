@@ -23,42 +23,6 @@ translation into electrical parameters will take place in the function
 
 
 
-Replace descriptors with __get__ and __set__ on objects
--------------------------------------------------------
-
-Can then use obj.attr for attr which are dynamically added to DataFrame
-
-.. code:: python
-
-    def __set__(self,attr,val):
-        attr_type = self.__class__.attributes[attr]["type"]
-
-        try:
-            val = attr_type(val)
-        except:
-            oops!
-
-        df = getattr(self.network,self.__class__.list_name)
-
-	if attr in df.columns:
-            df.loc[self.name,attr] = val
-        else:
-
-            #return to normal object set
-            setattr(self,attr,val)
-
-
-Store attributes in:
-
-.. code:: python
-
-    class Branch:
-
-        static_attributes = {{}}
-
-        series_attributes = {{}}
-
-
 
 Improve regression testing
 ---------------------------
@@ -142,11 +106,38 @@ artificially reduce the demand beyond a certain price.
 
 
 Changes which may be implemented
-============================================
+================================
+
+
+Reintroduce dynamically-generated object interface
+--------------------------------------------------
+
+e.g. ``network.get_objects("Bus")`` would return a list of objects
+  with attributes linked to the corresponding ``pandas.DataFrame``
+
+.. code:: python
+
+    def __set__(self,attr,val):
+        attr_type = self.network.components[self.__class__.__name]["attrs"]["typ"]
+
+        try:
+            val = attr_type(val)
+        except:
+            oops!
+
+        df = self.network.df(self.__class__.list_name)
+
+	if attr in df.columns:
+            df.loc[self.name,attr] = val
+        else:
+            #return to normal object set
+            setattr(self,attr,val)
+
+
 
 
 Take v_mag_pu_set for PV from generators instead of bus?
------------------------------------------------------
+--------------------------------------------------------
 
 Like pypower
 
@@ -166,47 +157,3 @@ power there. This is the logic behind using branch.s_nom.
 
 At some point the option may be introduced to have branch.i_nom limits
 on lines.
-
-
-
-Storing component object methods in different files
----------------------------------------------------
-
-want different files, but still have tab completion and ? and ?? magic
-
-over-ride __dir__???
-
-cf. pandas code
-
-best to do in __init__.
-
-
-catch no gens in sub_network?
------------------------------
-
-beware nx.MultiGraph reordering of edges!
------------------------------------------
-
-Orders them according to collections of edges between same nodes NOT
-the order in which you read them in.
-
-Kill inheritance?
------------------
-
-It doesn't serve any good purpose and just serves to confuse.
-
-e.g. storage_unit inherits generator's efficiency, which doesn't make any sense.
-
-
-need to watch out for isinstance(Branch)
-
-
-Check branch.bus0 and branch.bus1 in network.buses
---------------------------------------------------
-
-Similarly for generator.carrier
-
-try:
-network.buses.loc[branch.bus0]
-except:
-missing!

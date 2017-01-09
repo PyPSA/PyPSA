@@ -2,6 +2,16 @@
 Release Notes
 #######################
 
+PyPSA 0.8.0 (January 2017)
+==========================
+
+* Standard types for lines and transformers
+* The object interface has been completely removed. Objects for each
+  component are no longer stored in network.component_list_name["obj"]
+  and the descriptor interface for components is gone.
+* network.components dictionary, "list_name", "attrs"
+
+
 PyPSA 0.7.1 (26th November 2016)
 ================================
 

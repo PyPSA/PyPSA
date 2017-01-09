@@ -19,7 +19,7 @@ such as variable wind and solar generation, storage units, sector
 coupling and mixed alternating and direct current networks. PyPSA is
 designed to scale well with large networks and long time series.
 
-As of 2016 PyPSA is under heavy development and therefore it
+As of 2017 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
 environment. Some APIs may change - those liable to be updated are
 listed in the `doc/todo.rst <doc/todo.rst>`_.
@@ -133,7 +133,7 @@ What PyPSA uses under the hood
 ===============================
 
 PyPSA is written and tested to be compatible with both Python 2.7 and
-Python 3.4.
+Python 3.5.
 
 It leans heavily on the following Python packages:
 
@@ -162,9 +162,9 @@ PyPSA has a Google Group `forum / mailing list
 
 
 Licence
-==========
+=======
 
-Copyright 2015-2016 Tom Brown (FIAS), Jonas Hörsch (FIAS), David
+Copyright 2015-2017 Tom Brown (FIAS), Jonas Hörsch (FIAS), David
 Schlachtberger (FIAS)
 
 This program is free software: you can redistribute it and/or

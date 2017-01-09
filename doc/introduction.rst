@@ -12,7 +12,7 @@ coupling and mixed alternating and direct current networks.  PyPSA is
 designed to scale well with large networks and long time series.
 
 
-As of 2016 PyPSA is under heavy development and therefore it
+As of 2017 PyPSA is under heavy development and therefore it
 is recommended to use caution when using it in a production
 environment. Some APIs may change - those liable to be updated are
 listed in the :doc:`todo`.
@@ -133,11 +133,10 @@ transparency of free software.
 Another Python power system tool is `PYPOWER
 <https://github.com/rwl/PYPOWER/>`_, which is based on the
 Matlab-based `MATPOWER <http://www.pserc.cornell.edu//matpower/>`_. In
-contrast to PYPOWER, PyPSA has an easier-to-use data model (objects
-and pandas DataFrames instead of numpy arrays), support for
-time-varying data inputs and support for multiply-connected networks
-using both AC and DC. PyPSA uses some of the sparse-matrix constructs
-from PYPOWER.
+contrast to PYPOWER, PyPSA has an easier-to-use data model (pandas
+DataFrames instead of numpy arrays), support for time-varying data
+inputs and support for multiply-connected networks using both AC
+and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 
 
 
@@ -145,7 +144,7 @@ What PyPSA uses under the hood
 ===============================
 
 PyPSA is written and tested to be compatible with Python 2.7 and
-Python 3.4.
+Python 3.5.
 
 It leans heavily on the following Python packages:
 
@@ -175,6 +174,7 @@ PyPSA has a Google Group `forum / mailing list
 
 
 Licence
-==========
+=======
 
-PyPSA is released under the `GPLv3 <http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
+PyPSA is released under the `GPLv3
+<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.

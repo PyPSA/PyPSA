@@ -204,9 +204,6 @@ class Network(Basic):
 
         for component in self.components.keys():
 
-            if component == "Network":
-                continue
-
             file_name = os.path.join(dir_name,
                                      component_attrs_dir_name,
                                      self.components[component]["list_name"] + ".csv")
@@ -234,8 +231,10 @@ class Network(Basic):
 
             attrs.loc[bools,"default"] = [i in [True,"True"] for i in attrs.loc[bools,"default"]]
 
-            for typ in [str, float, int]:
-                attrs.loc[attrs.typ == typ,"default"] = attrs.loc[attrs.typ == typ,"default"].apply(typ)
+            #exclude Network because it's not in a DF and has non-typical attributes
+            if component != "Network":
+                for typ in [str, float, int]:
+                    attrs.loc[attrs.typ == typ,"default"] = attrs.loc[attrs.typ == typ,"default"].apply(typ)
 
             attrs.loc[attrs.default == "n/a","default"] = ""
 

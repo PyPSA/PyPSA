@@ -15,7 +15,6 @@ Contents:
    introduction
    installation
    quick_start
-   user_guide
    design
    components
    import_export

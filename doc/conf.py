@@ -36,7 +36,7 @@ extensions = [
 #    'sphinx.ext.mathjax',
     'sphinx.ext.imgmath',
 #    'sphinxcontrib.tikz',
-    'rinoh.frontend.sphinx',
+#    'rinoh.frontend.sphinx',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
