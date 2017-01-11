@@ -273,6 +273,33 @@ imbalances. To see how the impedances are used in the power flow, see
    :file: ../pypsa/component_attrs/lines.csv
 
 
+Line Types
+==========
+
+Standard line types with per length values for impedances.
+
+If for a line the attribute "type" is non-empty, then these values are
+multiplied with the line length to get the line's electrical
+parameters.
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/component_attrs/line_types.csv
+
+
+If you do not import your own line types, then PyPSA will provide
+standard types using the following table. This table was initially
+based on `pandapower's standard types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_
+and we thank the pandapower team for allowing us to include this data.
+We take no responsibility for the accuracy of the values.
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/standard_types/line_types.csv
+
+
 Transformer
 ===========
 
@@ -287,6 +314,38 @@ the power flow, see :ref:`branch-model`.
 .. csv-table::
    :header-rows: 1
    :file: ../pypsa/component_attrs/transformers.csv
+
+
+
+Transformer Types
+=================
+
+Standard 2-winding transformer types.
+
+If for a transformer the attribute "type" is non-empty, then these
+values are used for the transformer's electrical parameters.
+
+
+The transformer type parameters in the following table are based on based on `pandapower's standard types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_, whose parameterisation is in turn loosely based on `DIgSILENT PowerFactory <http://www.digsilent.de/index.php/products-powerfactory.html>`_.
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/component_attrs/transformer_types.csv
+
+
+
+If you do not import your own transformer types, then PyPSA will
+provide standard types using the following table. This table was
+initially based on `pandapower's standard types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_
+and we thank the pandapower team for allowing us to include this data.
+We take no responsibility for the accuracy of the values.
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/standard_types/transformer_types.csv
 
 
 .. _controllable-link:

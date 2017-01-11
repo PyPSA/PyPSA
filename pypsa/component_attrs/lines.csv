@@ -2,6 +2,7 @@ attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of first bus to which branch is attached.,Input (required)
 bus1,string,n/a,n/a,Name of second bus to which branch is attached.,Input (required)
+type,string,n/a,n/a,"Name of line standard type. If this is not an empty string """", then the line standard type impedance parameters are multiplied with the line length to compute x_pu, r_pu, etc. This will override and values set in r, x, etc. If the string is empty, PyPSA will simply read r, x, etc.",Input (optional)
 x,float,Ohm,0.,Series reactance; must be non-zero for AC branch in linear power flow. If the line has series inductance :math:`L` in Henries then :math:`x = 2\pi f L` where :math:`f` is the frequency in Hertz. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow.,Input (required)
 r,float,Ohm,0.,Series resistance; must be non-zero for DC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow.,Input (required)
 g,float,Siemens,0.,Shunt conductivity. Shunt admittance is :math:`y = g + jb`.,Input (optional)

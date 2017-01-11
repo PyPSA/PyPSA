@@ -80,6 +80,7 @@ dir_name = os.path.dirname(__file__)
 
 component_attrs_dir_name = "component_attrs"
 
+standard_types_dir_name = "standard_types"
 
 
 inf = float("inf")
@@ -247,6 +248,8 @@ class Network(Basic):
 
         if csv_folder_name is not None:
             self.import_from_csv_folder(csv_folder_name)
+        else:
+            self.read_in_default_standard_types()
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
@@ -279,6 +282,22 @@ class Network(Basic):
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
+
+
+    def read_in_default_standard_types(self):
+
+        for std_type in standard_types:
+
+            list_name = self.components[std_type]["list_name"]
+
+            file_name = os.path.join(dir_name,
+                                     standard_types_dir_name,
+                                     list_name + ".csv")
+
+            df = pd.read_csv(file_name,
+                             index_col=0)
+
+            self.import_components_from_dataframe(df, std_type)
 
     def df(self, component_name):
         """
@@ -706,6 +725,8 @@ class SubNetwork(Common):
                 yield c
 
 
+standard_types = {"LineType", "TransformerType"}
+
 passive_one_port_components = {"ShuntImpedance"}
 controllable_one_port_components = {"Load", "Generator", "StorageUnit", "Store"}
 one_port_components = passive_one_port_components|controllable_one_port_components
@@ -715,4 +736,4 @@ controllable_branch_components = {"Link"}
 branch_components = passive_branch_components|controllable_branch_components
 
 #i.e. everything except "Network"
-all_components = branch_components|one_port_components|{"Bus", "SubNetwork", "Carrier"}
+all_components = branch_components|one_port_components|standard_types|{"Bus", "SubNetwork", "Carrier"}

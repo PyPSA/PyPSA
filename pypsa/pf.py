@@ -215,8 +215,10 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
             sum([((c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, 'sign'])
                   .groupby(c.df.loc[c.ind, 'bus'], axis=1).sum()
                   .reindex(columns=buses_o, fill_value=0.))
-                 for c in sub_network.iterate_components(controllable_one_port_components)]
-                +
+                 for c in sub_network.iterate_components(controllable_one_port_components)])
+
+        if n == "p":
+            network.buses_t[n].loc[snapshots, buses_o] += sum(
                 [(- c.pnl[n+str(i)].loc[snapshots].groupby(c.df["bus"+str(i)], axis=1).sum()
                   .reindex(columns=buses_o, fill_value=0))
                  for c in network.iterate_components(controllable_branch_components)
@@ -376,8 +378,57 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=True)
 
 
+def apply_standard_types(network):
+    """Calculate line and transformer electrical parameters x, r, b, g
+    from standard types.
+
+    """
+
+    lines_with_types = network.lines.index[network.lines.type != ""]
+
+    if len(lines_with_types) == 0:
+        return
+
+    for attr in ["r","x","b"]:
+        std_attr = attr
+        factor = 1.
+        if attr == "b":
+            std_attr = "c"
+            factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
+
+        network.lines.loc[lines_with_types,attr] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types[std_attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]
+
+
+    trafos_with_types = network.transformers.index[network.transformers.type != ""]
+
+    if len(trafos_with_types) == 0:
+        return
+
+
+    network.transformers.loc[trafos_with_types, "r"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vscr"])/100.
+
+    z = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vsc"])/100.
+
+    network.transformers.loc[trafos_with_types, "x"] = np.sqrt(z**2 - network.transformers.loc[trafos_with_types, "r"]**2)
+
+    for attr in ["phase_shift","s_nom"]:
+        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types[attr])
+
+    #NB: b and g are per unit of s_nom
+    network.transformers.loc[trafos_with_types, "g"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["pfe"])/(1000. * network.transformers.loc[trafos_with_types, "s_nom"])
+
+    i0 = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["i0"])/100.
+
+    network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(i0**2 - network.transformers.loc[trafos_with_types, "g"]**2)
+
+    #TODO: tap_ratio, status, rate_A
+
+
+
 def calculate_dependent_values(network):
     """Calculate per unit impedances and append voltages to lines and shunt impedances."""
+
+    apply_standard_types(network)
 
     network.lines["v_nom"] = network.lines.bus0.map(network.buses.v_nom)
 
