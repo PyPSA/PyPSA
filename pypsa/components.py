@@ -497,7 +497,7 @@ class Network(Basic):
                     pnl[k] = component.pnl[k].copy()
 
         #catch all remaining attributes of network
-        for attr in ["name", "now", "co2_limit", "srid"]:
+        for attr in ["name", "now", "co2_limit", "srid","snapshot_weightings"]:
             setattr(network,attr,getattr(self,attr))
 
         return network
