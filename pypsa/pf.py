@@ -378,9 +378,9 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=True)
 
 
-def apply_standard_types(network):
-    """Calculate line and transformer electrical parameters x, r, b, g
-    from standard types.
+def apply_line_types(network):
+    """Calculate line electrical parameters x, r, b, g from standard
+    types.
 
     """
 
@@ -398,6 +398,14 @@ def apply_standard_types(network):
 
         network.lines.loc[lines_with_types,attr] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types[std_attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]
 
+
+
+
+def apply_transformer_types(network):
+    """Calculate transformer electrical parameters x, r, b, g from
+    standard types.
+
+    """
 
     trafos_with_types = network.transformers.index[network.transformers.type != ""]
 
@@ -428,7 +436,8 @@ def apply_standard_types(network):
 def calculate_dependent_values(network):
     """Calculate per unit impedances and append voltages to lines and shunt impedances."""
 
-    apply_standard_types(network)
+    apply_line_types(network)
+    apply_transformer_types(network)
 
     network.lines["v_nom"] = network.lines.bus0.map(network.buses.v_nom)
 
