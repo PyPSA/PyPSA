@@ -188,9 +188,6 @@ class Network(Basic):
 
         Basic.__init__(self,kwargs.get("name",""))
 
-        #hack so that Series descriptor works when looking for obj.network.snapshots
-        self.network = self
-
         #a list/index of scenarios/times
         self.snapshots = pd.Index([self.now])
 
@@ -486,7 +483,7 @@ class Network(Basic):
 
         network = Network()
 
-        for component in self.iterate_components():
+        for component in self.iterate_components(["Bus", "Carrier"] + sorted(all_components - {"Bus","Carrier"})):
             import_components_from_dataframe(network, component.df, component.name)
 
         if with_time:
