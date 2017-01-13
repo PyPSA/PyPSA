@@ -125,6 +125,10 @@ class Network(Basic):
     ----------
     csv_folder_name : string
         Name of folder from which to import CSVs of network data.
+    name : string, default ""
+        Network name.
+    ignore_standard_types : boolean, default False
+        If True, do not read in PyPSA standard types into standard types DataFrames.
     kwargs
         Any remaining attributes to set
 
@@ -184,9 +188,9 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, csv_folder_name=None, **kwargs):
+    def __init__(self, csv_folder_name=None, name="", ignore_standard_types=False, **kwargs):
 
-        Basic.__init__(self,kwargs.get("name",""))
+        Basic.__init__(self,name)
 
         #a list/index of scenarios/times
         self.snapshots = pd.Index([self.now])
@@ -241,12 +245,13 @@ class Network(Basic):
 
         self._build_dataframes()
 
+        if not ignore_standard_types:
+            self.read_in_default_standard_types()
 
 
         if csv_folder_name is not None:
             self.import_from_csv_folder(csv_folder_name)
-        else:
-            self.read_in_default_standard_types()
+
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
@@ -291,10 +296,10 @@ class Network(Basic):
                                      standard_types_dir_name,
                                      list_name + ".csv")
 
-            df = pd.read_csv(file_name,
-                             index_col=0)
+            self.components[std_type]["standard_types"] = pd.read_csv(file_name,
+                                                                      index_col=0)
 
-            self.import_components_from_dataframe(df, std_type)
+            self.import_components_from_dataframe(self.components[std_type]["standard_types"], std_type)
 
     def df(self, component_name):
         """
@@ -465,7 +470,7 @@ class Network(Basic):
                 df.drop(name, axis=1, inplace=True)
 
 
-    def copy(self, with_time=True):
+    def copy(self, with_time=True, ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -474,6 +479,12 @@ class Network(Basic):
         --------
         network : pypsa.Network
 
+        Parameters
+        ----------
+        with_time : boolean, default True
+            Copy snapshots and time-varying network.component_names_t data too.
+        ignore_standard_types : boolean, default False
+            Ignore the PyPSA standard types.
 
         Examples
         --------
@@ -481,10 +492,15 @@ class Network(Basic):
 
         """
 
-        network = Network()
+        network = Network(ignore_standard_types=ignore_standard_types)
 
         for component in self.iterate_components(["Bus", "Carrier"] + sorted(all_components - {"Bus","Carrier"})):
-            import_components_from_dataframe(network, component.df, component.name)
+            df = component.df
+            #drop the standard types to avoid them being read in twice
+            if not ignore_standard_types and component.name in standard_types:
+                df = component.df.drop(network.components[component.name]["standard_types"].index)
+
+            import_components_from_dataframe(network, df, component.name)
 
         if with_time:
             network.set_snapshots(self.snapshots)

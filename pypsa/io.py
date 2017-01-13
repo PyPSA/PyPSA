@@ -40,7 +40,7 @@ import numpy as np
 
 
 
-def export_to_csv_folder(network, csv_folder_name, encoding=None):
+def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standard_types=False):
     """
     Export network and components to a folder of CSVs.
 
@@ -57,6 +57,9 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the netowrk).
 
     Examples
     --------
@@ -101,6 +104,11 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         attrs = network.components[component]["attrs"]
         df = network.df(component)
         pnl = network.pnl(component)
+
+
+        if not export_standard_types and component in pypsa.components.standard_types:
+            df = df.drop(network.components[component]["standard_types"].index)
+
 
         #first do static attributes
 
