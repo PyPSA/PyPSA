@@ -507,3 +507,72 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     #for consistency with pypower, take the v_mag set point from the generators
     network.buses.loc[network.generators.bus,"v_mag_pu_set"] = np.asarray(network.generators["v_set_pu"])
+
+
+
+
+def import_from_pandapower_net(network, net):
+    """
+    Import network from pandapower net.
+
+    This import function is not yet finished (see warning below).
+
+    Parameters
+    ----------
+    net : pandapower network
+
+    Examples
+    --------
+    >>> network.import_from_pandapower_net(net)
+    """
+    logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: switches, in_service status, shunt impedances, tap positions of transformers, etc.")
+
+    d = {}
+
+    d["Bus"] = pd.DataFrame({"v_nom" : net.bus.vn_kv.values,
+                             "v_mag_pu_set" : 1.},
+                            index=net.bus.name)
+
+    d["Load"] = pd.DataFrame({"p_set" : net.load.p_kw.values/1e3,
+                              "q_set" : net.load.q_kvar.values/1e3,
+                              "bus" : net.bus.name.loc[net.load.bus].values},
+                             index=net.load.name)
+
+    #deal with PV generators
+    d["Generator"] = pd.DataFrame({"p_set" : net.gen.p_kw.values/1e3,
+                                   "q_set" : 0.,
+                                   "bus" : net.bus.name.loc[net.gen.bus].values,
+                                   "control" : "PV"},
+                                  index=net.gen.name)
+
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values,"v_mag_pu_set"] = net.gen.vm_pu.values
+
+
+    #deal with PQ "static" generators
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : net.sgen.p_kw.values/1e3,
+                                                             "q_set" : net.sgen.q_kvar.values/1e3,
+                                                             "bus" : net.bus.name.loc[net.sgen.bus].values,
+                                                             "control" : "PQ"},
+                                                            index=net.sgen.name)))
+
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"control" : "Slack",
+                                                             "p_set" : 0.,
+                                                             "q_set" : 0.,
+                                                             "bus" : net.bus.name.loc[net.ext_grid.bus].values},
+                                                            index=net.ext_grid.name.fillna("External Grid"))))
+
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
+
+    d["Line"] = pd.DataFrame({"type" : net.line.std_type.values,
+                              "bus0" : net.bus.name.loc[net.line.from_bus].values,
+                              "bus1" : net.bus.name.loc[net.line.to_bus].values,
+                              "length" : net.line.length_km.values},
+                             index=net.line.name)
+
+    d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
+                                     "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
+                                     "bus1" : net.bus.name.loc[net.trafo.lv_bus].values},
+                                    index=net.trafo.name)
+
+    for c in ["Bus","Load","Generator","Line","Transformer"]:
+        network.import_components_from_dataframe(d[c],c)
