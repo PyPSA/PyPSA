@@ -223,7 +223,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     if with_time:
         network_c.set_snapshots(network.snapshots)
 
-    one_port_components = components.one_port_components
+    one_port_components = components.one_port_components.copy()
 
     if aggregate_generators_weighted:
         one_port_components.remove("Generator")

@@ -19,6 +19,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
 from six.moves import range
+from six import iterkeys
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -730,7 +731,8 @@ def find_tree(sub_network):
 
     """
 
-    branches_i = sub_network.branches_i()
+    branches_bus0 = sub_network.branches()["bus0"]
+    branches_i = branches_bus0.index
     buses_i = sub_network.buses_i()
 
     graph = sub_network.graph()
@@ -748,24 +750,17 @@ def find_tree(sub_network):
 
     logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
-
     #determine which buses are supplied in tree through branch from slack
 
     #matrix to store tree structure
     sub_network.T = dok_matrix((len(branches_i),len(buses_i)))
 
-
     for j,bus in enumerate(buses_i):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
-            branch = list(graph[path[i]][path[i+1]].keys())[0]
-            if sub_network.network.df(branch[0]).at[branch[1],"bus0"] == path[i]:
-                sign = +1
-            else:
-                sign = -1
-
+            branch = next(iterkeys(graph[path[i]][path[i+1]]))
             branch_i = branches_i.get_loc(branch)
-
+            sign = +1 if branches_bus0.iat[branch_i] == path[i] else -1
             sub_network.T[branch_i,j] = sign
 
 
@@ -778,8 +773,8 @@ def find_cycles(sub_network):
     are multiple lines between the same pairs of buses).
 
     """
-
-    branches_i = sub_network.branches_i()
+    branches_bus0 = sub_network.branches()["bus0"]
+    branches_i = branches_bus0.index
 
     #reduce to a non-multi-graph for cycles with > 2 edges
     mgraph = sub_network.graph()
@@ -790,19 +785,14 @@ def find_cycles(sub_network):
     #number of 2-edge cycles
     num_multi = len(mgraph.edges()) - len(graph.edges())
 
-    sub_network.C = dok_matrix((len(branches_i),len(cycles)+num_multi))
-
+    sub_network.C = dok_matrix((len(branches_bus0),len(cycles)+num_multi))
 
     for j,cycle in enumerate(cycles):
 
         for i in range(len(cycle)):
-            branch = list(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys())[0]
-            if sub_network.network.df(branch[0]).at[branch[1],"bus0"] == cycle[i]:
-                sign = +1
-            else:
-                sign = -1
-
+            branch = next(iterkeys(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]]))
             branch_i = branches_i.get_loc(branch)
+            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
             sub_network.C[branch_i,j] += sign
 
     #counter for multis
@@ -816,11 +806,7 @@ def find_cycles(sub_network):
             first_i = branches_i.get_loc(first)
             for b in bs[1:]:
                 b_i = branches_i.get_loc(b)
-                if sub_network.network.df(b[0]).at[b[1],"bus0"] == sub_network.network.df(first[0]).at[first[1],"bus0"]:
-                    sign = -1
-                else:
-                    sign = 1
-
+                sign = -1 if branches_bus0.iat[b_i] == branches_bus0.iat[first_i] else +1
                 sub_network.C[first_i,c] = 1
                 sub_network.C[b_i,c] = sign
                 c+=1

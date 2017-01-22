@@ -205,7 +205,6 @@ class Network(Basic):
         self.components = Dict(components.T.to_dict())
 
         for component in self.components.keys():
-
             file_name = os.path.join(dir_name,
                                      component_attrs_dir_name,
                                      self.components[component]["list_name"] + ".csv")
@@ -213,35 +212,21 @@ class Network(Basic):
             attrs = pd.read_csv(file_name,
                                 index_col=0)
 
-            attrs = attrs.reindex(columns = attrs.columns | ["typ", "static", "varying"])
+            attrs['static'] = (attrs['type'] != 'series')
+            attrs['varying'] = attrs['type'].isin({'series', 'static or series'})
+            attrs['typ'] = attrs['type'].map({'boolean': bool, 'int': int, 'string': str}).fillna(float)
 
-            attrs["static"] = True
-            attrs.loc[attrs.type == "series","static"] = False
-
-            attrs["varying"] = False
-            attrs.loc[attrs.type == "series","varying"] = True
-            attrs.loc[attrs.type == "static or series","varying"] = True
-
-            attrs["typ"] = float
-            attrs.loc[attrs.type == "boolean","typ"] = bool
-            attrs.loc[attrs.type == "int","typ"] = int
-
-            #RHS is bizarre because pd.types.common.is_list_like(str) is True and prevents setting
-            attrs.loc[attrs.type == "string","typ"] = [str]*len(attrs.index[attrs.type == "string"])
-
-            bools = attrs.type == "boolean"
-
-            attrs.loc[bools,"default"] = [i in [True,"True"] for i in attrs.loc[bools,"default"]]
+            bool_b = attrs.type == 'boolean'
+            attrs.loc[bool_b, 'default'] = attrs.loc[bool_b].isin({True, 'True'})
 
             #exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                for typ in [str, float, int]:
-                    attrs.loc[attrs.typ == typ,"default"] = attrs.loc[attrs.typ == typ,"default"].apply(typ)
+                for typ in (str, float, int):
+                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[attrs.typ == typ, "default"].apply(typ)
 
             attrs.loc[attrs.default == "n/a","default"] = ""
 
             self.components[component]["attrs"] = attrs
-
 
         self._build_dataframes()
 
@@ -255,8 +240,6 @@ class Network(Basic):
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
-
-
 
 
     def _build_dataframes(self):
@@ -285,7 +268,6 @@ class Network(Basic):
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
 
-
     def read_in_default_standard_types(self):
 
         for std_type in standard_types:
@@ -300,6 +282,7 @@ class Network(Basic):
                                                                       index_col=0)
 
             self.import_components_from_dataframe(self.components[std_type]["standard_types"], std_type)
+
 
     def df(self, component_name):
         """
@@ -411,7 +394,7 @@ class Network(Basic):
 
         #This guarantees that the correct attribute type is maintained
         obj_df = pd.DataFrame(data=[static_attrs.default],index=[name],columns=static_attrs.index)
-        new_df = pd.concat((cls_df, obj_df))
+        new_df = cls_df.append(obj_df)
 
         setattr(self, self.components[class_name]["list_name"], new_df)
 
@@ -422,11 +405,10 @@ class Network(Basic):
             typ = attrs.at[k,"typ"]
             if not attrs.at[k,"varying"]:
                 new_df.at[name,k] = typ(v)
+            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, np.ndarray, list)):
+                new_df.at[name,k] = typ(v)
             else:
-                if attrs.loc[k,"static"] and type(v) not in [pd.Series, np.ndarray, list]:
-                    new_df.at[name,k] = typ(v)
-                else:
-                    cls_pnl[k].loc[:,name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
 
         for attr in ["bus","bus0","bus1"]:
@@ -459,11 +441,11 @@ class Network(Basic):
             logger.error("Component class {} not found".format(class_name))
             return None
 
-        cls_df = getattr(self, self.components[class_name]["list_name"])
+        cls_df = self.df(class_name)
 
         cls_df.drop(name, inplace=True)
 
-        pnl = getattr(self, self.components[class_name]["list_name"] + "_t")
+        pnl = self.pnl(class_name)
 
         for df in itervalues(pnl):
             if name in df:
