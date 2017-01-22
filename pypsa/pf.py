@@ -561,6 +561,11 @@ def calculate_B_H(sub_network,skip_pre=False):
     sub_network.B = sub_network.K * sub_network.H
 
 
+    sub_network.p_branch_shift = -b*np.concatenate([(c.df.loc[c.ind, "phase_shift"]).values*np.pi/180. if c.name == "Transformer"
+                                                    else np.zeros((len(c.ind),))
+                                                    for c in sub_network.iterate_components(passive_branch_components)])
+
+    sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
 def calculate_PTDF(sub_network,skip_pre=False):
     """
@@ -637,8 +642,8 @@ def calculate_Y(sub_network,skip_pre=False):
 
     #build the admittance matrix elements for each branch
     Y11 = y_se + 0.5*y_sh
-    Y01 = -y_se/tau/phase_shift
-    Y10 = -y_se/tau/np.conj(phase_shift)
+    Y10 = -y_se/tau/phase_shift
+    Y01 = -y_se/tau/np.conj(phase_shift)
     Y00 = Y11/tau**2
 
     #bus shunt impedances
@@ -886,10 +891,10 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     v_diff = np.zeros((len(snapshots), len(buses_o)))
     if len(branches_i) > 0:
-        p = network.buses_t['p'].loc[snapshots, buses_o].values
+        p = network.buses_t['p'].loc[snapshots, buses_o].values - sub_network.p_bus_shift
         v_diff[:,1:] = spsolve(sub_network.B[1:, 1:], p[:,1:].T).T
         flows = pd.DataFrame(v_diff * sub_network.H.T,
-                             columns=branches_i, index=snapshots)
+                             columns=branches_i, index=snapshots) + sub_network.p_branch_shift
 
         for c in network.iterate_components(passive_branch_components):
             f = flows.loc[:, c.name]
