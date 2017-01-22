@@ -44,6 +44,7 @@ It has models for:
 
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
+* standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
 * conventional dispatchable generators
 * generators with time-varying power availability, such as
   wind and solar generators
@@ -59,7 +60,6 @@ It has models for:
 
 Functionality that will definitely be added soon (see also :doc:`todo`):
 
-* Standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation
