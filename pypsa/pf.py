@@ -433,6 +433,30 @@ def apply_transformer_types(network):
     #TODO: tap_ratio, status, rate_A
 
 
+def wye_to_delta(z1,z2,z3):
+    """Follows http://home.earthlink.net/~w6rmk/math/wyedelta.htm"""
+    summand = z1*z2 + z2*z3 + z3*z1
+    return (summand/z2,summand/z1,summand/z3)
+
+
+def apply_transformer_t_model(network):
+    """Convert given T-model parameters to PI-model parameters using wye-delta transformation"""
+
+    z_series = network.transformers.r_pu + 1j*network.transformers.x_pu
+    y_shunt = network.transformers.g_pu + 1j*network.transformers.b_pu
+
+    ts = network.transformers.index[(network.transformers.model == "t") & (y_shunt != 0.)]
+
+    if len(ts) == 0:
+        return
+
+    za,zb,zc = wye_to_delta(z_series.loc[ts]/2,z_series.loc[ts]/2,1/y_shunt.loc[ts])
+
+    network.transformers.loc[ts,"r_pu"] = zc.real
+    network.transformers.loc[ts,"x_pu"] = zc.imag
+    network.transformers.loc[ts,"g_pu"] = (2/za).real
+    network.transformers.loc[ts,"b_pu"] = (2/za).imag
+
 
 def calculate_dependent_values(network):
     """Calculate per unit impedances and append voltages to lines and shunt impedances."""
@@ -452,6 +476,8 @@ def calculate_dependent_values(network):
     network.transformers["r_pu"] = network.transformers.r/network.transformers.s_nom
     network.transformers["b_pu"] = network.transformers.b*network.transformers.s_nom
     network.transformers["g_pu"] = network.transformers.g*network.transformers.s_nom
+
+    apply_transformer_t_model(network)
 
     network.shunt_impedances["v_nom"] = network.shunt_impedances["bus"].map(network.buses.v_nom)
     network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
@@ -882,7 +908,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         flows = pd.DataFrame(v_diff * sub_network.H.T,
                              columns=branches_i, index=snapshots) + sub_network.p_branch_shift
 
-        for c in network.iterate_components(passive_branch_components):
+        for c in sub_network.iterate_components(passive_branch_components):
             f = flows.loc[:, c.name]
             c.pnl.p0.loc[snapshots, f.columns] = f
             c.pnl.p1.loc[snapshots, f.columns] = -f
