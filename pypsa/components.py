@@ -51,7 +51,7 @@ from .descriptors import Dict
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe,
-                 import_series_from_dataframe)
+                 import_series_from_dataframe, import_from_pandapower_net)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
@@ -161,6 +161,8 @@ class Network(Basic):
     export_to_csv_folder = export_to_csv_folder
 
     import_from_pypower_ppc = import_from_pypower_ppc
+
+    import_from_pandapower_net = import_from_pandapower_net
 
     import_components_from_dataframe = import_components_from_dataframe
 
@@ -716,7 +718,7 @@ class SubNetwork(Common):
     def iterate_components(self, components=None, skip_empty=True):
         for c in self.network.iterate_components(components=components, skip_empty=False):
             c = Component(*c[:-1], ind=getattr(self, c.list_name + '_i')())
-            if not (skip_empty and c.df.empty):
+            if not (skip_empty and len(c.ind) == 0):
                 yield c
 
 

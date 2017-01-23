@@ -525,7 +525,7 @@ def import_from_pandapower_net(network, net):
     --------
     >>> network.import_from_pandapower_net(net)
     """
-    logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: switches, in_service status, shunt impedances, tap positions of transformers, etc.")
+    logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers.")
 
     d = {}
 
@@ -533,13 +533,13 @@ def import_from_pandapower_net(network, net):
                              "v_mag_pu_set" : 1.},
                             index=net.bus.name)
 
-    d["Load"] = pd.DataFrame({"p_set" : net.load.p_kw.values/1e3,
-                              "q_set" : net.load.q_kvar.values/1e3,
+    d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_kw).values/1e3,
+                              "q_set" : (net.load.scaling*net.load.q_kvar).values/1e3,
                               "bus" : net.bus.name.loc[net.load.bus].values},
                              index=net.load.name)
 
     #deal with PV generators
-    d["Generator"] = pd.DataFrame({"p_set" : net.gen.p_kw.values/1e3,
+    d["Generator"] = pd.DataFrame({"p_set" : -(net.gen.scaling*net.gen.p_kw).values/1e3,
                                    "q_set" : 0.,
                                    "bus" : net.bus.name.loc[net.gen.bus].values,
                                    "control" : "PV"},
@@ -549,8 +549,8 @@ def import_from_pandapower_net(network, net):
 
 
     #deal with PQ "static" generators
-    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : net.sgen.p_kw.values/1e3,
-                                                             "q_set" : net.sgen.q_kvar.values/1e3,
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : -(net.sgen.scaling*net.sgen.p_kw).values/1e3,
+                                                             "q_set" : -(net.sgen.scaling*net.sgen.q_kvar).values/1e3,
                                                              "bus" : net.bus.name.loc[net.sgen.bus].values,
                                                              "control" : "PQ"},
                                                             index=net.sgen.name)))
@@ -576,3 +576,24 @@ def import_from_pandapower_net(network, net):
 
     for c in ["Bus","Load","Generator","Line","Transformer"]:
         network.import_components_from_dataframe(d[c],c)
+
+
+
+    #amalgamate buses connected by closed switches
+
+    bus_switches = net.switch[(net.switch.et=="b") & net.switch.closed]
+
+    bus_switches["stays"] = bus_switches.bus.map(net.bus.name)
+    bus_switches["goes"] = bus_switches.element.map(net.bus.name)
+
+    to_replace = pd.Series(bus_switches.stays.values,bus_switches.goes.values)
+
+    for i in to_replace.index:
+        network.remove("Bus",i)
+
+        for c in network.iterate_components({"Load","Generator"}):
+            c.df.bus.replace(to_replace,inplace=True)
+
+        for c in network.iterate_components({"Line","Transformer"}):
+            c.df.bus0.replace(to_replace,inplace=True)
+            c.df.bus1.replace(to_replace,inplace=True)

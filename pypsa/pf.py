@@ -327,7 +327,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     s0 = pd.DataFrame(v0*np.conj(i0), columns=branches_i, index=snapshots)
     s1 = pd.DataFrame(v1*np.conj(i1), columns=branches_i, index=snapshots)
-    for c in network.iterate_components(passive_branch_components):
+    for c in sub_network.iterate_components(passive_branch_components):
         s0t = s0.loc[:,c.name]
         s1t = s1.loc[:,c.name]
         c.pnl.p0.loc[snapshots,s0t.columns] = s0t.values.real
@@ -428,7 +428,13 @@ def apply_transformer_types(network):
 
     i0 = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["i0"])/100.
 
-    network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(i0**2 - network.transformers.loc[trafos_with_types, "g"]**2)
+    b_minus_squared = i0**2 - network.transformers.loc[trafos_with_types, "g"]**2
+
+    #for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
+
+    b_minus_squared[b_minus_squared < 0.] = 0.
+
+    network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(b_minus_squared)
 
     #TODO: tap_ratio, status, rate_A
 
