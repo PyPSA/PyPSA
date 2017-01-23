@@ -624,6 +624,51 @@ class Network(Basic):
 
 
 
+	#check all dtypes of component attributes
+
+        #this isn't strictly necessary (except for str)
+        #since e.g. float == np.dtype("float64") is True
+        #but we do it for easy reading of errors
+        np_dtypes = {str : np.dtype("object"),
+                     float : np.dtype("float64"),
+                     int : np.dtype("int64"),
+                     bool : np.dtype("bool")}
+
+        for c in self.iterate_components():
+
+            #first check static attributes
+
+            types_soll = c.attrs["typ"][c.attrs["static"]].drop("name")
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
+
+            if unmatched.any():
+                logger.warning("The following attributes of the dataframe {} have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(c.list_name,
+                                                                                                                                         unmatched.index[unmatched],
+                                                                                                                                         c.df.dtypes[unmatched],
+                                                                                                                                         dtypes_soll[unmatched]))
+
+            #now check varying attributes
+
+            types_soll = c.attrs["typ"][c.attrs["varying"]]
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            for attr, typ in dtypes_soll.iteritems():
+                if c.pnl[attr].empty:
+                    continue
+
+                unmatched = (c.pnl[attr].dtypes != typ)
+
+                if unmatched.any():
+                    logger.warning("The following columns of time-varying attribute {} in {}_t have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(attr,c.list_name,
+                                                                                                                                  unmatched.index[unmatched],
+                                                                                                                                  c.pnl[attr].dtypes[unmatched],
+                                                                                                                                  typ))
+
+
 
 class SubNetwork(Common):
     """
