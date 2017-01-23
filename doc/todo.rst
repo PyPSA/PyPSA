@@ -54,12 +54,6 @@ Generic branch impedance component
 ----------------------------------
 
 
-
-Include transformer tap ratio and phase shift for trafos in linear pf
----------------------------------------------------------------------
-
-
-
 Branch voltage angle difference limits in LOPF
 ----------------------------------------------
 

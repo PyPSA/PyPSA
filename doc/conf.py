@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PyPSA'
-copyright = u'2016, Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)'
+copyright = u'2016-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)'
 author = u'Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)'
 
 # The version info for the project you're documenting, acts as replacement for

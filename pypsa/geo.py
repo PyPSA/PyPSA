@@ -1,4 +1,4 @@
-## Copyright 2016 Tom Brown (FIAS)
+## Copyright 2016-2017 Tom Brown (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -24,7 +24,7 @@ from __future__ import division, absolute_import
 
 
 __author__ = "Tom Brown (FIAS)"
-__copyright__ = "Copyright 2016 Tom Brown (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 
 import numpy as np
 import pandas as pd

@@ -6,7 +6,7 @@ PyPSA 0.8.0 (January 2017)
 ==========================
 
 * Standard types for lines and transformers
-* Fix bugs in phase_shift handling
+* Fix bugs in phase_shift handling (sign in PF, missing altogether in LPF)
 * The object interface has been completely removed. Objects for each
   component are no longer stored in network.component_list_name["obj"]
   and the descriptor interface for components is gone.
