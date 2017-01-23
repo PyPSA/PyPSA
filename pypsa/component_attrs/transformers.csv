@@ -1,7 +1,7 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
-bus0,string,n/a,n/a,Name of first bus to which branch is attached.,Input (required)
-bus1,string,n/a,n/a,Name of second bus to which branch is attached.,Input (required)
+bus0,string,n/a,n/a,Name of first bus (typically higher voltage) to which transformer is attached.,Input (required)
+bus1,string,n/a,n/a,Name of second bus (typically lower voltage) to which transformer is attached.,Input (required)
 type,string,n/a,n/a,"Name of 2-winding transformer standard type. If this is not an empty string """", then the transformer type impedance parameters are taken from the standard type. This will override and values set in r, x, etc. If the string is empty, PyPSA will simply read r, x, etc.",Input (optional)
 model,string,n/a,t,"Model used for admittance matrix; can be ""t"" or ""pi""; since PyPSA Version 0.8.0 it defaults to ""t"" following physics and DIgSILENT PowerFactory; versions of PyPSA before 0.8.0 and some other power system tools, like MATPOWER, PYPOWER, PSS/SINCAL use the less physical ""pi"" model.", Input (required)
 x,float,per unit,0.,Series reactance per unit of s_nom; must be non-zero for AC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow.,Input (required)

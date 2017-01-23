@@ -157,7 +157,7 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     if diff > x_tol:
-        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f", n_iter, diff)
+        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
 
     return guess, n_iter, diff
 

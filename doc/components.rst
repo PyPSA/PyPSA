@@ -265,7 +265,7 @@ Lines represent transmission and distribution lines. They connect a
 buses. Power flow through lines is not directly controllable, but is
 determined passively by their impedances and the nodal power
 imbalances. To see how the impedances are used in the power flow, see
-:ref:`branch-model`.
+:ref:`line-model`.
 
 
 .. csv-table::
@@ -281,6 +281,13 @@ Standard line types with per length values for impedances.
 If for a line the attribute "type" is non-empty, then these values are
 multiplied with the line length to get the line's electrical
 parameters.
+
+The line type parameters in the following table and the implementation
+in PyPSA are based on `pandapower's standard types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_,
+whose parameterisation is in turn loosely based on `DIgSILENT
+PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 
 .. csv-table::
@@ -303,12 +310,12 @@ We take no responsibility for the accuracy of the values.
 Transformer
 ===========
 
-Transformers represent 2-winding tranformers that convert AC power
-from one voltage level to another. They connect a ``bus0`` to a
-``bus1`` at different voltages. Power flow through transformers is not
+Transformers represent 2-winding transformers that convert AC power
+from one voltage level to another. They connect a ``bus0`` (typically at higher voltage) to a
+``bus1`` (typically at lower voltage). Power flow through transformers is not
 directly controllable, but is determined passively by their impedances
 and the nodal power imbalances. To see how the impedances are used in
-the power flow, see :ref:`branch-model`.
+the power flow, see :ref:`transformer-model`.
 
 
 .. csv-table::
@@ -326,8 +333,13 @@ If for a transformer the attribute "type" is non-empty, then these
 values are used for the transformer's electrical parameters.
 
 
-The transformer type parameters in the following table are based on based on `pandapower's standard types
-<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_, whose parameterisation is in turn loosely based on `DIgSILENT PowerFactory <http://www.digsilent.de/index.php/products-powerfactory.html>`_.
+The transformer type parameters in the following table and the
+implementation in PyPSA are based on `pandapower's standard
+types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_,
+whose parameterisation is in turn loosely based on `DIgSILENT
+PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 .. csv-table::
    :header-rows: 1
