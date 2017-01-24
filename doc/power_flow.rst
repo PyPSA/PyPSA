@@ -114,6 +114,11 @@ are related by
 Transformer model
 -----------------
 
+The transformer models here are largely based on the implementation in
+`pandapower <https://github.com/panda-power/pandapower>`_, which is
+loosely based on `DIgSILENT PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
+
 Transformers are modelled either with the equivalent T model (the
 default, since this represents the physics better) or with the
 equivalent PI model. The can be controlled by setting transformer
