@@ -7,7 +7,68 @@ import pandas as pd
 
 from pyomo.environ import Constraint
 
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+
 #%matplotlib inline
+
+### Combined-Heat-and-Power (CHP) parameterisation
+
+#follows http://www.ea-energianalyse.dk/reports/student-reports/integration_of_50_percent_wind%20power.pdf pages 35-6
+    
+#which follows http://www.sciencedirect.com/science/article/pii/030142159390282K
+    
+#ratio between max heat output and max electric output
+nom_r = 1.
+        
+#backpressure limit
+c_m = 0.75
+        
+#marginal loss for each additional generation of heat
+c_v = 0.15    
+
+#Graph for the case that max heat output equals max electric output
+
+fig,ax = plt.subplots(1,1)
+
+fig.set_size_inches((5,5))
+
+t = 0.01
+
+ph = np.arange(0,1.0001,t)
+
+ax.plot(ph,c_m*ph)
+
+ax.set_xlabel("P_heat_out")
+
+ax.set_ylabel("P_elec_out")
+
+ax.grid(True)
+
+ax.set_xlim([0,1.1])
+ax.set_ylim([0,1.1])
+
+ax.text(0.1,0.7,"Allowed output",color="r")
+
+ax.plot(ph,1-c_v*ph)
+
+for i in range(1,10):
+    k = 0.1*i
+    x = np.arange(0,k/(c_m+c_v),t)
+    ax.plot(x,k-c_v*x,color="g",alpha=0.5)
+    
+ax.text(0.05,0.41,"iso-fuel-lines",color="g",rotation=-7)
+
+ax.fill_between(ph,c_m*ph,1-c_v*ph,facecolor="r",alpha=0.5)
+
+fig.tight_layout()
+
+if False:
+    fig.savefig("chp_feasible.pdf",transparent=True)
+
+### Now do optimisation
 
 heat = True
 chp = True
@@ -102,25 +163,7 @@ if heat:
 
 
 if heat and chp:
-    
-    #Define CHP
-    
-    #follows http://www.ea-energianalyse.dk/reports/student-reports/integration_of_50_percent_wind%20power.pdf pages 35-6
-    
-    #which follows http://www.sciencedirect.com/science/article/pii/030142159390282K
-    
-    #NB: feasible area of CHP plotted at end of notebook
-    
-    
-    #ratio between max heat output and max electric output
-    nom_r = 1.
-        
-    #backpressure limit
-    c_m = 0.75
-        
-    #marginal loss for each additional generation of heat
-    c_v = 0.15
-    
+
     #Guarantees ISO fuel lines, i.e. fuel consumption p_b0 + p_g0 = constant along p_g1 + c_v p_b1 = constant
     network.links.at["boiler","efficiency"] = network.links.at["generator","efficiency"]/c_v
     
@@ -183,40 +226,4 @@ r = 1/c_m
 #P_h = r*P_e
 
 print((1+r)/((1/eta_elec)*(1+c_v*r)))
-
-import numpy as np
-
-import matplotlib.pyplot as plt
-
-t = 0.01
-
-ph = np.arange(0,1.0001,t)
-
-#Graph for the case that max heat output equals max electric output
-
-fig,ax = plt.subplots(1,1)
-
-ax.plot(ph,c_m*ph)
-
-ax.set_xlabel("P_heat_out")
-
-ax.set_ylabel("P_elec_out")
-
-ax.grid(True)
-
-ax.set_xlim([0,1.1])
-ax.set_ylim([0,1.1])
-
-ax.text(0.1,0.7,"Allowed output",color="r")
-
-ax.plot(ph,1-c_v*ph)
-
-for i in range(1,10):
-    k = 0.1*i
-    x = np.arange(0,k/(c_m+c_v),t)
-    ax.plot(x,k-c_v*x,color="g",alpha=0.5)
-    
-ax.text(0.05,0.41,"iso-fuel-lines",color="g",rotation=-7)
-
-ax.fill_between(ph,c_m*ph,1-c_v*ph,facecolor="r",alpha=0.5)
 

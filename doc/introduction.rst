@@ -60,6 +60,7 @@ It has models for:
 
 Functionality that will definitely be added soon (see also :doc:`todo`):
 
+* Multi-year investment optimisation
 * Simple RMS simulations with the swing equation
 * Distributed active power slack
 * Non-linear power flow solution using `analytic continuation
