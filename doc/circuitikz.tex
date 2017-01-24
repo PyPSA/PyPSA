@@ -14,6 +14,9 @@
 
 \begin{document}
 \centering
+
+
+%example of coupled buses
 \begin{circuitikz}
   \draw (1.5,14.5) to [short,i^=$f_1$] (1.5,13);
   \draw [ultra thick] (0,13) node[anchor=south]{bus $m$} -- (4,13);
@@ -45,7 +48,7 @@
 \vspace{2cm}
 
 
-
+%line PI
 \begin{circuitikz}[scale=1.2]
   \draw
   (0,0)
@@ -70,7 +73,7 @@
 
 \vspace{2cm}
 
-
+%transformer PI HV tap
 \begin{circuitikz}[scale=1.2]
 
   \draw (-3,0)
@@ -84,7 +87,7 @@
 
   \draw (0,0 ) to [american inductor] (0,4) ;
 
-  \draw (-0.5,-0.5) node{$N = \tau e^{j\theta_{shift}}$};
+  \draw (-1.2,-0.5) node{$\tau e^{j\theta_{shift}} = N : 1$};
 
   \draw (0.8,2) node{$v_2 =  \frac{v_0}{N}$};
 
@@ -114,7 +117,7 @@
 
 
 
-
+%transformer T HV tap
 \begin{circuitikz}[scale=1.2]
 
   \draw (-3,0)
@@ -128,7 +131,8 @@
 
   \draw (0,0 ) to [american inductor] (0,4) ;
 
-  \draw (-0.5,-0.5) node{$N = \tau e^{j\theta_{shift}}$};
+
+  \draw (-1.2,-0.5) node{$\tau e^{j\theta_{shift}} = N : 1$};
 
   \draw (0.8,2) node{$v_2 =  \frac{v_0}{N}$};
 
@@ -142,7 +146,7 @@
   (2,4)
   to [R=$\frac{z}{2}$] (4,4)
   to [R=$y$, *-*] (4,0)
-  to [short] (0,0)
+  to [short, *-*] (0,0)
 
   (4,0)
   to [short,*-o] (7,0)
@@ -152,6 +156,99 @@
   ;
 \end{circuitikz}
 
+
+
+
+
+\vspace{2cm}
+
+%transformer PI LV tap
+\begin{circuitikz}[scale=1.2]
+
+  \draw
+  (0,0)
+  to [open, v>=$v_0$] (0,4)
+  to [short,i^=$i_0$,o-*] (2,4)
+  to [R=$\frac{y}{2}$, -*] (2,0)
+  to [short,*-o] (0,0)
+
+  (2,4)
+  to [short] (3,4)
+  to [R=$z$] (4,4)
+  to [short] (5,4)
+  to [R=$\frac{y}{2}$, -*] (5,0)
+  to [short] (2,0)
+
+  (5,0)
+  to [short,*-*] (7,0)
+  to [open, v^>=$$] (7,4)
+  to [short,i_=$$,*-*] (5,4)
+  ;
+
+  \draw (10,0)
+  to [open, v>=$v_1$] (10,4)
+  to [short,i^=$i_1$,o-*] (8,4) ;
+
+  \draw (10,0) to [short,o-*] (8,0);
+
+
+  \draw (8,0 ) to [american inductor] (8,4) ;
+
+  \draw (7,4 ) to [american inductor] (7,0) ;
+
+  \draw (8.3,-0.5) node{$1 : N^* = \tau e^{-j\theta_{shift}}$};
+
+  \draw (6.3,2) node{$v_3 =  \frac{v_1}{N^*}$};
+
+  \draw (6,4.2) node{$i_3 = Ni_1$};
+
+
+
+\end{circuitikz}
+
+
+
+%transformer T LV tap
+\begin{circuitikz}[scale=1.2]
+
+  \draw
+  (0,0)
+  to [open, v>=$v_0$] (0,4)
+  to [short,i^=$i_0$,*-] (2,4)
+
+  (2,4)
+  to [R=$\frac{z}{2}$] (4,4)
+  to [R=$y$, *-*] (4,0)
+  to [short, *-*] (0,0)
+
+  (4,0)
+  to [short,*-o] (7,0)
+  to [open, v^>=$$] (7,4)
+  to [short,i_=$$,*-] (6,4)
+  to [R=$\frac{z}{2}$] (4,4)
+  ;
+
+
+  \draw (10,0)
+  to [open, v>=$v_1$] (10,4)
+  to [short,i^=$i_1$,o-*] (8,4) ;
+
+  \draw (10,0) to [short,o-*] (8,0);
+
+
+  \draw (8,0 ) to [american inductor] (8,4) ;
+
+  \draw (7,4 ) to [american inductor] (7,0) ;
+
+  \draw (8.3,-0.5) node{$1 : N^* = \tau e^{-j\theta_{shift}}$};
+
+  \draw (6.3,2) node{$v_3 =  \frac{v_1}{N^*}$};
+
+  \draw (6.3,4.2) node{$i_3 = Ni_1$};
+
+
+
+\end{circuitikz}
 
 
 \end{document}
