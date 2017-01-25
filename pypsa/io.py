@@ -566,7 +566,8 @@ def import_from_pandapower_net(network, net):
     d["Line"] = pd.DataFrame({"type" : net.line.std_type.values,
                               "bus0" : net.bus.name.loc[net.line.from_bus].values,
                               "bus1" : net.bus.name.loc[net.line.to_bus].values,
-                              "length" : net.line.length_km.values},
+                              "length" : net.line.length_km.values,
+                              "num_parallel" : net.line.parallel.values},
                              index=net.line.name)
 
     d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,

@@ -390,14 +390,12 @@ def apply_line_types(network):
     if len(lines_with_types) == 0:
         return
 
-    for attr in ["r","x","b"]:
-        std_attr = attr
-        factor = 1.
-        if attr == "b":
-            std_attr = "c"
-            factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
+    for attr in ["r","x"]:
+        network.lines.loc[lines_with_types,attr] = network.lines.loc[lines_with_types,"type"].map(network.line_types[attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]/network.lines.loc[lines_with_types,"num_parallel"]
 
-        network.lines.loc[lines_with_types,attr] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types[std_attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]
+    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
+    network.lines.loc[lines_with_types,"b"] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types["c_per_length"])*network.lines.loc[lines_with_types,"length"]*network.lines.loc[lines_with_types,"num_parallel"]
+
 
 
 
@@ -435,6 +433,14 @@ def apply_transformer_types(network):
     b_minus_squared[b_minus_squared < 0.] = 0.
 
     network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(b_minus_squared)
+
+
+    for attr in ["r","x"]:
+        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]/network.transformers.loc[trafos_with_types, "num_parallel"]
+
+    for attr in ["b","g"]:
+        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]*network.transformers.loc[trafos_with_types, "num_parallel"]
+
 
     #deal with tap positions
 
