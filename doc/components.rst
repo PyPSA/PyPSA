@@ -273,6 +273,8 @@ imbalances. To see how the impedances are used in the power flow, see
    :file: ../pypsa/component_attrs/lines.csv
 
 
+.. _line-types:
+
 Line Types
 ==========
 
@@ -323,6 +325,7 @@ the power flow, see :ref:`transformer-model`.
    :file: ../pypsa/component_attrs/transformers.csv
 
 
+.. _transformer-types:
 
 Transformer Types
 =================
