@@ -2,14 +2,46 @@
 Release Notes
 #######################
 
-PyPSA 0.8.0 (January 2017)
-==========================
+PyPSA 0.8.0 (25th January 2017)
+===============================
 
-* Standard types for lines and transformers
-* The object interface has been completely removed. Objects for each
-  component are no longer stored in network.component_list_name["obj"]
-  and the descriptor interface for components is gone.
-* network.components dictionary, "list_name", "attrs"
+This is a major release which contains important new features and
+changes to the internal API.
+
+* Standard types are now available for lines and transformers so that
+  you do not have to calculate the electrical parameters yourself. For
+  lines you just need to specify the type and the length, see
+  :ref:`line-types`. For transformers you just need to specify the
+  type, see :ref:`transformer-types`. The implementation of PyPSA's
+  standard types is based on `pandapower's standard types
+  <http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_. The
+  old interface of specifying r, x, b and g manually is still available.
+* The transformer model has been substantially overhauled, see
+  :ref:`transformer-model`. The equivalent model now defaults to the
+  more accurate T model rather than the PI model, which you can control
+  by setting the attribute ``model``. Discrete tap steps are implemented
+  for transformers with types. The tap changer can be defined on the
+  primary side or the secondary side. In the PF there was a sign error in the implementation of the transformer
+  ``phase_shift``, which has now been fixed. In the LPF and LOPF angle formulation the ``phase_shift`` has now been
+  implemented consistently. See the new `transformer example <https://pypsa.org/examples/transformer_example.html>`_.
+* There is now a rudimentary import function for pandapower networks,
+  but it doesn't yet work with all switches and 3-winding
+  transformers.
+* The object interface for components has been completely
+  removed. Objects for each component are no longer stored in
+  e.g. ``network.lines["obj"]`` and the descriptor
+  interface for components is gone. You can only access component
+  attributes through the dataframes, e.g. ``network.lines``.
+* Component attributes are now defined in CSV files in
+  ``pypsa/component_attrs/``. You can access these CSVs in the code
+  via the dictionary ``network.components``,
+  e.g. ``network.components["Line"]["attrs"]`` will show a pandas
+  DataFrame with all attributes and their types, defaults, units and
+  descriptions.  These CSVs are also sourced for the documentation in
+  :doc:`components`, so the documentation will always be up-to-date.
+* All examples have been updated appropriately.
+
+
 
 
 PyPSA 0.7.1 (26th November 2016)

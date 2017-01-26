@@ -47,6 +47,11 @@ def test_pypower_case():
 
     network = pypsa.Network()
     network.import_from_pypower_ppc(ppc)
+
+    #PYPOWER uses PI model for transformers, whereas PyPSA defaults to
+    #T since version 0.8.0
+    network.transformers.model = "pi"
+
     network.pf()
 
     #compare branch flows

@@ -7,22 +7,6 @@ Changes which definitely will be implemented
 ============================================
 
 
-Allow standard types for lines and transformers
------------------------------------------------
-
-Standard types define typical electrical parameters for standard line
-and transformer components. Example: For lines, the standard types
-define the impedance per km, so that you only need to enter the
-standard type and line length in order for all the electrical
-parameters of the line to be defined.
-
-We will probably follow the implementation in `pandapower
-<https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_. The
-translation into electrical parameters will take place in the function
-``pf.calculate_dependent_values(network)``.
-
-
-
 
 Improve regression testing
 ---------------------------
@@ -68,12 +52,6 @@ Need one slack
 
 Generic branch impedance component
 ----------------------------------
-
-
-
-Include transformer tap ratio and phase shift for trafos in linear pf
----------------------------------------------------------------------
-
 
 
 Branch voltage angle difference limits in LOPF

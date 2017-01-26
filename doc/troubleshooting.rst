@@ -29,8 +29,10 @@ If your ``network.pf()`` is not converging there are two possible reasons:
 * The problem you have defined is not solvable (e.g. because in
   reality you would have a voltage collapse)
 * The problem is solvable, but there are numerical instabilities in
-  the solving algorithm (e.g. Newton-Raphson is known to sometimes not
-  converge even for solvable problems)
+  the solving algorithm (e.g. Newton-Raphson is known not to
+  converge even for solvable problems; or the flat solution PyPSA
+  uses as an initial guess is too far from the correction solution
+  because of transformer phase-shifts)
 
 There are some steps you can take to distinguish these two cases:
 
@@ -49,9 +51,18 @@ There are some steps you can take to distinguish these two cases:
 
    (angle_diff*180/np.pi).describe()
 
-* You can seed the ``network.pf()`` with the voltage angles from the
-  linear power flow by calling after the linear power flow
-  ``network.pf(use_seed=True)``.
+* You can seed the non-linear power flow initial guess with the
+  voltage angles from the linear power flow. This is advisable if you
+  have transformers with phase shifts in the network, which lead to
+  solutions far away from the flat initial guess of all voltage angles
+  being zero. To seed the problem activate the ``use_seed`` switch:
+
+.. code:: python
+
+   network.lpf()
+   network.pf(use_seed=True)
+
+
 * Reduce all power values ``p_set`` and ``q_set`` of generators and
   loads to a fraction, e.g. 10%, solve the load flow and use it as a
   seed for the power at 20%, iteratively up to 100%.

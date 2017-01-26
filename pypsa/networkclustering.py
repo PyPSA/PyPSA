@@ -1,4 +1,4 @@
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -19,7 +19,7 @@
 from __future__ import absolute_import, division
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import numpy as np
 import pandas as pd
@@ -223,7 +223,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     if with_time:
         network_c.set_snapshots(network.snapshots)
 
-    one_port_components = components.one_port_components
+    one_port_components = components.one_port_components.copy()
 
     if aggregate_generators_weighted:
         one_port_components.remove("Generator")

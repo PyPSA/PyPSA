@@ -1,6 +1,6 @@
 
 
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -28,7 +28,7 @@ from weakref import ref
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 import networkx as nx
 
@@ -51,7 +51,7 @@ from .descriptors import Dict
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe,
-                 import_series_from_dataframe)
+                 import_series_from_dataframe, import_from_pandapower_net)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
@@ -125,6 +125,10 @@ class Network(Basic):
     ----------
     csv_folder_name : string
         Name of folder from which to import CSVs of network data.
+    name : string, default ""
+        Network name.
+    ignore_standard_types : boolean, default False
+        If True, do not read in PyPSA standard types into standard types DataFrames.
     kwargs
         Any remaining attributes to set
 
@@ -158,6 +162,8 @@ class Network(Basic):
 
     import_from_pypower_ppc = import_from_pypower_ppc
 
+    import_from_pandapower_net = import_from_pandapower_net
+
     import_components_from_dataframe = import_components_from_dataframe
 
     import_series_from_dataframe = import_series_from_dataframe
@@ -184,12 +190,9 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, csv_folder_name=None, **kwargs):
+    def __init__(self, csv_folder_name=None, name="", ignore_standard_types=False, **kwargs):
 
-        Basic.__init__(self,kwargs.get("name",""))
-
-        #hack so that Series descriptor works when looking for obj.network.snapshots
-        self.network = self
+        Basic.__init__(self,name)
 
         #a list/index of scenarios/times
         self.snapshots = pd.Index([self.now])
@@ -204,7 +207,6 @@ class Network(Basic):
         self.components = Dict(components.T.to_dict())
 
         for component in self.components.keys():
-
             file_name = os.path.join(dir_name,
                                      component_attrs_dir_name,
                                      self.components[component]["list_name"] + ".csv")
@@ -212,49 +214,34 @@ class Network(Basic):
             attrs = pd.read_csv(file_name,
                                 index_col=0)
 
-            attrs = attrs.reindex(columns = attrs.columns | ["typ", "static", "varying"])
+            attrs['static'] = (attrs['type'] != 'series')
+            attrs['varying'] = attrs['type'].isin({'series', 'static or series'})
+            attrs['typ'] = attrs['type'].map({'boolean': bool, 'int': int, 'string': str}).fillna(float)
 
-            attrs["static"] = True
-            attrs.loc[attrs.type == "series","static"] = False
-
-            attrs["varying"] = False
-            attrs.loc[attrs.type == "series","varying"] = True
-            attrs.loc[attrs.type == "static or series","varying"] = True
-
-            attrs["typ"] = float
-            attrs.loc[attrs.type == "boolean","typ"] = bool
-            attrs.loc[attrs.type == "int","typ"] = int
-
-            #RHS is bizarre because pd.types.common.is_list_like(str) is True and prevents setting
-            attrs.loc[attrs.type == "string","typ"] = [str]*len(attrs.index[attrs.type == "string"])
-
-            bools = attrs.type == "boolean"
-
-            attrs.loc[bools,"default"] = [i in [True,"True"] for i in attrs.loc[bools,"default"]]
+            bool_b = attrs.type == 'boolean'
+            attrs.loc[bool_b, 'default'] = attrs.loc[bool_b].isin({True, 'True'})
 
             #exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                for typ in [str, float, int]:
-                    attrs.loc[attrs.typ == typ,"default"] = attrs.loc[attrs.typ == typ,"default"].apply(typ)
+                for typ in (str, float, int):
+                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[attrs.typ == typ, "default"].apply(typ)
 
             attrs.loc[attrs.default == "n/a","default"] = ""
 
             self.components[component]["attrs"] = attrs
 
-
         self._build_dataframes()
 
+        if not ignore_standard_types:
+            self.read_in_default_standard_types()
 
 
         if csv_folder_name is not None:
             self.import_from_csv_folder(csv_folder_name)
-        else:
-            self.read_in_default_standard_types()
+
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
-
-
 
 
     def _build_dataframes(self):
@@ -283,7 +270,6 @@ class Network(Basic):
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
 
-
     def read_in_default_standard_types(self):
 
         for std_type in standard_types:
@@ -294,10 +280,11 @@ class Network(Basic):
                                      standard_types_dir_name,
                                      list_name + ".csv")
 
-            df = pd.read_csv(file_name,
-                             index_col=0)
+            self.components[std_type]["standard_types"] = pd.read_csv(file_name,
+                                                                      index_col=0)
 
-            self.import_components_from_dataframe(df, std_type)
+            self.import_components_from_dataframe(self.components[std_type]["standard_types"], std_type)
+
 
     def df(self, component_name):
         """
@@ -409,7 +396,7 @@ class Network(Basic):
 
         #This guarantees that the correct attribute type is maintained
         obj_df = pd.DataFrame(data=[static_attrs.default],index=[name],columns=static_attrs.index)
-        new_df = pd.concat((cls_df, obj_df))
+        new_df = cls_df.append(obj_df)
 
         setattr(self, self.components[class_name]["list_name"], new_df)
 
@@ -420,11 +407,10 @@ class Network(Basic):
             typ = attrs.at[k,"typ"]
             if not attrs.at[k,"varying"]:
                 new_df.at[name,k] = typ(v)
+            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, np.ndarray, list)):
+                new_df.at[name,k] = typ(v)
             else:
-                if attrs.loc[k,"static"] and type(v) not in [pd.Series, np.ndarray, list]:
-                    new_df.at[name,k] = typ(v)
-                else:
-                    cls_pnl[k].loc[:,name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
 
         for attr in ["bus","bus0","bus1"]:
@@ -457,18 +443,18 @@ class Network(Basic):
             logger.error("Component class {} not found".format(class_name))
             return None
 
-        cls_df = getattr(self, self.components[class_name]["list_name"])
+        cls_df = self.df(class_name)
 
         cls_df.drop(name, inplace=True)
 
-        pnl = getattr(self, self.components[class_name]["list_name"] + "_t")
+        pnl = self.pnl(class_name)
 
         for df in itervalues(pnl):
             if name in df:
                 df.drop(name, axis=1, inplace=True)
 
 
-    def copy(self, with_time=True):
+    def copy(self, with_time=True, ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -477,6 +463,12 @@ class Network(Basic):
         --------
         network : pypsa.Network
 
+        Parameters
+        ----------
+        with_time : boolean, default True
+            Copy snapshots and time-varying network.component_names_t data too.
+        ignore_standard_types : boolean, default False
+            Ignore the PyPSA standard types.
 
         Examples
         --------
@@ -484,10 +476,15 @@ class Network(Basic):
 
         """
 
-        network = Network()
+        network = Network(ignore_standard_types=ignore_standard_types)
 
-        for component in self.iterate_components():
-            import_components_from_dataframe(network, component.df, component.name)
+        for component in self.iterate_components(["Bus", "Carrier"] + sorted(all_components - {"Bus","Carrier"})):
+            df = component.df
+            #drop the standard types to avoid them being read in twice
+            if not ignore_standard_types and component.name in standard_types:
+                df = component.df.drop(network.components[component.name]["standard_types"].index)
+
+            import_components_from_dataframe(network, df, component.name)
 
         if with_time:
             network.set_snapshots(self.snapshots)
@@ -627,6 +624,51 @@ class Network(Basic):
 
 
 
+	#check all dtypes of component attributes
+
+        #this isn't strictly necessary (except for str)
+        #since e.g. float == np.dtype("float64") is True
+        #but we do it for easy reading of errors
+        np_dtypes = {str : np.dtype("object"),
+                     float : np.dtype("float64"),
+                     int : np.dtype("int64"),
+                     bool : np.dtype("bool")}
+
+        for c in self.iterate_components():
+
+            #first check static attributes
+
+            types_soll = c.attrs["typ"][c.attrs["static"]].drop("name")
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
+
+            if unmatched.any():
+                logger.warning("The following attributes of the dataframe {} have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(c.list_name,
+                                                                                                                                         unmatched.index[unmatched],
+                                                                                                                                         c.df.dtypes[unmatched],
+                                                                                                                                         dtypes_soll[unmatched]))
+
+            #now check varying attributes
+
+            types_soll = c.attrs["typ"][c.attrs["varying"]]
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            for attr, typ in dtypes_soll.iteritems():
+                if c.pnl[attr].empty:
+                    continue
+
+                unmatched = (c.pnl[attr].dtypes != typ)
+
+                if unmatched.any():
+                    logger.warning("The following columns of time-varying attribute {} in {}_t have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(attr,c.list_name,
+                                                                                                                                  unmatched.index[unmatched],
+                                                                                                                                  c.pnl[attr].dtypes[unmatched],
+                                                                                                                                  typ))
+
+
 
 class SubNetwork(Common):
     """
@@ -721,7 +763,7 @@ class SubNetwork(Common):
     def iterate_components(self, components=None, skip_empty=True):
         for c in self.network.iterate_components(components=components, skip_empty=False):
             c = Component(*c[:-1], ind=getattr(self, c.list_name + '_i')())
-            if not (skip_empty and c.df.empty):
+            if not (skip_empty and len(c.ind) == 0):
                 yield c
 
 

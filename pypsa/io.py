@@ -1,4 +1,4 @@
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -24,7 +24,7 @@ from six.moves import filter, range
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ import numpy as np
 
 
 
-def export_to_csv_folder(network, csv_folder_name, encoding=None):
+def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standard_types=False):
     """
     Export network and components to a folder of CSVs.
 
@@ -57,6 +57,9 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the netowrk).
 
     Examples
     --------
@@ -101,6 +104,11 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None):
         attrs = network.components[component]["attrs"]
         df = network.df(component)
         pnl = network.pnl(component)
+
+
+        if not export_standard_types and component in pypsa.components.standard_types:
+            df = df.drop(network.components[component]["standard_types"].index)
+
 
         #first do static attributes
 
@@ -499,3 +507,95 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     #for consistency with pypower, take the v_mag set point from the generators
     network.buses.loc[network.generators.bus,"v_mag_pu_set"] = np.asarray(network.generators["v_set_pu"])
+
+
+
+
+def import_from_pandapower_net(network, net):
+    """
+    Import network from pandapower net.
+
+    This import function is not yet finished (see warning below).
+
+    Parameters
+    ----------
+    net : pandapower network
+
+    Examples
+    --------
+    >>> network.import_from_pandapower_net(net)
+    """
+    logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers.")
+
+    d = {}
+
+    d["Bus"] = pd.DataFrame({"v_nom" : net.bus.vn_kv.values,
+                             "v_mag_pu_set" : 1.},
+                            index=net.bus.name)
+
+    d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_kw).values/1e3,
+                              "q_set" : (net.load.scaling*net.load.q_kvar).values/1e3,
+                              "bus" : net.bus.name.loc[net.load.bus].values},
+                             index=net.load.name)
+
+    #deal with PV generators
+    d["Generator"] = pd.DataFrame({"p_set" : -(net.gen.scaling*net.gen.p_kw).values/1e3,
+                                   "q_set" : 0.,
+                                   "bus" : net.bus.name.loc[net.gen.bus].values,
+                                   "control" : "PV"},
+                                  index=net.gen.name)
+
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values,"v_mag_pu_set"] = net.gen.vm_pu.values
+
+
+    #deal with PQ "static" generators
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : -(net.sgen.scaling*net.sgen.p_kw).values/1e3,
+                                                             "q_set" : -(net.sgen.scaling*net.sgen.q_kvar).values/1e3,
+                                                             "bus" : net.bus.name.loc[net.sgen.bus].values,
+                                                             "control" : "PQ"},
+                                                            index=net.sgen.name)))
+
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"control" : "Slack",
+                                                             "p_set" : 0.,
+                                                             "q_set" : 0.,
+                                                             "bus" : net.bus.name.loc[net.ext_grid.bus].values},
+                                                            index=net.ext_grid.name.fillna("External Grid"))))
+
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
+
+    d["Line"] = pd.DataFrame({"type" : net.line.std_type.values,
+                              "bus0" : net.bus.name.loc[net.line.from_bus].values,
+                              "bus1" : net.bus.name.loc[net.line.to_bus].values,
+                              "length" : net.line.length_km.values,
+                              "num_parallel" : net.line.parallel.values},
+                             index=net.line.name)
+
+    d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
+                                     "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
+                                     "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                     "tap_position" : net.trafo.tp_pos.values},
+                                    index=net.trafo.name)
+
+    for c in ["Bus","Load","Generator","Line","Transformer"]:
+        network.import_components_from_dataframe(d[c],c)
+
+
+
+    #amalgamate buses connected by closed switches
+
+    bus_switches = net.switch[(net.switch.et=="b") & net.switch.closed]
+
+    bus_switches["stays"] = bus_switches.bus.map(net.bus.name)
+    bus_switches["goes"] = bus_switches.element.map(net.bus.name)
+
+    to_replace = pd.Series(bus_switches.stays.values,bus_switches.goes.values)
+
+    for i in to_replace.index:
+        network.remove("Bus",i)
+
+        for c in network.iterate_components({"Load","Generator"}):
+            c.df.bus.replace(to_replace,inplace=True)
+
+        for c in network.iterate_components({"Line","Transformer"}):
+            c.df.bus0.replace(to_replace,inplace=True)
+            c.df.bus1.replace(to_replace,inplace=True)

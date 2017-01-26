@@ -1,6 +1,7 @@
 
 
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
+## Schlachtberger (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -32,6 +33,6 @@ from .components import Network, SubNetwork
 import logging
 logging.basicConfig(level=logging.INFO)
 
-__version__ = "0.7.1"
+__version__ = "0.8.0"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"

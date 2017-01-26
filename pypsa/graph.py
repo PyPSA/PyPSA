@@ -1,4 +1,4 @@
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -58,7 +58,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None):
 
     Parameters
     ----------
-    branch_componentss : iterable sublist of `branch_components`
+    branch_components : iterable sublist of `branch_components`
        Buses connected by any of the selected branches are adjacent
        (default: branch_components (network) or passive_branch_components (sub_network))
     busorder : pd.Index subset of network.buses.index
