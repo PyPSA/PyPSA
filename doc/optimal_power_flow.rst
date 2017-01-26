@@ -32,7 +32,7 @@ Execute:
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
 string, e.g. "gurobi" or "glpk", ``extra_functionality`` is a function
-of network and snapshots that is called before the solver,
+of network and snapshots that is called before the solver (see below),
 ``solver_options`` is a dictionary of flags to pass to the solver and
 ``keep_files`` means that the ``.lp`` file is saved.
 
@@ -98,8 +98,10 @@ to meet the total load.
 Stochastic optimisation
 -----------------------
 
-Use the weightings ``w_t`` as probabilities for the snapshots, which
-can represent different load/weather conditions.
+For the very simplest stochastic optimisation you can use the
+weightings ``w_t`` as probabilities for the snapshots, which can
+represent different load/weather conditions. More sophisticated
+functionality is planned.
 
 
 
@@ -396,6 +398,27 @@ CO2 constraint is
 
 where ``network.co2_limit`` is the CO2 cap. If ``network.co2_limit``
 is ``None``, no cap is implemented.
+
+Custom constraints and other functionality
+------------------------------------------
+
+PyPSA uses the Python optimisation language `pyomo
+<http://www.pyomo.org/>`_ to construct the OPF problem. You can easily
+extend the optimisation problem constructed by PyPSA using the usual
+pyomo syntax. To do this, pass the function ``network.lopf`` a
+function ``extra_functionality`` as an argument.  This function must
+take two arguments ``extra_functionality(network,snapshots)`` and is
+called after the model building is complete, but before it is sent to
+the solver. It allows the user to add, change or remove constraints
+and alter the objective function.
+
+The `CHP example
+<https://pypsa.org/examples/power-to-gas-boiler-chp.html>`_ and the
+`example that replaces generators and stores with fundamental links
+and stores
+<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_
+both pass an ``extra_functionality`` argument to the LOPF to add
+functionality.
 
 
 Inputs
