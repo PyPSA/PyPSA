@@ -497,6 +497,8 @@ class Network(Basic):
         for attr in ["name", "now", "co2_limit", "srid"]:
             setattr(network,attr,getattr(self,attr))
 
+        network.snapshot_weightings = self.snapshot_weightings.copy()
+
         return network
 
 
