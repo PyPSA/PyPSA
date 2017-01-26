@@ -72,7 +72,7 @@ import matplotlib.pyplot as plt
 
 #%matplotlib inline
 
-#You may have to adjust this path to where
+#You may have to adjust this path to where 
 #you downloaded the github repository
 #https://github.com/FRESNA/PyPSA
 
@@ -108,7 +108,7 @@ if n_graphs % n_cols == 0:
 else:
     n_rows = n_graphs // n_cols + 1
 
-
+    
 fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols)
 
 size = 4
@@ -118,18 +118,18 @@ fig.set_size_inches(size*n_cols,size*n_rows)
 for i,tech in enumerate(techs):
     i_row = i // n_cols
     i_col = i % n_cols
-
+    
     ax = axes[i_row,i_col]
-
+    
     gens = network.generators[network.generators.carrier == tech]
-
+    
     gen_distribution = gens.groupby("bus").sum()["p_nom"].reindex(network.buses.index,fill_value=0.)
-
+    
     network.plot(ax=ax,bus_sizes=0.2*gen_distribution)
-
+    
     ax.set_title(tech)
-
-
+    
+    
 
 ### Run Linear Optimal Power Flow on the first day of 2011
 
@@ -140,7 +140,7 @@ contingency_factor = 0.7
 
 network.lines.s_nom = contingency_factor*network.lines.s_nom
 
-#There are some infeasibilities without small extensions
+#There are some infeasibilities without small extensions                                                                                 
 for line_name in ["316","527","602"]:
     network.lines.loc[line_name,"s_nom"] = 1200
 
@@ -249,7 +249,7 @@ fig.set_size_inches(6,4)
 
 
 network.plot(ax=ax,line_widths=pd.Series(0.5,network.lines.index))
-plt.hexbin(network.buses.x, network.buses.y,
+plt.hexbin(network.buses.x, network.buses.y, 
            gridsize=20,
            C=network.buses_t.marginal_price.loc[network.now],
            cmap=plt.cm.jet)
@@ -258,7 +258,7 @@ plt.hexbin(network.buses.x, network.buses.y,
 #and must be attached plt.colorbar
 
 cb = plt.colorbar()
-cb.set_label('Locational Marginal Price (EUR/MWh)')
+cb.set_label('Locational Marginal Price (EUR/MWh)') 
 
 fig.tight_layout()
 #fig.savefig('lmp.png')
@@ -313,7 +313,7 @@ for bus in network.buses.index:
 
 #For the PF, set the P to the optimised P
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
-network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now]
+network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now] 
 
 
 #set all buses to PV, since we don't know what Q set points are
@@ -368,3 +368,4 @@ fig.tight_layout()
 network.generators_t.q.loc[network.now].sum()
 
 network.buses_t.q.loc[network.now].sum()
+

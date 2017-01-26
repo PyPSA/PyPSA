@@ -1,6 +1,6 @@
 
 
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -28,7 +28,7 @@ from weakref import ref
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 import networkx as nx
 
@@ -497,6 +497,8 @@ class Network(Basic):
         for attr in ["name", "now", "co2_limit", "srid"]:
             setattr(network,attr,getattr(self,attr))
 
+        network.snapshot_weightings = self.snapshot_weightings.copy()
+
         return network
 
 
@@ -622,6 +624,51 @@ class Network(Basic):
                 if len(diff) > 0:
                     logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,c.list_name,diff))
 
+
+
+	#check all dtypes of component attributes
+
+        #this isn't strictly necessary (except for str)
+        #since e.g. float == np.dtype("float64") is True
+        #but we do it for easy reading of errors
+        np_dtypes = {str : np.dtype("object"),
+                     float : np.dtype("float64"),
+                     int : np.dtype("int64"),
+                     bool : np.dtype("bool")}
+
+        for c in self.iterate_components():
+
+            #first check static attributes
+
+            types_soll = c.attrs["typ"][c.attrs["static"]].drop("name")
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
+
+            if unmatched.any():
+                logger.warning("The following attributes of the dataframe {} have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(c.list_name,
+                                                                                                                                         unmatched.index[unmatched],
+                                                                                                                                         c.df.dtypes[unmatched],
+                                                                                                                                         dtypes_soll[unmatched]))
+
+            #now check varying attributes
+
+            types_soll = c.attrs["typ"][c.attrs["varying"]]
+
+            dtypes_soll = types_soll.replace(np_dtypes)
+
+            for attr, typ in dtypes_soll.iteritems():
+                if c.pnl[attr].empty:
+                    continue
+
+                unmatched = (c.pnl[attr].dtypes != typ)
+
+                if unmatched.any():
+                    logger.warning("The following columns of time-varying attribute {} in {}_t have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(attr,c.list_name,
+                                                                                                                                  unmatched.index[unmatched],
+                                                                                                                                  c.pnl[attr].dtypes[unmatched],
+                                                                                                                                  typ))
 
 
 

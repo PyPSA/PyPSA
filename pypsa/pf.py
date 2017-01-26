@@ -1,4 +1,4 @@
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -22,7 +22,7 @@ from six.moves import range
 from six import iterkeys
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     if diff > x_tol:
-        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f", n_iter, diff)
+        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
 
     return guess, n_iter, diff
 
@@ -390,14 +390,12 @@ def apply_line_types(network):
     if len(lines_with_types) == 0:
         return
 
-    for attr in ["r","x","b"]:
-        std_attr = attr
-        factor = 1.
-        if attr == "b":
-            std_attr = "c"
-            factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
+    for attr in ["r","x"]:
+        network.lines.loc[lines_with_types,attr] = network.lines.loc[lines_with_types,"type"].map(network.line_types[attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]/network.lines.loc[lines_with_types,"num_parallel"]
 
-        network.lines.loc[lines_with_types,attr] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types[std_attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]
+    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
+    network.lines.loc[lines_with_types,"b"] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types["c_per_length"])*network.lines.loc[lines_with_types,"length"]*network.lines.loc[lines_with_types,"num_parallel"]
+
 
 
 
@@ -436,7 +434,24 @@ def apply_transformer_types(network):
 
     network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(b_minus_squared)
 
-    #TODO: tap_ratio, status, rate_A
+
+    for attr in ["r","x"]:
+        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]/network.transformers.loc[trafos_with_types, "num_parallel"]
+
+    for attr in ["b","g"]:
+        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]*network.transformers.loc[trafos_with_types, "num_parallel"]
+
+
+    #deal with tap positions
+
+    network.transformers.loc[trafos_with_types, "tap_ratio"] = 1 + (
+        network.transformers.loc[trafos_with_types, "tap_position"] -
+        network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_neutral"])) * (
+            network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_step"])/100.)
+
+    network.transformers.loc[trafos_with_types, "tap_side"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_side"])
+
+    #TODO: status, rate_A
 
 
 def wye_to_delta(z1,z2,z3):
@@ -671,13 +686,22 @@ def calculate_Y(sub_network,skip_pre=False):
     #catch some transformers falsely set with tau = 0 by pypower
     tau[tau==0] = 1.
 
+    #define the HV tap ratios
+    tau_hv = pd.Series(1.,branches.index)
+    tau_hv[branches.tap_side==0] = tau[branches.tap_side==0]
+
+    #define the LV tap ratios
+    tau_lv = pd.Series(1.,branches.index)
+    tau_lv[branches.tap_side==1] = tau[branches.tap_side==1]
+
+
     phase_shift = np.exp(1.j*branches["phase_shift"].fillna(0.)*np.pi/180.)
 
     #build the admittance matrix elements for each branch
-    Y11 = y_se + 0.5*y_sh
-    Y10 = -y_se/tau/phase_shift
-    Y01 = -y_se/tau/np.conj(phase_shift)
-    Y00 = Y11/tau**2
+    Y11 = (y_se + 0.5*y_sh)/tau_lv**2
+    Y10 = -y_se/tau_lv/tau_hv/phase_shift
+    Y01 = -y_se/tau_lv/tau_hv/np.conj(phase_shift)
+    Y00 = (y_se + 0.5*y_sh)/tau_hv**2
 
     #bus shunt impedances
     b_sh = network.shunt_impedances.b_pu.groupby(network.shunt_impedances.bus).sum().reindex(buses_o, fill_value = 0.)

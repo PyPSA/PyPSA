@@ -2,6 +2,7 @@ attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,"Name of bus to which storage unit is attached.",Input (required)
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
+type,string,n/a,n/a,"Placeholder for storage unit type. Not yet implemented.",Input (optional)
 p_nom,float,MW,0.,Nominal power for limits in OPF.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
 p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)

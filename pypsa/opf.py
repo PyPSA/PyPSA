@@ -1,6 +1,7 @@
 
 
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
+## Schlachtberger (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -25,9 +26,10 @@ from six import iteritems, string_types
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
 import pandas as pd
+import numpy as np
 from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
@@ -469,7 +471,8 @@ def define_passive_branch_flows_with_angles(network,snapshots):
         for sn in snapshots:
             lhs = LExpression([(y,network.model.voltage_angles[bus0,sn]),
                                (-y,network.model.voltage_angles[bus1,sn]),
-                               (-1,network.model.passive_branch_p[bt,bn,sn])])
+                               (-1,network.model.passive_branch_p[bt,bn,sn])],
+                              -y*(passive_branches.at[branch,"phase_shift"]*np.pi/180. if bt == "Transformer" else 0.))
             flows[bt,bn,sn] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model, "passive_branch_p_def", flows,

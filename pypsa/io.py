@@ -1,4 +1,4 @@
-## Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -24,7 +24,7 @@ from six.moves import filter, range
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2016 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -566,12 +566,14 @@ def import_from_pandapower_net(network, net):
     d["Line"] = pd.DataFrame({"type" : net.line.std_type.values,
                               "bus0" : net.bus.name.loc[net.line.from_bus].values,
                               "bus1" : net.bus.name.loc[net.line.to_bus].values,
-                              "length" : net.line.length_km.values},
+                              "length" : net.line.length_km.values,
+                              "num_parallel" : net.line.parallel.values},
                              index=net.line.name)
 
     d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
                                      "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
-                                     "bus1" : net.bus.name.loc[net.trafo.lv_bus].values},
+                                     "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                     "tap_position" : net.trafo.tp_pos.values},
                                     index=net.trafo.name)
 
     for c in ["Bus","Load","Generator","Line","Transformer"]:

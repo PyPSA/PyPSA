@@ -69,12 +69,15 @@ and the initial "flat" guess of :math:`\theta_i = 0` and :math:`|V_i| = 1` for u
 
 
 
-.. _branch-model:
+.. _line-model:
 
-Branch model
-------------
+Line model
+----------
 
-The branches are modelled with the standard PI model.
+Lines are modelled with the standard equivalent PI model. In the
+future a model with distributed parameters may be added.
+
+
 
 If the series impedance is given by
 
@@ -105,11 +108,85 @@ are related by
   \end{array}
     \right)
 
-For a transformer with tap ratio :math:`\tau` between the per unit voltages bus0:bus1 and phase shift :math:`\theta`:
 
-.. image:: img/transformer-equivalent.png
+.. _transformer-model:
 
-the currents and voltages are related by:
+Transformer model
+-----------------
+
+The transformer models here are largely based on the implementation in
+`pandapower <https://github.com/panda-power/pandapower>`_, which is
+loosely based on `DIgSILENT PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
+
+Transformers are modelled either with the equivalent T model (the
+default, since this represents the physics better) or with the
+equivalent PI model. The can be controlled by setting transformer
+attribute ``model`` to either ``t`` or ``pi``.
+
+The tap changer can either be modelled on the primary, high voltage
+side 0 (the default) or on the secondary, low voltage side 1. This is set with attribute ``tap_side``.
+
+If the transformer ``type`` is not given, then ``tap_ratio`` is
+defined by the user, defaulting to ``1.``. If the ``type`` is given,
+then the user can specify the ``tap_position`` which results in a
+``tap ratio`` :math:`\tau` given by:
+
+.. math::
+  \tau = 1 + (\textrm{tap\_position} - \textrm{tap\_neutral})\cdot \frac{\textrm{tap\_step}}{100}
+
+
+For a transformer with tap ratio :math:`\tau` on the primary side
+``tap_side = 0`` and phase shift :math:`\theta_{\textrm{shift}}`, the
+equivalent T model is given by:
+
+
+.. image:: img/transformer-t-equivalent-tap-hv.png
+
+For a transformer with tap ratio :math:`\tau` on the secondary side
+``tap_side = 1`` and phase shift :math:`\theta_{\textrm{shift}}`, the
+equivalent T model is given by:
+
+
+.. image:: img/transformer-t-equivalent-tap-lv.png
+
+
+
+For the admittance matrix, the T model is transformed into a PI model
+with the wye-delta transformation.
+
+For a transformer with tap ratio :math:`\tau` on the primary side
+``tap_side = 0`` and phase shift :math:`\theta_{\textrm{shift}}`, the
+equivalent PI model is given by:
+
+
+.. image:: img/transformer-pi-equivalent-tap-hv.png
+
+for which the currents and voltages are related by:
+
+.. math::
+  \left( \begin{array}{c}
+    i_0 \\ i_1
+  \end{array}
+  \right) =   \left( \begin{array}{cc}  \frac{1}{z} + \frac{y}{2} &      -\frac{1}{z}\frac{1}{\tau e^{-j\theta}}  \\
+   -\frac{1}{z}\frac{1}{\tau e^{j\theta}} & \left(\frac{1}{z} + \frac{y}{2} \right) \frac{1}{\tau^2}
+   \end{array}
+   \right)  \left( \begin{array}{c}
+    v_0 \\ v_1
+  \end{array}
+    \right)
+
+
+
+
+For a transformer with tap ratio :math:`\tau` on the secondary side
+``tap_side = 1`` and phase shift :math:`\theta_{\textrm{shift}}`, the
+equivalent PI model is given by:
+
+
+.. image:: img/transformer-pi-equivalent-tap-lv.png
+
+for which the currents and voltages are related by:
 
 .. math::
   \left( \begin{array}{c}
@@ -236,18 +313,21 @@ It is assumed that the active powers :math:`P_i` are given for all buses except 
 To find the voltage angles, the following linear set of equations are solved
 
 .. math::
-   P_i = \sum_j (KBK^T)_{ij} \theta_j
+   P_i = \sum_j (KBK^T)_{ij} \theta_j - \sum_l K_{il} b_l \theta_l^{\textrm{shift}}
 
-where :math:`K` is the incidence matrix of the network and :math:`B`
-is the diagonal matrix of inverse line series reactances. The matrix
-:math:`KBK^T` is singular with a single zero eigenvalue for a
-connected network, therefore the row and column corresponding to the
-slack bus is deleted before inverting.
+where :math:`K` is the incidence matrix of the network, :math:`B` is
+the diagonal matrix of inverse line series reactances :math:`x_l`
+multiplied by the tap ratio :math:`\tau_l`, i.e. :math:`B_{ll} = b_l =
+\frac{1}{x_l\tau_l}` and :math:`\theta_l^{\textrm{shift}}` is the
+phase shift for a transformer. The matrix :math:`KBK^T` is singular
+with a single zero eigenvalue for a connected network, therefore the
+row and column corresponding to the slack bus is deleted before
+inverting.
 
-The flow in the network can then be found by multiplying by the transpose incidence matrix and inverse series reactances:
+The flows ``p0`` in the network branches at ``bus0`` can then be found by multiplying by the transpose incidence matrix and inverse series reactances:
 
 .. math::
-   F_l = \sum_i (BK^T)_{li} \theta_i
+   F_l = \sum_i (BK^T)_{li} \theta_i - b_l \theta_l^{\textrm{shift}}
 
 
 

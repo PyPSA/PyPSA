@@ -349,22 +349,12 @@ network.plot(line_colors=colors)
 
 ### Recalculate all electrical properties
 
+network.lines["type"] = network.lines.voltage.map({220000 : "Al/St 240/40 2-bundle 220.0",
+                                                   380000 : "Al/St 240/40 4-bundle 380.0"})
 
-coeffs = {
-        220000: dict(wires_typical=2.0, r=0.08, x=0.32, c=11.5, i=1.3),
-        380000: dict(wires_typical=4.0, r=0.025, x=0.25, c=13.7, i=2.6)
-    }
+network.lines["num_parallel"] = network.lines.cables/3.*network.lines.wires/network.lines.voltage.map({220000 : 2., 380000 : 4.})
 
-default = coeffs[220000]
-
-network.lines["r"] = [row["length"]*coeffs.get(row["voltage"],default)["r"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in network.lines.iterrows()]
-
-network.lines["x"] = [row["length"]*coeffs.get(row["voltage"],default)["x"]/(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])/(row["cables"]/3.)  for i,row in network.lines.iterrows()]
-
-# if g = 0, b = 2*pi*f*C; C is in nF
-network.lines["b"] = [2*np.pi*50*1e-9*row["length"]*coeffs.get(row["voltage"],default)["c"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in network.lines.iterrows()]
-
-network.lines["s_nom"] = [3.**0.5*row["voltage"]/1000.*coeffs.get(row["voltage"],default)["i"]*(row["wires"]/coeffs.get(row["voltage"],default)["wires_typical"])*(row["cables"]/3.)  for i,row in network.lines.iterrows()]
+network.lines["s_nom"] = 3.**0.5*network.lines.voltage/1000.*network.lines.num_parallel*network.lines.voltage.map({220000 : 2., 380000 : 4.})*0.65
 
 ## Attach the load
 
