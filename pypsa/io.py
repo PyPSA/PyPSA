@@ -217,9 +217,10 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     #check all the buses are well-defined
     for attr in ["bus","bus0","bus1"]:
         if attr in new_df.columns:
-            missing = new_df.index[pd.isnull(new_df[attr].map(network.buses.v_nom))]
+            missing = new_df.index[~new_df[attr].isin(network.buses.index)]
             if len(missing) > 0:
-                logger.warning("The following {} have buses which are not defined:\n{}".format(cls_name,missing))
+                logger.warning("The following %s have buses which are not defined:\n%s",
+                               cls_name, missing)
 
 
     #now deal with time-dependent properties
