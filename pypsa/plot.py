@@ -165,7 +165,9 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
     def as_branch_series(ser):
-        if isinstance(ser, pd.Series):
+        if isinstance(ser, dict) and set(ser).issubset(branch_components):
+            return pd.Series(ser)
+        elif isinstance(ser, pd.Series):
             if isinstance(ser.index, pd.MultiIndex):
                 return ser
             index = ser.index
@@ -187,16 +189,14 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
         l_nums = None
-        if c.name in line_colors:
-            l_colors = line_colors[c.name]
+        l_colors = line_colors.get(c.name, l_defaults['color'])
 
+        if isinstance(l_colors, pd.Series):
             if issubclass(l_colors.dtype.type, np.number):
                 l_nums = l_colors
                 l_colors = None
             else:
                 l_colors.fillna(l_defaults['color'], inplace=True)
-        else:
-            l_colors = l_defaults['color']
 
         if not geometry:
             segments = (np.asarray(((c.df.bus0.map(x),
