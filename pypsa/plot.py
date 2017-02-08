@@ -36,7 +36,8 @@ __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 plt_present = True
 try:
     import matplotlib.pyplot as plt
-    from matplotlib.collections import LineCollection
+    from matplotlib.patches import Wedge
+    from matplotlib.collections import LineCollection, PatchCollection
 except:
     plt_present = False
 
@@ -131,12 +132,37 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         x = pd.Series(x, network.buses.index)
         y = pd.Series(y, network.buses.index)
 
-    c = pd.Series(bus_colors, index=network.buses.index)
-    if c.dtype == np.dtype('O'):
-        c.fillna("b", inplace=True)
-        c = list(c.values)
-    s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-    bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
+    if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
+        # We are drawing pies to show all the different shares
+        assert len(network.buses.index.difference(bus_sizes.index.levels[0])) == 0, \
+            "The first MultiIndex level of bus_sizes must contain buses"
+        assert isinstance(bus_colors, dict) and set(bus_colors).issuperset(bus_sizes.index.levels[1]), \
+            "bus_colors must be a dictionary defining a color for each element " \
+            "in the second MultiIndex level of bus_sizes"
+
+        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+
+        patches = []
+        for b_i in bus_sizes.index.levels[0]:
+            s = bus_sizes.loc[b_i]
+            radius = s.sum()**0.5
+            ratios = s/s.sum()
+
+            start = 0.25
+            for i, ratio in ratios.iteritems():
+                patches.append(Wedge((x.at[b_i], y.at[b_i]), radius,
+                                     360*start, 360*(start+ratio),
+                                     facecolor=bus_colors[i]))
+                start += ratio
+        bus_collection = PatchCollection(patches, match_original=True)
+        ax.add_collection(bus_collection)
+    else:
+        c = pd.Series(bus_colors, index=network.buses.index)
+        if c.dtype == np.dtype('O'):
+            c.fillna("b", inplace=True)
+            c = list(c.values)
+        s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
+        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
 
     def as_branch_series(ser):
         if isinstance(ser, pd.Series):
