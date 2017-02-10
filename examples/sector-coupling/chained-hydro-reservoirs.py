@@ -1,6 +1,8 @@
 ## Two chained reservoirs with inflow in one supply two electric loads
 #
 #Two disconnected electrical loads are fed from two reservoirs linked by a river; the first reservoir has inflow from a water basin.
+#
+#Note that the two reservoirs are tightly coupled, meaning there is no time delay between the first one emptying and the second one filling, as there would be if there were a long stretch of river between the reservoirs. The reservoirs are essentially assumed to be close to each other. A time delay would require a "Link" element between different snapshots, which is not yet supported by PyPSA (but could be enabled by passing network.lopf() an extra_functionality function).
 
 import pypsa
 import pandas as pd
