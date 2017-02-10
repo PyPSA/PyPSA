@@ -53,7 +53,7 @@ def _haversine(coords):
 
 def aggregategenerators(network, busmap, with_time=True):
     attrs = network.components["Generator"]["attrs"]
-    columns = set(attrs.index[~attrs.varying]) | {'weight'}
+    columns = (set(attrs.index[~attrs.varying]) - {'name'}) | {'weight'}
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
     grouper = [generators.bus, generators.carrier]
 
@@ -87,7 +87,7 @@ def aggregategenerators(network, busmap, with_time=True):
 def aggregateoneport(network, busmap, component, with_time=True):
 
     attrs = network.components[component]["attrs"]
-    columns = set(attrs.index[~attrs.varying])
+    columns = set(attrs.index[~attrs.varying]) - {'name'}
 
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     if 'carrier' in columns:
@@ -124,7 +124,7 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
-    columns = set(attrs.index[~attrs.varying])
+    columns = set(attrs.index[~attrs.varying]) - {'name'}
 
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
@@ -147,7 +147,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_c = pd.concat((interlines_p,interlines_n))
 
     attrs = network.components["Line"]["attrs"]
-    columns = set(attrs.index[~attrs.varying]).difference(('bus0', 'bus1'))
+    columns = set(attrs.index[~attrs.varying]).difference(('name', 'bus0', 'bus1'))
 
     def aggregatelinegroup(l):
 
@@ -156,7 +156,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
         v_nom_s = _consense(buses.loc[list(l.name),'v_nom'])
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
-        length_factor = length_s/l['length']
+        length_factor = (length_s/l['length'])
 
         data = dict(
             r=1./(voltage_factor/(length_factor * l['r'])).sum(),
@@ -496,7 +496,7 @@ def busmap_by_stubs(network):
                 count +=1
                 lines = list(graph.adj[u][neighbour].keys())
                 for line in lines:
-                    network.remove("Line",line.name)
+                    network.remove(*line)
                 network.remove("Bus",u)
                 busmap[busmap==u] = neighbour
         logger.info("{} deleted".format(count))

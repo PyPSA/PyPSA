@@ -580,32 +580,37 @@ class Network(Basic):
 
 
         for c in self.iterate_components(one_port_components):
-            missing = c.df.index[pd.isnull(c.df.bus.map(self.buses.v_nom))]
+            missing = c.df.index[~c.df.bus.isin(self.buses.index)]
             if len(missing) > 0:
-                logger.warning("The following {} have buses which are not defined:\n{}".format(c.list_name,missing))
+                logger.warning("The following %s have buses which are not defined:\n%s",
+                               c.list_name, missing)
 
         for c in self.iterate_components(branch_components):
-            for end in ["0","1"]:
-                missing = c.df.index[pd.isnull(c.df["bus"+end].map(self.buses.v_nom))]
+            for attr in ["bus0","bus1"]:
+                missing = c.df.index[~c.df[attr].isin(self.buses.index)]
                 if len(missing) > 0:
-                    logger.warning("The following {} have bus {} which are not defined:\n{}".format(c.list_name,end,missing))
+                    logger.warning("The following %s have %s which are not defined:\n%s",
+                                   c.list_name, attr, missing)
 
 
         for c in self.iterate_components(passive_branch_components):
             for attr in ["x","r"]:
                 bad = c.df.index[c.df[attr] == 0.]
                 if len(bad) > 0:
-                    logger.warning("The following {} have zero {}, which could break the linear load flow:\n{}".format(c.list_name,attr,bad))
+                    logger.warning("The following %s have zero %s, which could break the linear load flow:\n%s",
+                                   c.list_name, attr, bad)
 
             bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.)]
             if len(bad) > 0:
-                logger.warning("The following {} have zero series impedance, which will break the load flow:\n{}".format(c.list_name,bad))
+                logger.warning("The following %s have zero series impedance, which will break the load flow:\n%s",
+                               c.list_name, bad)
 
 
         for c in self.iterate_components({"Transformer"}):
             bad = c.df.index[c.df["s_nom"] == 0.]
             if len(bad) > 0:
-                logger.warning("The following {} have zero s_nom, which is used to define the impedance and will thus break the load flow:\n{}".format(c.list_name,bad))
+                logger.warning("The following %s have zero s_nom, which is used to define the impedance and will thus break the load flow:\n%s",
+                               c.list_name, bad)
 
 
         for c in self.iterate_components(all_components):
@@ -614,19 +619,22 @@ class Network(Basic):
 
                 diff = attr_df.columns.difference(c.df.index)
                 if len(diff) > 0:
-                    logger.warning("The following {} have time series defined for attribute {} in network.{}_t, but are not defined in network.{}:\n{}".format(c.list_name,attr,c.list_name,c.list_name,diff))
+                    logger.warning("The following %s have time series defined for attribute %s in network.%s_t, but are not defined in network.%s:\n%s",
+                                   c.list_name, attr, c.list_name, c.list_name, diff)
 
                 diff = self.snapshots.difference(attr_df.index)
                 if len(diff) > 0:
-                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are missing:\n{}".format(attr,c.list_name,diff))
+                    logger.warning("In the time-dependent Dataframe for attribute %s of network.%s_t the following snapshots are missing:\n%s",
+                                   attr, c.list_name, diff)
 
                 diff = attr_df.index.difference(self.snapshots)
                 if len(diff) > 0:
-                    logger.warning("In the time-dependent Dataframe for attribute {} of network.{}_t the following snapshots are defined which are not in network.snapshots:\n{}".format(attr,c.list_name,diff))
+                    logger.warning("In the time-dependent Dataframe for attribute %s of network.%s_t the following snapshots are defined which are not in network.snapshots:\n%s",
+                                   attr, c.list_name, diff)
 
 
 
-	#check all dtypes of component attributes
+        #check all dtypes of component attributes
 
         #this isn't strictly necessary (except for str)
         #since e.g. float == np.dtype("float64") is True
@@ -647,10 +655,13 @@ class Network(Basic):
             unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
 
             if unmatched.any():
-                logger.warning("The following attributes of the dataframe {} have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(c.list_name,
-                                                                                                                                         unmatched.index[unmatched],
-                                                                                                                                         c.df.dtypes[unmatched],
-                                                                                                                                         dtypes_soll[unmatched]))
+                logger.warning("The following attributes of the dataframe %s have the wrong dtype:\n%s\n"
+                               "They are:\n%s\n"
+                               "but should be:\n%s",
+                               c.list_name,
+                               unmatched.index[unmatched],
+                               c.df.dtypes[unmatched],
+                               dtypes_soll[unmatched])
 
             #now check varying attributes
 
@@ -665,10 +676,13 @@ class Network(Basic):
                 unmatched = (c.pnl[attr].dtypes != typ)
 
                 if unmatched.any():
-                    logger.warning("The following columns of time-varying attribute {} in {}_t have the wrong dtype:\n{}\nThey are:\n{}\nbut should be:\n{}".format(attr,c.list_name,
-                                                                                                                                  unmatched.index[unmatched],
-                                                                                                                                  c.pnl[attr].dtypes[unmatched],
-                                                                                                                                  typ))
+                    logger.warning("The following columns of time-varying attribute %s in %s_t have the wrong dtype:\n%s\n"
+                                   "They are:\n%s\n"
+                                   "but should be:\n%s",
+                                   attr,c.list_name,
+                                   unmatched.index[unmatched],
+                                   c.pnl[attr].dtypes[unmatched],
+                                   typ)
 
 
 
