@@ -186,7 +186,14 @@ Storage Unit
 Storage units attach to a single bus and are used for inter-temporal
 power shifting. Each storage unit has a time-varying state of charge
 and various efficiencies. The nominal energy is given as a fixed ratio
-``max_hours`` of the nominal power.
+``max_hours`` of the nominal power. If you want to optimise the
+storage energy capacity independently from the storage power capacity,
+you should use a fundamental ``Store`` component (see below) attached
+with two ``Link`` components, one for charging and one for
+discharging. See also the `example that replaces generators and
+storage units with fundamental links and stores
+<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_.
+
 
 For storage units, if :math:`p>0` the storage unit is supplying active
 power to the bus and if :math:`q>0` it is supplying reactive power
@@ -213,7 +220,9 @@ etc.).
 
 The Store has controls and optimisation on the size of its energy
 capacity, but not it's power output; to control the power output, you
-must put a link in front of it.
+must put a link in front of it, see the `example that replaces
+generators and storage units with fundamental links and stores
+<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_.
 
 
 

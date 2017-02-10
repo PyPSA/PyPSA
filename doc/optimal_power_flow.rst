@@ -414,7 +414,7 @@ and alter the objective function.
 
 The `CHP example
 <https://pypsa.org/examples/power-to-gas-boiler-chp.html>`_ and the
-`example that replaces generators and stores with fundamental links
+`example that replaces generators and storage units with fundamental links
 and stores
 <https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_
 both pass an ``extra_functionality`` argument to the LOPF to add
