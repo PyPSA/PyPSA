@@ -18,7 +18,7 @@ index = pd.date_range("2016-01-01 00:00","2016-01-01 23:00",freq="H")
 # consumption pattern of BEV
 bev_usage = pd.Series([0.]*7 + [9.]*2 + [0.]*8 + [9.]*2 + [0.]*5,index)
 
-# solar PV panel generation per unit of capacity - this is only available while parked at place of work
+# solar PV panel generation per unit of capacity
 pv_pu = pd.Series([0.]*7 + [0.2,0.4,0.6,0.75,0.85,0.9,0.85,0.75,0.6,0.4,0.2,0.1] + [0.]*5,index)
 
 # availability of charging - i.e. only when parked at office
