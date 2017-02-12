@@ -26,7 +26,7 @@ import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
 from itertools import repeat
-from six.moves import zip, range
+from six.moves import map, zip, range
 from six import itervalues, iteritems
 import six
 
@@ -40,6 +40,10 @@ from .components import Network
 from . import components, io
 
 
+def _flatten_multiindex(m, join=' '):
+    if m.nlevels <= 1: return m
+    levels = map(m.get_level_values, range(m.nlevels))
+    return reduce(lambda x, y: x+join+y, levels, next(levels))
 
 def _consense(x):
     v = x.iat[0]
@@ -53,8 +57,8 @@ def _haversine(coords):
 
 def aggregategenerators(network, busmap, with_time=True):
     attrs = network.components["Generator"]["attrs"]
-    columns = (set(attrs.index[~attrs.varying]) - {'name'}) | {'weight'}
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
+    columns = (set(attrs.index[attrs.static]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
@@ -62,49 +66,33 @@ def aggregategenerators(network, busmap, with_time=True):
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
-
-    new_index = pd.Index([bus + ' ' + carrier
-                          for bus, carrier in new_df.index.get_values()])
+    new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
     if with_time:
         for attr, df in iteritems(network.generators_t):
             if not df.empty:
-                time_dependent_old_b, time_dependent_new_b = \
-                    ((generators[attr + '_t'], new_df[attr + '_t'])
-                     if attr + '_t' in generators
-                     else (slice(None), slice(None)))
-
                 if attr == 'p_max_pu':
-                    df = df.multiply(weighting.loc[time_dependent_old_b], axis=1)
-                pnl_df = df.groupby(grouper, axis=1).sum().reindex(columns=new_df.index[time_dependent_new_b])
-                pnl_df.columns = new_index[time_dependent_new_b]
+                    df = df.multiply(weighting.loc[df.columns], axis=1)
+                pnl_df = df.groupby(grouper, axis=1).sum()
+                pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pnl_df
 
-    new_df.set_index(new_index, inplace=True)
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True):
-
     attrs = network.components[component]["attrs"]
-    columns = set(attrs.index[~attrs.varying]) - {'name'}
-
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
-    if 'carrier' in columns:
-        grouper = [old_df.bus, old_df.carrier]
-    else:
-        grouper = old_df.bus
+    columns = set(attrs.index[attrs.static]) & set(old_df.columns)
+    grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
+
     strategies = {attr: (np.sum
                          if attr in {'p', 'q', 'p_set', 'q_set',
                                      'p_nom', 'p_nom_max', 'p_nom_min'}
                          else _consense)
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
-    if 'carrier' in columns:
-        new_index = pd.Index([bus + ' ' + carrier
-                              for bus, carrier in new_df.index.get_values()])
-    else:
-        new_index = new_df.index
+    new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
     if with_time:
@@ -112,19 +100,14 @@ def aggregateoneport(network, busmap, component, with_time=True):
         for attr, df in iteritems(old_pnl):
             if not df.empty:
                 pnl_df = df.groupby(grouper, axis=1).sum()
-                time_dependent_b  = (new_df[attr + '_t']
-                                     if attr + '_t' in new_df
-                                     else slice(None))
-                pnl_df = pnl_df.reindex(columns=new_df.index[time_dependent_b])
-                pnl_df.columns = new_index[time_dependent_b]
+                pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pnl_df
 
-    new_df.set_index(new_index, inplace=True)
     return new_df, new_pnl
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
-    columns = set(attrs.index[~attrs.varying]) - {'name'}
+    columns = set(attrs.index[attrs.static]) & set(network.buses.columns)
 
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
@@ -147,7 +130,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_c = pd.concat((interlines_p,interlines_n))
 
     attrs = network.components["Line"]["attrs"]
-    columns = set(attrs.index[~attrs.varying]).difference(('name', 'bus0', 'bus1'))
+    columns = set(attrs.index[attrs.static]).difference(('name', 'bus0', 'bus1'))
 
     def aggregatelinegroup(l):
 
@@ -221,6 +204,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     if with_time:
+        network_c.now = network.now
         network_c.set_snapshots(network.snapshots)
 
     one_port_components = components.one_port_components.copy()
