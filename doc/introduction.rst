@@ -18,7 +18,7 @@ environment. Some APIs may change - those liable to be updated are
 listed in the :doc:`todo`.
 
 PyPSA was initially developed by the `Renewable Energy Group
-<https://fias.uni-frankfurt.de/physics/schramm/complex-renewable-energy-networks/>`_
+<https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 `German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
