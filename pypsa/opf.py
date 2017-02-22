@@ -978,7 +978,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             logger.warning("Could not read out co2_price, although a co2_limit was set")
 
 
-def network_lopf(network, snapshots=None, solver_name="glpk",
+def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
                  skip_pre=False, extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles", ptdf_tolerance=0.,
                  free_memory={}):
@@ -993,6 +993,9 @@ def network_lopf(network, snapshots=None, solver_name="glpk",
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
+    solver_io : string, default None
+        Solver Input-Output option, e.g. "python" to use "gurobipy" for
+        solver_name="gurobi"
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -1077,7 +1080,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk",
     del network._p_balance
 
     logger.info("Solving model using %s", solver_name)
-    opt = SolverFactory(solver_name)
+    opt = SolverFactory(solver_name, solver_io=solver_io)
 
     patch_optsolver_record_memusage_before_solving(opt, network)
 
