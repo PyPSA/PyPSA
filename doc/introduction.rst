@@ -103,7 +103,7 @@ Some screenshots:
 
 .. image:: img/meshed-ac-dc.png
 
-.. image:: img/pre-4-network-181-LV-2.png
+.. image:: img/euro-pie-pre-7-branch_limit-1-256.png
 
 
 Target user group
