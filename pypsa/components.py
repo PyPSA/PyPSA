@@ -660,7 +660,7 @@ class Network(Basic):
                                "but should be:\n%s",
                                c.list_name,
                                unmatched.index[unmatched],
-                               c.df.dtypes[unmatched],
+                               c.df.dtypes[dtypes_soll.index[unmatched]],
                                dtypes_soll[unmatched])
 
             #now check varying attributes
