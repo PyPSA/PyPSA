@@ -123,7 +123,9 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                 continue
             if col in attrs.index and pd.isnull(attrs.at[col,"default"]) and pd.isnull(df[col]).all():
                 continue
-            if col in attrs.index and (df[col] == attrs.at[col,"default"]).all():
+            if (col in attrs.index
+                and df[col].dtype == attrs.at[col, 'typ']
+                and (df[col] == attrs.at[col,"default"]).all()):
                 continue
 
             col_export.append(col)
