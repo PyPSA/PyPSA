@@ -33,7 +33,7 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
-                           Suffix, Expression)
+                           Suffix, Expression, Binary)
 from pyomo.opt import SolverFactory
 from itertools import chain
 
@@ -68,7 +68,11 @@ def network_opf(network,snapshots=None):
 def define_generator_variables_constraints(network,snapshots):
 
     extendable_gens_i = network.generators.index[network.generators.p_nom_extendable]
-    fixed_gens_i = network.generators.index[~ network.generators.p_nom_extendable]
+    fixed_gens_i = network.generators.index[~network.generators.p_nom_extendable & ~network.generators.use_commitment]
+    fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.use_commitment]
+
+    if (network.generators.p_nom_extendable & network.generators.use_commitment).any():
+        logger.warning("The following generators have both investment optimisation and unit commitment:\n{}\nCurrently PyPSA cannot do both these functions, so PyPSA is choosing investment optimisation for these generators.".format(network.generators.index[network.generators.p_nom_extendable & network.generators.use_commitment]))
 
     p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu')
     p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu')
@@ -76,7 +80,7 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator dispatch variables ##
 
     gen_p_bounds = {(gen,sn) : (None,None)
-                    for gen in extendable_gens_i
+                    for gen in extendable_gens_i | fixed_commitable_gens_i
                     for sn in snapshots}
 
     if len(fixed_gens_i):
@@ -121,6 +125,27 @@ def define_generator_variables_constraints(network,snapshots):
     l_constraint(network.model, "generator_p_upper", gen_p_upper,
                  list(extendable_gens_i), snapshots)
 
+
+
+    ## Define commitable generator statuses ##
+
+    network.model.generator_status = Var(list(fixed_commitable_gens_i), snapshots,
+                                         within=Binary)
+
+    var_lower = p_min_pu.loc[:,fixed_commitable_gens_i].multiply(network.generators.loc[fixed_commitable_gens_i, 'p_nom'])
+    var_upper = p_max_pu.loc[:,fixed_commitable_gens_i].multiply(network.generators.loc[fixed_commitable_gens_i, 'p_nom'])
+
+
+    commitable_gen_p_lower = {(gen,sn) : LConstraint(LExpression([(var_lower[gen][sn],network.model.generator_status[gen,sn]),(-1.,network.model.generator_p[gen,sn])]),"<=") for gen in fixed_commitable_gens_i for sn in snapshots}
+
+    l_constraint(network.model, "commitable_gen_p_lower", commitable_gen_p_lower,
+                 list(fixed_commitable_gens_i), snapshots)
+
+
+    commitable_gen_p_upper = {(gen,sn) : LConstraint(LExpression([(var_upper[gen][sn],network.model.generator_status[gen,sn]),(-1.,network.model.generator_p[gen,sn])]),">=") for gen in fixed_commitable_gens_i for sn in snapshots}
+
+    l_constraint(network.model, "commitable_gen_p_upper", commitable_gen_p_upper,
+                 list(fixed_commitable_gens_i), snapshots)
 
 
 def define_storage_variables_constraints(network,snapshots):
@@ -976,6 +1001,17 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             network.co2_price = - network.model.dual[network.model.co2_constraint]
         except (AttributeError, KeyError) as e:
             logger.warning("Could not read out co2_price, although a co2_limit was set")
+
+    #extract unit commitment statuses
+    if network.generators.use_commitment.any():
+        allocate_series_dataframes(network, {'Generator': ['status']})
+
+        fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.use_commitment]
+
+        if len(fixed_commitable_gens_i) > 0:
+            network.generators_t.status.loc[snapshots,fixed_commitable_gens_i] = \
+                as_series(model.generator_status).unstack(0)
+
 
 
 def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
