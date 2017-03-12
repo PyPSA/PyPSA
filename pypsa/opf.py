@@ -203,6 +203,60 @@ def define_generator_variables_constraints(network,snapshots):
         l_constraint(network.model, "gen_down_time_{}".format(gen_i), gen_down_time,
                      range(blocks))
 
+    ## Deal with start up costs ##
+
+    suc_gens = fixed_commitable_gens_i[network.generators.loc[fixed_commitable_gens_i,"start_up_cost"] > 0]
+
+    network.model.generator_start_up_cost = Var(list(suc_gens),snapshots,
+                                                domain=NonNegativeReals)
+
+    sucs = {}
+
+    for gen in suc_gens:
+        suc = network.generators.loc[gen,"start_up_cost"]
+        initial_status = network.generators.loc[gen,"initial_status"]
+
+        for i,sn in enumerate(snapshots):
+
+            if i == 0:
+                rhs = LExpression([(suc, network.model.generator_status[gen,sn])],-suc*initial_status)
+            else:
+                rhs = LExpression([(suc, network.model.generator_status[gen,sn]),(-suc,network.model.generator_status[gen,snapshots[i-1]])])
+
+            lhs = LExpression([(1,network.model.generator_start_up_cost[gen,sn])])
+
+            sucs[gen,sn] = LConstraint(lhs,">=",rhs)
+
+    l_constraint(network.model, "generator_start_up", sucs, list(suc_gens), snapshots)
+
+
+
+    ## Deal with shut down costs ##
+
+    sdc_gens = fixed_commitable_gens_i[network.generators.loc[fixed_commitable_gens_i,"shut_down_cost"] > 0]
+
+    network.model.generator_shut_down_cost = Var(list(sdc_gens),snapshots,
+                                                domain=NonNegativeReals)
+
+    sdcs = {}
+
+    for gen in sdc_gens:
+        sdc = network.generators.loc[gen,"shut_down_cost"]
+        initial_status = network.generators.loc[gen,"initial_status"]
+
+        for i,sn in enumerate(snapshots):
+
+            if i == 0:
+                rhs = LExpression([(-sdc, network.model.generator_status[gen,sn])],sdc*initial_status)
+            else:
+                rhs = LExpression([(-sdc, network.model.generator_status[gen,sn]),(sdc,network.model.generator_status[gen,snapshots[i-1]])])
+
+            lhs = LExpression([(1,network.model.generator_shut_down_cost[gen,sn])])
+
+            sdcs[gen,sn] = LConstraint(lhs,">=",rhs)
+
+    l_constraint(network.model, "generator_shut_down", sdcs, list(sdc_gens), snapshots)
+
 
 
 def define_storage_variables_constraints(network,snapshots):
@@ -869,6 +923,11 @@ def define_linear_objective(network,snapshots):
 
     extendable_links = network.links[network.links.p_nom_extendable]
 
+    suc_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.commitable & (network.generators.start_up_cost > 0)]
+
+    sdc_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.commitable & (network.generators.shut_down_cost > 0)]
+
+
     objective = LExpression()
 
 
@@ -913,8 +972,15 @@ def define_linear_objective(network,snapshots):
                                 for b in extendable_links.index])
     objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).sum()
 
-    l_objective(model,objective)
 
+    ## Unit commitment costs
+
+    objective.variables.extend([(1, model.generator_start_up_cost[gen,sn]) for gen in suc_gens_i for sn in snapshots])
+
+    objective.variables.extend([(1, model.generator_shut_down_cost[gen,sn]) for gen in sdc_gens_i for sn in snapshots])
+
+
+    l_objective(model,objective)
 
 def extract_optimisation_results(network, snapshots, formulation="angles"):
 
