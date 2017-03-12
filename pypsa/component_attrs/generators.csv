@@ -19,7 +19,7 @@ efficiency,float,per unit,1.,"Ratio between primary energy and electrical energy
 p,series,MW,0.,active power at bus (positive if net generation),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output
-use_commitment,boolean,n/a,False,Use unit commitment.,Input
+commitable,boolean,n/a,False,Use unit commitment.,Input
 start_up_cost,float,currency,0.,"Cost to start up the generator. Only read if use_commitment is True.",Input
 shut_down_cost,float,currency,0.,"Cost to shut down the generator. Only read if use_commitment is True.",Input
 min_up_time,float,hours,0.,"Minimum time for status to be 1.  Only read if use_commitment is True.",Input

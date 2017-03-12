@@ -68,11 +68,11 @@ def network_opf(network,snapshots=None):
 def define_generator_variables_constraints(network,snapshots):
 
     extendable_gens_i = network.generators.index[network.generators.p_nom_extendable]
-    fixed_gens_i = network.generators.index[~network.generators.p_nom_extendable & ~network.generators.use_commitment]
-    fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.use_commitment]
+    fixed_gens_i = network.generators.index[~network.generators.p_nom_extendable & ~network.generators.commitable]
+    fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.commitable]
 
-    if (network.generators.p_nom_extendable & network.generators.use_commitment).any():
-        logger.warning("The following generators have both investment optimisation and unit commitment:\n{}\nCurrently PyPSA cannot do both these functions, so PyPSA is choosing investment optimisation for these generators.".format(network.generators.index[network.generators.p_nom_extendable & network.generators.use_commitment]))
+    if (network.generators.p_nom_extendable & network.generators.commitable).any():
+        logger.warning("The following generators have both investment optimisation and unit commitment:\n{}\nCurrently PyPSA cannot do both these functions, so PyPSA is choosing investment optimisation for these generators.".format(network.generators.index[network.generators.p_nom_extendable & network.generators.commitable]))
 
     p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu')
     p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu')
@@ -1003,10 +1003,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             logger.warning("Could not read out co2_price, although a co2_limit was set")
 
     #extract unit commitment statuses
-    if network.generators.use_commitment.any():
+    if network.generators.commitable.any():
         allocate_series_dataframes(network, {'Generator': ['status']})
 
-        fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.use_commitment]
+        fixed_commitable_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.commitable]
 
         if len(fixed_commitable_gens_i) > 0:
             network.generators_t.status.loc[snapshots,fixed_commitable_gens_i] = \
