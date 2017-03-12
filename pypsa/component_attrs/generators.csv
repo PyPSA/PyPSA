@@ -22,7 +22,7 @@ p_nom_opt,float,MW,0.,Optimised nominal power.,Output
 commitable,boolean,n/a,False,Use unit commitment.,Input
 start_up_cost,float,currency,0.,"Cost to start up the generator. Only read if use_commitment is True.",Input
 shut_down_cost,float,currency,0.,"Cost to shut down the generator. Only read if use_commitment is True.",Input
-min_up_time,float,hours,0.,"Minimum time for status to be 1.  Only read if use_commitment is True.",Input
-min_down_time,float,hours,0.,"Minimum time for status to be 0.  Only read if use_commitment is True.",Input
+min_up_time,int,hours,0,"Minimum time for status to be 1.  Only read if use_commitment is True.",Input
+min_down_time,int,hours,0,"Minimum time for status to be 0.  Only read if use_commitment is True.",Input
 initial_status,int,n/a,1,"Initial status.  Only read if use_commitment is True.",Input
 status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if use_commitment is True.",Output

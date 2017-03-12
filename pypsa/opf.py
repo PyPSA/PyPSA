@@ -148,6 +148,63 @@ def define_generator_variables_constraints(network,snapshots):
                  list(fixed_commitable_gens_i), snapshots)
 
 
+    ## Deal with minimum up time ##
+
+    up_time_gens = fixed_commitable_gens_i[network.generators.loc[fixed_commitable_gens_i,"min_up_time"] > 0]
+
+    for gen_i, gen in enumerate(up_time_gens):
+
+        min_up_time = network.generators.loc[gen,"min_up_time"]
+        initial_status = network.generators.loc[gen,"initial_status"]
+
+        blocks = max(1,len(snapshots)-min_up_time+1)
+
+        gen_up_time = {}
+
+        for i in range(blocks):
+            lhs = LExpression([(1,network.model.generator_status[gen,snapshots[j]]) for j in range(i,i+min_up_time)])
+
+            if i == 0:
+                rhs = LExpression([(min_up_time,network.model.generator_status[gen,snapshots[i]])],-min_up_time*initial_status)
+            else:
+                rhs = LExpression([(min_up_time,network.model.generator_status[gen,snapshots[i]]),(-min_up_time,network.model.generator_status[gen,snapshots[i-1]])])
+
+            gen_up_time[i] = LConstraint(lhs,">=",rhs)
+
+        l_constraint(network.model, "gen_up_time_{}".format(gen_i), gen_up_time,
+                     range(blocks))
+
+
+
+    ## Deal with minimum down time ##
+
+    down_time_gens = fixed_commitable_gens_i[network.generators.loc[fixed_commitable_gens_i,"min_down_time"] > 0]
+
+    for gen_i, gen in enumerate(down_time_gens):
+
+        min_down_time = network.generators.loc[gen,"min_down_time"]
+        initial_status = network.generators.loc[gen,"initial_status"]
+
+        blocks = max(1,len(snapshots)-min_down_time+1)
+
+        gen_down_time = {}
+
+        for i in range(blocks):
+            #sum of 1-status
+            lhs = LExpression([(-1,network.model.generator_status[gen,snapshots[j]]) for j in range(i,i+min_down_time)],min_down_time)
+
+            if i == 0:
+                rhs = LExpression([(-min_down_time,network.model.generator_status[gen,snapshots[i]])],min_down_time*initial_status)
+            else:
+                rhs = LExpression([(-min_down_time,network.model.generator_status[gen,snapshots[i]]),(min_down_time,network.model.generator_status[gen,snapshots[i-1]])])
+
+            gen_down_time[i] = LConstraint(lhs,">=",rhs)
+
+        l_constraint(network.model, "gen_down_time_{}".format(gen_i), gen_down_time,
+                     range(blocks))
+
+
+
 def define_storage_variables_constraints(network,snapshots):
 
     sus = network.storage_units
