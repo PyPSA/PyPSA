@@ -316,7 +316,7 @@ To find the voltage angles, the following linear set of equations are solved
    P_i = \sum_j (KBK^T)_{ij} \theta_j - \sum_l K_{il} b_l \theta_l^{\textrm{shift}}
 
 where :math:`K` is the incidence matrix of the network, :math:`B` is
-the diagonal matrix of inverse line series reactances :math:`x_l`
+the diagonal matrix of inverse branch series reactances :math:`x_l`
 multiplied by the tap ratio :math:`\tau_l`, i.e. :math:`B_{ll} = b_l =
 \frac{1}{x_l\tau_l}` and :math:`\theta_l^{\textrm{shift}}` is the
 phase shift for a transformer. The matrix :math:`KBK^T` is singular
