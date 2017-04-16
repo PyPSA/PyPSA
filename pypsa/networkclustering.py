@@ -173,10 +173,8 @@ def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_str
     # compute new buses
     buses = aggregatebuses(network, busmap, bus_strategies)
 
-    lines = network.lines
-
-    lines['bus0_s'] = lines.bus0.map(busmap)
-    lines['bus1_s'] = lines.bus1.map(busmap)
+    lines = network.lines.assign(bus0_s=lambda df: df.bus0.map(busmap),
+                                 bus1_s=lambda df: df.bus1.map(busmap))
 
     # lines between different clusters
     interlines = lines.loc[lines['bus0_s'] != lines['bus1_s']]
