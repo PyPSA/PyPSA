@@ -26,7 +26,7 @@ import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
 from itertools import repeat
-from six.moves import map, zip, range
+from six.moves import map, zip, range, reduce
 from six import itervalues, iteritems
 import six
 
