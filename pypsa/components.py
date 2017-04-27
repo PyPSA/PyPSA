@@ -476,7 +476,7 @@ class Network(Basic):
 
         """
 
-        network = Network(ignore_standard_types=ignore_standard_types)
+        network = self.__class__(ignore_standard_types=ignore_standard_types)
 
         for component in self.iterate_components(["Bus", "Carrier"] + sorted(all_components - {"Bus","Carrier"})):
             df = component.df
@@ -500,6 +500,76 @@ class Network(Basic):
         network.snapshot_weightings = self.snapshot_weightings.copy()
 
         return network
+
+    def __getitem__(self, key):
+        """
+        Returns a shallow slice of the Network object containing only
+        the selected buses and all the connected components.
+
+        Parameters
+        ----------
+        key : indexer or tuple of indexer
+            If only one indexer is provided it is used in the .ix
+            indexer of the buses dataframe (refer also to the help for
+            pd.DataFrame.ix). If a tuple of two indexers are provided,
+            the first one is used to slice snapshots and the second
+            one buses.
+
+        Returns
+        --------
+        network : pypsa.Network
+
+        Examples
+        --------
+        >>> sub_network_0 = network[network.buses.sub_network = "0"]
+
+        >>> sub_network_0_with_only_10_snapshots = network[:10, network.buses.sub_network = "0"]
+
+        """
+
+        if isinstance(key, tuple):
+            time_i, key = key
+        else:
+            time_i = slice(None)
+
+        n = self.__class__(ignore_standard_types=True)
+        n.import_components_from_dataframe(
+            pd.DataFrame(self.buses.ix[key]).assign(sub_network=""),
+            "Bus"
+        )
+        buses_i = n.buses.index
+
+        rest_components = all_components - one_port_components - branch_components
+        for c in rest_components - {"Bus", "SubNetwork"}:
+            n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+
+        for c in one_port_components:
+            df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
+            n.import_components_from_dataframe(pd.DataFrame(df), c)
+
+        for c in branch_components:
+            df = self.df(c).loc[lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)]
+            n.import_components_from_dataframe(pd.DataFrame(df), c)
+
+        n.set_snapshots(self.snapshots[time_i])
+        for c in all_components:
+            i = n.df(c).index
+            try:
+                npnl = n.pnl(c)
+                pnl = self.pnl(c)
+
+                for k in pnl:
+                    npnl[k] = pnl[k].ix[time_i,i.intersection(pnl[k].columns)]
+            except AttributeError:
+                pass
+
+        # catch all remaining attributes of network
+        for attr in ["name", "now", "co2_limit", "srid"]:
+            setattr(n,attr,getattr(self, attr))
+
+        n.snapshot_weightings = self.snapshot_weightings.ix[time_i]
+
+        return n
 
 
     #beware, this turns bools like s_nom_extendable into objects because of
