@@ -28,13 +28,15 @@ Overview
 Execute:
 
 
-``network.lopf(snapshots, solver_name="glpk", extra_functionality=None, solver_options={}, keep_files=False)``
+``network.lopf(snapshots, solver_name="glpk", solver_io=None, extra_functionality=None, solver_options={}, keep_files=False, formulation="angles")``
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
-string, e.g. "gurobi" or "glpk", ``extra_functionality`` is a function
-of network and snapshots that is called before the solver (see below),
-``solver_options`` is a dictionary of flags to pass to the solver and
-``keep_files`` means that the ``.lp`` file is saved.
+string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
+``extra_functionality`` is a function of network and snapshots that is
+called before the solver (see below), ``solver_options`` is a
+dictionary of flags to pass to the solver, ``keep_files`` means that
+the ``.lp`` file is saved and ``formulation`` is a string in
+``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations` for more details).
 
 The linear OPF module can optimises the dispatch of generation and storage
 and the capacities of generation, storage and transmission.
@@ -127,6 +129,10 @@ Variables and notation summary
 
 :math:`u_{n,s,t}` binary status variable for generator with unit commitment
 
+:math:`suc_{n,s,t}` start-up cost if generator with unit commitment is started at time :math:`t`
+
+:math:`sdc_{n,s,t}` shut-down cost if generator with unit commitment is shut down at time :math:`t`
+
 :math:`c_{n,s}` capital cost of extending generator nominal power by one MW
 
 :math:`o_{n,s}` marginal cost of dispatch generator for one MWh
@@ -154,6 +160,7 @@ The objective function is composed of capital costs :math:`c` for each component
 .. math::
    \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
    + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
+   + \sum_{t} \left[suc_{n,s,t} + sdc_{n,s,t} \right]
 
 
 Additional variables which do not appear in the objective function are
@@ -194,12 +201,14 @@ availability is a constant.
 
 
 If the generator's nominal power :math:`\bar{g}_{n,s}` is also the
-subject of optimisation (``generator.p_nom_extendable == True``) then limits on the nominal power may also be introduced, e.g.
+subject of optimisation (``generator.p_nom_extendable == True``) then
+limits ``generator.p_nom_min`` and ``generator.p_nom_max`` on the
+installable nominal power may also be introduced, e.g.
 
 
 
 .. math::
-   \bar{g}_{n,s} \leq  \hat{g}_{n,s}
+   \tilde{g}_{n,s} \leq    \bar{g}_{n,s} \leq  \hat{g}_{n,s}
 
 
 
@@ -212,6 +221,8 @@ Generator unit commitment constraints
 
 These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
+The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
+Joshua Adam Taylor (CUP, 2015).
 
 
 Unit commitment can be turned on for any generator by setting ``committable`` to be ``True``. This introduces a
@@ -245,6 +256,34 @@ so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the gen
 .. math::
    sdc_{n,s,t} \geq sdc_{n,s} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
 
+
+
+
+.. _ramping:
+
+Generator ramping constraints
+-----------------------------
+
+These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
+
+The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
+Joshua Adam Taylor (CUP, 2015).
+
+Ramp rate limits can be defined for increasing power output
+:math:`ru_{n,s}` and decreasing power output :math:`rd_{n,s}`. By
+default these are null and ignored. They should be given per unit of
+the generator nominal power. The generator dispatch then obeys
+
+.. math::
+   -rd_{n,s} * \bar{g}_{n,s} \leq (g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s} * \bar{g}_{n,s}
+
+for :math:`t \in \{1,\dots |T|-1\}`.
+
+For generators with unit commitment you can also specify ramp limits
+at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
+
+.. math::
+  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s} \leq (g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s}*u_{n,s,t-1} +   rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right]\bar{g}_{n,s}
 
 
 
@@ -386,6 +425,36 @@ Iterate the LOPF again with the updated impedances (see e.g. `<http://www.scienc
 
 Use a different program which can do MINLP to represent the changing
 line impedance.
+
+
+.. _formulations:
+
+Passive branch flow formulations
+--------------------------------
+
+PyPSA implements four formulations of the linear power flow equations
+that are mathematically equivalent, but may have different
+solving times. These different formulations are described and
+benchmarked in the arXiv preprint paper `Linear Optimal Power Flow Using
+Cycle Flows <https://arxiv.org/abs/1704.01881>`_.
+
+You can choose the formulation by passing ``network.lopf`` the
+argument ``formulation``, which must be in
+``["angles","cycles","kirchhoff","ptdf"]``. ``angles`` is the standard
+formulations based on voltage angles described above, used for the
+linear power flow and found in textbooks. ``ptdf`` uses the Power
+Transfer Distribution Factor (PTDF) formulation, found for example in
+`<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_. ``kirchhoff``
+and ``cycles`` are two new formulations based on a graph-theoretic
+decomposition of the network flows into a spanning tree and closed
+cycles.
+
+Based on the benchmarking in `Linear Optimal Power Flow Using Cycle
+Flows <https://arxiv.org/abs/1704.01881>`_ for standard networks,
+``kirchhoff`` almost always solves fastest, averaging 3 times faster
+than the ``angles`` formulation and up to 20 times faster in specific
+cases. The speedup is higher for larger networks with dispatchable
+generators at most nodes.
 
 
 

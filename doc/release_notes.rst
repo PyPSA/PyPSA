@@ -6,10 +6,21 @@ Release Notes
 PyPSA 0.9.0 (March 2017)
 ========================
 
+This release mostly contains new features with a few minor API
+changes.
+
 * Unit commitment see :ref:`unit-commitment`
+* ramping limits :ref:`ramping`
+* Different mathematically-equivalent formulations for the Linear
+  Optimal Power Flow (LOPF) are now documented in :ref:`formulations`
+  and the arXiv preprint paper `Linear Optimal Power Flow Using Cycle
+  Flows <https://arxiv.org/abs/1704.01881>`_. The new formulations can
+  solve up to 20 times faster than the standard angle-based
+  formulation.
 * solver_io
 * improvements to network clustering and graphing
-
+* parse dates
+* network.now
 
 
 PyPSA 0.8.0 (25th January 2017)
