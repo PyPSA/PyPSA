@@ -42,8 +42,9 @@ and the capacities of generation, storage and transmission.
 It is assumed that the load is inelastic and must be met in every
 snapshot (this will be relaxed in future versions).
 
-The optimisation currently uses continuous variables. MILP unit
-commitment may be added in the future.
+The optimisation currently uses continuous variables for most
+functionality; unit commitment with binary variables is also
+implemented for generators.
 
 The objective function is the total system cost for the snapshots
 optimised.
@@ -124,6 +125,8 @@ Variables and notation summary
 
 :math:`\bar{g}_{n,s,t}` availability of  generator :math:`s` at bus :math:`n` at time :math:`t` per unit of nominal power
 
+:math:`u_{n,s,t}` binary status variable for generator with unit commitment
+
 :math:`c_{n,s}` capital cost of extending generator nominal power by one MW
 
 :math:`o_{n,s}` marginal cost of dispatch generator for one MWh
@@ -197,6 +200,51 @@ subject of optimisation (``generator.p_nom_extendable == True``) then limits on 
 
 .. math::
    \bar{g}_{n,s} \leq  \hat{g}_{n,s}
+
+
+
+
+
+.. _unit-commitment:
+
+Generator unit commitment constraints
+-------------------------------------
+
+These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
+
+
+
+Unit commitment can be turned on for any generator by setting ``committable`` to be ``True``. This introduces a
+times series of new binary status variables :math:`u_{n,s,t} \in \{0,1\}`,
+which indicates whether the generator is running (1) or not (0) in
+period :math:`t`. The restrictions on generator output now become:
+
+.. math::
+   u_{n,s,t}*\tilde{g}_{n,s,t}*\bar{g}_{n,s} \leq g_{n,s,t} \leq   u_{n,s,t}*\bar{g}_{n,s,t}*\bar{g}_{n,s} \hspace{.5cm} \forall\, n,s,t
+
+so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
+
+If :math:`T_{\textrm{min\_up}}` is the minimum up time then we have
+
+.. math::
+   \sum_{t'=t}^{t+T_\textrm{min\_up}} u_{n,s,t'}\geq T_\textrm{min\_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
+
+(i.e. if the generator has just started up (:math:`u_{n,s,t} - u_{n,s,t-1} = 1`) then it has to run for at least :math:`T_{\textrm{min\_up}}` periods). Similarly for a minimum down time of :math:`T_{\textrm{min\_down}}`
+
+.. math::
+   \sum_{t'=t}^{t+T_\textrm{min\_down}} (1-u_{n,s,t'})\geq T_\textrm{min\_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
+
+
+For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
+
+.. math::
+   suc_{n,s,t} \geq suc_{n,s} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
+
+so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the generator has just started, in which case the inequality is saturated :math:`suc_{n,s,t} = suc_{n,s}`. Similarly for the shut down costs :math:`sdc_{n,s,t} \geq 0` we have
+
+.. math::
+   sdc_{n,s,t} \geq sdc_{n,s} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
+
 
 
 

@@ -168,6 +168,7 @@ may be below this value, e.g.
 .. image:: img/scigrid-curtailment.png
 
 
+For the implementation of unit commitment, see :ref:`unit-commitment`.
 
 For generators, if :math:`p>0` the generator is supplying active power
 to the bus and if :math:`q>0` it is supplying reactive power

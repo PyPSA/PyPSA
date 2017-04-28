@@ -7,9 +7,10 @@ PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah"
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern power systems that include features
-such as variable wind and solar generation, storage units, sector
-coupling and mixed alternating and direct current networks.  PyPSA is
-designed to scale well with large networks and long time series.
+such as conventional generators with unit commitment, variable wind
+and solar generation, storage units, sector coupling and mixed
+alternating and direct current networks.  PyPSA is designed to scale
+well with large networks and long time series.
 
 
 As of 2017 PyPSA is under heavy development and therefore it
@@ -45,7 +46,7 @@ It has models for:
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
 * standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
-* conventional dispatchable generators
+* conventional dispatchable generators with unit commitment
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
@@ -70,7 +71,6 @@ Functionality that will definitely be added soon (see also :doc:`todo`):
 
 Functionality that may be added in the future:
 
-* Unit Commitment using MILP
 * Short-circuit current calculations
 * Dynamic RMS simulations
 * Small signal stability analysis

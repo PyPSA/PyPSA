@@ -2,6 +2,16 @@
 Release Notes
 #######################
 
+
+PyPSA 0.9.0 (March 2017)
+========================
+
+* Unit commitment see :ref:`unit-commitment`
+* solver_io
+* improvements to network clustering and graphing
+
+
+
 PyPSA 0.8.0 (25th January 2017)
 ===============================
 
