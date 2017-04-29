@@ -319,7 +319,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
     file_name = os.path.join(csv_folder_name,"snapshots.csv")
 
     if os.path.isfile(file_name):
-        df = pd.read_csv(file_name,index_col=0,encoding=encoding)
+        df = pd.read_csv(file_name, index_col=0, encoding=encoding, parse_dates=True)
         network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
@@ -348,7 +348,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
         for file_name in file_attrs:
-            df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
+            df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
             import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
 
         logger.debug(getattr(network,list_name))
