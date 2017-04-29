@@ -14,13 +14,6 @@ Improve regression testing
 Use classes to do multiple tests with same set-up
 
 
-Ramp rate limits in OPF for generators
---------------------------------------
-
-i.e. generator.ramp_rate_limit = x MW/h or per unit of p_nom/h
-
-
-
 Regions for groups of buses
 ---------------------------
 

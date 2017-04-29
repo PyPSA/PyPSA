@@ -6,7 +6,9 @@
 #
 #for tips on installation.
 #
-#It gradually builds up more and more complicated energy-only electricity markets in PyPSA, from a single bidding zone, up to multiple bidding zones connected with transmission (NTCs) along with variable renewables and storage.
+#It gradually builds up more and more complicated energy-only electricity markets in PyPSA, starting from a single bidding zone, going up to multiple bidding zones connected with transmission (NTCs) along with variable renewables and storage.
+#
+#Available as a Jupyter notebook at http://www.pypsa.org/examples/simple-electricity-market-examples.ipynb.
 
 ### Preliminaries
 #
