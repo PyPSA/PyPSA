@@ -20,7 +20,7 @@ changes.
 * solver_io
 * improvements to network clustering and graphing
 * parse dates
-* network.now
+* network.now; defaults to all snapshots
 
 
 PyPSA 0.8.0 (25th January 2017)

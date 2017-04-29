@@ -425,8 +425,6 @@ load.index = load.index.values
 #Take the first year (in UTC time - we don't set time zone because of a Pandas bug)
 network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-12-31 23:00",freq="H"))
 
-network.now = network.snapshots[0]
-
 print(network.snapshots)
 
 #temporary load scaling factor for Germany load in relation to ENTSO-E hourly load

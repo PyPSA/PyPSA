@@ -143,10 +143,6 @@ class Network(Basic):
     """
 
 
-
-    #the current scenario/time
-    now = "now"
-
     #limit of total co2-tonnes-equivalent emissions for period
     co2_limit = None
 
@@ -195,7 +191,7 @@ class Network(Basic):
         Basic.__init__(self,name)
 
         #a list/index of scenarios/times
-        self.snapshots = pd.Index([self.now])
+        self.snapshots = pd.Index(["now"])
 
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
@@ -350,9 +346,6 @@ class Network(Basic):
 
         #NB: No need to rebind pnl to self, since haven't changed it
 
-        if self.now not in self.snapshots:
-            logger.warning("Attribute network.now is not in newly-defined snapshots. (network.now is only relevant if you call e.g. network.pf() without specifying snapshots.)")
-
 
 
     def add(self, class_name, name, **kwargs):
@@ -494,7 +487,7 @@ class Network(Basic):
                     pnl[k] = component.pnl[k].copy()
 
         #catch all remaining attributes of network
-        for attr in ["name", "now", "co2_limit", "srid"]:
+        for attr in ["name", "co2_limit", "srid"]:
             setattr(network,attr,getattr(self,attr))
 
         network.snapshot_weightings = self.snapshot_weightings.copy()
@@ -564,7 +557,7 @@ class Network(Basic):
                 pass
 
         # catch all remaining attributes of network
-        for attr in ["name", "now", "co2_limit", "srid"]:
+        for attr in ["name", "co2_limit", "srid"]:
             setattr(n,attr,getattr(self, attr))
 
         n.snapshot_weightings = self.snapshot_weightings.ix[time_i]

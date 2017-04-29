@@ -49,7 +49,7 @@ except ValueError:
 
 from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
-                 find_cycles)
+                 find_cycles, _as_snapshots)
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_before_solving,
                   patch_optsolver_record_memusage_before_solving,
@@ -1193,7 +1193,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     ----------
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.now
+        network.snapshots, defaults to network.snapshots
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
@@ -1238,10 +1238,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         logger.info("Performed preliminary steps")
 
 
-
-    if snapshots is None:
-        snapshots = [network.now]
-
+    snapshots = _as_snapshots(network, snapshots)
 
     logger.info("Building pyomo model using `%s` formulation", formulation)
     network.model = ConcreteModel("Linear Optimal Power Flow")

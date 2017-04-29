@@ -13,13 +13,13 @@ Full non-linear power flow
 The non-linear power flow ``network.pf()`` works for AC networks and
 by extension for DC networks too (with a work-around described below).
 
-The non-linear power flow ``network.pf()`` can be called for a particular
-``snapshot`` as ``network.pf(snapshot)``, otherwise ``network.pf()``
-will default to ``network.now``. It can also be called
-``network.pf(snapshots)`` on an iterable of ``snapshots``
-to calculate the non-linear power flow on a selection of snapshots at once
-(which is more performant than calling ``network.pf`` on each
-snapshot separately).
+The non-linear power flow ``network.pf()`` can be called for a
+particular ``snapshot`` as ``network.pf(snapshot)`` or on an iterable
+of ``snapshots`` as ``network.pf(snapshots)`` to calculate the
+non-linear power flow on a selection of snapshots at once (which is
+more performant than calling ``network.pf`` on each snapshot
+separately). If no argument is passed, it will be called on all
+``network.snapshots``.
 
 
 
@@ -290,13 +290,14 @@ link.{p0, p1}
 Linear power flow
 =================
 
-The linear power flow ``network.lpf()`` can be called for a particular
-``snapshot`` as ``network.lpf(snapshot)``, otherwise ``network.lpf()``
-will default to ``network.now``. It can also be called
-``network.lpf(snapshots)`` on an iterable of ``snapshots``
-to calculate the linear power flow on a selection of snapshots at once
-(which is more performant than calling ``network.lpf`` on each
-snapshot separately).
+The linear power flow ``network.lpf()`` can be called for a
+particular ``snapshot`` as ``network.lpf(snapshot)`` or on an iterable
+of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
+non-linear power flow on a selection of snapshots at once (which is
+more performant than calling ``network.lpf`` on each snapshot
+separately). If no argument is passed, it will be called on all
+``network.snapshots``.
+
 
 
 For AC networks, it is assumed for the linear power flow that reactive
