@@ -3,24 +3,47 @@ Release Notes
 #######################
 
 
-PyPSA 0.9.0 (March 2017)
-========================
+PyPSA 0.9.0 (29th April 2017)
+=============================
 
 This release mostly contains new features with a few minor API
 changes.
 
-* Unit commitment see :ref:`unit-commitment`
-* ramping limits :ref:`ramping`
+* Unit commitment as a MILP problem is now available for generators in
+  the Linear Optimal Power Flow (LOPF). If you set ``committable ==
+  True`` for the generator, an addition binary online/offline status
+  is created. Minimum part loads, minimum up times, minimum down
+  times, start up costs and shut down costs are implemented. See the
+  documentation at :ref:`unit-commitment` and the `unit commitment
+  example <https://pypsa.org/examples/unit-commitment.html>`_. Note
+  that a generator cannot currently have both unit commitment and
+  capacity expansion optimisation.
+* Generator ramping limits have also been implemented for all
+  generators. See the documentation at :ref:`ramping` and the `unit
+  commitment example
+  <https://pypsa.org/examples/unit-commitment.html>`_.
 * Different mathematically-equivalent formulations for the Linear
   Optimal Power Flow (LOPF) are now documented in :ref:`formulations`
   and the arXiv preprint paper `Linear Optimal Power Flow Using Cycle
   Flows <https://arxiv.org/abs/1704.01881>`_. The new formulations can
   solve up to 20 times faster than the standard angle-based
   formulation.
-* solver_io
-* improvements to network clustering and graphing
-* parse dates
-* network.now; defaults to all snapshots
+* You can pass the ``network.lopf`` function the ``solver_io``
+  argument for pyomo.
+* There are some improvements to network clustering and graphing.
+* API change: The attribute ``network.now`` has been removed since it
+  was unnecessary. Now, if you do not pass a ``snapshots`` argument to
+  network.pf() or network.lpf(), these functions will default to
+  ``network.snapshots`` rather than ``network.now``.
+* API change: When reading in network data from CSV files, PyPSA will
+  parse snapshot dates as proper datetimes rather than text strings.
+
+
+João Gorenstein Dedecca has also implemented a MILP version of the
+transmission expansion, see
+`<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes
+account of the impedance with a disjunctive relaxation. This will be
+pulled into the main PyPSA code base soon.
 
 
 PyPSA 0.8.0 (25th January 2017)

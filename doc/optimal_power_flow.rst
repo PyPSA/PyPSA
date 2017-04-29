@@ -423,8 +423,11 @@ There are two choices here:
 
 Iterate the LOPF again with the updated impedances (see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_).
 
-Use a different program which can do MINLP to represent the changing
-line impedance.
+João Gorenstein Dedecca has also implemented a MILP version of the
+transmission expansion, see
+`<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes
+account of the impedance with a disjunctive relaxation. This will be
+pulled into the main PyPSA code base soon.
 
 
 .. _formulations:
