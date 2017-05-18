@@ -79,6 +79,9 @@ network.loads_t.p
 #print the generator active power (P) dispatch
 network.generators_t.p
 
+#print the clearing price (corresponding to gas)
+network.buses_t.marginal_price
+
 ### Two bidding zones connected by transmission, one period
 #
 #In this example we have bidirectional transmission capacity between two bidding zones. The power transfer is treated as controllable (like an A/NTC (Available/Net Transfer Capacity) or HVDC line). Note that in the physical grid, power flows passively according to the network impedances.
@@ -128,6 +131,9 @@ network.loads_t.p
 network.generators_t.p
 
 network.links_t.p0
+
+#print the clearing price (corresponding to water in Mozambique and gas in SA)
+network.buses_t.marginal_price
 
 ### Three bidding zones connected by transmission, one period
 #
@@ -179,6 +185,9 @@ network.generators_t.p
 
 network.links_t.p0
 
+#print the clearing price (corresponding to hydro in S and M, and gas in SA)
+network.buses_t.marginal_price
+
 ### Single bidding zone with price-sensitive industrial load, one period
 #
 #In this example we consider a single market bidding zone, South Africa.
@@ -221,6 +230,8 @@ network.loads_t.p
 #Gas. Oil is too expensive with a marginal cost of 80 EUR/MWh
 network.generators_t.p
 
+network.buses_t.marginal_price
+
 ### Single bidding zone with fixed load, several periods
 #
 #In this example we consider a single market bidding zone, South Africa.
@@ -258,6 +269,8 @@ network.lopf(network.snapshots)
 network.loads_t.p
 
 network.generators_t.p
+
+network.buses_t.marginal_price
 
 ### Single bidding zone with fixed load and storage, several periods
 #
@@ -307,4 +320,6 @@ network.generators_t.p
 network.storage_units_t.p
 
 network.storage_units_t.state_of_charge
+
+network.buses_t.marginal_price
 
