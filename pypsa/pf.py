@@ -99,6 +99,9 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
         network.links_t.p1.loc[snapshots] = -p_set.loc[snapshots].multiply(network.links.efficiency)
 
+    itdf = pd.DataFrame()
+    difdf = pd.DataFrame()
+    cnvdf = pd.DataFrame()
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
             find_bus_controls(sub_network)
@@ -106,7 +109,13 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
             branches_i = sub_network.branches_i()
             if len(branches_i) > 0:
                 sub_network_prepare_fun(sub_network, skip_pre=True)
-        sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+        if not linear:
+            itdf[sub_network.name], difdf[sub_network.name], cnvdf[sub_network.name] = sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+        else:
+            sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+
+    if not linear:
+        return { 'n_iter': itdf, 'error': difdf, 'converged': cnvdf }
 
 def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
@@ -126,10 +135,12 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
 
     Returns
     -------
-    None
+    Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
+    values indicating number of iterations, convergence status, and
+    iteration error for each snapshot (rows) and sub_network (columns)
     """
 
-    _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
+    return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
 
 
 def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
@@ -139,6 +150,7 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
 
     """
 
+    converged = False
     n_iter = 0
     F = f(guess)
     diff = norm(F,np.Inf)
@@ -158,8 +170,10 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
 
     if diff > x_tol:
         logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
+    elif not np.isnan(diff):
+        converged = True
 
-    return guess, n_iter, diff
+    return guess, n_iter, diff, converged
 
 
 
@@ -181,7 +195,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     Returns
     -------
-    None
+    Tuple of three pandas.Series indicating number of iterations,
+    remaining error, and convergence status for each snapshot
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
@@ -288,6 +303,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs)))
+    iters = pd.Series()
+    diffs = pd.Series()
+    convs = pd.Series()
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
         q = network.buses_t.q.loc[now,buses_o]
@@ -298,8 +316,12 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
         #Now try and solve
         start = time.time()
-        roots[i], n_iter, diff = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol)
+        roots[i], n_iter, diff, converged = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol)
         logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
+        iters[now] = n_iter
+        diffs[now] = diff
+        convs[now] = converged
+
 
     #now set everything
     network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = roots[:,:len(sub_network.pvpqs)]
@@ -357,6 +379,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     #set the Q of the PV generators
     network.generators_t.q.loc[snapshots,network.buses.loc[sub_network.pvs, "generator"]] += np.asarray(network.buses_t.q.loc[snapshots,sub_network.pvs] - ss[:,buses_indexer(sub_network.pvs)].imag)
+
+    return iters, diffs, convs
+
 
 def network_lpf(network, snapshots=None, skip_pre=False):
     """
