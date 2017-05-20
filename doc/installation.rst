@@ -24,10 +24,15 @@ accidentally trash something.
 Getting a solver for linear optimisation
 ========================================
 
-PyPSA is known to work with the free software GLPK and the non-free
-software Gurobi (and whatever else Pyomo works with).
+PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
+external solver. PyPSA is known to work with the free software `Cbc <https://projects.coin-or.org/Cbc>`_, the free software `GLPK <https://www.gnu.org/software/glpk/>`_ and the non-free software
+`Gurobi <http://www.gurobi.com/>`_ (and whatever else works with `Pyomo <https://en.wikipedia.org/wiki/Pyomo>`_).
 
-For Debian-based systems you can get GLPK with::
+For Cbc, see their `installation instructions <https://projects.coin-or.org/Cbc#DownloadandInstall>`_. For Debian-based systems you can do simply::
+
+  sudo apt-get install coinor-cbc
+
+For GLPK in Debian-based systems execute::
 
     sudo apt-get install glpk-utils
 
