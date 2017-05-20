@@ -159,7 +159,7 @@ for line_name in ["316","527","602"]:
 
 group_size = 4
 
-solver_name = "glpk"
+solver_name = "cbc"
 
 print("Performing linear OPF for one day, {} snapshots at a time:".format(group_size))
 
@@ -315,7 +315,7 @@ for bus in network.buses.index:
 
 #For the PF, set the P to the optimised P
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
-network.generators_t.p_set.loc[now] = network.generators_t.p.loc[now] 
+network.generators_t.p_set = network.generators_t.p
 
 
 #set all buses to PV, since we don't know what Q set points are
@@ -332,7 +332,10 @@ network.generators.loc[f.index,"control"] = "PQ"
 
 print("Performing non-linear PF on results of LOPF:")
 
-network.pf(now)
+info = network.pf()
+
+#any failed to converge?
+(~info.converged).any().any()
 
 print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
 print((network.lines_t.p0.loc[now]/network.lines.s_nom*contingency_factor).describe())

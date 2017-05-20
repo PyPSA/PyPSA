@@ -42,7 +42,7 @@ import collections, six
 from itertools import chain
 import time
 
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict
 
 def _as_snapshots(network, snapshots):
     if snapshots is None:
@@ -99,9 +99,9 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
         network.links_t.p1.loc[snapshots] = -p_set.loc[snapshots].multiply(network.links.efficiency)
 
-    itdf = pd.DataFrame()
-    difdf = pd.DataFrame()
-    cnvdf = pd.DataFrame()
+    itdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=int)
+    difdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index)
+    cnvdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=bool)
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
             find_bus_controls(sub_network)
@@ -115,7 +115,7 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
             sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
 
     if not linear:
-        return { 'n_iter': itdf, 'error': difdf, 'converged': cnvdf }
+        return Dict({ 'n_iter': itdf, 'error': difdf, 'converged': cnvdf })
 
 def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
@@ -303,9 +303,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs)))
-    iters = pd.Series()
-    diffs = pd.Series()
-    convs = pd.Series()
+    iters = pd.Series(0, index=snapshots)
+    diffs = pd.Series(index=snapshots)
+    convs = pd.Series(False, index=snapshots)
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
         q = network.buses_t.q.loc[now,buses_o]
