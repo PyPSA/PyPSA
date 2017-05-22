@@ -22,7 +22,7 @@ test/results/*
 
 doc/_build/
 
-doc/img/
+# doc/img/
 
 build/
 
