@@ -81,10 +81,15 @@ Functionality that may be added in the future:
 * Port to `Julia <http://julialang.org/>`_
 
 
-Screenshots and example Jupyter/iPython notebooks
-=================================================
+
+Example scripts as Jupyter/iPython notebooks
+============================================
 
 There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Jupyter/iPython notebooks. They are also described in the :doc:`examples` and are available as Python scripts in ``examples/``.
+
+
+Screenshots
+===========
 
 Some screenshots:
 
@@ -171,6 +176,17 @@ Mailing list
 PyPSA has a Google Group `forum / mailing list
 <https://groups.google.com/group/pypsa>`_.
 
+
+
+Citing PyPSA
+============
+
+If you use PyPSA for your research, we would appreciate it if you could cite the project.
+There is currently no official publication on PyPSA, but we're working
+on it. In the meantime you can cite the Zenodo DOI for the latest release:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.582307.svg
+   :target: https://doi.org/10.5281/zenodo.582307
 
 
 
