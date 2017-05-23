@@ -96,7 +96,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
     defaults_for_branches = {
         'Link': dict(color="cyan", width=2),
-        'Line': dict(color="b", width=2)
+        'Line': dict(color="b", width=2),
         'Transformer': dict(color='green', width=2)
     }
 
