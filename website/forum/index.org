@@ -1,0 +1,6 @@
+#+TITLE: Python for Power System Analysis: Forum
+#+OPTIONS: toc:nil        no default TOC
+
+
+
+PyPSA has a Google Group [[https://groups.google.com/group/pypsa][forum / mailing list]].
