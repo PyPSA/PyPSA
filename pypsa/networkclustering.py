@@ -223,10 +223,13 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             io.import_series_from_dataframe(network_c, df, one_port, attr)
 
 
+    ##
+    # Collect remaining one ports
+
     for c in network.iterate_components(one_port_components):
         io.import_components_from_dataframe(
             network_c,
-            c.df.assign(bus=c.df.bus.map(busmap)),
+            c.df.assign(bus=c.df.bus.map(busmap)).dropna(subset=['bus']),
             c.name
         )
 
@@ -236,23 +239,18 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                 if not df.empty:
                     io.import_series_from_dataframe(network_c, df, c.name, attr)
 
-    io.import_components_from_dataframe(
-        network_c,
-        network.links.assign(bus0=network.links.bus0.map(busmap),
-                             bus1=network.links.bus1.map(busmap)),
-        "Link"
-    )
-
-    io.import_components_from_dataframe(
-        network_c,
-        network.carriers,
-        "Carrier"
-    )
+    new_links = (network.links.assign(bus0=network.links.bus0.map(busmap),
+                                      bus1=network.links.bus1.map(busmap))
+                        .dropna(subset=['bus0', 'bus1'])
+                        .loc[lambda df: df.bus0 != df.bus1])
+    io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
         for attr, df in iteritems(network.links_t):
             if not df.empty:
                 io.import_series_from_dataframe(network_c, df, "Link", attr)
+
+    io.import_components_from_dataframe(network_c, network.carriers, "Carrier")
 
     network_c.determine_network_topology()
 
