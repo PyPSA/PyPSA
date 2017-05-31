@@ -815,7 +815,7 @@ def define_passive_branch_constraints(network,snapshots):
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
     flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
-                                    "<=", fixed_branches.s_nom[b]]
+                                    "<=", fixed_branches.at[b,"s_nom"]]
                   for b in fixed_branches.index
                   for sn in snapshots}
 
@@ -828,7 +828,7 @@ def define_passive_branch_constraints(network,snapshots):
                  list(passive_branches.index), snapshots)
 
     flow_lower = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
-                                    ">=", -fixed_branches.s_nom[b]]
+                                    ">=", -fixed_branches.at[b,"s_nom"]]
                   for b in fixed_branches.index
                   for sn in snapshots}
 
@@ -864,28 +864,28 @@ def define_nodal_balances(network,snapshots):
 
 
     for gen in network.generators.index:
-        bus = network.generators.bus[gen]
-        sign = network.generators.sign[gen]
+        bus = network.generators.at[gen,"bus"]
+        sign = network.generators.at[gen,"sign"]
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.generator_p[gen,sn]))
 
     load_p_set = get_switchable_as_dense(network, 'Load', 'p_set')
     for load in network.loads.index:
-        bus = network.loads.bus[load]
-        sign = network.loads.sign[load]
+        bus = network.loads.at[load,"bus"]
+        sign = network.loads.at[load,"sign"]
         for sn in snapshots:
             network._p_balance[bus,sn].constant += sign*load_p_set.at[sn,load]
 
     for su in network.storage_units.index:
-        bus = network.storage_units.bus[su]
-        sign = network.storage_units.sign[su]
+        bus = network.storage_units.at[su,"bus"]
+        sign = network.storage_units.at[su,"sign"]
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.storage_p_dispatch[su,sn]))
             network._p_balance[bus,sn].variables.append((-sign,network.model.storage_p_store[su,sn]))
 
     for store in network.stores.index:
-        bus = network.stores.bus[store]
-        sign = network.stores.sign[store]
+        bus = network.stores.at[store,"bus"]
+        sign = network.stores.at[store,"sign"]
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.store_p[store,sn]))
 
@@ -896,8 +896,8 @@ def define_nodal_balance_constraints(network,snapshots):
 
 
     for branch in passive_branches.index:
-        bus0 = passive_branches.bus0[branch]
-        bus1 = passive_branches.bus1[branch]
+        bus0 = passive_branches.at[branch,"bus0"]
+        bus1 = passive_branches.at[branch,"bus1"]
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:

@@ -223,18 +223,18 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
                 logger.warning("No type given for {}, assuming it is a line".format(branch))
                 branch = ("Line",branch)
 
-            sub = network.sub_networks.obj[passive_branches.sub_network[branch]]
+            sub = network.sub_networks.at[passive_branches.at[branch,"sub_network"],"obj"]
 
             branch_i = sub._branches.at[branch,"_i"]
 
             branch_outage_keys.extend([(branch[0],branch[1],b[0],b[1]) for b in sub._branches.index])
 
-            flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],"<=",sub._fixed_branches.s_nom[b]] for b in sub._fixed_branches.index for sn in snapshots})
+            flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],"<=",sub._fixed_branches.at[b,"s_nom"]] for b in sub._fixed_branches.index for sn in snapshots})
 
             flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn]),(-1,network.model.passive_branch_s_nom[b[0],b[1]])],"<=",0] for b in sub._extendable_branches.index for sn in snapshots})
 
 
-            flow_lower.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],">=",-sub._fixed_branches.s_nom[b]] for b in sub._fixed_branches.index for sn in snapshots})
+            flow_lower.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],">=",-sub._fixed_branches.at[b,"s_nom"]] for b in sub._fixed_branches.index for sn in snapshots})
 
             flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn]),(1,network.model.passive_branch_s_nom[b[0],b[1]])],">=",0] for b in sub._extendable_branches.index for sn in snapshots})
 
