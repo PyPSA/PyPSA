@@ -58,11 +58,24 @@ def my_f(network,snapshots):
 
 network.lopf(extra_functionality=my_f)
 
+#Cheap generator 1 cannot be fully dispatched because of network constraints,
+#so expensive generator 0 also has to dispatch
 print(network.generators_t.p)
 
+#network flows
 print(network.lines_t.p0)
 
+#Line 1 is congested
+print(abs(network.lines_t.p0)/network.lines.s_nom)
+
+#Power flows towards lower voltage angles
 print(network.buses_t.v_ang*180/np.pi)
 
+#In linear approximation, all voltage magnitudes are nominal, i.e. 1 per unit
 print(network.buses_t.v_mag_pu)
+
+#At bus 2 the price is set above any marginal generation costs in the model, because to dispatch to
+#it from expensive generator 0, also some dispatch from cheap generator 1 has to be substituted from generator0
+#to avoid overloading line 1.
+print(network.buses_t.marginal_price)
 
