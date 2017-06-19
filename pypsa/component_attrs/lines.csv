@@ -2,7 +2,7 @@ attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of first bus to which branch is attached.,Input (required)
 bus1,string,n/a,n/a,Name of second bus to which branch is attached.,Input (required)
-type,string,n/a,n/a,"Name of line standard type. If this is not an empty string """", then the line standard type impedance parameters are multiplied with the line length and divided/multiplied by num_parallel to compute x, r, etc. This will override any values set in r, x, and b. If the string is empty, PyPSA will simply read r, x, etc.",Input (optional)
+type,string,n/a,n/a,"Name of line standard type. If this is not NaN, then the line standard type impedance parameters are multiplied with the line length and divided/multiplied by num_parallel to compute x, r, etc. This will override any values set in r, x, and b. If it is NaN, PyPSA will simply read r, x, etc.",Input (optional)
 x,float,Ohm,0.,Series reactance; must be non-zero for AC branch in linear power flow. If the line has series inductance :math:`L` in Henries then :math:`x = 2\pi f L` where :math:`f` is the frequency in Hertz. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.,Input (required)
 r,float,Ohm,0.,Series resistance; must be non-zero for DC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.,Input (required)
 g,float,Siemens,0.,Shunt conductivity. Shunt admittance is :math:`y = g + jb`.,Input (optional)
@@ -14,7 +14,7 @@ s_nom_max,float,MVA,inf,"If s_nom is extendable in OPF, set its maximum value (e
 capital_cost,float,currency/MVA,0.,"Capital cost of extending s_nom by 1 MVA.",Input (optional)
 length,float,km,0.,"Length of line used when ""type"" is set, also useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1.,"Terrain factor for increasing capital cost.",Input (optional)
-num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel lines (can also be fractional). If ""type"" is empty """" this value is ignored.",Input (optional)
+num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel lines (can also be fractional). If ""type"" is NaN, value is ignored.",Input (optional)
 v_ang_min,float,Degrees,-inf,"Minimum voltage angle difference across the line.",Input (optional)
 v_ang_max,float,Degrees,inf,"Maximum voltage angle difference across the line.",Input (optional)
 sub_network,string,n/a,n/a,"Name of connected sub-network to which lines belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.",Output

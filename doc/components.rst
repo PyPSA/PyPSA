@@ -290,7 +290,7 @@ Line Types
 
 Standard line types with per length values for impedances.
 
-If for a line the attribute "type" is non-empty, then these values are
+If for a line the attribute "type" is non-nan, then these values are
 multiplied with the line length to get the line's electrical
 parameters.
 
@@ -342,7 +342,7 @@ Transformer Types
 
 Standard 2-winding transformer types.
 
-If for a transformer the attribute "type" is non-empty, then these
+If for a transformer the attribute "type" is non-nan, then these
 values are used for the transformer's electrical parameters.
 
 
