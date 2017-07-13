@@ -4,7 +4,7 @@
 There is no official publication on PyPSA yet (we're working on it), but the following papers have used the software:
 
 - J. H\ouml{}rsch, T. Brown, [[https://arxiv.org/abs/1705.07617][The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios]], 2017, accepted to [[http://eem2017.com/][14th International Conference on the European Energy Market - EEM 2017]], [[https://arxiv.org/abs/1705.07617][preprint]]
-- D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]]
+- D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]], [[https://doi.org/10.5281/zenodo.804337][all input data, code, output data on Zenodo]]
 - J. H\ouml{}rsch, H. Ronellenfitsch, D. Witthaut, T. Brown, [[https://arxiv.org/abs/1704.01881][Linear Optimal Power Flow Using Cycle Flows]], 2017, [[https://arxiv.org/abs/1704.01881][preprint]]
 - Joao Gorenstein Dedecca, Rudi A. Hakvoort, Paulien M. Herder, [[https://doi.org/10.1016/j.energy.2017.02.111][Transmission expansion simulation for the European Northern Seas offshore grid]], Energy, Volume 125, 15 April 2017, Pages 805-824
 
