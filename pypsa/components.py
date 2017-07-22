@@ -525,16 +525,20 @@ class Network(Basic):
         else:
             time_i = slice(None)
 
-        n = self.__class__(ignore_standard_types=True)
+        n = self.__class__()
         n.import_components_from_dataframe(
             pd.DataFrame(self.buses.ix[key]).assign(sub_network=""),
             "Bus"
         )
         buses_i = n.buses.index
 
-        rest_components = all_components - one_port_components - branch_components
+        rest_components = all_components - standard_types - one_port_components - branch_components
         for c in rest_components - {"Bus", "SubNetwork"}:
             n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+
+        for c in standard_types:
+            df = self.df(c).drop(self.components[c]["standard_types"].index)
+            n.import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in one_port_components:
             df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
