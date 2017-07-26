@@ -58,7 +58,7 @@ def _haversine(coords):
 def aggregategenerators(network, busmap, with_time=True):
     attrs = network.components["Generator"]["attrs"]
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
-    columns = (set(attrs.index[attrs.static]) | {'weight'}) & set(generators.columns)
+    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
@@ -83,7 +83,7 @@ def aggregategenerators(network, busmap, with_time=True):
 def aggregateoneport(network, busmap, component, with_time=True):
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
-    columns = set(attrs.index[attrs.static]) & set(old_df.columns)
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
     grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
 
     strategies = {attr: (np.sum
@@ -107,7 +107,7 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
-    columns = set(attrs.index[attrs.static]) & set(network.buses.columns)
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(network.buses.columns)
 
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
@@ -130,13 +130,13 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_c = pd.concat((interlines_p,interlines_n))
 
     attrs = network.components["Line"]["attrs"]
-    columns = set(attrs.index[attrs.static]).difference(('name', 'bus0', 'bus1'))
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
 
     def aggregatelinegroup(l):
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
-        v_nom_s = _consense(buses.loc[list(l.name),'v_nom'])
+        v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
         length_factor = (length_s/l['length'])
