@@ -54,7 +54,8 @@ from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_before_solving,
                   patch_optsolver_record_memusage_before_solving,
                   empty_network)
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes
+from .descriptors import (get_switchable_as_dense, get_switchable_as_iter,
+                          allocate_series_dataframes)
 
 
 
@@ -998,25 +999,32 @@ def define_linear_objective(network,snapshots):
     sdc_gens_i = network.generators.index[~network.generators.p_nom_extendable & network.generators.committable & (network.generators.shut_down_cost > 0)]
 
 
+    marginal_cost_it = zip(get_switchable_as_iter(network, 'Generator', 'marginal_cost', snapshots),
+                           get_switchable_as_iter(network, 'StorageUnit', 'marginal_cost', snapshots),
+                           get_switchable_as_iter(network, 'Store', 'marginal_cost', snapshots),
+                           get_switchable_as_iter(network, 'Link', 'marginal_cost', snapshots))
+
     objective = LExpression()
 
 
-    for sn in snapshots:
+    for sn, marginal_cost in zip(snapshots, marginal_cost_it):
+        gen_mc, su_mc, st_mc, link_mc = marginal_cost
+
         weight = network.snapshot_weightings[sn]
         for gen in network.generators.index:
-            coefficient = network.generators.at[gen, "marginal_cost"] * weight
+            coefficient = gen_mc.at[gen] * weight
             objective.variables.extend([(coefficient, model.generator_p[gen, sn])])
 
         for su in network.storage_units.index:
-            coefficient = network.storage_units.at[su, "marginal_cost"] * weight
+            coefficient = su_mc.at[su] * weight
             objective.variables.extend([(coefficient, model.storage_p_dispatch[su,sn])])
 
         for store in network.stores.index:
-            coefficient = network.stores.at[store, "marginal_cost"] * weight
+            coefficient = st_mc.at[store] * weight
             objective.variables.extend([(coefficient, model.store_p[store,sn])])
 
         for link in network.links.index:
-            coefficient = network.links.at[link, "marginal_cost"] * weight
+            coefficient = link_mc.at[link] * weight
             objective.variables.extend([(coefficient, model.link_p[link,sn])])
 
 
