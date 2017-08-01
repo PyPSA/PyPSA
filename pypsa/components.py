@@ -717,7 +717,7 @@ class Network(Basic):
 
             types_soll = c.attrs["typ"][c.attrs["static"]].drop("name")
 
-            dtypes_soll = types_soll.replace(np_dtypes)
+            dtypes_soll = types_soll.map(np_dtypes)
 
             unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
 
