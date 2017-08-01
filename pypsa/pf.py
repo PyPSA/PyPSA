@@ -410,7 +410,7 @@ def apply_line_types(network):
 
     """
 
-    lines_with_types_b = network.lines.type.notnull()
+    lines_with_types_b = network.lines.type != ""
 
     if lines_with_types_b.sum() == 0:
         return
@@ -443,7 +443,7 @@ def apply_transformer_types(network):
     """
 
     trafos = network.transformers
-    trafos_with_types_b = trafos.type.notnull()
+    trafos_with_types_b = trafos.type != ""
 
     if trafos_with_types_b.sum() == 0:
         return
@@ -504,7 +504,7 @@ def apply_transformer_t_model(network):
 
     ts_b = (network.transformers.model == "t") & (y_shunt != 0.)
 
-    if len(ts_b) == 0:
+    if ts_b.sum() == 0:
         return
 
     za,zb,zc = wye_to_delta(z_series.loc[ts_b]/2,z_series.loc[ts_b]/2,1/y_shunt.loc[ts_b])
