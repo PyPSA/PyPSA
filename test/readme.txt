@@ -16,6 +16,9 @@ Or to test all scripts just:
 
 py.test
 
+Tests involving optimization can be performed with different solver by adding --solver_name=my_solver.
+e.g.: py.test test_ac_dc_lopf.py --solver_name=gurobi
+
 
 Note that PYPOWER 5.0 has a bug in the linear load flow, which was
 fixed in the github version in January 2016.

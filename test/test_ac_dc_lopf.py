@@ -20,7 +20,7 @@ from distutils.spawn import find_executable
 
 
 
-def test_lopf():
+def test_lopf(solver_name):
 
 
     csv_folder_name = "../examples/ac-dc-meshed/ac-dc-data"
@@ -33,7 +33,6 @@ def test_lopf():
 
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
 
     snapshots = network.snapshots
 

@@ -6,7 +6,7 @@ import pypsa
 import numpy as np
 
 
-def test_sclopf():
+def test_sclopf(solver_name):
 
 
     csv_folder_name = "../examples/scigrid-de/scigrid-with-load-gen-trafos/"
@@ -14,7 +14,6 @@ def test_sclopf():
     network = pypsa.Network(csv_folder_name=csv_folder_name)
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
 
     #There are some infeasibilities without line extensions
     for line_name in ["316","527","602"]:
@@ -25,7 +24,7 @@ def test_sclopf():
 
     print("Performing security-constrained linear OPF:")
 
-    network.sclopf(network.snapshots[0],branch_outages=branch_outages)
+    network.sclopf(network.snapshots[0],branch_outages=branch_outages, solver_name=solver_name)
 
     #For the PF, set the P to the optimised P
     network.generators_t.p_set = network.generators_t.p.copy()

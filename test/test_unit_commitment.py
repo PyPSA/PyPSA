@@ -8,7 +8,7 @@ import numpy as np
 
 
 
-def test_part_load():
+def test_part_load(solver_name):
     """This test is based on
 https://pypsa.org/examples/unit-commitment.html
 and is not very comprehensive."""
@@ -36,8 +36,6 @@ and is not very comprehensive."""
 
     nu.add("Load","load",bus="bus",p_set=[4000,6000,5000,800])
 
-    solver_name = "glpk"
-
     nu.lopf(nu.snapshots,solver_name=solver_name)
 
     expected_status = np.array([[1,1,1,0],[0,0,0,1]],dtype=float).T
@@ -49,7 +47,7 @@ and is not very comprehensive."""
     np.testing.assert_array_almost_equal(nu.generators_t.p.values,expected_dispatch)
 
 
-def test_minimum_up_time():
+def test_minimum_up_time(solver_name):
     """This test is based on
 https://pypsa.org/examples/unit-commitment.html
 and is not very comprehensive."""
@@ -79,8 +77,6 @@ and is not very comprehensive."""
 
     nu.add("Load","load",bus="bus",p_set=[4000,800,5000,3000])
 
-    solver_name = "glpk"
-
     nu.lopf(nu.snapshots,solver_name=solver_name)
 
     expected_status = np.array([[1,0,1,1],[1,1,1,0]],dtype=float).T
@@ -93,7 +89,7 @@ and is not very comprehensive."""
 
 
 
-def test_minimum_down_time():
+def test_minimum_down_time(solver_name):
     """This test is based on
 https://pypsa.org/examples/unit-commitment.html
 and is not very comprehensive."""
@@ -121,9 +117,6 @@ and is not very comprehensive."""
            p_nom=4000)
 
     nu.add("Load","load",bus="bus",p_set=[3000,800,3000,8000])
-
-
-    solver_name = "glpk"
 
     nu.lopf(nu.snapshots,solver_name=solver_name)
 

@@ -19,7 +19,7 @@ from distutils.spawn import find_executable
 
 
 
-def test_opf():
+def test_opf(solver_name):
 
 
     csv_folder_name = "../examples/opf-storage-hvdc/opf-storage-data"
@@ -27,7 +27,6 @@ def test_opf():
     network = pypsa.Network(csv_folder_name=csv_folder_name)
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
 
     snapshots = network.snapshots
 
