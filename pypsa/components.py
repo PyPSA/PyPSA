@@ -702,8 +702,8 @@ class Network(Basic):
             static_attr = c.attrs.index[c.attrs.static].intersection(static_attrs)
 
             if len(static_attr):
-                diff = (getattr(self, c.list_name)[static_attr[0] + "_max"].rename(columns={static_attr[0] + "_max": "col"})
-                        - getattr(self, c.list_name)[static_attr[0] + "_min"].rename(columns={static_attr[0] + "_min": "col"}))
+                diff = (getattr(self, c.list_name)[static_attr[0] + "_max"] -
+                        getattr(self, c.list_name)[static_attr[0] + "_min"])
                 if not diff[diff < 0].empty:
                     logger.warning("The following %s have smaller maximum than minimum expansion limit which can lead to infeasibilty:\n%s",
                                    c.list_name, diff[diff < 0].index)
