@@ -47,7 +47,7 @@ try:
 except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
-from .descriptors import Dict
+from .descriptors import Dict, get_switchable_as_dense
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_from_pypower_ppc, import_components_from_dataframe,
@@ -695,7 +695,26 @@ class Network(Basic):
                     logger.warning("In the time-dependent Dataframe for attribute %s of network.%s_t the following snapshots are defined which are not in network.snapshots:\n%s",
                                    attr, c.list_name, diff)
 
+        static_attrs = ['p_nom', 's_nom', 'e_nom']
+        varying_attrs = ['p_max_pu', 'e_max_pu']
+        for c in self.iterate_components(all_components - {'TransformerType'}):
+            varying_attr = c.attrs.index[c.attrs.varying].intersection(varying_attrs)
+            static_attr = c.attrs.index[c.attrs.static].intersection(static_attrs)
 
+            if len(static_attr):
+                diff = (getattr(self, c.list_name)[static_attr[0] + "_max"].rename(columns={static_attr[0] + "_max": "col"})
+                        - getattr(self, c.list_name)[static_attr[0] + "_min"].rename(columns={static_attr[0] + "_min": "col"}))
+                if not diff[diff < 0].empty:
+                    logger.warning("The following %s have smaller maximum than minimum expansion limit which can lead to infeasibilty:\n%s",
+                                   c.list_name, diff[diff < 0].index)
+
+            if len(varying_attr):
+                diff = (get_switchable_as_dense(self, c.name, varying_attr[0][0] + "_max_pu") -
+                        get_switchable_as_dense(self, c.name, varying_attr[0][0] + "_min_pu"))
+                diff = diff[diff < 0].dropna(axis=1, how='all')
+                for col in diff.columns:
+                    logger.warning("The element %s of %s has a smaller maximum than minimum operational limit which can lead to infeasibility for the following snapshots:\n%s",
+                                   col, c.list_name, diff[col].dropna().index)
 
         #check all dtypes of component attributes
 
