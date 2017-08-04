@@ -52,7 +52,7 @@ except:
 def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
          line_colors='g', bus_sizes=10, line_widths=2, title="",
          line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_components=['Line', 'Link']):
+         geometry=False, branch_components=['Line', 'Link'], jitter=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -87,6 +87,9 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         Boundaries of the plot in format [x1,x2,y1,y2]
     branch_components : list of str
         Branch components to be plotted, defaults to Line and Link.
+    jitter : None|float
+        Amount of random noise to add to bus positions to distinguish
+        overlapping buses
 
     Returns
     -------
@@ -117,6 +120,10 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
     x = network.buses["x"]
     y = network.buses["y"]
+
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
     if basemap and basemap_present:
         if boundaries is None:

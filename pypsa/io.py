@@ -124,7 +124,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
             if col in attrs.index and pd.isnull(attrs.at[col,"default"]) and pd.isnull(df[col]).all():
                 continue
             if (col in attrs.index
-                and df[col].dtype == attrs.at[col, 'typ']
+                and df[col].dtype == attrs.at[col, 'dtype']
                 and (df[col] == attrs.at[col,"default"]).all()):
                 continue
 
@@ -152,7 +152,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
 
 
-def import_components_from_dataframe(network,dataframe,cls_name):
+def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
 
@@ -184,59 +184,52 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     if cls_name == "Link" and "s_nom" in dataframe.columns:
         logger.warning("'s_nom*' for links is deprecated, use 'p_nom*' instead.")
 
-    dataframe.index = [str(i) for i in dataframe.index]
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
-    string_attrs = {"bus","bus0","bus1","carrier"} & set(dataframe.columns)
+    # Clean dataframe and ensure correct types
+    dataframe = pd.DataFrame(dataframe)
+    dataframe.index = dataframe.index.astype(str)
 
-    for col in string_attrs:
-        dataframe[col] = dataframe[col].astype(str)
+    for k in static_attrs.index:
+        if k not in dataframe.columns:
+            dataframe[k] = static_attrs.at[k, "default"]
+        else:
+            if static_attrs.at[k, "type"] == 'string':
+                dataframe[k] = dataframe[k].replace({np.nan: ""})
 
-    old_df = network.df(cls_name)
+            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
-    new_df = pd.concat((old_df,dataframe.drop(set(non_static_attrs.index) & set(dataframe.columns),axis=1)))
+    #check all the buses are well-defined
+    for attr in ["bus", "bus0", "bus1"]:
+        if attr in dataframe.columns:
+            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
+            if len(missing) > 0:
+                logger.warning("The following %s have buses which are not defined:\n%s",
+                               cls_name, missing)
+
+    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
+    new_df = pd.concat((network.df(cls_name), dataframe.drop(non_static_attrs_in_df, axis=1)))
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
-    for k in static_attrs.index:
-        if k not in dataframe.columns:
-            new_df.loc[dataframe.index, k] = static_attrs.at[k, "default"]
-
-        typ = static_attrs.at[k,"typ"]
-
-        #This is definitely necessary to avoid boolean bugs - not clear for others
-        if typ in [int,float,bool] and new_df[k].dtype is not np.dtype(typ):
-            new_df.loc[:,k] = new_df.loc[:,k].astype(typ)
-
-    setattr(network,network.components[cls_name]["list_name"],new_df)
-
-    #check all the buses are well-defined
-    for attr in ["bus","bus0","bus1"]:
-        if attr in new_df.columns:
-            missing = new_df.index[~new_df[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning("The following %s have buses which are not defined:\n%s",
-                               cls_name, missing)
-
+    setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
 
     pnl = network.pnl(cls_name)
 
-    for k in set(non_static_attrs.index) & set(dataframe.columns):
+    for k in non_static_attrs_in_df:
         #If reading in outputs, fill the outputs
-        pnl[k] = pnl[k].reindex(columns=new_df.index, fill_value=non_static_attrs.at[k,"default"])
+        pnl[k] = pnl[k].reindex(columns=new_df.index,
+                                fill_value=non_static_attrs.at[k, "default"])
         pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
     setattr(network,network.components[cls_name]["list_name"]+"_t",pnl)
-
-
 
 
 def import_series_from_dataframe(network, dataframe, cls_name, attr):
@@ -282,7 +275,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
 
 
-def import_from_csv_folder(network, csv_folder_name, encoding=None):
+def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=False):
     """
     Import network data from CSVs in a folder.
 
@@ -296,6 +289,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
     """
 
     if not os.path.isdir(csv_folder_name):
@@ -345,11 +340,12 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
 
         import_components_from_dataframe(network,df,component)
 
-        file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
+        if not skip_time:
+            file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
-        for file_name in file_attrs:
-            df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
-            import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
+            for file_name in file_attrs:
+                df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
+                import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
 
         logger.debug(getattr(network,list_name))
 

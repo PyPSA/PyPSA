@@ -74,8 +74,8 @@ def define_generator_variables_constraints(network,snapshots):
     if (network.generators.p_nom_extendable & network.generators.committable).any():
         logger.warning("The following generators have both investment optimisation and unit commitment:\n{}\nCurrently PyPSA cannot do both these functions, so PyPSA is choosing investment optimisation for these generators.".format(network.generators.index[network.generators.p_nom_extendable & network.generators.committable]))
 
-    p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu')
-    p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu')
+    p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu', snapshots)
+    p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu', snapshots)
 
     ## Define generator dispatch variables ##
 
@@ -314,8 +314,8 @@ def define_storage_variables_constraints(network,snapshots):
 
     ## Define storage dispatch variables ##
 
-    p_max_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_max_pu')
-    p_min_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_min_pu')
+    p_max_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_max_pu', snapshots)
+    p_min_pu = get_switchable_as_dense(network, 'StorageUnit', 'p_min_pu', snapshots)
 
     bounds = {(su,sn) : (0,None) for su in ext_sus_i for sn in snapshots}
     bounds.update({(su,sn) :
@@ -463,10 +463,8 @@ def define_store_variables_constraints(network,snapshots):
     ext_stores = stores.index[stores.e_nom_extendable]
     fix_stores = stores.index[~ stores.e_nom_extendable]
 
-    e_max_pu = get_switchable_as_dense(network, 'Store', 'e_max_pu')
-    e_min_pu = get_switchable_as_dense(network, 'Store', 'e_min_pu')
-
-
+    e_max_pu = get_switchable_as_dense(network, 'Store', 'e_max_pu', snapshots)
+    e_min_pu = get_switchable_as_dense(network, 'Store', 'e_min_pu', snapshots)
 
     model = network.model
 
@@ -1077,7 +1075,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         set_from_series(network.stores_t.e, as_series(model.store_e))
 
     if len(network.loads):
-        load_p_set = get_switchable_as_dense(network, 'Load', 'p_set')
+        load_p_set = get_switchable_as_dense(network, 'Load', 'p_set', snapshots)
         network.loads_t["p"].loc[snapshots] = load_p_set.loc[snapshots]
 
     if len(network.buses):
@@ -1101,7 +1099,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     if len(network.links):
         set_from_series(network.links_t.p0, as_series(model.link_p))
 
-        efficiency = get_switchable_as_dense(network, 'Link', 'efficiency')
+        efficiency = get_switchable_as_dense(network, 'Link', 'efficiency', snapshots)
 
         network.links_t.p1.loc[snapshots] = - network.links_t.p0.loc[snapshots]*efficiency.loc[snapshots,:]
 

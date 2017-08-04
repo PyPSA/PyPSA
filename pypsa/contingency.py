@@ -156,7 +156,9 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
 
 
-def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk",skip_pre=False,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
+def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="glpk",
+                   skip_pre=False, extra_functionality=None, solver_options={},
+                   keep_files=False, formulation="angles", ptdf_tolerance=0.):
     """
     Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
 
@@ -165,23 +167,33 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
     Parameters
     ----------
     snapshots : list or index slice
-        A list of snapshots to optimise, must be a subset of network.snapshots, defaults to network.snapshots
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
     branch_outages : list-like
         A list of passive branches which are to be tested for outages.
         If None, it's take as all network.passive_branches_i()
     solver_name : string
-        Must be a solver name that pyomo recognises and that is installed, e.g. "glpk", "gurobi"
+        Must be a solver name that pyomo recognises and that is
+        installed, e.g. "glpk", "gurobi"
     skip_pre: bool, default False
-        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    extra_functionality : callable function
+        This function must take two arguments
+        `extra_functionality(network,snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to add/change constraints and
+        add/change the objective function.
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
     keep_files : bool, default False
-        Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
+        Keep the files that pyomo constructs from OPF problem
+        construction, e.g. .lp file - useful for debugging
     formulation : string
-        Formulation of the linear power flow equations to use; must be one of ["angles","cycles","kirchoff","ptdf"]
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","cycles","kirchoff","ptdf"]
     ptdf_tolerance : float
-        Value below which PTDF entries are ignored
 
     Returns
     -------
@@ -244,7 +256,12 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
 
         l_constraint(network.model,"contingency_flow_lower",flow_lower,branch_outage_keys,snapshots)
 
+        if extra_functionality is not None:
+            extra_functionality(network, snapshots)
 
     #need to skip preparation otherwise it recalculates the sub-networks
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name,skip_pre=True,extra_functionality=add_contingency_constraints,solver_options=solver_options,keep_files=keep_files,formulation=formulation,ptdf_tolerance=ptdf_tolerance)
+    network.lopf(snapshots=snapshots, solver_name=solver_name, skip_pre=True,
+                 extra_functionality=add_contingency_constraints,
+                 solver_options=solver_options, keep_files=keep_files,
+                 formulation=formulation, ptdf_tolerance=ptdf_tolerance)

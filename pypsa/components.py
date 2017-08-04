@@ -207,22 +207,22 @@ class Network(Basic):
                                      component_attrs_dir_name,
                                      self.components[component]["list_name"] + ".csv")
 
-            attrs = pd.read_csv(file_name,
-                                index_col=0)
+            attrs = pd.read_csv(file_name, index_col=0, na_values="n/a")
 
             attrs['static'] = (attrs['type'] != 'series')
             attrs['varying'] = attrs['type'].isin({'series', 'static or series'})
             attrs['typ'] = attrs['type'].map({'boolean': bool, 'int': int, 'string': str}).fillna(float)
+            attrs['dtype'] = attrs['type'].map({'boolean': np.dtype(bool), 'int': np.dtype(int),
+                                                'string': np.dtype('O')}).fillna(np.dtype(float))
 
             bool_b = attrs.type == 'boolean'
             attrs.loc[bool_b, 'default'] = attrs.loc[bool_b].isin({True, 'True'})
 
             #exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
+                attrs.loc[attrs.typ == str, "default"] = attrs.loc[attrs.typ == str, "default"].replace({np.nan: ""})
                 for typ in (str, float, int):
-                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[attrs.typ == typ, "default"].apply(typ)
-
-            attrs.loc[attrs.default == "n/a","default"] = ""
+                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[attrs.typ == typ, "default"].astype(typ)
 
             self.components[component]["attrs"] = attrs
 
@@ -247,10 +247,10 @@ class Network(Basic):
 
             attrs = self.components[component]["attrs"]
 
-            static_typs = attrs.typ[attrs.static].drop(["name"])
+            static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
 
-            df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_typs.iteritems()},
-                              columns=static_typs.index)
+            df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_dtypes.iteritems()},
+                              columns=static_dtypes.index)
 
             df.index.name = "name"
 
@@ -259,9 +259,8 @@ class Network(Basic):
             pnl = Dict({k : pd.DataFrame(index=self.snapshots,
                                          columns=[],
                                          #it's currently hard to imagine non-float series, but this could be generalised
-                                         dtype=float)
-                        for k in attrs.index[attrs.varying]
-                       })
+                                         dtype=np.dtype(float))
+                        for k in attrs.index[attrs.varying]})
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
@@ -397,7 +396,7 @@ class Network(Basic):
             if k not in attrs.index:
                 logger.warning("{} has no attribute {}, ignoring this passed value.".format(class_name,k))
                 continue
-            typ = attrs.at[k,"typ"]
+            typ = attrs.at[k, "typ"]
             if not attrs.at[k,"varying"]:
                 new_df.at[name,k] = typ(v)
             elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, np.ndarray, list)):
@@ -525,16 +524,20 @@ class Network(Basic):
         else:
             time_i = slice(None)
 
-        n = self.__class__(ignore_standard_types=True)
+        n = self.__class__()
         n.import_components_from_dataframe(
             pd.DataFrame(self.buses.ix[key]).assign(sub_network=""),
             "Bus"
         )
         buses_i = n.buses.index
 
-        rest_components = all_components - one_port_components - branch_components
+        rest_components = all_components - standard_types - one_port_components - branch_components
         for c in rest_components - {"Bus", "SubNetwork"}:
             n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+
+        for c in standard_types:
+            df = self.df(c).drop(self.components[c]["standard_types"].index)
+            n.import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in one_port_components:
             df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
@@ -699,22 +702,11 @@ class Network(Basic):
 
         #check all dtypes of component attributes
 
-        #this isn't strictly necessary (except for str)
-        #since e.g. float == np.dtype("float64") is True
-        #but we do it for easy reading of errors
-        np_dtypes = {str : np.dtype("object"),
-                     float : np.dtype("float64"),
-                     int : np.dtype("int64"),
-                     bool : np.dtype("bool")}
-
         for c in self.iterate_components():
 
             #first check static attributes
 
-            types_soll = c.attrs["typ"][c.attrs["static"]].drop("name")
-
-            dtypes_soll = types_soll.replace(np_dtypes)
-
+            dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
             unmatched = (c.df.dtypes[dtypes_soll.index] != dtypes_soll)
 
             if unmatched.any():
@@ -728,15 +720,13 @@ class Network(Basic):
 
             #now check varying attributes
 
-            types_soll = c.attrs["typ"][c.attrs["varying"]]
+            types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
 
-            dtypes_soll = types_soll.replace(np_dtypes)
-
-            for attr, typ in dtypes_soll.iteritems():
+            for attr, typ, dtype in types_soll.itertuples():
                 if c.pnl[attr].empty:
                     continue
 
-                unmatched = (c.pnl[attr].dtypes != typ)
+                unmatched = (c.pnl[attr].dtypes != dtype)
 
                 if unmatched.any():
                     logger.warning("The following columns of time-varying attribute %s in %s_t have the wrong dtype:\n%s\n"
@@ -746,8 +736,6 @@ class Network(Basic):
                                    unmatched.index[unmatched],
                                    c.pnl[attr].dtypes[unmatched],
                                    typ)
-
-
 
 class SubNetwork(Common):
     """

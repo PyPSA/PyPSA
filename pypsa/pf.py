@@ -410,16 +410,27 @@ def apply_line_types(network):
 
     """
 
-    lines_with_types = network.lines.index[network.lines.type != ""]
+    lines_with_types_b = network.lines.type != ""
 
-    if len(lines_with_types) == 0:
+    if lines_with_types_b.sum() == 0:
         return
 
     for attr in ["r","x"]:
-        network.lines.loc[lines_with_types,attr] = network.lines.loc[lines_with_types,"type"].map(network.line_types[attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]/network.lines.loc[lines_with_types,"num_parallel"]
+        attr_per_length = network.line_types[attr + "_per_length"]
+        network.lines.loc[lines_with_types_b,attr] = (
+            network.lines.loc[lines_with_types_b, "type"].map(attr_per_length)
+            * network.lines.loc[lines_with_types_b, "length"]
+            / network.lines.loc[lines_with_types_b, "num_parallel"]
+        )
 
-    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
-    network.lines.loc[lines_with_types,"b"] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types["c_per_length"])*network.lines.loc[lines_with_types,"length"]*network.lines.loc[lines_with_types,"num_parallel"]
+    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types_b, "type"].map(network.line_types.f_nom)
+    c_per_length = network.line_types["c_per_length"]
+    network.lines.loc[lines_with_types_b, "b"] = (
+        factor
+        * network.lines.loc[lines_with_types_b, "type"].map(c_per_length)
+        * network.lines.loc[lines_with_types_b, "length"]
+        * network.lines.loc[lines_with_types_b, "num_parallel"]
+    )
 
 
 
@@ -431,50 +442,50 @@ def apply_transformer_types(network):
 
     """
 
-    trafos_with_types = network.transformers.index[network.transformers.type != ""]
+    trafos = network.transformers
+    trafos_with_types_b = trafos.type != ""
 
-    if len(trafos_with_types) == 0:
+    if trafos_with_types_b.sum() == 0:
         return
 
+    trafos.loc[trafos_with_types_b, "r"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vscr"])/100.
 
-    network.transformers.loc[trafos_with_types, "r"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vscr"])/100.
+    z = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vsc"])/100.
 
-    z = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vsc"])/100.
-
-    network.transformers.loc[trafos_with_types, "x"] = np.sqrt(z**2 - network.transformers.loc[trafos_with_types, "r"]**2)
+    trafos.loc[trafos_with_types_b, "x"] = np.sqrt(z**2 - trafos.loc[trafos_with_types_b, "r"]**2)
 
     for attr in ["phase_shift","s_nom"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types[attr])
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types[attr])
 
     #NB: b and g are per unit of s_nom
-    network.transformers.loc[trafos_with_types, "g"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["pfe"])/(1000. * network.transformers.loc[trafos_with_types, "s_nom"])
+    trafos.loc[trafos_with_types_b, "g"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["pfe"])/(1000. * trafos.loc[trafos_with_types_b, "s_nom"])
 
-    i0 = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["i0"])/100.
+    i0 = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["i0"])/100.
 
-    b_minus_squared = i0**2 - network.transformers.loc[trafos_with_types, "g"]**2
+    b_minus_squared = i0**2 - trafos.loc[trafos_with_types_b, "g"]**2
 
     #for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
 
     b_minus_squared[b_minus_squared < 0.] = 0.
 
-    network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(b_minus_squared)
+    trafos.loc[trafos_with_types_b, "b"] = - np.sqrt(b_minus_squared)
 
 
     for attr in ["r","x"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]/network.transformers.loc[trafos_with_types, "num_parallel"]
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]/trafos.loc[trafos_with_types_b, "num_parallel"]
 
     for attr in ["b","g"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]*network.transformers.loc[trafos_with_types, "num_parallel"]
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]*trafos.loc[trafos_with_types_b, "num_parallel"]
 
 
     #deal with tap positions
 
-    network.transformers.loc[trafos_with_types, "tap_ratio"] = 1 + (
-        network.transformers.loc[trafos_with_types, "tap_position"] -
-        network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_neutral"])) * (
-            network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_step"])/100.)
+    trafos.loc[trafos_with_types_b, "tap_ratio"] = 1 + (
+        trafos.loc[trafos_with_types_b, "tap_position"] -
+        trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_neutral"])) * (
+            trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_step"])/100.)
 
-    network.transformers.loc[trafos_with_types, "tap_side"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_side"])
+    trafos.loc[trafos_with_types_b, "tap_side"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_side"])
 
     #TODO: status, rate_A
 
@@ -491,17 +502,17 @@ def apply_transformer_t_model(network):
     z_series = network.transformers.r_pu + 1j*network.transformers.x_pu
     y_shunt = network.transformers.g_pu + 1j*network.transformers.b_pu
 
-    ts = network.transformers.index[(network.transformers.model == "t") & (y_shunt != 0.)]
+    ts_b = (network.transformers.model == "t") & (y_shunt != 0.)
 
-    if len(ts) == 0:
+    if ts_b.sum() == 0:
         return
 
-    za,zb,zc = wye_to_delta(z_series.loc[ts]/2,z_series.loc[ts]/2,1/y_shunt.loc[ts])
+    za,zb,zc = wye_to_delta(z_series.loc[ts_b]/2,z_series.loc[ts_b]/2,1/y_shunt.loc[ts_b])
 
-    network.transformers.loc[ts,"r_pu"] = zc.real
-    network.transformers.loc[ts,"x_pu"] = zc.imag
-    network.transformers.loc[ts,"g_pu"] = (2/za).real
-    network.transformers.loc[ts,"b_pu"] = (2/za).imag
+    network.transformers.loc[ts_b,"r_pu"] = zc.real
+    network.transformers.loc[ts_b,"x_pu"] = zc.imag
+    network.transformers.loc[ts_b,"g_pu"] = (2/za).real
+    network.transformers.loc[ts_b,"b_pu"] = (2/za).imag
 
 
 def calculate_dependent_values(network):
