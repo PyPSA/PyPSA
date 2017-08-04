@@ -168,9 +168,18 @@ PyPSA has a Google Group `forum / mailing list
 Citing PyPSA
 ============
 
-If you use PyPSA for your research, we would appreciate it if you could cite the project.
-There is currently no official publication on PyPSA, but we're working
-on it. In the meantime you can cite the Zenodo DOI for the latest release:
+
+
+If you use PyPSA for your research, we would appreciate it if you
+would cite the following preprint paper (which has not yet been
+through peer review):
+
+* T. Brown, J. Hörsch, D. Schlachtberger, `PyPSA: Python for Power
+  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2017,
+  `preprint arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_
+
+If you want to cite a specific PyPSA version, you can cite the Zenodo
+DOI for each release, e.g. for the latest release:
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.582307.svg
    :target: https://doi.org/10.5281/zenodo.582307
