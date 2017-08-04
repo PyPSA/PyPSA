@@ -152,7 +152,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
 
 
-def import_components_from_dataframe(network,dataframe,cls_name):
+def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
 
@@ -184,59 +184,57 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     if cls_name == "Link" and "s_nom" in dataframe.columns:
         logger.warning("'s_nom*' for links is deprecated, use 'p_nom*' instead.")
 
-    dataframe.index = [str(i) for i in dataframe.index]
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
-    string_attrs = {"bus","bus0","bus1","carrier"} & set(dataframe.columns)
+    # Clean dataframe and ensure correct types
+    dataframe = pd.DataFrame(dataframe)
+    dataframe.index = dataframe.index.astype(str)
 
-    for col in string_attrs:
-        dataframe[col] = dataframe[col].astype(str)
+    dataframe.drop(non_static_attrs.index.intersection(dataframe.columns),
+                   axis=1, inplace=True)
 
-    old_df = network.df(cls_name)
+    for k in static_attrs.index:
+        if k not in dataframe.columns:
+            dataframe[k] = static_attrs.at[k, "default"]
+        else:
+            typ = static_attrs.at[k, "typ"]
 
-    new_df = pd.concat((old_df,dataframe.drop(set(non_static_attrs.index) & set(dataframe.columns),axis=1)))
+            #This is definitely necessary to avoid boolean bugs - not clear for others
+            if typ in [int,float,bool] and new_df[k].dtype is not np.dtype(typ):
+                dataframe[k] = dataframe[k].astype(typ)
+            elif typ == str:
+                dataframe[k] = dataframe[k].astype(str).replace({np.nan: ""})
+
+    #check all the buses are well-defined
+    for attr in ["bus", "bus0", "bus1"]:
+        if attr in dataframe.columns:
+            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
+            if len(missing) > 0:
+                logger.warning("The following %s have buses which are not defined:\n%s",
+                               cls_name, missing)
+
+    new_df = pd.concat((network.df(cls_name), dataframe))
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
-    for k in static_attrs.index:
-        if k not in dataframe.columns:
-            new_df.loc[dataframe.index, k] = static_attrs.at[k, "default"]
-
-        typ = static_attrs.at[k,"typ"]
-
-        #This is definitely necessary to avoid boolean bugs - not clear for others
-        if typ in [int,float,bool] and new_df[k].dtype is not np.dtype(typ):
-            new_df.loc[:,k] = new_df.loc[:,k].astype(typ)
-
-    setattr(network,network.components[cls_name]["list_name"],new_df)
-
-    #check all the buses are well-defined
-    for attr in ["bus","bus0","bus1"]:
-        if attr in new_df.columns:
-            missing = new_df.index[~new_df[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning("The following %s have buses which are not defined:\n%s",
-                               cls_name, missing)
-
+    setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
 
     pnl = network.pnl(cls_name)
 
-    for k in set(non_static_attrs.index) & set(dataframe.columns):
+    for k in non_static_attrs.index.intersection(dataframe.columns):
         #If reading in outputs, fill the outputs
-        pnl[k] = pnl[k].reindex(columns=new_df.index, fill_value=non_static_attrs.at[k,"default"])
+        pnl[k] = pnl[k].reindex(columns=new_df.index,
+                                fill_value=non_static_attrs.at[k,"default"])
         pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
     setattr(network,network.components[cls_name]["list_name"]+"_t",pnl)
-
-
 
 
 def import_series_from_dataframe(network, dataframe, cls_name, attr):
