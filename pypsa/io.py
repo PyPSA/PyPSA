@@ -282,7 +282,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
 
 
-def import_from_csv_folder(network, csv_folder_name, encoding=None):
+def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=False):
     """
     Import network data from CSVs in a folder.
 
@@ -296,6 +296,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
     """
 
     if not os.path.isdir(csv_folder_name):
@@ -345,11 +347,12 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
 
         import_components_from_dataframe(network,df,component)
 
-        file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
+        if not skip_time:
+            file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
-        for file_name in file_attrs:
-            df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
-            import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
+            for file_name in file_attrs:
+                df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
+                import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
 
         logger.debug(getattr(network,list_name))
 
