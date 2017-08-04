@@ -124,7 +124,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
             if col in attrs.index and pd.isnull(attrs.at[col,"default"]) and pd.isnull(df[col]).all():
                 continue
             if (col in attrs.index
-                and df[col].dtype == attrs.at[col, 'typ']
+                and df[col].dtype == attrs.at[col, 'dtype']
                 and (df[col] == attrs.at[col,"default"]).all()):
                 continue
 
@@ -193,20 +193,14 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
 
-    dataframe.drop(non_static_attrs.index.intersection(dataframe.columns),
-                   axis=1, inplace=True)
-
     for k in static_attrs.index:
         if k not in dataframe.columns:
             dataframe[k] = static_attrs.at[k, "default"]
         else:
-            typ = static_attrs.at[k, "typ"]
+            if static_attrs.at[k, "type"] == 'string':
+                dataframe[k] = dataframe[k].replace({np.nan: ""})
 
-            #This is definitely necessary to avoid boolean bugs - not clear for others
-            if typ in [int,float,bool] and new_df[k].dtype is not np.dtype(typ):
-                dataframe[k] = dataframe[k].astype(typ)
-            elif typ == str:
-                dataframe[k] = dataframe[k].astype(str).replace({np.nan: ""})
+            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     #check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
@@ -216,7 +210,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                 logger.warning("The following %s have buses which are not defined:\n%s",
                                cls_name, missing)
 
-    new_df = pd.concat((network.df(cls_name), dataframe))
+    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
+    new_df = pd.concat((network.df(cls_name), dataframe.drop(non_static_attrs_in_df, axis=1)))
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
@@ -228,10 +223,10 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
     pnl = network.pnl(cls_name)
 
-    for k in non_static_attrs.index.intersection(dataframe.columns):
+    for k in non_static_attrs_in_df:
         #If reading in outputs, fill the outputs
         pnl[k] = pnl[k].reindex(columns=new_df.index,
-                                fill_value=non_static_attrs.at[k,"default"])
+                                fill_value=non_static_attrs.at[k, "default"])
         pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
     setattr(network,network.components[cls_name]["list_name"]+"_t",pnl)
