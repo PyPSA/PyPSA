@@ -3,6 +3,7 @@ Network,networks,"Container for all components and functions which act upon the 
 SubNetwork,sub_networks
 Bus,buses,"Electrically fundamental node where x-port objects attach."
 Carrier,carriers,"Energy carrier, such as wind, PV or coal. The Carrier tracks co2 emissions if there is a network.co2_limit.  Buses have direct carriers and Generators indicate their primary energy carriers."
+GlobalConstraint,global_constraints,"Constraints for OPF that affect many components, such as CO2 constraints."
 Line,lines,"Lines include distribution and transmission lines, overhead lines and cables."
 LineType,line_types,"Standard line types with per length values for impedances."
 Transformer,transformers,"2-winding transformer."

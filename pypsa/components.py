@@ -138,14 +138,9 @@ class Network(Basic):
 
     Examples
     --------
-    >>> nw = pypsa.Network(csv_folder_name=/my/folder,co2_limit=10e6)
+    >>> nw = pypsa.Network(csv_folder_name=/my/folder)
 
     """
-
-
-    #limit of total co2-tonnes-equivalent emissions for period
-    co2_limit = None
-
 
     #Spatial Reference System Identifier (SRID) for x,y - defaults to longitude and latitude
     srid = 4326
@@ -486,7 +481,7 @@ class Network(Basic):
                     pnl[k] = component.pnl[k].copy()
 
         #catch all remaining attributes of network
-        for attr in ["name", "co2_limit", "srid"]:
+        for attr in ["name", "srid"]:
             setattr(network,attr,getattr(self,attr))
 
         network.snapshot_weightings = self.snapshot_weightings.copy()
@@ -560,7 +555,7 @@ class Network(Basic):
                 pass
 
         # catch all remaining attributes of network
-        for attr in ["name", "co2_limit", "srid"]:
+        for attr in ["name", "srid"]:
             setattr(n,attr,getattr(self, attr))
 
         n.snapshot_weightings = self.snapshot_weightings.ix[time_i]
@@ -876,4 +871,4 @@ controllable_branch_components = {"Link"}
 branch_components = passive_branch_components|controllable_branch_components
 
 #i.e. everything except "Network"
-all_components = branch_components|one_port_components|standard_types|{"Bus", "SubNetwork", "Carrier"}
+all_components = branch_components|one_port_components|standard_types|{"Bus", "SubNetwork", "Carrier", "GlobalConstraint"}

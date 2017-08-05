@@ -61,7 +61,9 @@ network.add("Carrier","battery")
 
 
 # in kg CO2e
-network.co2_limit = 1000
+n.add("GlobalConstraint","co2_limit",
+      sense="<=",
+      constant=1000.)
 
 
 #The network is two three-node AC networks connected by 2 point-to-point DC links

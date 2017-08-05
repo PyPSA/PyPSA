@@ -28,7 +28,7 @@ from distutils.spawn import find_executable
 
 csv_folder_name = "opf-storage-data"
 network = pypsa.Network(csv_folder_name=csv_folder_name)
-print(network,network.co2_limit)
+print(network,network.global_constraints)
 
 #useful for debugging
 network.opf_keep_files = True
