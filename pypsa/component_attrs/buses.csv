@@ -14,4 +14,4 @@ p,series,MW,0.,active power at bus (positive if net generation at bus),Output
 q,series,MVar,0.,reactive power (positive if net generation at bus),Output
 v_mag_pu,series,per unit,1.,"Voltage magnitude, per unit of v_nom",Output
 v_ang,series,radians,0.,Voltage angle,Output
-marginal_price,series,currency,0.,Locational marginal price from LOPF from power balance constraint,Output
+marginal_price,series,currency/MWh,0.,Locational marginal price from LOPF from power balance constraint,Output

@@ -1119,6 +1119,9 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
                             .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
 
+            #correct for snapshot weightings
+            network.buses_t.marginal_price.loc[snapshots] = network.buses_t.marginal_price.loc[snapshots].divide(network.snapshot_weightings.loc[snapshots],axis=0)
+
         if formulation == "angles":
             set_from_series(network.buses_t.v_ang,
                             as_series(model.voltage_angles))

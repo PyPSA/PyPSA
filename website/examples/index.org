@@ -44,6 +44,9 @@ repository]].
   PyPSA, starting from a single bidding zone, going up to multiple
   bidding zones connected with transmission (NTCs) along with variable
   renewables and storage.
+-  [[./generation-investment-screening-curve.html][*Generation Investment Screening Curve*]] - This examples looks at
+   the long-term equilibrium of generation investment for a given load
+   profile and compares it to a screening curve analysis.
 - *Coupling to Other Energy Sectors*
   - [[./lopf-with-heating.html][*Linear optimal power flow with coupling to the heating sector*]] - In
     this example three locations are optimised, each with an electric
