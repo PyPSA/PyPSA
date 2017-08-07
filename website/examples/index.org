@@ -63,6 +63,8 @@ repository]].
     Links*]] - This notebook demonstrates how generators and storage
     units can be replaced by more fundamental components (Stores and
     Links), and how their parameters map to each other.
+- [[./logging-demo.html][Logging]] - How to control the level of logging that PyPSA reports
+  back, e.g. error/warning/info/debug messages.
 - [[https://zenodo.org/record/804337][*European One-Node-Per-Country Dataset*]] - Full dataset and code from [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]].
 - [[https://github.com/openego][*open-Ego project*]] - The project open-eGo aims to develop a transparent, inter-grid-level operating grid planning tool to investigate economic viable grid expansion scenarios considering alternative flexibility options such as storages or redispatch. It uses PyPSA.
 
