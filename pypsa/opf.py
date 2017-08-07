@@ -937,20 +937,35 @@ def define_global_constraints(network,snapshots):
 
             carrier_attribute = network.global_constraints.loc[gc,"carrier_attribute"]
 
-            #for generators, use the prime mover carrier
-            c.lhs.variables = [(network.carriers.at[network.generators.at[gen,"carrier"],carrier_attribute]
-                                * (1/network.generators.at[gen,"efficiency"])
-                                * network.snapshot_weightings[sn],
-                                network.model.generator_p[gen,sn])
-                               for gen in network.generators.index
-                               for sn in snapshots]
+            for carrier in network.carriers.index:
+                attribute = network.carriers.at[carrier,carrier_attribute]
+                if attribute == 0.:
+                    continue
+                #for generators, use the prime mover carrier
+                gens = network.generators.index[network.generators.carrier == carrier]
+                c.lhs.variables.extend([(attribute
+                                         * (1/network.generators.at[gen,"efficiency"])
+                                         * network.snapshot_weightings[sn],
+                                         network.model.generator_p[gen,sn])
+                                        for gen in gens
+                                        for sn in snapshots])
 
-            #for stores, inherit the carrier from the bus
-            c.lhs.variables.extend([(network.carriers.at[network.buses.at[network.stores.at[store,"bus"],"carrier"],carrier_attribute]
-                                     * network.snapshot_weightings[sn],
-                                     model.store_p[store,sn])
-                                    for store in network.stores.index
-                                    for sn in snapshots])
+                #for storage units, use the prime mover carrier
+                #take difference of energy at end and start of period
+                sus = network.storage_units.index[(network.storage_units.carrier == carrier) & (~network.storage_units.cyclic_state_of_charge)]
+                c.lhs.variables.extend([(-attribute, network.model.state_of_charge[su,snapshots[-1]])
+                                        for su in sus])
+                c.lhs.constant += sum(attribute*network.storage_units.at[su,"state_of_charge_initial"]
+                                      for su in sus)
+
+                #for stores, inherit the carrier from the bus
+                #take difference of energy at end and start of period
+                stores = network.stores.index[(network.stores.bus.map(network.buses.carrier) == carrier) & (~network.stores.e_cyclic)]
+                c.lhs.variables.extend([(-attribute, network.model.store_e[store,snapshots[-1]])
+                                        for store in stores])
+                c.lhs.constant += sum(attribute*network.stores.at[store,"e_initial"]
+                                      for store in stores)
+
 
 
             global_constraints[gc] = c
