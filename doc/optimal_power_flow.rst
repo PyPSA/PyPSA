@@ -499,25 +499,28 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 .. image:: img/buses.png
 
 
-CO2 constraint
---------------
+Global constraints
+------------------
 
-See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
+See ``pypsa.opf.define_global_constraints(network,snapshots)``.
 
-This depends on the power plant efficiency and specific CO2 emissions
-of the energy carriers.
+Global constraints apply to more than one component.
 
-If the generator :math:`s` at node :math:`n` has efficiency
-:math:`\eta_{n,s}` and its fuel carrier (``generator.carrier``) has
-specific emissions of :math:`e_s` (``carrier.co2_emissions``)
-CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s` then the
-CO2 constraint is
+Currently only "primary energy" constraints are defined. They depend
+on the power plant efficiency and carrier-specific attributes such as
+specific CO2 emissions.
+
+
+Suppose there is a global constraint defined for CO2 emissions with
+sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. If the generator
+:math:`s` at node :math:`n` has efficiency :math:`\eta_{n,s}` and its
+fuel carrier (``generator.carrier``) has specific emissions of
+:math:`e_s` (``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh
+of the fuel carrier :math:`s` then the CO2 constraint is
 
 .. math::
    \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} \leq  \textrm{CAP}_{CO2}
 
-where ``network.co2_limit`` is the CO2 cap. If ``network.co2_limit``
-is ``None``, no cap is implemented.
 
 Custom constraints and other functionality
 ------------------------------------------
@@ -548,7 +551,7 @@ For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-network{snapshot_weightings,co2_limit}
+network{snapshot_weightings}
 
 bus.{v_nom, carrier}
 
@@ -566,7 +569,9 @@ transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
 
-carrier.{co2_emissions}
+carrier.{carrier_attribute}
+
+global_constraint.{type, carrier_attribute, sense, constant}
 
 Note that for lines and transformers you MUST make sure that
 :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
@@ -589,3 +594,5 @@ line.{p0, p1, s_nom_opt}
 transformer.{p0, p1, s_nom_opt}
 
 link.{p0, p1, p_nom_opt}
+
+global_constraint.{mu}
