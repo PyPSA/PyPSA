@@ -183,7 +183,12 @@ class Network(Basic):
 
     def __init__(self, csv_folder_name=None, name="", ignore_standard_types=False, **kwargs):
 
+        from .__init__ import __version__ as pypsa_version
+
         Basic.__init__(self,name)
+
+        #this will be saved on export
+        self.pypsa_version = pypsa_version
 
         #a list/index of scenarios/times
         self.snapshots = pd.Index(["now"])

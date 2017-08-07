@@ -1,2 +1,2 @@
-name,co2_limit,co2_price,max_memusage,now,objective,srid
-AC-DC,1000,2178.29179922,137036,2015-01-01 04:00:00,-3474256.04055,4326
+name,max_memusage,now,objective,pypsa_version,srid
+AC-DC,157376,now,-3474256.04055,0.10.0,4326

@@ -136,7 +136,7 @@ for gen in network.generators.index:
 
 
 
-results_folder_name = os.path.join(csv_folder_name,"results-test")
+results_folder_name = os.path.join(csv_folder_name,"results")
 
 
 network.export_to_csv_folder(results_folder_name)

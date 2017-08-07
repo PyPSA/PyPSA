@@ -1,2 +1,2 @@
-name,co2_limit,now,srid
-AC-DC,1000,now,4326
+name,now,pypsa_version,srid
+AC-DC,now,0.10.0,4326

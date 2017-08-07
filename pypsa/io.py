@@ -306,8 +306,20 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         logger.debug("networks.csv:")
         logger.debug(df)
         network.name = df.index[0]
+
+        ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+        current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
+        pypsa_version = None
         for col in df.columns:
-            setattr(network,col,df[col][network.name])
+            if col == "pypsa_version":
+                pypsa_version = [int(s) for s in df.at[network.name,"pypsa_version"].split(".")]
+            else:
+                setattr(network,col,df[col][network.name])
+
+        if pypsa_version is None or pypsa_version < current_pypsa_version:
+            logger.warning("Importing PyPSA from older version of PyPSA than current version {}.\n\
+            Please read the release notes at https://pypsa.org/doc/release_notes.html\n\
+            carefully to prepare your network for import.".format(network.pypsa_version))
 
     #if there is snapshots.csv, read in snapshot data
 
