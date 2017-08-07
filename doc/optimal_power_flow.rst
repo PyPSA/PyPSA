@@ -512,14 +512,24 @@ specific CO2 emissions.
 
 
 Suppose there is a global constraint defined for CO2 emissions with
-sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. If the generator
-:math:`s` at node :math:`n` has efficiency :math:`\eta_{n,s}` and its
-fuel carrier (``generator.carrier``) has specific emissions of
-:math:`e_s` (``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh
-of the fuel carrier :math:`s` then the CO2 constraint is
+sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
+from generators whose energy carriers have CO2 emissions and from
+stores and storage units whose storage medium releases or absorbs CO2
+when it is converted. Only stores and storage units with non-cyclic
+state of charge that is different at the start and end of the
+simulation can contribute.
+
+If the specific emissions of energy carrier :math:`s` is :math:`e_s`
+(``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh and the
+generator with carrier :math:`s` at node :math:`n` has efficiency
+:math:`\eta_{n,s}` then the CO2 constraint is
 
 .. math::
-   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} \leq  \textrm{CAP}_{CO2}
+   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot e_{n,s} \leq  \textrm{CAP}_{CO2}  \hspace{.4cm} \leftrightarrow  \hspace{.4cm} \mu
+
+The first sum is over generators; the second sum is over stores and
+storage units. :math:`\mu` is the shadow price of the constraint,
+i.e. the CO2 price in this case.
 
 
 Custom constraints and other functionality
