@@ -923,29 +923,55 @@ def define_sub_network_balance_constraints(network,snapshots):
                  list(network.sub_networks.index), snapshots)
 
 
-def define_co2_constraint(network,snapshots):
+def define_global_constraints(network,snapshots):
 
-    def co2_constraint(model):
 
-        #use the prime mover carrier
-        co2_gens = sum(network.carriers.at[network.generators.at[gen,"carrier"],"co2_emissions"]
-                       * (1/network.generators.at[gen,"efficiency"])
-                       * network.snapshot_weightings[sn]
-                       * model.generator_p[gen,sn]
-                       for gen in network.generators.index
-                       for sn in snapshots)
+    global_constraints = {}
 
-        #store inherits the carrier from the bus
-        co2_stores = sum(network.carriers.at[network.buses.at[network.stores.at[store,"bus"],"carrier"],"co2_emissions"]
-                         * network.snapshot_weightings[sn]
-                         * model.store_p[store,sn]
-                         for store in network.stores.index
-                         for sn in snapshots)
+    for gc in network.global_constraints.index:
+        if network.global_constraints.loc[gc,"type"] == "primary_energy":
 
-        return  co2_gens + co2_stores <= network.co2_limit
+            c = LConstraint(sense=network.global_constraints.loc[gc,"sense"])
 
-    network.model.co2_constraint = Constraint(rule=co2_constraint)
+            c.rhs.constant = network.global_constraints.loc[gc,"constant"]
 
+            carrier_attribute = network.global_constraints.loc[gc,"carrier_attribute"]
+
+            for carrier in network.carriers.index:
+                attribute = network.carriers.at[carrier,carrier_attribute]
+                if attribute == 0.:
+                    continue
+                #for generators, use the prime mover carrier
+                gens = network.generators.index[network.generators.carrier == carrier]
+                c.lhs.variables.extend([(attribute
+                                         * (1/network.generators.at[gen,"efficiency"])
+                                         * network.snapshot_weightings[sn],
+                                         network.model.generator_p[gen,sn])
+                                        for gen in gens
+                                        for sn in snapshots])
+
+                #for storage units, use the prime mover carrier
+                #take difference of energy at end and start of period
+                sus = network.storage_units.index[(network.storage_units.carrier == carrier) & (~network.storage_units.cyclic_state_of_charge)]
+                c.lhs.variables.extend([(-attribute, network.model.state_of_charge[su,snapshots[-1]])
+                                        for su in sus])
+                c.lhs.constant += sum(attribute*network.storage_units.at[su,"state_of_charge_initial"]
+                                      for su in sus)
+
+                #for stores, inherit the carrier from the bus
+                #take difference of energy at end and start of period
+                stores = network.stores.index[(network.stores.bus.map(network.buses.carrier) == carrier) & (~network.stores.e_cyclic)]
+                c.lhs.variables.extend([(-attribute, network.model.store_e[store,snapshots[-1]])
+                                        for store in stores])
+                c.lhs.constant += sum(attribute*network.stores.at[store,"e_initial"]
+                                      for store in stores)
+
+
+
+            global_constraints[gc] = c
+
+    l_constraint(network.model, "global_constraints",
+                 global_constraints, list(network.global_constraints.index))
 
 
 
@@ -1048,6 +1074,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
     model = network.model
 
+    duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))
+
     def as_series(indexedvar):
         return pd.Series(indexedvar.get_values())
 
@@ -1117,7 +1145,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             set_from_series(network.buses_t.marginal_price,
                             pd.Series(list(model.power_balance.values()),
                                       index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
-                            .map(pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))))
+                            .map(duals))
 
             #correct for snapshot weightings
             network.buses_t.marginal_price.loc[snapshots] = network.buses_t.marginal_price.loc[snapshots].divide(network.snapshot_weightings.loc[snapshots],axis=0)
@@ -1165,11 +1193,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     network.links.loc[network.links.p_nom_extendable, "p_nom_opt"] = \
         as_series(network.model.link_p_nom)
 
-    if network.co2_limit is not None:
-        try:
-            network.co2_price = - network.model.dual[network.model.co2_constraint]
-        except (AttributeError, KeyError) as e:
-            logger.warning("Could not read out co2_price, although a co2_limit was set")
+    try:
+        network.global_constraints.loc[:,"mu"] = -pd.Series(list(model.global_constraints.values()),
+                                                            index=list(model.global_constraints.keys())).map(duals)
+    except (AttributeError, KeyError) as e:
+        logger.warning("Could not read out global constraint shadow prices")
 
     #extract unit commitment statuses
     if network.generators.committable.any():
@@ -1266,8 +1294,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     elif formulation in ["ptdf", "cycles"]:
         define_sub_network_balance_constraints(network,snapshots)
 
-    if network.co2_limit is not None:
-        define_co2_constraint(network,snapshots)
+    define_global_constraints(network,snapshots)
 
     define_linear_objective(network, snapshots)
 

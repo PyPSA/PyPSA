@@ -490,7 +490,7 @@ balances at each bus :math:`n` for each time :math:`t`.
 .. math::
    \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{l} K_{nl} f_{l,t} = \sum_{s} d_{n,s,t} \hspace{.4cm} \leftrightarrow  \hspace{.4cm} w_t\lambda_{n,t}
 
-Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus. :math:`\lambda_{n,t}` is the shadow price of the constraint, i.e. the locational marginal price, stored in ``buses_t.marginal_price``.
+Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus. :math:`\lambda_{n,t}` is the shadow price of the constraint, i.e. the locational marginal price, stored in ``network.buses_t.marginal_price``.
 
 
 The bus's role is to enforce energy conservation for all elements
@@ -499,25 +499,39 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 .. image:: img/buses.png
 
 
-CO2 constraint
---------------
+Global constraints
+------------------
 
-See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
+See ``pypsa.opf.define_global_constraints(network,snapshots)``.
 
-This depends on the power plant efficiency and specific CO2 emissions
-of the energy carriers.
+Global constraints apply to more than one component.
 
-If the generator :math:`s` at node :math:`n` has efficiency
-:math:`\eta_{n,s}` and its fuel carrier (``generator.carrier``) has
-specific emissions of :math:`e_s` (``carrier.co2_emissions``)
-CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s` then the
-CO2 constraint is
+Currently only "primary energy" constraints are defined. They depend
+on the power plant efficiency and carrier-specific attributes such as
+specific CO2 emissions.
+
+
+Suppose there is a global constraint defined for CO2 emissions with
+sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
+from generators whose energy carriers have CO2 emissions and from
+stores and storage units whose storage medium releases or absorbs CO2
+when it is converted. Only stores and storage units with non-cyclic
+state of charge that is different at the start and end of the
+simulation can contribute.
+
+If the specific emissions of energy carrier :math:`s` is :math:`e_s`
+(``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh and the
+generator with carrier :math:`s` at node :math:`n` has efficiency
+:math:`\eta_{n,s}` then the CO2 constraint is
 
 .. math::
-   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} \leq  \textrm{CAP}_{CO2}
+   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot e_{n,s} \leq  \textrm{CAP}_{CO2}  \hspace{.4cm} \leftrightarrow  \hspace{.4cm} \mu
 
-where ``network.co2_limit`` is the CO2 cap. If ``network.co2_limit``
-is ``None``, no cap is implemented.
+The first sum is over generators; the second sum is over stores and
+storage units. :math:`\mu` is the shadow price of the constraint,
+i.e. the CO2 price in this case. :math:`\mu` is an output of the
+optimisation stored in ``network.global_constraints.mu``.
+
 
 Custom constraints and other functionality
 ------------------------------------------
@@ -548,7 +562,7 @@ For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-network{snapshot_weightings,co2_limit}
+network{snapshot_weightings}
 
 bus.{v_nom, carrier}
 
@@ -566,7 +580,9 @@ transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
 
-carrier.{co2_emissions}
+carrier.{carrier_attribute}
+
+global_constraint.{type, carrier_attribute, sense, constant}
 
 Note that for lines and transformers you MUST make sure that
 :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
@@ -589,3 +605,5 @@ line.{p0, p1, s_nom_opt}
 transformer.{p0, p1, s_nom_opt}
 
 link.{p0, p1, p_nom_opt}
+
+global_constraint.{mu}
