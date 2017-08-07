@@ -479,6 +479,9 @@ If the link flow is positive :math:`f_{l,t} > 0` then it withdraws
 :math:`f_{l,t}` from bus0 and feeds in :math:`\eta_l f_{l,t}` to bus1,
 where :math:`\eta_l` is the link efficiency.
 
+
+.. _nodal-power-balance:
+
 Nodal power balances
 --------------------
 
@@ -498,6 +501,9 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
 .. image:: img/buses.png
 
+
+
+.. _global-constraints-opf:
 
 Global constraints
 ------------------

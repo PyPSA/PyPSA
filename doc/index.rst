@@ -25,7 +25,6 @@ Contents:
    examples
    troubleshooting
    unit_testing
-   todo
    comparable_software
    developers
    release_notes

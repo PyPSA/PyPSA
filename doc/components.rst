@@ -126,6 +126,9 @@ relevant for limits on CO2 emissions.
    :file: ../pypsa/component_attrs/carriers.csv
 
 
+
+.. _global-constraints:
+
 Global Constraints
 ==================
 

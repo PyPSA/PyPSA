@@ -20,10 +20,12 @@ and solar generation, storage units, sector coupling and mixed
 alternating and direct current networks. PyPSA is designed to scale
 well with large networks and long time series.
 
-As of 2017 PyPSA is under heavy development and therefore it
-is recommended to use caution when using it in a production
-environment. Some APIs may change - those liable to be updated are
-listed in the `doc/todo.rst <doc/todo.rst>`_.
+As of 2017 PyPSA is under heavy development and therefore it is
+recommended to use caution when using it in a production environment.
+Some APIs may change - the changes in each PyPSA version are listed in
+the `doc/release_notes.rst <doc/reslease_notes.rst>`_.
+
+
 
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
@@ -82,7 +84,7 @@ It has models for:
   <http://www.pypsa.org/examples/>`_
 
 
-Functionality that will definitely be added soon (see also `doc/todo.rst <doc/todo.rst>`_):
+Functionality that will definitely be added soon:
 
 * Multi-year investment optimisation
 * Simple RMS simulations with the swing equation
@@ -112,9 +114,6 @@ There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Ju
 Screenshots
 ===========
 
-Some screenshots:
-
-
 .. image:: http://www.pypsa.org/img/line-loading.png
 
 .. image:: http://www.pypsa.org/img/lmp.png
@@ -130,6 +129,11 @@ Some screenshots:
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 
 .. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
+
+Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels:
+
+.. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
+.. image:: http://www.pypsa.org/img/legend-flat.png
 
 
 

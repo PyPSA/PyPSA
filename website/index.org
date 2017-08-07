@@ -5,17 +5,17 @@
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
 
-PyPSA is a [[http://www.gnu.org/philosophy/free-sw.en.html][free
-software]] toolbox for simulating and optimising modern power systems
-that include features such as variable wind and solar generation,
-storage units, sector coupling and mixed alternating and direct current
+PyPSA is a [[http://www.gnu.org/philosophy/free-sw.en.html][free software]] toolbox for simulating and optimising modern
+power systems that include features such as conventional generators
+with unit commitment, variable wind and solar generation, storage
+units, sector coupling and mixed alternating and direct current
 networks. PyPSA is designed to scale well with large networks and long
 time series.
 
 As of 2017 PyPSA is under heavy development and therefore it is
 recommended to use caution when using it in a production environment.
-Some APIs may change - those liable to be updated are listed in the
-[[./doc/todo.html][TODO list]].
+Some APIs may change - the changes in each PyPSA version are listed in
+the [[./doc/release_notes.html][release notes]].
 
 PyPSA was initially developed by the
 [[https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/][Renewable
@@ -65,7 +65,7 @@ It has models for:
 -  standard types for lines and transformers following the
    implementation in
    [[https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html][pandapower]]
--  conventional dispatchable generators
+-  conventional dispatchable generators with unit commitment
 -  generators with time-varying power availability, such as wind and
    solar generators
 -  storage units with efficiency losses
@@ -77,8 +77,7 @@ It has models for:
    (BEVs), etc.; each of these is demonstrated in the
    [[./examples/index.html][examples]]
 
-Functionality that will definitely be added soon (see also
-[[./doc/todo.html][TODO list]]):
+Functionality that will definitely be added soon:
 
 -  Multi-year investment optimisation
 -  Simple RMS simulations with the swing equation
@@ -90,7 +89,6 @@ Functionality that will definitely be added soon (see also
 
 Functionality that may be added in the future:
 
--  Unit Commitment using MILP
 -  Short-circuit current calculations
 -  Dynamic RMS simulations
 -  Small signal stability analysis
@@ -108,8 +106,6 @@ Jupyter/iPython notebooks.
 
 
 * Screenshots
-
-Some screenshots:
 
 #+CAPTION: Line loading with high wind feed-in in North Germany.
 [[./img/line-loading.png]]
@@ -136,10 +132,12 @@ Some screenshots:
 #+CAPTION: Meshed AC-DC hybrid nework.
 [[./img/meshed-ac-dc.png]]
 
-#+CAPTION: Investment optimisation results for 95% CO2 reduction in Europe.
+#+CAPTION: Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels.
 #+NAME: fig:investment
 #+ATTR_HTML: :width 700px
 [[./img/euro-pie-pre-7-branch_limit-1-256.png]]
+
+[[./img/legend-flat.png]]
 
 * What PyPSA uses under the hood
 

@@ -3,6 +3,70 @@ Release Notes
 #######################
 
 
+PyPSA 0.10.0 (7th August 2017)
+==============================
+
+This release contains some minor new features and a few minor but
+important API changes.
+
+* There is a new component :ref:`global-constraints` for implementing
+  constraints that effect many components at once (see also the
+  LOPF subsection :ref:`global-constraints-opf`).  Currently only
+  constraints related to primary energy (i.e. before conversion with
+  losses by generators) are supported, the canonical example being CO2
+  emissions for an optimisation period. Other primary-energy-related
+  gas emissions also fall into this framework. Other types of global
+  constraints will be added in future, e.g. "final energy" (for limits
+  on the share of renewable or nuclear electricity after conversion),
+  "generation capacity" (for limits on total capacity expansion of
+  given carriers) and "transmission capacity" (for limits on the total
+  expansion of lines and links). This replaces the ad hoc
+  ``network.co2_limit`` attribute. If you were using this, instead of
+  ``network.co2_limit = my_cap`` do ``network.add("GlobalConstraint",
+  "co2_limit", type="primary_energy",
+  carrier_attribute="co2_emissions", sense="<=",
+  constant="my_cap")``. The shadow prices of the global constraints
+  are automatically saved in ``network.global_constraints.mu``.
+* The LOPF output ``network.buses_t.marginal_price`` is now defined
+  differently if ``network.snapshot_weightings`` are not 1. Previously
+  if the generator at the top of the merit order had ``marginal_cost``
+  c and the snapshot weighting was w, the ``marginal_price`` was
+  cw. Now it is c, which is more standard. See also
+  :ref:`nodal-power-balance`.
+* ``network.pf()`` now returns a dictionary of pandas DataFrames, each
+  indexed by snapshots and sub-networks. ``converged`` is a table of
+  booleans indicating whether the power flow has converged; ``error``
+  gives the deviation of the non-linear solution; ``n_iter`` the
+  number of iterations required to achieve the tolerance.
+* ``network.consistency_check()`` now includes checking for
+  potentially infeasible values in ``generator.p_{min,max}_pu``.
+* The PyPSA version number is now saved in
+  ``network.pypsa_version``. In future versions of PyPSA this
+  information will be used to upgrade data to the latest version of
+  PyPSA.
+* ``network.sclopf()`` has an ``extra_functionality`` argument that
+  behaves like that for ``network.lopf()``.
+* Component attributes which are strings are now better handled on
+  import and in the consistency checking.
+* There is a new `generation investment screening curve example
+  <https://pypsa.org/examples/generation-investment-screening-curve.html>`_
+  showing the long-term equilibrium of generation investment for a
+  given load profile and comparing it to a screening curve
+  analysis.
+* There is a new `logging example
+  <https://pypsa.org/examples/logging-demo.html>`_ that demonstrates
+  how to control the level of logging that PyPSA reports back,
+  e.g. error/warning/info/debug messages.
+* Sundry other bug fixes and improvements.
+* All examples have been updated appropriately.
+
+
+Thanks to Nis Martensen for contributing the return values of
+``network.pf()`` and Konstantinos Syranidis for contributing the
+improved ``network.consistency_check()``.
+
+
+
 PyPSA 0.9.0 (29th April 2017)
 =============================
 
