@@ -1,7 +1,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import print_function, division, absolute_import
 
-import os, markdown, sys, getopt
+import os, sys, getopt
 
 
 hierarchy = [["index.html","home"],

@@ -128,8 +128,6 @@ Screenshots
 
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 
-.. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
-
 Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels:
 
 .. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
@@ -182,11 +180,12 @@ through peer review):
   System Analysis <https://arxiv.org/abs/1707.09913>`_, 2017,
   `preprint arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_
 
-If you want to cite a specific PyPSA version, you can cite the Zenodo
-DOI for each release, e.g. for the latest release:
+If you want to cite a specific PyPSA version, each release of PyPSA is
+stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
+This can be found linked from the overall PyPSA Zenodo DOI:
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.582307.svg
-   :target: https://doi.org/10.5281/zenodo.582307
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
+   :target: https://doi.org/10.5281/zenodo.786605
 
 
 Licence
