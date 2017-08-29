@@ -412,7 +412,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     #rename controls
     controls = ["","PQ","PV","Slack"]
-    pdf["buses"]["control"] = pdf["buses"]["type"].map(lambda i: controls[int(i)])
+    pdf["buses"]["control"] = pdf["buses"].pop("type").map(lambda i: controls[int(i)])
 
     #add loads for any buses with Pd or Qd
     pdf['loads'] = pdf["buses"].loc[pdf["buses"][["Pd","Qd"]].any(axis=1), ["Pd","Qd"]]
