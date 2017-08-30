@@ -582,31 +582,32 @@ def define_link_flows(network,snapshots):
     fixed_lower = p_min_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
     fixed_upper = p_max_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
 
-    bounds = {(cb,sn) : (fixed_lower.at[sn, cb],fixed_upper.at[sn, cb])
-              for cb in fixed_links_i for sn in snapshots}
-    bounds.update({(cb,sn) : (None,None)
-                   for cb in extendable_links_i for sn in snapshots})
+    network.model.link_p = Var(list(network.links.index), snapshots)
 
-    def cb_p_bounds(model,cb_name,snapshot):
-        return bounds[cb_name,snapshot]
+    p_upper = {(cb, sn) : LConstraint(LExpression([(1, network.model.link_p[cb, sn])],
+                                                 -fixed_upper.at[sn, cb]),"<=")
+               for cb in fixed_links_i for sn in snapshots}
 
-    network.model.link_p = Var(list(network.links.index),
-                               snapshots, domain=Reals, bounds=cb_p_bounds)
+    p_upper.update({(cb,sn) : LConstraint(LExpression([(1, network.model.link_p[cb, sn]),
+                                                       (-p_max_pu.at[sn, cb], network.model.link_p_nom[cb])]),
+                                          "<=")
+                    for cb in extendable_links_i for sn in snapshots})
 
-    def cb_p_upper(model,cb_name,snapshot):
-        return (model.link_p[cb_name,snapshot] <=
-                model.link_p_nom[cb_name]
-                * p_max_pu.at[snapshot, cb_name])
-
-    network.model.link_p_upper = Constraint(list(extendable_links_i),snapshots,rule=cb_p_upper)
+    l_constraint(network.model, "link_p_upper", p_upper,
+                 list(network.links.index), snapshots)
 
 
-    def cb_p_lower(model,cb_name,snapshot):
-        return (model.link_p[cb_name,snapshot] >=
-                model.link_p_nom[cb_name]
-                * p_min_pu.at[snapshot, cb_name])
+    p_lower = {(cb, sn) : LConstraint(LExpression([(1, network.model.link_p[cb, sn])],
+                                                  -fixed_lower.at[sn, cb]),">=")
+               for cb in fixed_links_i for sn in snapshots}
 
-    network.model.link_p_lower = Constraint(list(extendable_links_i),snapshots,rule=cb_p_lower)
+    p_lower.update({(cb,sn) : LConstraint(LExpression([(1, network.model.link_p[cb, sn]),
+                                                       (-p_min_pu.at[sn, cb], network.model.link_p_nom[cb])]),
+                                          ">=")
+                    for cb in extendable_links_i for sn in snapshots})
+
+    l_constraint(network.model, "link_p_lower", p_lower,
+                 list(network.links.index), snapshots)
 
 
 
@@ -1065,9 +1066,9 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                          'StorageUnit': ['p', 'state_of_charge', 'spill'],
                                          'Store': ['p', 'e'],
                                          'Bus': ['p', 'v_ang', 'v_mag_pu', 'marginal_price'],
-                                         'Line': ['p0', 'p1'],
-                                         'Transformer': ['p0', 'p1'],
-                                         'Link': ['p0', 'p1']})
+                                         'Line': ['p0', 'p1', 'mu_lower', 'mu_upper'],
+                                         'Transformer': ['p0', 'p1', 'mu_lower', 'mu_upper'],
+                                         'Link': ['p0', 'p1', 'mu_lower', 'mu_upper']})
 
     #get value of objective function
     network.objective = network.results["Problem"][0]["Lower bound"]
@@ -1122,6 +1123,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         set_from_series(c.pnl.p0, passive_branches.loc[c.name])
         c.pnl.p1.loc[snapshots] = - c.pnl.p0.loc[snapshots]
 
+        set_from_series(c.pnl.mu_lower, pd.Series(list(model.flow_lower.values()),
+                                                  index=pd.MultiIndex.from_tuples(list(model.flow_lower.keys()))).map(duals)[c.name])
+        set_from_series(c.pnl.mu_upper, -pd.Series(list(model.flow_upper.values()),
+                                                   index=pd.MultiIndex.from_tuples(list(model.flow_upper.keys()))).map(duals)[c.name])
 
     # active branches
     if len(network.links):
@@ -1138,6 +1143,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         network.buses_t.p.loc[snapshots] -= (network.links_t.p1.loc[snapshots]
                                              .groupby(network.links.bus1, axis=1).sum()
                                              .reindex(columns=network.buses_t.p.columns, fill_value=0.))
+
+        set_from_series(network.links_t.mu_lower, pd.Series(list(model.link_p_lower.values()),
+                                                            index=pd.MultiIndex.from_tuples(list(model.link_p_lower.keys()))).map(duals))
+        set_from_series(network.links_t.mu_upper, -pd.Series(list(model.link_p_upper.values()),
+                                                             index=pd.MultiIndex.from_tuples(list(model.link_p_upper.keys()))).map(duals))
 
 
     if len(network.buses):

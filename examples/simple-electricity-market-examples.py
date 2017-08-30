@@ -135,6 +135,9 @@ network.links_t.p0
 #print the clearing price (corresponding to water in Mozambique and gas in SA)
 network.buses_t.marginal_price
 
+#link shadow prices
+network.links_t.mu_lower
+
 ### Three bidding zones connected by transmission, one period
 #
 #In this example we have bidirectional transmission capacity between three bidding zones. The power transfer is treated as controllable (like an A/NTC (Available/Net Transfer Capacity) or HVDC line). Note that in the physical grid, power flows passively according to the network impedances.
@@ -187,6 +190,9 @@ network.links_t.p0
 
 #print the clearing price (corresponding to hydro in S and M, and gas in SA)
 network.buses_t.marginal_price
+
+#link shadow prices
+network.links_t.mu_lower
 
 ### Single bidding zone with price-sensitive industrial load, one period
 #

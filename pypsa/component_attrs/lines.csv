@@ -27,3 +27,5 @@ r_pu,float,per unit,0.,Per unit series resistance calculated by PyPSA from r and
 g_pu,float,per unit,0.,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output
 b_pu,float,per unit,0.,Per unit shunt susceptance calculated by PyPSA from b and bus.v_nom,Output
 s_nom_opt,float,MVA,0.,Optimised capacity for apparent power.,Output
+mu_lower,series,currency/MVA,0.,Shadow price of lower s_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MVA,0.,Shadow price of upper s_nom limit f \leq F. Always non-negative.,Output

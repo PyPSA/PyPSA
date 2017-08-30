@@ -18,3 +18,5 @@ terrain_factor,float,per unit,1.,"Terrain factor for increasing capital cost.",I
 p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MVA,0.,Optimised capacity for active power.,Output
+mu_lower,series,currency/MVA,0.,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MVA,0.,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
