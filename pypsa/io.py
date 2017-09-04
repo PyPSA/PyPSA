@@ -111,11 +111,24 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
 
         #first do static attributes
-
+        filename = os.path.join(csv_folder_name,list_name+".csv")
         df.index.name = "name"
         if df.empty:
-            logger.warning("No {} to export".format(list_name))
+            logger.info("No {} to export".format(list_name))
+            if os.path.exists(filename):
+                os.unlink(filename)
+
+                fns = [os.path.basename(filename)]
+                for attr in attrs.index[attrs.varying]:
+                    fn = os.path.join(csv_folder_name,list_name+'-'+attr+'.csv')
+                    if os.path.exists(fn):
+                        os.unlink(fn)
+                        fns.append(os.path.basename(fn))
+
+                logger.warning("Stale csv file(s) {} removed".format(', '.join(fns)))
+
             continue
+
         col_export = []
         for col in df.columns:
             #do not export derived attributes
@@ -130,7 +143,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
             col_export.append(col)
 
-        df[col_export].to_csv(os.path.join(csv_folder_name,list_name+".csv"),encoding=encoding)
+        df[col_export].to_csv(filename,encoding=encoding)
 
 
         #now do varying attributes
@@ -145,8 +158,14 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                 else:
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
+            filename = os.path.join(csv_folder_name,list_name+"-" + attr + ".csv")
             if len(col_export) > 0:
-                pnl[attr].loc[:,col_export].to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"),encoding=encoding)
+                pnl[attr].loc[:,col_export].to_csv(filename,encoding=encoding)
+            else:
+                if os.path.exists(filename):
+                    os.unlink(filename)
+                    logger.warning("Stale csv file {} removed"
+                                   .format(os.path.basename(filename)))
 
 
 
