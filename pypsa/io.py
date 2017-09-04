@@ -285,8 +285,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     columns = dataframe.columns
 
     if not attr_series.static:
-        #If reading in outputs, fill the outputs
-        pnl[attr] = pnl[attr].reindex(columns=df.index, fill_value=attr_series.default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index|columns, fill_value=attr_series.default)
     else:
         pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
