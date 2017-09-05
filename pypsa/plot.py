@@ -142,7 +142,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert len(network.buses.index.difference(bus_sizes.index.levels[0])) == 0, \
+        assert len(bus_sizes.index.levels[0].difference(network.buses.index)) == 0, \
             "The first MultiIndex level of bus_sizes must contain buses"
         assert isinstance(bus_colors, dict) and set(bus_colors).issuperset(bus_sizes.index.levels[1]), \
             "bus_colors must be a dictionary defining a color for each element " \
