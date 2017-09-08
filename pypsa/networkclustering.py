@@ -63,7 +63,8 @@ def aggregategenerators(network, busmap, with_time=True):
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
     generators['p_nom_max'] /= weighting
-    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
+    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum,
+                  'marginal_cost': np.mean, 'capital_cost': np.mean}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
@@ -89,6 +90,9 @@ def aggregateoneport(network, busmap, component, with_time=True):
     strategies = {attr: (np.sum
                          if attr in {'p', 'q', 'p_set', 'q_set',
                                      'p_nom', 'p_nom_max', 'p_nom_min'}
+                         else np.mean
+                         if attr in {'marginal_cost', 'capital_cost', 'efficiency',
+                                     'efficiency_dispatch', 'standing_loss', 'max_hours', 'efficiency_store'}
                          else _consense)
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
