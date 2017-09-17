@@ -50,6 +50,7 @@ except ValueError:
 from .descriptors import Dict, get_switchable_as_dense
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
+                 export_to_hdf5, import_from_hdf5,
                  import_from_pypower_ppc, import_components_from_dataframe,
                  import_series_from_dataframe, import_from_pandapower_net)
 
@@ -150,6 +151,10 @@ class Network(Basic):
     import_from_csv_folder = import_from_csv_folder
 
     export_to_csv_folder = export_to_csv_folder
+
+    import_from_hdf5 = import_from_hdf5
+
+    export_to_hdf5 = export_to_hdf5
 
     import_from_pypower_ppc = import_from_pypower_ppc
 

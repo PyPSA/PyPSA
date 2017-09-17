@@ -29,13 +29,11 @@ __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 import logging
 logger = logging.getLogger(__name__)
 
-
-import pandas as pd
-
+from textwrap import dedent
 import os
 
+import pandas as pd
 import pypsa
-
 import numpy as np
 
 
@@ -168,8 +166,179 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                                    .format(os.path.basename(filename)))
 
 
+def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
+    """
+    Export network and components to a folder of CSVs.
+
+    Both static and series attributes of components are exported, but only
+    if they have non-default values.
+
+    If path does not already exist, it is created.
+
+    Parameters
+    ----------
+    path : string
+        Name of hdf5 file to which to export (if it exists, it is overwritten)
+    **kwargs
+        Extra arguments for pd.HDFStore to specify compression
+
+    Examples
+    --------
+    >>> export_to_hdf5(network, filename)
+    OR
+    >>> network.export_to_csv(filename)
+    """
+
+    def nan_to_str(df, str_cols=None):
+        if str_cols is None:
+            str_cols = df.dtypes.index[df.dtypes == 'O']
+        df = pd.DataFrame(df)
+        df[str_cols] = df[str_cols].replace({np.nan: 'nan'})
+        return df
+
+    with pd.HDFStore(path, mode='w', **kwargs) as store:
+        #first export network properties
+
+        #exportable component types
+        #what about None???? - nan is float?
+        allowed_types = [float,int,str,bool] + list(np.typeDict.values())
+
+        columns = [attr for attr in dir(network)
+                   if (attr != "name" and attr[:2] != "__" and
+                       type(getattr(network,attr)) in allowed_types)]
+        index = pd.Index([network.name], name="name")
+        store['/network'] = nan_to_str(pd.DataFrame(index=index, columns=columns,
+                                                    data=[[getattr(network, col) for col in columns]]))
+
+        #now export snapshots
+
+        store['/snapshots'] = nan_to_str(pd.DataFrame(dict(weightings=network.snapshot_weightings),
+                                                      index=pd.Index(network.snapshots, name="name")))
+
+        #now export all other components
+
+        for component in pypsa.components.all_components - {"SubNetwork"}:
+
+            list_name = network.components[component]["list_name"]
+            attrs = network.components[component]["attrs"]
+
+            df = network.df(component)
+            pnl = network.pnl(component)
+
+            if not export_standard_types and component in pypsa.components.standard_types:
+                df = df.drop(network.components[component]["standard_types"].index)
+
+            #first do static attributes
+            df.index.name = "name"
+            if df.empty:
+                logger.info("No {} to export".format(list_name))
+                continue
+
+            col_export = []
+            for col in df.columns:
+                #do not export derived attributes
+                if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
+                    continue
+                if col in attrs.index and pd.isnull(attrs.at[col, "default"]) and pd.isnull(df[col]).all():
+                    continue
+                if (col in attrs.index
+                    and df[col].dtype == attrs.at[col, 'dtype']
+                    and (df[col] == attrs.at[col, "default"]).all()):
+                    continue
+
+                col_export.append(col)
+
+            store['/' + list_name] = nan_to_str(df[col_export])
+
+            #now do varying attributes
+            for attr in pnl:
+                if attr not in attrs.index:
+                    col_export = pnl[attr].columns
+                else:
+                    default = attrs.at[attr, "default"]
+
+                    if pd.isnull(default):
+                        col_export = pnl[attr].columns[(~pd.isnull(pnl[attr])).any()]
+                    else:
+                        col_export = pnl[attr].columns[(pnl[attr] != default).any()]
+
+                store['/' + list_name + '_t/' + attr] = pnl[attr][col_export]
+
+def import_from_hdf5(network, path, skip_time=False):
+    """
+    Import network data from HDF5 store at `path`.
+
+    Parameters
+    ----------
+    path : string
+        Name of HDF5 store
+    """
+
+    def str_to_nan(df, str_cols=None):
+        if str_cols is None:
+            str_cols = df.dtypes.index[df.dtypes == 'O']
+        df = pd.DataFrame(df)
+        df[str_cols] = df[str_cols].replace({np.nan: 'nan'})
+        return df
 
 
+    with pd.HDFStore(path, mode='r') as store:
+        df = str_to_nan(store['/network'])
+        logger.debug("/network")
+        logger.debug(df)
+        network.name = df.index[0]
+
+        ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+        current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
+        try:
+            pypsa_version = [int(s) for s in df.at[network.name, 'pypsa_version'].split(".")]
+            df = df.drop('pypsa_version', axis=1)
+        except KeyError:
+            pypsa_version = None
+
+        if pypsa_version is None or pypsa_version < current_pypsa_version:
+            logger.warning(dedent("""
+                Importing PyPSA from older version of PyPSA than current version {}.
+                Please read the release notes at https://pypsa.org/doc/release_notes.html
+                carefully to prepare your network for import.
+            """).format(network.pypsa_version))
+
+        for col in df.columns:
+            setattr(network, col, df[col][network.name])
+
+        #if there is snapshots.csv, read in snapshot data
+
+        if '/snapshots' in store:
+            df = store['/snapshots']
+
+            network.set_snapshots(df.index)
+            if "weightings" in df.columns:
+                network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
+
+        #now read in other components; make sure buses and carriers come first
+        for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus", "Carrier", "SubNetwork"}):
+            list_name = network.components[component]["list_name"]
+
+            if '/' + list_name not in store:
+                if component == "Bus":
+                    logger.error("Error, no buses found")
+                    return
+                else:
+                    logger.info("No {} found.".format(list_name))
+                    continue
+            else:
+                logger.info("{} found.".format(list_name))
+
+            df = str_to_nan(store['/' + list_name])
+            import_components_from_dataframe(network, df, component)
+
+            if not skip_time:
+                for attr in store:
+                    if attr.startswith('/' + list_name + '/'):
+                        attr_name = attr[len('/' + list_name + '/'):]
+                        import_series_from_dataframe(network, store[attr], component, attr_name)
+
+            logger.debug(getattr(network,list_name))
 
 def import_components_from_dataframe(network, dataframe, cls_name):
     """
