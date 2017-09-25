@@ -259,7 +259,9 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
                     else:
                         col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
-                store.put('/' + list_name + '_t/' + attr, pnl[attr][col_export], format='table')
+                df = pnl[attr][col_export]
+                if not df.empty:
+                    store.put('/' + list_name + '_t/' + attr, df, format='table')
 
 def import_from_hdf5(network, path, skip_time=False):
     """
