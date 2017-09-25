@@ -189,13 +189,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     >>> network.export_to_csv(filename)
     """
 
-    def nan_to_str(df, str_cols=None):
-        if str_cols is None:
-            str_cols = df.dtypes.index[df.dtypes == 'O']
-        df = pd.DataFrame(df)
-        df[str_cols] = df[str_cols].replace({np.nan: 'nan'})
-        return df
-
     with pd.HDFStore(path, mode='w', **kwargs) as store:
         #first export network properties
 
@@ -207,13 +200,17 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
                    if (attr != "name" and attr[:2] != "__" and
                        type(getattr(network,attr)) in allowed_types)]
         index = pd.Index([network.name], name="name")
-        store['/network'] = nan_to_str(pd.DataFrame(index=index, columns=columns,
-                                                    data=[[getattr(network, col) for col in columns]]))
+        store.put('/network',
+                  pd.DataFrame(index=index, columns=columns,
+                               data=[[getattr(network, col) for col in columns]]),
+                  format='table')
 
         #now export snapshots
 
-        store['/snapshots'] = nan_to_str(pd.DataFrame(dict(weightings=network.snapshot_weightings),
-                                                      index=pd.Index(network.snapshots, name="name")))
+        store.put('/snapshots',
+                  pd.DataFrame(dict(weightings=network.snapshot_weightings),
+                               index=pd.Index(network.snapshots, name="name")),
+                  format='table')
 
         #now export all other components
 
@@ -248,7 +245,7 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
 
                 col_export.append(col)
 
-            store['/' + list_name] = nan_to_str(df[col_export])
+            store.put('/' + list_name, df[col_export], format='table')
 
             #now do varying attributes
             for attr in pnl:
@@ -262,7 +259,7 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
                     else:
                         col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
-                store['/' + list_name + '_t/' + attr] = pnl[attr][col_export]
+                store.put('/' + list_name + '_t/' + attr, pnl[attr][col_export], format='table')
 
 def import_from_hdf5(network, path, skip_time=False):
     """
@@ -274,16 +271,8 @@ def import_from_hdf5(network, path, skip_time=False):
         Name of HDF5 store
     """
 
-    def str_to_nan(df, str_cols=None):
-        if str_cols is None:
-            str_cols = df.dtypes.index[df.dtypes == 'O']
-        df = pd.DataFrame(df)
-        df[str_cols] = df[str_cols].replace({np.nan: 'nan'})
-        return df
-
-
     with pd.HDFStore(path, mode='r') as store:
-        df = str_to_nan(store['/network'])
+        df = store['/network']
         logger.debug("/network")
         logger.debug(df)
         network.name = df.index[0]
@@ -329,13 +318,13 @@ def import_from_hdf5(network, path, skip_time=False):
             else:
                 logger.info("{} found.".format(list_name))
 
-            df = str_to_nan(store['/' + list_name])
+            df = store['/' + list_name]
             import_components_from_dataframe(network, df, component)
 
             if not skip_time:
                 for attr in store:
-                    if attr.startswith('/' + list_name + '/'):
-                        attr_name = attr[len('/' + list_name + '/'):]
+                    if attr.startswith('/' + list_name + '_t/'):
+                        attr_name = attr[len('/' + list_name + '_t/'):]
                         import_series_from_dataframe(network, store[attr], component, attr_name)
 
             logger.debug(getattr(network,list_name))
