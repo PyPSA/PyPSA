@@ -96,6 +96,8 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
     #now export all other components
 
+    exported_components = []
+
     for component in pypsa.components.all_components - {"SubNetwork"}:
 
         list_name = network.components[component]["list_name"]
@@ -112,7 +114,6 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
         filename = os.path.join(csv_folder_name,list_name+".csv")
         df.index.name = "name"
         if df.empty:
-            logger.info("No {} to export".format(list_name))
             if os.path.exists(filename):
                 os.unlink(filename)
 
@@ -165,6 +166,9 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                     logger.warning("Stale csv file {} removed"
                                    .format(os.path.basename(filename)))
 
+        exported_components.append(list_name)
+
+    logger.info("Exported network {} has {}".format(os.path.basename(csv_folder_name), ", ".join(exported_components)))
 
 def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     """
@@ -214,6 +218,7 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
 
         #now export all other components
 
+        exported_components = []
         for component in pypsa.components.all_components - {"SubNetwork"}:
 
             list_name = network.components[component]["list_name"]
@@ -228,7 +233,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
             #first do static attributes
             df.index.name = "name"
             if df.empty:
-                logger.info("No {} to export".format(list_name))
                 continue
 
             col_export = []
@@ -262,6 +266,10 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
                 df = pnl[attr][col_export]
                 if not df.empty:
                     store.put('/' + list_name + '_t/' + attr, df, format='table')
+
+            exported_components.append(list_name)
+
+    logger.info("Exported network {} has {}".format(os.path.basename(path), ", ".join(exported_components)))
 
 def import_from_hdf5(network, path, skip_time=False):
     """
@@ -306,6 +314,8 @@ def import_from_hdf5(network, path, skip_time=False):
             if "weightings" in df.columns:
                 network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
+        imported_components = []
+
         #now read in other components; make sure buses and carriers come first
         for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus", "Carrier", "SubNetwork"}):
             list_name = network.components[component]["list_name"]
@@ -315,10 +325,7 @@ def import_from_hdf5(network, path, skip_time=False):
                     logger.error("Error, no buses found")
                     return
                 else:
-                    logger.info("No {} found.".format(list_name))
                     continue
-            else:
-                logger.info("{} found.".format(list_name))
 
             df = store['/' + list_name]
             import_components_from_dataframe(network, df, component)
@@ -330,6 +337,10 @@ def import_from_hdf5(network, path, skip_time=False):
                         import_series_from_dataframe(network, store[attr], component, attr_name)
 
             logger.debug(getattr(network,list_name))
+
+            imported_components.append(list_name)
+
+    logger.info("Imported network {} has {}".format(os.path.basename(path), ", ".join(imported_components)))
 
 def import_components_from_dataframe(network, dataframe, cls_name):
     """
@@ -509,6 +520,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
+    imported_components = []
+
     #now read in other components; make sure buses and carriers come first
     for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus","Carrier","SubNetwork"}):
 
@@ -521,10 +534,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
                 logger.error("Error, no buses found")
                 return
             else:
-                logger.info("No {}.csv found.".format(list_name))
                 continue
-        else:
-            logger.info("{}.csv found.".format(list_name))
 
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
 
@@ -539,8 +549,9 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
 
         logger.debug(getattr(network,list_name))
 
+        imported_components.append(list_name)
 
-
+    logger.info("Imported network {} has {}".format(os.path.basename(csv_folder_name), ", ".join(imported_components)))
 
 def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     """
