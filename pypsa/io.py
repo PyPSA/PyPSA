@@ -184,14 +184,17 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     path : string
         Name of hdf5 file to which to export (if it exists, it is overwritten)
     **kwargs
-        Extra arguments for pd.HDFStore to specify compression
+        Extra arguments for pd.HDFStore to specify f.i. compression
+        (default: complevel=4)
 
     Examples
     --------
     >>> export_to_hdf5(network, filename)
     OR
-    >>> network.export_to_csv(filename)
+    >>> network.export_to_hdf5(filename)
     """
+
+    kwargs.setdefault('complevel', 4)
 
     with pd.HDFStore(path, mode='w', **kwargs) as store:
         #first export network properties
