@@ -210,14 +210,14 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
         store.put('/network',
                   pd.DataFrame(index=index, columns=columns,
                                data=[[getattr(network, col) for col in columns]]),
-                  format='table')
+                  format='table', index=False)
 
         #now export snapshots
 
         store.put('/snapshots',
                   pd.DataFrame(dict(weightings=network.snapshot_weightings),
                                index=pd.Index(network.snapshots, name="name")),
-                  format='table')
+                  format='table', index=False)
 
         #now export all other components
 
@@ -252,7 +252,7 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
 
                 col_export.append(col)
 
-            store.put('/' + list_name, df[col_export], format='table')
+            store.put('/' + list_name, df[col_export], format='table', index=False)
 
             #now do varying attributes
             for attr in pnl:
@@ -268,7 +268,7 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
 
                 df = pnl[attr][col_export]
                 if not df.empty:
-                    store.put('/' + list_name + '_t/' + attr, df, format='table')
+                    store.put('/' + list_name + '_t/' + attr, df, format='table', index=False)
 
             exported_components.append(list_name)
 
