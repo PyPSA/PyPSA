@@ -109,8 +109,6 @@ def aggregateoneport(network, busmap, component, with_time=True):
                                 astype('object').astype('str'),
                                 level='max_hours', inplace=True)
 
-
-    new_df.index = new_df.index.astype('object')
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
