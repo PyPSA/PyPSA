@@ -85,7 +85,13 @@ def aggregateoneport(network, busmap, component, with_time=True):
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static]) & set(old_df.columns)
-    grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
+
+    if 'carrier' in columns:
+        grouper = [old_df.bus, old_df.carrier]
+    elif 'max_hours' in columns:
+        grouper = [old_df.bus, old_df.max_hours]
+    else:
+        grouper = old_df.bus
 
     strategies = {attr: (np.sum
                          if attr in {'p', 'q', 'p_set', 'q_set',
