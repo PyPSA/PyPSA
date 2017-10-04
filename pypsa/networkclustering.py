@@ -82,14 +82,15 @@ def aggregategenerators(network, busmap, with_time=True):
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True):
+
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static]) & set(old_df.columns)
 
-    if 'carrier' in columns:
-        grouper = [old_df.bus, old_df.carrier]
-    elif 'max_hours' in columns:
+    if 'max_hours' in columns:
         grouper = [old_df.bus, old_df.max_hours]
+    elif 'carrier' in columns:
+        grouper = [old_df.bus, old_df.carrier]
     else:
         grouper = old_df.bus
 
@@ -98,10 +99,18 @@ def aggregateoneport(network, busmap, component, with_time=True):
                                      'p_nom', 'p_nom_max', 'p_nom_min'}
                          else np.mean
                          if attr in {'marginal_cost', 'capital_cost', 'efficiency',
-                                     'efficiency_dispatch', 'standing_loss', 'max_hours', 'efficiency_store'}
+                                     'efficiency_dispatch', 'standing_loss', 'efficiency_store'}
                          else _consense)
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
+
+    if 'max_hours' in columns:
+        new_df.index.set_levels(new_df.index.get_level_values('max_hours').\
+                                astype('object').astype('str'),
+                                level='max_hours', inplace=True)
+
+
+    new_df.index = new_df.index.astype('object')
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
