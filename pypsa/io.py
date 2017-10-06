@@ -172,7 +172,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
 def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     """
-    Export network and components to a folder of CSVs.
+    Export network and components to an HDF store.
 
     Both static and series attributes of components are exported, but only
     if they have non-default values.
