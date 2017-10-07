@@ -39,6 +39,7 @@ import scipy as sp, scipy.sparse
 import networkx as nx
 
 import collections, six
+from operator import itemgetter
 from itertools import chain
 import time
 
@@ -815,7 +816,7 @@ averaged).
 
 
 
-def find_tree(sub_network):
+def find_tree(sub_network, weight='x_pu'):
     """Get the spanning tree of the graph, choose the node with the
     highest degree as a central "tree slack" and then see for each
     branch which paths from the slack to each node go through the
@@ -827,19 +828,11 @@ def find_tree(sub_network):
     branches_i = branches_bus0.index
     buses_i = sub_network.buses_i()
 
-    graph = sub_network.graph()
+    graph = sub_network.graph(weight=weight)
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     #find bus with highest degree to use as slack
-
-    tree_slack_bus = None
-    slack_degree = -1
-
-    for bus,degree in sub_network.tree.degree_iter():
-        if degree > slack_degree:
-            tree_slack_bus = bus
-            slack_degree = degree
-
+    tree_slack_bus, slack_degree = max(sub_network.tree.degree_iter(), key=itemgetter(1))
     logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     #determine which buses are supplied in tree through branch from slack
@@ -856,7 +849,7 @@ def find_tree(sub_network):
             sub_network.T[branch_i,j] = sign
 
 
-def find_cycles(sub_network):
+def find_cycles(sub_network, weight='x_pu'):
     """
     Find all cycles in the sub_network and record them in sub_network.C.
 
@@ -864,12 +857,13 @@ def find_cycles(sub_network):
     from the MultiGraph must be collected separately (for cases where there
     are multiple lines between the same pairs of buses).
 
+    Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
 
     #reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph()
+    mgraph = sub_network.graph(weight=weight)
     graph = nx.OrderedGraph(mgraph)
 
     cycles = nx.cycle_basis(graph)
