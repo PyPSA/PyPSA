@@ -34,7 +34,12 @@ from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
                            Suffix, Expression, Binary, SolverFactory)
-from pyomo.solvers.plugins.solvers.persistent_solver import PersistentSolver
+
+try:
+    from pyomo.solvers.plugins.solvers.persistent_solver import PersistentSolver
+except ImportError:
+    # Only used in conjunction with isinstance, so we mock it to be backwards compatible
+    class PersistentSolver(): pass
 
 from itertools import chain
 
