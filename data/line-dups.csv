@@ -1,0 +1,41 @@
+# These are lines between buses, where on a map, there is only a
+# single line, while the entsoegridkit model contains multiple
+# lines. We think they are artifacts from either the vt-geojson logics
+# or the gridkit algorithms! They are removed from the model!
+# def findall(lid):
+#    line = lines.loc[str(lid)]
+#    return (lines.bus0 == line.bus0) & (lines.bus1 == line.bus1)
+# line_dups = pd.read_csv('line-dups.csv', dtype='str', skiprows=11)['line_id']
+# pd.set_option('max_rows', 200)
+# pd.concat({x: lines.loc[findall(x)] for x in line_dups}).sort_index(level=0)
+# is quite a helpful view for comparing their characteristics.
+line_id
+10032
+10433
+10457
+10504
+10565
+10884
+10966
+11045
+11202
+11301
+11314
+11315
+11315
+11397
+11406
+11490
+11494
+11514
+11523
+11524
+11588
+11606
+11684
+12326
+1906
+7399
+9953
+9972
+9993

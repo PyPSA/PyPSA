@@ -1,0 +1,1535 @@
+id,Carma,Fias,Geo,WRI,Country,Fueltype,Classification,Capacity,lat,lon,File
+0,Waldeck,Waldeck,Waldeck,Waldeck Bringhausen,Germany,Hydro,Pumped Storage,620.0,51.1772281101,9.05575413208,energy_storage_exchange / Germany Power Plants (conventional).csv
+1,Cheylas,Le cheylas,Cheylas Le,Cheylas,France,Hydro,Pumped Storage,480.0,45.3794293333,5.995288,energy_storage_exchange / France Power Plant.csv
+2,Pouget,Le pouget,Pouget Le,Pouget,France,Hydro,Pumped Storage,572.5,44.056468,2.76475866667,energy_storage_exchange / France Power Plant.csv
+3,Anapo,Anapo solarino,Anapo,Anapo C.Le,Italy,Hydro,Pumped Storage,500.0,37.133784975,15.156584,energy_storage_exchange / Italy Power Plant.csv
+4,Akkats,Akkats,Akkats,Akkats,Sweden,Hydro,Reservoir,150.0,66.5643886115,20.0879879882,Sweden Power Plant.csv
+5,Olidan,Olidan,Olidan,Olidan,Sweden,Hydro,Run-of-river,77.0,58.1949120004,12.2286306403,Sweden Power Plant.csv
+6,Revin,Revin,Revin,Revin,France,Hydro,Pumped Storage,1600.0,49.9253597425,4.6181762797,energy_storage_exchange / France Power Plant.csv
+7,Montezic,Montézic,Montezic Pump,Montezic,France,Hydro,Pumped Storage,910.0,44.717845,2.64014933333,energy_storage_exchange / France Power Plant.csv
+8,Coche,Coche,Coche,Coche,France,Hydro,Pumped Storage,300.0,45.4817777667,6.53277776667,energy_storage_exchange / France Power Plant.csv
+9,Turlough Hill,Turlough hill,Turlough Hill Tomaneena,Turlough,Ireland,Hydro,Pumped Storage,292.0,53.0504740667,-6.32667036667,energy_storage_exchange / Ireland and Northern Ireland.csv
+10,Entracque Rovina,Rovina entracque,Entracque Rovina Piastra,Entracque Rovina,Italy,Hydro,Pumped Storage,134.0,44.2371125,7.3950905,energy_storage_exchange / Italy Power Plant.csv
+11,Roncovalgrande (Delio),Roncovalgrande lago delio,Roncovalgrande,Roncovalgrande,Italy,Hydro,Pumped Storage,1016.0,46.0468636187,8.73360983211,energy_storage_exchange / Italy Power Plant.csv
+12,Fiorano,San fiorano,San Fiorano,S.Fiorano,Italy,Hydro,Pumped Storage,568.0,45.824139225,10.192063775,energy_storage_exchange / Italy Power Plant.csv
+13,Presenzano,Domenico cimarosa presenzano,Presenzano Domenico Cimarosa,Presenzano,Italy,Hydro,Pumped Storage,1000.0,41.3787045,14.083295,energy_storage_exchange / Italy Power Plant.csv
+14,Edolo,Edolo,Edolo,Edolo,Italy,Hydro,Pumped Storage,1000.0,46.1768495,10.3340795,energy_storage_exchange / Italy Power Plant.csv
+15,Markersbach,Markersbach,Markersbach,Markersbach,Germany,Hydro,Pumped Storage,1045.0,50.6511902,12.868301975,energy_storage_exchange / Germany Power Plants (conventional).csv
+16,Goldisthal,Goldisthal,Goldisthal,Goldisthal,Germany,Hydro,Pumped Storage,1060.0,50.510727125,11.044853875,energy_storage_exchange / Germany Power Plants (conventional).csv
+17,Porjus Nya,Porjus,Porjus,Porjus,Sweden,Hydro,Run-of-river,465.0,66.9600713201,19.8090654095,Sweden Power Plant.csv
+18,Boden,Boden,Boden,Boden,Sweden,Hydro,Run-of-river,78.0,65.8199766043,21.6848721673,Sweden Power Plant.csv
+19,Cruachan,Cruachan,Cruachan Scotland,Cruachan,United Kingdom,Hydro,Pumped Storage,400.0,56.498084054,-4.8292122649,energy_storage_exchange / UK Power Plant.csv
+20,Villarino,Villarino almendra reversible,Almendra Villarino,Villarino,Spain,Hydro,Pumped Storage,842.0,41.826492,-6.370078,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+21,Ffestiniog,Ffestiniog,Ffestiniog Wales,Ffestiniog,United Kingdom,Hydro,Pumped Storage,360.0,52.8070379769,-3.89362443743,energy_storage_exchange / UK Power Plant.csv
+22,Dinorwig,Dinorwig,Dinorwig,Dinorwig,United Kingdom,Hydro,Pumped Storage,1728.0,52.9205433462,-4.0555681206,energy_storage_exchange / UK Power Plant.csv
+23,Koepchenwerk,Herdecke,Koepchenwerk Herdecke,Koepchenwerk,Germany,Hydro,Pumped Storage,154.0,51.43174465,7.44140155,energy_storage_exchange / Germany Power Plants (conventional).csv
+24,Ronkhausen,Rönkhausen,Rönkhausen,Pumpspeicherwerk RöNkhausen,Germany,Hydro,Pumped Storage,140.0,51.19606455,7.975633975,energy_storage_exchange / Germany Power Plants (conventional).csv
+25,Vittjarv,Vittjärv,Vittjarv,Vittjarv,Sweden,Hydro,Run-of-river,30.0,65.8473516667,21.5581045667,Sweden Power Plant.csv
+26,Erzhausen,Erzhausen,Erzhausen,Erzhausen,Germany,Hydro,Pumped Storage,220.0,51.8808075875,9.94534689415,energy_storage_exchange / Germany Power Plants (conventional).csv
+27,Harspranget,Harspranget,Harspranget,Harspranget,Sweden,Hydro,Run-of-river,977.0,66.9102683201,19.8183824095,Sweden Power Plant.csv
+28,Messaure,Messaure,Messaure,Messaure,Sweden,Hydro,Run-of-river,442.0,66.6584938871,20.1641580779,Sweden Power Plant.csv
+29,Wendefurth,Wendefurth,Wendefurth,Wendefurth,Germany,Hydro,Pumped Storage,80.0,51.7374444333,10.9145222333,energy_storage_exchange / Germany Power Plants (conventional).csv
+30,Stornorrfors,Storrnorfors,Stornorrfors,Stornorrfors,Sweden,Hydro,Run-of-river,591.0,63.8537415049,20.1099298237,Sweden Power Plant.csv
+31,Ligga,Ligga,Ligga,Ligga,Sweden,Hydro,Run-of-river,324.0,66.4518076534,20.5864554095,Sweden Power Plant.csv
+32,Hojum,Hojum,Hojum,Hojum,Sweden,Hydro,Run-of-river,170.0,58.2814204672,12.2819483871,Sweden Power Plant.csv
+33,Alvkarleby,Älvkarleby,Alvkarleby,Alvkarleby,Sweden,Hydro,Reservoir,125.0,60.527312775,17.3871762,Sweden Power Plant.csv
+34,Laxede,Laxede,Laxede,Laxede,Sweden,Hydro,Run-of-river,207.0,66.2536250104,20.8396873275,Sweden Power Plant.csv
+35,Hausling,Häusling,Haeusling,HäUsling,Austria,Hydro,Pumped Storage,360.0,47.14871,11.9680619,energy_storage_exchange / Verbund Power Plant.csv
+36,Rosshag,Roßhag,Rosshag,RoßHag,Austria,Hydro,Pumped Storage,231.0,47.0866407667,11.7701975667,energy_storage_exchange / Verbund Power Plant.csv
+37,Wehr,Wehr,Wehr,Wehr,Germany,Hydro,Pumped Storage,992.0,47.6407087061,7.9134779775,energy_storage_exchange / Germany Power Plants (conventional).csv
+38,Foyers,Foyers,Foyers Scotland,Foyers Falls,United Kingdom,Hydro,Pumped Storage,300.0,57.1552292057,-4.37720353398,energy_storage_exchange / UK Power Plant.csv
+39,Plate Taille,Plate taille,Plate Taille Project Belgeium,Plate Taille T,Belgium,Hydro,Pumped Storage,144.0,50.2022949528,4.38121225789,energy_storage_exchange / Belgium Power Plant.csv
+40,Letsi,Letsi,Letsi,Letsi,Sweden,Hydro,Reservoir,456.0,66.502013,20.3789075,Sweden Power Plant.csv
+41,Aldeadavila,Aldeadávila,Aldeadavila,Aldeadavila,Spain,Hydro,Pumped Storage,1230.0,41.075835,-6.17778,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+42,,Chiotas entracque,Entracque Chiotas Piastra,Entracque_Chro,Italy,Hydro,Pumped Storage,1184.0,44.215675,7.401167,energy_storage_exchange / Italy Power Plant.csv
+43,,Limberg,Kaprun Limberg,Kaprun Limberg,Austria,Hydro,Pumped Storage,593.0,47.178825,12.71538,energy_storage_exchange / Verbund Power Plant.csv
+44,,Malta main stage,Malta Haupstufe Rottau,Malta Main Stage,Austria,Hydro,Pumped Storage,730.0,46.87035,13.3297,energy_storage_exchange / Verbund Power Plant.csv
+45,Genissiat Seyssel,,Genissiat,Genissiat,France,Hydro,Reservoir,420.0,45.9765,5.96483335,France Power Plant.csv
+46,Beauchastel,,Beauchastel,Beauchastel,France,Hydro,Run-of-river,204.0,44.87866665,4.8555,France Power Plant.csv
+47,Lixhe,,Lixhe,Hu Lixhe,Belgium,Hydro,Run-of-river,20.0,50.7446479347,5.69268594208,Belgium Power Plant.csv
+48,Ottmarsheim,,Ottmarsheim,Ottmarsheim,France,Hydro,Run-of-river,156.0,47.7802755,7.516176,France Power Plant.csv
+49,Sisteron,,Sisteron,Sisteron,France,Hydro,Reservoir,256.0,44.19879,5.933614,France Power Plant.csv
+50,Pied  Borne,,Pied Borne,Pied Borne,France,Hydro,Reservoir,110.0,44.477342992,3.98517319489,France Power Plant.csv
+51,Aston,,Aston,Aston,France,Hydro,Reservoir,116.0,42.7757035,1.675212,France Power Plant.csv
+52,Kembs,,Kembs,Kembs,France,Hydro,Run-of-river,156.0,47.6722415,7.511617,France Power Plant.csv
+53,Gerstheim,,Gerstheim,Gerstheim,France,Hydro,Run-of-river,141.0,48.392712,7.7155415,France Power Plant.csv
+54,Brommat,,Brommat,Brommat,France,Hydro,Reservoir,444.0,44.4183145,1.792959,France Power Plant.csv
+55,Pragneres,,Pragneres,Pragneres,France,Hydro,Pumped Storage,292.0,42.804081,0.014442,France Power Plant.csv
+56,St Leonard,,St Leonard,St LéOnard,Switzerland,Hydro,Run-of-river,34.0,46.6023929667,8.02924676667,Switzerland Power Plant.csv
+57,Batiaz,,Batiaz,BâTiaz,Switzerland,Hydro,Reservoir,162.0,46.3929749667,7.8266835,Switzerland Power Plant.csv
+58,Stalden,,Stalden,Stalden Kwm,Switzerland,Hydro,Reservoir,185.0,46.609212024,8.02825955661,Switzerland Power Plant.csv
+59,Zermeiggern,,Zermeiggern,Zermeiggern,Switzerland,Hydro,Pumped Storage,74.0,46.083228,7.957305,Switzerland Power Plant.csv
+60,Aarberg,,Aarberg,Aarberg,Switzerland,Hydro,Run-of-river,15.5,47.0410967139,7.27389081573,Switzerland Power Plant.csv
+61,Ottenstein,,Ottenheim Wilhering,Ottensheim Wilhering,Austria,Hydro,Run-of-river,179.0,48.4575193443,14.7446149308,Verbund Power Plant.csv
+62,Heid  Goreux,,Heid Goreux,Heid Goreux,Belgium,Hydro,Run-of-river,8.1,50.4500564608,5.70482086792,Belgium Power Plant.csv
+63,Caderousse,,Caderousse,Caderousse,France,Hydro,Run-of-river,156.0,44.1175975,4.765953,France Power Plant.csv
+64,Avignon,,Avignon,Avignon,France,Hydro,Run-of-river,176.0,43.9621693172,4.81296090698,France Power Plant.csv
+65,Baix  Logis Neuf,,Logis Neuf,Baix Logis Neuf,France,Hydro,Run-of-river,215.0,44.80466665,4.8435,France Power Plant.csv
+66,Bourg  Valence,,Bourg Les Valence,Bourg Les Valence,France,Hydro,Run-of-river,180.0,44.9835045,4.8746135,France Power Plant.csv
+67,Mareges,,Mareges,Mareges,France,Hydro,Reservoir,301.8,45.396,2.357,France Power Plant.csv
+68,Castro,,Castro,Castro,Spain,Hydro,Reservoir,190.0,41.697448,-5.8267305,Spain Power Plants Over 10 MW.csv
+69,Sainte Croix,,Sainte Croix,Sainte Croix,France,Hydro,Reservoir,158.0,43.7435,6.142,France Power Plant.csv
+70,Couesque,,Couesque,Couesque,France,Hydro,Reservoir,124.0,44.6710315715,2.5762266922,France Power Plant.csv
+71,Oraison,,Oraison,Oraison,France,Hydro,Run-of-river,195.0,43.94383335,5.85416665,France Power Plant.csv
+72,Saint Chamas,,Saint Chamas,Saint Chamas,France,Hydro,Run-of-river,165.0,43.538232,5.053122,France Power Plant.csv
+73,Saint Etienne Cantales,,Saint Etienne Cantales,St Etienne Cantales,France,Hydro,Reservoir,105.0,44.9459135,2.2215885,France Power Plant.csv
+74,Strasbourg,,Strasbourg,Strasbourg,France,Hydro,Run-of-river,141.0,48.5547105644,7.76997903443,France Power Plant.csv
+75,Grands Malades,,Grand Malades,Hu Grand Malades,Belgium,Hydro,Run-of-river,5.0,50.4614282398,4.88543202362,Belgium Power Plant.csv
+76,Ampsin Neuville,,Ampsin Neuville,Hu Ampsin Neuville,Belgium,Hydro,Run-of-river,9.9,50.5375133033,5.2870503479,Belgium Power Plant.csv
+77,Bathie,,Bathie,Bathie,France,Hydro,Reservoir,1056.0,45.636483,6.44882,France Power Plant.csv
+78,Serre Poncon,,Serre Poncon,Serre Poncon,France,Hydro,Reservoir,360.0,44.4678835,6.2434525,France Power Plant.csv
+79,Monteynard,,Monteyard Avigonnet,Monteynard,France,Hydro,Reservoir,360.0,45.079788,5.109954,France Power Plant.csv
+80,Malgovert,,Brevieres Malgovert,Malgovert,France,Hydro,Reservoir,396.0,45.6462613098,6.5903048706,France Power Plant.csv
+81,Bort,,Bort Les Orgues,Bort,France,Hydro,Reservoir,240.0,45.4065,2.4995,France Power Plant.csv
+82,Saint Esteve,,Saint Esteve Janson,Saint Esteve,France,Hydro,Run-of-river,156.0,43.93766665,5.77583335,France Power Plant.csv
+83,Grand Maison,,Grand Maison,Grand Maison,France,Hydro,Pumped Storage,1800.0,45.152617,6.065418,France Power Plant.csv
+84,Fessenheim Hydro,,Fessenheim,Fessenheim,France,Hydro,Run-of-river,166.0,47.9162205,7.5539925,France Power Plant.csv
+85,Chastang,,Chastang,Chastang,France,Hydro,Reservoir,300.0,45.1413555,2.01667,France Power Plant.csv
+86,Sarrans,,Sarrans,Sarrans,France,Hydro,Reservoir,180.0,44.8368285,2.7005945,France Power Plant.csv
+87,Rhinau,,Rhinau,Rhinau,France,Hydro,Run-of-river,152.0,48.2872516086,7.67125440979,France Power Plant.csv
+88,Marckolsheim,,Marckolsheim,Marckolsheim,France,Hydro,Run-of-river,156.0,48.1593557386,7.56650126648,France Power Plant.csv
+89,Andenne,,Andenne Seilles,Hu Andenne,Belgium,Hydro,Run-of-river,9.0,50.491104,5.0825635,Belgium Power Plant.csv
+90,Villarodin (Mont Cenis),,Villarodin,Villarodin,France,Hydro,Reservoir,360.0,45.2065,6.69383335,France Power Plant.csv
+91,Vouglans,,Vouglans,Vouglans,France,Hydro,Reservoir,262.0,46.4002401169,5.6574304657,France Power Plant.csv
+92,Curbans,,Curbans,Curbans,France,Hydro,Reservoir,165.0,44.4379995,6.0500895,France Power Plant.csv
+93,Ardnacrusha,,Ardnacrusha,Ardnacrusha,Ireland,Hydro,Run-of-river,86.0,52.31599445,-8.81098335,Ireland and Northern Ireland.csv
+94,Felsenau,,Felsenau,Felsenau,Switzerland,Hydro,Run-of-river,11.3,46.9584471683,7.44327150421,Switzerland Power Plant.csv
+95,Gondo,,Gondo,Gondo,Switzerland,Hydro,Reservoir,45.0,46.2389248263,8.09257246292,Switzerland Power Plant.csv
+96,Villach,,Villach,Villach,Austria,Hydro,Run-of-river,24.6,46.6215889,13.84261665,Verbund Power Plant.csv
+97,Greifenstein,,Greifenstein,Greifenstein,Austria,Hydro,Run-of-river,293.0,48.3509831882,16.2423280823,Verbund Power Plant.csv
+98,Lavamund,,Lavamuend,LavamüNd,Austria,Hydro,Run-of-river,28.0,46.6417425161,14.9425142838,Verbund Power Plant.csv
+99,Paternion,,Paternion,Paternion,Austria,Hydro,Run-of-river,24.0,46.71752835,13.64070555,Verbund Power Plant.csv
+100,Kellerberg,,Kellersberg,Kellerberg,Austria,Hydro,Run-of-river,24.6,46.67,13.70705555,Verbund Power Plant.csv
+101,Saucelle,,Saucelle,Saucelle,Spain,Hydro,Reservoir,525.0,41.046344,-6.779991,Spain Power Plants Over 10 MW.csv
+102,Ricobayo (Esla),,Ricobayo,Ricobayo,Spain,Hydro,Reservoir,291.0,41.524192,-5.978008,Spain Power Plants Over 10 MW.csv
+103,Villalcampo,,Villalcampo,Villalcampo,Spain,Hydro,Reservoir,206.0,41.506796,-6.067056,Spain Power Plants Over 10 MW.csv
+104,Jose Oriol,,Jose Maria Oriol Alcantara,Jose M Oriol,Spain,Hydro,Reservoir,957.0,39.724475,-6.8842375,Spain Power Plants Over 10 MW.csv
+105,Innertkirchen,,Innertkirchen,Innertkirchen,Switzerland,Hydro,Run-of-river,317.0,46.9122705667,8.51432936933,Switzerland Power Plant.csv
+106,Freudenau,,Freudenau,Vienna Freudenau,Austria,Hydro,Run-of-river,172.0,48.1925438801,16.4267375404,Verbund Power Plant.csv
+107,Funsingau,,Funsingau,Funsingau,Austria,Hydro,Reservoir,25.0,47.22603335,12.02913,Verbund Power Plant.csv
+108,Gerlos,,Gerlos,Gerlos,Austria,Hydro,Reservoir,200.0,47.23375165,11.89152665,Verbund Power Plant.csv
+109,Melk,,Melk,Melk,Austria,Hydro,Run-of-river,187.0,48.2252836257,15.3180303903,Verbund Power Plant.csv
+110,Schwabek,,Schwabeck,Schwabeck,Austria,Hydro,Run-of-river,79.0,46.654278,14.861578,Verbund Power Plant.csv
+111,Aschach,,Aschach,Aschach,Austria,Hydro,Run-of-river,287.0,48.1992117431,14.1792207947,Verbund Power Plant.csv
+112,Altenworth,,Altenwoerth,AltenwöRth,Austria,Hydro,Run-of-river,328.0,48.37891665,15.8528,Verbund Power Plant.csv
+113,St Veit,,St. Veit,St. Veit,Austria,Hydro,Run-of-river,16.0,47.35234165,12.8872,Verbund Power Plant.csv
+114,Schwarzach (Sbg),,Schwarzach,Schwarzach,Austria,Hydro,Run-of-river,120.0,47.34926665,12.86945,Verbund Power Plant.csv
+115,Urreiting,,Urreiting,Urreiting,Austria,Hydro,Run-of-river,16.0,47.37909165,13.21338335,Verbund Power Plant.csv
+116,St Johann,,St. Johann,St. Johann,Austria,Hydro,Run-of-river,16.0,47.3369189,13.24814445,Verbund Power Plant.csv
+117,Kreuzbergmaut,,Kreuzbergmaut,Kreuzbergmaut,Austria,Hydro,Run-of-river,18.0,47.42893335,13.21373335,Verbund Power Plant.csv
+118,Bischofhofen,,Bischofshofen,Bischofshofen,Austria,Hydro,Run-of-river,16.0,47.41183335,13.21858335,Verbund Power Plant.csv
+119,Chatelard,,Chatelard Vallorcine,ChâTelard Vallorcine,Switzerland,Hydro,Reservoir,189.0,46.0615793115,6.95874713109,Switzerland Power Plant.csv
+120,Verbois,,Verbois,Verbois,Switzerland,Hydro,Run-of-river,100.0,46.23801665,6.09738335,Switzerland Power Plant.csv
+121,Chancy Pougny,,Chancy Pougny,Chancy Pougny,Switzerland,Hydro,Run-of-river,49.0,46.1604,5.9766,Switzerland Power Plant.csv
+122,Hopflauenen Trift,,Hopflauenen,Hopflauenen Trift,Switzerland,Hydro,Reservoir,92.0,46.462883675,7.764466425,Switzerland Power Plant.csv
+123,Grimsel  Ost,,Grimsel,Grimsel,Switzerland,Hydro,Pumped Storage,415.0,46.4420050266,8.05608684495,Switzerland Power Plant.csv
+124,Seujet,,Seujet,Seujet,Switzerland,Hydro,Run-of-river,5.6,46.2042,6.1355,Switzerland Power Plant.csv
+125,Ybbs Persenberg,,Ybbs Persenburg,Ybbs Persenbeug,Austria,Hydro,Run-of-river,236.5,48.18916,15.0682,Verbund Power Plant.csv
+126,Wallsee Mitterkirchen,,Wallsee Mitterkirchen,Wallsee Mitterkirchen,Austria,Hydro,Run-of-river,210.0,48.16656,14.6953,Verbund Power Plant.csv
+127,Annabrucke,,Annabruecke,AnnabrüCke,Austria,Hydro,Run-of-river,90.0,46.5612,14.4795,Verbund Power Plant.csv
+128,Croix,,Croix,Croix,Switzerland,Hydro,Reservoir,66.0,46.63709745,7.44002434058,Switzerland Power Plant.csv
+129,Gabi,,Gabi,Gabi,Switzerland,Hydro,Reservoir,11.0,46.1882,8.0702,Switzerland Power Plant.csv
+130,Ferlach Maria Rain,,Ferlach Maria Rain,Ferlach Maria Rain,Austria,Hydro,Run-of-river,75.0,46.5462,14.2985,Verbund Power Plant.csv
+131,Feistritz Ludmannsdorf,,Feistritz Ludmannsdorf,Feistritz Ludmannsdorf,Austria,Hydro,Run-of-river,88.0,46.5347,14.1712,Verbund Power Plant.csv
+132,Niederried Radelfingen,,Niederried Radelfingen,Niederried,Switzerland,Hydro,Run-of-river,15.0,47.0031,7.241,Switzerland Power Plant.csv
+133,Rosegg St Jakob,,Rosegg St. Jakob,Rosegg St. James,Austria,Hydro,Run-of-river,80.0,46.5696,14.0268,Verbund Power Plant.csv
+134,Abwinden Asten,,Abwinden Asten,Abwinden Asten,Austria,Hydro,Run-of-river,168.0,48.24798,14.4305,Verbund Power Plant.csv
+135,Mayrhofen (Zemm),,Mayrhofen,Mayrhofen,Austria,Hydro,Reservoir,345.0,47.158065,11.850133,Verbund Power Plant.csv
+136,Sloy,,Loch Sloy,Sloy,United Kingdom,Hydro,Reservoir,130.0,56.5186556,-4.41287585,UK Power Plant.csv
+137,,,Aussois + Combe D'Avrieux,Combe D'Avrieux,France,Hydro,Reservoir,198.0,45.215,6.712,France Power Plant.csv
+138,,,Butgenbach,Butgenbach,Belgium,Hydro,Reservoir,1.8,50.4359,6.2106,Belgium Power Plant.csv
+139,,,Eglisau,Eglisau,Switzerland,Hydro,Run-of-river,47.0,47.277923,8.098799,Switzerland Power Plant.csv
+140,,,Floriffoux,Hu Floriffoux,Belgium,Hydro,Run-of-river,0.8,50.4468,4.7767,Belgium Power Plant.csv
+141,,,Hydro Vierre,Vierre,Belgium,Hydro,Reservoir,1.9,49.733,5.377,Belgium Power Plant.csv
+142,,,Jochenstein,Jochenstein,Austria,Hydro,Run-of-river,132.0,48.5184,13.7076,Verbund Power Plant.csv
+143,,,Kaprun Klammsee,Klammsee,Austria,Hydro,Run-of-river,1.0,47.2591,12.7389,Verbund Power Plant.csv
+144,,,Monsin,Hu Monsin,Belgium,Hydro,Run-of-river,19.7,50.6517,5.6308,Belgium Power Plant.csv
+145,,,Nant Drance,Nant Drance,Switzerland,Hydro,Pumped Storage,900.0,46.5117291,8.04184805793,Switzerland Power Plant.csv
+146,,,Wallnerau Salzach,Wallnerau Salzach Stage,Austria,Hydro,Run-of-river,13.0,47.316,13.14095,Verbund Power Plant.csv
+147,,,Wallnerau Unterwasser,Wallnerau Underwater Stage,Austria,Hydro,Run-of-river,5.0,47.31554,13.140946,Verbund Power Plant.csv
+148,,,Werfen Pfarrwerfen,Werfen Pfarrwerfen,Austria,Hydro,Run-of-river,16.0,47.4698,13.1945,Verbund Power Plant.csv
+150,Vassli,Vassli,,Vassli,Norway,Hydro,Pumped Storage,12.0,62.91985835,9.25911665,Norway Power Plants (ENTSOE) .csv
+151,Hol,Holmvatn,,Hol,Norway,Hydro,Reservoir,350.0,63.47197665,10.86510335,Norway Power Plants (ENTSOE) .csv
+152,Nes,Nes,,Nes Oek,Norway,Hydro,Reservoir,299.0,60.36059835,9.94314835,Norway Power Plants (ENTSOE) .csv
+153,Nedre Vinstra,Nedre vinstra,,Nedre Vinstra,Norway,Hydro,Reservoir,343.0,61.588025,9.773875,Norway Power Plants (ENTSOE) .csv
+154,Aguayo,Aguayo,,Aguayo,Spain,Hydro,Pumped Storage,360.6,43.0719165,-4.0227475,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+155,Langenprozelten,Langenprozelten,,Psw Langenprozelten,Germany,Hydro,Pumped Storage,328.0,50.0020174667,8.92527326667,energy_storage_exchange / Germany Power Plants (conventional).csv
+156,Kvistforsen,Kvistforsen,,Kvistforsen,Sweden,Hydro,Run-of-river,140.0,64.7477751739,20.9081137759,Sweden Power Plant.csv
+157,Pengfors,Pengfors krv,,Pengfors,Sweden,Hydro,Reservoir,69.0,63.92738515,19.66710985,Sweden Power Plant.csv
+161,Brokke,Brokke,,Brokke,Norway,Hydro,Reservoir,443.0,58.887815,8.23808335,Norway Power Plants (ENTSOE) .csv
+162,Dynjanfoss,Dynjanfoss,,Dynjanfoss,Norway,Hydro,Run-of-river,39.0,59.05912335,8.44764,Norway Power Plants (ENTSOE) .csv
+163,Hovatn,Hovatn,,Hovatn,Norway,Hydro,Run-of-river,55.0,58.98313165,7.67634665,Norway Power Plants (ENTSOE) .csv
+164,Hekni,Hekni,,Hekni,Norway,Hydro,Run-of-river,60.0,58.8225,8.25697835,Norway Power Plants (ENTSOE) .csv
+165,Jorundland,Jörundland,,Jorundland,Norway,Hydro,Run-of-river,65.0,58.90321,8.24897835,Norway Power Plants (ENTSOE) .csv
+166,Moralets,Moralets llauset lleida huesca,,Moralets,Spain,Hydro,Pumped Storage,221.4,42.5227245423,0.692099304199,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+167,Gronnsdal,Grönsdal,,Gronsdal,Norway,Hydro,Run-of-river,36.0,60.43651665,5.854745,Norway Power Plants (ENTSOE) .csv
+168,Evanger,Evanger,,Evanger,Norway,Hydro,Reservoir,446.0,60.6396,6.267235,Norway Power Plants (ENTSOE) .csv
+169,Fosse,Fosse,,Fosse,Norway,Hydro,Run-of-river,25.0,60.53255165,5.81007665,Norway Power Plants (ENTSOE) .csv
+170,Matre,Matre,,Matre,Norway,Hydro,Reservoir,275.0,60.836285,5.4477,Norway Power Plants (ENTSOE) .csv
+172,Sorfjord,Sorfjord,,Sorfjord,Norway,Hydro,Run-of-river,88.0,68.3837578,16.18259445,Norway Power Plants (ENTSOE) .csv
+173,Gideabacka,Gideabacka,,Gideabacka,Sweden,Hydro,Reservoir,15.8,63.33223465,19.1133465,Sweden Power Plant.csv
+174,Sarp,Sarp,,Sarp,Norway,Hydro,Reservoir,90.0,59.280175,11.121675,Norway Power Plants (ENTSOE) .csv
+176,Tanes,Tanes,,Tanes,Spain,Hydro,Pumped Storage,133.0,43.228304,-5.6902275,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+178,Stadsforsen,Stadsforsen,,Stadsforsen,Sweden,Hydro,Reservoir,142.0,63.1166609333,15.9507460333,Sweden Power Plant.csv
+179,Guijo  Granadilla,Guijo grandadilla,,Guijo Granadilla,Spain,Hydro,Pumped Storage,54.0,40.1967535,-6.161695,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+180,Gabriel Y Galan,Gabriel y galan,,Gabriel Galan,Spain,Hydro,Pumped Storage,111.0,40.1967535,-6.161695,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+181,Conso,Conso,,Conso,Spain,Hydro,Pumped Storage,268.02,42.15333335,-7.23666665,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+182,Puente Bibey,Puente bibey,,Puente Bibey,Spain,Hydro,Pumped Storage,315.0,42.309812498,-7.23104690552,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+183,Bissorte,Super bissorte,,Super Bissorte,France,Hydro,Pumped Storage,821.5,45.471735,6.546954,energy_storage_exchange / France Power Plant.csv
+184,Glems,Glems,,Pumpspeicherkraftwerk Glems,Germany,Hydro,Pumped Storage,90.64,48.5086151544,9.30327106991,energy_storage_exchange / Germany Power Plants (conventional).csv
+185,Osa,Nye osa,,Osa,Norway,Hydro,Run-of-river,96.0,61.190545,11.553315,Norway Power Plants (ENTSOE) .csv
+186,Mesna,Mesna,,Mesna,Norway,Hydro,Run-of-river,42.0,61.11608,10.46861,Norway Power Plants (ENTSOE) .csv
+187,Pont Ventoux Susa,Pont ventoux susa,,Pont Ventoux,Italy,Hydro,Pumped Storage,158.0,45.1067492,6.9466249,energy_storage_exchange / Italy Power Plant.csv
+188,Villa Gargnano,Villa gargnano,,Gargnano,Italy,Hydro,Pumped Storage,139.62,45.689076,10.6614588667,energy_storage_exchange / Italy Power Plant.csv
+189,Montamara,Cardos valley complex montamara,,Montamara,Spain,Hydro,Pumped Storage,92.42,42.6306895,1.2544645,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+190,Capriati(Lete Sava),Capriati,,Capriati,Italy,Hydro,Pumped Storage,115.0,41.485748,14.14028,energy_storage_exchange / Italy Power Plant.csv
+191,Provvidenza,Provvidenza,,Provvidenza,Italy,Hydro,Pumped Storage,156.0,43.1529664,12.6227125,energy_storage_exchange / Italy Power Plant.csv
+192,Guillena,Guillena,,Guillena,Spain,Hydro,Pumped Storage,215.0,37.5413103801,-6.05812814713,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+193,Bargi Psp,Bargi,,Bargi,Italy,Hydro,Pumped Storage,330.0,44.1569713333,11.079208,energy_storage_exchange / Italy Power Plant.csv
+194,Fadalto,Fadalto,,Fadalto,Italy,Hydro,Pumped Storage,210.0,46.0121266667,12.3132701,energy_storage_exchange / Italy Power Plant.csv
+195,Riva  Garda,Ponale riva del garda ledro,,Riva Garda Nuovo,Italy,Hydro,Pumped Storage,213.1,45.8868457186,10.8402870577,energy_storage_exchange / Italy Power Plant.csv
+196,Taloro,Taloro,,Taloro,Italy,Hydro,Pumped Storage,240.0,40.0937693333,9.161556,energy_storage_exchange / Italy Power Plant.csv
+197,Ip,Ibó ip,,Ip,Spain,Hydro,Pumped Storage,88.85,42.718138608,-0.492813568115,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+198,Matfors,Matfors,,Matfors,Sweden,Hydro,Reservoir,21.0,62.320971,17.20765915,Sweden Power Plant.csv
+199,Brattset,Brattset,,Brattset,Norway,Hydro,Run-of-river,92.0,62.801224,9.99823515,Norway Power Plants (ENTSOE) .csv
+201,Mosvik,Mosvik,,Mosvik,Norway,Hydro,Run-of-river,46.0,63.77212,10.93717,Norway Power Plants (ENTSOE) .csv
+203,Sildvik,Sildvik,,Sildvik,Norway,Hydro,Reservoir,75.0,68.554355,16.44220165,Norway Power Plants (ENTSOE) .csv
+204,Nye Tyin,Tyin,,Tyin,Norway,Hydro,Run-of-river,440.0,61.43009,7.090655,Norway Power Plants (ENTSOE) .csv
+206,Svelgfoss,Svelgfoss,,Svelgfoss,Norway,Hydro,Reservoir,111.0,59.570345,9.25788,Norway Power Plants (ENTSOE) .csv
+207,Fortun,Fortun,,Fortun,Norway,Hydro,Reservoir,278.82,61.502555,7.69286165,Norway Power Plants (ENTSOE) .csv
+208,Naddvik,Naddvik,,Naddvik,Norway,Hydro,Run-of-river,118.0,61.19112,7.62608835,Norway Power Plants (ENTSOE) .csv
+209,Torpa,Torpa,,Torpa,Norway,Hydro,Run-of-river,170.0,60.998045,10.04551665,Norway Power Plants (ENTSOE) .csv
+210,Lomen,Lomen,,Lomen,Norway,Hydro,Run-of-river,60.0,61.13441165,8.90632665,Norway Power Plants (ENTSOE) .csv
+211,Hunderfossen,Hunderfossen,,Hunderfossen,Norway,Hydro,Reservoir,124.0,61.16612,10.452855,Norway Power Plants (ENTSOE) .csv
+212,Dokka,Dokka,,Dokka Kr,Norway,Hydro,Run-of-river,50.0,60.827905,10.091655,Norway Power Plants (ENTSOE) .csv
+213,Bagn,Bagn,,Bagn,Norway,Hydro,Run-of-river,85.0,60.82449,9.55101,Norway Power Plants (ENTSOE) .csv
+214,Harpefossen,Harpefoss,,Harpefossen,Norway,Hydro,Run-of-river,100.0,61.57479335,9.88720665,Norway Power Plants (ENTSOE) .csv
+215,Ovre Vinstra,Vinstra,,Ovre Vinstra,Norway,Hydro,Run-of-river,176.0,61.47458835,9.33971335,Norway Power Plants (ENTSOE) .csv
+216,Hohenwarte,Hohenwarte scheme,,Hohenwarte,Germany,Hydro,Pumped Storage,383.0,50.6188708,11.4452696333,energy_storage_exchange / Germany Power Plants (conventional).csv
+217,Gallejaur,Gallejaur,,Gallejuar,Sweden,Hydro,Reservoir,428.0,65.0192553353,19.4755029026,Sweden Power Plant.csv
+218,Forsmo,Forsmo,,Forsmo,Sweden,Hydro,Run-of-river,300.0,63.21820785,17.23561535,Sweden Power Plant.csv
+220,Bastusel,Bastusel,,Bastusel,Sweden,Hydro,Reservoir,114.0,65.3810725,18.63724735,Sweden Power Plant.csv
+221,Porsi,Porsi,,Porsi,Sweden,Hydro,Reservoir,282.0,66.4294494173,20.6361974823,Sweden Power Plant.csv
+222,Stensele,Stensele,,Stensele,Sweden,Hydro,Reservoir,54.0,65.06885715,17.19931135,Sweden Power Plant.csv
+223,Rusfors,Rusfors,,Rusfors,Sweden,Hydro,Reservoir,45.0,64.6564639276,18.4578729876,Sweden Power Plant.csv
+225,Langed,Langed,,Langed,Sweden,Hydro,Reservoir,5.5,58.92045985,12.3038005,Sweden Power Plant.csv
+227,Torrejon,Torrejon,,Torrejon,Spain,Hydro,Pumped Storage,132.0,39.9853395,-4.9062975,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+228,Cortes  Muela,Muela,,Muela,Spain,Hydro,Pumped Storage,2000.0,39.245,-0.93666665,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+229,Sackingen Psp,Säckingen,,Rheinkraftwerk SäCkingen,Germany,Hydro,Pumped Storage,404.0,47.5587537447,7.94855266949,energy_storage_exchange / Germany Power Plants (conventional).csv
+230,Waldshut,Waldshut,,Waldshut,Germany,Hydro,Pumped Storage,158.4,47.82517745,8.11333069592,energy_storage_exchange / Germany Power Plants (conventional).csv
+231,Lysebotn,Lysebotn,,Lysebotn,Norway,Hydro,Reservoir,264.0,59.302125,6.29663335,Norway Power Plants (ENTSOE) .csv
+234,Niederwartha,Niederwartha,,Niederwartha,Germany,Hydro,Pumped Storage,120.0,51.0917042657,13.6032017851,energy_storage_exchange / Germany Power Plants (conventional).csv
+235,Oksla,Oksla,,Oksla,Norway,Hydro,Run-of-river,240.0,60.4115778,5.6305422,Norway Power Plants (ENTSOE) .csv
+236,Rana,Rana,,Rana,Norway,Hydro,Reservoir,570.0,67.32638,15.63853835,Norway Power Plants (ENTSOE) .csv
+237,Leirdola,Leirdö,,Leirdola,Norway,Hydro,Run-of-river,130.0,61.46052165,7.22994835,Norway Power Plants (ENTSOE) .csv
+238,Skogaby,Skogaby,,Skogaby,Sweden,Hydro,Reservoir,12.5,56.53194465,13.18333315,Sweden Power Plant.csv
+240,Aura,Aura,,Aura,Norway,Hydro,Reservoir,352.0,62.670115,8.53631,Norway Power Plants (ENTSOE) .csv
+241,Saurdal,Saurdal,,Saurdal,Norway,Hydro,Pumped Storage,674.0,59.21457945,6.1764639,Norway Power Plants (ENTSOE) .csv
+242,Harrsele,Harrsele,,Harrsele,Sweden,Hydro,Run-of-river,223.0,64.000171,19.56666685,Sweden Power Plant.csv
+243,Skallbole,Skallböle,,Skallbole,Sweden,Hydro,Reservoir,46.0,62.36538285,16.96441385,Sweden Power Plant.csv
+246,Jukla,Jukla plants,,Jukla,Norway,Hydro,Pumped Storage,44.0,59.96166665,6.00833335,energy_storage_exchange / Norway Power Plants (ENTSOE) .csv
+247,Vinje,Vinje,,Vinje,Norway,Hydro,Reservoir,375.0,59.59167835,7.928265,Norway Power Plants (ENTSOE) .csv
+248,Bassalt,Bassalt,,Bassalt,Sweden,Hydro,Reservoir,8.0,56.75,13.2833333,Sweden Power Plant.csv
+250,Bjurfors Ovre,Bjurfors Övre krv,,Bjurfors Ovre,Sweden,Hydro,Reservoir,45.99,60.0650492615,15.9236633778,Sweden Power Plant.csv
+251,Nissastroms,Nissaström,,Nissastrom,Sweden,Hydro,Reservoir,11.2,56.83759365,13.004313,Sweden Power Plant.csv
+252,Bjurfors Nedre,Bjurfors nedre krv,,Bjurfors Nedre,Sweden,Hydro,Reservoir,78.0,60.0650492615,15.9236633778,Sweden Power Plant.csv
+254,Maar,Mar,,Mar,Norway,Hydro,Run-of-river,225.0,59.88177,8.637425,Norway Power Plants (ENTSOE) .csv
+255,Sima,Sy sima,,Sy Sima,Norway,Hydro,Run-of-river,1120.0,60.483575,7.106985,Norway Power Plants (ENTSOE) .csv
+257,Tokke,Tokke,,Tokke,Norway,Hydro,Reservoir,480.0,59.21384665,8.63586165,Norway Power Plants (ENTSOE) .csv
+258,Nore ,Nore,,Nore,Norway,Hydro,Reservoir,302.0,60.26732,8.952515,Norway Power Plants (ENTSOE) .csv
+260,Stolsdal,Stølsdal,,Stolsdal,Norway,Hydro,Pumped Storage,26.0,59.22666665,6.18666665,energy_storage_exchange / Norway Power Plants (ENTSOE) .csv
+261,Alta Statkraft,Alta,,Alta Krv,Norway,Hydro,Reservoir,180.0,69.84697,23.52678,Norway Power Plants (ENTSOE) .csv
+262,Mauranger,Mauranger,,Mauranger,Norway,Hydro,Run-of-river,307.0,60.05747665,6.17408335,Norway Power Plants (ENTSOE) .csv
+263,Viforsen,Viforsens,,Viforsen,Sweden,Hydro,Reservoir,10.0,62.305547,17.16980685,Sweden Power Plant.csv
+264,Nea,Nea,,Nea,Norway,Hydro,Reservoir,260.0,63.124178425,11.356746575,Norway Power Plants (ENTSOE) .csv
+265,Bratsberg,Bratsberg,,Bratsberg,Norway,Hydro,Reservoir,140.0,63.361475,10.453785,Norway Power Plants (ENTSOE) .csv
+266,Tinfos,Tinfos,,Tinfos Telemark,Norway,Hydro,Run-of-river,70.0,59.56762335,9.27391665,Norway Power Plants (ENTSOE) .csv
+267,Skibotn,Skibotn,,Skibotn,Norway,Hydro,Run-of-river,83.0,69.357665,20.31242835,Norway Power Plants (ENTSOE) .csv
+268,Driva,Driva,,Driva,Norway,Hydro,Run-of-river,160.0,63.39485835,9.70307835,Norway Power Plants (ENTSOE) .csv
+270,Grundfors,Grundfors,,Grundfors,Sweden,Hydro,Reservoir,110.0,65.0323024805,17.3307603812,Sweden Power Plant.csv
+273,Stenkullafors,Stenkullafors,,Stenkullafors,Sweden,Hydro,Reservoir,58.0,64.0921913667,17.2309320667,Sweden Power Plant.csv
+274,Midskog,Midskog,,Midskog,Sweden,Hydro,Reservoir,155.0,63.2453384,15.1371521333,Sweden Power Plant.csv
+276,Vargon,Vargö,,Vargon,Sweden,Hydro,Reservoir,35.3,61.81111135,17.087222,Sweden Power Plant.csv
+277,Jarkvissle,Järkvissle,,Jarkvissle,Sweden,Hydro,Reservoir,96.0,62.5965596428,16.9720031048,Sweden Power Plant.csv
+278,Tuggen,Tuggen,,Tuggen,Sweden,Hydro,Reservoir,118.0,64.5373959276,18.7757899876,Sweden Power Plant.csv
+279,Parki,Parki,,Parki,Sweden,Hydro,Reservoir,20.0,66.79878985,18.25402665,Sweden Power Plant.csv
+280,Langbjorn,Langbjörn,,Langbjorn,Sweden,Hydro,Reservoir,100.0,62.2722349039,17.2614403713,Sweden Power Plant.csv
+281,Geesthacht,Geesthacht,,Geesthacht,Germany,Hydro,Pumped Storage,120.0,53.4376818,10.3649735,energy_storage_exchange / Germany Power Plants (conventional).csv
+282,Fagerli,Fagerli,,Fagerli,Norway,Hydro,Run-of-river,72.0,67.11798335,16.08856,Norway Power Plants (ENTSOE) .csv
+284,Hammarforsen,Hammarforsens,,Hammarforsen,Sweden,Hydro,Reservoir,85.0,61.56478785,17.44395315,Sweden Power Plant.csv
+286,Witznau,Witznau,,Witznau,Germany,Hydro,Pumped Storage,220.0,47.68666665,8.25,energy_storage_exchange / Germany Power Plants (conventional).csv
+287,Duge,Duge,,Duge,Norway,Hydro,Pumped Storage,200.0,58.69291335,6.95500835,Norway Power Plants (ENTSOE) .csv
+288,Tonstad,Tonstad,,Tonstad,Norway,Hydro,Reservoir,1130.0,58.660935,6.716895,Norway Power Plants (ENTSOE) .csv
+289,Ana Sira,Ana sira,,Ana Sira,Norway,Hydro,Run-of-river,183.0,58.2969,6.44185165,Norway Power Plants (ENTSOE) .csv
+292,Batfors,Batfors,,Batfors,Sweden,Hydro,Reservoir,42.0,64.97461985,20.661866,Sweden Power Plant.csv
+294,Tjodan,Tjodan,,Tjodan,Norway,Hydro,Run-of-river,130.0,59.05214,6.6524,Norway Power Plants (ENTSOE) .csv
+295,Florli,Florli,,Florli,Norway,Hydro,Reservoir,89.0,59.01543,6.43283,Norway Power Plants (ENTSOE) .csv
+296,Lomi,Lomi,,Lomi,Norway,Hydro,Run-of-river,140.0,67.12103,16.10224,Norway Power Plants (ENTSOE) .csv
+297,Moforsen,Moforsens,,Namforsen,Sweden,Hydro,Reservoir,139.0,63.5919602,17.05046145,Sweden Power Plant.csv
+298,Valdecanas,Valdencanas,,Valdecanas,Spain,Hydro,Pumped Storage,247.17,40.23,-2.33,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+300,Tunnsjodal,Tunnsjodal,,Tunnsjodal,Norway,Hydro,Reservoir,203.0,64.70334,12.83542,Norway Power Plants (ENTSOE) .csv
+302,Byrte,Byrte t,,Byrte,Norway,Hydro,Run-of-river,25.0,59.49612,7.83322,Norway Power Plants (ENTSOE) .csv
+303,Daja,Daja,,Daja,Norway,Hydro,Run-of-river,31.0,67.08824,16.05687,Norway Power Plants (ENTSOE) .csv
+306,Dabbsjo,Dabbsjö,,Dabbsjo,Sweden,Hydro,Reservoir,26.0,64.607742,15.465791,Sweden Power Plant.csv
+307,Traryd,Traryd,,Tratyd,Sweden,Hydro,Reservoir,14.4,56.584337,13.756098,Sweden Power Plant.csv
+308,Knareds Ovre,Knäred Övre,,Knared Ovre,Sweden,Hydro,Reservoir,7.5,,,Sweden Power Plant.csv
+309,Knareds Nedre,Knäred nedre,,Knared Nedre,Sweden,Hydro,Reservoir,6.6,,,Sweden Power Plant.csv
+311,Aurland,Aurland,,Aurland,Norway,Hydro,Reservoir,1398.0,60.855,7.30485,Norway Power Plants (ENTSOE) .csv
+312,Kobbelv,Kobbelv,,Kobbelv,Norway,Hydro,Run-of-river,352.0,67.62319,15.59023,Norway Power Plants (ENTSOE) .csv
+313,Tajo   Encantada,Tajo encantada málaga,,Tajo Encantada,Spain,Hydro,Pumped Storage,376.88,36.91,-4.76,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+314,Pintado,Pintado,,Pintado,Spain,Hydro,Pumped Storage,34.8,37.94,-5.78,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+315,Brattingfoss,Brattingfoss,,Brattingfoss,Norway,Hydro,Pumped Storage,14.0,64.04331,11.08354,Norway Power Plants (ENTSOE) .csv
+316,Ylja,Ylja,,Ylja,Norway,Hydro,Run-of-river,66.0,61.19751,8.38084,Norway Power Plants (ENTSOE) .csv
+318,Bleiloch,Bleiloch,,Bleiloch,Germany,Hydro,Pumped Storage,80.0,50.5487187,11.764455,energy_storage_exchange / Germany Power Plants (conventional).csv
+319,Estany Gento Sallente,Estany gento sallente,,Estany Gento Sallente,Spain,Hydro,Pumped Storage,468.0,42.51,1.0,energy_storage_exchange / Spain Power Plants Over 10 MW.csv
+320,Fjaremsfossen,Fjaeremsfoss,,Fjaremsfossen,Norway,Hydro,Run-of-river,27.0,63.32211,10.43658,Norway Power Plants (ENTSOE) .csv
+321,Oljusjoen,Oljusjoen,,Oljusjoen,Norway,Hydro,Pumped Storage,56.0,61.00381,8.08482,Norway Power Plants (ENTSOE) .csv
+322,Hjartdola,Hjartdola,,Hjartdola,Norway,Hydro,Run-of-river,150.0,59.60456,8.71143,Norway Power Plants (ENTSOE) .csv
+323,,Abelvattnet,,Abelvattnet,Sweden,Hydro,Reservoir,5.0,65.545168,14.981899,Sweden Power Plant.csv
+325,,Stennäs,,Stennas,Sweden,Hydro,Reservoir,7.0,,,Sweden Power Plant.csv
+326,,Bjorkasen,,Bjorkasen,Norway,Hydro,Run-of-river,5.0,68.331945,16.790221,Norway Power Plants (ENTSOE) .csv
+327,,Borgund,,Borgund,Norway,Hydro,Run-of-river,240.0,61.05868,7.8192,Norway Power Plants (ENTSOE) .csv
+328,,Glomfjord,,Glomfjord,Norway,Hydro,Run-of-river,32.0,66.79696,14.00106,Norway Power Plants (ENTSOE) .csv
+330,,Svartisen,,Svartisen,Norway,Hydro,Run-of-river,780.0,66.7282,13.91351,Norway Power Plants (ENTSOE) .csv
+331,,Breive,,Breive,Norway,Hydro,Pumped Storage,24.0,59.34647,7.24939,Norway Power Plants (ENTSOE) .csv
+332,,Skarje,,Skarje,Norway,Hydro,Pumped Storage,8.0,59.34647,7.24939,Norway Power Plants (ENTSOE) .csv
+333,,Skjeggedal,,Skjeggedal,Norway,Hydro,Pumped Storage,4.0,60.1289,6.63673,Norway Power Plants (ENTSOE) .csv
+334,,Berdalsvatn,,Berdalskraft,Norway,Hydro,Reservoir,5.0,61.258469,7.821691,Norway Power Plants (ENTSOE) .csv
+335,,Kjosnesfjorden dam,,Kjosnesfjorden,Norway,Hydro,Reservoir,97.0,61.51765,6.61536,Norway Power Plants (ENTSOE) .csv
+336,,Häusern,,HäUsern,Germany,Hydro,Pumped Storage,100.0,47.7570222,8.17864775,energy_storage_exchange / Germany Power Plants (conventional).csv
+337,,Riedl energy,,Energy Storage Riedl,Germany,Hydro,Pumped Storage,300.0,48.58,13.67,energy_storage_exchange / Verbund Power Plant.csv
+338,Bolarque,,,Bolarque,Spain,Hydro,Reservoir,242.94,40.419023,-2.922556,Spain Power Plants Over 10 MW.csv
+339,Belesar,,,Belesar,Spain,Hydro,Reservoir,331.01,42.608758658,-7.77115345001,Spain Power Plants Over 10 MW.csv
+340,Tambre,,,Tambre,Spain,Hydro,Run-of-river,73.04,42.7858267671,-8.88733863831,Spain Power Plants Over 10 MW.csv
+341,Las Picadas,,,Picadas,Spain,Hydro,Reservoir,24.32,40.3235958272,-4.20319318771,Spain Power Plants Over 10 MW.csv
+342,Camporriondi,,,Camporriondi,Spain,Hydro,Reservoir,15.2,43.3513965522,-5.12915611267,Spain Power Plants Over 10 MW.csv
+343,Regueiro (Mao),,,Regueiro,Spain,Hydro,Run-of-river,28.64,42.3825770118,-7.56842136383,Spain Power Plants Over 10 MW.csv
+344,Portodemouros,,,Portodemouros,Spain,Hydro,Run-of-river,88.12,42.309432,-8.204886,Spain Power Plants Over 10 MW.csv
+345,Frieira Ecologico,,,Frieira,Spain,Hydro,Reservoir,178.15,42.1396684973,-8.10125827789,Spain Power Plants Over 10 MW.csv
+346,Burguillo,,,Burguillo,Spain,Hydro,Reservoir,61.95,40.4153258319,-4.50156211853,Spain Power Plants Over 10 MW.csv
+347,Buendia,,,Buendia,Spain,Hydro,Reservoir,55.29,40.3664274192,-2.75645256042,Spain Power Plants Over 10 MW.csv
+348,Castrejon,,,Castrejon,Spain,Hydro,Run-of-river,80.73,39.887964,-4.453876,Spain Power Plants Over 10 MW.csv
+350,Lessoc,,,Lessoc,Switzerland,Hydro,Run-of-river,8.56,46.5048393845,7.06211686134,Switzerland Power Plant.csv
+351,Avise,,,Avise,Italy,Hydro,Reservoir,146.7,45.70872365,7.1398219,Italy Power Plant.csv
+352,Valpelline,,,Valpelline,Italy,Hydro,Reservoir,130.0,45.824862,7.3255,Italy Power Plant.csv
+353,Vikesa,,,Vikesa,Norway,Hydro,Reservoir,5.0,58.63759,6.09133,Norway Power Plants (ENTSOE) .csv
+354,Arnoia,,,C.H. Arnoya Modificada,Spain,Hydro,Reservoir,11.4,42.2505671113,-8.13112735748,Spain Power Plants Over 10 MW.csv
+355,Solbergfoss,,,Solberg,Norway,Hydro,Run-of-river,240.0,59.58326,11.16286,Norway Power Plants (ENTSOE) .csv
+357,Hammeren,,,Hammeren,Norway,Hydro,Reservoir,6.0,69.6,20.55,Norway Power Plants (ENTSOE) .csv
+359,Usta,,,Usta,Norway,Hydro,Reservoir,206.0,60.62821,8.56279,Norway Power Plants (ENTSOE) .csv
+360,Gjuva,,,Gjuva,Norway,Hydro,Reservoir,11.0,62.4833333,6.0,Norway Power Plants (ENTSOE) .csv
+361,Pfrombach,,,Pfrombach,Germany,Hydro,Run-of-river,22.7,48.44524455,11.99548145,Germany Power Plants (conventional).csv
+362,Walchensee,,,Walchensee,Germany,Hydro,Reservoir,124.0,47.5833333,11.3166667,Germany Power Plants (conventional).csv
+363,Rain,,,Rain,Germany,Hydro,Run-of-river,11.2,48.6864918,10.9082667,Germany Power Plants (conventional).csv
+364,Egglfing Obernberg,,,Egglfing,Germany,Hydro,Reservoir,124.4,48.3508374547,13.31077028,Verbund Power Plant.csv
+365,Malgomaj,,,Malgomaj,Sweden,Hydro,Reservoir,11.0,64.8,16.016667,Sweden Power Plant.csv
+366,Ingolstadt Rmd,,,Ingolstadt,Germany,Hydro,Reservoir,19.8,48.7648416,11.4291864,Germany Power Plants (conventional).csv
+367,Schwabstadl,,,Schwabstadl,Germany,Hydro,Run-of-river,12.96,48.1601696,10.8729744,Germany Power Plants (conventional).csv
+368,Ettling,,,Ettling,Germany,Hydro,Reservoir,13.5,48.8166667,11.6666667,Germany Power Plants (conventional).csv
+369,Pielweichs,,,Pielweichs,Germany,Hydro,Reservoir,13.5,48.77196145,12.8708666,Germany Power Plants (conventional).csv
+370,Remolina,,,Remolina,Spain,Hydro,Reservoir,100.0,42.90357,-5.143736,Spain Power Plants Over 10 MW.csv
+371,Prem,,,Prem,Germany,Hydro,Reservoir,21.375,47.6910495,10.7984468,Germany Power Plants (conventional).csv
+372,Bergheim,,,Bergheim,Germany,Hydro,Run-of-river,23.7,50.9549114377,6.64031383027,Germany Power Plants (conventional).csv
+373,Vohburg,,,Vohburg,Germany,Hydro,Reservoir,23.31,48.7666667,11.6166667,Germany Power Plants (conventional).csv
+374,Merching,,,Merching,Germany,Hydro,Run-of-river,13.536,48.245420152,10.9858369784,Germany Power Plants (conventional).csv
+375,Dingolfing,,,Dingolfing,Germany,Hydro,Run-of-river,17.76,48.6317067,12.4988717,Germany Power Plants (conventional).csv
+376,Altheim,,,Altheim,Germany,Hydro,Run-of-river,18.68,48.89008665,9.76830095,Germany Power Plants (conventional).csv
+377,Faimingen,,,Faimingen,Germany,Hydro,Run-of-river,10.1,48.5663550008,10.4205618413,Germany Power Plants (conventional).csv
+378,Kaufering Wkw,,,Kaufering,Germany,Hydro,Reservoir,17.82,48.0891708323,10.8698286475,Germany Power Plants (conventional).csv
+379,Bertoldsheim,,,Bertoldsheim,Germany,Hydro,Reservoir,18.9,48.7532279,11.03306595,Germany Power Plants (conventional).csv
+380,Unterbergen,,,Unterbergen,Germany,Hydro,Run-of-river,12.96,48.2333333,10.95,Germany Power Plants (conventional).csv
+381,Obernach,,,Obernach,Germany,Hydro,Reservoir,12.8,47.5798645796,11.3204528578,Germany Power Plants (conventional).csv
+382,Hochstadt,,,HöChstäDt,Germany,Hydro,Run-of-river,10.0,49.7023795553,11.1118290285,Germany Power Plants (conventional).csv
+383,Gummering,,,Gummering,Germany,Hydro,Run-of-river,19.2,48.61498075,12.39122295,Germany Power Plants (conventional).csv
+384,Oberpeiching,,,Oberpeiching,Germany,Hydro,Run-of-river,12.3,49.1882837,9.35458525,Germany Power Plants (conventional).csv
+385,Niederaichbach,,,Niederaichbach,Germany,Hydro,Run-of-river,16.2,48.6034252,12.31671765,Germany Power Plants (conventional).csv
+386,Arenas,,,Presa Arenoso,Spain,Hydro,Reservoir,12.194,43.3173722581,-4.84608650208,Spain Power Plants Over 10 MW.csv
+387,Arbon,,,Arbon,Spain,Hydro,Run-of-river,56.04,43.448586,-6.705343,Spain Power Plants Over 10 MW.csv
+388,Bittenbrunn,,,Bittenbrunn,Germany,Hydro,Reservoir,20.2,49.0567943718,11.4923827619,Germany Power Plants (conventional).csv
+389,Urspring,,,Urspring,Germany,Hydro,Reservoir,12.0,49.75,11.2333333,Germany Power Plants (conventional).csv
+390,Geisling,,,Geisling,Germany,Hydro,Reservoir,25.0,48.9658639,12.35875465,Germany Power Plants (conventional).csv
+391,Scheuring,,,Scheuring,Germany,Hydro,Run-of-river,12.96,48.16850295,10.8979744,Germany Power Plants (conventional).csv
+392,Straubing,,,Straubing,Germany,Hydro,Reservoir,21.5,48.8826567,12.56819135,Germany Power Plants (conventional).csv
+393,Silvon,,,Silvon,Spain,Hydro,Run-of-river,81.54,43.432004,-6.815132,Spain Power Plants Over 10 MW.csv
+394,Hemfurth,,,Hemfurth,Germany,Hydro,Run-of-river,40.0,51.172341775,9.04850925306,Germany Power Plants (conventional).csv
+395,Prittriching,,,Prittriching,Germany,Hydro,Run-of-river,12.96,48.20073155,10.92275755,Germany Power Plants (conventional).csv
+396,Doiras,,,Doiras,Spain,Hydro,Run-of-river,61.94,43.432004,-6.815132,Spain Power Plants Over 10 MW.csv
+397,Ering Frauenstein,,,Ering,Germany,Hydro,Run-of-river,73.33,48.299605707,13.1501457215,Germany Power Plants (conventional).csv
+398,Ellgau,,,Ellgau,Germany,Hydro,Run-of-river,10.0,48.6,10.86668335,Germany Power Plants (conventional).csv
+399,Dornau,,,Dornau,Germany,Hydro,Reservoir,17.5,48.854651,10.0425347,Germany Power Plants (conventional).csv
+400,Passau Ingling,,,Passau Ingling,Germany,Hydro,Run-of-river,86.4,48.5725844366,13.4548133694,Germany Power Plants (conventional).csv
+401,Ivoz Ramet,,,Hu Ivoz Ramet,Belgium,Hydro,Run-of-river,10.2,50.6022256026,5.44355392456,Belgium Power Plant.csv
+402,Vogelgrun,,,Vogelgrun,France,Hydro,Run-of-river,140.5,48.0178314922,7.52795219421,France Power Plant.csv
+403,Taio,,,Taio,Italy,Hydro,Reservoir,161.0,46.334602623,11.0642623901,Italy Power Plant.csv
+404,Tannheim,,,Tannheim,Germany,Hydro,Reservoir,14.5,47.9998147,10.0841327,Germany Power Plants (conventional).csv
+406,Grosio,,,Grosio,Italy,Hydro,Reservoir,655.0,46.489007,10.294052,Italy Power Plant.csv
+407,Hermillion,,,Hermillon,France,Hydro,Reservoir,115.6,45.2833333,6.35,France Power Plant.csv
+408,Tryland,,,Tryland,Norway,Hydro,Run-of-river,5.0,58.25,7.9666667,Norway Power Plants (ENTSOE) .csv
+410,Smeland,,,Smeland,Norway,Hydro,Reservoir,28.0,58.6166667,7.4166667,Norway Power Plants (ENTSOE) .csv
+412,Hoylandsfoss,,,Hoylandsfoss,Norway,Hydro,Run-of-river,9.0,58.2666667,6.8333333,Norway Power Plants (ENTSOE) .csv
+413,Hunsfoss,,,Hunsfos,Norway,Hydro,Run-of-river,18.0,58.26936,7.97413,Norway Power Plants (ENTSOE) .csv
+416,Iveland,,,Iveland,Norway,Hydro,Reservoir,53.0,58.3833333,7.8333333,Norway Power Plants (ENTSOE) .csv
+417,Haverstad,,,Haverstad,Norway,Hydro,Run-of-river,62.0,58.1,7.0666667,Norway Power Plants (ENTSOE) .csv
+418,Logna,,,Logna,Norway,Hydro,Run-of-river,22.0,58.3166667,6.6666667,Norway Power Plants (ENTSOE) .csv
+419,Tjonnesfoss,,,Tjonnefoss,Norway,Hydro,Reservoir,8.0,59.1666667,8.5,Norway Power Plants (ENTSOE) .csv
+422,Nomeland,,,Nomeland,Norway,Hydro,Reservoir,56.0,58.3833333,7.8333333,Norway Power Plants (ENTSOE) .csv
+423,Uleberg,,,Uleberg,Norway,Hydro,Run-of-river,11.0,58.55,7.7833333,Norway Power Plants (ENTSOE) .csv
+424,Steinsfoss,,,Steinsfoss,Norway,Hydro,Reservoir,125.0,58.26936,7.97413,Norway Power Plants (ENTSOE) .csv
+425,Bjelland,,,Bjelland,Norway,Hydro,Reservoir,70.0,58.3833333,7.5166667,Norway Power Plants (ENTSOE) .csv
+426,Hogefoss,,,Hogefoss,Norway,Hydro,Reservoir,27.0,59.1666667,8.5,Norway Power Plants (ENTSOE) .csv
+427,Amli Gjov,,,Amli,Norway,Hydro,Reservoir,28.0,58.45,8.3333333,Norway Power Plants (ENTSOE) .csv
+428,Klosterfoss,,,Klosterfoss,Norway,Hydro,Run-of-river,12.0,59.20962,9.60897,Norway Power Plants (ENTSOE) .csv
+429,Fieschertal,,,Fieschertal,Switzerland,Hydro,Reservoir,65.0,46.9944606198,8.62758603356,Switzerland Power Plant.csv
+431,Giumaglio,,,Giumaglio,Switzerland,Hydro,Reservoir,8.94,46.274317,8.682139,Switzerland Power Plant.csv
+432,Bitsch,,,Bitsch Biel,Switzerland,Hydro,Reservoir,356.0,46.537072,7.2492305,Switzerland Power Plant.csv
+433,Fully,,,Fully,Switzerland,Hydro,Reservoir,6.0,46.1385117882,7.1146774292,Switzerland Power Plant.csv
+434,Mieville,,,MiéVille,Switzerland,Hydro,Reservoir,60.0,46.7125028147,8.27253180105,Switzerland Power Plant.csv
+435,Chandoline,,,Chandoline,Switzerland,Hydro,Reservoir,150.0,46.251268,7.593183,Switzerland Power Plant.csv
+436,Martigny Bourg,,,Martigny Bourg,Switzerland,Hydro,Run-of-river,22.0,46.0906147477,7.06369400024,Switzerland Power Plant.csv
+437,Oberems,,,Oberems Argessa,Switzerland,Hydro,Reservoir,8.2,46.281545,7.695311,Switzerland Power Plant.csv
+438,Turtmann,,,Turtmann,Switzerland,Hydro,Reservoir,24.0,46.301478,7.701951,Switzerland Power Plant.csv
+439,Litziruti Arosa,,,LitzirüTi,Switzerland,Hydro,Reservoir,5.0,46.7993783672,9.70462489449,Switzerland Power Plant.csv
+440,Luen,,,LüEn Plessur Clasaurer,Switzerland,Hydro,Reservoir,7.2,46.8498606899,9.53287124634,Switzerland Power Plant.csv
+441,Rialb,,,C.H. Rialb .,Spain,Hydro,Reservoir,30.7,41.9752689311,1.25607848167,Spain Power Plants Over 10 MW.csv
+443,Filisur,,,Filisur,Switzerland,Hydro,Reservoir,65.0,46.672147,9.688013,Switzerland Power Plant.csv
+444,Pintrun,,,Pintrun,Switzerland,Hydro,Reservoir,6.48,46.7395037348,8.8286818132,Switzerland Power Plant.csv
+445,Soazza,,,Soazza,Switzerland,Hydro,Reservoir,83.0,46.3932498,8.52042375,Switzerland Power Plant.csv
+446,Reichenau,,,Reichenau,Switzerland,Hydro,Reservoir,19.06,46.5333333,9.2,Switzerland Power Plant.csv
+447,Sedrun,,,Sedrun,Switzerland,Hydro,Reservoir,150.75,46.681556,8.778587,Switzerland Power Plant.csv
+451,Riddes,,,Riddes,Switzerland,Hydro,Reservoir,278.5,46.4862733801,7.19128440446,Switzerland Power Plant.csv
+453,Russein,,,Russein,Switzerland,Hydro,Reservoir,10.52,46.7034088063,8.85090351105,Switzerland Power Plant.csv
+454,Fionnay Mauvoisin,,,Fionnay Mauvoisin,Switzerland,Hydro,Reservoir,140.0,46.36089865,7.4590894,Switzerland Power Plant.csv
+456,Rempen,,,Rempen,Switzerland,Hydro,Reservoir,66.24,47.41750405,8.67764365,Switzerland Power Plant.csv
+457,Reckingen,,,Reckingen,Switzerland,Hydro,Run-of-river,39.5,46.7994718,7.9004477,Switzerland Power Plant.csv
+458,Klingnau,,,Klingnau,Switzerland,Hydro,Run-of-river,42.6,47.609723,8.237497,Switzerland Power Plant.csv
+462,Stampa,,,Stampa,Switzerland,Hydro,Reservoir,5.0,46.015621,8.945343,Switzerland Power Plant.csv
+463,Naturno,,,Naturno,Italy,Hydro,Reservoir,220.58,46.6493013,11.0046307,Italy Power Plant.csv
+464,Eriste,,,Eriste,Spain,Hydro,Reservoir,87.6,42.5898677138,0.492668151855,Spain Power Plants Over 10 MW.csv
+465,Toran,,,Toran,Spain,Hydro,Reservoir,13.2,42.231195,-7.830264,Spain Power Plants Over 10 MW.csv
+466,Pampaneira,,,Pampaneira,Spain,Hydro,Reservoir,12.8,36.9401510172,-3.36095809937,Spain Power Plants Over 10 MW.csv
+467,Las Ondinas,,,Ondinas,Spain,Hydro,Run-of-river,82.46,42.820561,-6.487473,Spain Power Plants Over 10 MW.csv
+468,Mucone ,,,Mucone S,Italy,Hydro,Reservoir,101.44,39.4929515,16.3843719,Italy Power Plant.csv
+469,Oliana,,,Oliana,Spain,Hydro,Run-of-river,38.38,42.068952,1.313526,Spain Power Plants Over 10 MW.csv
+470,Sondrio,,,Sondrio,Italy,Hydro,Reservoir,144.1,46.16996985,9.87292985,Italy Power Plant.csv
+471,Brandariz,,,C. H. Salto Central Brandariz,Spain,Hydro,Run-of-river,17.5,42.8166667,-8.2833333,Spain Power Plants Over 10 MW.csv
+472,Hodnaberg,,,Hodnaberg,Norway,Hydro,Run-of-river,43.0,60.62296,6.42286,Norway Power Plants (ENTSOE) .csv
+473,Froland,,,Froland,Norway,Hydro,Run-of-river,29.0,60.3833333,5.8,Norway Power Plants (ENTSOE) .csv
+474,Kvittingen,,,Kvittingen,Norway,Hydro,Run-of-river,56.0,60.4666667,5.8833333,Norway Power Plants (ENTSOE) .csv
+475,Dale,,,Dale Tue,Norway,Hydro,Reservoir,178.0,60.4833333,5.7333333,Norway Power Plants (ENTSOE) .csv
+476,Ulvik,,,Ulvik,Norway,Hydro,Reservoir,24.0,60.57117,6.91701,Norway Power Plants (ENTSOE) .csv
+477,Steinsland,,,Steinsland,Norway,Hydro,Reservoir,198.0,60.9166667,5.9833333,Norway Power Plants (ENTSOE) .csv
+480,Kaldestad,,,Kaldestad,Norway,Hydro,Reservoir,30.0,60.4833333,5.7333333,Norway Power Plants (ENTSOE) .csv
+484,Fossmark,,,Fossmark,Norway,Hydro,Reservoir,11.0,60.4833333,5.7333333,Norway Power Plants (ENTSOE) .csv
+485,Myster,,,Myster,Norway,Hydro,Reservoir,125.0,60.4833333,5.7333333,Norway Power Plants (ENTSOE) .csv
+486,Oksebotn,,,Oksebotn,Norway,Hydro,Reservoir,16.0,60.62296,6.42286,Norway Power Plants (ENTSOE) .csv
+488,Wynau,,,Wynau,Switzerland,Hydro,Reservoir,12.0,47.2556989436,7.81625747681,Switzerland Power Plant.csv
+489,Kallnach,,,Kallnach,Switzerland,Hydro,Run-of-river,8.3,47.020319,7.235453,Switzerland Power Plant.csv
+490,Hagneck,,,Hagneck Mm U. M,Switzerland,Hydro,Run-of-river,12.7,47.1324032425,7.24411010742,Switzerland Power Plant.csv
+491,Goule,,,Goule,Switzerland,Hydro,Reservoir,5.87,47.1528362264,6.99691772461,Switzerland Power Plant.csv
+492,Spiez,,,Spiez,Switzerland,Hydro,Run-of-river,18.66,46.684733,7.691108,Switzerland Power Plant.csv
+494,Heggmoen,,,Heggmoen,Norway,Hydro,Reservoir,12.0,67.28,14.40501,Norway Power Plants (ENTSOE) .csv
+495,Viulfoss,,,Viulfoss,Norway,Hydro,Run-of-river,13.0,60.1166667,10.2666667,Norway Power Plants (ENTSOE) .csv
+496,Gamlebrofoss,,,Gamlebrofoss,Norway,Hydro,Run-of-river,18.0,59.66858,9.65017,Norway Power Plants (ENTSOE) .csv
+497,Pikerfoss,,,Pikerfoss,Norway,Hydro,Reservoir,18.0,59.85,9.45,Norway Power Plants (ENTSOE) .csv
+499,Martina ,,,Martina,Switzerland,Hydro,Reservoir,84.0,46.5103528,8.75101465,Switzerland Power Plant.csv
+500,Etzelwerk Altendorf,,,Etzelwerk Altendorf,Switzerland,Hydro,Reservoir,142.44,46.8700754127,9.07981602958,Switzerland Power Plant.csv
+501,Hinterthal Huribach,,,Hinterthal HüRibach,Switzerland,Hydro,Reservoir,4.7,46.976761,8.76499,Switzerland Power Plant.csv
+502,Sahli Glattalp,,,Sahli Glattalp,Switzerland,Hydro,Reservoir,9.3,46.9156824717,8.88424873352,Switzerland Power Plant.csv
+503,Wernisberg,,,Wernisberg,Switzerland,Hydro,Reservoir,20.4,47.011045002,8.64538192749,Switzerland Power Plant.csv
+504,Hinterthal Muota,,,Hinterthal Muota,Switzerland,Hydro,Reservoir,8.8,46.976761,8.76499,Switzerland Power Plant.csv
+505,Stechelberg,,,Stechelberg,Switzerland,Hydro,Reservoir,4.3,46.5431297381,7.90148735046,Switzerland Power Plant.csv
+506,Dallenwil,,,Dallenwil,Switzerland,Hydro,Reservoir,18.24,46.924197,8.387852,Switzerland Power Plant.csv
+507,Obermatt,,,Zwingen Obermatt,Switzerland,Hydro,Reservoir,32.33,46.99738785,8.12304175,Switzerland Power Plant.csv
+508,Isenthal,,,Isenthal Bolzbach,Switzerland,Hydro,Reservoir,12.0,46.881992,8.616111,Switzerland Power Plant.csv
+509,Burglen,,,BüRglen UnterschäChen,Switzerland,Hydro,Reservoir,23.0,47.03977015,8.69879105,Switzerland Power Plant.csv
+510,Arniberg,,,Arniberg,Switzerland,Hydro,Reservoir,13.0,46.771317,8.669632,Switzerland Power Plant.csv
+511,Gurtnellen,,,Gurtnellen,Switzerland,Hydro,Reservoir,6.6,46.740074,8.624676,Switzerland Power Plant.csv
+512,Ganterbrucke,,,GanterbrüCke,Switzerland,Hydro,Reservoir,6.1,46.2964768369,8.05066108704,Switzerland Power Plant.csv
+515,Kaiserstuhl,,,Kaiserstuhl,Switzerland,Hydro,Reservoir,10.3,46.813809,8.17205,Switzerland Power Plant.csv
+516,Lungererseewerk (Unteraa),,,Unteraa Lungerersee,Switzerland,Hydro,Reservoir,54.5,46.833327,8.180646,Switzerland Power Plant.csv
+517,Letten,,,Letten,Switzerland,Hydro,Run-of-river,5.0,47.3666667,8.55,Switzerland Power Plant.csv
+518,Wettingen,,,Wettingen Dotierzentrale,Switzerland,Hydro,Reservoir,27.45,47.470495,8.31636,Switzerland Power Plant.csv
+519,Tinizong,,,Tinizong,Switzerland,Hydro,Reservoir,76.5,46.582406,9.61732,Switzerland Power Plant.csv
+520,Castasegna,,,Castasegna,Switzerland,Hydro,Reservoir,100.0,46.2556335562,7.75692778793,Switzerland Power Plant.csv
+521,Sublin ,,,Sublin,Switzerland,Hydro,Run-of-river,10.61,46.252137,7.011408,Switzerland Power Plant.csv
+522,Las Conchas,,,Conchas,Spain,Hydro,Reservoir,49.38,42.407456473,-7.53164291382,Spain Power Plants Over 10 MW.csv
+523,Velle,,,Velle,Spain,Hydro,Reservoir,86.48,42.3333333,-7.85,Spain Power Plants Over 10 MW.csv
+524,Salas,,,Salas,Spain,Hydro,Run-of-river,53.1,41.956095,-7.973959,Spain Power Plants Over 10 MW.csv
+525,Juan (Es),,,Juan,Spain,Hydro,Reservoir,38.81,40.3618495478,-4.39830780029,Spain Power Plants Over 10 MW.csv
+526,Castrelo Fenosa,,,Castrelo,Spain,Hydro,Run-of-river,135.59,42.2979765602,-8.06696891785,Spain Power Plants Over 10 MW.csv
+527,Entrepenas,,,Entrepenas,Spain,Hydro,Reservoir,40.8,40.517524,-2.792505,Spain Power Plants Over 10 MW.csv
+528,Los Peares,,,Peares,Spain,Hydro,Reservoir,199.17,42.4536237092,-7.73336648941,Spain Power Plants Over 10 MW.csv
+529,Albarellos,,,Albarellos,Spain,Hydro,Run-of-river,67.6,42.433318,-8.144306,Spain Power Plants Over 10 MW.csv
+530,Mandeo Zarzo,,,Mandeo Zarzo,Spain,Hydro,Reservoir,26.8,43.234692,-8.017052,Spain Power Plants Over 10 MW.csv
+531,Tunnsjo,,,Tunnsjo,Norway,Hydro,Reservoir,32.0,64.6833333,13.65,Norway Power Plants (ENTSOE) .csv
+532,Donzere,,,Donzere Mondragon,France,Hydro,Run-of-river,354.0,44.440893,4.711792,France Power Plant.csv
+533,Bocki ,,,Bocki,Switzerland,Hydro,Reservoir,8.7,46.81885,8.650516,Switzerland Power Plant.csv
+534,Gidea,,,Gidea,Sweden,Hydro,Run-of-river,18.45,63.55,18.6166667,Sweden Power Plant.csv
+535,Bjorna,,,Bjorna,Sweden,Hydro,Reservoir,17.0,63.5666667,18.55,Sweden Power Plant.csv
+536,Gidbole,,,Gidbole,Sweden,Hydro,Run-of-river,13.5,63.4,19.05,Sweden Power Plant.csv
+537,Bieudron,,,Bieudron,Switzerland,Hydro,Reservoir,1285.0,46.3406813,7.46059055,Switzerland Power Plant.csv
+538,Nendaz,,,Nendaz,Switzerland,Hydro,Reservoir,408.0,46.1853368487,7.35893730635,Switzerland Power Plant.csv
+539,Sama,,,Sama,Norway,Hydro,Reservoir,8.0,63.7166667,9.5666667,Norway Power Plants (ENTSOE) .csv
+541,Charmey,,,Charmey Le Perré,Switzerland,Hydro,Reservoir,5.27,46.619499,7.056743,Switzerland Power Plant.csv
+543,Vinkefallet,,,Vinkelfallet,Norway,Hydro,Run-of-river,9.0,59.0963889,5.7083333,Norway Power Plants (ENTSOE) .csv
+544,Barca,,,Barca,Spain,Hydro,Run-of-river,55.28,43.337651,-6.414516,Spain Power Plants Over 10 MW.csv
+545,Salime,,,Salime,Spain,Hydro,Run-of-river,157.24,43.215536,-6.875698,Spain Power Plants Over 10 MW.csv
+546,Miranda Cantabrico,,,Miranda,Spain,Hydro,Run-of-river,71.79,43.2824541424,-6.21817588806,Spain Power Plants Over 10 MW.csv
+547,Proaza,,,Proaza,Spain,Hydro,Reservoir,49.54,43.251775,-6.016333,Spain Power Plants Over 10 MW.csv
+548,Fagervollan,,,Fagervollan,Norway,Hydro,Reservoir,22.0,68.35,17.0166667,Norway Power Plants (ENTSOE) .csv
+549,Sjona,,,Sjona,Norway,Hydro,Reservoir,60.0,68.35,17.0166667,Norway Power Plants (ENTSOE) .csv
+551,Forsland,,,Forsland,Norway,Hydro,Run-of-river,8.0,67.5833333,15.7666667,Norway Power Plants (ENTSOE) .csv
+552,Ildgrubfossen,,,Ildgruben,Norway,Hydro,Reservoir,7.0,68.35,17.0166667,Norway Power Plants (ENTSOE) .csv
+553,Grytaga,,,Grytaga,Norway,Hydro,Run-of-river,61.0,65.8333333,13.2,Norway Power Plants (ENTSOE) .csv
+554,Kaldaga,,,Kaldaga,Norway,Hydro,Run-of-river,19.0,68.045,15.7305556,Norway Power Plants (ENTSOE) .csv
+555,Gejman,,,Gejman,Sweden,Hydro,Run-of-river,66.0,65.095904961,17.1173107624,Sweden Power Plant.csv
+556,Peneda,,,C.H. Peneda Modificada,Spain,Hydro,Reservoir,11.0,42.2505671113,-8.13112735748,Spain Power Plants Over 10 MW.csv
+557,Werk Rheinfelden,,,Rheinfelden,Germany,Hydro,Run-of-river,46.7,47.5782649,7.80503257609,Germany Power Plants (conventional).csv
+558,Montpezat,,,Montpezat,France,Hydro,Reservoir,133.7,43.751367,6.0888,France Power Plant.csv
+559,Domeno,,,Central Hidraulica Domeno,Spain,Hydro,Run-of-river,40.8,42.675787,-1.239507,Spain Power Plants Over 10 MW.csv
+560,Millares,,,C.H. Millares,Spain,Hydro,Reservoir,70.17,39.25,-0.7666667,Spain Power Plants Over 10 MW.csv
+561,Pedro Iberdrola ,,,Pedro,Spain,Hydro,Reservoir,57.47,42.4171203547,-7.74982452393,Spain Power Plants Over 10 MW.csv
+562,Lafortunada Cinca,,,Lafortunada Cinca,Spain,Hydro,Reservoir,42.0,42.574054,0.182409,Spain Power Plants Over 10 MW.csv
+563,Soutelo,,,Soutelo,Spain,Hydro,Reservoir,213.64,43.300394,-6.923518,Spain Power Plants Over 10 MW.csv
+564,Santiago Jares,,,Santiago Jares,Spain,Hydro,Run-of-river,53.15,43.49489,-7.242148,Spain Power Plants Over 10 MW.csv
+565,Valparaiso,,,Valparaiso,Spain,Hydro,Reservoir,67.5,42.022834,-6.330268,Spain Power Plants Over 10 MW.csv
+566,Saussaz,,,Saussaz,France,Hydro,Reservoir,146.0,45.218424,6.472575,France Power Plant.csv
+568,Cedegolo Edison,,,Cedegolo,Italy,Hydro,Reservoir,130.0,46.076697,10.349562,Italy Power Plant.csv
+569,Unteropfingen,,,Unteropfingen,Germany,Hydro,Reservoir,14.2,48.0591516244,10.128364563,Germany Power Plants (conventional).csv
+570,Saint Guillerme,,,Saint Guillerme,France,Hydro,Reservoir,116.0,45.054847,6.029845,France Power Plant.csv
+571,Iffezheim,,,Rheinkraftwerk Iffezheim,Germany,Hydro,Run-of-river,146.0,48.8222128594,8.14201371927,Germany Power Plants (conventional).csv
+572,Somplago,,,Somplago,Italy,Hydro,Reservoir,220.0,46.3705556,13.0436111,Italy Power Plant.csv
+573,Mese,,,Mese,Italy,Hydro,Reservoir,164.34,46.306294,9.382335,Italy Power Plant.csv
+574,Strandfossen,,,Strandfossen,Norway,Hydro,Run-of-river,26.0,60.88191,11.56231,Norway Power Plants (ENTSOE) .csv
+575,Lutufallet,,,Lutufallet,Norway,Hydro,Reservoir,15.0,61.31484,12.26374,Norway Power Plants (ENTSOE) .csv
+576,Osfallet,,,Osfallet,Norway,Hydro,Run-of-river,6.0,61.1333333,11.3833333,Norway Power Plants (ENTSOE) .csv
+577,Sagnfossen,,,Sagnfossen,Norway,Hydro,Reservoir,7.0,61.31484,12.26374,Norway Power Plants (ENTSOE) .csv
+578,Lopet,,,Lopet,Norway,Hydro,Reservoir,28.0,61.1333333,11.3833333,Norway Power Plants (ENTSOE) .csv
+579,Vittingfoss,,,Vittingfoss,Norway,Hydro,Run-of-river,22.0,59.4833333,10.0166667,Norway Power Plants (ENTSOE) .csv
+580,Lee Hydro,,,Lee,Ireland,Hydro,Run-of-river,27.39,51.8833333,-8.6333333,Ireland and Northern Ireland.csv
+581,Grono,,,Grono,Switzerland,Hydro,Reservoir,37.5,46.246788,9.149258,Switzerland Power Plant.csv
+583,Bramois,,,Bramois Groupe,Switzerland,Hydro,Run-of-river,27.35,46.6033209,7.91199915,Switzerland Power Plant.csv
+584,Quereno,,,Quereno,Spain,Hydro,Run-of-river,36.46,42.449602,-6.947579,Spain Power Plants Over 10 MW.csv
+585,Cimego ,,,Cimego,Italy,Hydro,Run-of-river,229.9,45.9270455,10.62656275,Italy Power Plant.csv
+586,Lana,,,Lana,Italy,Hydro,Reservoir,121.8,46.60989775,11.1585987,Italy Power Plant.csv
+587,Sesue,,,Sesue,Spain,Hydro,Run-of-river,36.0,42.551308,0.472115,Spain Power Plants Over 10 MW.csv
+588,Llavorsi Cardos,,,Llavorsi Cardos,Spain,Hydro,Reservoir,52.8,42.495149,1.211007,Spain Power Plants Over 10 MW.csv
+589,Arties,,,Arties,Spain,Hydro,Run-of-river,68.0,41.798001,1.954283,Spain Power Plants Over 10 MW.csv
+590,Pont  Rey,,,Pont Rei,Spain,Hydro,Reservoir,46.4,42.838364,0.738999,Spain Power Plants Over 10 MW.csv
+591,Lanuza,,,Lanuza,Spain,Hydro,Reservoir,52.69,42.72381263,-0.28169631958,Spain Power Plants Over 10 MW.csv
+592,Guadalmena,,,Guadalmena,Spain,Hydro,Reservoir,15.2,38.311867,-3.042194,Spain Power Plants Over 10 MW.csv
+593,Barrados,,,Barrados,Spain,Hydro,Reservoir,16.0,42.7333333,0.7166667,Spain Power Plants Over 10 MW.csv
+594,Seros,,,Seros,Spain,Hydro,Run-of-river,44.6,41.4833333,0.4666667,Spain Power Plants Over 10 MW.csv
+595,Eume,,,Eume,Spain,Hydro,Reservoir,54.4,43.426973,-8.067068,Spain Power Plants Over 10 MW.csv
+596,Riba Roja,,,Riba Roja,Spain,Hydro,Reservoir,262.8,41.25,0.4833333,Spain Power Plants Over 10 MW.csv
+597,Villanua,,,Villanua,Spain,Hydro,Reservoir,13.2,42.679705,-0.537686,Spain Power Plants Over 10 MW.csv
+598,Escales,,,Escales,Spain,Hydro,Reservoir,36.0,42.3161465439,0.746319293976,Spain Power Plants Over 10 MW.csv
+599,Susqueda,,,Susqueda,Spain,Hydro,Run-of-river,88.55,41.977765,2.516524,Spain Power Plants Over 10 MW.csv
+600,Flix Endesa,,,Flix,Spain,Hydro,Run-of-river,52.52,41.2307423044,0.55007815361,Spain Power Plants Over 10 MW.csv
+601,Loch Gair,,,Loch Gair,United Kingdom,Hydro,Reservoir,6.0,56.4242820993,-4.72601693886,UK Power Plant.csv
+602,Caldes,,,Caldes,Spain,Hydro,Reservoir,32.64,42.5046294058,0.800564289093,Spain Power Plants Over 10 MW.csv
+603,Prada,,,Prada,Spain,Hydro,Reservoir,70.72,42.316743,-7.027391,Spain Power Plants Over 10 MW.csv
+604,Torbole,,,Torbole,Italy,Hydro,Reservoir,124.6,45.8695130708,10.8756065369,Italy Power Plant.csv
+605,Pueyo,,,Pueyo,Spain,Hydro,Reservoir,14.3,42.376352,-0.002612,Spain Power Plants Over 10 MW.csv
+606,Bosost,,,Bossost,Spain,Hydro,Reservoir,21.6,42.7833333,0.7,Spain Power Plants Over 10 MW.csv
+607,Salient,,,Sallent,Spain,Hydro,Reservoir,17.04,42.7712741444,-0.334482192993,Spain Power Plants Over 10 MW.csv
+608,Termens,,,Termens,Spain,Hydro,Reservoir,12.0,41.7166667,0.7666667,Spain Power Plants Over 10 MW.csv
+609,Ilanz  (Panix),,,Ilanz,Switzerland,Hydro,Reservoir,52.5,46.4271368598,8.20855723913,Switzerland Power Plant.csv
+610,Agustin,,,Agustin,Spain,Hydro,Reservoir,65.28,42.1794973838,-7.11218833923,Spain Power Plants Over 10 MW.csv
+611,Vielha,,,Vielha,Spain,Hydro,Reservoir,22.0,42.7019605619,0.795564651489,Spain Power Plants Over 10 MW.csv
+612,Penadrada,,,Penadrada,Spain,Hydro,Reservoir,38.17,42.820561,-6.487473,Spain Power Plants Over 10 MW.csv
+613,Sarra,,,Sarra,Spain,Hydro,Reservoir,28.86,42.7712741444,-0.334482192993,Spain Power Plants Over 10 MW.csv
+614,Cornatel,,,Cornatel,Spain,Hydro,Run-of-river,130.66,42.449602,-6.947579,Spain Power Plants Over 10 MW.csv
+615,Iznajar,,,Iznajar,Spain,Hydro,Run-of-river,76.8,37.266655,-4.414322,Spain Power Plants Over 10 MW.csv
+616,Duque,,,Duque,Spain,Hydro,Reservoir,12.8,36.9401510172,-3.36095809937,Spain Power Plants Over 10 MW.csv
+617,Santa Marina,,,Santa Marina,Spain,Hydro,Reservoir,34.68,42.699547,-6.512359,Spain Power Plants Over 10 MW.csv
+618,S Giacomo Sul Vomano,,,S.Giacomo,Italy,Hydro,Reservoir,490.0,42.55304,13.535891,Italy Power Plant.csv
+619,Biescas,,,Biescas,Spain,Hydro,Reservoir,64.4,42.628970046,-0.321350097656,Spain Power Plants Over 10 MW.csv
+620,Lanzada,,,Lanzada,Italy,Hydro,Reservoir,189.01,46.269297,9.869247,Italy Power Plant.csv
+621,Venaus (Mont Cenis),,,Venaus,Italy,Hydro,Reservoir,240.0,45.158443,7.008106,Italy Power Plant.csv
+622,Grado Endesa,,,Grado,Spain,Hydro,Reservoir,45.76,42.15191,0.222472,Spain Power Plants Over 10 MW.csv
+623,Ribadelago,,,Ribadelago,Spain,Hydro,Reservoir,35.96,42.1043996603,-6.6625213623,Spain Power Plants Over 10 MW.csv
+624,Montorio,,,Montorio,Italy,Hydro,Reservoir,110.1,42.62221565,13.6683227,Italy Power Plant.csv
+625,Sau,,,Sau,Spain,Hydro,Run-of-river,56.0,41.947002,2.384404,Spain Power Plants Over 10 MW.csv
+626,Mequinenza,,,Mequinenza,Spain,Hydro,Reservoir,324.0,41.3721067929,0.301694869995,Spain Power Plants Over 10 MW.csv
+627,Porto Endesa,,,Porto,Spain,Hydro,Reservoir,17.6,42.167366,-6.899343,Spain Power Plants Over 10 MW.csv
+628,Seira,,,Seira,Spain,Hydro,Reservoir,37.01,42.476962,0.431267,Spain Power Plants Over 10 MW.csv
+629,Bembezar,,,Bembezar,Spain,Hydro,Run-of-river,15.12,37.8333333,-5.2333333,Spain Power Plants Over 10 MW.csv
+630,Mediano,,,Mediano,Spain,Hydro,Reservoir,66.97,42.3226991462,0.243759155273,Spain Power Plants Over 10 MW.csv
+631,Tabescan Inferior,,,Tavascan Inferior,Spain,Hydro,Reservoir,32.04,42.621379,1.248929,Spain Power Plants Over 10 MW.csv
+632,Soverzene,,,Soverzene,Italy,Hydro,Reservoir,213.5,46.2058943,12.30319905,Italy Power Plant.csv
+633,Camarasa,,,Camarasa,Spain,Hydro,Run-of-river,60.0,41.874859,0.878136,Spain Power Plants Over 10 MW.csv
+634,Terradets,,,Terradets,Spain,Hydro,Reservoir,32.5,42.074764,0.916209,Spain Power Plants Over 10 MW.csv
+635,Tabescan Superior,,,Tavascan Superior,Spain,Hydro,Reservoir,120.44,42.621379,1.248929,Spain Power Plants Over 10 MW.csv
+636,Floriano Egna,,,S.Floriano,Italy,Hydro,Reservoir,180.0,46.31691355,11.2725739,Italy Power Plant.csv
+637,Cardano,,,Cardano,Italy,Hydro,Reservoir,121.0,46.49128515,11.3708242,Italy Power Plant.csv
+638,Canelles,,,Canelles,Spain,Hydro,Run-of-river,108.0,41.873141,0.720168,Spain Power Plants Over 10 MW.csv
+639,Bigge,,,Bigge,Germany,Hydro,Reservoir,15.4,51.1257512099,7.90221595513,Germany Power Plants (conventional).csv
+640,Ardon,,,Ardon,Switzerland,Hydro,Run-of-river,52.0,46.22140845,7.33082815,Switzerland Power Plant.csv
+643,Askerudfoss,,,Askerudfoss,Norway,Hydro,Run-of-river,15.96,60.1166667,10.2666667,Norway Power Plants (ENTSOE) .csv
+644,Kaggefoss,,,Kaggefoss,Norway,Hydro,Reservoir,101.0,59.9333333,10.0,Norway Power Plants (ENTSOE) .csv
+645,Gravfoss,,,Gravfos,Norway,Hydro,Run-of-river,50.0,59.9333333,10.0,Norway Power Plants (ENTSOE) .csv
+646,Dovikfoss,,,Dovikfoss,Norway,Hydro,Run-of-river,17.0,59.9333333,10.0,Norway Power Plants (ENTSOE) .csv
+647,Mykstufoss,,,Mykstufoss,Norway,Hydro,Reservoir,72.0,59.98431,9.29644,Norway Power Plants (ENTSOE) .csv
+648,Geithusfoss,,,Geithusfoss,Norway,Hydro,Run-of-river,15.0,59.9333333,10.0,Norway Power Plants (ENTSOE) .csv
+649,Djupdal,,,Djupdal,Norway,Hydro,Run-of-river,17.0,59.98431,9.29644,Norway Power Plants (ENTSOE) .csv
+654,Verbano,,,Verbano,Switzerland,Hydro,Reservoir,181.0,46.1201313874,8.71181488037,Switzerland Power Plant.csv
+655,Bavona,,,Bavona,Switzerland,Hydro,Reservoir,140.0,46.637668,8.69386725,Switzerland Power Plant.csv
+657,Klaus,,,Klaus,Austria,Hydro,Run-of-river,20.0,47.8313654498,14.1571712494,Verbund Power Plant.csv
+658,Rosenau,,,Rosenau,Austria,Hydro,Reservoir,34.0,48.4890224103,14.6288108826,Verbund Power Plant.csv
+659,Staning,,,Staning,Austria,Hydro,Run-of-river,43.2,48.1007252188,14.4568061829,Verbund Power Plant.csv
+660,St Pantaleon,,,St. Pantaleon,Austria,Hydro,Run-of-river,52.1,48.0076111279,12.8941726685,Verbund Power Plant.csv
+661,Schonau,,,Schonau,Austria,Hydro,Reservoir,30.0,48.394561622,14.7301769257,Verbund Power Plant.csv
+662,Ternberg,,,Ternberg,Austria,Hydro,Run-of-river,40.4,47.9333333,14.35,Verbund Power Plant.csv
+663,Weyer,,,Weyer,Austria,Hydro,Run-of-river,37.0,48.1465032749,14.117603302,Verbund Power Plant.csv
+664,Losenstein,,,Losenstein,Austria,Hydro,Run-of-river,39.4,47.9242798828,14.4367218018,Verbund Power Plant.csv
+665,Garsten St Ulrich,,,Garsten St. Ulrich,Austria,Hydro,Run-of-river,38.0,47.7222349808,14.327545166,Verbund Power Plant.csv
+666,Grossraming,,,GroßRaming,Austria,Hydro,Run-of-river,72.0,47.8833333,14.55,Verbund Power Plant.csv
+667,Ramfoss,,,Ramfoss,Norway,Hydro,Run-of-river,39.0,59.9333333,10.0,Norway Power Plants (ENTSOE) .csv
+670,Bjorndalselva,,,Bjorndalselva,Norway,Hydro,Reservoir,6.0,61.5166667,6.25,Norway Power Plants (ENTSOE) .csv
+671,Ovre Svultingen,,,Ovre Svultingen,Norway,Hydro,Reservoir,5.0,61.22036,6.07494,Norway Power Plants (ENTSOE) .csv
+672,Tafjord ,,,Tafjord,Norway,Hydro,Reservoir,319.0,62.0833333,5.8333333,Norway Power Plants (ENTSOE) .csv
+673,Smavatna,,,Smavatna,Norway,Hydro,Reservoir,23.0,69.9333333,21.7166667,Norway Power Plants (ENTSOE) .csv
+674,Meraker,,,Meraker,Norway,Hydro,Run-of-river,108.0,63.41406,11.74298,Norway Power Plants (ENTSOE) .csv
+675,Bogna,,,Bogna,Norway,Hydro,Run-of-river,60.0,64.3833333,11.4,Norway Power Plants (ENTSOE) .csv
+676,Aunfoss,,,Aunfoss,Norway,Hydro,Run-of-river,36.0,64.6166667,12.5666667,Norway Power Plants (ENTSOE) .csv
+679,Svandalsflona,,,Svandalsflona,Norway,Hydro,Reservoir,20.0,59.85,6.9833333,Norway Power Plants (ENTSOE) .csv
+681,Novle,,,Novle,Norway,Hydro,Reservoir,50.0,59.8333333,6.9,Norway Power Plants (ENTSOE) .csv
+682,Froystul,,,Froystul,Norway,Hydro,Run-of-river,50.0,59.55,9.25,Norway Power Plants (ENTSOE) .csv
+683,Suldal,,,Suldal,Norway,Hydro,Reservoir,350.0,59.6333333,6.8,Norway Power Plants (ENTSOE) .csv
+684,Eidsfoss Telemark,,,Eidsfoss,Norway,Hydro,Run-of-river,18.0,59.3,9.2166667,Norway Power Plants (ENTSOE) .csv
+685,Moflat,,,Moflat,Norway,Hydro,Run-of-river,33.0,59.55,9.25,Norway Power Plants (ENTSOE) .csv
+686,Mael,,,Mal,Norway,Hydro,Run-of-river,50.0,59.55,9.25,Norway Power Plants (ENTSOE) .csv
+687,Roldal,,,Roldal,Norway,Hydro,Reservoir,192.0,59.8166667,6.8,Norway Power Plants (ENTSOE) .csv
+688,Vemork New,,,Vemork,Norway,Hydro,Reservoir,224.0,59.55,9.25,Norway Power Plants (ENTSOE) .csv
+690,Bergsbotn,,,Bergsbotn,Norway,Hydro,Reservoir,10.0,69.4333333,17.4666667,Norway Power Plants (ENTSOE) .csv
+691,Dividalen,,,Dividalen,Norway,Hydro,Run-of-river,30.0,68.9333333,19.5166667,Norway Power Plants (ENTSOE) .csv
+692,Lavkajakka,,,Lavkajohka,Norway,Hydro,Run-of-river,10.0,69.25,20.583333,Norway Power Plants (ENTSOE) .csv
+695,Tussa,,,Tussa,Norway,Hydro,Run-of-river,64.0,62.8666667,7.55,Norway Power Plants (ENTSOE) .csv
+696,Eid,,,Eid,Norway,Hydro,Run-of-river,11.0,60.6166667,10.5,Norway Power Plants (ENTSOE) .csv
+697,Skjak,,,Skjak,Norway,Hydro,Reservoir,35.0,61.8666667,8.3666667,Norway Power Plants (ENTSOE) .csv
+698,Savalen,,,Savalen,Norway,Hydro,Run-of-river,78.0,62.10766,10.63073,Norway Power Plants (ENTSOE) .csv
+699,Faslefoss,,,Faslefoss,Norway,Hydro,Reservoir,20.0,60.9666667,9.3,Norway Power Plants (ENTSOE) .csv
+700,Framruste,,,Framruste,Norway,Hydro,Reservoir,85.0,61.8666667,8.3666667,Norway Power Plants (ENTSOE) .csv
+701,Oyberget,,,Oyberget,Norway,Hydro,Reservoir,109.0,61.9166667,8.0833333,Norway Power Plants (ENTSOE) .csv
+702,Einunna,,,Einunna,Norway,Hydro,Reservoir,12.0,62.13246,9.9968,Norway Power Plants (ENTSOE) .csv
+703,Neef,,,Neef,Germany,Hydro,Run-of-river,16.4,50.0946714,7.1355621,Germany Power Plants (conventional).csv
+704,Lasele,,,Lasele,Sweden,Hydro,Run-of-river,165.0,63.62446035,17.00629495,Sweden Power Plant.csv
+705,Gabersdorf,,,Gabersdorf,Austria,Hydro,Reservoir,14.5,46.7772222,15.5841667,Verbund Power Plant.csv
+706,Landl,,,Landl,Austria,Hydro,Run-of-river,25.0,47.65,14.7166667,Verbund Power Plant.csv
+707,St Martin,,,St. Martin,Austria,Hydro,Reservoir,11.4,47.4466650226,15.2849006653,Verbund Power Plant.csv
+708,Altenmarkt,,,Altenmarkt,Austria,Hydro,Reservoir,26.0,46.7666667,15.55,Verbund Power Plant.csv
+709,Triebenbach,,,Triebenbach,Austria,Hydro,Run-of-river,11.89,47.5,14.4666667,Verbund Power Plant.csv
+710,Perach,,,Perach,Germany,Hydro,Run-of-river,21.0,48.26668335,12.76668335,Germany Power Plants (conventional).csv
+711,Vigelands,,,Vigeland,Norway,Hydro,Run-of-river,30.0,58.26936,7.97413,Norway Power Plants (ENTSOE) .csv
+712,Vikaelva,,,Vikaelva,Norway,Hydro,Reservoir,6.0,59.7833333,6.1,Norway Power Plants (ENTSOE) .csv
+713,Cedillo,,,Cedillo,Spain,Hydro,Reservoir,495.18,39.650989,-7.498171,Spain Power Plants Over 10 MW.csv
+714,Sobradelo,,,Sobradelo,Spain,Hydro,Reservoir,44.25,42.527319,-8.008592,Spain Power Plants Over 10 MW.csv
+715,Stonebyres,,,Stonebyres,United Kingdom,Hydro,Run-of-river,6.0,56.22638895,-3.98202585,UK Power Plant.csv
+716,Kendoon,,,Kendoon,United Kingdom,Hydro,Run-of-river,24.0,55.9298349005,-4.1274398532,UK Power Plant.csv
+717,Cernadilla,,,Cernadilla,Spain,Hydro,Reservoir,33.32,42.020834,-6.417007,Spain Power Plants Over 10 MW.csv
+718,Glenlee,,,Glenlee,United Kingdom,Hydro,Reservoir,24.0,55.8635314409,-4.02094701876,UK Power Plant.csv
+719,Earlstoun,,,Earlstoun,United Kingdom,Hydro,Reservoir,14.0,55.8635314409,-4.02094701876,UK Power Plant.csv
+720,Clodio,,,Clodio,Spain,Hydro,Run-of-river,19.57,42.4666667,-7.2833333,Spain Power Plants Over 10 MW.csv
+721,Esteban,,,Esteban,Spain,Hydro,Reservoir,438.45,42.4171203547,-7.74982452393,Spain Power Plants Over 10 MW.csv
+722,Sobron,,,Sobron,Spain,Hydro,Reservoir,28.8,42.777751,-3.045774,Spain Power Plants Over 10 MW.csv
+723,Pontenovo,,,Pontenovo,Spain,Hydro,Run-of-river,38.6,42.3833333,-7.2333333,Spain Power Plants Over 10 MW.csv
+724,Montefurado,,,Montefurado,Spain,Hydro,Run-of-river,44.29,42.476778,-7.27463,Spain Power Plants Over 10 MW.csv
+725,Azutan,,,Azutan,Spain,Hydro,Reservoir,198.01,39.809663,-5.147375,Spain Power Plants Over 10 MW.csv
+726,Lafortunada Cinqueta,,,Lafortunada Cinqueta,Spain,Hydro,Reservoir,41.4,42.574054,0.182409,Spain Power Plants Over 10 MW.csv
+727,Carsfad,,,Carsfad,United Kingdom,Hydro,Reservoir,12.0,55.8635314409,-4.02094701876,UK Power Plant.csv
+728,Alarcon,,,C.H. En Alarcon,Spain,Hydro,Reservoir,19.0,39.55,-2.0833333,Spain Power Plants Over 10 MW.csv
+729,Barazar,,,Barazar,Spain,Hydro,Reservoir,83.2,43.1,-2.75,Spain Power Plants Over 10 MW.csv
+730,Martin Lugo,,,Martin,Spain,Hydro,Run-of-river,10.29,42.476778,-7.27463,Spain Power Plants Over 10 MW.csv
+731,Benageber,,,Benageber,Spain,Hydro,Run-of-river,19.0,39.7166667,-1.1,Spain Power Plants Over 10 MW.csv
+732,Tongland,,,Tongland,United Kingdom,Hydro,Run-of-river,33.0,55.073558601,-4.14082800641,UK Power Plant.csv
+733,Reinset,,,Reinset,Norway,Hydro,Reservoir,5.0,60.25,6.5666667,Norway Power Plants (ENTSOE) .csv
+734,Kublis,,,KüBlis,Switzerland,Hydro,Reservoir,45.6,46.78601325,8.62340065,Switzerland Power Plant.csv
+735,Schlappin,,,Schlappin,Switzerland,Hydro,Reservoir,6.1,46.95,9.75,Switzerland Power Plant.csv
+736,Menuza,,,Menuza,Spain,Hydro,Run-of-river,27.716,41.321664,-0.35075,Spain Power Plants Over 10 MW.csv
+737,Sastago,,,Sastago,Spain,Hydro,Run-of-river,20.3,41.321664,-0.35075,Spain Power Plants Over 10 MW.csv
+738,Pravizin  (Bruggwiti),,,Pravizin Bruggwiti,Switzerland,Hydro,Reservoir,5.0,47.0905787286,9.34301376343,Switzerland Power Plant.csv
+739,Dernier,,,Dernier,Switzerland,Hydro,Reservoir,28.0,47.0721841726,7.77811758379,Switzerland Power Plant.csv
+740,Peuffeyre,,,Peuffeyre,Switzerland,Hydro,Reservoir,24.0,46.2684696,8.092323,Switzerland Power Plant.csv
+742,Kielder,,,Kielder,United Kingdom,Hydro,Run-of-river,6.0,52.9147315611,-2.26863831052,UK Power Plant.csv
+743,Muden,,,MüDen,Germany,Hydro,Reservoir,16.4,49.6915534409,7.18477640116,Germany Power Plants (conventional).csv
+744,Koblenz Mosel,,,Koblenz,Germany,Hydro,Run-of-river,17.36,50.3516639,7.59719755,Germany Power Plants (conventional).csv
+745,Zeltingen,,,Zeltingen,Germany,Hydro,Run-of-river,13.6,49.95,7.0166667,Germany Power Plants (conventional).csv
+746,Lutschental,,,LüTschental,Switzerland,Hydro,Reservoir,11.7,46.698897,8.036894,Switzerland Power Plant.csv
+747,Sagevikelv,,,Sagevikelv,Norway,Hydro,Reservoir,6.0,60.4833333,5.7333333,Norway Power Plants (ENTSOE) .csv
+748,Orellana,,,Orellana Pie Presa,Spain,Hydro,Reservoir,18.53,39.006167,-5.534411,Spain Power Plants Over 10 MW.csv
+749,Torr Achilty,,,Torr Achilty,United Kingdom,Hydro,Run-of-river,15.0,57.5333333,-4.4833333,UK Power Plant.csv
+751,Fasnakyle,,,Fasnakyle,United Kingdom,Hydro,Run-of-river,77.0,57.066044146,-4.43839830178,UK Power Plant.csv
+752,Tummel Bridge,,,Tummel,United Kingdom,Hydro,Run-of-river,34.0,56.7075397291,-4.02103896013,UK Power Plant.csv
+753,Inverawe,,,Inverawe,United Kingdom,Hydro,Reservoir,25.0,56.9112253761,-4.89760864035,UK Power Plant.csv
+757,Zervreila,,,Zervreila,Switzerland,Hydro,Reservoir,22.0,46.6127911086,9.17791282473,Switzerland Power Plant.csv
+758,Safien,,,Safien Platz,Switzerland,Hydro,Reservoir,99.32,47.06187515,8.4516509,Switzerland Power Plant.csv
+759,Realta,,,Realta,Switzerland,Hydro,Reservoir,26.0,47.05382665,9.3461269,Switzerland Power Plant.csv
+760,Meitingen,,,Meitingen,Germany,Hydro,Run-of-river,15.0,48.55,10.85,Germany Power Plants (conventional).csv
+761,Tjorhom,,,Tjorhom,Norway,Hydro,Reservoir,140.0,58.66263,6.71694,Norway Power Plants (ENTSOE) .csv
+762,Ytre Alsaker,,,Ytre Alsaker,Norway,Hydro,Reservoir,5.49,60.3833333,6.5,Norway Power Plants (ENTSOE) .csv
+763,Oltesvik,,,Oltesvik,Norway,Hydro,Reservoir,6.0,58.85,6.1,Norway Power Plants (ENTSOE) .csv
+764,Hjelmeland,,,Hjelmeland,Norway,Hydro,Reservoir,6.0,59.2333333,6.1833333,Norway Power Plants (ENTSOE) .csv
+765,Oltedal Lyse,,,Oltedal,Norway,Hydro,Run-of-river,10.0,58.8333333,6.0333333,Norway Power Plants (ENTSOE) .csv
+767,Soderfors,,,Soderfors,Sweden,Hydro,Reservoir,20.0,60.41594505,17.24896905,Sweden Power Plant.csv
+768,Eidsfoss Sfe,,,Eidsfo,Norway,Hydro,Reservoir,7.0,61.8166667,6.15,Norway Power Plants (ENTSOE) .csv
+769,Cavergno,,,Cavergno,Switzerland,Hydro,Reservoir,114.0,46.9038076,8.99411515,Switzerland Power Plant.csv
+770,Uppenbornwerk,,,Uppenborn,Germany,Hydro,Run-of-river,43.1,48.4666667,11.9333333,Germany Power Plants (conventional).csv
+771,Jostedal,,,Jostedal,Norway,Hydro,Reservoir,320.0,61.5827964745,7.27655410767,Norway Power Plants (ENTSOE) .csv
+773,Kvarnaholm,,,Kvarnaholm,Sweden,Hydro,Run-of-river,5.6,60.45,14.55,Sweden Power Plant.csv
+774,Bjerka,,,Bjerka,Norway,Hydro,Run-of-river,29.0,66.15,13.8833333,Norway Power Plants (ENTSOE) .csv
+775,Angaback,,,Angaback,Sweden,Hydro,Run-of-river,7.0,56.4833333,13.5,Sweden Power Plant.csv
+776,Hove,,,Hove,Norway,Hydro,Reservoir,73.0,62.05,5.3333333,Norway Power Plants (ENTSOE) .csv
+777,Kjela,,,Kjela,Norway,Hydro,Run-of-river,72.0,59.3,9.0333333,Norway Power Plants (ENTSOE) .csv
+778,Trollheim,,,Trolheim,Norway,Hydro,Reservoir,169.0,62.85,9.0833333,Norway Power Plants (ENTSOE) .csv
+779,Songa,,,Songa,Norway,Hydro,Reservoir,140.0,59.5666667,8.0,Norway Power Plants (ENTSOE) .csv
+780,Refsdal ,,,Refsdal,Norway,Hydro,Reservoir,100.0,61.0333333,6.5833333,Norway Power Plants (ENTSOE) .csv
+782,Haukeli,,,Haukeli,Norway,Hydro,Reservoir,6.0,59.75,7.5166667,Norway Power Plants (ENTSOE) .csv
+784,Innset,,,Innset,Norway,Hydro,Reservoir,105.0,68.65,18.8333333,Norway Power Plants (ENTSOE) .csv
+789,Nederede,,,Nederede,Sweden,Hydro,Run-of-river,16.0,62.4333333,16.4833333,Sweden Power Plant.csv
+791,Litjfossen,,,Litjfossen,Norway,Hydro,Run-of-river,83.0,62.27594,10.78241,Norway Power Plants (ENTSOE) .csv
+792,Bergvattnet,,,Bergvattnet,Sweden,Hydro,Reservoir,21.2,64.55,15.2333333,Sweden Power Plant.csv
+793,Brynge,,,Brynge,Sweden,Hydro,Run-of-river,5.236,63.2909139951,18.7152528763,Sweden Power Plant.csv
+794,Ulset,,,Ulset,Norway,Hydro,Run-of-river,40.0,62.27594,10.78241,Norway Power Plants (ENTSOE) .csv
+795,Gaddede,,,Gaddede,Sweden,Hydro,Run-of-river,22.0,64.5,14.15,Sweden Power Plant.csv
+796,Nedre Rossaga,,,Nedre Rossaga,Norway,Hydro,Reservoir,378.0,68.5333333,15.2166667,Norway Power Plants (ENTSOE) .csv
+797,Malset,,,Malset,Norway,Hydro,Reservoir,24.0,60.9833333,6.5166667,Norway Power Plants (ENTSOE) .csv
+798,Svorkmo,,,Svorkmo,Norway,Hydro,Reservoir,61.0,63.2666667,9.8333333,Norway Power Plants (ENTSOE) .csv
+799,Laholms,,,Laholm,Sweden,Hydro,Reservoir,11.3,56.5120653165,13.0437111855,Sweden Power Plant.csv
+801,Kolsvik,,,Kolsvik,Norway,Hydro,Run-of-river,163.0,65.2166667,12.7833333,Norway Power Plants (ENTSOE) .csv
+802,Osbu,,,Osbu,Norway,Hydro,Reservoir,28.0,62.5166667,8.5,Norway Power Plants (ENTSOE) .csv
+803,Straumsmo,,,Straumsmo,Norway,Hydro,Reservoir,170.0,68.7333333,18.65,Norway Power Plants (ENTSOE) .csv
+804,Fausa,,,Fausa,Norway,Hydro,Reservoir,8.0,64.9166667,11.25,Norway Power Plants (ENTSOE) .csv
+805,Nedre Svultingen,,,Nedre Svultingen,Norway,Hydro,Run-of-river,11.0,61.17109,5.29603,Norway Power Plants (ENTSOE) .csv
+806,Brulandsfossen,,,Brulandsfoss,Norway,Hydro,Reservoir,15.0,61.45217,5.85717,Norway Power Plants (ENTSOE) .csv
+807,Haalandsfoss,,,Halandsfossen,Norway,Hydro,Reservoir,6.2,61.36311,5.39809,Norway Power Plants (ENTSOE) .csv
+808,Pernegg,,,Pernegg,Austria,Hydro,Run-of-river,22.0,47.35978671,15.3423643112,Verbund Power Plant.csv
+809,Laufnitzdorf,,,Laufnitzdorf,Austria,Hydro,Reservoir,18.0,47.3,15.3166667,Verbund Power Plant.csv
+810,Stadheim,,,Stadheim,Norway,Hydro,Reservoir,5.4,62.30964,6.93582,Norway Power Plants (ENTSOE) .csv
+811,Juvfossen,,,Juvfossen,Norway,Hydro,Reservoir,7.0,62.0833333,6.9,Norway Power Plants (ENTSOE) .csv
+813,Svartelva,,,Svartelva,Norway,Hydro,Run-of-river,16.0,63.58368,9.95989,Norway Power Plants (ENTSOE) .csv
+814,Morre,,,Morre,Norway,Hydro,Run-of-river,16.0,63.966667,10.2,Norway Power Plants (ENTSOE) .csv
+816,Trandal,,,Trandal,Norway,Hydro,Reservoir,8.0,62.2029,6.12722,Norway Power Plants (ENTSOE) .csv
+817,Gjerdsvik,,,Gjerdsvik,Norway,Hydro,Reservoir,6.0,63.2833333,8.4166667,Norway Power Plants (ENTSOE) .csv
+818,Amela,,,Amela,Norway,Hydro,Reservoir,40.0,62.0752778,5.9175,Norway Power Plants (ENTSOE) .csv
+819,Tysseland,,,Tysseland,Norway,Hydro,Reservoir,6.0,60.1166667,6.2833333,Norway Power Plants (ENTSOE) .csv
+820,Seitevare,,,Seitevare,Sweden,Hydro,Reservoir,225.0,68.8666667,20.35,Sweden Power Plant.csv
+821,Rosenheim Wkw,,,Wkw,Germany,Hydro,Reservoir,38.4,47.8563662551,12.1224689484,Germany Power Plants (conventional).csv
+822,Ustekveikja,,,Ustekveikja,Norway,Hydro,Reservoir,42.0,60.5333059725,8.20764541626,Norway Power Plants (ENTSOE) .csv
+823,Orteren,,,Ortern,Norway,Hydro,Reservoir,13.0,60.4666667,7.8,Norway Power Plants (ENTSOE) .csv
+826,Sillre,,,Sillre,Sweden,Hydro,Run-of-river,11.7,62.8589103928,15.9435753048,Sweden Power Plant.csv
+827,Mandling,,,Mandling,Austria,Hydro,Reservoir,6.1,47.4,13.5666667,Verbund Power Plant.csv
+828,Weinzodl,,,WeinzöDl,Austria,Hydro,Run-of-river,16.903,47.1,15.3833333,Verbund Power Plant.csv
+829,Teufelsbruck,,,Teufelsbruck,Germany,Hydro,Run-of-river,25.0,48.1166667,12.2,Germany Power Plants (conventional).csv
+830,Obervogau,,,Obervogau,Austria,Hydro,Reservoir,14.97,46.745,15.5847222,Verbund Power Plant.csv
+831,Lebring,,,Lebring,Austria,Hydro,Run-of-river,20.2,46.8522222,15.5383333,Verbund Power Plant.csv
+832,St Georgen,,,St. Georgen,Austria,Hydro,Reservoir,6.364,47.5333333,14.3666667,Verbund Power Plant.csv
+833,Wasserburg,,,Wasserburg,Germany,Hydro,Reservoir,28.95,48.0605283914,12.2313022614,Germany Power Plants (conventional).csv
+834,Gars,,,Gars,Germany,Hydro,Run-of-river,25.0,48.1487647,12.2910063,Germany Power Plants (conventional).csv
+835,Stammham,,,Stammham,Germany,Hydro,Reservoir,24.0,48.5776198367,11.66349592,Germany Power Plants (conventional).csv
+836,Fisching,,,Fisching,Austria,Hydro,Reservoir,22.0,47.1666667,14.7333333,Verbund Power Plant.csv
+837,Leoben Ahp,,,Leoben,Austria,Hydro,Reservoir,10.0,47.3833333,15.1,Verbund Power Plant.csv
+838,Friesach,,,Friesach,Austria,Hydro,Reservoir,13.5,47.1666667,15.3333333,Verbund Power Plant.csv
+839,Hieflau,,,Hieflau Erzbach,Austria,Hydro,Run-of-river,64.0,47.6,14.7333333,Verbund Power Plant.csv
+840,Toging,,,TöGing,Germany,Hydro,Reservoir,85.3,48.25,12.5833333,Germany Power Plants (conventional).csv
+841,Feldkirchen,,,Feldkirchen,Germany,Hydro,Reservoir,38.4,48.2842898861,12.3176479891,Germany Power Plants (conventional).csv
+842,Arnstein,,,Arnstein,Austria,Hydro,Reservoir,33.12,47.0166667,15.1666667,Verbund Power Plant.csv
+843,Dionysen,,,Dionysen,Austria,Hydro,Reservoir,16.0,47.4166667,15.2833333,Verbund Power Plant.csv
+844,Rabenstein Stm,,,Rabenstein,Austria,Hydro,Reservoir,14.0,47.35,13.6833333,Verbund Power Plant.csv
+845,Peggau,,,Peggau,Austria,Hydro,Run-of-river,13.2,47.2,15.35,Verbund Power Plant.csv
+846,Neuotting,,,NeuöTting,Germany,Hydro,Run-of-river,26.1,48.2367953,12.69273555,Germany Power Plants (conventional).csv
+847,Krippau Wehrkraftwerk,,,Krippau,Austria,Hydro,Run-of-river,35.04,47.6833333,14.7,Verbund Power Plant.csv
+848,Tenero,,,Tenero Di Dotazione,Switzerland,Hydro,Run-of-river,4.25,46.1814349653,8.85103225708,Switzerland Power Plant.csv
+850,Rognsfossen,,,Rognfossen Evang,Norway,Hydro,Reservoir,7.0,60.62296,6.42286,Norway Power Plants (ENTSOE) .csv
+851,Raassaa,,,Rasdalen,Norway,Hydro,Run-of-river,5.0,60.1666667,12.0333333,Norway Power Plants (ENTSOE) .csv
+852,Campocologno,,,Campocologno,Switzerland,Hydro,Reservoir,51.62,46.53331545,9.71279885,Switzerland Power Plant.csv
+853,Ladral,,,Ladral,Switzerland,Hydro,Reservoir,5.6,46.773675,9.108501,Switzerland Power Plant.csv
+854,Plons,,,Plons,Switzerland,Hydro,Reservoir,4.5,47.0455631697,9.42317962646,Switzerland Power Plant.csv
+855,Camporedondo,,,Camporredondo,Spain,Hydro,Reservoir,11.25,42.826109,-4.846262,Spain Power Plants Over 10 MW.csv
+856,Xerta,,,Xerta,Spain,Hydro,Run-of-river,18.0,40.9,0.5,Spain Power Plants Over 10 MW.csv
+857,Enkirch,,,Enkirch,Germany,Hydro,Run-of-river,18.4,49.983203,7.12147015,Germany Power Plants (conventional).csv
+858,Detzem,,,Detzem,Germany,Hydro,Reservoir,24.0,49.8151569,6.8457177,Germany Power Plants (conventional).csv
+859,Schwammenauel,,,Schwammenauel,Germany,Hydro,Run-of-river,14.35,50.64221115,6.4632873,Germany Power Plants (conventional).csv
+860,Wintrich,,,Wintrich,Germany,Hydro,Run-of-river,20.0,49.8833333,6.95,Germany Power Plants (conventional).csv
+861,Cwm Dyli,,,Cwm Dyli,United Kingdom,Hydro,Reservoir,10.0,52.6524068438,-3.92061334575,UK Power Plant.csv
+862,Serrig,,,Serrig,Germany,Hydro,Run-of-river,12.1,49.5607724285,6.55330865331,Germany Power Plants (conventional).csv
+863,Lehmen,,,Lehmen,Germany,Hydro,Reservoir,24.0,50.28363595,7.4520115,Germany Power Plants (conventional).csv
+864,Heimbach,,,Heimbach,Germany,Hydro,Run-of-river,16.0,50.6338778,6.47995395,Germany Power Plants (conventional).csv
+865,Trier,,,Trier,Germany,Hydro,Reservoir,18.8,49.7556525536,6.63934707642,Germany Power Plants (conventional).csv
+866,Sundsfjord,,,Sundsfjord,Norway,Hydro,Run-of-river,128.0,67.1166667,14.3,Norway Power Plants (ENTSOE) .csv
+867,Langvann,,,Langvann,Norway,Hydro,Reservoir,7.0,68.3333333,16.3666667,Norway Power Plants (ENTSOE) .csv
+868,Oldereid,,,Oldereid,Norway,Hydro,Run-of-river,14.4,67.15,14.9166667,Norway Power Plants (ENTSOE) .csv
+869,Cijara,,,Cijara M. Izda.,Spain,Hydro,Run-of-river,102.1,39.168398,-5.050487,Spain Power Plants Over 10 MW.csv
+870,Puerto Pena,,,Puerto,Spain,Hydro,Run-of-river,55.59,39.036974,-5.234225,Spain Power Plants Over 10 MW.csv
+871,Serena,,,Serena,Spain,Hydro,Reservoir,25.1,38.732036,-5.543902,Spain Power Plants Over 10 MW.csv
+872,Pena  Bejo,,,Bejo,Spain,Hydro,Run-of-river,20.8,43.150361,-4.381714,Spain Power Plants Over 10 MW.csv
+873,Rozadio,,,Rozadio,Spain,Hydro,Run-of-river,12.6,43.223351,-4.386833,Spain Power Plants Over 10 MW.csv
+874,Melkefoss,,,Melkefoss,Norway,Hydro,Run-of-river,26.0,69.4,29.7833333,Norway Power Plants (ENTSOE) .csv
+875,Skogfoss,,,Skogfoss,Norway,Hydro,Reservoir,54.2,69.3733333,29.6877778,Norway Power Plants (ENTSOE) .csv
+876,Massaboden,,,Massaboden,Switzerland,Hydro,Reservoir,8.2,46.35,7.9666667,Switzerland Power Plant.csv
+877,Ritom Sbb,,,Ritom,Switzerland,Hydro,Reservoir,44.0,46.56250215,7.9772166,Switzerland Power Plant.csv
+878,Vernayaz,,,Vernayaz Cff,Switzerland,Hydro,Reservoir,92.0,46.1366680766,7.03906059265,Switzerland Power Plant.csv
+879,Amsteg,,,Amsteg,Switzerland,Hydro,Reservoir,120.72,47.12249985,8.4891571,Switzerland Power Plant.csv
+880,Rannoch,,,Rannoch,United Kingdom,Hydro,Reservoir,48.0,56.70972225,-4.2403592,UK Power Plant.csv
+881,Cashlie,,,Cashlie,United Kingdom,Hydro,Run-of-river,11.0,56.6653176707,-4.28548658384,UK Power Plant.csv
+882,Clunie,,,Clunie,United Kingdom,Hydro,Reservoir,61.2,57.1680556,-3.3653592,UK Power Plant.csv
+883,Livishie,,,Livishie,United Kingdom,Hydro,Reservoir,17.0,57.0002331538,-4.36581552653,UK Power Plant.csv
+884,Aigas,,,Aigas,United Kingdom,Hydro,Run-of-river,20.0,57.1325935195,-4.1690158573,UK Power Plant.csv
+885,Deanie,,,Deanie,United Kingdom,Hydro,Run-of-river,38.0,57.15138895,-4.5236925,UK Power Plant.csv
+886,Glendoe,,,Glendoe,United Kingdom,Hydro,Run-of-river,100.0,56.9646215218,-4.39814370888,UK Power Plant.csv
+887,Cassley,,,Cassley,United Kingdom,Hydro,Reservoir,10.45,56.0430556,-4.8986925,UK Power Plant.csv
+888,Invergarry,,,Invergarry,United Kingdom,Hydro,Reservoir,20.0,56.9275172262,-4.45753854531,UK Power Plant.csv
+889,Lochay,,,Lochay,United Kingdom,Hydro,Run-of-river,48.0,55.87638895,-3.7903592,UK Power Plant.csv
+890,Glenmoriston,,,Glenmoriston,United Kingdom,Hydro,Run-of-river,40.0,56.9916056,-4.49172085,UK Power Plant.csv
+891,Nant,,,Nant,United Kingdom,Hydro,Run-of-river,15.0,56.3853556417,-4.46752801065,UK Power Plant.csv
+892,Pitlochry,,,Pitlochry,United Kingdom,Hydro,Run-of-river,15.0,56.7456264466,-3.92418664712,UK Power Plant.csv
+893,Kilmorack,,,Kilmorack,United Kingdom,Hydro,Reservoir,20.0,57.1253422792,-4.31372922677,UK Power Plant.csv
+894,Striven,,,Striven,United Kingdom,Hydro,Run-of-river,8.0,57.18636945,-3.10234359889,UK Power Plant.csv
+895,Clachan,,,Clachan,United Kingdom,Hydro,Run-of-river,40.0,56.5430556,-4.8486925,UK Power Plant.csv
+897,Glorenza,,,Seled Glorenza,Italy,Hydro,Reservoir,101.6,46.68791635,10.5465516,Italy Power Plant.csv
+898,Orsieres,,,OrsièRes,Switzerland,Hydro,Reservoir,26.4,46.4970971794,7.73779032371,Switzerland Power Plant.csv
+900,Solhom,,,Solhom,Norway,Hydro,Reservoir,250.0,58.3166667,6.95,Norway Power Plants (ENTSOE) .csv
+901,Kvinen,,,Kvinen,Norway,Hydro,Run-of-river,90.0,58.66263,6.71694,Norway Power Plants (ENTSOE) .csv
+902,Fjone,,,Fjone,Norway,Hydro,Reservoir,60.0,59.1666667,8.4666667,Norway Power Plants (ENTSOE) .csv
+904,Vrenjga,,,Vrenga,Norway,Hydro,Run-of-river,16.0,59.85,9.45,Norway Power Plants (ENTSOE) .csv
+905,Arlifoss,,,Arlifoss,Norway,Hydro,Run-of-river,27.0,59.55936,9.25853,Norway Power Plants (ENTSOE) .csv
+907,Skollenborg,,,Skollenborg,Norway,Hydro,Reservoir,102.0,59.66858,9.65017,Norway Power Plants (ENTSOE) .csv
+908,Mydalen,,,Mydalen,Norway,Hydro,Reservoir,8.0,59.600748034,8.65010261536,Norway Power Plants (ENTSOE) .csv
+909,Haukrei,,,Haukrei,Norway,Hydro,Run-of-river,19.0,59.1865,8.0895,Norway Power Plants (ENTSOE) .csv
+912,Skogheim,,,Skogheim,Norway,Hydro,Reservoir,9.0,61.8166667,6.15,Norway Power Plants (ENTSOE) .csv
+913,Sagefossen,,,Sagefossen,Norway,Hydro,Reservoir,12.0,61.8166667,6.15,Norway Power Plants (ENTSOE) .csv
+914,Bjordalen,,,Bjorndalen,Norway,Hydro,Reservoir,5.0,62.2029,6.12722,Norway Power Plants (ENTSOE) .csv
+915,Sunndal,,,Sundal,Norway,Hydro,Reservoir,5.0,62.97397,8.72472,Norway Power Plants (ENTSOE) .csv
+916,Lizun,,,Lizun,Switzerland,Hydro,Run-of-river,6.6,,,Switzerland Power Plant.csv
+918,Islas,,,Islas,Switzerland,Hydro,Run-of-river,4.69,,,Switzerland Power Plant.csv
+919,Hugschwendi,,,Hugschwendi,Switzerland,Hydro,Run-of-river,14.0,,,Switzerland Power Plant.csv
+922,Lobbia Albigna,,,LöBbia Albigna,Switzerland,Hydro,Reservoir,86.1,47.1374124,8.584483,Switzerland Power Plant.csv
+924,Bisisthal,,,Bisisthal,Switzerland,Hydro,Run-of-river,15.8,,,Switzerland Power Plant.csv
+925,Engelberg,,,Engelberg,Switzerland,Hydro,Run-of-river,8.5,,,Switzerland Power Plant.csv
+927,Tiefencastel West,,,Tiefencastel West,Switzerland,Hydro,Reservoir,26.0,,,Switzerland Power Plant.csv
+929,Ogreyfoss,,,Ogreyfoss,Norway,Hydro,Run-of-river,18.0,,,Norway Power Plants (ENTSOE) .csv
+930,Bondo,,,Bondo,Switzerland,Hydro,Run-of-river,6.9,,,Switzerland Power Plant.csv
+931,Muhlrading,,,MüHlrading,Austria,Hydro,Reservoir,25.0,,,Verbund Power Plant.csv
+932,Sand (Plessur),,,Sand Plessur,Switzerland,Hydro,Run-of-river,9.4,,,Switzerland Power Plant.csv
+934,Rossens Hauterive,,,Hauterive,Switzerland,Hydro,Reservoir,69.7,47.5669187,9.1097539,Switzerland Power Plant.csv
+936,Castrelo Xallas,,,C.H.Castrelo,Spain,Hydro,Reservoir,30.6,,,Spain Power Plants Over 10 MW.csv
+937,Ovre Moksa,,,Moksa,Norway,Hydro,Run-of-river,17.0,,,Norway Power Plants (ENTSOE) .csv
+938,Ulvdal ,,,Uvdal,Norway,Hydro,Reservoir,150.0,,,Norway Power Plants (ENTSOE) .csv
+942,Hogga,,,Hogga,Norway,Hydro,Run-of-river,20.0,,,Norway Power Plants (ENTSOE) .csv
+943,Ovre Rossaga,,,Ovre Rossaga,Norway,Hydro,Reservoir,188.0,,,Norway Power Plants (ENTSOE) .csv
+945,Robiei,,,Robiei,Switzerland,Hydro,Reservoir,173.0,46.2400765,7.8955523,Switzerland Power Plant.csv
+947,Sagfossen (Ns),,,Sagfossen,Norway,Hydro,Run-of-river,14.0,,,Norway Power Plants (ENTSOE) .csv
+950,Mossford,,,Mossford,United Kingdom,Hydro,Run-of-river,24.0,56.7861112,-4.1140517,UK Power Plant.csv
+951,Errochty,,,Errochty,United Kingdom,Hydro,Run-of-river,75.0,56.7861112,-4.1140517,UK Power Plant.csv
+953,Robbia ,,,Robbia,Switzerland,Hydro,Reservoir,27.0,,,Switzerland Power Plant.csv
+954,Klosters,,,Klosters,Switzerland,Hydro,Run-of-river,17.0,,,Switzerland Power Plant.csv
+955,Clees,,,Les CléEs,Switzerland,Hydro,Reservoir,30.0,47.5543818,8.8980821,Switzerland Power Plant.csv
+956,Gralla,,,Gralla,Austria,Hydro,Run-of-river,15.0,,,Verbund Power Plant.csv
+957,Alzwerke,,,Alzwerke Gmbh,Germany,Hydro,Run-of-river,45.0,48.1689863,12.8304816,Germany Power Plants (conventional).csv
+958,Tiefencastel Albula,,,Tiefencastel Alk,Switzerland,Hydro,Reservoir,24.0,,,Switzerland Power Plant.csv
+960,Olden (Korsselbranna),,,Olden,Sweden,Hydro,Reservoir,130.0,,,Sweden Power Plant.csv
+961,Forsa Norsk,,,Forsa,Norway,Hydro,Run-of-river,14.0,,,Norway Power Plants (ENTSOE) .csv
+962,Svean,,,Svean,Norway,Hydro,Reservoir,42.0,,,Norway Power Plants (ENTSOE) .csv
+963,Schwanden Sernf Rb,,,Schwanden Sernf,Switzerland,Hydro,Run-of-river,15.7,,,Switzerland Power Plant.csv
+964,Bodendorf Murstufe,,,Bodensdorf Mur,Austria,Hydro,Run-of-river,7.0,,,Verbund Power Plant.csv
+965,Amdal,,,Amdal,Norway,Hydro,Reservoir,23.0,,,Norway Power Plants (ENTSOE) .csv
+966,Rupperswil Auenstein,,,Rupperswil,Switzerland,Hydro,Reservoir,41.74,,,Switzerland Power Plant.csv
+967,Wildegg Brugg,,,Wildegg Brugg,Switzerland,Hydro,Reservoir,57.1,,,Switzerland Power Plant.csv
+968,Fatschbach,,,FäTschbach,Switzerland,Hydro,Run-of-river,15.0,,,Switzerland Power Plant.csv
+969,Batsvann,,,Batsvann,Norway,Hydro,Reservoir,38.0,,,Norway Power Plants (ENTSOE) .csv
+970,Majenfors Nya,,,Majenfors Nya,Sweden,Hydro,Run-of-river,10.9,,,Sweden Power Plant.csv
+973,Hegsetfoss,,,Hegsetfoss,Norway,Hydro,Reservoir,40.0,,,Norway Power Plants (ENTSOE) .csv
+974,Guolas,,,Guolas,Norway,Hydro,Run-of-river,90.0,,,Norway Power Plants (ENTSOE) .csv
+975,Bodendorf Paalbach,,,Bodensdorf Paal,Austria,Hydro,Reservoir,27.26,,,Verbund Power Plant.csv
+978,Skjerka Nye,,,Skjerka,Norway,Hydro,Reservoir,120.0,,,Norway Power Plants (ENTSOE) .csv
+979,Barasona,,,Barasona S.Jose,Spain,Hydro,Reservoir,22.1,,,Spain Power Plants Over 10 MW.csv
+980,Bingfoss,,,Bingsfoss,Norway,Hydro,Reservoir,36.0,,,Norway Power Plants (ENTSOE) .csv
+982,Sarelli,,,Sarelli,Switzerland,Hydro,Run-of-river,90.0,47.2575984,8.5373809,Switzerland Power Plant.csv
+983,Spina Isola,,,Spina Isola,Switzerland,Hydro,Reservoir,20.9,,,Switzerland Power Plant.csv
+984,Tavanasa Kvr,,,Tavanasa Kvr,Switzerland,Hydro,Reservoir,180.0,46.9827634,9.1523442,Switzerland Power Plant.csv
+985,Kappelerhof,,,Kappelerhof,Switzerland,Hydro,Run-of-river,7.0,,,Switzerland Power Plant.csv
+987,Morobbia,,,Morobbia,Switzerland,Hydro,Run-of-river,15.5,,,Switzerland Power Plant.csv
+988,Bonnington,,,Bonnington,United Kingdom,Hydro,Run-of-river,11.0,56.7861112,-4.1140517,UK Power Plant.csv
+989,Lio (Tokke ),,,Lio,Norway,Hydro,Reservoir,51.0,,,Norway Power Plants (ENTSOE) .csv
+990,Grasjo,,,Grasjo,Norway,Hydro,Run-of-river,18.0,,,Norway Power Plants (ENTSOE) .csv
+992,Kachlet,,,Kachlet,Germany,Hydro,Reservoir,53.7,48.5740136,13.4606445,Germany Power Plants (conventional).csv
+993,Eitting,,,Eitting,Germany,Hydro,Run-of-river,40.0,48.358828,11.8908175,Germany Power Plants (conventional).csv
+995,Ovre Tessa,,,Ovre Tessa,Norway,Hydro,Run-of-river,20.0,,,Norway Power Plants (ENTSOE) .csv
+996,Lotschen,,,LöTschen,Switzerland,Hydro,Reservoir,122.0,47.0467333,9.4192932,Switzerland Power Plant.csv
+998,Ova Spin,,,Ova Spin Dotierzentrale,Switzerland,Hydro,Run-of-river,54.47,47.3507365,7.9053185,Switzerland Power Plant.csv
+1000,Tannuwald,,,Tannuwald,Switzerland,Hydro,Run-of-river,5.2,,,Switzerland Power Plant.csv
+1001,Quoich,,,Quoich,United Kingdom,Hydro,Run-of-river,23.1,56.7861112,-4.1140517,UK Power Plant.csv
+1002,Schwanden Niederenbach,,,Schwanden Niederenbach,Switzerland,Hydro,Reservoir,28.2,,,Switzerland Power Plant.csv
+1003,Grudie Bridge,,,Grudie Bridge,United Kingdom,Hydro,Run-of-river,24.0,56.7861112,-4.1140517,UK Power Plant.csv
+1004,Ferrera Khr,,,Ferrera,Switzerland,Hydro,Reservoir,188.63,46.3150269,8.0166829,Switzerland Power Plant.csv
+1005,Sils Khr,,,Sils Khr,Switzerland,Hydro,Reservoir,247.0,47.2579312,8.852696,Switzerland Power Plant.csv
+1006,Hopflauenen Leimboden,,,Hopflauenen Leimboden,Switzerland,Hydro,Run-of-river,6.0,,,Switzerland Power Plant.csv
+1007,Birsfelden,,,Birsfelden,Switzerland,Hydro,Run-of-river,100.0,47.390073,7.3696855,Switzerland Power Plant.csv
+1008,Orrin,,,Orrin,United Kingdom,Hydro,Run-of-river,18.0,56.7861112,-4.1140517,UK Power Plant.csv
+1009,Tranco  Beas,,,Tranco Beas,Spain,Hydro,Reservoir,39.8,,,Spain Power Plants Over 10 MW.csv
+1010,Arroibar,,,Ch Arroibar,Spain,Hydro,Run-of-river,14.755,,,Spain Power Plants Over 10 MW.csv
+1011,Engeweiher,,,Engeweiher,Switzerland,Hydro,Run-of-river,5.3,,,Switzerland Power Plant.csv
+1013,Kaprun Oberstufe,,,Kaprun Oberstufe,Austria,Hydro,Reservoir,113.0,,,Verbund Power Plant.csv
+1014,Gausbu,,,Gausbu,Norway,Hydro,Run-of-river,9.0,,,Norway Power Plants (ENTSOE) .csv
+1015,Dolgarrog High,,,Dolgarrog High Head,United Kingdom,Hydro,Reservoir,18.4,52.2928116,-3.7389299,UK Power Plant.csv
+1016,Leirfossene,,,Leirfossene,Norway,Hydro,Reservoir,53.0,,,Norway Power Plants (ENTSOE) .csv
+1017,Tysso,,,Tysso,Norway,Hydro,Reservoir,258.0,,,Norway Power Plants (ENTSOE) .csv
+1018,Furset,,,Furset,Norway,Hydro,Run-of-river,5.0,,,Norway Power Plants (ENTSOE) .csv
+1020,Riksheimdal,,,Riksheimdal,Norway,Hydro,Run-of-river,4.6,,,Norway Power Plants (ENTSOE) .csv
+1021,Dettingen Canal,,,Dettingen,Germany,Hydro,Reservoir,11.0,48.4368485,8.9343816,Germany Power Plants (conventional).csv
+1022,Hanefoss,,,Hanefoss,Norway,Hydro,Reservoir,42.0,,,Norway Power Plants (ENTSOE) .csv
+1023,Tunnsjofoss,,,Tunnsjofoss,Norway,Hydro,Run-of-river,9.0,,,Norway Power Plants (ENTSOE) .csv
+1024,Dolgarrog Low,,,Dolgarrog Low Head,United Kingdom,Hydro,Reservoir,15.0,52.2928116,-3.7389299,UK Power Plant.csv
+1025,Asmulfoss,,,Asmulfoss,Norway,Hydro,Run-of-river,14.0,,,Norway Power Plants (ENTSOE) .csv
+1026,Follafoss,,,Follafoss,Norway,Hydro,Reservoir,49.0,,,Norway Power Plants (ENTSOE) .csv
+1028,Linthal Limmern,,,Linthal Limmern,Switzerland,Hydro,Run-of-river,34.4,47.1682719,7.2556047,Switzerland Power Plant.csv
+1029,Ruchlig,,,RüChlig,Switzerland,Hydro,Run-of-river,12.05,,,Switzerland Power Plant.csv
+1030,Salto  Cofrentes,,,Cofrentes,Spain,Hydro,Reservoir,124.2,,,Spain Power Plants Over 10 MW.csv
+1031,Stuvane,,,Stuvane,Norway,Hydro,Reservoir,42.0,,,Norway Power Plants (ENTSOE) .csv
+1032,Restano,,,Restano,Spain,Hydro,Run-of-river,14.4,,,Spain Power Plants Over 10 MW.csv
+1033,Funnefoss,,,Funnefoss,Norway,Hydro,Reservoir,44.0,,,Norway Power Plants (ENTSOE) .csv
+1034,Heiligkreuz,,,Heiligkreuz,Switzerland,Hydro,Reservoir,41.0,46.2554573,6.9537826,Switzerland Power Plant.csv
+1035,Ruppoldingen,,,Ruppoldingen,Switzerland,Hydro,Reservoir,23.0,46.8332439,9.2834557,Switzerland Power Plant.csv
+1036,Goesgen,,,GöSgen,Switzerland,Hydro,Reservoir,51.3,47.0351085,7.3116588,Switzerland Power Plant.csv
+1037,Mottec,,,Mottec,Switzerland,Hydro,Reservoir,71.0,46.6370243,7.8327586,Switzerland Power Plant.csv
+1038,Veytaux Hongrin,,,Veytaux,Switzerland,Hydro,Reservoir,255.0,,,Switzerland Power Plant.csv
+1039,Pallazuit,,,Pallazuit,Switzerland,Hydro,Reservoir,40.0,47.4224096,7.5020019,Switzerland Power Plant.csv
+1040,Flumenthal,,,Flumenthal,Switzerland,Hydro,Reservoir,23.4,46.8632481,10.4342982,Switzerland Power Plant.csv
+1043,Solk,,,SöLk,Austria,Hydro,Reservoir,61.0,,,Verbund Power Plant.csv
+1044,Wyhlen,,,Wyhlen,Germany,Hydro,Reservoir,44.593,47.5500626,7.6833516,Germany Power Plants (conventional).csv
+1045,Mapragg,,,Mapragg,Switzerland,Hydro,Reservoir,279.9,47.1662087,9.4706522,Switzerland Power Plant.csv
+1046,Tierfehd Hintersand,,,Tierfehd Hintersand,Switzerland,Hydro,Reservoir,42.0,,,Switzerland Power Plant.csv
+1048,Kubel,,,Kubel,Switzerland,Hydro,Run-of-river,15.01,,,Switzerland Power Plant.csv
+1049,Mageli,,,Mageli,Norway,Hydro,Reservoir,43.0,,,Norway Power Plants (ENTSOE) .csv
+1050,Leinafoss,,,Leinafoss,Norway,Hydro,Run-of-river,5.0,,,Norway Power Plants (ENTSOE) .csv
+1051,Galleto,,,Galleto,Italy,Hydro,Run-of-river,166.0,42.5641417,12.6405466,Italy Power Plant.csv
+1052,Erlenbach Bkw,,,Erlenbach,Switzerland,Hydro,Run-of-river,18.0,,,Switzerland Power Plant.csv
+1053,Simmenfluh,,,Simmenfluh,Switzerland,Hydro,Run-of-river,9.0,,,Switzerland Power Plant.csv
+1054,Schwarzhausern,,,SchwarzhäUsern,Switzerland,Hydro,Run-of-river,8.2,,,Switzerland Power Plant.csv
+1055,Itoiz,,,Central Pie Presa Itoiz,Spain,Hydro,Reservoir,28.6,,,Spain Power Plants Over 10 MW.csv
+1056,Midtre Tessa,,,Midtre Tessa,Norway,Hydro,Run-of-river,9.0,,,Norway Power Plants (ENTSOE) .csv
+1057,Nedre Tessa,,,Nedre Tessa,Norway,Hydro,Reservoir,25.0,,,Norway Power Plants (ENTSOE) .csv
+1058,Roppa,,,Roppa,Norway,Hydro,Run-of-river,6.0,,,Norway Power Plants (ENTSOE) .csv
+1059,Luichart,,,Luichart,United Kingdom,Hydro,Run-of-river,34.0,56.7861112,-4.1140517,UK Power Plant.csv
+1060,Porma ,,,Porma,Spain,Hydro,Run-of-river,17.474,,,Spain Power Plants Over 10 MW.csv
+1061,Santa Ana Endesa,,,Santa Ana,Spain,Hydro,Reservoir,30.16,,,Spain Power Plants Over 10 MW.csv
+1062,Bjorgum,,,Bjorgum,Norway,Hydro,Run-of-river,6.0,,,Norway Power Plants (ENTSOE) .csv
+1063,Ceannacroc,,,Ceannacroc,United Kingdom,Hydro,Run-of-river,24.0,56.7861112,-4.1140517,UK Power Plant.csv
+1064,Aiguamoix,,,Aiguamoix,Spain,Hydro,Reservoir,32.0,,,Spain Power Plants Over 10 MW.csv
+1065,Puente Montanana,,,Puente Montanana,Spain,Hydro,Reservoir,44.8,,,Spain Power Plants Over 10 MW.csv
+1068,Reppa,,,Reppa,Norway,Hydro,Run-of-river,12.0,,,Norway Power Plants (ENTSOE) .csv
+1069,Kalvedalen,,,Kalvedalen,Norway,Hydro,Reservoir,22.0,,,Norway Power Plants (ENTSOE) .csv
+1070,Landau Ostbayer,,,Landau,Germany,Hydro,Reservoir,13.5,48.6728179,12.6584737876,Germany Power Plants (conventional).csv
+1071,Scharding Neuhaus,,,SchäRding Neuhaus,Austria,Hydro,Reservoir,100.0,,,Verbund Power Plant.csv
+1072,Kaupanger ,,,Kaupanger,Norway,Hydro,Run-of-river,6.0,,,Norway Power Plants (ENTSOE) .csv
+1073,St Fillans,,,St. Fillans,United Kingdom,Hydro,Run-of-river,21.0,56.7861112,-4.1140517,UK Power Plant.csv
+1074,Krangede,Krangede,Krangede,,Sweden,Hydro,Run-of-river,250.0,62.8947174286,16.4824107365,
+1075,Alrance,Alrance,Alrance,,France,Hydro,Pumped Storage,14.5,44.1177636667,2.688042,energy_storage_exchange
+1076,Rance,Rance tidal,Rance Tidal,,France,Hydro,Pumped Storage,240.0,48.6148023333,-2.02612833333,energy_storage_exchange
+1077,Argentat,Argentat,Argentat,,France,Hydro,Pumped Storage,48.0,45.1001143333,1.94795633333,energy_storage_exchange
+1078,Traengslet,Trängslet,Trängslet,,Sweden,Hydro,Run-of-river,330.0,61.3886123333,13.7222238333,
+1079,Sveg,Sveg,Sveg,,Sweden,Hydro,Reservoir,36.0,62.0234362165,14.2854643363,
+1080,Porabka Zar,Porabka zar,Porabka Zar,,Poland,Hydro,Pumped Storage,512.6,49.7937546297,19.2116964856,energy_storage_exchange
+1081,Zarnowiec,_arnowiec,Zarnowiec,,Poland,Hydro,Pumped Storage,716.0,54.7600734685,18.072513682,energy_storage_exchange
+1082,Dychow,Dychów,Dychow,,Poland,Hydro,Pumped Storage,90.0,51.9882553089,15.0580718561,energy_storage_exchange
+1083,Solina,Solina,Solina,,Poland,Hydro,Pumped Storage,200.0,49.3968291723,22.4578865255,energy_storage_exchange
+1084,Avce,Av_e,Avce,,Slovenia,Hydro,Pumped Storage,185.0,46.0978443333,13.667026,energy_storage_exchange
+1085,Torrao,Torrão,Torrao,,Portugal,Hydro,Pumped Storage,146.0,41.0948556667,-8.25229733333,energy_storage_exchange
+1086,Salamonde,Salamonde,Salamonde,,Portugal,Hydro,Pumped Storage,42.0,41.6878393333,-8.09108666667,energy_storage_exchange
+1087,Alto Rabagao,Alto rabagão,Alto Rabagao,,Portugal,Hydro,Pumped Storage,68.0,41.747087,-7.85694,energy_storage_exchange
+1088,Alqueva ,Alqueva,Alqueva,,Portugal,Hydro,Pumped Storage,240.0,38.9880555667,-7.8099111,energy_storage_exchange
+1089,Zydowo,_ydowo,Zydowo,,Poland,Hydro,Pumped Storage,151.0,53.5316946667,16.7332516667,energy_storage_exchange
+1090,Koralpe,Koralpe,Koralpe,,Austria,Hydro,Pumped Storage,50.0,46.6874111,14.9597777667,energy_storage_exchange
+1091,Kops ,Kops,Kops,,Austria,Hydro,Pumped Storage,697.0,46.9798833333,10.0404372167,energy_storage_exchange
+1092,Rodund,Rodundwerk,Rodund,,Austria,Hydro,Pumped Storage,493.0,47.0859611,9.8815361,energy_storage_exchange
+1093,Sfikia,Sfikia,Sfikia,,Greece,Hydro,Pumped Storage,315.0,40.4228037,22.2386037,energy_storage_exchange
+1094,Vianden,Vianden,Vianden Luxembourg,,Luxembourg,Hydro,Pumped Storage,1296.0,49.9389333333,6.19576296667,energy_storage_exchange
+1095,Niedzica,Niedzica,Niedzica,,Poland,Hydro,Pumped Storage,92.8,49.4130932296,20.3185114583,energy_storage_exchange
+1096,Innerfragant Wurten,Oschenik innerfragant,Innerfragant,,Austria,Hydro,Pumped Storage,108.0,47.0585,12.69045,energy_storage_exchange
+1097,Kruonis,Kruonis & extension project,Kruonis Lithuania,,Lithuania,Hydro,Pumped Storage,900.0,54.7995,24.24875,energy_storage_exchange
+1098,Rifawerk,Rifawerk,Rifa,,Austria,Hydro,Pumped Storage,7.0,46.97715,10.04165,energy_storage_exchange
+1099,Malta Oberstufe,Malta upper stage,Malta Oberstufe,,Austria,Hydro,Pumped Storage,120.0,47.07295,13.34695,energy_storage_exchange
+1100,Chaira,Chaira,Chaira,,Bulgaria,Hydro,Pumped Storage,864.0,42.17445,24.1004225,energy_storage_exchange
+1101,,Feldsee,Feldsee,,Austria,Hydro,Pumped Storage,140.0,46.9966,13.04295,energy_storage_exchange
+1102,,Liptovská mara,Liptovska Mara,,Slovakia,Hydro,Pumped Storage,198.0,49.099305,19.4894445,energy_storage_exchange
+1103,,Ru_í,Ruzin,,Slovakia,Hydro,Pumped Storage,60.0,48.8608,21.09055,energy_storage_exchange
+1104,,Venda nova,Venda Nova Ps,,Portugal,Hydro,Pumped Storage,191.6,41.687,-8.02587,energy_storage_exchange
+1105,,Aguieira,Aguieira Brazil,,Portugal,Hydro,Pumped Storage,336.0,40.3401,-8.1985,energy_storage_exchange
+1106,,Vilarinho furnas,Vilarinho Das Furnas,,Portugal,Hydro,Pumped Storage,125.0,41.7617,-8.2095,energy_storage_exchange
+1107,Dalesice,,Dalesice Republic,,Czech Republic,Hydro,Pumped Storage,450.0,49.1443776599,16.0690849865,
+1108,Lipno,,Lipno Republic,,Czech Republic,Hydro,Reservoir,120.0,48.6363115404,14.233412535,
+1109,Kamyk,,Kamyk Republic,,Czech Republic,Hydro,Run-of-river,40.0,49.6360091334,14.2501214974,
+1110,Strekov,,Strekov Republic,,Czech Republic,Hydro,Run-of-river,19.5,50.6496518987,14.0400360217,
+1111,Stechovice,,Stechovice Ps Republic,,Czech Republic,Hydro,Pumped Storage,67.5,49.8484838692,14.4133211717,
+1112,Slapy,,Slapy Republic,,Czech Republic,Hydro,Reservoir,144.0,49.6052329232,14.5255342055,
+1113,Dlouhe Strane,,Dlouhe Strane Republic,,Czech Republic,Hydro,Pumped Storage,650.0,50.1559800773,17.1926000366,
+1114,Vrane,,Vrane Republic,,Czech Republic,Hydro,Run-of-river,13.88,50.0154117993,15.4774928772,
+1115,Vaugris,,Vaugris,,France,Hydro,Run-of-river,72.0,45.484916,4.820926,
+1116,Manosque,,Manosque Voix,,France,Hydro,Run-of-river,55.0,43.8529152403,5.82493833923,
+1117,Montahut,,Montahut,,France,Hydro,Reservoir,99.0,43.89975,3.2670255,
+1118,Salon,,Salon,,France,Hydro,Run-of-river,101.0,43.6368685,5.1047245,
+1119,Laval  Cere,,Laval Cere &,,France,Hydro,Reservoir,132.0,44.953386,1.943212,
+1120,Rhue,,Rhue,,France,Hydro,Reservoir,12.0,45.3779625578,2.62845584107,
+1121,Bolozon,,Cize Bolozon,,France,Hydro,Reservoir,23.0,46.1805,5.54083335,
+1122,Tuilieres,,Tuilieres,,France,Hydro,Run-of-river,32.0,44.84365,0.643543,
+1123,Lardit,,Lardy,,France,Hydro,Reservoir,45.0,44.6758846795,2.5950106659,
+1124,Brillanne,,Brillanne &,,France,Hydro,Run-of-river,30.0,43.9242115,5.90835,
+1125,Hautefage,,Hautefage,,France,Hydro,Reservoir,25.0,45.0781715,1.9669345,
+1126,Saint Dalmas,,Saint Dalmas,,France,Hydro,Reservoir,50.0,44.056432,7.394429,
+1127,Salignac,,Salignac,,France,Hydro,Run-of-river,88.0,44.147965,5.980901,
+1128,Claux,,Claux,,France,Hydro,Reservoir,13.5,44.87531,6.4812665,
+1129,Pocinho,,Pocinho,,Portugal,Hydro,Run-of-river,186.0,41.132224,-7.1171635,
+1130,Canicada,,Canicada,,Portugal,Hydro,Reservoir,60.0,41.6554935,-8.205678,
+1131,Pracana,,Pracana,,Portugal,Hydro,Reservoir,41.0,39.5667355,-7.8438295,
+1132,Muehleberg Wkw,,Muehleberg,,Switzerland,Hydro,Run-of-river,45.0,46.9619281881,7.27270937652,
+1133,Batak,,Batak,,Bulgaria,Hydro,Reservoir,46.8,41.9362945,24.19303335,
+1134,Ivaylovgrad,,Ivaylovgrad,,Bulgaria,Hydro,Reservoir,104.0,41.55851665,26.12036665,
+1135,Sestrimo,,Sestrimo,,Bulgaria,Hydro,Run-of-river,240.0,42.21253335,23.91623335,
+1136,Krichim,,Krichim,,Bulgaria,Hydro,Reservoir,80.0,42.02089,24.46734985,
+1137,Stouden Kladenets,,Studen Kladenets,,Bulgaria,Hydro,Reservoir,82.0,41.60975,25.64575,
+1138,Kardjali,,Kardzhali,,Bulgaria,Hydro,Reservoir,106.0,41.6417,25.35333335,
+1139,Peshtera,,Peshtera,,Bulgaria,Hydro,Reservoir,128.0,42.02341665,24.27895,
+1140,Momina Klissura,,Momina Klisura,,Bulgaria,Hydro,Run-of-river,120.0,42.22428335,23.95803335,
+1141,Teshel,,Teshel,,Bulgaria,Hydro,Reservoir,60.0,41.66306665,24.25983335,
+1142,Tainionkoski,,Tainionkoski Finland,,Finland,Hydro,Reservoir,62.0,61.1911230434,28.7679111664,
+1143,Imatra,,Imatra Finland,,Finland,Hydro,Reservoir,178.0,61.1693730434,28.7634611664,
+1144,Krokstrommen,,Krokstrommen,,Sweden,Hydro,Reservoir,103.0,62.04555,14.9002,
+1145,Beverce,,Beverce Robertville Project,,Belgium,Hydro,Reservoir,9.2,50.4327805,6.0332715,
+1146,Sault Brenaz,,Sault Brenaz,,France,Hydro,Run-of-river,45.0,45.840214,5.410089,
+1147,Belley,,Brens Virigin,,France,Hydro,Run-of-river,90.0,45.721839,5.697101,
+1148,Gervans,,Gervans,,France,Hydro,Run-of-river,120.0,45.1559605,4.8105715,
+1149,Bregnier Cordon,,Bregnier Cordon,,France,Hydro,Run-of-river,70.0,45.61033335,5.76916665,
+1150,Licq Atherey,,Licq Atherey,,France,Hydro,Reservoir,27.4,43.057431,-0.8823685,
+1151,Beaucaire,,Beaucaire,,France,Hydro,Run-of-river,210.0,43.8385334773,4.63530871582,
+1152,Sablons,,Sablons,,France,Hydro,Run-of-river,160.0,45.3138665,4.7860045,
+1153,Chautagne,,Chautagne,,France,Hydro,Run-of-river,90.0,45.899173,5.8295455,
+1154,Pierre Benite,,Pierre Benite,,France,Hydro,Run-of-river,84.0,45.7014475,4.833556,
+1155,Soulom,,Soulom,,France,Hydro,Reservoir,57.0,42.9515,-0.06783335,
+1156,Gambsheim,,Gambsheim,,France,Hydro,Run-of-river,108.0,48.6327105643,7.83097903442,
+1157,Roznow,,Roznow,,Poland,Hydro,Reservoir,50.0,49.7666135,20.6803305,
+1158,Czchow,,Czchow,,Poland,Hydro,Run-of-river,8.0,49.8236314059,20.6805585329,
+1159,Kesznyeten,,Kesznyeten Hernadviz Hungary,,Hungary,Hydro,Run-of-river,4.4,47.96633335,21.0415,
+1160,Debe,,Debe,,Poland,Hydro,Reservoir,20.0,52.444894,20.925118,
+1161,Myczkowce,,Myczkowce,,Poland,Hydro,Reservoir,8.2,49.4506020887,22.3694100086,
+1162,Zlatolicje,,Zlatolicje Poqwer,,Slovenia,Hydro,Reservoir,144.0,46.5013611,15.71683335,
+1163,Bostanj,,Bostanj,,Slovenia,Hydro,Run-of-river,31.5,46.015822,15.2819,
+1164,Dravograd,,Dravograd Poqwer,,Slovenia,Hydro,Reservoir,36.0,46.587328,15.0189835,
+1165,Plave,,Plave Poqwer,,Slovenia,Hydro,Reservoir,34.0,46.047041,13.5991,
+1166,Doblar,,Doblar Poqwer,,Slovenia,Hydro,Reservoir,70.0,46.116836,13.688936,
+1167,Blanca,,Arto Blanca,,Slovenia,Hydro,Run-of-river,38.0,45.9868165,15.3907,
+1168,Fala,,Fala Poqwer,,Slovenia,Hydro,Reservoir,58.0,46.5513945,15.451611,
+1169,Formin,,Formin Poqwer,,Slovenia,Hydro,Reservoir,116.0,46.4113250026,15.952040065,
+1170,Vuzenica,,Vuzenica Poqwer,,Slovenia,Hydro,Run-of-river,78.0,46.5948445,15.159761,
+1171,Solkan,,Solkan Poqwer,,Slovenia,Hydro,Reservoir,32.0,45.9778945,13.652222,
+1172,Mariborski Otok,,Mariborski Otok Poqwer,,Slovenia,Hydro,Reservoir,60.0,46.5619611,15.62548335,
+1173,Vuhred,,Vuhred Poqwer,,Slovenia,Hydro,Reservoir,72.3,46.591161,15.2565,
+1174,Ozbalt,,Ozbalt Poqwer,,Slovenia,Hydro,Reservoir,73.2,46.581922,15.4020445,
+1175,Djale,,Djale,,Croatia,Hydro,Reservoir,40.8,43.59641665,16.71783335,
+1176,Orlovac,,Orlovac,,Croatia,Hydro,Reservoir,237.0,43.5481,16.8272778,
+1177,Ozalj,,Ozalj,,Croatia,Hydro,Run-of-river,5.5,45.61048335,15.4698722,
+1178,Golubic,,Golubic,,Croatia,Hydro,Reservoir,7.5,44.08944445,16.20936665,
+1179,Zakucac,,Zakucac,,Croatia,Hydro,Reservoir,522.0,43.4514111,16.69565555,
+1180,Gojak,,Gojak,,Croatia,Hydro,Run-of-river,55.5,45.28250555,15.24595555,
+1181,Senj,,Senj System,,Croatia,Hydro,Reservoir,216.0,44.9661722,14.91671665,
+1182,Cakovec,,Cakovec,,Croatia,Hydro,Run-of-river,76.0,46.3478722,16.46419445,
+1183,Sklope,,Sklope,,Croatia,Hydro,Reservoir,22.5,44.72891665,15.22196665,
+1184,Dubrava,,Dubrava,,Croatia,Hydro,Run-of-river,76.0,46.3280278,16.7454222,
+1185,Varazdin,,Varazdin,,Croatia,Hydro,Run-of-river,94.0,46.3261722,16.3030889,
+1186,Vinodol,,Vinodol System,,Croatia,Hydro,Reservoir,90.0,45.22499445,14.67610555,
+1187,Kraljevac,,Kraljevac,,Croatia,Hydro,Run-of-river,46.4,43.43104445,16.8873111,
+1188,Lanau,,Lanau,,France,Hydro,Reservoir,21.0,44.96216665,3.04316665,
+1189,Mallemort,,Mallemort,,France,Hydro,Run-of-river,101.0,43.7233620571,5.19222644806,
+1190,Vinon,,Vinon,,France,Hydro,Reservoir,32.5,43.7247535,5.8189035,
+1191,Grandval,,Grandval,,France,Hydro,Reservoir,74.0,44.97761665,3.07891665,
+1192,Orlu,,Orlu,,France,Hydro,Reservoir,88.8,42.6951565,1.8999955,
+1193,Argentiere,,Argentiere Bessee,,France,Hydro,Reservoir,38.0,44.107929,6.6416185,
+1194,Lugo Di Nazza,,Lugo Di Nazza,,France,Hydro,Reservoir,39.0,42.016018,9.2192675,
+1195,Beauvoir,,Beauvoir,,France,Hydro,Run-of-river,39.0,45.136461,5.3214375,
+1196,Sainte Tulle,,Sainte Tulle &,,France,Hydro,Run-of-river,97.0,43.7877275,5.7706795,
+1197,Golinhac,,Golinhac,,France,Hydro,Reservoir,45.0,44.4792889229,2.58918785095,
+1198,Quinson,,Quinson,,France,Hydro,Reservoir,41.0,43.7010055,6.0460605,
+1199,Sautet,,Sautet Le,,France,Hydro,Reservoir,76.0,44.8177035,5.927753,
+1200,Villeneuve Sur Lot,,Lot,,France,Hydro,Reservoir,28.6,44.5315,1.69033335,
+1201,St George  Commiers,,Saint Georges Commiers,,France,Hydro,Reservoir,60.0,45.0222695,5.6946315,
+1202,Enchanet,,Enchanet,,France,Hydro,Reservoir,35.0,45.14933335,2.26366665,
+1203,Marcillac,,Marcillac,,France,Hydro,Reservoir,30.0,45.2418505,0.757106,
+1204,Nentilla,,Nentilla,,France,Hydro,Reservoir,97.0,42.7873115,2.2228715,
+1205,Allement,,Allement,,France,Hydro,Reservoir,32.0,46.0354265,5.3825985,
+1206,Grangent,,Grangent,,France,Hydro,Reservoir,37.0,45.454925,4.243935,
+1207,Ocana Corse,,Ocana,,France,Hydro,Reservoir,42.5,41.9526655,8.9349475,
+1208,Castillon,,Castillon,,France,Hydro,Reservoir,68.0,43.864,6.52733335,
+1209,Champcella,,Champcella,,France,Hydro,Reservoir,12.0,44.8301855,6.573775,
+1210,Raiva,,Raiva,,Portugal,Hydro,Run-of-river,24.0,40.316276,-8.2362355,
+1211,Cabril,,Cabril,,Portugal,Hydro,Run-of-river,97.0,39.9105475,-8.132008,
+1212,Regua,,Regua,,Portugal,Hydro,Run-of-river,156.0,41.155663,-7.7341845,
+1213,Crestuma Lever,,Crestuma Lever,,Portugal,Hydro,Run-of-river,108.0,41.068605,-8.4932445,
+1214,Vilar Tabuaco,,Vilar Tabuaco,,Portugal,Hydro,Reservoir,64.0,41.0516235,-7.551617,
+1215,Touvedo,,Touvedo,,Portugal,Hydro,Reservoir,22.0,41.80746,-8.356127,
+1216,Lindoso,,Lindoso Brazil,,Portugal,Hydro,Reservoir,42.0,41.857436,-8.2713625,
+1217,Alto Lindoso,,Alto Lindoso,,Portugal,Hydro,Reservoir,630.0,41.7655952529,-8.20713264466,
+1218,Fratel,,Fratel,,Portugal,Hydro,Run-of-river,132.0,39.5262017006,-7.80910666961,
+1219,Bemposta,,Bemposta,,Portugal,Hydro,Run-of-river,401.0,41.3057725,-6.486389,
+1220,Miranda Douro,,Miranda,,Portugal,Hydro,Run-of-river,390.0,41.326756,-7.026317,
+1221,Koronowo,,Koronowo,,Poland,Hydro,Reservoir,26.0,53.2944991339,17.9448415542,
+1222,Zur,,Zur,,Poland,Hydro,Reservoir,8.0,53.560754,18.358823,
+1223,Talarn,,Talarn,,Spain,Hydro,Reservoir,300.0,42.1827220783,0.906907529182,
+1224,Wloclawek,,Wloclawek,,Poland,Hydro,Reservoir,160.2,52.6522835004,19.1008512146,
+1225,Bielkowo,,Bielkowo,,Poland,Hydro,Reservoir,7.2,54.2649054849,18.5105522919,
+1226,Pilchowice,,Pilchowice,,Poland,Hydro,Reservoir,7.5,50.9715101543,15.6416757202,
+1227,Kastraki,,Kastraki,,Greece,Hydro,Reservoir,320.0,38.68144445,21.3859889,
+1228,Platanovrisi,,Platanovrisi,,Greece,Hydro,Reservoir,122.0,41.25108335,24.42271665,
+1229,Kilforsen,,Kilforsen,,Sweden,Hydro,Run-of-river,288.0,63.48781665,16.83144,
+1230,Tresna,,Tresna,,Poland,Hydro,Reservoir,21.0,49.7423251681,19.2077748871,
+1231,Edling,,Edling,,Austria,Hydro,Run-of-river,87.0,46.58151665,14.4256,
+1232,Kaprun Haupstufe (Limberg),,Kaprun Haupstufe,,Austria,Hydro,Reservoir,240.0,47.2662732808,12.7497238205,
+1233,Krsko,,Krsko,,Slovenia,Hydro,Run-of-river,39.1,45.9670728218,15.4867333969,
+1234,Kremasta,,Kremasta,,Greece,Hydro,Reservoir,437.2,38.75384445,21.4515889,
+1235,Fuhren,,Fuhren,,Switzerland,Hydro,Reservoir,10.0,46.60525165,7.95018335,
+1236,Handeck,,Handeck,,Switzerland,Hydro,Pumped Storage,291.0,46.6142583334,8.30688716666,
+1237,Plavinas,,Plavinas Latvia,,Latvia,Hydro,Reservoir,883.5,56.5938838049,25.2473683808,
+1238,Kegums,,Kegums Latvia,,Latvia,Hydro,Run-of-river,264.0,56.7427994343,24.7178440613,
+1239,Kaunas,,Kaunas Lithuania,,Lithuania,Hydro,Reservoir,100.8,54.88707,23.95,
+1240,Kiskore,,Kiskore Hungary,,Hungary,Hydro,Reservoir,28.0,47.496585,20.50785,
+1241,Walgauwerk,,Walgau,,Austria,Hydro,Run-of-river,94.0,47.1954454309,9.67569890614,
+1242,Vermunt,,Vermunt,,Austria,Hydro,Run-of-river,157.0,46.96773335,10.0529,
+1243,Obervermunt,,Obervermunt,,Austria,Hydro,Reservoir,29.0,46.94688335,10.0518,
+1244,Latschau,,Latschau,,Austria,Hydro,Run-of-river,9.0,47.0742468948,9.87548262711,
+1245,Stratos,,Stratos,,Greece,Hydro,Reservoir,156.7,38.64869445,21.3655389,
+1246,Pournari,,Poyrnari,,Greece,Hydro,Reservoir,300.0,39.1725278,21.0053889,
+1247,Agras,,Agras,,Greece,Hydro,Run-of-river,50.0,40.8059,22.0110278,
+1248,Plastira,,Plastira,,Greece,Hydro,Reservoir,129.9,39.3008278,21.83393335,
+1249,Thisavros,,Thesavros Thesaurus,,Greece,Hydro,Reservoir,384.0,41.36897665,24.35849,
+1250,Vrhovo,,Vrhovo,,Slovenia,Hydro,Run-of-river,34.2,46.056178,15.2038945,
+1251,Medvode,,Medvode Poqwer,,Slovenia,Hydro,Reservoir,25.0,46.1396165,14.4237665,
+1252,Mavcice,,Mavcice,,Slovenia,Hydro,Reservoir,38.0,46.1836665,14.4124835,
+1253,Mariselu,,Mariselu,,Romania,Hydro,Reservoir,221.0,46.71728335,23.3295,
+1254,Bradisor,,Bradisor,,Romania,Hydro,Reservoir,115.0,45.3549,24.1053,
+1255,Beaumont Sur Durance,,Beaumont,,France,Hydro,Run-of-river,44.0,43.735,5.753,
+1256,Brzeg Dolny (Waly Slaskie),,Brzeg Dolny Waly Slaskie,,Poland,Hydro,Run-of-river,9.8,51.2605,16.7656,
+1257,Ruieni,,Ruieni,,Romania,Hydro,Reservoir,140.0,45.426,22.4757,
+1258,Remeti,,Dragan Remeti,,Romania,Hydro,Reservoir,146.0,46.7889,22.7156,
+1259,Gilceag,,Galceag Oasa,,Romania,Hydro,Reservoir,150.0,45.5879,23.6279,
+1260,Carrapatelo,,Carrapatelo,,Portugal,Hydro,Run-of-river,201.0,41.0849,-8.1306,
+1261,Valeira,,Valeira,,Portugal,Hydro,Run-of-river,216.0,41.1605,-7.3742,
+1262,Saint Cassien,,Saint Cassien,,France,Hydro,Reservoir,21.7,43.602,6.841,
+1263,Bosdornau,,Boesdornau,,Austria,Hydro,Run-of-river,25.3,47.1516,11.8326,
+1264,Val Beneyte,,Val Beynette,,France,Hydro,Reservoir,30.0,45.416,2.372,
+1265,Auzerette,,Auzerette,,France,Hydro,Reservoir,29.0,45.365,2.646,
+1266,Caldeirao,,Caldeirao,,Portugal,Hydro,Reservoir,40.0,40.5316,-7.3297,
+1267,Jaruga,,Jaruga,,Croatia,Hydro,Run-of-river,7.2,43.805,15.9626,
+1268,Vidraru,,Vidraru,,Romania,Hydro,Reservoir,220.0,45.3667,24.6307,
+1269,Eget,,Egets,,France,Hydro,Reservoir,37.3,42.955,0.565,
+1270,Belmeken,,Belmeken,,Bulgaria,Hydro,Pumped Storage,375.0,42.1995,23.858,
+1271,Devin,,Devin,,Bulgaria,Hydro,Run-of-river,80.0,41.7201,24.425,
+1272,Orfeus,,Orfeus Bulgeria,,Bulgaria,Hydro,Reservoir,160.0,41.9404,24.4471,
+1273,Aleko,,Aleko,,Bulgaria,Hydro,Run-of-river,66.0,42.1194,24.289,
+1274,Malta Unterstufe,,Malta Unterstufe Moellbruecke,,Austria,Hydro,Run-of-river,41.0,46.833219,13.360147,
+1275,L'Hospitalet,,Hospitalet L',,France,Hydro,Reservoir,93.3,42.588,1.797,
+1276,Saut Mortier,,Saut Mortier,,France,Hydro,Run-of-river,44.0,46.372,5.642,
+1277,Largue,,Largue,,France,Hydro,Run-of-river,12.0,43.854,5.859,
+1278,Bancairon,,Bancairon,,France,Hydro,Reservoir,50.0,44.003,7.137,
+1279,Tismana,,Tismana Motru,,Romania,Hydro,Reservoir,106.0,45.0444,22.9472,
+1280,Stejaru,,Bicaz Stejaru,,Romania,Hydro,Reservoir,210.0,46.9386,26.1029,
+1281,Reisach,Reisach,,,Germany,Hydro,Pumped Storage,100.26,49.52333335,12.27833335,energy_storage_exchange
+1282,Hjalta,Hjälta,,,Sweden,Hydro,Run-of-river,180.0,62.98336215,17.86660235,
+1283,Gammelange,Gammelänge,,,Sweden,Hydro,Reservoir,78.0,61.8438382882,16.2238976373,
+1285,Ramsele,Ramsele,,,Sweden,Hydro,Run-of-river,300.0,63.5459905,16.46914665,
+1286,Stensjo,Stora stensjö,,,Sweden,Hydro,Reservoir,95.0,60.007769,14.26623765,
+1288,Solleftea,Solleftea,,,Sweden,Hydro,Reservoir,62.0,63.16728885,17.27185885,
+1290,Flasjo,Flasjö,,,Sweden,Hydro,Reservoir,20.0,60.0833333,13.9833333,
+1291,Sil,Sils,,,Sweden,Hydro,Reservoir,12.0,63.75,16.4166667,
+1293,Bardufoss,Bardufoss,,,Norway,Hydro,Run-of-river,30.0,69.0416440683,18.5906418847,
+1295,Mittan,Mittan,,,Sweden,Hydro,Run-of-river,98.2,62.452977,13.19051765,
+1296,Campo Moro,Campo moro,,,Italy,Hydro,Pumped Storage,36.5,46.2696485,9.8696235,energy_storage_exchange
+1297,Blyberg,Blybergs kraftverk,,,Sweden,Hydro,Reservoir,15.1,61.148456,14.16474015,
+1298,Skymnas,Skymnäs,,,Sweden,Hydro,Reservoir,16.0,62.9166667,15.0166667,
+1299,Holjes,Höljes,,,Sweden,Hydro,Reservoir,130.0,60.9254165,12.573611,
+1302,Halvfari,Halvfari,,,Sweden,Hydro,Reservoir,24.0,61.29161335,14.29890185,
+1303,Kvarnsveden ,Kvarnsveden,,,Sweden,Hydro,Reservoir,52.5,60.4858035024,15.437142849,
+1304,Mockfjard,Mockfjärd,,,Sweden,Hydro,Reservoir,46.0,60.500753,14.96547685,
+1305,Jarpstrommen,Järpströmmens,,,Sweden,Hydro,Reservoir,120.0,63.347249,13.47181915,
+1306,Hermansboda,Hermansboda,,,Sweden,Hydro,Reservoir,12.0,62.5459,15.83836665,
+1307,Bullerforsen,Bullerforsen,,,Sweden,Hydro,Reservoir,19.2,60.4973462512,15.4370434245,
+1308,Gullspang,Skagern – gullspang,,,Sweden,Hydro,Reservoir,40.0,58.9862360062,14.1015756542,
+1309,Skedvi,Skedvi,,,Sweden,Hydro,Reservoir,38.0,60.3990855,15.8043345,
+1312,Tafjord ,Tafjord,,,Norway,Hydro,Run-of-river,82.0,62.24059,7.42848665,
+1313,Svartafors,Svartafors,,,Sweden,Hydro,Reservoir,5.32,58.4500055,15.48759915,
+1314,Ojeforsen,Öjeforsen,,,Sweden,Hydro,Reservoir,28.3,62.25169385,15.66732135,
+1315,Tanzmuhle Rabenleite,Tanzmühle,,,Germany,Hydro,Pumped Storage,35.0,49.54166665,12.30666665,energy_storage_exchange
+1317,Norrange,Norränge kraftverk,,,Sweden,Hydro,Run-of-river,80.0,61.48640765,16.3909885,
+1318,Hafslund,Hafslund,,,Norway,Hydro,Reservoir,31.0,59.279455,11.119565,
+1319,Velebit,Velebit pump,,,Croatia,Hydro,Pumped Storage,276.0,44.2002778,15.6811111,energy_storage_exchange
+1320,Fuzine,Fu_ine,,,Croatia,Hydro,Pumped Storage,4.6,45.3026389,14.7127778,energy_storage_exchange
+1321,Edensforsen,Degerforsens,,,Sweden,Hydro,Reservoir,67.0,63.67557385,17.01200585,
+1322,Schwarzenbach,Schwarzenbach,,,Germany,Hydro,Pumped Storage,45.0,48.67166665,8.34,energy_storage_exchange
+1323,Kattstrupeforsen,Kattstrupeforsen,,,Sweden,Hydro,Reservoir,56.0,63.3261656045,14.5143453288,
+1324,Guadalami,Gaudalami,,,Italy,Hydro,Pumped Storage,85.0,37.993974,13.2848725,energy_storage_exchange
+1325,Sadva,Sädvajaur sädva,,,Sweden,Hydro,Reservoir,31.0,66.7585015,18.4997425,
+1326,Svarthalsforsen,Svarthalsforsens,,,Sweden,Hydro,Reservoir,80.1,63.03111465,16.56801235,
+1327,Laforsen,Laforsen,,,Sweden,Hydro,Run-of-river,64.0,61.9436865,15.51930785,
+1328,Kuhtai,Kuhtai psh kühtai,,,Austria,Hydro,Pumped Storage,292.0,47.2317525218,11.3115747452,energy_storage_exchange
+1329,Urdiceto,Urdiceto,,,Spain,Hydro,Pumped Storage,7.2,42.6317325,0.21929,energy_storage_exchange
+1330,Lottefors,Lottefors,,,Sweden,Hydro,Reservoir,13.76,61.4166667,16.4,
+1331,Noppikoski,Noppikoski,,,Sweden,Hydro,Reservoir,10.0,61.4949415,14.77142465,
+1332,Bergnas,Storavan bergnäs krv,,,Sweden,Hydro,Reservoir,8.8,65.6833333,18.1666667,
+1333,Sorpe,Sorpesee,,,Germany,Hydro,Pumped Storage,10.08,51.35833335,7.97666665,energy_storage_exchange
+1334,Spjutmo,Spjutmo,,,Sweden,Hydro,Reservoir,35.0,61.0835018,14.31737485,
+1335,Juktan Vanligt,Juktan,,,Sweden,Hydro,Pumped Storage,361.0,65.0410834805,17.4285088812,
+1337,Lunersee,Lünerseewerk,,,Austria,Hydro,Pumped Storage,232.0,47.0518753223,9.75189971924,energy_storage_exchange
+1338,Kymmen,Kymmen,,,Sweden,Hydro,Pumped Storage,56.0,59.9621635,12.7536605,
+1339,Klippen,Klippen,,,Sweden,Hydro,Run-of-river,25.3,60.6098029805,15.1166703812,
+1340,Krangfors,Krangfors,,,Sweden,Hydro,Reservoir,62.0,64.75,20.4666667,
+1343,Granfors,Granfors,,,Sweden,Hydro,Reservoir,40.0,64.1833333,20.3833333,
+1344,Askara Two,Askara,,,Norway,Hydro,Run-of-river,40.0,61.81216,5.6624,
+1345,Happurg,Happurg,,,Germany,Hydro,Pumped Storage,160.73099,49.49,11.47,energy_storage_exchange
+1347,Pracomune,Pracomune,,,Italy,Hydro,Pumped Storage,42.0,46.55,11.01,energy_storage_exchange
+1348,Rebnis,Rebnisjaure rebnis krv,,,Sweden,Hydro,Reservoir,64.0,66.499046,17.107241,
+1350,Gulsele,Gulsele,,,Sweden,Hydro,Run-of-river,108.0,63.821222,17.145008,
+1352,Hallby,Hällby,,,Sweden,Hydro,Reservoir,168.0,63.879154,17.21992,
+1353,,,Aoos Piges Aoos,,Greece,Hydro,Reservoir,230.0,39.7837,21.0926,
+1354,,,Artouste,,France,Hydro,Reservoir,88.0,42.887,-0.411,
+1355,,,Asomata,,Greece,Hydro,Reservoir,108.0,40.4744,22.2439,
+1356,,,Bissorte,,France,Hydro,Pumped Storage,1633.0,45.202,6.5805,
+1357,,,Bollene,,France,Hydro,Run-of-river,354.0,44.304,4.742,
+1358,,,Bouca,,Portugal,Hydro,Reservoir,50.0,39.854,-8.2197,
+1359,,,Cambeyrac,,France,Hydro,Reservoir,9.8,44.655,2.574,
+1360,,,Castelnau Lassouts,,France,Hydro,Reservoir,42.0,44.505,2.874,
+1361,,,Castelo Do Bode,,Portugal,Hydro,Reservoir,139.0,39.5429,-8.3188,
+1362,,,Castirla,,France,Hydro,Reservoir,54.5,42.38,9.134,
+1363,,,Chateauneuf Du Rhone,,France,Hydro,Run-of-river,295.0,44.499,4.708,
+1364,,,Chaudanne,,France,Hydro,Reservoir,24.3,43.848,6.544,
+1365,,,Cierny Vah,,Slovakia,Hydro,Pumped Storage,735.0,49.00879,19.912224,
+1366,,,Coiselet,,France,Hydro,Reservoir,41.0,46.294,5.592,
+1367,,,Coo And Project,,Belgium,Hydro,Pumped Storage,1164.0,50.3849,5.8618,
+1368,,,Cunovo,,Slovakia,Hydro,Reservoir,24.0,48.02987,17.2254,
+1369,,,Cusset Jonage,,France,Hydro,Run-of-river,85.0,45.79,5.025,
+1370,,,Dubnica Nad Vahom,,Slovakia,Hydro,Run-of-river,16.5,48.9638,18.1454,
+1371,,,Eguzon,,France,Hydro,Reservoir,72.0,46.455,1.613,
+1372,,,Eygliers,,France,Hydro,Reservoir,25.0,44.672,6.65,
+1373,,,Gabcikovo,,Slovakia,Hydro,Run-of-river,720.0,47.88,17.5384,
+1374,,,Gour Noir Le,,France,Hydro,Reservoir,40.0,45.071,2.067,
+1375,,,Grande Dixence Scheme,,Switzerland,Hydro,Reservoir,2069.0,46.0731,7.4034,
+1376,,,Grodek,,Poland,Hydro,Run-of-river,3.5,53.4999,18.3736,
+1377,,,Horna Streda,,Slovakia,Hydro,Run-of-river,25.5,48.6605,17.855,
+1378,,,Hourat,,France,Hydro,Reservoir,139.0,43.075,-0.42,
+1379,,,Hricov,,Slovakia,Hydro,Reservoir,31.5,49.2594,18.6815,
+1380,,,Ilarionas,,Greece,Hydro,Reservoir,154.0,40.0966,21.8039,
+1381,,,Ilava,,Slovakia,Hydro,Run-of-river,15.0,49.0057,18.235,
+1382,,,Iron Gate,,Romania,Hydro,Reservoir,1486.0,44.49035,22.5496,
+1383,,,Jouques,,France,Hydro,Run-of-river,78.0,43.681,5.656,
+1384,,,Reisseck,,Austria,Hydro,Pumped Storage,568.1,46.88285,13.32697,
+1385,,,Kostolna,,Slovakia,Hydro,Run-of-river,25.5,48.861,17.9689,
+1386,,,Kralova,,Slovakia,Hydro,Reservoir,45.06,48.1912,19.8296,
+1387,,,Kreplany,,Slovakia,Hydro,Reservoir,24.75,49.1281,19.0941,
+1388,,,Lazer Le,,France,Hydro,Reservoir,16.5,44.346,5.868,
+1389,,,Lesce,,Croatia,Hydro,Run-of-river,42.3,45.3485,15.3452,
+1390,,,Linth–Limmern Tierfehd Stations,,Switzerland,Hydro,Reservoir,479.0,46.8763,8.9916,
+1391,,,Lipovec,,Slovakia,Hydro,Run-of-river,38.4,49.132,18.9114,
+1392,,,Louron,,France,Hydro,Reservoir,49.3,42.79,0.41,
+1393,,,Luenersee,,Austria,Hydro,Pumped Storage,260.0,47.0737,9.8735,
+1394,,,Madunice,,Slovakia,Hydro,Run-of-river,43.2,48.4884,17.7938,
+1395,,,Maljacka,,Croatia,Hydro,Run-of-river,24.0,44.00194,16.01917,
+1396,,,Markovci Poqwer,,Slovenia,Hydro,Reservoir,0.775,46.3882,15.9267,
+1397,,,Mauvoisin,,Switzerland,Hydro,Reservoir,388.0,46.15726,7.20922,
+1398,,,Mazet,,France,Hydro,Reservoir,56.0,45.801,1.803,
+1399,,,Melje Poqwer,,Slovenia,Hydro,Reservoir,2.63,46.5609,15.6736,
+1400,,,Miskova,,Slovakia,Hydro,Run-of-river,93.6,49.1928,18.5083,
+1401,,,Monceaux Virolle,,France,Hydro,Reservoir,19.0,45.576,1.84,
+1402,,,Moux Charmines,,France,Hydro,Reservoir,28.0,46.277,5.554,
+1403,,,Nosice,,Slovakia,Hydro,Run-of-river,67.5,49.127459,18.364248,
+1404,,,Nove Mesto ..,,Slovakia,Hydro,Run-of-river,25.5,48.7725,17.8516,
+1405,,,Oo,,France,Hydro,Reservoir,30.0,42.804,0.56,
+1406,,,Orava,,Slovakia,Hydro,Reservoir,21.75,49.3756,19.557,
+1407,,,Paradela,,Portugal,Hydro,Reservoir,54.0,41.7686,-7.9504,
+1408,,,Peruca,,Croatia,Hydro,Reservoir,60.0,43.7951,16.5968,
+1409,,,Picote,,Portugal,Hydro,Run-of-river,426.0,41.379,-6.3525,
+1410,,,Pinet,,France,Hydro,Reservoir,66.5,44.07,2.805,
+1411,,,Polyfyto,,Greece,Hydro,Reservoir,375.0,40.3305,22.1253,
+1412,,,Portillon Le,,France,Hydro,Reservoir,95.0,42.733,0.553,
+1413,,,Povazska Bystrica,,Slovakia,Hydro,Run-of-river,55.2,49.133149,18.45377,
+1414,,,Raul Mare Retezat,,Romania,Hydro,Reservoir,335.0,45.3391,22.7213,
+1415,,,Riga Latvia,,Latvia,Hydro,Reservoir,402.0,56.852,24.2724,
+1416,,,Seyssel,,France,Hydro,Run-of-river,45.0,45.971,5.834,
+1417,,,St. Guillerme,,France,Hydro,Reservoir,116.0,45.031,6.079,
+1418,,,Sucany,,Slovakia,Hydro,Run-of-river,38.4,49.1072,18.9916,
+1419,,,Sugag Tau,,Romania,Hydro,Reservoir,150.0,45.6892,23.6094,
+1420,,,Teich,,France,Hydro,Reservoir,6.3,42.71,1.864,
+1421,,,Tet,,France,Hydro,Reservoir,41.1,42.553,2.267,
+1422,,,Trencin,,Slovakia,Hydro,Run-of-river,16.5,48.9022,18.056,
+1423,,,Triouzoune,,France,Hydro,Reservoir,22.0,45.347,2.349,
+1424,,,Truel,,France,Hydro,Run-of-river,27.0,44.06,2.769,
+1425,,,Tuxbach,,Austria,Hydro,Run-of-river,1.0,47.1485,11.8225,
+1426,,,Verzasca,,Switzerland,Hydro,Reservoir,105.0,46.1941,8.8497,
+1427,,,Villerest,,France,Hydro,Reservoir,116.0,45.98695,4.04869,
+1428,,Balforsens krv,,,Sweden,Hydro,Run-of-river,105.0,64.652384,18.4948355,
+1430,,Edensforsen,,,Sweden,Hydro,Run-of-river,60.0,63.690491,16.872475,
+1432,,Jarpströmm,,,Sweden,Hydro,Run-of-river,120.0,63.344498,13.460305,
+1433,,Kilforsen,,,Sweden,Hydro,Run-of-river,855.0,63.556499,16.662825,
+1435,,Krokströmm,,,Sweden,Hydro,Run-of-river,50.0,65.0233,19.6888,
+1438,,Mockfjords,,,Sweden,Hydro,Run-of-river,12.0,60.501506,14.964287,
+1440,,Seitevare,,,Sweden,Hydro,Run-of-river,450.0,66.976111,18.578056,
+1441,,Storfinfors,,,Sweden,Hydro,Run-of-river,70.0,63.597386,16.119386,
+1442,,Tasan,,,Sweden,Hydro,Run-of-river,35.0,59.386351,13.569723,
+1443,,Letten,,,Sweden,Hydro,Pumped Storage,108.0,60.711169,12.671745,
+1444,,Eggsjö,,,Sweden,Hydro,Reservoir,500.0,,,
+1447,,Horkoneryd,,,Sweden,Hydro,Reservoir,2.1,56.507879,15.141241,
+1448,,Juktans,,,Sweden,Hydro,Reservoir,78.0,65.292975,17.2233,
+1450,,Kvistforsens,,,Sweden,Hydro,Reservoir,130.0,64.744883,20.863433,
+1451,,Langströmmen,,,Sweden,Hydro,Reservoir,40.0,62.106128,14.995905,
+1452,,Ljusne strömmar,,,Sweden,Hydro,Reservoir,14.5,,,
+1453,,Mörsils,,,Sweden,Hydro,Reservoir,40.0,63.349754,13.452623,
+1455,,äverede,,,Sweden,Hydro,Reservoir,64.0,63.223555,15.320856,
+1457,,Rätans krv,,,Sweden,Hydro,Reservoir,60.0,62.480646,14.504099,
+1458,,Storfinnforsens,,,Sweden,Hydro,Reservoir,112.0,63.597386,16.119386,
+1459,,Stornorrfors,,,Sweden,Hydro,Reservoir,1500.0,63.8525,20.051667,
+1461,,Vargfors,,,Sweden,Hydro,Reservoir,360.0,65.022723,19.679938,
+1462,,Viggeby,,,Sweden,Hydro,Reservoir,1.03,58.469057,16.368458,
+1463,,Ardal,,,Norway,Hydro,Run-of-river,2.7,60.47622,5.77782,
+1464,,Dale,,,Norway,Hydro,Run-of-river,28.0,60.58344,5.81926,
+1465,,Floerli,,,Norway,Hydro,Run-of-river,160.0,59.015178,6.426101,
+1466,,Fortun +,,,Norway,Hydro,Run-of-river,216.0,61.50511,7.70239,
+1468,,Hemsil,,,Norway,Hydro,Run-of-river,70.0,60.81118,8.64382,
+1469,,Hol,,,Norway,Hydro,Run-of-river,62.0,60.57795,8.40952,
+1470,,Hunderfoss,,,Norway,Hydro,Run-of-river,112.0,61.2171,10.43943,
+1471,,Langavatn,,,Norway,Hydro,Run-of-river,500.0,66.33696,14.16666,
+1473,,Lyse,,,Norway,Hydro,Run-of-river,80.0,59.05425,6.6266,
+1475,,"Rössaga, lower",,,Norway,Hydro,Run-of-river,240.0,,,
+1476,,"Rössaga, upper",,,Norway,Hydro,Run-of-river,225.0,,,
+1477,,Savtso,,,Norway,Hydro,Run-of-river,150.0,69.75,23.733333,
+1480,,Sysenvatn,,,Norway,Hydro,Run-of-river,620.0,60.416667,7.416667,
+1481,,Vinstra extension,,,Norway,Hydro,Run-of-river,100.0,61.5935,9.756452,
+1482,,Buavatn,,,Norway,Hydro,Pumped Storage,40.0,63.84514,10.68782,
+1483,,Hjorteland,,,Norway,Hydro,Pumped Storage,2.2,59.37483,6.44951,
+1485,,Stolsdal,,,Norway,Hydro,Pumped Storage,17.0,55.31077,6.61508,
+1487,,Tjonna,,,Norway,Hydro,Pumped Storage,0.2,60.39614,5.07197,
+1488,,Vatn 462,,,Norway,Hydro,Pumped Storage,0.3,61.71674,5.23615,
+1489,,Viervatn,,,Norway,Hydro,Pumped Storage,112.0,61.18224,7.63551,
+1490,,Byrte,,,Norway,Hydro,Reservoir,20.0,59.49612,7.83322,
+1491,,Fjergen,,,Norway,Hydro,Reservoir,60.0,63.4335474,11.91072464,
+1492,,Harpefossen,,,Norway,Hydro,Reservoir,46.0,61.58292,9.84108,
+1493,,Katlavatn,,,Norway,Hydro,Reservoir,72.0,60.80479,7.36825,
+1494,,Kjosnesfjorden main dam,,,Norway,Hydro,Reservoir,84.0,61.51765,6.61536,
+1495,,Kykkelsrud fossumfoss,,,Norway,Hydro,Reservoir,190.0,59.57996,11.10157,
+1497,,Riskallvatn,,,Norway,Hydro,Reservoir,112.0,,,
+1498,,Sima,,,Norway,Hydro,Reservoir,1120.0,60.49965,7.14204,
+1499,,Storglamvatn,,,Norway,Hydro,Reservoir,350.0,66.707928,14.149923,
+1500,,Storvatn,,,Norway,Hydro,Reservoir,9.0,64.878973,12.105094,
+1501,,Styggevatn,,,Norway,Hydro,Reservoir,290.0,61.771028,7.465787,
+1503,,Urar,,,Norway,Hydro,Reservoir,154.0,59.443056,7.255,
+1504,,Grand'maison dam,,,France,Hydro,Pumped Storage,1820.0,45.21,6.12,energy_storage_exchange
+1505,,Reisseck,,,Austria,Hydro,Pumped Storage,430.0,47.08,13.34,energy_storage_exchange
+1506,,Kirchentellinsfurt,,,Germany,Hydro,Pumped Storage,1.3,48.6,9.1,energy_storage_exchange
+1507,,Leitzachwerk,,,Germany,Hydro,Pumped Storage,49.0,47.85,11.86,energy_storage_exchange
+1508,,Leitzachwerk,,,Germany,Hydro,Pumped Storage,49.2,47.85,11.86,energy_storage_exchange
+1509,,Ruselkraftwerke,,,Germany,Hydro,Pumped Storage,3.5,48.86,13.0,energy_storage_exchange
+1510,,Lac noir,,,France,Hydro,Pumped Storage,82.0,48.11,7.1,energy_storage_exchange
+1512,,Dob_iná,,,Slovakia,Hydro,Pumped Storage,24.0,48.82,20.37,energy_storage_exchange
+1513,,Belmeken,,,Bulgaria,Hydro,Pumped Storage,104.0,42.17,23.8,energy_storage_exchange
+1514,,Kaprun upper stage,,,Austria,Hydro,Pumped Storage,113.0,47.36,12.64,energy_storage_exchange
+1515,,Rellswerk project,,,Austria,Hydro,Pumped Storage,12.0,47.05,9.75,energy_storage_exchange
+1516,,Campolattaro,,,Italy,Hydro,Pumped Storage,572.0,41.29,14.74,energy_storage_exchange
+1517,,Lepenica,,,Croatia,Hydro,Pumped Storage,1.14,45.3,14.71,energy_storage_exchange
+1519,,El hierro wind,,,Spain,Hydro,Pumped Storage,11.3,27.8,-17.92,energy_storage_exchange
+1520,,Go development demonstration project,,,Denmark,Hydro,Pumped Storage,0.006,54.92,9.68,energy_storage_exchange
+1521,,Orphey,,,Bulgaria,Hydro,Pumped Storage,160.0,41.74,24.39,energy_storage_exchange
+1522,,Artificial Powerplant,,,Spain,Hydro,Pumped Storage,3.6,36.96,-4.8,energy_storage_exchange
+1523,,Artificial Powerplant,,,Ireland,Hydro,Pumped Storage,1.5,53.74,-9.57,energy_storage_exchange
+1525,,Artificial Powerplant,,,Portugal,Hydro,Pumped Storage,145.0,39.4,-8.22,energy_storage_exchange
+1526,,Artificial Powerplant,,,Portugal,Hydro,Pumped Storage,37.0,39.4,-8.22,energy_storage_exchange
+1527,,Artificial Powerplant,,,Portugal,Hydro,Pumped Storage,259.0,41.22,-7.42,energy_storage_exchange
+1528,,Artificial Powerplant,,,Portugal,Hydro,Pumped Storage,191.6,41.69,-8.03,energy_storage_exchange
+1531,,Artificial Powerplant,,,Austria,Hydro,Pumped Storage,360.0,47.06,9.93,energy_storage_exchange
+1532,,Artificial Powerplant,,,Austria,Hydro,Run-of-river,120.0,47.952824886,14.762953652,
+1533,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.6817623273,14.5869036652,
+1534,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.0129862133,13.7747615647,
+1535,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.4557703894,14.009109323,
+1536,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.0726503783,9.62714019817,
+1537,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.8932226677,10.2824213029,
+1538,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.2223848982,14.8467569855,
+1539,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.2518290725,9.31834369703,
+1540,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.9362624964,13.5059255145,
+1541,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.4989525646,12.4228579648,
+1542,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.8782877203,15.1043837823,
+1543,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.6433713353,13.7212292767,
+1544,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,48.4434185007,15.0923477315,
+1545,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.3109948697,13.2421137737,
+1546,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.1110552836,12.6334879567,
+1547,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,48.2484582706,14.5319049612,
+1548,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.4052974667,15.2493443775,
+1549,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.3139332019,12.9396763677,
+1550,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,46.5495784427,13.9652400293,
+1551,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,48.4765372055,14.4455551451,
+1552,,Artificial Powerplant,,,Austria,Hydro,Reservoir,120.0,47.1861443352,15.4055405139,
+1553,,Artificial Powerplant,,,Austria,Hydro,Run-of-river,120.0,48.3931952972,16.2509689166,
+1554,,Artificial Powerplant,,,Bulgaria,Hydro,Reservoir,120.0,42.1732071297,23.7535396391,
+1555,,Artificial Powerplant,,,Bulgaria,Hydro,Reservoir,120.0,41.6396883795,25.2546039046,
+1556,,Artificial Powerplant,,,Bulgaria,Hydro,Reservoir,120.0,41.9224683965,23.8091822805,
+1557,,Artificial Powerplant,,,Croatia,Hydro,Reservoir,120.0,44.311791358,15.6858117434,
+1558,,Artificial Powerplant,,,Croatia,Hydro,Run-of-river,120.0,44.9379283237,14.3970011597,
+1559,,Artificial Powerplant,,,Czech Republic,Hydro,Reservoir,120.0,49.7796132843,14.4437243305,
+1560,,Artificial Powerplant,,,Czech Republic,Hydro,Reservoir,120.0,49.6519211733,14.6007974971,
+1561,,Artificial Powerplant,,,Czech Republic,Hydro,Reservoir,120.0,49.7816642201,15.7956387603,
+1562,,Artificial Powerplant,,,Czech Republic,Hydro,Reservoir,120.0,50.8776391308,13.7915213555,
+1563,,Artificial Powerplant,,,Czech Republic,Hydro,Reservoir,120.0,50.5082008581,16.8582208813,
+1564,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.6170496454,28.3997452426,
+1565,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.6344558568,29.7214953068,
+1566,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.0607096391,29.6447424986,
+1567,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.6696548364,28.4555859404,
+1568,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.0893536682,27.8105162493,
+1569,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.4644089416,27.8279856162,
+1570,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.3287331847,29.3966142942,
+1571,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.4218743653,28.990275785,
+1572,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.73562822,29.1847152696,
+1573,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,62.0729708812,29.346079887,
+1574,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.2531764261,28.3764329614,
+1575,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.9412054392,28.3411524668,
+1576,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.6697733722,28.0706767001,
+1577,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.9548166646,28.8032868852,
+1578,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.7147902761,29.677569536,
+1579,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.7317633904,29.6070007143,
+1580,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.2024640801,28.6979747469,
+1581,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,61.0139003971,28.5626689453,
+1582,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.6330684184,29.6916419666,
+1583,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.294308083,29.0411225933,
+1584,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,61.4734530352,29.1963992958,
+1585,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.9558374174,28.7301664874,
+1586,,Artificial Powerplant,,,Finland,Hydro,Run-of-river,120.0,62.1292288161,28.7609231625,
+1587,,Artificial Powerplant,,,Finland,Hydro,Reservoir,120.0,60.7396032831,28.5666459639,
+1588,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,49.1092580443,12.8783343889,
+1589,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,49.905113095,7.07062613954,
+1590,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,48.7391188543,12.3403388726,
+1591,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,49.7201019314,10.8098908815,
+1592,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,52.121405251,10.5655821676,
+1593,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,47.3436616351,8.48440893944,
+1594,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,50.0559675416,7.18175824247,
+1595,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,50.0277396207,6.89943875686,
+1596,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,49.9155792649,7.30741091881,
+1597,,Artificial Powerplant,,,Germany,Hydro,Run-of-river,120.0,51.5439839622,9.4292942765,
+1598,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,48.7440774307,11.6277906848,
+1599,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,50.8540955375,7.76092989766,
+1600,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,48.1882408994,12.3080854897,
+1601,,Artificial Powerplant,,,Germany,Hydro,Reservoir,120.0,48.7429471304,9.02337272651,
+1602,,Artificial Powerplant,,,Ireland,Hydro,Reservoir,120.0,52.8022407541,-6.00991387652,
+1603,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.8179162433,7.53157371451,
+1604,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,42.8626524266,14.3045392838,
+1605,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.7029523271,8.57315548652,
+1606,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,42.1768397205,14.0614710335,
+1607,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.1404620998,10.261104396,
+1608,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.8966248067,8.27571550944,
+1609,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,37.836592949,14.456133929,
+1610,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,37.2367788678,15.9094919714,
+1611,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,40.0317741309,10.0108846344,
+1612,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,39.9755926105,15.731417042,
+1613,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.9577170812,11.8355297992,
+1614,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.0752039681,8.9697880951,
+1615,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.3738078411,11.6297444044,
+1616,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.9152655124,9.13029104878,
+1617,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,39.1687213059,8.69122211711,
+1618,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.3945900431,7.48336730038,
+1619,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.6764664451,10.6715485518,
+1620,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,41.842087915,14.9669495693,
+1621,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.0092084883,9.76637473775,
+1622,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.8999584046,11.091045794,
+1623,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.9055864904,10.0005934443,
+1624,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,42.6255552359,11.664258066,
+1625,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.1266156522,10.8136833122,
+1626,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.5610017294,12.1319358372,
+1627,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.9946647758,7.94048965845,
+1628,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.9181487135,10.9176309595,
+1629,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.3524901793,10.8377219209,
+1630,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.2737450626,11.5509736987,
+1631,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.6919043953,9.98133018382,
+1632,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,42.4159551583,12.9698412386,
+1633,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,41.6722431811,13.8661897571,
+1634,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.2902679135,11.1357177715,
+1635,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.6760772033,7.28772192107,
+1636,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,43.4029616077,12.7722530557,
+1637,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.301371368,10.441621098,
+1638,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,40.8868173296,14.192296931,
+1639,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.4429103312,10.0069779321,
+1640,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.2490457643,7.597112431,
+1641,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.4404625339,11.5635944657,
+1642,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,47.3552976407,13.9770411394,
+1643,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.2059651638,10.7435481583,
+1644,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.9374812504,10.1957001699,
+1645,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.1081759733,10.4572937758,
+1646,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.5104390894,10.4425087163,
+1647,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.9674847467,11.6218123397,
+1648,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.0584396148,10.4432475152,
+1649,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.9106723397,10.6019991863,
+1650,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.130243762,9.4018143111,
+1651,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.5051346384,6.16974712714,
+1652,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.9328143653,10.0593817533,
+1653,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.3994047632,9.71656890852,
+1654,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,43.6677359509,12.4497892236,
+1655,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.2707667318,11.2561049844,
+1656,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.7216084899,11.2214320068,
+1657,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.7969877539,12.438479566,
+1658,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.1753750436,10.8475081384,
+1659,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,39.671055661,9.80442811992,
+1660,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.8939850462,10.4809448115,
+1661,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.4904429652,8.10552909046,
+1662,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,40.371358488,14.841420539,
+1663,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.5904302289,11.6506843366,
+1664,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.6500653088,9.80564502587,
+1665,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.6745571107,9.54580584346,
+1666,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,44.0068642534,6.73571312986,
+1667,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.091388713,8.78459963286,
+1668,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.3151222662,12.0357694029,
+1669,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,39.2300908772,9.22656927635,
+1670,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.1719483113,11.0047762658,
+1671,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,47.1086325071,10.1781149048,
+1672,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.595388794,9.99325502419,
+1673,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,41.4345918629,14.2399948133,
+1674,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.879999603,11.1115260399,
+1675,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.3283485009,9.38160278879,
+1676,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,43.5827730959,13.6711556162,
+1677,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,36.2734825945,14.5990732826,
+1678,,Artificial Powerplant,,,Italy,Hydro,Run-of-river,120.0,45.5049838813,8.92975590836,
+1679,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,45.1950427176,11.2316489122,
+1680,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,43.4469036277,7.27896934145,
+1681,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,47.0580236609,11.3551545024,
+1682,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.5969174782,9.91208760393,
+1683,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,42.6146666331,12.6209824068,
+1684,,Artificial Powerplant,,,Italy,Hydro,Reservoir,120.0,46.4436040828,9.88865974095,
+1685,,Artificial Powerplant,,,Poland,Hydro,Run-of-river,120.0,49.6243401088,20.6564227005,
+1686,,Artificial Powerplant,,,Poland,Hydro,Run-of-river,120.0,49.5668489794,20.4321756388,
+1687,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,46.4447405785,24.280933157,
+1688,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,44.7444797031,24.0014637942,
+1689,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,46.1206518231,22.0999399938,
+1690,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,46.3371538593,23.2410979543,
+1691,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,45.7612758368,23.2794996188,
+1692,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.9155125907,25.0779871328,
+1693,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.9096007003,21.9408713093,
+1694,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.3236714531,23.7537983777,
+1695,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.360536774,23.6821694123,
+1696,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,47.5247970133,22.4054399303,
+1697,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.9240914906,22.8711833088,
+1698,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,47.5085366223,23.3836176737,
+1699,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.8966785591,23.171405612,
+1700,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.2747485139,22.9606393408,
+1701,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,45.3029222032,25.3604379993,
+1702,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.7628222472,23.7029525722,
+1703,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.7479730184,23.291299175,
+1704,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,46.9330770677,25.9757988731,
+1705,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.3179097282,23.0731429221,
+1706,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,43.6727342974,22.6549856134,
+1707,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.9611897764,23.1635498413,
+1708,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.5197605914,23.5164090425,
+1709,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,45.0551767534,24.5556888717,
+1710,,Artificial Powerplant,,,Romania,Hydro,Reservoir,120.0,44.722111409,23.1127881177,
+1711,,Artificial Powerplant,,,Romania,Hydro,Run-of-river,120.0,44.7623518881,23.8296157841,
+1712,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.7165145871,0.795302974247,
+1713,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,41.5344312606,0.743853338221,
+1714,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,41.960463944,-5.9347101009,
+1715,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,38.8053361973,-5.82348851772,
+1716,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,43.3590596845,-6.36525164709,
+1717,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.946826707,1.40483269725,
+1718,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.8886491941,-4.85931577209,
+1719,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,40.0106670483,-6.64762633043,
+1720,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.7640351569,1.11640375041,
+1721,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,41.4939444956,0.350982846696,
+1722,,Artificial Powerplant,,,Spain,Hydro,Run-of-river,120.0,43.4217851299,-6.38044755689,
+1723,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.5359150212,-8.04323994513,
+1724,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.8728835086,1.44952343835,
+1725,,Artificial Powerplant,,,Spain,Hydro,Reservoir,120.0,42.2919228013,-7.2167449668,
