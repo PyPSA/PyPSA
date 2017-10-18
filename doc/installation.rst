@@ -73,7 +73,7 @@ In a unix-based environment these packages can be obtained with the
 
 
 To install PyPSA, you need to download the code from the `PyPSA github
-repository <https://github.com/fresna/pypsa/>`_ and then go to the
+repository <https://github.com/PyPSA/PyPSA/>`_ and then go to the
 local repository and run::
 
     python setup.py install
@@ -88,7 +88,7 @@ Conservative manual installation
 
 If you're very conservative and don't like package managers, you can
 just download the code from the `PyPSA github repository
-<https://github.com/fresna/pypsa/>`_ and add the directory of PyPSA to
+<https://github.com/PyPSA/PyPSA/>`_ and add the directory of PyPSA to
 your python path with e.g.::
 
     import sys

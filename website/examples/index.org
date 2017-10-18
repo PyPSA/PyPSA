@@ -6,7 +6,7 @@ download the notebook files directly, replace the example file ending
 =.html= with =.ipynb=.
 
 For some of the examples you may have to download data from the
-=examples= folder in the [[https://github.com/FRESNA/PyPSA][PyPSA github
+=examples= folder in the [[https://github.com/PyPSA/PyPSA][PyPSA github
 repository]].
 
 - [[./minimal_example_pf.html][*Minimal example of power flow*]] - This script performs a non-linear
@@ -30,7 +30,7 @@ repository]].
     generation data and wind and solar data, transformers and missing
     lines to the [[http://scigrid.de/][SciGRID]] network for Germany. It then exports the
     resulting network for use in the script above.  Only a single
-    day's worth of data is in the [[https://github.com/FRESNA/PyPSA][PyPSA github repository]]; a full year
+    day's worth of data is in the [[https://github.com/PyPSA/PyPSA][PyPSA github repository]]; a full year
     (2011) of load and wind/solar data can be downloaded [[./scigrid-with-load-gen-trafos-2011.zip][here]].
 - [[./ac-dc-lopf.html][*Meshed AC-DC network*]] - This example demonstrates multiply-connected
   AC-DC meshed networks with an example of 3 separate synchronous AC

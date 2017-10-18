@@ -5,4 +5,4 @@
 See the [[../doc/installation.html][installation instructions]].
 
 You can also see/download the code directly from
-[[https://github.com/FRESNA/PyPSA][github]].
+[[https://github.com/PyPSA/PyPSA][github]].

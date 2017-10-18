@@ -3,7 +3,7 @@
 ################
 
 
-See ``pypsa/examples/`` and ``pypsa/test/`` in the `PyPSA github repository <https://github.com/FRESNA/PyPSA>`_ for usage cases; there are
+See ``pypsa/examples/`` and ``pypsa/test/`` in the `PyPSA github repository <https://github.com/PyPSA/PyPSA>`_ for usage cases; there are
 Jupyter/iPython notebooks available of these examples at
 `<http://www.pypsa.org/examples/>`_.
 

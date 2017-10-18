@@ -26,6 +26,8 @@ See the :doc:`examples` in pypsa/examples/.
 Note that is is NOT necessary to add every single column, only those where values differ from the defaults listed in :doc:`components`. All empty values/columns are filled with the defaults.
 
 
+.. _export-csv:
+
 Export to folder of CSV files
 =============================
 
@@ -156,6 +158,3 @@ version 2.
     ppc = case30()
 
     network.import_from_pypower_ppc(ppc)
-
-
-.. _export-csv:

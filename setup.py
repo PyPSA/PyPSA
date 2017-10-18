@@ -16,7 +16,7 @@ setup(
     author_email='brown@fias.uni-frankfurt.de',
     description='Python for Power Systems Analysis',
     long_description=long_description,
-    url='https://github.com/FRESNA/PyPSA',
+    url='https://github.com/PyPSA/PyPSA',
     license='GPLv3',
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
