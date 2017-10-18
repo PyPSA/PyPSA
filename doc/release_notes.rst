@@ -25,7 +25,7 @@ important API changes.
   ``network.co2_limit = my_cap`` do ``network.add("GlobalConstraint",
   "co2_limit", type="primary_energy",
   carrier_attribute="co2_emissions", sense="<=",
-  constant="my_cap")``. The shadow prices of the global constraints
+  constant=my_cap)``. The shadow prices of the global constraints
   are automatically saved in ``network.global_constraints.mu``.
 * The LOPF output ``network.buses_t.marginal_price`` is now defined
   differently if ``network.snapshot_weightings`` are not 1. Previously
