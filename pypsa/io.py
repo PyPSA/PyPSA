@@ -361,7 +361,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
     Examples
     --------
-    >>> import_components_from_dataframe(dataframe,"Line")
+    >>> network.import_components_from_dataframe(dataframe,"Line")
     """
 
     if cls_name == "Generator" and "source" in dataframe.columns:
