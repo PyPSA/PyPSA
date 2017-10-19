@@ -356,7 +356,7 @@ class Network(Basic):
         """
         Add a single component to the network.
 
-        Adds it to component DataFrame and Panel and creates object.
+        Adds it to component DataFrames.
 
         Parameters
         ----------
@@ -419,9 +419,9 @@ class Network(Basic):
 
     def remove(self, class_name, name):
         """
-        Remove a single component to the network.
+        Removes a single component from the network.
 
-        Removes it from component DataFrame and Panel and deletes object.
+        Removes it from component DataFrames.
 
         Parameters
         ----------
@@ -449,6 +449,88 @@ class Network(Basic):
         for df in itervalues(pnl):
             if name in df:
                 df.drop(name, axis=1, inplace=True)
+
+
+
+    def madd(self, class_name, names, **kwargs):
+        """
+        Add multiple components to the network.
+
+        Adds them to component DataFrames.
+
+        Parameters
+        ----------
+        class_name : string
+            Component class name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Link"]
+        names : list-like or pandas.Index
+            Component names
+        kwargs
+            Component attributes, e.g. x=[0.1,0.2], can be list, pandas.Series of pandas.DataFrame for time-varying
+
+        Examples
+        --------
+        >>> network.madd("Load", ["load 1", "load 2"], bus=["1","2"], p_set=np.random.rand(len(network.snapshots),2))
+
+        """
+
+        if class_name not in self.components:
+            logger.error("Component class {} not found".format(class_name))
+            return None
+
+        if not isinstance(names, pd.Index):
+            names = pd.Index(names)
+
+        static = {}; series = {}
+        for k, v in iteritems(kwargs):
+            if isinstance(v, pd.DataFrame):
+                series[k] = v
+            elif isinstance(v, np.ndarray) and v.shape == (len(self.snapshots), len(names)):
+                series[k] = pd.DataFrame(v, index=self.snapshots, columns=names)
+            else:
+                static[k] = v
+
+        self.import_components_from_dataframe(pd.DataFrame(static, index=names), class_name)
+
+        for k, v in iteritems(series):
+            self.import_series_from_dataframe(v, class_name, k)
+
+
+
+    def mremove(self, class_name, names):
+        """
+        Removes multiple components from the network.
+
+        Removes them from component DataFrames.
+
+        Parameters
+        ----------
+        class_name : string
+            Component class name
+        name : list-like
+            Component names
+
+        Examples
+        --------
+        >>> network.mremove("Line", ["line x", "line y"])
+
+        """
+
+        if class_name not in self.components:
+            logger.error("Component class {} not found".format(class_name))
+            return None
+
+        if not isinstance(names, pd.Index):
+            names = pd.Index(names)
+
+        cls_df = self.df(class_name)
+
+        cls_df.drop(names, inplace=True)
+
+        pnl = self.pnl(class_name)
+
+        for df in itervalues(pnl):
+            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+
 
 
     def copy(self, with_time=True, ignore_standard_types=False):
