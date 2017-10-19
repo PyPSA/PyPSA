@@ -66,7 +66,60 @@ name of the component. Other attributes can also be specified:
 
 Any attributes which are not specified will be given the default value from :doc:`components`.
 
-This method is slow for many components; instead use pandas DataFrames (see below)
+This method is slow for many components; instead use ``madd`` or
+``import_components_from_dataframe`` (see below).
+
+
+Adding multiple components
+==========================
+
+Multiple components can be added by calling
+
+``network.madd(class_name, names, **kwargs)``
+
+where ``class_name`` is for example
+``"Line","Bus","Generator","StorageUnit`` and ``names`` is a list of
+unique names of the components. Other attributes can also be specified
+as scalars, lists, arrays, pandas Series or pandas DataFrames.
+
+Make sure when adding static attributes as pandas Series that they are
+indexed by names. Make sure when adding time-varying attributes as
+pandas DataFrames that their index is a superset of network.snapshots
+and their columns are a subset of names.
+
+.. code:: python
+
+    import pandas as pd, numpy as np
+
+    buses = range(13)
+    snapshots = range(7)
+
+    n = pypsa.Network()
+
+    n.set_snapshots(snapshots)
+
+    n.madd("Bus",
+           buses)
+
+    #add load as numpy array
+    n.madd("Load",
+           n.buses.index + " load",
+           bus=buses,
+	   p_set=np.random.rand(len(snapshots),len(buses)))
+
+    #add wind availability as pandas DataFrame
+    wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
+                        index=n.snapshots,
+			columns=n.buses.index+" wind")
+    n.madd("Generator",
+           n.buses.index + " wind",
+	   bus=buses,
+	   p_nom_extendable=True,
+	   capital_cost=1e5,
+	   p_max_pu=wind)
+
+Any attributes which are not specified will be given the default value from :doc:`components`.
+
 
 Adding components using pandas DataFrames
 =========================================
@@ -139,7 +192,7 @@ If path does not already exist, it is created.
 Import from HDF5
 ================
 
-Import network data from HDF5 store at `path`:
+Import network data from HDF5 store at ``path``:
 
 ``network.import_from_hdf5(path)``
 

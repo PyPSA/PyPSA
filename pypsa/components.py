@@ -454,9 +454,12 @@ class Network(Basic):
 
     def madd(self, class_name, names, **kwargs):
         """
-        Add multiple components to the network.
+        Add multiple components to the network, along with their attributes.
 
-        Adds them to component DataFrames.
+        Make sure when adding static attributes as pandas Series that they are indexed
+        by names. Make sure when adding time-varying attributes as pandas DataFrames that
+        their index is a superset of network.snapshots and their columns are a
+        subset of names.
 
         Parameters
         ----------
