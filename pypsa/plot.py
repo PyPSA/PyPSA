@@ -135,11 +135,13 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
     if basemap and basemap_present:
+        resolution = 'l' if isinstance(basemap, bool) else basemap
+
         if boundaries is None:
             (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
         else:
             x1, x2, y1, y2 = boundaries
-        bmap = Basemap(resolution='l', epsg=network.srid,
+        bmap = Basemap(resolution=resolution, epsg=network.srid,
                        llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
                        urcrnrlon=x2, ax=ax)
         bmap.drawcountries()
