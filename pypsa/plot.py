@@ -255,7 +255,8 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
 
 def plotly(network, margin=0.05, ax=None, bus_colors='blue',
-           line_colors='green', bus_sizes=10, line_widths=2, title="",
+           bus_sizes=10, bus_text=None,
+           line_colors='green', line_widths=2, line_text=None, title="",
            branch_components=['Line', 'Link'], iplot=True):
     """
     Plot the network buses and lines using plotly.
@@ -270,12 +271,18 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
         Colors for the buses, defaults to "b"
     bus_sizes : dict/pandas.Series
         Sizes of bus points, defaults to 10
+    bus_text : dict/pandas.Series
+        Text for each bus, defaults to bus names
     line_colors : dict/pandas.Series
         Colors for the lines, defaults to "g" for Lines and "cyan" for
         Links. Colors for branches other than Lines can be
         specified using a pandas Series with a MultiIndex.
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 2. Widths for branches other
+        than Lines can be specified using a pandas Series with a
+        MultiIndex.
+    line_text : dict/pandas.Series
+        Text for lines, defaults to line names. Text for branches other
         than Lines can be specified using a pandas Series with a
         MultiIndex.
     title : string
@@ -296,9 +303,12 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
         'Transformer': dict(color='green', width=2)
     }
 
+    if bus_text is None:
+        bus_text = network.buses.index
+
     bus_trace = dict(x=network.buses.x,
                      y=network.buses.y,
-                     text=network.buses.index,
+                     text=bus_text,
                      type="scatter",
                      mode="markers",
                      hoverinfo="text",
@@ -324,6 +334,9 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
     line_colors = as_branch_series(line_colors)
     line_widths = as_branch_series(line_widths)
 
+    if line_text is not None:
+        line_text = as_branch_series(line_text)
+
     shapes = []
 
     shape_traces = []
@@ -333,6 +346,11 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
         l_widths = line_widths.get(c.name, l_defaults['width'])
         l_nums = None
         l_colors = line_colors.get(c.name, l_defaults['color'])
+
+        if line_text is None:
+            l_text = c.df.index
+        else:
+            l_text = line_text.get(c.name)
 
         if isinstance(l_colors, pd.Series):
             if issubclass(l_colors.dtype.type, np.number):
@@ -360,7 +378,7 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
 
         shape_traces.append(dict(x=0.5*(x0+x1),
                                  y=0.5*(y0+y1),
-                                 text=c.df.index,
+                                 text=l_text,
                                  type="scatter",
                                  mode="markers",
                                  hoverinfo="text",
@@ -371,6 +389,7 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
                layout=dict(shapes=shapes,
                            title=title,
                            hovermode='closest',
+                           showlegend=False,
                            #xaxis=dict(range=[6,14]),
                            #yaxis=dict(range=[47,55])
                            ))
