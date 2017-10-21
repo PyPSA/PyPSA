@@ -454,7 +454,7 @@ class Network(Basic):
 
 
 
-    def madd(self, class_name, names, **kwargs):
+    def madd(self, class_name, names, suffix='', **kwargs):
         """
         Add multiple components to the network, along with their attributes.
 
@@ -469,6 +469,9 @@ class Network(Basic):
             Component class name in ["Bus","Generator","Load","StorageUnit","Store","ShuntImpedance","Line","Transformer","Link"]
         names : list-like or pandas.Index
             Component names
+        suffix : string, default ''
+            All components are named after names with this added suffix. It
+            is assumed that all Series and DataFrames are indexed by the original names.
         kwargs
             Component attributes, e.g. x=[0.1,0.2], can be list, pandas.Series of pandas.DataFrame for time-varying
 
@@ -485,16 +488,20 @@ class Network(Basic):
         if not isinstance(names, pd.Index):
             names = pd.Index(names)
 
+        new_names = names.astype(str) + suffix
+
         static = {}; series = {}
         for k, v in iteritems(kwargs):
             if isinstance(v, pd.DataFrame):
-                series[k] = v
+                series[k] = v.rename(columns=lambda i: str(i)+suffix)
+            elif isinstance(v, pd.Series):
+                static[k] = v.rename(lambda i: str(i)+suffix)
             elif isinstance(v, np.ndarray) and v.shape == (len(self.snapshots), len(names)):
-                series[k] = pd.DataFrame(v, index=self.snapshots, columns=names)
+                series[k] = pd.DataFrame(v, index=self.snapshots, columns=new_names)
             else:
                 static[k] = v
 
-        self.import_components_from_dataframe(pd.DataFrame(static, index=names), class_name)
+        self.import_components_from_dataframe(pd.DataFrame(static, index=new_names), class_name)
 
         for k, v in iteritems(series):
             self.import_series_from_dataframe(v, class_name, k)

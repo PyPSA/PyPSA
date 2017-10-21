@@ -110,9 +110,11 @@ and their columns are a subset of names.
     #add wind availability as pandas DataFrame
     wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
                         index=n.snapshots,
-			columns=n.buses.index+" wind")
+			columns=buses)
+    #use a suffix to avoid boilerplate to rename everything
     n.madd("Generator",
-           n.buses.index + " wind",
+           buses,
+	   suffix=' wind',
 	   bus=buses,
 	   p_nom_extendable=True,
 	   capital_cost=1e5,
