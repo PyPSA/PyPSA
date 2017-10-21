@@ -475,6 +475,11 @@ class Network(Basic):
         kwargs
             Component attributes, e.g. x=[0.1,0.2], can be list, pandas.Series of pandas.DataFrame for time-varying
 
+        Returns
+        --------
+        new_names : pandas.index
+            Names of new components (including suffix)
+
         Examples
         --------
         >>> network.madd("Load", ["load 1", "load 2"], bus=["1","2"], p_set=np.random.rand(len(network.snapshots),2))
@@ -506,6 +511,7 @@ class Network(Basic):
         for k, v in iteritems(series):
             self.import_series_from_dataframe(v, class_name, k)
 
+        return new_names
 
 
     def mremove(self, class_name, names):
