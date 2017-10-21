@@ -606,10 +606,10 @@ storage_unit.{p, p_nom_opt, state_of_charge, spill}
 
 store.{p, e_nom_opt, e}
 
-line.{p0, p1, s_nom_opt}
+line.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-transformer.{p0, p1, s_nom_opt}
+transformer.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-link.{p0, p1, p_nom_opt}
+link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
 
 global_constraint.{mu}

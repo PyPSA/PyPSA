@@ -3,6 +3,39 @@ Release Notes
 #######################
 
 
+PyPSA 0.11.0 (21st October 2017)
+================================
+
+This release contains new features but no changes to existing APIs.
+
+* There is a new function ``network.iplot()`` which creates an
+  interactive plot in Jupyter notebooks using the `plotly
+  <https://plot.ly/python/>`_ library. This reveals bus and branch
+  properties when the mouse hovers over them and allows users to
+  easily zoom in and out on the network. See the `SciGRID example
+  <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ for
+  a showcase of this feature and also the (sparse) documentation
+  :doc:`plotting`.
+* There is a new function ``network.madd()`` for adding multiple new
+  components to the network. This is significantly faster than
+  repeatedly calling ``network.add()`` and uses the functions
+  ``network.import_components_from_dataframe()`` and
+  ``network.import_series_from_dataframe()`` internally. Documentation
+  and examples can be found at :ref:`madd`.
+* There are new functions ``network.export_to_hdf5()`` and
+  ``network.import_from_hdf5()`` for exporting and importing networks
+  as single files in the `Hierarchical Data Format
+  <https://en.wikipedia.org/wiki/Hierarchical_Data_Format>`_.
+* In the ``network.lopf()`` function the KKT shadow prices of the
+  branch limit constraints are now outputted as series called
+  ``mu_lower`` and ``mu_upper``.
+
+We thank Bryn Pickering for introducing us to `plotly
+<https://plot.ly/python/>`_ and helping to `hack together
+<https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/>`_
+the first working prototype using PyPSA.
+
+
 PyPSA 0.10.0 (7th August 2017)
 ==============================
 

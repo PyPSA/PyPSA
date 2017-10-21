@@ -70,6 +70,9 @@ This method is slow for many components; instead use ``madd`` or
 ``import_components_from_dataframe`` (see below).
 
 
+
+.. _madd:
+
 Adding multiple components
 ==========================
 

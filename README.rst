@@ -117,6 +117,11 @@ available as Python scripts in `examples/ <examples/>`_.
 Screenshots
 ===========
 
+The showcase for PyPSA is the `SciGRID example
+<https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ which
+demonstrates interactive plots generated with the `plotly
+<https://plot.ly/python/>`_ library.
+
 .. image:: http://www.pypsa.org/img/line-loading.png
 
 .. image:: http://www.pypsa.org/img/lmp.png

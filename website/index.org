@@ -106,6 +106,10 @@ There are [[./examples/index.html][extensive examples]] available as Jupyter not
 
 * Screenshots
 
+The showcase for PyPSA is the [[https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html][SciGRID example]] which demonstrates
+interactive plots generated with the [[https://plot.ly/python/][plotly]] library.
+
+
 #+CAPTION: Line loading with high wind feed-in in North Germany.
 [[./img/line-loading.png]]
 
