@@ -84,7 +84,7 @@ import matplotlib.pyplot as plt
 
 #You may have to adjust this path to where 
 #you downloaded the github repository
-#https://github.com/FRESNA/PyPSA
+#https://github.com/PyPSA/PyPSA
 
 folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 

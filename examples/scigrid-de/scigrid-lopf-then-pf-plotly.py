@@ -68,9 +68,11 @@ import pandas as pd
 
 import os
 
-import matplotlib.pyplot as plt
+import plotly.offline as pltly
 
-#%matplotlib inline
+import cufflinks as cf
+
+pltly.init_notebook_mode(connected=True)
 
 #You may have to adjust this path to where 
 #you downloaded the github repository
@@ -82,54 +84,30 @@ network = pypsa.Network(csv_folder_name=csv_folder_name)
 
 ### Plot the distribution of the load and of generating tech
 
-fig,ax = plt.subplots(1,1)
+load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum().reindex(network.buses.index,fill_value=0.)
 
-fig.set_size_inches(6,6)
+fig = dict(data=[],layout=dict(width=700,height=700))
 
-load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
-
-network.plot(bus_sizes=0.5*load_distribution,ax=ax,title="Load distribution")
-
-fig.tight_layout()
-#fig.savefig('load-distribution.png')
+fig = network.iplot(bus_sizes=0.05*load_distribution, fig=fig,
+                     bus_text='Load at bus ' + network.buses.index + ': ' + round(load_distribution).values.astype(str) + ' MW',
+                     title="Load distribution",
+                     line_text='Line ' + network.lines.index)
 
 network.generators.groupby("carrier")["p_nom"].sum()
 
 network.storage_units.groupby("carrier")["p_nom"].sum()
 
-techs = ["Gas","Brown Coal","Hard Coal","Wind Offshore","Wind Onshore","Solar"]
+tech = 'Wind Onshore' # in ["Gas","Brown Coal","Hard Coal","Wind Offshore","Wind Onshore","Solar"]
 
-n_graphs = len(techs)
+gens = network.generators[network.generators.carrier == tech]
+gen_distribution = gens.groupby("bus").sum()["p_nom"].reindex(network.buses.index,fill_value=0.)
 
-n_cols = 3
+#set the figure size first
+fig = dict(data=[],layout=dict(width=700,height=700))
 
-if n_graphs % n_cols == 0:
-    n_rows = n_graphs // n_cols
-else:
-    n_rows = n_graphs // n_cols + 1
-
-    
-fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols)
-
-size = 4
-
-fig.set_size_inches(size*n_cols,size*n_rows)
-
-for i,tech in enumerate(techs):
-    i_row = i // n_cols
-    i_col = i % n_cols
-    
-    ax = axes[i_row,i_col]
-    
-    gens = network.generators[network.generators.carrier == tech]
-    
-    gen_distribution = gens.groupby("bus").sum()["p_nom"].reindex(network.buses.index,fill_value=0.)
-    
-    network.plot(ax=ax,bus_sizes=0.2*gen_distribution)
-    
-    ax.set_title(tech)
-    
-    
+fig = network.iplot(bus_sizes=0.05*gen_distribution, fig=fig,
+                     bus_text=tech + ' at bus ' + network.buses.index + ': ' + round(gen_distribution).values.astype(str) + ' MW',
+                     title=tech + " distribution")   
 
 ### Run Linear Optimal Power Flow on the first day of 2011
 
@@ -184,8 +162,8 @@ p_by_carrier.drop((p_by_carrier.max()[p_by_carrier.max() < 1700.]).index,axis=1,
 p_by_carrier.columns
 
 colors = {"Brown Coal" : "brown",
-          "Hard Coal" : "k",
-          "Nuclear" : "r",
+          "Hard Coal" : "black",
+          "Nuclear" : "red",
           "Run of River" : "green",
           "Wind Onshore" : "blue",
           "Solar" : "yellow",
@@ -196,37 +174,17 @@ colors = {"Brown Coal" : "brown",
 cols = ["Nuclear","Run of River","Brown Coal","Hard Coal","Gas","Wind Offshore","Wind Onshore","Solar"]
 p_by_carrier = p_by_carrier[cols]
 
-fig,ax = plt.subplots(1,1)
+#Unfortunately this shows cumulative sums on hover, not the individual contributions
+#Blame cufflinks, not us :-)
+(p_by_carrier/1e3).iplot(kind="area",fill=True,
+                         width=4,
+                         yTitle="GW",
+                         color=[colors[col] for col in p_by_carrier.columns])
 
-fig.set_size_inches(12,6)
-
-(p_by_carrier/1e3).plot(kind="area",ax=ax,linewidth=4,colors=[colors[col] for col in p_by_carrier.columns])
-
-
-ax.legend(ncol=4,loc="upper left")
-
-ax.set_ylabel("GW")
-
-ax.set_xlabel("")
-
-fig.tight_layout()
-#fig.savefig("stacked-gen.png")
-
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(12,6)
-
-p_storage = network.storage_units_t.p.sum(axis=1)
-state_of_charge = network.storage_units_t.state_of_charge.sum(axis=1)
-p_storage.plot(label="Pumped hydro dispatch",ax=ax,linewidth=3)
-state_of_charge.plot(label="State of charge",ax=ax,linewidth=3)
-
-ax.legend()
-ax.grid()
-ax.set_ylabel("MWh")
-ax.set_xlabel("")
-
-fig.tight_layout()
-#fig.savefig("storage-scigrid.png")
+storage = pd.DataFrame(index=network.snapshots)
+storage["Pumped hydro dispatch [MW]"] = network.storage_units_t.p.sum(axis=1)
+storage["State of charge [MWh]"] = network.storage_units_t.state_of_charge.sum(axis=1)
+storage.iplot(width=3)
 
 now = network.snapshots[4]
 
@@ -234,34 +192,29 @@ print("With the linear load flow, there is the following per unit loading:")
 loading = network.lines_t.p0.loc[now]/network.lines.s_nom
 print(loading.describe())
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(6,6)
+#a hacked colormap for lines until we can work this out properly
+from plotly.colors import label_rgb, find_intermediate_color
+def colormap(i):
+    return label_rgb([int(n) for n in find_intermediate_color([0,255.,255.],[255.,0.,0],i)])
 
-network.plot(ax=ax,line_colors=abs(loading),line_cmap=plt.cm.jet,title="Line loading")
 
-fig.tight_layout()
-#fig.savefig("line-loading.png")
+#set the figure size first
+fig = dict(data=[],layout=dict(width=700,height=700))
+
+fig = network.iplot(line_colors=abs(loading).map(colormap),fig=fig,
+                    line_text='Line ' + network.lines.index + ' has loading ' + abs(100*loading).round(1).astype(str)+'%')
 
 network.buses_t.marginal_price.loc[now].describe()
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(6,4)
 
+#set the figure size first
+fig = dict(data=[],layout=dict(width=900,height=700))
 
-network.plot(ax=ax,line_widths=pd.Series(0.5,network.lines.index))
-plt.hexbin(network.buses.x, network.buses.y, 
-           gridsize=20,
-           C=network.buses_t.marginal_price.loc[now],
-           cmap=plt.cm.jet)
-
-#for some reason the colorbar only works with graphs plt.plot
-#and must be attached plt.colorbar
-
-cb = plt.colorbar()
-cb.set_label('Locational Marginal Price (EUR/MWh)') 
-
-fig.tight_layout()
-#fig.savefig('lmp.png')
+fig = network.iplot(bus_sizes=40, bus_colors=network.buses_t.marginal_price.loc[now],
+                    bus_text = 'Bus ' + network.buses.index + ': ' + network.buses_t.marginal_price.loc[now].reindex(network.buses.index).round().astype(str) + ' EUR/MWh',
+                    fig=fig,
+                    bus_colorscale='Jet',
+                    bus_colorbar=dict(title='Locational Marginal Price [EUR/MWh]'))
 
 ### Look at variable curtailment
 
@@ -283,18 +236,11 @@ p_df[carrier + " capacity"] = capacity
 
 p_df["Wind Onshore curtailed"][p_df["Wind Onshore curtailed"] < 0.] = 0.
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(12,6)
-p_df[[carrier + " dispatched",carrier + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
-p_df[[carrier + " available",carrier + " capacity"]].plot(ax=ax,linewidth=3)
 
-ax.set_xlabel("")
-ax.set_ylabel("Power [MW]")
-ax.set_ylim([0,40000])
-ax.legend()
-
-fig.tight_layout()
-#fig.savefig("scigrid-curtailment.png")
+(p_df[[carrier + " dispatched",carrier + " curtailed"]]/1e3).iplot(kind="area",
+                                                                   fill=True,
+                                                                   width=3,
+                                                                   yTitle='Power [GW]')
 
 ## Check power flow
 
@@ -355,22 +301,18 @@ print((s*180/np.pi).describe())
 
 #plot the reactive power
 
-fig,ax = plt.subplots(1,1)
-
-fig.set_size_inches(6,6)
-
 q = network.buses_t.q.loc[now]
 
-bus_colors = pd.Series("r",network.buses.index)
-bus_colors[q< 0.] = "b"
+bus_colors = pd.Series("red",network.buses.index)
+bus_colors[q< 0.] = "blue"
 
+fig = dict(data=[],layout=dict(width=700,height=700))
 
-network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,title="Reactive power feed-in (red=+ve, blue=-ve)")
-
-fig.tight_layout()
-#fig.savefig("reactive-power.png")
-
-network.generators_t.q.loc[now].sum()
+fig=network.iplot(bus_sizes=2e-1*abs(q),bus_colors=bus_colors,
+                  bus_text='Bus ' + network.buses.index + ' Q: ' + q.reindex(network.buses.index).round().astype(str) + ' MVAr',
+                  title="Reactive power feed-in (red=+ve, blue=-ve)",fig=fig)
 
 network.buses_t.q.loc[now].sum()
+
+network.generators_t.q.loc[now].sum()
 

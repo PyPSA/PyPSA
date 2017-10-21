@@ -21,6 +21,8 @@ repository]].
      network for Germany for a full day and then examines the results.
      A full non-linear power flow is then performed on the network
      with the optimised dispatch.
+  -  [[./scigrid-lopf-then-pf-plotly.html][*SciGRID example above with interactive plotting*]] - This example
+     uses the interactive plotting from the [[https://plot.ly/][plotly]] library.
   - [[./scigrid-sclopf.html][*Security-constrained LOPF on the SciGRID German network*]] - This
     script performs a security-constrained linear optimal power flow
     on the [[http://scigrid.de/][SciGRID]] network for Germany, taking into account several
