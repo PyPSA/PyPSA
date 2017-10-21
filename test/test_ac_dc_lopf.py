@@ -34,7 +34,7 @@ def test_lopf():
 
     #test results were generated with GLPK; solution should be unique,
     #so other solvers should not differ (tested with cbc and gurobi)
-    solver_name = "glpk"
+    solver_name = "cbc"
 
     snapshots = network.snapshots
 

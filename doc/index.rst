@@ -21,6 +21,7 @@ Contents:
    power_flow
    optimal_power_flow
    contingency_analysis
+   plotting
    conventions
    examples
    troubleshooting

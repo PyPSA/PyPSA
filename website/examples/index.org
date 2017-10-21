@@ -1,7 +1,7 @@
 #+TITLE: Python for Power System Analysis: Examples
 #+OPTIONS: toc:nil        no default TOC
 
-These examples demonstrate PyPSA using [[http://jupyter.org/][Jupyter/iPython notebooks]]. To
+These examples demonstrate PyPSA using [[http://jupyter.org/][Jupyter notebooks]]. To
 download the notebook files directly, replace the example file ending
 =.html= with =.ipynb=.
 
@@ -73,5 +73,5 @@ repository]].
 
 
 
-If you have a nice example of using PyPSA, send your iPython notebook to
+If you have a nice example of using PyPSA, send your Jupyter notebook to
 Tom Brown (brown at fias.uni-frankfurt.de).

@@ -99,10 +99,9 @@ Functionality that may be added in the future:
 -  Port to [[http://julialang.org/][Julia]]
 
 
-* Example scripts as Jupyter/iPython notebooks
+* Example scripts as Jupyter notebooks
 
-There are [[./examples/index.html][extensive examples]] available as
-Jupyter/iPython notebooks.
+There are [[./examples/index.html][extensive examples]] available as Jupyter notebooks.
 
 
 * Screenshots
@@ -146,17 +145,15 @@ Python 3.5.
 
 It leans heavily on the following Python packages:
 
--  [[http://ipython.org/][pandas]] for storing data about components and
-   time series
--  [[http://www.numpy.org/][numpy]] and [[http://scipy.org/][scipy]] for
-   calculations, such as linear algebra and sparse matrix calculations
--  [[http://www.pyomo.org/][pyomo]] for preparing optimisation problems
-   (currently only linear)
--  [[https://networkx.github.io/][networkx]] for some network
-   calculations
+-  [[http://pandas.pydata.org/][pandas]] for storing data about components and time series
+-  [[http://www.numpy.org/][numpy]] and [[http://scipy.org/][scipy]] for calculations, such as linear algebra and sparse
+   matrix calculations
+-  [[http://www.pyomo.org/][pyomo]] for preparing optimisation problems (currently only linear)
+-  [[https://plot.ly/python/][plotly]] for interactive plotting
+-  [[https://matplotlib.org/][matplotlib]] for static plotting
+-  [[https://networkx.github.io/][networkx]] for some network calculations
 -  [[http://pytest.org/][py.test]] for unit testing
--  [[https://docs.python.org/3/library/logging.html][logging]] for
-   managing messages
+-  [[https://docs.python.org/3/library/logging.html][logging]] for managing messages
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver (you can use e.g. the free software GLPK or the commercial

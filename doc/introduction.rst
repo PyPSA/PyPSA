@@ -82,10 +82,12 @@ Functionality that may be added in the future:
 
 
 
-Example scripts as Jupyter/iPython notebooks
-============================================
+Example scripts as Jupyter notebooks
+====================================
 
-There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Jupyter/iPython notebooks. They are also described in the :doc:`examples` and are available as Python scripts in ``examples/``.
+There are `extensive examples <http://www.pypsa.org/examples/>`_
+available as Jupyter notebooks. They are also described in the
+:doc:`examples` and are available as Python scripts in ``examples/``.
 
 
 Screenshots
@@ -156,10 +158,12 @@ Python 3.5.
 
 It leans heavily on the following Python packages:
 
-* `pandas <http://ipython.org/>`_ for storing data about components and time series
+* `pandas <http://pandas.pydata.org/>`_ for storing data about components and time series
 * `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `plotly <https://plot.ly/python/>`_ for interactive plotting
+* `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages

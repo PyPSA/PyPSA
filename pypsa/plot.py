@@ -254,6 +254,15 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     return (bus_collection,) + tuple(branch_collections)
 
 
+#This function was borne out of a breakout group at the October 2017
+#Munich Open Energy Modelling Initiative Workshop to hack together a
+#working example of plotly for networks, see:
+#https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/384/7
+
+#We thank Bryn Pickering for holding the tutorial on plotly which
+#inspired the breakout group and for contributing ideas to the iplot
+#function below.
+
 def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
           line_colors='green', line_widths=2, line_text=None, title="",
