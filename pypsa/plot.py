@@ -254,21 +254,23 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     return (bus_collection,) + tuple(branch_collections)
 
 
-def plotly(network, margin=0.05, ax=None, bus_colors='blue',
-           bus_sizes=10, bus_text=None,
-           line_colors='green', line_widths=2, line_text=None, title="",
-           branch_components=['Line', 'Link'], iplot=True):
+def iplot(network, fig=None, bus_colors='blue',
+          bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
+          line_colors='green', line_widths=2, line_text=None, title="",
+          branch_components=['Line', 'Link'], iplot=True):
     """
-    Plot the network buses and lines using plotly.
+    Plot the network buses and lines interactively using plotly.
 
     Parameters
     ----------
-    margin : float
-        Margin at the sides as proportion of distance between max/min x,y
-    ax : matplotlib ax, defaults to plt.gca()
-        Axis to which to plot the network
+    fig : dict, default None
+        If not None, figure is built upon this fig.
     bus_colors : dict/pandas.Series
         Colors for the buses, defaults to "b"
+    bus_colorscale : string
+        Name of colorscale if bus_colors are floats, e.g. 'Jet', 'Viridis'
+    bus_colorbar : dict
+        Plotly colorbar, e.g. {'title' : 'my colorbar'}
     bus_sizes : dict/pandas.Series
         Sizes of bus points, defaults to 10
     bus_text : dict/pandas.Series
@@ -303,8 +305,11 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
         'Transformer': dict(color='green', width=2)
     }
 
+    if fig is None:
+        fig = dict(data=[],layout={})
+
     if bus_text is None:
-        bus_text = network.buses.index
+        bus_text = 'Bus ' + network.buses.index
 
     bus_trace = dict(x=network.buses.x,
                      y=network.buses.y,
@@ -315,6 +320,13 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
                      marker=dict(color=bus_colors,
                                  size=bus_sizes),
                      )
+
+    if bus_colorscale is not None:
+        bus_trace['marker']['colorscale'] = bus_colorscale
+
+    if bus_colorbar is not None:
+        bus_trace['marker']['colorbar'] = bus_colorbar
+
 
     def as_branch_series(ser):
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
@@ -348,7 +360,7 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
         l_colors = line_colors.get(c.name, l_defaults['color'])
 
         if line_text is None:
-            l_text = c.df.index
+            l_text = c.name + ' ' + c.df.index
         else:
             l_text = line_text.get(c.name)
 
@@ -385,14 +397,14 @@ def plotly(network, margin=0.05, ax=None, bus_colors='blue',
                                  marker=dict(opacity=0.))
                             )
 
-    fig = dict(data=[bus_trace]+shape_traces,
-               layout=dict(shapes=shapes,
-                           title=title,
-                           hovermode='closest',
-                           showlegend=False,
-                           #xaxis=dict(range=[6,14]),
-                           #yaxis=dict(range=[47,55])
-                           ))
+    fig['data'].extend([bus_trace]+shape_traces)
+
+    fig['layout'].update(dict(shapes=shapes,
+                              title=title,
+                              hovermode='closest',
+                              showlegend=False))
+                              #xaxis=dict(range=[6,14]),
+                              #yaxis=dict(range=[47,55])
 
 
     if iplot:

@@ -64,7 +64,7 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
-from .plot import plot, plotly
+from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
 
@@ -174,7 +174,7 @@ class Network(Basic):
 
     plot = plot
 
-    plotly = plotly
+    iplot = iplot
 
     calculate_dependent_values = calculate_dependent_values
 
