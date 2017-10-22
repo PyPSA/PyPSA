@@ -446,6 +446,7 @@ def define_storage_variables_constraints(network,snapshots):
             soc[su,sn][2] -= inflow.at[sn,su] * elapsed_hours
 
     for su,sn in spill_index:
+        elapsed_hours = network.snapshot_weightings.at[sn]
         storage_p_spill = model.storage_p_spill[su,sn]
         soc[su,sn][0].append((-1.*elapsed_hours,storage_p_spill))
 
