@@ -33,8 +33,14 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
-                           Suffix, Expression, Binary)
-from pyomo.opt import SolverFactory
+                           Suffix, Expression, Binary, SolverFactory)
+
+try:
+    from pyomo.solvers.plugins.solvers.persistent_solver import PersistentSolver
+except ImportError:
+    # Only used in conjunction with isinstance, so we mock it to be backwards compatible
+    class PersistentSolver(): pass
+
 from itertools import chain
 
 import logging
@@ -714,16 +720,36 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
             calculate_B_H(sub_network)
 
 
-    cycle_index = [(sub_network.name,i)
-                   for sub_network in network.sub_networks.obj
-                   for i in range(sub_network.C.shape[1])]
-
-    network.model.cycles = Var(cycle_index, snapshots, domain=Reals, bounds=(None,None))
-
     passive_branches = network.passive_branches()
 
 
     network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
+
+    cycle_index = []
+    cycle_constraints = {}
+
+    for sn in network.sub_networks.obj:
+
+        branches = sn.branches()
+        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
+
+        for j in range(sn.C.shape[1]):
+
+            cycle_is = sn.C[:,j].nonzero()[0]
+            cycle_index.append((sn.name, j))
+
+            for snapshot in snapshots:
+                lhs = LExpression([(branches.at[branches.index[i],attribute]*
+                                   (branches.at[branches.index[i],"tap_ratio"] if branches.index[i][0] == "Transformer" else 1.)*sn.C[i,j],
+                                    network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot])
+                                   for i in cycle_is])
+                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
+
+    l_constraint(network.model, "cycle_constraints", cycle_constraints,
+                 cycle_index, snapshots)
+
+
+    network.model.cycles = Var(cycle_index, snapshots, domain=Reals, bounds=(None,None))
 
     flows = {}
 
@@ -736,6 +762,8 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
             cycle_is = sn.C[i,:].nonzero()[1]
             tree_is = sn.T[i,:].nonzero()[1]
+
+            if len(cycle_is) + len(tree_is) == 0: logger.error("The cycle formulation does not support infinite impedances, yet.")
 
             for snapshot in snapshots:
                 expr = LExpression([(sn.C[i,j], network.model.cycles[sn.name,j,snapshot])
@@ -750,32 +778,8 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     l_constraint(network.model, "passive_branch_p_def", flows,
                  list(passive_branches.index), snapshots)
 
-    cycle_constraints = {}
 
-
-    for sn in network.sub_networks.obj:
-
-        branches = sn.branches()
-        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
-
-        for j in range(sn.C.shape[1]):
-
-            cycle_is = sn.C[:,j].nonzero()[0]
-
-            for snapshot in snapshots:
-                lhs = LExpression([(branches.at[branches.index[i],attribute]*
-                                   (branches.at[branches.index[i],"tap_ratio"] if branches.index[i][0] == "Transformer" else 1.)*sn.C[i,j],
-                                    network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot])
-                                   for i in cycle_is])
-                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
-
-    l_constraint(network.model, "cycle_constraints", cycle_constraints,
-                 cycle_index, snapshots)
-
-
-
-
-def define_passive_branch_flows_with_kirchhoff(network,snapshots):
+def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False):
 
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
@@ -786,15 +790,12 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
         if len(sub_network.branches_i()) > 0:
             calculate_B_H(sub_network)
 
-    cycle_index = [(sub_network.name,i)
-                   for sub_network in network.sub_networks.obj
-                   for i in range(sub_network.C.shape[1])]
-
     passive_branches = network.passive_branches()
 
-    network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
+    if not skip_vars:
+        network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
 
-
+    cycle_index = []
     cycle_constraints = {}
 
     for sn in network.sub_networks.obj:
@@ -805,6 +806,9 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots):
         for j in range(sn.C.shape[1]):
 
             cycle_is = sn.C[:,j].nonzero()[0]
+            if len(cycle_is) == 0: continue
+
+            cycle_index.append((sn.name, j))
 
             for snapshot in snapshots:
                 lhs = LExpression([(branches.at[branches.index[i],attribute]*
@@ -1228,54 +1232,28 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             network.generators_t.status.loc[snapshots,fixed_committable_gens_i] = \
                 as_series(model.generator_status).unstack(0)
 
-
-
-def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
-                 skip_pre=False, extra_functionality=None, solver_options={},
-                 keep_files=False, formulation="angles", ptdf_tolerance=0.,
-                 free_memory={}):
+def network_lopf_build_model(network, snapshots=None, skip_pre=False,
+                             formulation="angles", ptdf_tolerance=0.):
     """
-    Linear optimal power flow for a group of snapshots.
+    Build pyomo model for linear optimal power flow for a group of snapshots.
 
     Parameters
     ----------
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
         network.snapshots, defaults to network.snapshots
-    solver_name : string
-        Must be a solver name that pyomo recognises and that is
-        installed, e.g. "glpk", "gurobi"
-    solver_io : string, default None
-        Solver Input-Output option, e.g. "python" to use "gurobipy" for
-        solver_name="gurobi"
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
-    extra_functionality : callable function
-        This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
-        the model building is complete, but before it is sent to the
-        solver. It allows the user to
-        add/change constraints and add/change the objective function.
-    solver_options : dictionary
-        A dictionary with additional options that get passed to the solver.
-        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
-    keep_files : bool, default False
-        Keep the files that pyomo constructs from OPF problem
-        construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles","cycles","kirchhoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
-    free_memory : set, default {}
-        Any subset of {'pypsa', 'pyomo_hack'}. Beware that the
-        pyomo_hack is slow and only tested on small systems.  Stash
-        time series data and/or pyomo model away while the solver runs.
 
     Returns
     -------
-    None
+    network.model
     """
 
     if not skip_pre:
@@ -1317,35 +1295,86 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     define_linear_objective(network, snapshots)
 
-    #force solver to also give us the dual prices
-    network.model.dual = Suffix(direction=Suffix.IMPORT_EXPORT)
-
-    if extra_functionality is not None:
-        extra_functionality(network,snapshots)
-
-
     #tidy up auxilliary expressions
     del network._p_balance
 
-    logger.info("Solving model using %s", solver_name)
-    opt = SolverFactory(solver_name, solver_io=solver_io)
+    #force solver to also give us the dual prices
+    network.model.dual = Suffix(direction=Suffix.IMPORT)
 
-    patch_optsolver_record_memusage_before_solving(opt, network)
+    return network.model
+
+def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
+    """
+    Prepare solver for linear optimal power flow.
+
+    Parameters
+    ----------
+    solver_name : string
+        Must be a solver name that pyomo recognises and that is
+        installed, e.g. "glpk", "gurobi"
+    solver_io : string, default None
+        Solver Input-Output option, e.g. "python" to use "gurobipy" for
+        solver_name="gurobi"
+
+    Returns
+    -------
+    None
+    """
+
+    network.opt = SolverFactory(solver_name, solver_io=solver_io)
+
+    patch_optsolver_record_memusage_before_solving(network.opt, network)
+
+    if isinstance(network.opt, PersistentSolver):
+        network.opt.set_instance(network.model)
+
+    return network.opt
+
+def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False, free_memory={}):
+    """
+    Solve linear optimal power flow for a group of snapshots and extract results.
+
+    Parameters
+    ----------
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
+    formulation : string
+        Formulation of the linear power flow equations to use; must be one of
+        ["angles","cycles","kirchhoff","ptdf"]; must match formulation used for
+        building the model.
+    solver_options : dictionary
+        A dictionary with additional options that get passed to the solver.
+        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    keep_files : bool, default False
+        Keep the files that pyomo constructs from OPF problem
+        construction, e.g. .lp file - useful for debugging
+    free_memory : set, default {}
+        Any subset of {'pypsa'}. Stash time series data and/or pyomo model away
+        while the solver runs.
+
+    Returns
+    -------
+    None
+    """
+
+    snapshots = _as_snapshots(network, snapshots)
+
+    logger.info("Solving model using %s", network.opt.name)
+
+    if isinstance(network.opt, PersistentSolver):
+        args = []
+    else:
+        args = [network.model]
 
     if isinstance(free_memory, string_types):
         free_memory = {free_memory}
 
-    if 'pyomo_hack' in free_memory:
-        patch_optsolver_free_network_before_solving(opt, network.model)
-
     if 'pypsa' in free_memory:
         with empty_network(network):
-            network.results = opt.solve(network.model, suffixes=["dual"],
-                                        keepfiles=keep_files, options=solver_options)
+            network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
     else:
-        network.results = opt.solve(network.model, suffixes=["dual"],
-                                    keepfiles=keep_files, options=solver_options)
-
+        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options) 
 
     if logger.level > 0:
         network.results.write()
@@ -1364,3 +1393,61 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
               % (status,termination_condition))
 
     return status, termination_condition
+
+def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
+                 skip_pre=False, extra_functionality=None, solver_options={},
+                 keep_files=False, formulation="angles", ptdf_tolerance=0.,
+                 free_memory={}):
+    """
+    Linear optimal power flow for a group of snapshots.
+
+    Parameters
+    ----------
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
+    solver_name : string
+        Must be a solver name that pyomo recognises and that is
+        installed, e.g. "glpk", "gurobi"
+    solver_io : string, default None
+        Solver Input-Output option, e.g. "python" to use "gurobipy" for
+        solver_name="gurobi"
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    extra_functionality : callable function
+        This function must take two arguments
+        `extra_functionality(network,snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to
+        add/change constraints and add/change the objective function.
+    solver_options : dictionary
+        A dictionary with additional options that get passed to the solver.
+        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    keep_files : bool, default False
+        Keep the files that pyomo constructs from OPF problem
+        construction, e.g. .lp file - useful for debugging
+    formulation : string
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","cycles","kirchhoff","ptdf"]
+    ptdf_tolerance : float
+        Value below which PTDF entries are ignored
+    free_memory : set, default {}
+        Any subset of {'pypsa'}. Stash time series data away.
+
+    Returns
+    -------
+    None
+    """
+
+    snapshots = _as_snapshots(network, snapshots)
+
+    network_lopf_build_model(network, snapshots, skip_pre=skip_pre, formulation=formulation, ptdf_tolerance=ptdf_tolerance)
+
+    if extra_functionality is not None:
+        extra_functionality(network,snapshots)
+
+    network_lopf_prepare_solver(network, solver_name=solver_name, solver_io=solver_io)
+
+    return network_lopf_solve(network, snapshots, formulation=formulation, solver_options=solver_options, keep_files=keep_files, free_memory=free_memory)
+
