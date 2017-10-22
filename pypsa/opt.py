@@ -260,6 +260,21 @@ def l_objective(model,objective=None):
     model.objective._expr._coef = [item[0] for item in objective.variables]
     model.objective._expr._const = objective.constant
 
+def free_pyomo_initializers(obj):
+    obj.construct()
+    if isinstance(obj, Var):
+        attrs = ('_bounds_init_rule', '_bounds_init_value',
+                 '_domain_init_rule', '_domain_init_value',
+                 '_value_init_rule', '_value_init_value')
+    elif isinstance(obj, Constraint):
+        attrs = ('rule', '_init_expr')
+    else:
+        raise NotImplemented
+
+    for attr in attrs:
+        if hasattr(obj, attr):
+            setattr(obj, attr, None)
+
 @contextmanager
 def empty_model(model):
     logger.debug("Storing pyomo model to disk")

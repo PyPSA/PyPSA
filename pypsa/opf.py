@@ -53,7 +53,7 @@ from .pf import (calculate_dependent_values, find_slack_bus,
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_before_solving,
                   patch_optsolver_record_memusage_before_solving,
-                  empty_network)
+                  empty_network, free_pyomo_initializers)
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes
 
 
@@ -96,6 +96,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     network.model.generator_p = Var(list(network.generators.index), snapshots,
                                     domain=Reals, bounds=gen_p_bounds_f)
+    free_pyomo_initializers(network.model.generator_p)
 
     ## Define generator capacity variables if generator is extendable ##
 
@@ -105,6 +106,7 @@ def define_generator_variables_constraints(network,snapshots):
 
     network.model.generator_p_nom = Var(list(extendable_gens_i),
                                         domain=NonNegativeReals, bounds=gen_p_nom_bounds)
+    free_pyomo_initializers(network.model.generator_p_nom)
 
 
     ## Define generator dispatch constraints for extendable generators ##
@@ -327,6 +329,7 @@ def define_storage_variables_constraints(network,snapshots):
 
     network.model.storage_p_dispatch = Var(list(network.storage_units.index), snapshots,
                                            domain=NonNegativeReals, bounds=su_p_dispatch_bounds)
+    free_pyomo_initializers(network.model.storage_p_dispatch)
 
 
 
@@ -341,6 +344,7 @@ def define_storage_variables_constraints(network,snapshots):
 
     network.model.storage_p_store = Var(list(network.storage_units.index), snapshots,
                                         domain=NonNegativeReals, bounds=su_p_store_bounds)
+    free_pyomo_initializers(network.model.storage_p_store)
 
     ## Define spillage variables only for hours with inflow>0. ##
     inflow = get_switchable_as_dense(network, 'StorageUnit', 'inflow', snapshots)
@@ -357,7 +361,7 @@ def define_storage_variables_constraints(network,snapshots):
 
     network.model.storage_p_spill = Var(list(spill_index),
                                         domain=NonNegativeReals, bounds=su_p_spill_bounds)
-
+    free_pyomo_initializers(network.model.storage_p_spill)
 
 
     ## Define generator capacity variables if generator is extendable ##
@@ -368,7 +372,7 @@ def define_storage_variables_constraints(network,snapshots):
 
     network.model.storage_p_nom = Var(list(ext_sus_i), domain=NonNegativeReals,
                                       bounds=su_p_nom_bounds)
-
+    free_pyomo_initializers(network.model.storage_p_nom)
 
 
     ## Define generator dispatch constraints for extendable generators ##
@@ -378,14 +382,14 @@ def define_storage_variables_constraints(network,snapshots):
                 model.storage_p_nom[su_name]*p_max_pu.at[snapshot, su_name])
 
     network.model.storage_p_upper = Constraint(list(ext_sus_i),snapshots,rule=su_p_upper)
-
+    free_pyomo_initializers(network.model.storage_p_upper)
 
     def su_p_lower(model,su_name,snapshot):
         return (model.storage_p_store[su_name,snapshot] <=
                 -model.storage_p_nom[su_name]*p_min_pu.at[snapshot, su_name])
 
     network.model.storage_p_lower = Constraint(list(ext_sus_i),snapshots,rule=su_p_lower)
-
+    free_pyomo_initializers(network.model.storage_p_lower)
 
 
     ## Now define state of charge constraints ##
@@ -488,7 +492,7 @@ def define_store_variables_constraints(network,snapshots):
 
     network.model.store_e = Var(list(stores.index), snapshots, domain=Reals,
                                 bounds=store_e_bounds)
-
+    free_pyomo_initializers(network.model.store_e)
 
     ## Define energy capacity variables if store is extendable ##
 
@@ -498,7 +502,7 @@ def define_store_variables_constraints(network,snapshots):
 
     network.model.store_e_nom = Var(list(ext_stores), domain=Reals,
                                     bounds=store_e_nom_bounds)
-
+    free_pyomo_initializers(network.model.store_e_nom)
 
     ## Define energy capacity constraints for extendable generators ##
 
@@ -507,12 +511,14 @@ def define_store_variables_constraints(network,snapshots):
                 model.store_e_nom[store]*e_max_pu.at[snapshot,store])
 
     network.model.store_e_upper = Constraint(list(ext_stores), snapshots, rule=store_e_upper)
+    free_pyomo_initializers(network.model.store_e_upper)
 
     def store_e_lower(model,store,snapshot):
         return (model.store_e[store,snapshot] >=
                 model.store_e_nom[store]*e_min_pu.at[snapshot,store])
 
     network.model.store_e_lower = Constraint(list(ext_stores), snapshots, rule=store_e_lower)
+    free_pyomo_initializers(network.model.store_e_lower)
 
     ## Builds the constraint previous_e - p == e ##
 
@@ -557,6 +563,7 @@ def define_branch_extension_variables(network,snapshots):
 
     network.model.passive_branch_s_nom = Var(list(extendable_passive_branches.index),
                                              domain=NonNegativeReals, bounds=branch_s_nom_bounds)
+    free_pyomo_initializers(network.model.passive_branch_s_nom)
 
     extendable_links = network.links[network.links.p_nom_extendable]
 
@@ -569,6 +576,7 @@ def define_branch_extension_variables(network,snapshots):
 
     network.model.link_p_nom = Var(list(extendable_links.index),
                                    domain=NonNegativeReals, bounds=branch_p_nom_bounds)
+    free_pyomo_initializers(network.model.link_p_nom)
 
 
 def define_link_flows(network,snapshots):
