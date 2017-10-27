@@ -35,6 +35,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy as sp, scipy.sparse
+from scipy.sparse import csgraph
 from itertools import chain
 from collections import namedtuple
 from operator import itemgetter
@@ -693,7 +694,7 @@ class Network(Basic):
         """
 
         adjacency_matrix = self.adjacency_matrix(passive_branch_components)
-        n_components, labels = sp.sparse.csgraph.connected_components(adjacency_matrix, directed=False)
+        n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
         for sub_network in self.sub_networks.index:
