@@ -45,6 +45,11 @@ def _flatten_multiindex(m, join=' '):
     levels = map(m.get_level_values, range(m.nlevels))
     return reduce(lambda x, y: x+join+y, levels, next(levels))
 
+def _consense(x):
+    v = x.iat[0]
+    assert ((x == v).all() or x.isnull().all())
+    return v
+
 def _make_consense(component, attr):
     def consense(x):
         v = x.iat[0]
@@ -72,11 +77,7 @@ def aggregategenerators(network, busmap, with_time=True):
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum,
                   'marginal_cost': np.mean, 'capital_cost': np.mean}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
-
-    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
-    strategies.update((attr, _make_consense('Generator', attr))
-                      for attr in columns.difference(strategies))
-
+ 
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
@@ -107,7 +108,6 @@ def aggregateoneport(network, busmap, component, with_time=True):
                                      'efficiency_dispatch', 'standing_loss', 'max_hours', 'efficiency_store'}
                          else _consense)
 
-                         else _make_consense(component, attr))
 
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
