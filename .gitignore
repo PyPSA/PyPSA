@@ -22,7 +22,7 @@ test/results/*
 
 doc/_build/
 
-doc/img/
+# doc/img/
 
 build/
 
@@ -32,8 +32,14 @@ pypsa.egg-info/
 
 files.txt
 
-*.org
+tom_notes.org
 
 *.pdf
 
 *.aux
+
+website/examples/*.py
+
+*.zip
+
+*.html

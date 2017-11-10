@@ -18,9 +18,6 @@ network = pypsa.Network()
 folder_name = "ac-dc-data"
 network.import_from_csv_folder(folder_name)
 
-now = network.snapshots[4]
-network.now = now
-
 network.lopf(network.snapshots)
 
 for sn in network.sub_networks.obj:
@@ -31,7 +28,6 @@ print("\nControllable branches:")
 print(network.links)
 
 now = network.snapshots[5]
-
 
 print("\nCheck power balance at each branch:")
 

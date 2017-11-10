@@ -1,2 +1,2 @@
-name,co2_limit,co2_price,max_memusage,now,objective,opf_keep_files,srid
-Test 6 bus,1000,394.4658709,138452,2015-01-01 00:00:00,14670508.8254,True,4326
+name,max_memusage,now,objective,opf_keep_files,pypsa_version,srid
+Test 6 bus,157124,now,14670508.8254,True,0.10.0,4326

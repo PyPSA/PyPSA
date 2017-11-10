@@ -45,10 +45,15 @@ def _flatten_multiindex(m, join=' '):
     levels = map(m.get_level_values, range(m.nlevels))
     return reduce(lambda x, y: x+join+y, levels, next(levels))
 
-def _consense(x):
-    v = x.iat[0]
-    assert ((x == v).all() or x.isnull().all())
-    return v
+def _make_consense(component, attr):
+    def consense(x):
+        v = x.iat[0]
+        assert ((x == v).all() or x.isnull().all()), (
+            "In {} cluster {} the values of attribute {} do not agree:\n{}"
+            .format(component, attr, x.name, x)
+        )
+        return v
+    return consense
 
 def _haversine(coords):
     lon, lat = np.deg2rad(np.asarray(coords)).T
@@ -58,14 +63,20 @@ def _haversine(coords):
 def aggregategenerators(network, busmap, with_time=True):
     attrs = network.components["Generator"]["attrs"]
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
-    columns = (set(attrs.index[attrs.static]) | {'weight'}) & set(generators.columns)
+    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
     generators['p_nom_max'] /= weighting
+<<<<<<< HEAD
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum,
                   'marginal_cost': np.mean, 'capital_cost': np.mean}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
+=======
+    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
+    strategies.update((attr, _make_consense('Generator', attr))
+                      for attr in columns.difference(strategies))
+>>>>>>> c19ab4f1cb0cb5d2c2b659daec06d0837454b03e
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
@@ -84,16 +95,20 @@ def aggregategenerators(network, busmap, with_time=True):
 def aggregateoneport(network, busmap, component, with_time=True):
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
-    columns = set(attrs.index[attrs.static]) & set(old_df.columns)
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
     grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
 
     strategies = {attr: (np.sum
                          if attr in {'p', 'q', 'p_set', 'q_set',
                                      'p_nom', 'p_nom_max', 'p_nom_min'}
+<<<<<<< HEAD
                          else np.mean
                          if attr in {'marginal_cost', 'capital_cost', 'efficiency',
                                      'efficiency_dispatch', 'standing_loss', 'max_hours', 'efficiency_store'}
                          else _consense)
+=======
+                         else _make_consense(component, attr))
+>>>>>>> c19ab4f1cb0cb5d2c2b659daec06d0837454b03e
                   for attr in columns}
     new_df = old_df.groupby(grouper).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
@@ -111,12 +126,13 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
-    columns = set(attrs.index[attrs.static]) & set(network.buses.columns)
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(network.buses.columns)
 
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
                       v_mag_pu_max=np.min, v_mag_pu_min=np.max)
-    strategies.update(zip(columns.difference(strategies), repeat(_consense)))
+    strategies.update((attr, _make_consense("Bus", attr))
+                      for attr in columns.difference(strategies))
     strategies.update(custom_strategies)
 
     return network.buses \
@@ -134,13 +150,22 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_c = pd.concat((interlines_p,interlines_n))
 
     attrs = network.components["Line"]["attrs"]
-    columns = set(attrs.index[attrs.static]).difference(('name', 'bus0', 'bus1'))
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
+
+    consense = {
+        attr: _make_consense('Bus', attr)
+        for attr in (columns | {'sub_network'}
+                     - {'r', 'x', 'g', 'b', 'terrain_factor', 's_nom',
+                        's_nom_min', 's_nom_max', 's_nom_extendable',
+                        'capital_cost', 'length', 'v_ang_min',
+                        'v_ang_max'})
+    }
 
     def aggregatelinegroup(l):
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
-        v_nom_s = _consense(buses.loc[list(l.name),'v_nom'])
+        v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
         length_factor = (length_s/l['length'])
@@ -157,11 +182,11 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_extendable=l['s_nom_extendable'].any(),
             capital_cost=l['capital_cost'].sum(),
             length=length_s,
-            sub_network=_consense(l['sub_network']),
+            sub_network=consense['sub_network'](l['sub_network']),
             v_ang_min=l['v_ang_min'].max(),
             v_ang_max=l['v_ang_max'].min()
         )
-        data.update((f, _consense(l[f])) for f in columns.difference(data))
+        data.update((f, consense[f](l[f])) for f in columns.difference(data))
         return pd.Series(data, index=[f for f in l.columns if f in columns])
 
     lines = interlines_c.groupby(['bus0_s', 'bus1_s']).apply(aggregatelinegroup)
@@ -177,10 +202,8 @@ def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_str
     # compute new buses
     buses = aggregatebuses(network, busmap, bus_strategies)
 
-    lines = network.lines
-
-    lines['bus0_s'] = lines.bus0.map(busmap)
-    lines['bus1_s'] = lines.bus1.map(busmap)
+    lines = network.lines.assign(bus0_s=lambda df: df.bus0.map(busmap),
+                                 bus1_s=lambda df: df.bus1.map(busmap))
 
     # lines between different clusters
     interlines = lines.loc[lines['bus0_s'] != lines['bus1_s']]
@@ -208,7 +231,6 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     if with_time:
-        network_c.now = network.now
         network_c.set_snapshots(network.snapshots)
 
     one_port_components = components.one_port_components.copy()
@@ -230,10 +252,13 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             io.import_series_from_dataframe(network_c, df, one_port, attr)
 
 
+    ##
+    # Collect remaining one ports
+
     for c in network.iterate_components(one_port_components):
         io.import_components_from_dataframe(
             network_c,
-            c.df.assign(bus=c.df.bus.map(busmap)),
+            c.df.assign(bus=c.df.bus.map(busmap)).dropna(subset=['bus']),
             c.name
         )
 
@@ -243,23 +268,18 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                 if not df.empty:
                     io.import_series_from_dataframe(network_c, df, c.name, attr)
 
-    io.import_components_from_dataframe(
-        network_c,
-        network.links.assign(bus0=network.links.bus0.map(busmap),
-                             bus1=network.links.bus1.map(busmap)),
-        "Link"
-    )
-
-    io.import_components_from_dataframe(
-        network_c,
-        network.carriers,
-        "Carrier"
-    )
+    new_links = (network.links.assign(bus0=network.links.bus0.map(busmap),
+                                      bus1=network.links.bus1.map(busmap))
+                        .dropna(subset=['bus0', 'bus1'])
+                        .loc[lambda df: df.bus0 != df.bus1])
+    io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
         for attr, df in iteritems(network.links_t):
             if not df.empty:
                 io.import_series_from_dataframe(network_c, df, "Link", attr)
+
+    io.import_components_from_dataframe(network_c, network.carriers, "Carrier")
 
     network_c.determine_network_topology()
 

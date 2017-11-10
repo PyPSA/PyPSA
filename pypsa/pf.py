@@ -39,14 +39,15 @@ import scipy as sp, scipy.sparse
 import networkx as nx
 
 import collections, six
+from operator import itemgetter
 from itertools import chain
 import time
 
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict
 
 def _as_snapshots(network, snapshots):
     if snapshots is None:
-        snapshots = [network.now]
+        snapshots = network.snapshots
     if (isinstance(snapshots, six.string_types) or
         not isinstance(snapshots, (collections.Sequence, pd.Index))):
         return pd.Index([snapshots])
@@ -99,6 +100,9 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
         network.links_t.p1.loc[snapshots] = -p_set.loc[snapshots].multiply(network.links.efficiency)
 
+    itdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=int)
+    difdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index)
+    cnvdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=bool)
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
             find_bus_controls(sub_network)
@@ -106,7 +110,13 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
             branches_i = sub_network.branches_i()
             if len(branches_i) > 0:
                 sub_network_prepare_fun(sub_network, skip_pre=True)
-        sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+        if not linear:
+            itdf[sub_network.name], difdf[sub_network.name], cnvdf[sub_network.name] = sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+        else:
+            sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
+
+    if not linear:
+        return Dict({ 'n_iter': itdf, 'error': difdf, 'converged': cnvdf })
 
 def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False):
     """
@@ -116,7 +126,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     ----------
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
-        the power flow, defaults to [now]
+        the power flow, defaults to network.snapshots
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
@@ -126,10 +136,12 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
 
     Returns
     -------
-    None
+    Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
+    values indicating number of iterations, convergence status, and
+    iteration error for each snapshot (rows) and sub_network (columns)
     """
 
-    _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
+    return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
 
 
 def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
@@ -139,6 +151,7 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
 
     """
 
+    converged = False
     n_iter = 0
     F = f(guess)
     diff = norm(F,np.Inf)
@@ -158,8 +171,10 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
 
     if diff > x_tol:
         logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
+    elif not np.isnan(diff):
+        converged = True
 
-    return guess, n_iter, diff
+    return guess, n_iter, diff, converged
 
 
 
@@ -171,7 +186,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     ----------
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
-        the power flow, defaults to [now]
+        the power flow, defaults to network.snapshots
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
@@ -181,7 +196,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     Returns
     -------
-    None
+    Tuple of three pandas.Series indicating number of iterations,
+    remaining error, and convergence status for each snapshot
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
@@ -288,6 +304,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs)))
+    iters = pd.Series(0, index=snapshots)
+    diffs = pd.Series(index=snapshots)
+    convs = pd.Series(False, index=snapshots)
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
         q = network.buses_t.q.loc[now,buses_o]
@@ -298,8 +317,12 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
         #Now try and solve
         start = time.time()
-        roots[i], n_iter, diff = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol)
+        roots[i], n_iter, diff, converged = newton_raphson_sparse(f,guess,dfdx,x_tol=x_tol)
         logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
+        iters[now] = n_iter
+        diffs[now] = diff
+        convs[now] = converged
+
 
     #now set everything
     network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = roots[:,:len(sub_network.pvpqs)]
@@ -358,6 +381,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     #set the Q of the PV generators
     network.generators_t.q.loc[snapshots,network.buses.loc[sub_network.pvs, "generator"]] += np.asarray(network.buses_t.q.loc[snapshots,sub_network.pvs] - ss[:,buses_indexer(sub_network.pvs)].imag)
 
+    return iters, diffs, convs
+
+
 def network_lpf(network, snapshots=None, skip_pre=False):
     """
     Linear power flow for generic network.
@@ -366,7 +392,7 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     ----------
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
-        the power flow, defaults to [now]
+        the power flow, defaults to network.snapshots
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -385,16 +411,27 @@ def apply_line_types(network):
 
     """
 
-    lines_with_types = network.lines.index[network.lines.type != ""]
+    lines_with_types_b = network.lines.type != ""
 
-    if len(lines_with_types) == 0:
+    if lines_with_types_b.sum() == 0:
         return
 
     for attr in ["r","x"]:
-        network.lines.loc[lines_with_types,attr] = network.lines.loc[lines_with_types,"type"].map(network.line_types[attr + "_per_length"])*network.lines.loc[lines_with_types,"length"]/network.lines.loc[lines_with_types,"num_parallel"]
+        attr_per_length = network.line_types[attr + "_per_length"]
+        network.lines.loc[lines_with_types_b,attr] = (
+            network.lines.loc[lines_with_types_b, "type"].map(attr_per_length)
+            * network.lines.loc[lines_with_types_b, "length"]
+            / network.lines.loc[lines_with_types_b, "num_parallel"]
+        )
 
-    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types,"type"].map(network.line_types.f_nom)
-    network.lines.loc[lines_with_types,"b"] = factor*network.lines.loc[lines_with_types,"type"].map(network.line_types["c_per_length"])*network.lines.loc[lines_with_types,"length"]*network.lines.loc[lines_with_types,"num_parallel"]
+    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types_b, "type"].map(network.line_types.f_nom)
+    c_per_length = network.line_types["c_per_length"]
+    network.lines.loc[lines_with_types_b, "b"] = (
+        factor
+        * network.lines.loc[lines_with_types_b, "type"].map(c_per_length)
+        * network.lines.loc[lines_with_types_b, "length"]
+        * network.lines.loc[lines_with_types_b, "num_parallel"]
+    )
 
 
 
@@ -406,50 +443,50 @@ def apply_transformer_types(network):
 
     """
 
-    trafos_with_types = network.transformers.index[network.transformers.type != ""]
+    trafos = network.transformers
+    trafos_with_types_b = trafos.type != ""
 
-    if len(trafos_with_types) == 0:
+    if trafos_with_types_b.sum() == 0:
         return
 
+    trafos.loc[trafos_with_types_b, "r"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vscr"])/100.
 
-    network.transformers.loc[trafos_with_types, "r"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vscr"])/100.
+    z = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vsc"])/100.
 
-    z = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["vsc"])/100.
-
-    network.transformers.loc[trafos_with_types, "x"] = np.sqrt(z**2 - network.transformers.loc[trafos_with_types, "r"]**2)
+    trafos.loc[trafos_with_types_b, "x"] = np.sqrt(z**2 - trafos.loc[trafos_with_types_b, "r"]**2)
 
     for attr in ["phase_shift","s_nom"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types[attr])
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types[attr])
 
     #NB: b and g are per unit of s_nom
-    network.transformers.loc[trafos_with_types, "g"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["pfe"])/(1000. * network.transformers.loc[trafos_with_types, "s_nom"])
+    trafos.loc[trafos_with_types_b, "g"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["pfe"])/(1000. * trafos.loc[trafos_with_types_b, "s_nom"])
 
-    i0 = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["i0"])/100.
+    i0 = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["i0"])/100.
 
-    b_minus_squared = i0**2 - network.transformers.loc[trafos_with_types, "g"]**2
+    b_minus_squared = i0**2 - trafos.loc[trafos_with_types_b, "g"]**2
 
     #for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
 
     b_minus_squared[b_minus_squared < 0.] = 0.
 
-    network.transformers.loc[trafos_with_types, "b"] = - np.sqrt(b_minus_squared)
+    trafos.loc[trafos_with_types_b, "b"] = - np.sqrt(b_minus_squared)
 
 
     for attr in ["r","x"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]/network.transformers.loc[trafos_with_types, "num_parallel"]
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]/trafos.loc[trafos_with_types_b, "num_parallel"]
 
     for attr in ["b","g"]:
-        network.transformers.loc[trafos_with_types, attr] = network.transformers.loc[trafos_with_types, attr]*network.transformers.loc[trafos_with_types, "num_parallel"]
+        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]*trafos.loc[trafos_with_types_b, "num_parallel"]
 
 
     #deal with tap positions
 
-    network.transformers.loc[trafos_with_types, "tap_ratio"] = 1 + (
-        network.transformers.loc[trafos_with_types, "tap_position"] -
-        network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_neutral"])) * (
-            network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_step"])/100.)
+    trafos.loc[trafos_with_types_b, "tap_ratio"] = 1 + (
+        trafos.loc[trafos_with_types_b, "tap_position"] -
+        trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_neutral"])) * (
+            trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_step"])/100.)
 
-    network.transformers.loc[trafos_with_types, "tap_side"] = network.transformers.loc[trafos_with_types, "type"].map(network.transformer_types["tap_side"])
+    trafos.loc[trafos_with_types_b, "tap_side"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_side"])
 
     #TODO: status, rate_A
 
@@ -466,17 +503,17 @@ def apply_transformer_t_model(network):
     z_series = network.transformers.r_pu + 1j*network.transformers.x_pu
     y_shunt = network.transformers.g_pu + 1j*network.transformers.b_pu
 
-    ts = network.transformers.index[(network.transformers.model == "t") & (y_shunt != 0.)]
+    ts_b = (network.transformers.model == "t") & (y_shunt != 0.)
 
-    if len(ts) == 0:
+    if ts_b.sum() == 0:
         return
 
-    za,zb,zc = wye_to_delta(z_series.loc[ts]/2,z_series.loc[ts]/2,1/y_shunt.loc[ts])
+    za,zb,zc = wye_to_delta(z_series.loc[ts_b]/2,z_series.loc[ts_b]/2,1/y_shunt.loc[ts_b])
 
-    network.transformers.loc[ts,"r_pu"] = zc.real
-    network.transformers.loc[ts,"x_pu"] = zc.imag
-    network.transformers.loc[ts,"g_pu"] = (2/za).real
-    network.transformers.loc[ts,"b_pu"] = (2/za).imag
+    network.transformers.loc[ts_b,"r_pu"] = zc.real
+    network.transformers.loc[ts_b,"x_pu"] = zc.imag
+    network.transformers.loc[ts_b,"g_pu"] = (2/za).real
+    network.transformers.loc[ts_b,"b_pu"] = (2/za).imag
 
 
 def calculate_dependent_values(network):
@@ -779,7 +816,7 @@ averaged).
 
 
 
-def find_tree(sub_network):
+def find_tree(sub_network, weight='x_pu'):
     """Get the spanning tree of the graph, choose the node with the
     highest degree as a central "tree slack" and then see for each
     branch which paths from the slack to each node go through the
@@ -791,19 +828,11 @@ def find_tree(sub_network):
     branches_i = branches_bus0.index
     buses_i = sub_network.buses_i()
 
-    graph = sub_network.graph()
+    graph = sub_network.graph(weight=weight)
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     #find bus with highest degree to use as slack
-
-    tree_slack_bus = None
-    slack_degree = -1
-
-    for bus,degree in sub_network.tree.degree_iter():
-        if degree > slack_degree:
-            tree_slack_bus = bus
-            slack_degree = degree
-
+    tree_slack_bus, slack_degree = max(sub_network.tree.degree_iter(), key=itemgetter(1))
     logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     #determine which buses are supplied in tree through branch from slack
@@ -820,7 +849,7 @@ def find_tree(sub_network):
             sub_network.T[branch_i,j] = sign
 
 
-def find_cycles(sub_network):
+def find_cycles(sub_network, weight='x_pu'):
     """
     Find all cycles in the sub_network and record them in sub_network.C.
 
@@ -828,12 +857,13 @@ def find_cycles(sub_network):
     from the MultiGraph must be collected separately (for cases where there
     are multiple lines between the same pairs of buses).
 
+    Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
 
     #reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph()
+    mgraph = sub_network.graph(weight=weight)
     graph = nx.OrderedGraph(mgraph)
 
     cycles = nx.cycle_basis(graph)
@@ -875,7 +905,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     ----------
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
-        the power flow, defaults to [now]
+        the power flow, defaults to network.snapshots
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.

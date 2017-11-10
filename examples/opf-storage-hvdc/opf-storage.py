@@ -28,7 +28,7 @@ from distutils.spawn import find_executable
 
 csv_folder_name = "opf-storage-data"
 network = pypsa.Network(csv_folder_name=csv_folder_name)
-print(network,network.co2_limit)
+print(network,network.global_constraints)
 
 #useful for debugging
 network.opf_keep_files = True
@@ -56,9 +56,7 @@ if solver_name is None:
 print("Using solver:",solver_name)
 
 
-snapshots = network.snapshots
-
-network.lopf(snapshots=snapshots,solver_name=solver_name)
+network.lopf(solver_name=solver_name)
 
 print("Generator and storage capacities:\n")
 
@@ -68,7 +66,7 @@ print("\n\nBranch capacities:\n")
 
 print(network.branches().s_nom)
 
-for snapshot in snapshots:
+for snapshot in network.snapshots:
 
     print("\n"*2+"For time",snapshot,":\nBus injections:")
 
@@ -77,16 +75,15 @@ for snapshot in snapshots:
     print("Total:",network.buses_t.p.loc[snapshot].sum())
 
 
-network.now = network.snapshots[0]
+now = network.snapshots[0]
 
 
 for branch in network.branches().index:
-    print(branch,getattr(network,getattr(pypsa.components,branch[0]).list_name+"_t").p1.loc[network.now,branch[1]])
+    print(branch,getattr(network,network.components[branch[0]]["list_name"]+"_t").p1.loc[now,branch[1]])
 
 
-print("Comparing bus injection to branch outgoing for %s:" % network.now)
+print("Comparing bus injection to branch outgoing for %s:" % now)
 
-now = network.now
 
 for sub_network in network.sub_networks.obj:
 
@@ -96,7 +93,7 @@ for sub_network in network.sub_networks.obj:
 
         print("\n%s" % bus)
 
-        print("power injection (generators - loads + link feed-in):",network.buses_t.p.loc[network.now,bus])
+        print("power injection (generators - loads + link feed-in):",network.buses_t.p.loc[now,bus])
 
         generators = sum(network.generators_t.p.loc[now,network.generators.bus==bus])
         loads = sum(network.loads_t.p.loc[now,network.loads.bus==bus])

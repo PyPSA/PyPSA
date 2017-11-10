@@ -4,7 +4,7 @@
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
-#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#The data files for this example are in the examples folder of the github repository: <https://github.com/PyPSA/PyPSA>.
 #
 ### Data sources
 #
@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 
 #You may have to adjust this path to where 
 #you downloaded the github repository
-#https://github.com/FRESNA/PyPSA
+#https://github.com/PyPSA/PyPSA
 
 csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"
 
@@ -157,11 +157,9 @@ for line_name in ["316","527","602"]:
 #Assume 450 EUR/MVA/km
 #network.lines.capital_cost = 450*network.lines.length
 
-network.now = network.snapshots[0]
-
 group_size = 4
 
-solver_name = "glpk"
+solver_name = "cbc"
 
 print("Performing linear OPF for one day, {} snapshots at a time:".format(group_size))
 
@@ -230,8 +228,10 @@ ax.set_xlabel("")
 fig.tight_layout()
 #fig.savefig("storage-scigrid.png")
 
+now = network.snapshots[4]
+
 print("With the linear load flow, there is the following per unit loading:")
-loading = network.lines_t.p0.loc[network.snapshots[4]]/network.lines.s_nom
+loading = network.lines_t.p0.loc[now]/network.lines.s_nom
 print(loading.describe())
 
 fig,ax = plt.subplots(1,1)
@@ -242,7 +242,7 @@ network.plot(ax=ax,line_colors=abs(loading),line_cmap=plt.cm.jet,title="Line loa
 fig.tight_layout()
 #fig.savefig("line-loading.png")
 
-network.buses_t.marginal_price.loc[network.now].describe()
+network.buses_t.marginal_price.loc[now].describe()
 
 fig,ax = plt.subplots(1,1)
 fig.set_size_inches(6,4)
@@ -251,7 +251,7 @@ fig.set_size_inches(6,4)
 network.plot(ax=ax,line_widths=pd.Series(0.5,network.lines.index))
 plt.hexbin(network.buses.x, network.buses.y, 
            gridsize=20,
-           C=network.buses_t.marginal_price.loc[network.now],
+           C=network.buses_t.marginal_price.loc[now],
            cmap=plt.cm.jet)
 
 #for some reason the colorbar only works with graphs plt.plot
@@ -298,13 +298,15 @@ fig.tight_layout()
 
 ## Check power flow
 
+now = network.snapshots[0]
+
 for bus in network.buses.index:
-    bus_sum = network.buses_t.p.loc[network.now,bus]
+    bus_sum = network.buses_t.p.loc[now,bus]
     branches_sum = 0
     for comp in ["lines","transformers"]:
         comps = getattr(network,comp)
         comps_t = getattr(network,comp+"_t")
-        branches_sum += comps_t.p0.loc[network.now,comps.bus0==bus].sum() - comps_t.p0.loc[network.now,comps.bus1==bus].sum()
+        branches_sum += comps_t.p0.loc[now,comps.bus0==bus].sum() - comps_t.p0.loc[now,comps.bus1==bus].sum()
 
     if abs(bus_sum-branches_sum) > 1e-4:
         print(bus,bus_sum,branches_sum)
@@ -313,7 +315,7 @@ for bus in network.buses.index:
 
 #For the PF, set the P to the optimised P
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
-network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now] 
+network.generators_t.p_set = network.generators_t.p
 
 
 #set all buses to PV, since we don't know what Q set points are
@@ -330,20 +332,23 @@ network.generators.loc[f.index,"control"] = "PQ"
 
 print("Performing non-linear PF on results of LOPF:")
 
-network.pf()
+info = network.pf()
+
+#any failed to converge?
+(~info.converged).any().any()
 
 print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
-print((network.lines_t.p0.loc[network.now]/network.lines.s_nom*contingency_factor).describe())
+print((network.lines_t.p0.loc[now]/network.lines.s_nom*contingency_factor).describe())
 
 #Get voltage angle differences
 
 df = network.lines.copy()
 
 for b in ["bus0","bus1"]:
-    df = pd.merge(df,network.buses_t.v_ang.loc[[network.now]].T,how="left",
+    df = pd.merge(df,network.buses_t.v_ang.loc[[now]].T,how="left",
          left_on=b,right_index=True)
 
-s = df[str(network.now)+"_x"]- df[str(network.now)+"_y"]
+s = df[str(now)+"_x"]- df[str(now)+"_y"]
 
 print("The voltage angle differences across the lines have (in degrees):")
 print((s*180/np.pi).describe())
@@ -354,7 +359,7 @@ fig,ax = plt.subplots(1,1)
 
 fig.set_size_inches(6,6)
 
-q = network.buses_t.q.loc[network.now]
+q = network.buses_t.q.loc[now]
 
 bus_colors = pd.Series("r",network.buses.index)
 bus_colors[q< 0.] = "b"
@@ -365,7 +370,7 @@ network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,title="Reactive power 
 fig.tight_layout()
 #fig.savefig("reactive-power.png")
 
-network.generators_t.q.loc[network.now].sum()
+network.generators_t.q.loc[now].sum()
 
-network.buses_t.q.loc[network.now].sum()
+network.buses_t.q.loc[now].sum()
 

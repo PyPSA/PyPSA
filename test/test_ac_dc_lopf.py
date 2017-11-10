@@ -32,8 +32,9 @@ def test_lopf():
     network_r = pypsa.Network(csv_folder_name=results_folder_name)
 
 
-    #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
+    #test results were generated with GLPK; solution should be unique,
+    #so other solvers should not differ (tested with cbc and gurobi)
+    solver_name = "cbc"
 
     snapshots = network.snapshots
 
@@ -43,11 +44,11 @@ def test_lopf():
         print(network.generators_t.p.loc[:,network.generators.index])
         print(network_r.generators_t.p.loc[:,network.generators.index])
 
-        np.testing.assert_array_almost_equal(network.generators_t.p.loc[:,network.generators.index],network_r.generators_t.p.loc[:,network.generators.index])
+        np.testing.assert_array_almost_equal(network.generators_t.p.loc[:,network.generators.index],network_r.generators_t.p.loc[:,network.generators.index],decimal=4)
 
-        np.testing.assert_array_almost_equal(network.lines_t.p0.loc[:,network.lines.index],network_r.lines_t.p0.loc[:,network.lines.index])
+        np.testing.assert_array_almost_equal(network.lines_t.p0.loc[:,network.lines.index],network_r.lines_t.p0.loc[:,network.lines.index],decimal=4)
 
-        np.testing.assert_array_almost_equal(network.links_t.p0.loc[:,network.links.index],network_r.links_t.p0.loc[:,network.links.index])
+        np.testing.assert_array_almost_equal(network.links_t.p0.loc[:,network.links.index],network_r.links_t.p0.loc[:,network.links.index],decimal=4)
 
 
 

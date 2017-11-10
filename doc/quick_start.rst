@@ -147,7 +147,7 @@ Use an existing example
 
 The examples are NOT bundled with the ``pip`` package but can be
 downloaded from the `PyPSA github repository
-<https://github.com/FRESNA/PyPSA>`_ or as Jupyter notebooks from the
+<https://github.com/PyPSA/PyPSA>`_ or as Jupyter notebooks from the
 `PyPSA website <http://www.pypsa.org/examples/>`_.
 
 

@@ -15,8 +15,8 @@ capital_cost,float,currency/MVA,0.,"Capital cost of extending s_nom by 1 MVA.",I
 length,float,km,0.,"Length of line used when ""type"" is set, also useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1.,"Terrain factor for increasing capital cost.",Input (optional)
 num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel lines (can also be fractional). If ""type"" is empty """" this value is ignored.",Input (optional)
-v_ang_min,float,Degrees,-inf,"Minimum voltage angle difference across the line.",Input (optional)
-v_ang_max,float,Degrees,inf,"Maximum voltage angle difference across the line.",Input (optional)
+v_ang_min,float,Degrees,-inf,"Minimum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.",Input (optional)
+v_ang_max,float,Degrees,inf,"Maximum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.",Input (optional)
 sub_network,string,n/a,n/a,"Name of connected sub-network to which lines belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.",Output
 p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 q0,series,MVar,0.,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
@@ -27,3 +27,5 @@ r_pu,float,per unit,0.,Per unit series resistance calculated by PyPSA from r and
 g_pu,float,per unit,0.,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output
 b_pu,float,per unit,0.,Per unit shunt susceptance calculated by PyPSA from b and bus.v_nom,Output
 s_nom_opt,float,MVA,0.,Optimised capacity for apparent power.,Output
+mu_lower,series,currency/MVA,0.,Shadow price of lower s_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MVA,0.,Shadow price of upper s_nom limit f \leq F. Always non-negative.,Output

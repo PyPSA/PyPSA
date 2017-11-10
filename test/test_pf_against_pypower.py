@@ -57,25 +57,25 @@ def test_pypower_case():
     #compare branch flows
     for c in network.iterate_components(pypsa.components.passive_branch_components):
         for si in ["p0","p1","q0","q1"]:
-            si_pypsa = getattr(c.pnl,si).loc[network.now].values
+            si_pypsa = getattr(c.pnl,si).loc["now"].values
             si_pypower = results_df['branch'][si][c.df.original_index].values
             np.testing.assert_array_almost_equal(si_pypsa,si_pypower)
 
 
     #compare generator dispatch
     for s in ["p","q"]:
-        s_pypsa = getattr(network.generators_t,s).loc[network.now].values
+        s_pypsa = getattr(network.generators_t,s).loc["now"].values
         s_pypower = results_df["gen"][s].values
         np.testing.assert_array_almost_equal(s_pypsa,s_pypower)
 
 
     #compare voltages
-    v_mag_pypsa = network.buses_t.v_mag_pu.loc[network.now]
+    v_mag_pypsa = network.buses_t.v_mag_pu.loc["now"]
     v_mag_pypower = results_df["bus"]["v_mag_pu"]
 
     np.testing.assert_array_almost_equal(v_mag_pypsa,v_mag_pypower)
 
-    v_ang_pypsa = network.buses_t.v_ang.loc[network.now]
+    v_ang_pypsa = network.buses_t.v_ang.loc["now"]
     pypower_slack_angle = results_df["bus"]["v_ang"][results_df["bus"]["type"] == 3].values[0]
     v_ang_pypower = (results_df["bus"]["v_ang"] - pypower_slack_angle)*np.pi/180.
 

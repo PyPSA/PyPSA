@@ -15,14 +15,17 @@ PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah"
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern power systems that include features
-such as variable wind and solar generation, storage units, sector
-coupling and mixed alternating and direct current networks. PyPSA is
-designed to scale well with large networks and long time series.
+such as conventional generators with unit commitment, variable wind
+and solar generation, storage units, sector coupling and mixed
+alternating and direct current networks. PyPSA is designed to scale
+well with large networks and long time series.
 
-As of 2017 PyPSA is under heavy development and therefore it
-is recommended to use caution when using it in a production
-environment. Some APIs may change - those liable to be updated are
-listed in the `doc/todo.rst <doc/todo.rst>`_.
+As of 2017 PyPSA is under heavy development and therefore it is
+recommended to use caution when using it in a production environment.
+Some APIs may change - the changes in each PyPSA version are listed in
+the `doc/release_notes.rst <doc/reslease_notes.rst>`_.
+
+
 
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
@@ -68,7 +71,7 @@ It has models for:
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
 * standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
-* conventional dispatchable generators
+* conventional dispatchable generators with unit commitment
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
@@ -81,7 +84,7 @@ It has models for:
   <http://www.pypsa.org/examples/>`_
 
 
-Functionality that will definitely be added soon (see also `doc/todo.rst <doc/todo.rst>`_):
+Functionality that will definitely be added soon:
 
 * Multi-year investment optimisation
 * Simple RMS simulations with the swing equation
@@ -93,7 +96,6 @@ Functionality that will definitely be added soon (see also `doc/todo.rst <doc/to
 
 Functionality that may be added in the future:
 
-* Unit Commitment using MILP
 * Short-circuit current calculations
 * Dynamic RMS simulations
 * Small signal stability analysis
@@ -104,13 +106,21 @@ Functionality that may be added in the future:
 * Port to `Julia <http://julialang.org/>`_
 
 
-Screenshots and example Jupyter/iPython notebooks
-=================================================
+Example scripts as Jupyter notebooks
+====================================
 
-There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Jupyter/iPython notebooks. They are also described in the `doc/examples.rst <doc/examples.rst>`_ and are available as Python scripts in `examples/ <examples/>`_.
+There are `extensive examples <http://www.pypsa.org/examples/>`_
+available as `Jupyter notebooks <https://jupyter.org/>`_. They are
+also described in the `doc/examples.rst <doc/examples.rst>`_ and are
+available as Python scripts in `examples/ <examples/>`_.
 
-Some screenshots:
+Screenshots
+===========
 
+The showcase for PyPSA is the `SciGRID example
+<https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ which
+demonstrates interactive plots generated with the `plotly
+<https://plot.ly/python/>`_ library.
 
 .. image:: http://www.pypsa.org/img/line-loading.png
 
@@ -126,7 +136,10 @@ Some screenshots:
 
 .. image:: http://www.pypsa.org/img/meshed-ac-dc.png
 
+Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels:
+
 .. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
+.. image:: http://www.pypsa.org/img/legend-flat.png
 
 
 
@@ -138,10 +151,12 @@ Python 3.5.
 
 It leans heavily on the following Python packages:
 
-* `pandas <http://ipython.org/>`_ for storing data about components and time series
+* `pandas <http://pandas.pydata.org/>`_ for storing data about components and time series
 * `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `plotly <https://plot.ly/python/>`_ for interactive plotting
+* `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
@@ -160,6 +175,27 @@ Mailing list
 
 PyPSA has a Google Group `forum / mailing list
 <https://groups.google.com/group/pypsa>`_.
+
+
+Citing PyPSA
+============
+
+
+
+If you use PyPSA for your research, we would appreciate it if you
+would cite the following preprint paper (which has not yet been
+through peer review):
+
+* T. Brown, J. Hörsch, D. Schlachtberger, `PyPSA: Python for Power
+  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2017,
+  `preprint arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_
+
+If you want to cite a specific PyPSA version, each release of PyPSA is
+stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
+This can be found linked from the overall PyPSA Zenodo DOI:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
+   :target: https://doi.org/10.5281/zenodo.786605
 
 
 Licence

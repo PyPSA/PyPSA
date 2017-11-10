@@ -113,7 +113,10 @@ current electricity networks. It can also take arbitrary values for
 arbitrary energy carriers, e.g. ``wind``, ``heat``, ``hydrogen`` or
 ``natural gas``.
 
-Specific $CO_2$ emissions of the carrier are also stored.
+Attributes relevant for global constraints can also be stored in this
+table, the canonical example being CO2 emissions of the carrier
+relevant for limits on CO2 emissions.
+
 
 (NB: In versions of PyPSA < 0.6.0, this was called Source.)
 
@@ -121,6 +124,34 @@ Specific $CO_2$ emissions of the carrier are also stored.
 .. csv-table::
    :header-rows: 1
    :file: ../pypsa/component_attrs/carriers.csv
+
+
+
+.. _global-constraints:
+
+Global Constraints
+==================
+
+Global constraints are added to OPF problems and apply to many
+components at once. Currently only constraints related to primary
+energy (i.e. before conversion with losses by generators) are
+supported, the canonical example being CO2 emissions for an
+optimisation period. Other primary-energy-related gas emissions also
+fall into this framework.
+
+Other types of global constraints will be added in future, e.g. "final
+energy" (for limits on the share of renewable or nuclear electricity
+after conversion), "generation capacity" (for limits on total capacity
+expansion of given carriers) and "transmission capacity" (for limits
+on the total expansion of lines and links).
+
+Global constraints were added in PyPSA 0.10.0 and replace the ad hoc
+``network.co2_limit`` attribute.
+
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/component_attrs/global_constraints.csv
 
 
 Generator
@@ -168,6 +199,7 @@ may be below this value, e.g.
 .. image:: img/scigrid-curtailment.png
 
 
+For the implementation of unit commitment, see :ref:`unit-commitment`.
 
 For generators, if :math:`p>0` the generator is supplying active power
 to the bus and if :math:`q>0` it is supplying reactive power

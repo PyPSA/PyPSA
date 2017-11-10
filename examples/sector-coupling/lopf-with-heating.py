@@ -115,7 +115,10 @@ run_lopf()
 
 #rerun with no CO2 emissions
 
-network.co2_limit = 0.
+network.add("GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            constant=0.)
 
 run_lopf()
 
