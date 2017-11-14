@@ -8,7 +8,7 @@ p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended
 p_nom_min,float,MW,0.,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by technical potential).",Input (optional)
 p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of p_nom for the OPF (e.g. for variable renewable generators this can change due to weather conditions and compulsory feed-in; for conventional generators it represents a minimal dispatch). Note that if comittable is False and p_min_pu > 0, this represents a must-run condition.",Input (optional)
-p_max_pu,static or series,per unit,1.,"The maximum output for each snapshot per unit of p_nom for the OPF (e.g. for varialbe renewable generators this can change due to weather conditions; for conventional generators it represents a maximum dispatch).",Input (optional)
+p_max_pu,static or series,per unit,1.,"The maximum output for each snapshot per unit of p_nom for the OPF (e.g. for variable renewable generators this can change due to weather conditions; for conventional generators it represents a maximum dispatch).",Input (optional)
 p_set,static or series,MW,0.,active power set point (for PF),Input (optional)
 q_set,static or series,MVar,0.,reactive power set point (for PF),Input (optional)
 sign,float,n/a,1.,power sign,Input (optional)

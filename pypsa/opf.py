@@ -822,17 +822,22 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
 def define_passive_branch_constraints(network,snapshots):
 
+    from .components import passive_branch_components
+
     passive_branches = network.passive_branches()
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
+    s_max_pu = pd.concat({c : get_switchable_as_dense(network,c,'s_max_pu')
+                          for c in passive_branch_components}, axis=1)
+
     flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
-                                    "<=", fixed_branches.at[b,"s_nom"]]
+                                    "<=", s_max_pu.at[sn,b]*fixed_branches.at[b,"s_nom"]]
                   for b in fixed_branches.index
                   for sn in snapshots}
 
     flow_upper.update({(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),
-                                          (-1,network.model.passive_branch_s_nom[b[0],b[1]])],"<=",0]
+                                          (-s_max_pu.at[sn,b],network.model.passive_branch_s_nom[b[0],b[1]])],"<=",0]
                        for b in extendable_branches.index
                        for sn in snapshots})
 
@@ -840,12 +845,12 @@ def define_passive_branch_constraints(network,snapshots):
                  list(passive_branches.index), snapshots)
 
     flow_lower = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
-                                    ">=", -fixed_branches.at[b,"s_nom"]]
+                                    ">=", -s_max_pu.at[sn,b]*fixed_branches.at[b,"s_nom"]]
                   for b in fixed_branches.index
                   for sn in snapshots}
 
     flow_lower.update({(b[0],b[1],sn): [[(1,network.model.passive_branch_p[b[0],b[1],sn]),
-                                         (1,network.model.passive_branch_s_nom[b[0],b[1]])],">=",0]
+                                         (s_max_pu.at[sn,b],network.model.passive_branch_s_nom[b[0],b[1]])],">=",0]
                        for b in extendable_branches.index
                        for sn in snapshots})
 
@@ -1374,7 +1379,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
         with empty_network(network):
             network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
     else:
-        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options) 
+        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
 
     if logger.level > 0:
         network.results.write()
@@ -1450,4 +1455,3 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     network_lopf_prepare_solver(network, solver_name=solver_name, solver_io=solver_io)
 
     return network_lopf_solve(network, snapshots, formulation=formulation, solver_options=solver_options, keep_files=keep_files, free_memory=free_memory)
-
