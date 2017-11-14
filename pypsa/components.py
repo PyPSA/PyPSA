@@ -125,8 +125,8 @@ class Network(Basic):
 
     Parameters
     ----------
-    csv_folder_name : string
-        Name of folder from which to import CSVs of network data.
+    import_name : string
+        Name of HDF5 .h5 store or folder from which to import CSVs of network data.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -140,7 +140,8 @@ class Network(Basic):
 
     Examples
     --------
-    >>> nw = pypsa.Network(csv_folder_name=/my/folder)
+    >>> nw1 = pypsa.Network("my_store.h5")
+    >>> nw2 = pypsa.Network("/my/folder")
 
     """
 
@@ -189,7 +190,7 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, csv_folder_name=None, name="", ignore_standard_types=False, **kwargs):
+    def __init__(self, import_name=None, name="", ignore_standard_types=False, **kwargs):
 
         from .__init__ import __version__ as pypsa_version
 
@@ -240,8 +241,11 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
 
-        if csv_folder_name is not None:
-            self.import_from_csv_folder(csv_folder_name)
+        if import_name is not None:
+            if import_name[-3:] == ".h5":
+                self.import_from_hdf5(import_name)
+            else:
+                self.import_from_csv_folder(import_name)
 
 
         for key, value in iteritems(kwargs):

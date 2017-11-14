@@ -239,4 +239,3 @@ nu.generators_t.status
 nu.generators.initial_status
 
 nu.generators.loc["coal"]
-
