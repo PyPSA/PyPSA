@@ -1,7 +1,8 @@
 #+TITLE: Python for Power System Analysis: Publications
 #+OPTIONS: toc:nil        no default TOC
 
-There is a preprint paper describing PyPSA (which has not yet been through peer review):
+There is a preprint paper describing PyPSA (which has been accepted
+to the [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]]):
 
 - T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for Power System Analysis]], 2017, [[https://arxiv.org/abs/1707.09913][preprint arXiv:1707.09913]]
 
@@ -16,6 +17,7 @@ linked from the overall PyPSA Zenodo DOI:
 
 The following research papers have used PyPSA:
 
+- J. H\ouml{}rsch, Joanne Calitz, [[https://arxiv.org/abs/1710.11199][PyPSA-ZA: Investment and operation co-optimization of integrating wind and solar in South Africa at high spatial and temporal detail]], 2017, [[https://arxiv.org/abs/1710.11199][preprint]], [[https://github.com/FRESNA/pypsa-za][code]]
 - Markus Groissb\ouml{}ck, Alexandre Gusmao, [[https://arxiv.org/abs/1709.03761][Impact of high renewable penetration scenarios on system reliability: two case studies in the Kingdom of Saudi Arabia]], 2017, [[https://arxiv.org/abs/1709.03761][preprint]]
 - J. H\ouml{}rsch, T. Brown, [[https://doi.org/10.1109/EEM.2017.7982024][The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios]], 2017, accepted to [[http://eem2017.com/][14th International Conference on the European Energy Market - EEM 2017]], [[https://arxiv.org/abs/1705.07617][preprint]]
 - D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]], [[https://doi.org/10.5281/zenodo.804337][all input data, code, output data on Zenodo]]
