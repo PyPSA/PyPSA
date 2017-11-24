@@ -1089,7 +1089,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                          'Link': ['p0', 'p1', 'mu_lower', 'mu_upper']})
 
     #get value of objective function
-    network.objective = network.results["Problem"][0]["Lower bound"]
+    network.objective = network.results["Problem"][0]["Upper bound"]
 
     model = network.model
 
