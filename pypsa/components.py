@@ -131,6 +131,8 @@ class Network(Basic):
         Network name.
     ignore_standard_types : boolean, default False
         If True, do not read in PyPSA standard types into standard types DataFrames.
+    csv_folder_name : string
+        Name of folder from which to import CSVs of network data. Overrides import_name.
     kwargs
         Any remaining attributes to set
 
@@ -190,7 +192,7 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, import_name=None, name="", ignore_standard_types=False, **kwargs):
+    def __init__(self, import_name=None, name="", ignore_standard_types=False, csv_folder_name=None,**kwargs):
 
         from .__init__ import __version__ as pypsa_version
 
@@ -241,12 +243,14 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
 
-        if import_name is not None:
+        if import_name is not None and csv_folder_name is None:
             if import_name[-3:] == ".h5":
                 self.import_from_hdf5(import_name)
             else:
                 self.import_from_csv_folder(import_name)
-
+        elif csv_folder_name is not None:
+            logger.warning("The argument csv_folder_name for initiating Network() is deprecated, please use import_name instead.")
+            self.import_from_csv_folder(csv_folder_name)
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
