@@ -794,7 +794,7 @@ averaged).
             attr_mean = ["capital_cost","length","terrain_factor"]
 
             for attr in attr_inv:
-                aggregated[attr] = 1/(1/lines[attr]).sum()
+                aggregated[attr] = 1./(1./lines[attr]).sum()
 
             for attr in attr_sum:
                 aggregated[attr] = lines[attr].sum()
@@ -985,7 +985,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1.
 
     # set slack bus power to pick up remained
-    slack_adjustment = (- network.buses_t.p.loc[snapshots, buses_o[1:]].sum(axis=1)
+    slack_adjustment = (- network.buses_t.p.loc[snapshots, buses_o[1:]].sum(axis=1).fillna(0.)
                         - network.buses_t.p.loc[snapshots, buses_o[0]])
     network.buses_t.p.loc[snapshots, buses_o[0]] += slack_adjustment
 
