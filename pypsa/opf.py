@@ -1401,7 +1401,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     else:
         network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
 
-    if logger.level > 0:
+    if logger.isEnabledFor(logging.INFO):
         network.results.write()
 
     status = network.results["Solver"][0]["Status"].key
