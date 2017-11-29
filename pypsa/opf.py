@@ -1134,7 +1134,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                        .groupby(c.df.bus, axis=1).sum()
                        for c in network.iterate_components(controllable_one_port_components)}) \
               .sum(level=1) \
-              .reindex_axis(network.buses_t.p.columns, axis=1, fill_value=0.)
+              .reindex(columns=network.buses_t.p.columns, fill_value=0.)
 
 
     # passive branches
