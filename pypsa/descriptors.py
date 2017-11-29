@@ -218,3 +218,12 @@ def allocate_series_dataframes(network, series):
         for attr in attributes:
             pnl[attr] = pnl[attr].reindex(columns=df.index,
                                           fill_value=network.components[component]["attrs"].at[attr,"default"])
+
+def zsum(s, *args, **kwargs):
+    """
+    pandas 0.21.0 changes sum() behavior so that the result of applying sum
+    over an empty DataFrame is NaN.
+
+    Meant to be set as pd.Series.zsum = zsum.
+    """
+    return 0 if s.empty else s.sum(*args, **kwargs)

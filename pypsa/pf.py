@@ -43,7 +43,9 @@ from operator import itemgetter
 from itertools import chain
 import time
 
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum
+
+pd.Series.zsum = zsum
 
 def _as_snapshots(network, snapshots):
     if snapshots is None:
@@ -413,7 +415,7 @@ def apply_line_types(network):
 
     lines_with_types_b = network.lines.type != ""
 
-    if lines_with_types_b.sum() == 0:
+    if lines_with_types_b.zsum() == 0:
         return
 
     for attr in ["r","x"]:
@@ -446,7 +448,7 @@ def apply_transformer_types(network):
     trafos = network.transformers
     trafos_with_types_b = trafos.type != ""
 
-    if trafos_with_types_b.sum() == 0:
+    if trafos_with_types_b.zsum() == 0:
         return
 
     trafos.loc[trafos_with_types_b, "r"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vscr"])/100.
@@ -505,7 +507,7 @@ def apply_transformer_t_model(network):
 
     ts_b = (network.transformers.model == "t") & (y_shunt != 0.)
 
-    if ts_b.sum() == 0:
+    if ts_b.zsum() == 0:
         return
 
     za,zb,zc = wye_to_delta(z_series.loc[ts_b]/2,z_series.loc[ts_b]/2,1/y_shunt.loc[ts_b])

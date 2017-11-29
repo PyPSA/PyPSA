@@ -28,8 +28,8 @@ from six import iteritems, string_types
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.sparse.linalg import spsolve
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
@@ -60,7 +60,9 @@ from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_free_model_before_solving,
                   patch_optsolver_record_memusage_before_solving,
                   empty_network, free_pyomo_initializers)
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes, zsum
+
+pd.Series.zsum = zsum
 
 
 
@@ -1042,23 +1044,23 @@ def define_linear_objective(network,snapshots):
 
     objective.variables.extend([(extendable_generators.at[gen,"capital_cost"], model.generator_p_nom[gen])
                                 for gen in extendable_generators.index])
-    objective.constant -= (extendable_generators.capital_cost * extendable_generators.p_nom).sum()
+    objective.constant -= (extendable_generators.capital_cost * extendable_generators.p_nom).zsum()
 
     objective.variables.extend([(ext_sus.at[su,"capital_cost"], model.storage_p_nom[su])
                                 for su in ext_sus.index])
-    objective.constant -= (ext_sus.capital_cost*ext_sus.p_nom).sum()
+    objective.constant -= (ext_sus.capital_cost*ext_sus.p_nom).zsum()
 
     objective.variables.extend([(ext_stores.at[store,"capital_cost"], model.store_e_nom[store])
                                 for store in ext_stores.index])
-    objective.constant -= (ext_stores.capital_cost*ext_stores.e_nom).sum()
+    objective.constant -= (ext_stores.capital_cost*ext_stores.e_nom).zsum()
 
     objective.variables.extend([(extendable_passive_branches.at[b,"capital_cost"], model.passive_branch_s_nom[b])
                                 for b in extendable_passive_branches.index])
-    objective.constant -= (extendable_passive_branches.capital_cost * extendable_passive_branches.s_nom).sum()
+    objective.constant -= (extendable_passive_branches.capital_cost * extendable_passive_branches.s_nom).zsum()
 
     objective.variables.extend([(extendable_links.at[b,"capital_cost"], model.link_p_nom[b])
                                 for b in extendable_links.index])
-    objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).sum()
+    objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).zsum()
 
 
     ## Unit commitment costs
