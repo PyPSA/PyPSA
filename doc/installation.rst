@@ -49,6 +49,10 @@ If you have the Python package installer ``pip`` then just run::
 
     pip install pypsa
 
+If you're feeling adventurous, you can also install the latest master branch from github with::
+
+    pip install git+https://github.com/PyPSA/PyPSA.git
+
 "Manual" installation with setuptools
 =====================================
 

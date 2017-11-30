@@ -46,7 +46,7 @@ This release contains new features and bug fixes.
   is a subtle bug; we hope we've fixed all instances of it, but get in
   touch if you notice NaNs creeping in where they shouldn't be. All
   our tests run fine.
-* Bug fix due to changes in scipy 2.0.0: For the new version of scipy,
+* Bug fix due to changes in scipy 1.0.0: For the new version of scipy,
   ``csgraph`` has to be imported explicit.
 * Bug fix: A bug whereby logging level was not always correctly being
   seen by the OPF results printout is fixed.
