@@ -3,6 +3,61 @@ Release Notes
 #######################
 
 
+PyPSA 0.12.0 (30th November 2017)
+=================================
+
+This release contains new features and bug fixes.
+
+* Support for Pyomo's persistent solver interface, so if you're making
+  small changes to an optimisation model (e.g. tweaking a parameter),
+  you don't have to rebuild the model every time. To enable this,
+  ``network_lopf`` has been internally split into ``build_model``,
+  ``prepare_solver`` and ``solve`` to allow more fine-grained control of the
+  solving steps.  Currently the new Pyomo PersistentSolver interface
+  is not in the main Pyomo branch, see
+  the `pull request <https://github.com/Pyomo/pyomo/pull/223>`_; you can obtain it with
+  ``pip install git+https://github.com/Pyomo/pyomo@persistent_interfaces``
+* Lines and transformers (i.e. passive branches) have a new attribute
+  ``s_max_pu`` to restrict the flow in the OPF, just like ``p_max_pu``
+  for generators and links. It works by restricting the absolute value
+  of the flow per unit of the nominal rating ``abs(flow) <=
+  s_max_pu*s_nom``. For lines this can represent an n-1 contingency
+  factor or it can be time-varying to represent weather-dependent
+  dynamic line rating.
+* The ``marginal_cost`` attribute of generators, storage units, stores
+  and links can now be time dependent.
+* When initialising the Network object, i.e. ``network =
+  pypsa.Network()``, the first keyword argument is now ``import_name``
+  instead of ``csv_folder_name``. With ``import_name`` PyPSA
+  recognises whether it is a CSV folder or an HDF5 file based on the
+  file name ending and deals with it appropriately. Example usage:
+  ``nw1 = pypsa.Network("my_store.h5")`` and ``nw2 =
+  pypsa.Network("/my/folder")``. The keyword argument
+  ``csv_folder_name`` is still there but is deprecated.
+* The value ``network.objective`` is now read from the Pyomo results
+  attribute ``Upper Bound`` instead of ``Lower Bound``. This is
+  because for MILP problems under certain circumstances CPLEX records
+  the ``Lower bound`` as the relaxed value. ``Upper bound`` is correctly
+  recorded as the integer objective value.
+* Bug fix due to changes in pandas 0.21.0: A bug affecting various
+  places in the code, including causing ``network.lopf`` to fail with
+  GLPK, is fixed. This is because in pandas 0.21.0 the sum of an empty
+  Series/DataFrame returns NaN, whereas before it returned zero. This
+  is a subtle bug; we hope we've fixed all instances of it, but get in
+  touch if you notice NaNs creeping in where they shouldn't be. All
+  our tests run fine.
+* Bug fix due to changes in scipy 2.0.0: For the new version of scipy,
+  ``csgraph`` has to be imported explicit.
+* Bug fix: A bug whereby logging level was not always correctly being
+  seen by the OPF results printout is fixed.
+* Bug fix: The storage unit spillage had a bug in the LOPF, whereby it
+  was not respecting ``network.snapshot_weightings`` properly.
+
+We thank René Garcia Rosas, João Gorenstein Dedecca, Marko Kolenc,
+Matteo De Felice and Florian Kühnlenz for promptly notifying us about
+issues.
+
+
 PyPSA 0.11.0 (21st October 2017)
 ================================
 
