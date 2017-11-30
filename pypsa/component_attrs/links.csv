@@ -12,7 +12,7 @@ p_set,static or series,MW,0.,"The dispatch set point for p0 of the link in PF.",
 p_min_pu,static or series,per unit of p_nom,0.,"Minimal dispatch (can also be negative) per unit of p_nom for the link in OPF.",Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,"Maximal dispatch (can also be negative) per unit of p_nom for the link in OPF.",Input (optional)
 capital_cost,float,currency/MW,0.,"Capital cost of extending p_nom by 1 MW.",Input (optional)
-marginal_cost,float,currency/MWh,0.,"Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense in OPF if p_max_pu >= 0.",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,"Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense in OPF if p_max_pu >= 0.",Input (optional)
 length,float,km,0.,"Length of line, useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1.,"Terrain factor for increasing capital cost.",Input (optional)
 p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
