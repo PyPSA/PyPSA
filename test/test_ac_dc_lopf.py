@@ -39,7 +39,7 @@ def test_lopf():
     snapshots = network.snapshots
 
     for formulation, free_memory in product(["angles", "cycles", "kirchhoff", "ptdf"],
-                                            [{}, {"pypsa"}, {"pypsa", "pyomo-hack"}]):
+                                            [{}, {"pypsa"}]):
         network.lopf(snapshots=snapshots,solver_name=solver_name,formulation=formulation, free_memory=free_memory)
         print(network.generators_t.p.loc[:,network.generators.index])
         print(network_r.generators_t.p.loc[:,network.generators.index])
