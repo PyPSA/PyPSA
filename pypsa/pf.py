@@ -43,7 +43,7 @@ from operator import itemgetter
 from itertools import chain
 import time
 
-from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum
+from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
 
 pd.Series.zsum = zsum
 
@@ -836,7 +836,7 @@ def find_tree(sub_network, weight='x_pu'):
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     #find bus with highest degree to use as slack
-    tree_slack_bus, slack_degree = max(sub_network.tree.degree_iter(), key=itemgetter(1))
+    tree_slack_bus, slack_degree = max(degree(sub_network.tree), key=itemgetter(1))
     logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     #determine which buses are supplied in tree through branch from slack

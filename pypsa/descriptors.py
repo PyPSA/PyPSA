@@ -89,6 +89,13 @@ elif _nx_version >= '1.10':
 else:
     raise ImportError("NetworkX version {} is too old. At least 1.10 is needed.".format(nx.__version__))
 
+if _nx_version >= '2.0':
+    def degree(G):
+        return G.degree()
+else:
+    def degree(G):
+        return G.degree_iter()
+
 class Dict(dict):
     """
     Dict is a subclass of dict, which allows you to get AND SET
