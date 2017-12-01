@@ -1,3 +1,7 @@
+|badge_travis| |badge_pypi| |badge_license|
+
+-----
+
 ################################
 Python for Power System Analysis
 ################################
@@ -214,3 +218,17 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 `GNU General Public License <LICENSE.txt>`_ for more details.
+
+.. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
+.. _link-latest-doi: https://doi.org/10.5281/zenodo.786605
+
+.. |badge_pypi| image:: https://img.shields.io/pypi/v/pypsa.svg
+    :target: https://pypi.python.org/pypi/pypsa
+    :alt: PyPI version
+
+.. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
+    :target: #license
+
+.. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
+    :target: https://travis-ci.org/PyPSA/PyPSA
+    :alt: Build status on Linux
