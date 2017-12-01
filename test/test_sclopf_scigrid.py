@@ -1,17 +1,14 @@
 from __future__ import print_function, division
 from __future__ import absolute_import
 
+import os
+import numpy as np
 import pypsa
 
-import numpy as np
-
-
 def test_sclopf():
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/scigrid-de/scigrid-with-load-gen-trafos/")
 
-
-    csv_folder_name = "../examples/scigrid-de/scigrid-with-load-gen-trafos/"
-
-    network = pypsa.Network(csv_folder_name=csv_folder_name)
+    network = pypsa.Network(csv_folder_name)
 
     #test results were generated with GLPK and other solvers may differ
     solver_name = "cbc"

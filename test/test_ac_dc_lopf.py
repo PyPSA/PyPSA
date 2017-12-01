@@ -22,14 +22,13 @@ from distutils.spawn import find_executable
 
 def test_lopf():
 
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/ac-dc-meshed/ac-dc-data")
 
-    csv_folder_name = "../examples/ac-dc-meshed/ac-dc-data"
-
-    network = pypsa.Network(csv_folder_name=csv_folder_name)
+    network = pypsa.Network(csv_folder_name)
 
     results_folder_name = os.path.join(csv_folder_name,"results-lopf")
 
-    network_r = pypsa.Network(csv_folder_name=results_folder_name)
+    network_r = pypsa.Network(results_folder_name)
 
 
     #test results were generated with GLPK; solution should be unique,
