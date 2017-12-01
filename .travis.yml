@@ -1,0 +1,44 @@
+# Modified from
+# https://github.com/calliope-project/calliope/blob/master/.travis.yml
+
+language: python
+sudo: false # Use container-based infrastructure
+
+matrix:
+  include:
+    - env:
+      - PYTHON_VERSION="2.7"
+    - env:
+      - PYTHON_VERSION="3.6"
+
+before_install:
+  - if [[ "$PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+install:
+  - conda create -n pypsa python=$PYTHON_VERSION
+  - conda env update -n pypsa --file=requirements.yml
+  - conda env update -n pypsa --file=requirements_dev.yml
+  - source activate pypsa
+  - conda install -c conda-forge python-coveralls # don't install on appveyor
+  - pip install --no-cache-dir .
+
+# before_script:  # configure a headless display to test plot generation
+#   - "export DISPLAY=:99.0"
+#   - "sh -e /etc/init.d/xvfb start"
+#   - sleep 3  # give xvfb some time to start
+
+script: "make test"
+
+after_success:
+  - coveralls

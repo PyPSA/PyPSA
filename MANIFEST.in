@@ -1,3 +1,5 @@
 include pypsa/component_attrs/*.csv
 include pypsa/standard_types/*.csv
 include pypsa/components.csv
+include README.rst LICENSE.txt
+include requirements.yml
