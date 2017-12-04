@@ -37,7 +37,7 @@ import pandas as pd
 
 import collections
 
-from .pf import calculate_PTDF
+from .pf import calculate_PTDF, _as_snapshots
 
 from .opt import l_constraint
 
@@ -90,14 +90,11 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     ----------
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
-        the power flow, defaults to [now]
+        the power flow, defaults to network.snapshots
         NB: currently this only works for a single snapshot
     branch_outages : list-like
         A list of passive branches which are to be tested for outages.
         If None, it's take as all network.passive_branches_i()
-    now : object
-        Deprecated: A member of network.snapshots on which to run the
-        power flow, defaults to network.now
 
     Returns
     -------
@@ -109,8 +106,9 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     from .components import passive_branch_components
 
     if snapshots is None:
-        snapshot = network.now
-    elif isinstance(snapshots, collections.Iterable):
+        snapshots = network.snapshots
+
+    if isinstance(snapshots, collections.Iterable):
         logger.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
         snapshot = snapshots[0]
     else:
@@ -158,7 +156,9 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
 
 
-def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk",skip_pre=False,solver_options={},keep_files=False,formulation="angles",ptdf_tolerance=0.):
+def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="glpk",
+                   skip_pre=False, extra_functionality=None, solver_options={},
+                   keep_files=False, formulation="angles", ptdf_tolerance=0.):
     """
     Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
 
@@ -167,23 +167,33 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
     Parameters
     ----------
     snapshots : list or index slice
-        A list of snapshots to optimise, must be a subset of network.snapshots, defaults to network.now
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
     branch_outages : list-like
         A list of passive branches which are to be tested for outages.
         If None, it's take as all network.passive_branches_i()
     solver_name : string
-        Must be a solver name that pyomo recognises and that is installed, e.g. "glpk", "gurobi"
+        Must be a solver name that pyomo recognises and that is
+        installed, e.g. "glpk", "gurobi"
     skip_pre: bool, default False
-        Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    extra_functionality : callable function
+        This function must take two arguments
+        `extra_functionality(network,snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to add/change constraints and
+        add/change the objective function.
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
     keep_files : bool, default False
-        Keep the files that pyomo constructs from OPF problem construction, e.g. .lp file - useful for debugging
+        Keep the files that pyomo constructs from OPF problem
+        construction, e.g. .lp file - useful for debugging
     formulation : string
-        Formulation of the linear power flow equations to use; must be one of ["angles","cycles","kirchoff","ptdf"]
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","cycles","kirchoff","ptdf"]
     ptdf_tolerance : float
-        Value below which PTDF entries are ignored
 
     Returns
     -------
@@ -193,8 +203,7 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
     if not skip_pre:
         network.determine_network_topology()
 
-    if snapshots is None:
-        snapshots = [network.now]
+    snapshots = _as_snapshots(network, snapshots)
 
     passive_branches = network.passive_branches()
 
@@ -226,18 +235,18 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
                 logger.warning("No type given for {}, assuming it is a line".format(branch))
                 branch = ("Line",branch)
 
-            sub = network.sub_networks.obj[passive_branches.sub_network[branch]]
+            sub = network.sub_networks.at[passive_branches.at[branch,"sub_network"],"obj"]
 
             branch_i = sub._branches.at[branch,"_i"]
 
             branch_outage_keys.extend([(branch[0],branch[1],b[0],b[1]) for b in sub._branches.index])
 
-            flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],"<=",sub._fixed_branches.s_nom[b]] for b in sub._fixed_branches.index for sn in snapshots})
+            flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],"<=",sub._fixed_branches.at[b,"s_nom"]] for b in sub._fixed_branches.index for sn in snapshots})
 
             flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn]),(-1,network.model.passive_branch_s_nom[b[0],b[1]])],"<=",0] for b in sub._extendable_branches.index for sn in snapshots})
 
 
-            flow_lower.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],">=",-sub._fixed_branches.s_nom[b]] for b in sub._fixed_branches.index for sn in snapshots})
+            flow_lower.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn])],">=",-sub._fixed_branches.at[b,"s_nom"]] for b in sub._fixed_branches.index for sn in snapshots})
 
             flow_upper.update({(branch[0],branch[1],b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn]),(sub.BODF[sub._branches.at[b,"_i"],branch_i],network.model.passive_branch_p[branch[0],branch[1],sn]),(1,network.model.passive_branch_s_nom[b[0],b[1]])],">=",0] for b in sub._extendable_branches.index for sn in snapshots})
 
@@ -247,7 +256,12 @@ def network_sclopf(network,snapshots=None,branch_outages=None,solver_name="glpk"
 
         l_constraint(network.model,"contingency_flow_lower",flow_lower,branch_outage_keys,snapshots)
 
+        if extra_functionality is not None:
+            extra_functionality(network, snapshots)
 
     #need to skip preparation otherwise it recalculates the sub-networks
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name,skip_pre=True,extra_functionality=add_contingency_constraints,solver_options=solver_options,keep_files=keep_files,formulation=formulation,ptdf_tolerance=ptdf_tolerance)
+    network.lopf(snapshots=snapshots, solver_name=solver_name, skip_pre=True,
+                 extra_functionality=add_contingency_constraints,
+                 solver_options=solver_options, keep_files=keep_files,
+                 formulation=formulation, ptdf_tolerance=ptdf_tolerance)

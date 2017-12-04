@@ -21,11 +21,11 @@ Contents:
    power_flow
    optimal_power_flow
    contingency_analysis
+   plotting
    conventions
    examples
    troubleshooting
    unit_testing
-   todo
    comparable_software
    developers
    release_notes

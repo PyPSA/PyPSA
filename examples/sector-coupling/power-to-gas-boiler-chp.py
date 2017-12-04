@@ -93,6 +93,11 @@ network.add("Carrier",
             "gas",
             co2_emissions=0.2)
 
+network.add("GlobalConstraint",
+            "co2_limit",
+            sense="<=",
+            constant=0.)
+
 
 network.add("Generator",
             "wind turbine",
@@ -187,7 +192,6 @@ if heat and chp:
 else:
     extra_functionality = None
 
-network.co2_limit=0.
 network.lopf(network.snapshots, extra_functionality=extra_functionality)
 print("Objective:",network.objective)
 

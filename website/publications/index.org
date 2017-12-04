@@ -1,0 +1,27 @@
+#+TITLE: Python for Power System Analysis: Publications
+#+OPTIONS: toc:nil        no default TOC
+
+There is a preprint paper describing PyPSA (which has not yet been through peer review):
+
+- T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for Power System Analysis]], 2017, [[https://arxiv.org/abs/1707.09913][preprint arXiv:1707.09913]]
+
+If you use PyPSA for your research, we would appreciate it if you
+would cite this preprint paper.
+
+If you want to cite a specific PyPSA version, each release of PyPSA is
+stored on [[https://zenodo.org/][Zenodo]] with a release-specific DOI.  This can be found
+linked from the overall PyPSA Zenodo DOI:
+[[https://doi.org/10.5281/zenodo.786605][https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg]].
+
+
+The following research papers have used PyPSA:
+
+- Markus Groissb\ouml{}ck, Alexandre Gusmao, [[https://arxiv.org/abs/1709.03761][Impact of high renewable penetration scenarios on system reliability: two case studies in the Kingdom of Saudi Arabia]], 2017, [[https://arxiv.org/abs/1709.03761][preprint]]
+- J. H\ouml{}rsch, T. Brown, [[https://doi.org/10.1109/EEM.2017.7982024][The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios]], 2017, accepted to [[http://eem2017.com/][14th International Conference on the European Energy Market - EEM 2017]], [[https://arxiv.org/abs/1705.07617][preprint]]
+- D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]], [[https://doi.org/10.5281/zenodo.804337][all input data, code, output data on Zenodo]]
+- J. H\ouml{}rsch, H. Ronellenfitsch, D. Witthaut, T. Brown, [[https://arxiv.org/abs/1704.01881][Linear Optimal Power Flow Using Cycle Flows]], 2017, [[https://arxiv.org/abs/1704.01881][preprint]]
+- Joao Gorenstein Dedecca, Rudi A. Hakvoort, Paulien M. Herder, [[https://doi.org/10.1016/j.energy.2017.02.111][Transmission expansion simulation for the European Northern Seas offshore grid]], Energy, Volume 125, 15 April 2017, Pages 805-824
+
+If you have written a paper or report using PyPSA, please send us the
+link so we can add it here by emailing Tom Brown (brown at
+fias.uni-frankfurt.de).

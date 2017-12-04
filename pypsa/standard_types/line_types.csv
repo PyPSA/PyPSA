@@ -28,4 +28,5 @@ NAYY 4x120 SE,50.,0.225,0.08,264,0.242,cs,120,pandapower;Heuck et al. Elektrisch
 NAYY 4x150 SE,50.,0.208,0.08,261,0.27,cs,150,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
 NAYY 4x50 SE,50.,0.642,0.083,210,0.142,cs,50,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
 Al/St 240/40 2-bundle 220.0,50.,0.06,0.301,12.5,1.29,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"
+Al/St 240/40 3-bundle 300.0,50.,0.04,0.265,13.2,1.935,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"
 Al/St 240/40 4-bundle 380.0,50.,0.03,0.246,13.8,2.58,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"

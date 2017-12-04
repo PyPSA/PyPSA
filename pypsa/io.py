@@ -29,13 +29,11 @@ __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU
 import logging
 logger = logging.getLogger(__name__)
 
-
-import pandas as pd
-
+from textwrap import dedent
 import os
 
+import pandas as pd
 import pypsa
-
 import numpy as np
 
 
@@ -98,6 +96,8 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
     #now export all other components
 
+    exported_components = []
+
     for component in pypsa.components.all_components - {"SubNetwork"}:
 
         list_name = network.components[component]["list_name"]
@@ -111,11 +111,23 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
 
         #first do static attributes
-
+        filename = os.path.join(csv_folder_name,list_name+".csv")
         df.index.name = "name"
         if df.empty:
-            logger.warning("No {} to export".format(list_name))
+            if os.path.exists(filename):
+                os.unlink(filename)
+
+                fns = [os.path.basename(filename)]
+                for attr in attrs.index[attrs.varying]:
+                    fn = os.path.join(csv_folder_name,list_name+'-'+attr+'.csv')
+                    if os.path.exists(fn):
+                        os.unlink(fn)
+                        fns.append(os.path.basename(fn))
+
+                logger.warning("Stale csv file(s) {} removed".format(', '.join(fns)))
+
             continue
+
         col_export = []
         for col in df.columns:
             #do not export derived attributes
@@ -123,12 +135,14 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                 continue
             if col in attrs.index and pd.isnull(attrs.at[col,"default"]) and pd.isnull(df[col]).all():
                 continue
-            if col in attrs.index and (df[col] == attrs.at[col,"default"]).all():
+            if (col in attrs.index
+                and df[col].dtype == attrs.at[col, 'dtype']
+                and (df[col] == attrs.at[col,"default"]).all()):
                 continue
 
             col_export.append(col)
 
-        df[col_export].to_csv(os.path.join(csv_folder_name,list_name+".csv"),encoding=encoding)
+        df[col_export].to_csv(filename,encoding=encoding)
 
 
         #now do varying attributes
@@ -143,14 +157,195 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
                 else:
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
+            filename = os.path.join(csv_folder_name,list_name+"-" + attr + ".csv")
             if len(col_export) > 0:
-                pnl[attr].loc[:,col_export].to_csv(os.path.join(csv_folder_name,list_name+"-" + attr + ".csv"),encoding=encoding)
+                pnl[attr].loc[:,col_export].to_csv(filename,encoding=encoding)
+            else:
+                if os.path.exists(filename):
+                    os.unlink(filename)
+                    logger.warning("Stale csv file {} removed"
+                                   .format(os.path.basename(filename)))
 
+        exported_components.append(list_name)
 
+    logger.info("Exported network {} has {}".format(os.path.basename(csv_folder_name), ", ".join(exported_components)))
 
+def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
+    """
+    Export network and components to an HDF store.
 
+    Both static and series attributes of components are exported, but only
+    if they have non-default values.
 
-def import_components_from_dataframe(network,dataframe,cls_name):
+    If path does not already exist, it is created.
+
+    Parameters
+    ----------
+    path : string
+        Name of hdf5 file to which to export (if it exists, it is overwritten)
+    **kwargs
+        Extra arguments for pd.HDFStore to specify f.i. compression
+        (default: complevel=4)
+
+    Examples
+    --------
+    >>> export_to_hdf5(network, filename)
+    OR
+    >>> network.export_to_hdf5(filename)
+    """
+
+    kwargs.setdefault('complevel', 4)
+
+    with pd.HDFStore(path, mode='w', **kwargs) as store:
+        #first export network properties
+
+        #exportable component types
+        #what about None???? - nan is float?
+        allowed_types = [float,int,str,bool] + list(np.typeDict.values())
+
+        columns = [attr for attr in dir(network)
+                   if (attr != "name" and attr[:2] != "__" and
+                       type(getattr(network,attr)) in allowed_types)]
+        index = pd.Index([network.name], name="name")
+        store.put('/network',
+                  pd.DataFrame(index=index, columns=columns,
+                               data=[[getattr(network, col) for col in columns]]),
+                  format='table', index=False)
+
+        #now export snapshots
+
+        store.put('/snapshots',
+                  pd.DataFrame(dict(weightings=network.snapshot_weightings),
+                               index=pd.Index(network.snapshots, name="name")),
+                  format='table', index=False)
+
+        #now export all other components
+
+        exported_components = []
+        for component in pypsa.components.all_components - {"SubNetwork"}:
+
+            list_name = network.components[component]["list_name"]
+            attrs = network.components[component]["attrs"]
+
+            df = network.df(component)
+            pnl = network.pnl(component)
+
+            if not export_standard_types and component in pypsa.components.standard_types:
+                df = df.drop(network.components[component]["standard_types"].index)
+
+            #first do static attributes
+            df.index.name = "name"
+            if df.empty:
+                continue
+
+            col_export = []
+            for col in df.columns:
+                #do not export derived attributes
+                if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
+                    continue
+                if col in attrs.index and pd.isnull(attrs.at[col, "default"]) and pd.isnull(df[col]).all():
+                    continue
+                if (col in attrs.index
+                    and df[col].dtype == attrs.at[col, 'dtype']
+                    and (df[col] == attrs.at[col, "default"]).all()):
+                    continue
+
+                col_export.append(col)
+
+            store.put('/' + list_name, df[col_export], format='table', index=False)
+
+            #now do varying attributes
+            for attr in pnl:
+                if attr not in attrs.index:
+                    col_export = pnl[attr].columns
+                else:
+                    default = attrs.at[attr, "default"]
+
+                    if pd.isnull(default):
+                        col_export = pnl[attr].columns[(~pd.isnull(pnl[attr])).any()]
+                    else:
+                        col_export = pnl[attr].columns[(pnl[attr] != default).any()]
+
+                df = pnl[attr][col_export]
+                if not df.empty:
+                    store.put('/' + list_name + '_t/' + attr, df, format='table', index=False)
+
+            exported_components.append(list_name)
+
+    logger.info("Exported network {} has {}".format(os.path.basename(path), ", ".join(exported_components)))
+
+def import_from_hdf5(network, path, skip_time=False):
+    """
+    Import network data from HDF5 store at `path`.
+
+    Parameters
+    ----------
+    path : string
+        Name of HDF5 store
+    """
+
+    with pd.HDFStore(path, mode='r') as store:
+        df = store['/network']
+        logger.debug("/network")
+        logger.debug(df)
+        network.name = df.index[0]
+
+        ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+        current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
+        try:
+            pypsa_version = [int(s) for s in df.at[network.name, 'pypsa_version'].split(".")]
+            df = df.drop('pypsa_version', axis=1)
+        except KeyError:
+            pypsa_version = None
+
+        if pypsa_version is None or pypsa_version < current_pypsa_version:
+            logger.warning(dedent("""
+                Importing PyPSA from older version of PyPSA than current version {}.
+                Please read the release notes at https://pypsa.org/doc/release_notes.html
+                carefully to prepare your network for import.
+            """).format(network.pypsa_version))
+
+        for col in df.columns:
+            setattr(network, col, df[col][network.name])
+
+        #if there is snapshots.csv, read in snapshot data
+
+        if '/snapshots' in store:
+            df = store['/snapshots']
+
+            network.set_snapshots(df.index)
+            if "weightings" in df.columns:
+                network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
+
+        imported_components = []
+
+        #now read in other components; make sure buses and carriers come first
+        for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus", "Carrier", "SubNetwork"}):
+            list_name = network.components[component]["list_name"]
+
+            if '/' + list_name not in store:
+                if component == "Bus":
+                    logger.error("Error, no buses found")
+                    return
+                else:
+                    continue
+
+            df = store['/' + list_name]
+            import_components_from_dataframe(network, df, component)
+
+            if not skip_time:
+                for attr in store:
+                    if attr.startswith('/' + list_name + '_t/'):
+                        attr_name = attr[len('/' + list_name + '_t/'):]
+                        import_series_from_dataframe(network, store[attr], component, attr_name)
+
+            logger.debug(getattr(network,list_name))
+
+            imported_components.append(list_name)
+
+    logger.info("Imported network {} has {}".format(os.path.basename(path), ", ".join(imported_components)))
+
+def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
 
@@ -166,7 +361,7 @@ def import_components_from_dataframe(network,dataframe,cls_name):
 
     Examples
     --------
-    >>> import_components_from_dataframe(dataframe,"Line")
+    >>> network.import_components_from_dataframe(dataframe,"Line")
     """
 
     if cls_name == "Generator" and "source" in dataframe.columns:
@@ -182,59 +377,52 @@ def import_components_from_dataframe(network,dataframe,cls_name):
     if cls_name == "Link" and "s_nom" in dataframe.columns:
         logger.warning("'s_nom*' for links is deprecated, use 'p_nom*' instead.")
 
-    dataframe.index = [str(i) for i in dataframe.index]
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
-    string_attrs = {"bus","bus0","bus1","carrier"} & set(dataframe.columns)
+    # Clean dataframe and ensure correct types
+    dataframe = pd.DataFrame(dataframe)
+    dataframe.index = dataframe.index.astype(str)
 
-    for col in string_attrs:
-        dataframe[col] = dataframe[col].astype(str)
+    for k in static_attrs.index:
+        if k not in dataframe.columns:
+            dataframe[k] = static_attrs.at[k, "default"]
+        else:
+            if static_attrs.at[k, "type"] == 'string':
+                dataframe[k] = dataframe[k].replace({np.nan: ""})
 
-    old_df = network.df(cls_name)
+            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
-    new_df = pd.concat((old_df,dataframe.drop(set(non_static_attrs.index) & set(dataframe.columns),axis=1)))
+    #check all the buses are well-defined
+    for attr in ["bus", "bus0", "bus1"]:
+        if attr in dataframe.columns:
+            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
+            if len(missing) > 0:
+                logger.warning("The following %s have buses which are not defined:\n%s",
+                               cls_name, missing)
+
+    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
+    new_df = pd.concat((network.df(cls_name), dataframe.drop(non_static_attrs_in_df, axis=1)))
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
-    for k in static_attrs.index:
-        if k not in dataframe.columns:
-            new_df.loc[dataframe.index, k] = static_attrs.at[k, "default"]
-
-        typ = static_attrs.at[k,"typ"]
-
-        #This is definitely necessary to avoid boolean bugs - not clear for others
-        if typ in [int,float,bool] and new_df[k].dtype is not np.dtype(typ):
-            new_df.loc[:,k] = new_df.loc[:,k].astype(typ)
-
-    setattr(network,network.components[cls_name]["list_name"],new_df)
-
-    #check all the buses are well-defined
-    for attr in ["bus","bus0","bus1"]:
-        if attr in new_df.columns:
-            missing = new_df.index[~new_df[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning("The following %s have buses which are not defined:\n%s",
-                               cls_name, missing)
-
+    setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
 
     pnl = network.pnl(cls_name)
 
-    for k in set(non_static_attrs.index) & set(dataframe.columns):
+    for k in non_static_attrs_in_df:
         #If reading in outputs, fill the outputs
-        pnl[k] = pnl[k].reindex(columns=new_df.index, fill_value=non_static_attrs.at[k,"default"])
+        pnl[k] = pnl[k].reindex(columns=new_df.index,
+                                fill_value=non_static_attrs.at[k, "default"])
         pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
     setattr(network,network.components[cls_name]["list_name"]+"_t",pnl)
-
-
 
 
 def import_series_from_dataframe(network, dataframe, cls_name, attr):
@@ -271,8 +459,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     columns = dataframe.columns
 
     if not attr_series.static:
-        #If reading in outputs, fill the outputs
-        pnl[attr] = pnl[attr].reindex(columns=df.index, fill_value=attr_series.default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index|columns, fill_value=attr_series.default)
     else:
         pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
@@ -280,7 +467,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
 
 
-def import_from_csv_folder(network, csv_folder_name, encoding=None):
+def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=False):
     """
     Import network data from CSVs in a folder.
 
@@ -294,6 +481,8 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
     """
 
     if not os.path.isdir(csv_folder_name):
@@ -309,18 +498,32 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
         logger.debug("networks.csv:")
         logger.debug(df)
         network.name = df.index[0]
+
+        ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+        current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
+        pypsa_version = None
         for col in df.columns:
-            setattr(network,col,df[col][network.name])
+            if col == "pypsa_version":
+                pypsa_version = [int(s) for s in df.at[network.name,"pypsa_version"].split(".")]
+            else:
+                setattr(network,col,df[col][network.name])
+
+        if pypsa_version is None or pypsa_version < current_pypsa_version:
+            logger.warning("Importing PyPSA from older version of PyPSA than current version {}.\n\
+            Please read the release notes at https://pypsa.org/doc/release_notes.html\n\
+            carefully to prepare your network for import.".format(network.pypsa_version))
 
     #if there is snapshots.csv, read in snapshot data
 
     file_name = os.path.join(csv_folder_name,"snapshots.csv")
 
     if os.path.isfile(file_name):
-        df = pd.read_csv(file_name,index_col=0,encoding=encoding)
+        df = pd.read_csv(file_name, index_col=0, encoding=encoding, parse_dates=True)
         network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
+
+    imported_components = []
 
     #now read in other components; make sure buses and carriers come first
     for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus","Carrier","SubNetwork"}):
@@ -334,25 +537,24 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None):
                 logger.error("Error, no buses found")
                 return
             else:
-                logger.info("No {}.csv found.".format(list_name))
                 continue
-        else:
-            logger.info("{}.csv found.".format(list_name))
 
         df = pd.read_csv(file_name,index_col=0,encoding=encoding)
 
         import_components_from_dataframe(network,df,component)
 
-        file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
+        if not skip_time:
+            file_attrs = [n for n in os.listdir(csv_folder_name) if n.startswith(list_name+"-") and n.endswith(".csv")]
 
-        for file_name in file_attrs:
-            df = pd.read_csv(os.path.join(csv_folder_name,file_name),index_col=0,encoding=encoding)
-            import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
+            for file_name in file_attrs:
+                df = pd.read_csv(os.path.join(csv_folder_name,file_name), index_col=0, encoding=encoding, parse_dates=True)
+                import_series_from_dataframe(network,df,component,file_name[len(list_name)+1:-4])
 
         logger.debug(getattr(network,list_name))
 
+        imported_components.append(list_name)
 
-
+    logger.info("Imported network {} has {}".format(os.path.basename(csv_folder_name), ", ".join(imported_components)))
 
 def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     """
@@ -402,7 +604,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     #rename controls
     controls = ["","PQ","PV","Slack"]
-    pdf["buses"]["control"] = pdf["buses"]["type"].map(lambda i: controls[int(i)])
+    pdf["buses"]["control"] = pdf["buses"].pop("type").map(lambda i: controls[int(i)])
 
     #add loads for any buses with Pd or Qd
     pdf['loads'] = pdf["buses"].loc[pdf["buses"][["Pd","Qd"]].any(axis=1), ["Pd","Qd"]]

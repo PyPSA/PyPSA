@@ -47,7 +47,9 @@ There are some steps you can take to distinguish these two cases:
 
    import pandas as pd, numpy as np
 
-   angle_diff = pd.Series(network.buses_t.v_ang.loc[network.now,network.lines.bus0].values -    network.buses_t.v_ang.loc[network.now,network.lines.bus1].values,index=network.lines.index)
+   now = network.snapshots[0]
+
+   angle_diff = pd.Series(network.buses_t.v_ang.loc[now,network.lines.bus0].values -    network.buses_t.v_ang.loc[now,network.lines.bus1].values,index=network.lines.index)
 
    (angle_diff*180/np.pi).describe()
 
@@ -93,4 +95,4 @@ Please report questions to the `mailing list
 
 If you're relatively certain you've found a bug, raise it as an issue
 on the `PyPSA Github Issues page
-<https://github.com/FRESNA/PyPSA/issues>`_.
+<https://github.com/PyPSA/PyPSA/issues>`_.

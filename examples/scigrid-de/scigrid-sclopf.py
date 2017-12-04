@@ -4,7 +4,7 @@
 #
 #In this example, the dispatch of generators is optimised using the security-constrained linear OPF, to guaranteed that no branches are overloaded by certain branch outages.
 #
-#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#The data files for this example are in the examples folder of the github repository: <https://github.com/PyPSA/PyPSA>.
 #
 ### Data sources and health warnings
 #
@@ -24,26 +24,26 @@ for line_name in ["316","527","602"]:
     network.lines.loc[line_name,"s_nom"] = 1200
 
 
-network.now = network.snapshots[0]
+now = network.snapshots[0]
 
 branch_outages = network.lines.index[:15]
 
 print("Performing security-constrained linear OPF:")
 
-network.sclopf(branch_outages=branch_outages)
+network.sclopf(now,branch_outages=branch_outages)
 print("Objective:",network.objective)
 
 
 
 #For the PF, set the P to the optimised P
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
-network.generators_t.p_set.loc[network.now] = network.generators_t.p.loc[network.now]
+network.generators_t.p_set.loc[now] = network.generators_t.p.loc[now]
 network.storage_units_t.p_set = network.storage_units_t.p_set.reindex(columns=network.storage_units.index)
-network.storage_units_t.p_set.loc[network.now] = network.storage_units_t.p.loc[network.now]
+network.storage_units_t.p_set.loc[now] = network.storage_units_t.p.loc[now]
 
 #Check no lines are overloaded with the linear contingency analysis
 
-p0_test = network.lpf_contingency(branch_outages=branch_outages)
+p0_test = network.lpf_contingency(now,branch_outages=branch_outages)
 
 p0_test
 

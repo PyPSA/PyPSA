@@ -84,7 +84,7 @@ import matplotlib.pyplot as plt
 
 #You may have to adjust this path to where 
 #you downloaded the github repository
-#https://github.com/FRESNA/PyPSA
+#https://github.com/PyPSA/PyPSA
 
 folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 
@@ -358,7 +358,16 @@ network.lines["s_nom"] = 3.**0.5*network.lines.voltage/1000.*network.lines.num_p
 
 ## Attach the load
 
-#import FIAS libraries for attaching data - sorry, not free software yet
+#import FIAS libraries for attaching data
+
+#this script uses old versions of the FIAS libraries and 
+#has not yet been updated to the new versions
+
+#the latest versions are available at
+#https://github.com/FRESNA/vresutils
+
+#if you get it working with the new versions, please
+#tell us! It shouldn't be too hard...
 
 try:
     import vresutils, load
@@ -424,8 +433,6 @@ load.index = load.index.values
 
 #Take the first year (in UTC time - we don't set time zone because of a Pandas bug)
 network.set_snapshots(pd.date_range("2011-01-01 00:00","2011-12-31 23:00",freq="H"))
-
-network.now = network.snapshots[0]
 
 print(network.snapshots)
 

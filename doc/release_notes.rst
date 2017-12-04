@@ -2,6 +2,147 @@
 Release Notes
 #######################
 
+
+PyPSA 0.11.0 (21st October 2017)
+================================
+
+This release contains new features but no changes to existing APIs.
+
+* There is a new function ``network.iplot()`` which creates an
+  interactive plot in Jupyter notebooks using the `plotly
+  <https://plot.ly/python/>`_ library. This reveals bus and branch
+  properties when the mouse hovers over them and allows users to
+  easily zoom in and out on the network. See the `SciGRID example
+  <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ for
+  a showcase of this feature and also the (sparse) documentation
+  :doc:`plotting`.
+* There is a new function ``network.madd()`` for adding multiple new
+  components to the network. This is significantly faster than
+  repeatedly calling ``network.add()`` and uses the functions
+  ``network.import_components_from_dataframe()`` and
+  ``network.import_series_from_dataframe()`` internally. Documentation
+  and examples can be found at :ref:`madd`.
+* There are new functions ``network.export_to_hdf5()`` and
+  ``network.import_from_hdf5()`` for exporting and importing networks
+  as single files in the `Hierarchical Data Format
+  <https://en.wikipedia.org/wiki/Hierarchical_Data_Format>`_.
+* In the ``network.lopf()`` function the KKT shadow prices of the
+  branch limit constraints are now outputted as series called
+  ``mu_lower`` and ``mu_upper``.
+
+We thank Bryn Pickering for introducing us to `plotly
+<https://plot.ly/python/>`_ and helping to `hack together
+<https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/>`_
+the first working prototype using PyPSA.
+
+
+PyPSA 0.10.0 (7th August 2017)
+==============================
+
+This release contains some minor new features and a few minor but
+important API changes.
+
+* There is a new component :ref:`global-constraints` for implementing
+  constraints that effect many components at once (see also the
+  LOPF subsection :ref:`global-constraints-opf`).  Currently only
+  constraints related to primary energy (i.e. before conversion with
+  losses by generators) are supported, the canonical example being CO2
+  emissions for an optimisation period. Other primary-energy-related
+  gas emissions also fall into this framework. Other types of global
+  constraints will be added in future, e.g. "final energy" (for limits
+  on the share of renewable or nuclear electricity after conversion),
+  "generation capacity" (for limits on total capacity expansion of
+  given carriers) and "transmission capacity" (for limits on the total
+  expansion of lines and links). This replaces the ad hoc
+  ``network.co2_limit`` attribute. If you were using this, instead of
+  ``network.co2_limit = my_cap`` do ``network.add("GlobalConstraint",
+  "co2_limit", type="primary_energy",
+  carrier_attribute="co2_emissions", sense="<=",
+  constant=my_cap)``. The shadow prices of the global constraints
+  are automatically saved in ``network.global_constraints.mu``.
+* The LOPF output ``network.buses_t.marginal_price`` is now defined
+  differently if ``network.snapshot_weightings`` are not 1. Previously
+  if the generator at the top of the merit order had ``marginal_cost``
+  c and the snapshot weighting was w, the ``marginal_price`` was
+  cw. Now it is c, which is more standard. See also
+  :ref:`nodal-power-balance`.
+* ``network.pf()`` now returns a dictionary of pandas DataFrames, each
+  indexed by snapshots and sub-networks. ``converged`` is a table of
+  booleans indicating whether the power flow has converged; ``error``
+  gives the deviation of the non-linear solution; ``n_iter`` the
+  number of iterations required to achieve the tolerance.
+* ``network.consistency_check()`` now includes checking for
+  potentially infeasible values in ``generator.p_{min,max}_pu``.
+* The PyPSA version number is now saved in
+  ``network.pypsa_version``. In future versions of PyPSA this
+  information will be used to upgrade data to the latest version of
+  PyPSA.
+* ``network.sclopf()`` has an ``extra_functionality`` argument that
+  behaves like that for ``network.lopf()``.
+* Component attributes which are strings are now better handled on
+  import and in the consistency checking.
+* There is a new `generation investment screening curve example
+  <https://pypsa.org/examples/generation-investment-screening-curve.html>`_
+  showing the long-term equilibrium of generation investment for a
+  given load profile and comparing it to a screening curve
+  analysis.
+* There is a new `logging example
+  <https://pypsa.org/examples/logging-demo.html>`_ that demonstrates
+  how to control the level of logging that PyPSA reports back,
+  e.g. error/warning/info/debug messages.
+* Sundry other bug fixes and improvements.
+* All examples have been updated appropriately.
+
+
+Thanks to Nis Martensen for contributing the return values of
+``network.pf()`` and Konstantinos Syranidis for contributing the
+improved ``network.consistency_check()``.
+
+
+
+PyPSA 0.9.0 (29th April 2017)
+=============================
+
+This release mostly contains new features with a few minor API
+changes.
+
+* Unit commitment as a MILP problem is now available for generators in
+  the Linear Optimal Power Flow (LOPF). If you set ``committable ==
+  True`` for the generator, an addition binary online/offline status
+  is created. Minimum part loads, minimum up times, minimum down
+  times, start up costs and shut down costs are implemented. See the
+  documentation at :ref:`unit-commitment` and the `unit commitment
+  example <https://pypsa.org/examples/unit-commitment.html>`_. Note
+  that a generator cannot currently have both unit commitment and
+  capacity expansion optimisation.
+* Generator ramping limits have also been implemented for all
+  generators. See the documentation at :ref:`ramping` and the `unit
+  commitment example
+  <https://pypsa.org/examples/unit-commitment.html>`_.
+* Different mathematically-equivalent formulations for the Linear
+  Optimal Power Flow (LOPF) are now documented in :ref:`formulations`
+  and the arXiv preprint paper `Linear Optimal Power Flow Using Cycle
+  Flows <https://arxiv.org/abs/1704.01881>`_. The new formulations can
+  solve up to 20 times faster than the standard angle-based
+  formulation.
+* You can pass the ``network.lopf`` function the ``solver_io``
+  argument for pyomo.
+* There are some improvements to network clustering and graphing.
+* API change: The attribute ``network.now`` has been removed since it
+  was unnecessary. Now, if you do not pass a ``snapshots`` argument to
+  network.pf() or network.lpf(), these functions will default to
+  ``network.snapshots`` rather than ``network.now``.
+* API change: When reading in network data from CSV files, PyPSA will
+  parse snapshot dates as proper datetimes rather than text strings.
+
+
+João Gorenstein Dedecca has also implemented a MILP version of the
+transmission expansion, see
+`<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes
+account of the impedance with a disjunctive relaxation. This will be
+pulled into the main PyPSA code base soon.
+
+
 PyPSA 0.8.0 (25th January 2017)
 ===============================
 

@@ -28,13 +28,15 @@ Overview
 Execute:
 
 
-``network.lopf(snapshots, solver_name="glpk", extra_functionality=None, solver_options={}, keep_files=False)``
+``network.lopf(snapshots, solver_name="glpk", solver_io=None, extra_functionality=None, solver_options={}, keep_files=False, formulation="angles")``
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
-string, e.g. "gurobi" or "glpk", ``extra_functionality`` is a function
-of network and snapshots that is called before the solver (see below),
-``solver_options`` is a dictionary of flags to pass to the solver and
-``keep_files`` means that the ``.lp`` file is saved.
+string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
+``extra_functionality`` is a function of network and snapshots that is
+called before the solver (see below), ``solver_options`` is a
+dictionary of flags to pass to the solver, ``keep_files`` means that
+the ``.lp`` file is saved and ``formulation`` is a string in
+``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations` for more details).
 
 The linear OPF module can optimises the dispatch of generation and storage
 and the capacities of generation, storage and transmission.
@@ -42,8 +44,9 @@ and the capacities of generation, storage and transmission.
 It is assumed that the load is inelastic and must be met in every
 snapshot (this will be relaxed in future versions).
 
-The optimisation currently uses continuous variables. MILP unit
-commitment may be added in the future.
+The optimisation currently uses continuous variables for most
+functionality; unit commitment with binary variables is also
+implemented for generators.
 
 The objective function is the total system cost for the snapshots
 optimised.
@@ -124,6 +127,12 @@ Variables and notation summary
 
 :math:`\bar{g}_{n,s,t}` availability of  generator :math:`s` at bus :math:`n` at time :math:`t` per unit of nominal power
 
+:math:`u_{n,s,t}` binary status variable for generator with unit commitment
+
+:math:`suc_{n,s,t}` start-up cost if generator with unit commitment is started at time :math:`t`
+
+:math:`sdc_{n,s,t}` shut-down cost if generator with unit commitment is shut down at time :math:`t`
+
 :math:`c_{n,s}` capital cost of extending generator nominal power by one MW
 
 :math:`o_{n,s}` marginal cost of dispatch generator for one MWh
@@ -151,6 +160,7 @@ The objective function is composed of capital costs :math:`c` for each component
 .. math::
    \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
    + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
+   + \sum_{t} \left[suc_{n,s,t} + sdc_{n,s,t} \right]
 
 
 Additional variables which do not appear in the objective function are
@@ -191,12 +201,89 @@ availability is a constant.
 
 
 If the generator's nominal power :math:`\bar{g}_{n,s}` is also the
-subject of optimisation (``generator.p_nom_extendable == True``) then limits on the nominal power may also be introduced, e.g.
+subject of optimisation (``generator.p_nom_extendable == True``) then
+limits ``generator.p_nom_min`` and ``generator.p_nom_max`` on the
+installable nominal power may also be introduced, e.g.
 
 
 
 .. math::
-   \bar{g}_{n,s} \leq  \hat{g}_{n,s}
+   \tilde{g}_{n,s} \leq    \bar{g}_{n,s} \leq  \hat{g}_{n,s}
+
+
+
+
+
+.. _unit-commitment:
+
+Generator unit commitment constraints
+-------------------------------------
+
+These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
+
+The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
+Joshua Adam Taylor (CUP, 2015).
+
+
+Unit commitment can be turned on for any generator by setting ``committable`` to be ``True``. This introduces a
+times series of new binary status variables :math:`u_{n,s,t} \in \{0,1\}`,
+which indicates whether the generator is running (1) or not (0) in
+period :math:`t`. The restrictions on generator output now become:
+
+.. math::
+   u_{n,s,t}*\tilde{g}_{n,s,t}*\bar{g}_{n,s} \leq g_{n,s,t} \leq   u_{n,s,t}*\bar{g}_{n,s,t}*\bar{g}_{n,s} \hspace{.5cm} \forall\, n,s,t
+
+so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
+
+If :math:`T_{\textrm{min\_up}}` is the minimum up time then we have
+
+.. math::
+   \sum_{t'=t}^{t+T_\textrm{min\_up}} u_{n,s,t'}\geq T_\textrm{min\_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
+
+(i.e. if the generator has just started up (:math:`u_{n,s,t} - u_{n,s,t-1} = 1`) then it has to run for at least :math:`T_{\textrm{min\_up}}` periods). Similarly for a minimum down time of :math:`T_{\textrm{min\_down}}`
+
+.. math::
+   \sum_{t'=t}^{t+T_\textrm{min\_down}} (1-u_{n,s,t'})\geq T_\textrm{min\_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
+
+
+For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
+
+.. math::
+   suc_{n,s,t} \geq suc_{n,s} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
+
+so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the generator has just started, in which case the inequality is saturated :math:`suc_{n,s,t} = suc_{n,s}`. Similarly for the shut down costs :math:`sdc_{n,s,t} \geq 0` we have
+
+.. math::
+   sdc_{n,s,t} \geq sdc_{n,s} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
+
+
+
+
+.. _ramping:
+
+Generator ramping constraints
+-----------------------------
+
+These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
+
+The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
+Joshua Adam Taylor (CUP, 2015).
+
+Ramp rate limits can be defined for increasing power output
+:math:`ru_{n,s}` and decreasing power output :math:`rd_{n,s}`. By
+default these are null and ignored. They should be given per unit of
+the generator nominal power. The generator dispatch then obeys
+
+.. math::
+   -rd_{n,s} * \bar{g}_{n,s} \leq (g_{n,s,t} - g_{n,s,t-1}) \leq ru_{n,s} * \bar{g}_{n,s}
+
+for :math:`t \in \{1,\dots |T|-1\}`.
+
+For generators with unit commitment you can also specify ramp limits
+at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
+
+.. math::
+  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s} \leq (g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s}*u_{n,s,t-1} +   rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right]\bar{g}_{n,s}
 
 
 
@@ -336,8 +423,41 @@ There are two choices here:
 
 Iterate the LOPF again with the updated impedances (see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_).
 
-Use a different program which can do MINLP to represent the changing
-line impedance.
+João Gorenstein Dedecca has also implemented a MILP version of the
+transmission expansion, see
+`<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes
+account of the impedance with a disjunctive relaxation. This will be
+pulled into the main PyPSA code base soon.
+
+
+.. _formulations:
+
+Passive branch flow formulations
+--------------------------------
+
+PyPSA implements four formulations of the linear power flow equations
+that are mathematically equivalent, but may have different
+solving times. These different formulations are described and
+benchmarked in the arXiv preprint paper `Linear Optimal Power Flow Using
+Cycle Flows <https://arxiv.org/abs/1704.01881>`_.
+
+You can choose the formulation by passing ``network.lopf`` the
+argument ``formulation``, which must be in
+``["angles","cycles","kirchhoff","ptdf"]``. ``angles`` is the standard
+formulations based on voltage angles described above, used for the
+linear power flow and found in textbooks. ``ptdf`` uses the Power
+Transfer Distribution Factor (PTDF) formulation, found for example in
+`<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_. ``kirchhoff``
+and ``cycles`` are two new formulations based on a graph-theoretic
+decomposition of the network flows into a spanning tree and closed
+cycles.
+
+Based on the benchmarking in `Linear Optimal Power Flow Using Cycle
+Flows <https://arxiv.org/abs/1704.01881>`_ for standard networks,
+``kirchhoff`` almost always solves fastest, averaging 3 times faster
+than the ``angles`` formulation and up to 20 times faster in specific
+cases. The speedup is higher for larger networks with dispatchable
+generators at most nodes.
 
 
 
@@ -359,6 +479,9 @@ If the link flow is positive :math:`f_{l,t} > 0` then it withdraws
 :math:`f_{l,t}` from bus0 and feeds in :math:`\eta_l f_{l,t}` to bus1,
 where :math:`\eta_l` is the link efficiency.
 
+
+.. _nodal-power-balance:
+
 Nodal power balances
 --------------------
 
@@ -368,9 +491,9 @@ This is the most important equation, which guarantees that the power
 balances at each bus :math:`n` for each time :math:`t`.
 
 .. math::
-   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{s} d_{n,s,t} = \sum_{l} K_{nl} f_{l,t}
+   \sum_{s} g_{n,s,t} + \sum_{s} h_{n,s,t} - \sum_{s} f_{n,s,t} - \sum_{l} K_{nl} f_{l,t} = \sum_{s} d_{n,s,t} \hspace{.4cm} \leftrightarrow  \hspace{.4cm} w_t\lambda_{n,t}
 
-Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus.
+Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and the incidence matrix :math:`K_{nl}` for the graph takes values in :math:`\{-1,0,1\}` depending on whether the branch :math:`l` ends or starts at the bus. :math:`\lambda_{n,t}` is the shadow price of the constraint, i.e. the locational marginal price, stored in ``network.buses_t.marginal_price``.
 
 
 The bus's role is to enforce energy conservation for all elements
@@ -379,25 +502,42 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 .. image:: img/buses.png
 
 
-CO2 constraint
---------------
 
-See ``pypsa.opf.define_co2_constraint(network,snapshots)``.
+.. _global-constraints-opf:
 
-This depends on the power plant efficiency and specific CO2 emissions
-of the energy carriers.
+Global constraints
+------------------
 
-If the generator :math:`s` at node :math:`n` has efficiency
-:math:`\eta_{n,s}` and its fuel carrier (``generator.carrier``) has
-specific emissions of :math:`e_s` (``carrier.co2_emissions``)
-CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s` then the
-CO2 constraint is
+See ``pypsa.opf.define_global_constraints(network,snapshots)``.
+
+Global constraints apply to more than one component.
+
+Currently only "primary energy" constraints are defined. They depend
+on the power plant efficiency and carrier-specific attributes such as
+specific CO2 emissions.
+
+
+Suppose there is a global constraint defined for CO2 emissions with
+sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
+from generators whose energy carriers have CO2 emissions and from
+stores and storage units whose storage medium releases or absorbs CO2
+when it is converted. Only stores and storage units with non-cyclic
+state of charge that is different at the start and end of the
+simulation can contribute.
+
+If the specific emissions of energy carrier :math:`s` is :math:`e_s`
+(``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh and the
+generator with carrier :math:`s` at node :math:`n` has efficiency
+:math:`\eta_{n,s}` then the CO2 constraint is
 
 .. math::
-   \sum_{n,s,t} \frac{1}{\eta_{n,s}} g_{n,s,t}\cdot e_{n,s} \leq  \textrm{CAP}_{CO2}
+   \sum_{n,s,t} \frac{1}{\eta_{n,s}} w_t\cdot g_{n,s,t}\cdot e_{n,s} + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot e_{n,s} \leq  \textrm{CAP}_{CO2}  \hspace{.4cm} \leftrightarrow  \hspace{.4cm} \mu
 
-where ``network.co2_limit`` is the CO2 cap. If ``network.co2_limit``
-is ``None``, no cap is implemented.
+The first sum is over generators; the second sum is over stores and
+storage units. :math:`\mu` is the shadow price of the constraint,
+i.e. the CO2 price in this case. :math:`\mu` is an output of the
+optimisation stored in ``network.global_constraints.mu``.
+
 
 Custom constraints and other functionality
 ------------------------------------------
@@ -428,7 +568,7 @@ For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-network{snapshot_weightings,co2_limit}
+network{snapshot_weightings}
 
 bus.{v_nom, carrier}
 
@@ -446,7 +586,9 @@ transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
 link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
 
-carrier.{co2_emissions}
+carrier.{carrier_attribute}
+
+global_constraint.{type, carrier_attribute, sense, constant}
 
 Note that for lines and transformers you MUST make sure that
 :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
@@ -464,8 +606,10 @@ storage_unit.{p, p_nom_opt, state_of_charge, spill}
 
 store.{p, e_nom_opt, e}
 
-line.{p0, p1, s_nom_opt}
+line.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-transformer.{p0, p1, s_nom_opt}
+transformer.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-link.{p0, p1, p_nom_opt}
+link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
+
+global_constraint.{mu}
