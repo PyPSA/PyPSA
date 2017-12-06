@@ -27,7 +27,7 @@ well with large networks and long time series.
 As of 2017 PyPSA is under heavy development and therefore it is
 recommended to use caution when using it in a production environment.
 Some APIs may change - the changes in each PyPSA version are listed in
-the `doc/release_notes.rst <doc/reslease_notes.rst>`_.
+the `doc/release_notes.rst <doc/release_notes.rst>`_.
 
 
 
