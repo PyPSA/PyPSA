@@ -122,12 +122,18 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
 
                   for attr in columns}
+
     new_df = old_df.groupby(grouper).agg(strategies)
 
     if 'max_hours' in columns:
-        new_df.index.set_levels(new_df.index.get_level_values('max_hours').\
-                                astype('object').astype('str'),
-                                level='max_hours', inplace=True)
+        # index level max_hours is of type numeric.Float64Index, that cannot
+        # be handled by _flatten_multiindex, other indices are of type
+        # base.Index, thus we have to convert the datatype of max_hours. There
+        # might be a better way to do it inplace instead of reconstructing the
+        # DataFrame.
+        new_df.reset_index(drop=True, inplace=True)
+        new_df.max_hours = new_df.max_hours.astype('str')
+        new_df.set_index(['bus', 'carrier', 'max_hours'])
 
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
