@@ -130,7 +130,7 @@ def aggregateoneport(network, busmap, component, with_time=True):
         # be handled by _flatten_multiindex, other indices are of type
         # base.Index, thus we have to convert the datatype of max_hours. There
         # might be a better way to do it inplace instead of reconstructing the
-        # DataFrame.
+        # Index.
         new_df.reset_index(drop=True, inplace=True)
         new_df.max_hours = new_df.max_hours.astype('str')
         new_df.set_index(['bus', 'carrier', 'max_hours'])
