@@ -100,9 +100,9 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
     columns = set(attrs.index[attrs.static]) & set(old_df.columns)
 
-    if 'max_hours' in columns:
-        grouper = [old_df.bus, old_df.max_hours]
-    elif 'carrier' in columns:
+    if ('carrier' in columns and 'max_hours' in columns):
+        grouper = [old_df.bus, old_df.carrier, old_df.max_hours]
+    elif ('carrier' in columns and not 'max_hours' in columns):
         grouper = [old_df.bus, old_df.carrier]
     else:
         grouper = old_df.bus
@@ -115,10 +115,10 @@ def aggregateoneport(network, busmap, component, with_time=True):
                          if attr in {'marginal_cost', 'capital_cost', 'efficiency',
                                      'efficiency_dispatch', 'standing_loss', 'efficiency_store'}
                          
-			 else np.min
-			 if attr in {'p_min_pu'}
+			         else np.min
+			         if attr in {'p_min_pu'}
 
-			 else _consense)
+			         else _consense)
 
 
                   for attr in columns}
