@@ -114,7 +114,11 @@ def aggregateoneport(network, busmap, component, with_time=True):
                          else np.mean
                          if attr in {'marginal_cost', 'capital_cost', 'efficiency',
                                      'efficiency_dispatch', 'standing_loss', 'efficiency_store'}
-                         else _consense)
+                         
+			 else np.min
+			 if attr in {'p_min_pu'}
+
+			 else _consense)
 
 
                   for attr in columns}
