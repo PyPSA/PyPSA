@@ -414,28 +414,25 @@ def apply_line_types(network):
     """
 
     lines_with_types_b = network.lines.type != ""
-
     if lines_with_types_b.zsum() == 0:
         return
 
+    missing_types = (pd.Index(network.lines.loc[lines_with_types_b, 'type'].unique())
+                     .difference(network.line_types.index))
+    assert missing_types.empty, ("The type(s) {} do(es) not exist in network.line_types"
+                                 .format(", ".join(missing_types)))
+
+    # Get a copy of the lines data
+    l = (network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]]
+         .join(network.line_types, on='type'))
+
     for attr in ["r","x"]:
-        attr_per_length = network.line_types[attr + "_per_length"]
-        network.lines.loc[lines_with_types_b,attr] = (
-            network.lines.loc[lines_with_types_b, "type"].map(attr_per_length)
-            * network.lines.loc[lines_with_types_b, "length"]
-            / network.lines.loc[lines_with_types_b, "num_parallel"]
-        )
+        l[attr] = l[attr + "_per_length"] * l["length"] / l["num_parallel"]
+    l["b"] = 2*np.pi*1e-9*l["f_nom"] * l["c_per_length"] * l["length"] * l["num_parallel"]
 
-    factor = 2*np.pi*1e-9*network.lines.loc[lines_with_types_b, "type"].map(network.line_types.f_nom)
-    c_per_length = network.line_types["c_per_length"]
-    network.lines.loc[lines_with_types_b, "b"] = (
-        factor
-        * network.lines.loc[lines_with_types_b, "type"].map(c_per_length)
-        * network.lines.loc[lines_with_types_b, "length"]
-        * network.lines.loc[lines_with_types_b, "num_parallel"]
-    )
-
-
+    # now set calculated values on live lines
+    for attr in ["r", "x", "b"]:
+        network.lines.loc[lines_with_types_b, attr] = l[attr]
 
 
 
@@ -445,50 +442,42 @@ def apply_transformer_types(network):
 
     """
 
-    trafos = network.transformers
-    trafos_with_types_b = trafos.type != ""
-
+    trafos_with_types_b = network.transformers.type != ""
     if trafos_with_types_b.zsum() == 0:
         return
 
-    trafos.loc[trafos_with_types_b, "r"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vscr"])/100.
+    missing_types = (pd.Index(network.transformers.loc[trafos_with_types_b, 'type'].unique())
+                     .difference(network.transformer_types.index))
+    assert missing_types.empty, ("The type(s) {} do(es) not exist in network.transformer_types"
+                                 .format(", ".join(missing_types)))
 
-    z = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["vsc"])/100.
+    # Get a copy of the transformers data
+    # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
+    t = (network.transformers.loc[trafos_with_types_b, ["type", "tap_position", "num_parallel"]]
+         .join(network.transformer_types, on='type'))
 
-    trafos.loc[trafos_with_types_b, "x"] = np.sqrt(z**2 - trafos.loc[trafos_with_types_b, "r"]**2)
-
-    for attr in ["phase_shift","s_nom"]:
-        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types[attr])
+    t["r"] = t["vscr"] /100.
+    t["x"] = np.sqrt((t["vsc"]/100.)**2 - t["r"]**2)
 
     #NB: b and g are per unit of s_nom
-    trafos.loc[trafos_with_types_b, "g"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["pfe"])/(1000. * trafos.loc[trafos_with_types_b, "s_nom"])
-
-    i0 = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["i0"])/100.
-
-    b_minus_squared = i0**2 - trafos.loc[trafos_with_types_b, "g"]**2
+    t["g"] = t["pfe"]/(1000. * t["s_nom"])
 
     #for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
-
-    b_minus_squared[b_minus_squared < 0.] = 0.
-
-    trafos.loc[trafos_with_types_b, "b"] = - np.sqrt(b_minus_squared)
-
+    t["b"] = - np.sqrt(((t["i0"]/100.)**2 - t["g"]**2).clip(lower=0))
 
     for attr in ["r","x"]:
-        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]/trafos.loc[trafos_with_types_b, "num_parallel"]
+        t[attr] /= t["num_parallel"]
 
     for attr in ["b","g"]:
-        trafos.loc[trafos_with_types_b, attr] = trafos.loc[trafos_with_types_b, attr]*trafos.loc[trafos_with_types_b, "num_parallel"]
-
+        t[attr] *= t["num_parallel"]
 
     #deal with tap positions
 
-    trafos.loc[trafos_with_types_b, "tap_ratio"] = 1 + (
-        trafos.loc[trafos_with_types_b, "tap_position"] -
-        trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_neutral"])) * (
-            trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_step"])/100.)
+    t["tap_ratio"] = 1. + (t["tap_position"] - t["tap_neutral"]) * (t["tap_step"]/100.)
 
-    trafos.loc[trafos_with_types_b, "tap_side"] = trafos.loc[trafos_with_types_b, "type"].map(network.transformer_types["tap_side"])
+    # now set calculated values on live transformers
+    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]:
+        network.transformers.loc[trafos_with_types_b, attr] = t[attr]
 
     #TODO: status, rate_A
 
