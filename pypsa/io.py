@@ -220,8 +220,9 @@ if has_xarray:
                     yield attr[len(t):], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path):
+        def __init__(self, path, least_significant_digit=3):
             self.path = path
+            self.least_significant_digit = least_significant_digit
             self.ds = xr.Dataset()
 
         def save_attributes(self, attrs):
@@ -242,6 +243,11 @@ if has_xarray:
             df.index.name = 'snapshots'
             df.columns.name = list_name + '_t_' + attr + '_i'
             self.ds[list_name + '_t_' + attr] = df
+            if self.least_significant_digit is not None:
+                self.ds.encoding.upate({
+                    'zlib': True,
+                    'least_significant_digit': self.least_significant_digit
+                })
 
         def finish(self):
             if self.path is not None:
