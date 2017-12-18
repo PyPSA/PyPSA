@@ -620,7 +620,10 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                                cls_name, missing)
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
-    new_df = pd.concat((network.df(cls_name), dataframe.drop(non_static_attrs_in_df, axis=1)))
+    old_df = network.df(cls_name)
+    new_df = dataframe.drop(non_static_attrs_in_df, axis=1)
+    if not old_df.empty:
+        new_df = pd.concat((old_df, new_df))
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
