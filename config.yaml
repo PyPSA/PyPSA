@@ -1,0 +1,191 @@
+version: 0.1
+logging_level: INFO
+
+scenario:
+  sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
+  cost: [diw2030]
+  lv: [1., 1.125, 1.25, 1.5, 2.0, 3.0]
+  opts: [Co2L, Co2L-T] #, LC-FL, LC-T, Ep-T, Co2L-T]
+
+countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'] 
+
+historical_year: "2012"
+
+electricity:
+  voltages: [220., 300., 380.]
+
+  co2limit: xxx
+
+  extendable_carriers:
+    Generator: [OCGT]
+    StorageUnit: [Battery, H2] # [CAES]
+
+  SAFE_reservemargin: 0.1
+
+  max_hours:
+    Battery: 3
+    H2: 10
+
+reanalysis:
+  cutout: europe_2011_2016
+
+  landusetype_percent:
+    wind:
+      - [[7, 8, 9, 41], 80]
+      # - [[5, 6], 50]
+      # - [[11, 12, 14, 15], 10]
+    solar:
+      - [[7, 8, 9, 41], 80]
+      # - [[11, 12, 14, 15], 50]
+      # - [[46, 47, 51, 56, 64, 68, 72], 10]
+
+  capacity_per_sqm:
+    wind: 5   # half of 10 (IWES)
+    solar: 16.5 # half of 33 (IWES)
+
+lines:
+  types:
+    220.: "Al/St 240/40 2-bundle 220.0"
+    300.: "Al/St 240/40 3-bundle 300.0"
+    380.: "Al/St 240/40 4-bundle 380.0"
+
+  s_max_pu: 0.7
+  length_factor: 1.25
+
+links:
+  s_max_pu: 0.7
+
+transformers:
+  x: 0.1
+  s_nom: 2000.
+  type: ''
+
+costs:
+  discountrate: 0.07
+
+  # Marginal and capital costs can be overwritten
+  # capital_cost:
+  #   Wind: Bla
+  marginal_cost: # 
+    PV: 0.01
+    Wind: 0.015
+  EUR_to_ZAR: 15.63
+
+  emission_prices: # only used with the option Ep (emission prices)
+    # Externality costs from Integrated Energy Plan by the ZA DOE
+    co2: 0.27e+3
+    sox: 7.6e+3
+    nox: 4.5e+3
+    hg: 41484.e-6 # is also part of the excel sheet
+    particulate: 11.3e+3
+
+solving:
+  options:
+    formulation: kirchhoff
+    clip_p_max_pu: 1.e-2
+    load_shedding: true
+    noisy_costs: true
+    min_iterations: 4
+    max_iterations: 8
+    # max_iterations: 1
+    # nhours: 10
+  solver:
+    name: gurobi_persistent
+    threads: 4
+    method: 2
+    crossover: 0 # -1 (Choose freely)
+    BarConvTol: 1.e-5
+    FeasibilityTol: 1.e-6
+    LogToConsole: 0
+    OutputFlag: 1
+
+plotting:
+  map:
+    figsize: [7, 7]
+    boundaries: [16, -35, 33, -22]
+    p_nom:
+      bus_size_factor: 5.e+4
+      linewidth_factor: 3.e+3 # 1.e+3  #3.e+3
+
+  costs_max: 800
+
+  vre_techs: ["Wind", "PV"]
+  conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
+  storage_techs: ["Hydro", "CAES", "Battery", "Pumped storage", "Hydro+PS"]
+  store_techs: ["Li ion", "water tanks"]
+  load_carriers: ["AC load", "heat load", "Li ion load"]
+  AC_carriers: ["AC line", "AC transformer"]
+  link_carriers: ["DC line", "Converter AC-DC"] 
+  heat_links: ["heat pump", "resistive heater", "CHP heat", "CHP electric",
+               "gas boiler", "central heat pump", "central resistive heater", "central CHP heat",
+               "central CHP electric", "central gas boiler"]
+  heat_generators: ["gas boiler", "central gas boiler", "solar thermal collector", "central solar thermal collector"]
+  tech_colors:
+    Wind: "xkcd:azure"
+    Hydro: "g"
+    ror: "g"
+    Hydro+PS: "g"
+    PV: "y"
+    OCGT: "brown"
+    OCGT marginal: "sandybrown"
+    OCGT-heat: "orange"
+    central gas boiler: "orange"
+    gas boiler: "orange"
+    gas boilers: "orange"
+    gas boiler marginal: "orange"
+    gas: "brown"
+    lines: "k"
+    AC line: "k"
+    AC-AC: "k"
+    transmission lines: "k"
+    H2: "m"
+    hydrogen storage: "m"
+    Battery: "slategray"
+    battery storage: "slategray"
+    CAES: "lightgray"
+    Nuclear: "r"
+    Nuclear marginal: "r"
+    Coal: "k"
+    Coal marginal: "k"
+    Lignite: "grey"
+    Lignite marginal: "grey"
+    CCGT: "orange"
+    CCGT marginal: "orange"
+    Diesel: "darkred"
+    Diesel marginal: "darkred"
+    heat pumps: "green"
+    heat pump: "green"
+    central heat pump: "green"
+    resistive heater: "pink"
+    central resistive heater: "pink"
+    Sabatier: "turquoise"
+    water tanks: "w"
+    CHP: "r"
+    CHP heat: "r"
+    CHP electric: "r"
+    central CHP heat: "r"
+    central CHP electric: "r"
+    Pumped storage: "g"
+    Ambient: "k"
+    AC load: "b"
+    Heat load: "r"
+    Li ion load: "grey"
+    heat: "r"
+    Li ion: "grey"
+    district heating: "#CC4E5C"
+  nice_names:
+    # OCGT: "Gas"
+    # OCGT marginal: "Gas (marginal)"
+    #Battery: "Battery storage"
+    lines: "Transmission lines"
+    AC line: "AC lines"
+    AC-AC: "DC lines"
+    ror: "Run of river"
+  nice_names_n:
+    offwind: "offshore\nwind"
+    onwind: "onshore\nwind"
+    # OCGT: "Gas"
+    H2: "Hydrogen\nstorage"
+    # OCGT marginal: "Gas (marginal)"
+    lines: "transmission\nlines"
+    ror: "run of river"
