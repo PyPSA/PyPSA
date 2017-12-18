@@ -50,10 +50,11 @@ class ImpExper(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.finish()
-        ds = self.ds
-        if ds is not None:
-            ds.__exit__(exc_type, exc_val, exc_tb)
+        if exc_type is None:
+            self.finish()
+
+        if self.ds is not None:
+            self.ds.__exit__(exc_type, exc_val, exc_tb)
 
     def finish(self):
         pass
