@@ -52,6 +52,7 @@ from .descriptors import Dict, get_switchable_as_dense
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
+                 export_to_netcdf, import_from_netcdf,
                  import_from_pypower_ppc, import_components_from_dataframe,
                  import_series_from_dataframe, import_from_pandapower_net)
 
@@ -160,6 +161,10 @@ class Network(Basic):
 
     export_to_hdf5 = export_to_hdf5
 
+    import_from_netcdf = import_from_netcdf
+
+    export_to_netcdf = export_to_netcdf
+
     import_from_pypower_ppc = import_from_pypower_ppc
 
     import_from_pandapower_net = import_from_pandapower_net
@@ -192,11 +197,15 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, import_name=None, name="", ignore_standard_types=False, csv_folder_name=None,**kwargs):
+    def __init__(self, import_name=None, name="", ignore_standard_types=False, **kwargs):
 
-        from .__init__ import __version__ as pypsa_version
+        if 'csv_folder_name' in kwargs:
+            logger.warning("The argument csv_folder_name for initiating Network() is deprecated, please use import_name instead.")
+            import_name = kwargs.pop('csv_folder_name')
 
-        Basic.__init__(self,name)
+        from . import __version__ as pypsa_version
+
+        Basic.__init__(self, name)
 
         #this will be saved on export
         self.pypsa_version = pypsa_version
@@ -242,15 +251,13 @@ class Network(Basic):
         if not ignore_standard_types:
             self.read_in_default_standard_types()
 
-
-        if import_name is not None and csv_folder_name is None:
+        if import_name is not None:
             if import_name[-3:] == ".h5":
                 self.import_from_hdf5(import_name)
+            elif import_name[-3:] == ".nc":
+                self.import_from_netcdf(import_name)
             else:
                 self.import_from_csv_folder(import_name)
-        elif csv_folder_name is not None:
-            logger.warning("The argument csv_folder_name for initiating Network() is deprecated, please use import_name instead.")
-            self.import_from_csv_folder(csv_folder_name)
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)

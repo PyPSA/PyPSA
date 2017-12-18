@@ -35,6 +35,12 @@ import pandas as pd
 import pypsa
 import numpy as np
 
+try:
+    import xarray as xr
+    has_xarray = True
+except ImportError:
+    has_xarray = False
+
 class ImpExper(object):
     ds = None
 
@@ -169,6 +175,76 @@ class ExporterHDF5(Exporter):
 
     def save_series(self, list_name, attr, df):
         self.ds.put('/' + list_name + '_t/' + attr, df, format='table', index=False)
+
+if has_xarray:
+    class ImporterNetCDF(Importer):
+        def __init__(self, path):
+            self.path = path
+            if isinstance(path, string_types):
+                self.ds = xr.open_dataset(path)
+
+        def __enter__(self):
+            if isinstance(self.path, string_types):
+                self.ds = super(ImporterNetCDF, self).__init__()
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if isinstance(self.path, string_types):
+                super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
+
+        def get_attributes(self):
+            return {attr[len('network_'):]: val
+                    for attr, val in iteritems(self.ds.attrs)
+                    if attr.startswith('network_')}
+
+        def get_snapshots(self):
+            return self.get_static('snapshots')
+
+        def get_static(self, list_name):
+            t = list_name + '_'
+            i = len(t)
+            df = pd.DataFrame.from_dict({attr[i:]: self.ds[attr].to_pandas()
+                                         for attr in iterkeys(self.ds.data_vars)
+                                         if attr.startswith(t) and attr[i:i+2] != 't_'})
+            df.index.name = 'name'
+            return df
+
+        def get_series(self, list_name):
+            t = list_name + '_t_'
+            for attr in iterkeys(self.ds.data_vars):
+                if attr.startswith(t):
+                    df = self.ds[attr].to_pandas()
+                    df.index.name = 'name'
+                    df.columns.name = 'name'
+                    yield attr[len(t):], df
+
+    class ExporterNetCDF(Exporter):
+        def __init__(self, path):
+            self.path = path
+            self.ds = xr.Dataset()
+
+        def save_attributes(self, attrs):
+            self.ds.attrs.update(('network_' + attr, val)
+                                for attr, val in iteritems(attrs))
+
+        def save_snapshots(self, snapshots):
+            snapshots.index.name = 'snapshots'
+            for attr in snapshots.columns:
+                self.ds['snapshots_' + attr] = snapshots[attr]
+
+        def save_static(self, list_name, df):
+            df.index.name = list_name + '_i'
+            for attr in df.columns:
+                self.ds[list_name + '_' + attr] = df[attr]
+
+        def save_series(self, list_name, attr, df):
+            df.index.name = 'snapshots'
+            df.columns.name = list_name + '_t_' + attr + '_i'
+            self.ds[list_name + '_t_' + attr] = df
+
+        def finish(self):
+            if self.path is not None:
+                self.ds.to_netcdf(self.path)
 
 def _export_to_exporter(network, exporter, basename, export_standard_types=False):
     """
@@ -362,17 +438,57 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
         _export_to_exporter(network, exporter, basename=basename,
                             export_standard_types=export_standard_types)
 
+def import_from_netcdf(network, path, skip_time=False):
+    """
+    Import network data from netCDF file or xarray Dataset at `path`.
 
+    Parameters
+    ----------
+    path : string|xr.Dataset
+        Path to netCDF dataset or instance of xarray Dataset
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
+    """
 
+    assert has_xarray, "xarray must be installed for netCDF support."
 
+    basename = os.path.basename(path) if isinstance(path, string_types) else None
+    with ImporterNetCDF(path=path) as importer:
+        _import_from_importer(network, importer, basename=basename,
+                              skip_time=skip_time)
 
+def export_to_netcdf(network, path=None, export_standard_types=False):
+    """
+    Export network and components to a netCDF file.
 
+    Both static and series attributes of components are exported, but only
+    if they have non-default values.
 
+    If path does not already exist, it is created.
 
+    Parameters
+    ----------
+    path : string|None
+        Name of netCDF file to which to export (if it exists, it is overwritten)
 
+    Returns
+    -------
+    ds : xr.Dataset
 
+    Examples
+    --------
+    >>> export_to_netcdf(network, filename)
+    OR
+    >>> network.export_to_netcdf(filename)
+    """
 
+    assert has_xarray, "xarray must be installed for netCDF support."
 
+    basename = os.path.basename(path) if path is not None else None
+    with ExporterNetCDF(path=path) as exporter:
+        _export_to_exporter(network, exporter, basename=basename,
+                            export_standard_types=export_standard_types)
+        return exporter.ds
 
 def _import_from_importer(network, importer, basename, skip_time=False):
     """
