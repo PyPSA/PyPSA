@@ -186,7 +186,7 @@ if has_xarray:
 
         def __enter__(self):
             if isinstance(self.path, string_types):
-                self.ds = super(ImporterNetCDF, self).__init__()
+                super(ImporterNetCDF, self).__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
