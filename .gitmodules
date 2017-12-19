@@ -1,0 +1,3 @@
+[submodule "data/costs"]
+	path = data/costs
+	url = hoersch@fias.uni-frankfurt.de:/home/vres/data/tom/playground/sector/data/costs
