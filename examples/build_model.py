@@ -10,13 +10,32 @@ import pypsa
 
 from pypsa.opf import network_lopf_build_model as build_model
 
+import argparse
+import logging
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    '-v', '--verbose',
+    help="Be verbose",
+    action="store_const", dest="loglevel", const=logging.INFO,
+)
+parser.add_argument(
+    '-d', '--debug',
+    help="Print lots of debugging statements",
+    action="store_const", dest="loglevel", const=logging.DEBUG,
+    default=logging.WARNING,
+)
+args = parser.parse_args()
+logging.basicConfig( level=args.loglevel)
+
 ### Minimum part load demonstration
 #
 #In final hour load goes below part-load limit of coal gen (30%), forcing gas to commit.
 
 for test_i in range(1):
 
-    snapshots = range( 1, 10000)
+    snapshots = range( 1, 1001)
     p_set = [ p*20 for p in snapshots]
 
     nu = pypsa.Network()
@@ -25,18 +44,18 @@ for test_i in range(1):
 
     nu.add("Bus","bus")
 
+    generator_p_nom = [ i for i in range( 100)]
+    generator_marginal_cost = [ 1000 - i for i in range(100) ]
+    p_min_pu = .3
 
-    nu.add("Generator","coal",bus="bus",
-           committable=True,
-           p_min_pu=0.3,
-           marginal_cost=20,
-           p_nom=10000)
-
-    nu.add("Generator","gas",bus="bus",
-           committable=True,
-           marginal_cost=70,
-           p_min_pu=0.1,
-           p_nom=1000)
+    for gen_i, gen in enumerate( generator_p_nom):
+        nu.add( "Generator",
+                "gas_" + str(gen_i),
+                bus = "bus",
+                committable = True,
+                p_min_pu = p_min_pu,
+                marginal_cost = generator_marginal_cost[gen_i],
+                p_nom = generator_p_nom[gen_i],)
 
     nu.add("Load","load",bus="bus",p_set= p_set )#[4000,6000,5000,800])
 
@@ -70,154 +89,5 @@ for test_i in range(1):
            p_nom=1000)
 
     nu.add("Load","load",bus="bus",p_set= p_set )#[4000,800,5000,3000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchoff")
-
-    nu.generators_t.status
-
-    nu.generators_t.p
-
-    ### Minimum down time demonstration
-    #
-    #Coal has a minimum down time, forcing it to go off longer.
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-
-    nu.add("Bus","bus")
-
-
-    nu.add("Generator","coal",bus="bus",
-           committable=True,
-           p_min_pu=0.3,
-           marginal_cost=20,
-           min_down_time=2,
-           p_nom=10000)
-
-    nu.add("Generator","gas",bus="bus",
-           committable=True,
-           marginal_cost=70,
-           p_min_pu=0.1,
-           initial_status=0,
-           p_nom=4000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[3000,800,3000,8000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchoff")
-
-    ### Start up and shut down costs
-    #
-    #Now there are associated costs for shutting down, etc
-
-
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-
-    nu.add("Bus","bus")
-
-
-    nu.add("Generator","coal",bus="bus",
-           committable=True,
-           p_min_pu=0.3,
-           marginal_cost=20,
-           min_down_time=2,
-           start_up_cost=5000,
-           p_nom=10000)
-
-    nu.add("Generator","gas",bus="bus",
-           committable=True,
-           marginal_cost=70,
-           p_min_pu=0.1,
-           initial_status=0,
-           shut_down_cost=25,
-           p_nom=4000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[3000,800,3000,8000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchoff")
-
-
-    ## Ramp rate limits
-
-    import pypsa
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-
-    nu.add("Bus","bus")
-
-
-    nu.add("Generator","coal",bus="bus",
-           marginal_cost=20,
-           ramp_limit_up=0.1,
-           ramp_limit_down=0.2,
-           p_nom=10000)
-
-    nu.add("Generator","gas",bus="bus",
-           marginal_cost=70,
-           p_nom=4000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,7000,7000,7000,7000,3000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchoff")
-
-    nu.generators_t.p
-
-    import pypsa
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-
-    nu.add("Bus","bus")
-
-
-    nu.add("Generator","coal",bus="bus",
-           marginal_cost=20,
-           ramp_limit_up=0.1,
-           ramp_limit_down=0.2,
-           p_nom_extendable=True,
-           capital_cost=1e2)
-
-    nu.add("Generator","gas",bus="bus",
-           marginal_cost=70,
-           p_nom=4000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,7000,7000,7000,7000,3000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchoff")
-
-    import pypsa
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-
-    nu.add("Bus","bus")
-
-
-    #Can get bad interactions if SU > RU and p_min_pu; similarly if SD > RD
-
-
-    nu.add("Generator","coal",bus="bus",
-           marginal_cost=20,
-           committable=True,
-           p_min_pu=0.05,
-           initial_status=0,
-           ramp_limit_start_up=0.1,
-           ramp_limit_up=0.2,
-           ramp_limit_down=0.25,
-           ramp_limit_shut_down=0.15,
-           p_nom=10000.)
-
-    nu.add("Generator","gas",bus="bus",
-           marginal_cost=70,
-           p_nom=10000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[0.,200.,7000,7000,7000,2000,0])
 
     build_model( nu, nu.snapshots, formulation = "kirchoff")
