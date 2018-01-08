@@ -8,13 +8,13 @@
 
 import pypsa
 
-from pypsa.opt import network_lopf_build_model as build_model
+from pypsa.opf import network_lopf_build_model as build_model
 
 ### Minimum part load demonstration
 #
 #In final hour load goes below part-load limit of coal gen (30%), forcing gas to commit.
 
-for test_i in range(100):
+for test_i in range(10):
 
     nu = pypsa.Network()
 
@@ -105,12 +105,6 @@ for test_i in range(100):
 
     build_model( nu, nu.snapshots)
 
-    nu.objective
-
-    nu.generators_t.status
-
-    nu.generators_t.p
-
     ### Start up and shut down costs
     #
     #Now there are associated costs for shutting down, etc
@@ -144,11 +138,6 @@ for test_i in range(100):
 
     build_model( nu, nu.snapshots)
 
-    nu.objective
-
-    nu.generators_t.status
-
-    nu.generators_t.p
 
     ## Ramp rate limits
 
@@ -201,10 +190,6 @@ for test_i in range(100):
 
     build_model( nu, nu.snapshots)
 
-    nu.generators.p_nom_opt
-
-    nu.generators_t.p
-
     import pypsa
 
     nu = pypsa.Network()
@@ -235,11 +220,3 @@ for test_i in range(100):
     nu.add("Load","load",bus="bus",p_set=[0.,200.,7000,7000,7000,2000,0])
 
     build_model( nu, nu.snapshots)
-
-    nu.generators_t.p
-
-    nu.generators_t.status
-
-    nu.generators.initial_status
-
-    nu.generators.loc["coal"]
