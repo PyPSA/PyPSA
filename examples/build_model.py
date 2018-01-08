@@ -14,11 +14,14 @@ from pypsa.opf import network_lopf_build_model as build_model
 #
 #In final hour load goes below part-load limit of coal gen (30%), forcing gas to commit.
 
-for test_i in range(10):
+for test_i in range(1):
+
+    snapshots = range( 1, 1000)
+    p_set = [ p*20 for p in snapshots]
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(4))
+    nu.set_snapshots(snapshots)
 
     nu.add("Bus","bus")
 
@@ -35,7 +38,7 @@ for test_i in range(10):
            p_min_pu=0.1,
            p_nom=1000)
 
-    nu.add("Load","load",bus="bus",p_set=[4000,6000,5000,800])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,6000,5000,800])
 
     build_model( nu, nu.snapshots)
 
@@ -49,10 +52,8 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(4))
-
+    nu.set_snapshots( snapshots)
     nu.add("Bus","bus")
-
 
     nu.add("Generator","coal",bus="bus",
            committable=True,
@@ -68,7 +69,7 @@ for test_i in range(10):
            min_up_time=3,
            p_nom=1000)
 
-    nu.add("Load","load",bus="bus",p_set=[4000,800,5000,3000])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,800,5000,3000])
 
     build_model( nu, nu.snapshots)
 
@@ -82,7 +83,7 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(4))
+    nu.set_snapshots( snapshots)
 
     nu.add("Bus","bus")
 
@@ -101,7 +102,7 @@ for test_i in range(10):
            initial_status=0,
            p_nom=4000)
 
-    nu.add("Load","load",bus="bus",p_set=[3000,800,3000,8000])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[3000,800,3000,8000])
 
     build_model( nu, nu.snapshots)
 
@@ -113,7 +114,7 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(4))
+    nu.set_snapshots( snapshots)
 
     nu.add("Bus","bus")
 
@@ -134,7 +135,7 @@ for test_i in range(10):
            shut_down_cost=25,
            p_nom=4000)
 
-    nu.add("Load","load",bus="bus",p_set=[3000,800,3000,8000])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[3000,800,3000,8000])
 
     build_model( nu, nu.snapshots)
 
@@ -145,7 +146,7 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(6))
+    nu.set_snapshots( snapshots)
 
     nu.add("Bus","bus")
 
@@ -160,7 +161,7 @@ for test_i in range(10):
            marginal_cost=70,
            p_nom=4000)
 
-    nu.add("Load","load",bus="bus",p_set=[4000,7000,7000,7000,7000,3000])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,7000,7000,7000,7000,3000])
 
     build_model( nu, nu.snapshots)
 
@@ -170,7 +171,7 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(6))
+    nu.set_snapshots( snapshots)
 
     nu.add("Bus","bus")
 
@@ -186,7 +187,7 @@ for test_i in range(10):
            marginal_cost=70,
            p_nom=4000)
 
-    nu.add("Load","load",bus="bus",p_set=[4000,7000,7000,7000,7000,3000])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,7000,7000,7000,7000,3000])
 
     build_model( nu, nu.snapshots)
 
@@ -194,7 +195,7 @@ for test_i in range(10):
 
     nu = pypsa.Network()
 
-    nu.set_snapshots(range(7))
+    nu.set_snapshots( snapshots)
 
     nu.add("Bus","bus")
 
@@ -217,6 +218,6 @@ for test_i in range(10):
            marginal_cost=70,
            p_nom=10000)
 
-    nu.add("Load","load",bus="bus",p_set=[0.,200.,7000,7000,7000,2000,0])
+    nu.add("Load","load",bus="bus",p_set= p_set )#[0.,200.,7000,7000,7000,2000,0])
 
     build_model( nu, nu.snapshots)
