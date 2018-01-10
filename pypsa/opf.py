@@ -813,7 +813,9 @@ def using_tocoo_izip(x):
         yield (i,j,v)
 
 def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False):
+    """ define passive branch flows with the kirchoff method """
 
+    print( "running kirchoff passive branch flows")
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
         find_cycles(sub_network)
@@ -869,6 +871,8 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
              time_ind_params = [ branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
                                                                    if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i,j] for branch_idx in branch_idxs]
              for snapshot in snapshots:
+                 print( time_ind_params)
+                 print( network.model.passive_branch_p[branch_idx[0], branch_idx[1], snapshot])
                  expression_list = [ (time_ind_param,
                                       network.model.passive_branch_p[branch_idx[0], branch_idx[1], snapshot]) for (branch_idx, time_ind_param) in zip(branch_idxs, time_ind_params)]
 
