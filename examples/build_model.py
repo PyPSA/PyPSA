@@ -14,6 +14,8 @@ import argparse
 import logging
 import random
 
+random.seed( 55)
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
