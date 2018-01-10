@@ -6,7 +6,6 @@
 from __future__ import print_function, division
 import pypsa
 import numpy as np
-import pypsa.opf as opf
 
 network = pypsa.Network()
 
@@ -57,10 +56,7 @@ def my_f(network,snapshots):
     print(snapshots)
 
 
-network.set_snapshots(range(10000))
-
-opf.network_lopf_build_model( network, network.snapshots)
-#network.lopf(extra_functionality=my_f)
+network.lopf(extra_functionality=my_f)
 
 #Cheap generator 1 cannot be fully dispatched because of network constraints,
 #so expensive generator 0 also has to dispatch
@@ -82,3 +78,4 @@ print(network.buses_t.v_mag_pu)
 #it from expensive generator 0, also some dispatch from cheap generator 1 has to be substituted from generator0
 #to avoid overloading line 1.
 print(network.buses_t.marginal_price)
+
