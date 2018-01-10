@@ -28,7 +28,6 @@ from six import iteritems, string_types
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
-import itertools
 import numpy as np
 import pandas as pd
 from scipy.sparse.linalg import spsolve
@@ -802,23 +801,8 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
                  list(passive_branches.index), snapshots)
 
 
-def using_tocoo_izip(x):
-    """ from https://stackoverflow.com/questions/4319014/iterating-through-a-scipy-sparse-vector-or-matrix,
-    to more quickly iterate the dok matrix.
-
-    Moved actual conversion into kirchhoff, to allow yield here
-    """
-
-    for i,j,v in itertools.izip(cx.row, cx.col, cx.data):
-        yield (i,j,v)
-
 def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_p, attribute):
     """ Constructs cycle_constraints for a particular subnetwork
-
-    Uses CSC matrix structure for faster iteration
-
-    Adapted from
-    https://stackoverflow.com/a/42625707/6753312
     """
 
     sub_network_cycle_constraints = {}
@@ -827,7 +811,6 @@ def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_
     matrix = subnetwork.C.tocsr()
     branches = subnetwork.branches()
 
-#    for cycle_i, col, matrix_data in itertools.izip( matrix.row, matrix.col, matrix.data):
     for col_j in range( matrix.shape[1] ):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
 
@@ -881,7 +864,6 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
         csc_rep = subnetwork.C.tocoo()
 
-        #TODO fix the inputs here
         sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
                                                                                                        snapshots,
                                                                                                        network.model.passive_branch_p, attribute)
