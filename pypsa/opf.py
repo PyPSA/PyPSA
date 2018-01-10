@@ -836,29 +836,39 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
     cycle_index = []
     cycle_constraints = {}
 
-    for sn in network.sub_networks.obj:
+    for subnetwork in network.sub_networks.obj:
 
-        branches = sn.branches()
-        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
+        branches = subnetwork.branches()
+        attribute = "r_pu" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu"
 
-        for j in range(sn.C.shape[1]):
+        for j in range(subnetwork.C.shape[1]):
 
-            cycle_is = sn.C[:,j].nonzero()[0]
+            cycle_is = subnetwork.C[:,j].nonzero()[0]
 
             if len(cycle_is) == 0: continue
 
-            cycle_index.append((sn.name, j))
+            cycle_index.append((subnetwork.name, j))
 
-            branch_idxs =    [ branches.index[cycle_i] for cycle_i in cycle_is ]
-            time_ind_params = [ -1 * branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
-                                                                   if branch_idx[0] == "Transformer" else 1.)*sn.C[cycle_i, j] for branch_idx in branch_idxs]
+
+
+            branch_idxs, time_ind_params = zip( *[ (
+                branches.index[cycle_i],
+                branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
+                                                   if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i, j]
+            ) for  itertools.product( branch_idxs, cycle_is)] )
+
+            # branch_idxs =    [ branches.index[cycle_i] for cycle_i in cycle_is ]
+
+            # time_ind_params = [ -1 * branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
+            #                                                        if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i, j] for (
+            #                                                                branch_idx, cycle_i) in itertools.product( branch_idxs, cycle_is)]
 
             for snapshot in snapshots:
                 expression_list = [ (time_ind_param,
                                       network.model.passive_branch_p[branch_idx[0], branch_idx[1], snapshot]) for (branch_idx, time_ind_param) in zip(branch_idxs, time_ind_params)]
 
                 lhs = LExpression(expression_list)
-                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
+                cycle_constraints[subnetwork.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
 
     l_constraint(network.model, "cycle_constraints", cycle_constraints,
                  cycle_index, snapshots)
