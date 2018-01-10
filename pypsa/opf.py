@@ -850,12 +850,13 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
             cycle_index.append((subnetwork.name, j))
 
 
-
-            branch_idxs, time_ind_params = zip( *[ (
-                branches.index[cycle_i],
-                branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
-                                                   if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i, j]
-            ) for  itertools.product( branch_idxs, cycle_is)] )
+            branch_idxs = []
+            time_ind_params = []
+            for cycle_i in cycle_is:
+                branch_idx = branches.index[cycle_i]
+                branch_idxs.append(branch_idx)
+                time_ind_params.append(  branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
+                                                   if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i, j])
 
             # branch_idxs =    [ branches.index[cycle_i] for cycle_i in cycle_is ]
 
