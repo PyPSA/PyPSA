@@ -13,6 +13,7 @@ from pypsa.opf import network_lopf_build_model as build_model
 import argparse
 import logging
 import random
+import copy
 
 random.seed( 55)
 
@@ -80,39 +81,9 @@ for test_i in range(1):
                    x = .2,
                    r = .08)
 
-    print( nu.branches())
-
-    build_model( nu, nu.snapshots, formulation = "kirchhoff")
+    formulations = ["kirchhoff", "angles", "cycles"] #"ptdf"
+    for formulation in formulations:
+        nu_copy = copy.deepcopy(nu)
+        build_model( nu, nu.snapshots, formulation = formulation)
 #    build_model( nu, nu.snapshots, formulation = "angles")
 #    nu.lopf( nu.snapshots, formulation = "kirchhoff")
-
-    nu.generators_t.status
-
-    nu.generators_t.p
-
-    ### Minimum up time demonstration
-    #
-    #Gas has minimum up time, forcing it to be online longer
-
-    nu = pypsa.Network()
-
-    nu.set_snapshots( snapshots)
-    nu.add("Bus","bus")
-
-    nu.add("Generator","coal",bus="bus",
-           committable=True,
-           p_min_pu=0.3,
-           marginal_cost=20,
-           p_nom=10000)
-
-    nu.add("Generator","gas",bus="bus",
-           committable=True,
-           marginal_cost=70,
-           p_min_pu=0.1,
-           initial_status=0,
-           min_up_time=3,
-           p_nom=1000)
-
-    nu.add("Load","load",bus="bus",p_set= p_set )#[4000,800,5000,3000])
-
-    build_model( nu, nu.snapshots, formulation = "kirchhoff")
