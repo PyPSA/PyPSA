@@ -30,7 +30,7 @@ install:
   - conda env update -q -n pypsa --file=requirements.yml
   - conda env update -q -n pypsa --file=requirements_dev.yml
   - source activate pypsa
-  - conda install -q -c conda-forge python-coveralls # don't install on appveyor
+  # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
 
 # before_script:  # configure a headless display to test plot generation
@@ -40,5 +40,5 @@ install:
 
 script: "make test"
 
-after_success:
-  - coveralls
+# after_success:
+#   - coveralls
