@@ -528,8 +528,8 @@ def calculate_dependent_values(network):
     network.transformers["r_pu"] = network.transformers.r/network.transformers.s_nom
     network.transformers["b_pu"] = network.transformers.b*network.transformers.s_nom
     network.transformers["g_pu"] = network.transformers.g*network.transformers.s_nom
-    network.lines["x_pu_eff"] = network.transformers["x_pu"]* network.transformers["tap_ratio"]
-    network.lines["r_pu_eff"] = network.transformers["r_pu"]* network.transformers["tap_ratio"]
+    network.transformers["x_pu_eff"] = network.transformers["x_pu"]* network.transformers["tap_ratio"]
+    network.transformers["r_pu_eff"] = network.transformers["r_pu"]* network.transformers["tap_ratio"]
 
     apply_transformer_t_model(network)
 
