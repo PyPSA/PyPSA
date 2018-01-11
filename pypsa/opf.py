@@ -729,6 +729,39 @@ def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
                  list(passive_branches.index), snapshots)
 
 
+def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_p, attribute):
+    """ Constructs cycle_constraints for a particular subnetwork
+    """
+
+    sub_network_cycle_constraints = {}
+    sub_network_cycle_index = []
+
+    matrix = subnetwork.C.tocsr()
+    branches = subnetwork.branches()
+
+    for col_j in range( matrix.shape[1] ):
+        cycle_is = matrix.getcol(col_j).nonzero()[0]
+
+        if len(cycle_is) == 0: continue
+
+        sub_network_cycle_index.append((subnetwork.name, col_j))
+
+
+        branch_idx_attributes = []
+
+        for cycle_i in cycle_is:
+            branch_idx = branches.index[cycle_i]
+            attribute_value = branches.at[ branch_idx, attribute] *subnetwork.C[ cycle_i, col_j]
+            branch_idx_attributes.append( (branch_idx, attribute_value))
+
+        for snapshot in snapshots:
+            expression_list = [ (attribute_value,
+                                 passive_branch_p[branch_idx[0], branch_idx[1], snapshot]) for (branch_idx, attribute_value) in branch_idx_attributes]
+
+            lhs = LExpression(expression_list)
+            sub_network_cycle_constraints[subnetwork.name,col_j,snapshot] = LConstraint(lhs,"==",LExpression())
+
+    return( sub_network_cycle_index, sub_network_cycle_constraints)
 
 def define_passive_branch_flows_with_cycles(network,snapshots):
 
@@ -795,41 +828,6 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
                  list(passive_branches.index), snapshots)
 
 
-def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_p, attribute):
-    """ Constructs cycle_constraints for a particular subnetwork
-    """
-
-    sub_network_cycle_constraints = {}
-    sub_network_cycle_index = []
-
-    matrix = subnetwork.C.tocsr()
-    branches = subnetwork.branches()
-
-    for col_j in range( matrix.shape[1] ):
-        cycle_is = matrix.getcol(col_j).nonzero()[0]
-
-        if len(cycle_is) == 0: continue
-
-        sub_network_cycle_index.append((subnetwork.name, col_j))
-
-
-        branch_idx_attributes = []
-
-        for cycle_i in cycle_is:
-            branch_idx = branches.index[cycle_i]
-            attribute_value = branches.at[branch_idx,attribute]*(branches.at[branch_idx,"tap_ratio"] \
-                                                   if branch_idx[0] == "Transformer" else 1.)*subnetwork.C[cycle_i, col_j]
-
-            branch_idx_attributes.append( (branch_idx, attribute_value))
-
-        for snapshot in snapshots:
-            expression_list = [ (attribute_value,
-                                 passive_branch_p[branch_idx[0], branch_idx[1], snapshot]) for (branch_idx, attribute_value) in branch_idx_attributes]
-
-            lhs = LExpression(expression_list)
-            sub_network_cycle_constraints[subnetwork.name,col_j,snapshot] = LConstraint(lhs,"==",LExpression())
-
-    return( sub_network_cycle_index, sub_network_cycle_constraints)
 
 def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False):
     """ define passive branch flows with the kirchoff method """
