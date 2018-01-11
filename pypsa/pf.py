@@ -619,15 +619,14 @@ def calculate_B_H(sub_network,skip_pre=False):
         find_bus_controls(sub_network)
 
     if network.sub_networks.at[sub_network.name,"carrier"] == "DC":
-        attribute="r_pu"
+        attribute="r_pu_eff"
     else:
-        attribute="x_pu"
+        attribute="x_pu_eff"
 
     #following leans heavily on pypower.makeBdc
 
     #susceptances
-    b = 1./np.concatenate([(c.df.loc[c.ind, attribute]*c.df.loc[c.ind, "tap_ratio"]).values if c.name == "Transformer"
-                           else c.df.loc[c.ind, attribute].values
+    b = 1./np.concatenate([(c.df.loc[c.ind, attribute]).values \
                            for c in sub_network.iterate_components(passive_branch_components)])
 
 
