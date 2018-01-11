@@ -682,8 +682,8 @@ def define_passive_branch_flows_with_angles(network,snapshots):
         bt = branch[0]
         bn = branch[1]
         sub = passive_branches.at[branch,"sub_network"]
-        attribute = "r_pu" if network.sub_networks.at[sub,"carrier"] == "DC" else "x_pu"
-        y = 1/(passive_branches.at[branch,attribute]*(passive_branches.at[branch,"tap_ratio"] if bt == "Transformer" else 1.))
+        attribute = "r_pu_eff" if network.sub_networks.at[sub,"carrier"] == "DC" else "x_pu_eff"
+        y = 1/ passive_branches.at[ branch, attribute]
         for sn in snapshots:
             lhs = LExpression([(y,network.model.voltage_angles[bus0,sn]),
                                (-y,network.model.voltage_angles[bus1,sn]),
@@ -750,22 +750,16 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
     cycle_index = []
     cycle_constraints = {}
 
-    for sn in network.sub_networks.obj:
+    for subnetwork in network.sub_networks.obj:
+        branches = subnetwork.branches()
+        attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
 
-        branches = sn.branches()
-        attribute = "r_pu" if network.sub_networks.at[sn.name,"carrier"] == "DC" else "x_pu"
+        sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
+                                                                                                       snapshots,
+                                                                                                       network.model.passive_branch_p, attribute)
 
-        for j in range(sn.C.shape[1]):
-
-            cycle_is = sn.C[:,j].nonzero()[0]
-            cycle_index.append((sn.name, j))
-
-            for snapshot in snapshots:
-                lhs = LExpression([(branches.at[branches.index[i],attribute]*
-                                   (branches.at[branches.index[i],"tap_ratio"] if branches.index[i][0] == "Transformer" else 1.)*sn.C[i,j],
-                                    network.model.passive_branch_p[branches.index[i][0],branches.index[i][1],snapshot])
-                                   for i in cycle_is])
-                cycle_constraints[sn.name,j,snapshot] = LConstraint(lhs,"==",LExpression())
+        cycle_index.extend( sub_network_cycle_index)
+        cycle_constraints.update( sub_network_cycle_constraints)
 
     l_constraint(network.model, "cycle_constraints", cycle_constraints,
                  cycle_index, snapshots)
@@ -775,22 +769,22 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
 
     flows = {}
 
-    for sn in network.sub_networks.obj:
-        branches = sn.branches()
-        buses = sn.buses()
+    for subnetwork in network.sub_networks.obj:
+        branches = subnetwork.branches()
+        buses = subnetwork.buses()
         for i,branch in enumerate(branches.index):
             bt = branch[0]
             bn = branch[1]
 
-            cycle_is = sn.C[i,:].nonzero()[1]
-            tree_is = sn.T[i,:].nonzero()[1]
+            cycle_is = subnetwork.C[i,:].nonzero()[1]
+            tree_is = subnetwork.T[i,:].nonzero()[1]
 
             if len(cycle_is) + len(tree_is) == 0: logger.error("The cycle formulation does not support infinite impedances, yet.")
 
             for snapshot in snapshots:
-                expr = LExpression([(sn.C[i,j], network.model.cycles[sn.name,j,snapshot])
+                expr = LExpression([(subnetwork.C[i,j], network.model.cycles[subnetwork.name,j,snapshot])
                                     for j in cycle_is])
-                lhs = expr + sum(sn.T[i,j]*network._p_balance[buses.index[j],snapshot]
+                lhs = expr + sum(subnetwork.T[i,j]*network._p_balance[buses.index[j],snapshot]
                                  for j in tree_is)
 
                 rhs = LExpression([(1,network.model.passive_branch_p[bt,bn,snapshot])])
@@ -860,9 +854,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
     for subnetwork in network.sub_networks.obj:
 
         branches = subnetwork.branches()
-        attribute = "r_pu" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu"
-
-        csc_rep = subnetwork.C.tocoo()
+        attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
 
         sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
                                                                                                        snapshots,
