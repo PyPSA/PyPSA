@@ -736,7 +736,7 @@ def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_
     sub_network_cycle_constraints = {}
     sub_network_cycle_index = []
 
-    matrix = subnetwork.C.tocsr()
+    matrix = subnetwork.C.tocsc()
     branches = subnetwork.branches()
 
     for col_j in range( matrix.shape[1] ):
