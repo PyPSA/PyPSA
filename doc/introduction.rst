@@ -13,7 +13,7 @@ alternating and direct current networks.  PyPSA is designed to scale
 well with large networks and long time series.
 
 
-As of 2017 PyPSA is under heavy development and therefore it is
+As of 2018 PyPSA is under heavy development and therefore it is
 recommended to use caution when using it in a production
 environment. Some APIs may change - the changes in each PyPSA version
 are listed in the :doc:`release_notes`.
@@ -187,16 +187,15 @@ PyPSA has a Google Group `forum / mailing list
 Citing PyPSA
 ============
 
-
-
 If you use PyPSA for your research, we would appreciate it if you
-would cite the following preprint paper (which has been accepted to
-the `Journal of Open Research Software
-<https://openresearchsoftware.metajnl.com/>`_):
+would cite the following paper:
 
 * T. Brown, J. Hörsch, D. Schlachtberger, `PyPSA: Python for Power
-  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2017,
-  `preprint arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_
+  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2018,
+  `Journal of Open Research Software
+  <https://openresearchsoftware.metajnl.com/>`_, 6(1),
+  `arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_,
+  `DOI:10.5334/jors.188 <https://doi.org/10.5334/jors.188>`_
 
 
 If you want to cite a specific PyPSA version, each release of PyPSA is

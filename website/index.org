@@ -12,7 +12,7 @@ units, sector coupling and mixed alternating and direct current
 networks. PyPSA is designed to scale well with large networks and long
 time series.
 
-As of 2017 PyPSA is under heavy development and therefore it is
+As of 2018 PyPSA is under heavy development and therefore it is
 recommended to use caution when using it in a production environment.
 Some APIs may change - the changes in each PyPSA version are listed in
 the [[./doc/release_notes.html][release notes]].
@@ -176,13 +176,13 @@ PyPSA has a Google Group [[https://groups.google.com/group/pypsa][forum
 
 * Citing PyPSA
 
+
 If you use PyPSA for your research, we would appreciate it if you
-would cite the following preprint paper (which has been accepted to
-the [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]]):
+would cite the following paper:
 
-
-- T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for Power System Analysis]], 2017, [[https://arxiv.org/abs/1707.09913][preprint arXiv:1707.09913]]
-
+- T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for
+  Power System Analysis]], 2018, [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]], 6(1),
+  [[https://arxiv.org/abs/1707.09913][arXiv:1707.09913]], [[https://doi.org/10.5334/jors.188][DOI: 10.5334/jors.188]]
 
 
 If you want to cite a specific PyPSA version, each release of PyPSA is

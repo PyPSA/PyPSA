@@ -2,7 +2,7 @@
 Comparable Software
 #######################
 
-The `PyPSA preprint paper <https://arxiv.org/abs/1707.09913>`_
+The `PyPSA paper <https://arxiv.org/abs/1707.09913>`_
 contains a discussion of PyPSA's features compared to other software
 tools and a functionality comparison in Table III.
 

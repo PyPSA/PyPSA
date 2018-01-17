@@ -1,13 +1,15 @@
 #+TITLE: Python for Power System Analysis: Publications
 #+OPTIONS: toc:nil        no default TOC
 
-There is a preprint paper describing PyPSA (which has been accepted
-to the [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]]):
 
-- T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for Power System Analysis]], 2017, [[https://arxiv.org/abs/1707.09913][preprint arXiv:1707.09913]]
+
 
 If you use PyPSA for your research, we would appreciate it if you
-would cite this preprint paper.
+would cite the following paper:
+
+- T. Brown, J. H\ouml{}rsch, D. Schlachtberger, [[https://arxiv.org/abs/1707.09913][PyPSA: Python for
+  Power System Analysis]], 2018, [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]], 6(1),
+  [[https://arxiv.org/abs/1707.09913][arXiv:1707.09913]], [[https://doi.org/10.5334/jors.188][DOI: 10.5334/jors.188]]
 
 If you want to cite a specific PyPSA version, each release of PyPSA is
 stored on [[https://zenodo.org/][Zenodo]] with a release-specific DOI.  This can be found
@@ -17,11 +19,12 @@ linked from the overall PyPSA Zenodo DOI:
 
 The following research papers have used PyPSA:
 
+- T. Brown, D. Schlachtberger, A. Kies, S. Schramm, M. Greiner, [[https://arxiv.org/abs/1801.05290][Synergies of sector coupling and transmission extension in a cost-optimised, highly renewable European energy system]], 2017, [[https://arxiv.org/abs/1801.05290][preprint arXiv:1801.05290]], [[https://zenodo.org/record/1146665][all input data, code and output data on Zenodo]]
 - J. H\ouml{}rsch, Joanne Calitz, [[https://arxiv.org/abs/1710.11199][PyPSA-ZA: Investment and operation co-optimization of integrating wind and solar in South Africa at high spatial and temporal detail]], presented at the [[http://windac-africa.com/][WindAc Africa Conference]], 2017, [[https://arxiv.org/abs/1710.11199][preprint]], [[https://github.com/FRESNA/pypsa-za][code]]
 - Markus Groissb\ouml{}ck, Alexandre Gusmao, [[https://arxiv.org/abs/1709.03761][Impact of high renewable penetration scenarios on system reliability: two case studies in the Kingdom of Saudi Arabia]], 2017, [[https://arxiv.org/abs/1709.03761][preprint]]
 - J. H\ouml{}rsch, T. Brown, [[https://doi.org/10.1109/EEM.2017.7982024][The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios]], 2017, accepted to [[http://eem2017.com/][14th International Conference on the European Energy Market - EEM 2017]], [[https://arxiv.org/abs/1705.07617][preprint]]
-- D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]], [[https://doi.org/10.5281/zenodo.804337][all input data, code, output data on Zenodo]]
-- J. H\ouml{}rsch, H. Ronellenfitsch, D. Witthaut, T. Brown, [[https://arxiv.org/abs/1704.01881][Linear Optimal Power Flow Using Cycle Flows]], 2017, [[https://arxiv.org/abs/1704.01881][preprint]]
+- D. Schlachtberger, T. Brown, S. Schramm, M. Greiner, [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][postprint]], [[https://doi.org/10.5281/zenodo.804337][all input data, code, output data on Zenodo]]
+- J. H\ouml{}rsch, H. Ronellenfitsch, D. Witthaut, T. Brown, [[https://arxiv.org/abs/1704.01881][Linear Optimal Power Flow Using Cycle Flows]], 2017, [[https://arxiv.org/abs/1704.01881][preprint]], accepted to [[https://www.journals.elsevier.com/electric-power-systems-research][Electric Power Systems Research]]
 - Joao Gorenstein Dedecca, Rudi A. Hakvoort, Paulien M. Herder, [[https://doi.org/10.1016/j.energy.2017.02.111][Transmission expansion simulation for the European Northern Seas offshore grid]], Energy, Volume 125, 15 April 2017, Pages 805-824
 
 If you have written a paper or report using PyPSA, please send us the
