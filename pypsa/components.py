@@ -229,8 +229,7 @@ class Network(Basic):
         if new_components is not None:
             components = pd.concat((components, new_components))
 
-        for c_type in ["passive_one_port", "controllable_one_port",
-                       "passive_branch", "controllable_branch", "standard_type"]:
+        for c_type in set(components.type.unique()) - {np.nan}:
             setattr(self, c_type + "_components",
                     set(components.index[components.type == c_type]))
 
