@@ -11,6 +11,24 @@ would cite the following paper:
   Power System Analysis]], 2018, [[https://openresearchsoftware.metajnl.com/][Journal of Open Research Software]], 6(1),
   [[https://arxiv.org/abs/1707.09913][arXiv:1707.09913]], [[https://doi.org/10.5334/jors.188][DOI: 10.5334/jors.188]]
 
+Please use the following BibTeX:
+
+#+BEGIN_SRC
+   @article{PyPSA,
+      author = {T. Brown and J. H\"orsch and D. Schlachtberger},
+      title = {{PyPSA: Python for Power System Analysis}},
+      journal = {Journal of Open Research Software},
+      volume = {6},
+      issue = {1},
+      number = {4},
+      year = {2018},
+      eprint = {1707.09913},
+      url = {https://doi.org/10.5334/jors.188},
+      doi = {10.5334/jors.188}
+   }
+#+END_SRC
+
+
 If you want to cite a specific PyPSA version, each release of PyPSA is
 stored on [[https://zenodo.org/][Zenodo]] with a release-specific DOI.  This can be found
 linked from the overall PyPSA Zenodo DOI:
