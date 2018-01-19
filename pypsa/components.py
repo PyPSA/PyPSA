@@ -134,6 +134,8 @@ class Network(Basic):
         If True, do not read in PyPSA standard types into standard types DataFrames.
     csv_folder_name : string
         Name of folder from which to import CSVs of network data. Overrides import_name.
+    new_components : pandas.DataFrame
+        DataFrame with index of component name and columns of list_name and description
     kwargs
         Any remaining attributes to set
 
@@ -197,7 +199,9 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
-    def __init__(self, import_name=None, name="", ignore_standard_types=False, **kwargs):
+    def __init__(self, import_name=None, name="", ignore_standard_types=False,
+                 new_components=None,
+                 **kwargs):
 
         if 'csv_folder_name' in kwargs:
             logger.warning("The argument csv_folder_name for initiating Network() is deprecated, please use import_name instead.")
@@ -220,14 +224,34 @@ class Network(Basic):
                                               "components.csv"),
                                  index_col=0)
 
+        components = components.reindex(components.columns|["attrs"],axis=1)
+
+        if new_components is not None:
+            components = pd.concat((components, new_components))
+
+        for c_type in ["passive_one_port", "controllable_one_port",
+                       "passive_branch", "controllable_branch", "standard_type"]:
+            setattr(self, c_type + "_components",
+                    set(components.index[components.type == c_type]))
+
+        self.one_port_components = self.passive_one_port_components|self.controllable_one_port_components
+
+        self.branch_components = self.passive_branch_components|self.controllable_branch_components
+
+        #i.e. everything except "Network"
+        self.all_components = self.branch_components|self.one_port_components|self.standard_type_components|{"Bus", "SubNetwork", "Carrier", "GlobalConstraint"}
+
         self.components = Dict(components.T.to_dict())
 
         for component in self.components.keys():
-            file_name = os.path.join(dir_name,
-                                     component_attrs_dir_name,
-                                     self.components[component]["list_name"] + ".csv")
 
-            attrs = pd.read_csv(file_name, index_col=0, na_values="n/a")
+            if type(self.components[component]["attrs"]) is pd.DataFrame:
+                attrs = self.components[component]["attrs"]
+            else:
+                file_name = os.path.join(dir_name,
+                                         component_attrs_dir_name,
+                                         self.components[component]["list_name"] + ".csv")
+                attrs = pd.read_csv(file_name, index_col=0, na_values="n/a")
 
             attrs['static'] = (attrs['type'] != 'series')
             attrs['varying'] = attrs['type'].isin({'series', 'static or series'})
