@@ -53,7 +53,7 @@ for bus in network.buses.index:
     p0 = 0.
     p1 = 0.
 
-    for c in network.iterate_components(pypsa.components.branch_components):
+    for c in network.iterate_components(network.branch_components):
 
         bs = (c.df.bus0 == bus)
 

@@ -290,7 +290,7 @@ class Network(Basic):
     def _build_dataframes(self):
         """Function called when network is created to build component pandas.DataFrames."""
 
-        for component in all_components:
+        for component in self.all_components:
 
             attrs = self.components[component]["attrs"]
 
@@ -314,7 +314,7 @@ class Network(Basic):
 
     def read_in_default_standard_types(self):
 
-        for std_type in standard_types:
+        for std_type in self.standard_type_components:
 
             list_name = self.components[std_type]["list_name"]
 
@@ -383,7 +383,7 @@ class Network(Basic):
         if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
             snapshots = pd.Index(snapshots.values)
 
-        for component in all_components:
+        for component in self.all_components:
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
 
@@ -615,10 +615,10 @@ class Network(Basic):
 
         network = self.__class__(ignore_standard_types=ignore_standard_types)
 
-        for component in self.iterate_components(["Bus", "Carrier"] + sorted(all_components - {"Bus","Carrier"})):
+        for component in self.iterate_components(["Bus", "Carrier"] + sorted(self.all_components - {"Bus","Carrier"})):
             df = component.df
             #drop the standard types to avoid them being read in twice
-            if not ignore_standard_types and component.name in standard_types:
+            if not ignore_standard_types and component.name in self.standard_type_components:
                 df = component.df.drop(network.components[component.name]["standard_types"].index)
 
             import_components_from_dataframe(network, df, component.name)
@@ -676,24 +676,24 @@ class Network(Basic):
         )
         buses_i = n.buses.index
 
-        rest_components = all_components - standard_types - one_port_components - branch_components
+        rest_components = self.all_components - self.standard_type_components - self.one_port_components - self.branch_components
         for c in rest_components - {"Bus", "SubNetwork"}:
             n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
 
-        for c in standard_types:
+        for c in self.standard_type_components:
             df = self.df(c).drop(self.components[c]["standard_types"].index)
             n.import_components_from_dataframe(pd.DataFrame(df), c)
 
-        for c in one_port_components:
+        for c in self.one_port_components:
             df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
             n.import_components_from_dataframe(pd.DataFrame(df), c)
 
-        for c in branch_components:
+        for c in self.branch_components:
             df = self.df(c).loc[lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)]
             n.import_components_from_dataframe(pd.DataFrame(df), c)
 
         n.set_snapshots(self.snapshots[time_i])
-        for c in all_components:
+        for c in self.all_components:
             i = n.df(c).index
             try:
                 npnl = n.pnl(c)
@@ -716,23 +716,23 @@ class Network(Basic):
     #beware, this turns bools like s_nom_extendable into objects because of
     #presence of links without s_nom_extendable
     def branches(self):
-        return pd.concat((self.df(c) for c in branch_components),
-                         keys=branch_components)
+        return pd.concat((self.df(c) for c in self.branch_components),
+                         keys=self.branch_components)
 
     def passive_branches(self):
-        return pd.concat((self.df(c) for c in passive_branch_components),
-                         keys=passive_branch_components)
+        return pd.concat((self.df(c) for c in self.passive_branch_components),
+                         keys=self.passive_branch_components)
 
     def controllable_branches(self):
-        return pd.concat((self.df(c) for c in controllable_branch_components),
-                         keys=controllable_branch_components)
+        return pd.concat((self.df(c) for c in self.controllable_branch_components),
+                         keys=self.controllable_branch_components)
 
     def determine_network_topology(self):
         """
         Build sub_networks from topology.
         """
 
-        adjacency_matrix = self.adjacency_matrix(passive_branch_components)
+        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components)
         n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
@@ -761,12 +761,12 @@ class Network(Basic):
 
         self.buses.loc[:, "sub_network"] = labels.astype(str)
 
-        for c in self.iterate_components(passive_branch_components):
+        for c in self.iterate_components(self.passive_branch_components):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
 
     def iterate_components(self, components=None, skip_empty=True):
         if components is None:
-            components = all_components
+            components = self.all_components
 
         return (Component(name=c,
                           list_name=self.components[c]["list_name"],
@@ -790,13 +790,13 @@ class Network(Basic):
         """
 
 
-        for c in self.iterate_components(one_port_components):
+        for c in self.iterate_components(self.one_port_components):
             missing = c.df.index[~c.df.bus.isin(self.buses.index)]
             if len(missing) > 0:
                 logger.warning("The following %s have buses which are not defined:\n%s",
                                c.list_name, missing)
 
-        for c in self.iterate_components(branch_components):
+        for c in self.iterate_components(self.branch_components):
             for attr in ["bus0","bus1"]:
                 missing = c.df.index[~c.df[attr].isin(self.buses.index)]
                 if len(missing) > 0:
@@ -804,7 +804,7 @@ class Network(Basic):
                                    c.list_name, attr, missing)
 
 
-        for c in self.iterate_components(passive_branch_components):
+        for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x","r"]:
                 bad = c.df.index[c.df[attr] == 0.]
                 if len(bad) > 0:
@@ -824,7 +824,7 @@ class Network(Basic):
                                c.list_name, bad)
 
 
-        for c in self.iterate_components(all_components):
+        for c in self.iterate_components(self.all_components):
             for attr in c.attrs.index[c.attrs.varying & c.attrs.static]:
                 attr_df = c.pnl[attr]
 
@@ -845,7 +845,7 @@ class Network(Basic):
 
         static_attrs = ['p_nom', 's_nom', 'e_nom']
         varying_attrs = ['p_max_pu', 'e_max_pu']
-        for c in self.iterate_components(all_components - {'TransformerType'}):
+        for c in self.iterate_components(self.all_components - {'TransformerType'}):
             varying_attr = c.attrs.index[c.attrs.varying].intersection(varying_attrs)
             static_attr = c.attrs.index[c.attrs.static].intersection(static_attrs)
 
@@ -958,7 +958,7 @@ class SubNetwork(Common):
     def branches_i(self):
         types = []
         names = []
-        for c in self.iterate_components(passive_branch_components):
+        for c in self.iterate_components(self.network.passive_branch_components):
             types += len(c.ind) * [c.name]
             names += list(c.ind)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
@@ -1008,17 +1008,3 @@ class SubNetwork(Common):
             c = Component(*c[:-1], ind=getattr(self, c.list_name + '_i')())
             if not (skip_empty and len(c.ind) == 0):
                 yield c
-
-
-standard_types = {"LineType", "TransformerType"}
-
-passive_one_port_components = {"ShuntImpedance"}
-controllable_one_port_components = {"Load", "Generator", "StorageUnit", "Store"}
-one_port_components = passive_one_port_components|controllable_one_port_components
-
-passive_branch_components = {"Line", "Transformer"}
-controllable_branch_components = {"Link"}
-branch_components = passive_branch_components|controllable_branch_components
-
-#i.e. everything except "Network"
-all_components = branch_components|one_port_components|standard_types|{"Bus", "SubNetwork", "Carrier", "GlobalConstraint"}

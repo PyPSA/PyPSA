@@ -866,14 +866,12 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
 def define_passive_branch_constraints(network,snapshots):
 
-    from .components import passive_branch_components
-
     passive_branches = network.passive_branches()
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
     s_max_pu = pd.concat({c : get_switchable_as_dense(network,c,'s_max_pu')
-                          for c in passive_branch_components}, axis=1)
+                          for c in network.passive_branch_components}, axis=1)
 
     flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
                                     "<=", s_max_pu.at[sn,b]*fixed_branches.at[b,"s_nom"]]
@@ -1123,9 +1121,6 @@ def define_linear_objective(network,snapshots):
 
 def extract_optimisation_results(network, snapshots, formulation="angles"):
 
-    from .components import \
-        passive_branch_components, branch_components, controllable_one_port_components
-
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
         snapshots = pd.Index(snapshots.values)
@@ -1181,14 +1176,14 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
             pd.concat({c.name:
                        c.pnl.p.loc[snapshots].multiply(c.df.sign, axis=1)
                        .groupby(c.df.bus, axis=1).sum()
-                       for c in network.iterate_components(controllable_one_port_components)}) \
+                       for c in network.iterate_components(network.controllable_one_port_components)}) \
               .sum(level=1) \
               .reindex(columns=network.buses_t.p.columns, fill_value=0.)
 
 
     # passive branches
     passive_branches = as_series(model.passive_branch_p)
-    for c in network.iterate_components(passive_branch_components):
+    for c in network.iterate_components(network.passive_branch_components):
         set_from_series(c.pnl.p0, passive_branches.loc[c.name])
         c.pnl.p1.loc[snapshots] = - c.pnl.p0.loc[snapshots]
 
@@ -1262,7 +1257,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 
     s_nom_extendable_passive_branches = as_series(model.passive_branch_s_nom)
-    for c in network.iterate_components(passive_branch_components):
+    for c in network.iterate_components(network.passive_branch_components):
         c.df['s_nom_opt'] = c.df.s_nom
         if c.df.s_nom_extendable.any():
             c.df.loc[c.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]

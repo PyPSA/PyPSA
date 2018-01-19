@@ -55,7 +55,7 @@ def test_pypower_case():
     network.pf()
 
     #compare branch flows
-    for c in network.iterate_components(pypsa.components.passive_branch_components):
+    for c in network.iterate_components(network.passive_branch_components):
         for si in ["p0","p1","q0","q1"]:
             si_pypsa = getattr(c.pnl,si).loc["now"].values
             si_pypower = results_df['branch'][si][c.df.original_index].values

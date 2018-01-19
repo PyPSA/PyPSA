@@ -288,7 +288,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_snapshots(snapshots)
 
     exported_components = []
-    for component in pypsa.components.all_components - {"SubNetwork"}:
+    for component in network.all_components - {"SubNetwork"}:
 
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
@@ -296,7 +296,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         df = network.df(component)
         pnl = network.pnl(component)
 
-        if not export_standard_types and component in pypsa.components.standard_types:
+        if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
 
         # first do static attributes
@@ -538,7 +538,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     imported_components = []
 
     # now read in other components; make sure buses and carriers come first
-    for component in ["Bus", "Carrier"] + sorted(pypsa.components.all_components - {"Bus", "Carrier", "SubNetwork"}):
+    for component in ["Bus", "Carrier"] + sorted(network.all_components - {"Bus", "Carrier", "SubNetwork"}):
         list_name = network.components[component]["list_name"]
 
         df = importer.get_static(list_name)

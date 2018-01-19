@@ -29,11 +29,11 @@ def graph(network, branch_components=None, weight=None):
 
     if isinstance(network, components.Network):
         if branch_components is None:
-            branch_components = components.branch_components
+            branch_components = network.branch_components
         buses_i = network.buses.index
     elif isinstance(network, components.SubNetwork):
         if branch_components is None:
-            branch_components = components.passive_branch_components
+            branch_components = network.network.passive_branch_components
         buses_i = network.buses_i()
     else:
         raise TypeError("build_graph must be called with a Network or a SubNetwork")
@@ -85,12 +85,12 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
 
     if isinstance(network, components.Network):
         if branch_components is None:
-            branch_components = components.branch_components
+            branch_components = network.branch_components
         if busorder is None:
             busorder = network.buses.index
     elif isinstance(network, components.SubNetwork):
         if branch_components is None:
-            branch_components = components.passive_branch_components
+            branch_components = network.network.passive_branch_components
         if busorder is None:
             busorder = network.buses_i()
     else:
@@ -146,12 +146,12 @@ def incidence_matrix(network, branch_components=None, busorder=None):
 
     if isinstance(network, components.Network):
         if branch_components is None:
-            branch_components = components.branch_components
+            branch_components = network.branch_components
         if busorder is None:
             busorder = network.buses.index
     elif isinstance(network, components.SubNetwork):
         if branch_components is None:
-            branch_components = components.passive_branch_components
+            branch_components = network.network.passive_branch_components
         if busorder is None:
             busorder = network.buses_i()
     else:
