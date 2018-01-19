@@ -237,8 +237,7 @@ class Network(Basic):
 
         self.branch_components = self.passive_branch_components|self.controllable_branch_components
 
-        #i.e. everything except "Network"
-        self.all_components = self.branch_components|self.one_port_components|self.standard_type_components|{"Bus", "SubNetwork", "Carrier", "GlobalConstraint"}
+        self.all_components = set(components.index) - {"Network"}
 
         self.components = Dict(components.T.to_dict())
 
