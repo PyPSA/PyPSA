@@ -183,6 +183,8 @@ if has_xarray:
             self.path = path
             if isinstance(path, string_types):
                 self.ds = xr.open_dataset(path)
+            else:
+                self.ds = path
 
         def __enter__(self):
             if isinstance(self.path, string_types):
