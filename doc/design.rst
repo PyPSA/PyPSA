@@ -14,8 +14,8 @@ Python 3.5.
 Network object is the overall container
 =======================================
 
-The ``pypsa.components.Network`` is an overall container for all
-network components; components cannot exist without a network.
+The ``pypsa.Network`` is an overall container for all network
+components; components cannot exist without a network.
 
 It is also the object on which calculations, such as power flow and
 optimal power flow, are performed.
@@ -24,9 +24,8 @@ optimal power flow, are performed.
 Buses are the fundamental nodes
 ===============================
 
-The ``pypsa.components.Bus`` is the fundamental node to which all
-loads, generators, storage units, lines, transformers and links
-attach.
+The bus is the fundamental node to which all loads, generators,
+storage units, lines, transformers and links attach.
 
 You can have as many components attached to a bus as you want.
 

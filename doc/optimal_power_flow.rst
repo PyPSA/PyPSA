@@ -460,7 +460,7 @@ cases. The speedup is higher for larger networks with dispatchable
 generators at most nodes.
 
 
-
+.. _opf-links:
 
 Controllable branch flows: links
 ---------------------------------
@@ -476,8 +476,14 @@ optimisation variable for each component which satisfies
    |f_{l,t}| \leq F_l
 
 If the link flow is positive :math:`f_{l,t} > 0` then it withdraws
-:math:`f_{l,t}` from bus0 and feeds in :math:`\eta_l f_{l,t}` to bus1,
-where :math:`\eta_l` is the link efficiency.
+:math:`f_{l,t}` from ``bus0`` and feeds in :math:`\eta_l f_{l,t}` to
+``bus1``, where :math:`\eta_l` is the link efficiency.
+
+If additional output buses ``busi`` for :math:`i=2,3,\dots` are
+defined (i.e. ``bus2``, ``bus3``, etc) and their associated
+efficiencies ``efficiencyi``, i.e. :math:`\eta_{i,l}`, then at
+``busi`` the feed-in is :math:`\eta_{i,l} f_{l,t}`. See also
+:ref:`components-links-multiple-outputs`.
 
 
 .. _nodal-power-balance:

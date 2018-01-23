@@ -434,6 +434,33 @@ the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
    :file: ../pypsa/component_attrs/links.csv
 
 
+.. _components-links-multiple-outputs:
+
+Link with multiple outputs or inputs
+------------------------------------
+
+Links can also be defined with multiple outputs in fixed ratio to the
+power in the single input by defining new columns ``bus2``, ``bus3``,
+etc. (always ascending without missing an integer) in
+``network.links`` along with associated columns for the efficiencies
+``efficiency2``, ``efficiency3``, etc. The different outputs are then
+proportional to the input according to the efficiency; see
+:ref:`opf-links` for how these are used in the LOPF and the `example
+of a CHP with a fixed power-heat ratio
+<https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
+
+If the column ``bus2`` exists, values in the column are not compulsory
+for all links; if the link has no 2nd output, simply leave it empty
+``network.links.at["my_link","bus2"] = ""``.
+
+For links with multiple inputs in fixed ratio to a single output,
+simply reverse the flow in a link with one input and multiple outputs
+by setting ``my_link.p_max_pu = 0`` and ``my_link.p_min_pu = -1``.
+
+For multiple inputs to multiple outputs, connect a multi-to-single
+link to a single-to-multi link with an auxiliary bus in the middle.
+
+
 Groups of Components
 ====================
 
