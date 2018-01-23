@@ -612,8 +612,8 @@ def define_link_flows(network,snapshots):
 
     fixed_links_i = network.links.index[~ network.links.p_nom_extendable]
 
-    p_max_pu = get_switchable_as_dense(network, 'Link', 'p_max_pu')
-    p_min_pu = get_switchable_as_dense(network, 'Link', 'p_min_pu')
+    p_max_pu = get_switchable_as_dense(network, 'Link', 'p_max_pu', snapshots)
+    p_min_pu = get_switchable_as_dense(network, 'Link', 'p_min_pu', snapshots)
 
     fixed_lower = p_min_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
     fixed_upper = p_max_pu.loc[:,fixed_links_i].multiply(network.links.loc[fixed_links_i, 'p_nom'])
@@ -872,7 +872,7 @@ def define_passive_branch_constraints(network,snapshots):
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
-    s_max_pu = pd.concat({c : get_switchable_as_dense(network,c,'s_max_pu')
+    s_max_pu = pd.concat({c : get_switchable_as_dense(network, c, 's_max_pu', snapshots)
                           for c in passive_branch_components}, axis=1)
 
     flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
@@ -913,7 +913,7 @@ def define_nodal_balances(network,snapshots):
                           for bus in network.buses.index
                           for sn in snapshots}
 
-    efficiency = get_switchable_as_dense(network, 'Link', 'efficiency')
+    efficiency = get_switchable_as_dense(network, 'Link', 'efficiency', snapshots)
 
     for cb in network.links.index:
         bus0 = network.links.at[cb,"bus0"]
@@ -923,6 +923,15 @@ def define_nodal_balances(network,snapshots):
             network._p_balance[bus0,sn].variables.append((-1,network.model.link_p[cb,sn]))
             network._p_balance[bus1,sn].variables.append((efficiency.at[sn,cb],network.model.link_p[cb,sn]))
 
+    #Add any other buses to which the links are attached
+    i = 2
+    while("bus{}".format(i) in network.links.columns):
+        efficiency = get_switchable_as_dense(network, 'Link', 'efficiency{}'.format(i), snapshots)
+        for cb in network.links.index[network.links["bus{}".format(i)] != ""]:
+            bus = network.links.at[cb, "bus{}".format(i)]
+            for sn in snapshots:
+                network._p_balance[bus,sn].variables.append((efficiency.at[sn,cb],network.model.link_p[cb,sn]))
+        i+=1
 
     for gen in network.generators.index:
         bus = network.generators.at[gen,"bus"]
@@ -930,7 +939,7 @@ def define_nodal_balances(network,snapshots):
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.generator_p[gen,sn]))
 
-    load_p_set = get_switchable_as_dense(network, 'Load', 'p_set')
+    load_p_set = get_switchable_as_dense(network, 'Load', 'p_set', snapshots)
     for load in network.loads.index:
         bus = network.loads.at[load,"bus"]
         sign = network.loads.at[load,"sign"]
@@ -1212,6 +1221,23 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
         network.buses_t.p.loc[snapshots] -= (network.links_t.p1.loc[snapshots]
                                              .groupby(network.links.bus1, axis=1).sum()
                                              .reindex(columns=network.buses_t.p.columns, fill_value=0.))
+
+        #Add any other buses to which the links are attached
+        i = 2
+        while("bus{}".format(i) in network.links.columns):
+            efficiency = get_switchable_as_dense(network, 'Link', 'efficiency{}'.format(i), snapshots)
+            p_name = "p{}".format(i)
+            #allocate missing outputs
+            if p_name not in network.links_t:
+                network.links_t[p_name] = pd.DataFrame(index=network.snapshots)
+            links = network.links.index[network.links["bus{}".format(i)] != ""]
+            network.links_t[p_name] = network.links_t[p_name].reindex(links, axis=1)
+            network.links_t[p_name].loc[snapshots] = - network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
+            network.buses_t.p.loc[snapshots] -= (network.links_t[p_name].loc[snapshots, links]
+                                                 .groupby(network.links["bus{}".format(i)], axis=1).sum()
+                                                 .reindex(columns=network.buses_t.p.columns, fill_value=0.))
+            i+=1
+
 
         set_from_series(network.links_t.mu_lower, pd.Series(list(model.link_p_lower.values()),
                                                             index=pd.MultiIndex.from_tuples(list(model.link_p_lower.keys()))).map(duals))
