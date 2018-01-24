@@ -220,7 +220,7 @@ if has_xarray:
                     yield attr[len(t):], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, least_significant_digit=3):
+        def __init__(self, path, least_significant_digit=None):
             self.path = path
             self.least_significant_digit = least_significant_digit
             self.ds = xr.Dataset()
@@ -244,7 +244,8 @@ if has_xarray:
             df.columns.name = list_name + '_t_' + attr + '_i'
             self.ds[list_name + '_t_' + attr] = df
             if self.least_significant_digit is not None:
-                self.ds.encoding.upate({
+                print(self.least_significant_digit)
+                self.ds.encoding.update({
                     'zlib': True,
                     'least_significant_digit': self.least_significant_digit
                 })
@@ -410,6 +411,10 @@ def import_from_hdf5(network, path, skip_time=False):
         Skip reading in time dependent attributes
     """
 
+    logger.warning(dedent("""HDF5 file format for PyPSA is now deprecated,
+        because HDF5 fails for tables with more than 1000 columns.
+        Please use netCDF instead."""))
+
     basename = os.path.basename(path)
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -438,6 +443,10 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     >>> network.export_to_hdf5(filename)
     """
 
+    logger.warning(dedent("""HDF5 file format for PyPSA is now deprecated,
+        because HDF5 fails for tables with more than 1000 columns.
+        Please use netCDF instead."""))
+
     kwargs.setdefault('complevel', 4)
 
     basename = os.path.basename(path)
@@ -464,35 +473,46 @@ def import_from_netcdf(network, path, skip_time=False):
         _import_from_importer(network, importer, basename=basename,
                               skip_time=skip_time)
 
-def export_to_netcdf(network, path=None, export_standard_types=False):
-    """
-    Export network and components to a netCDF file.
+def export_to_netcdf(network, path=None, export_standard_types=False,
+                     least_significant_digit=None):
+    """Export network and components to a netCDF file.
 
     Both static and series attributes of components are exported, but only
     if they have non-default values.
 
     If path does not already exist, it is created.
 
+    If no path is passed, no file is exported, but the xarray.Dataset
+    is still returned.
+
+    Be aware that this cannot export boolean attributes on the Network
+    class, e.g. network.my_bool = False is not supported by netCDF.
+
     Parameters
     ----------
     path : string|None
-        Name of netCDF file to which to export (if it exists, it is overwritten)
+        Name of netCDF file to which to export (if it exists, it is overwritten);
+        if None is passed, no file is exported.
+    least_significant_digit
+        This is passed to the netCDF exporter, but currently makes no difference
+        to file size or float accuracy. We're working on improving this...
 
     Returns
     -------
-    ds : xr.Dataset
+    ds : xarray.Dataset
 
     Examples
     --------
-    >>> export_to_netcdf(network, filename)
+    >>> export_to_netcdf(network, "my_file.nc")
     OR
-    >>> network.export_to_netcdf(filename)
+    >>> network.export_to_netcdf("my_file.nc")
+
     """
 
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = os.path.basename(path) if path is not None else None
-    with ExporterNetCDF(path=path) as exporter:
+    with ExporterNetCDF(path, least_significant_digit) as exporter:
         _export_to_exporter(network, exporter, basename=basename,
                             export_standard_types=export_standard_types)
         return exporter.ds

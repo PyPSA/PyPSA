@@ -3,6 +3,20 @@ Release Notes
 #######################
 
 
+PyPSA 0.13.0 (2*th January 2018)
+================================
+
+This release contains new features, fixes for library dependencies and
+some minor internal API changes.
+
+* Networks can now be exported to and imported from netCDF files with
+  ``network.export_to_netcdf()`` and
+  ``network.import_from_netcdf()``. This is faster than using CSV
+  files and the files take up less space. Import and export with HDF5
+  files, introduced in PyPSA 0.12.0, is now deprecated.
+
+
+
 PyPSA 0.12.0 (30th November 2017)
 =================================
 
