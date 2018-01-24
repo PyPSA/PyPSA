@@ -210,7 +210,7 @@ if has_xarray:
                                          for attr in iterkeys(self.ds.data_vars)
                                          if attr.startswith(t) and attr[i:i+2] != 't_'})
             df.index.name = 'name'
-            return df
+            return df if not df.empty else None
 
         def get_series(self, list_name):
             t = list_name + '_t_'
