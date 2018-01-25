@@ -38,9 +38,7 @@ print(network.links)
 now = network.snapshots[5]
 
 
-print("\nCheck power balance at each branch:")
-
-branches = network.branches()
+print("\nCheck power balance at each bus:")
 
 for bus in network.buses.index:
     print("\n"*3+bus)

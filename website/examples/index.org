@@ -58,6 +58,7 @@ repository]].
     buses are connected with transmission lines and there are
     electrical generators at two of the nodes.
   - [[./power-to-gas-boiler-chp.html][*Power-to-Gas with Gas Boiler and Combined-Heat-and-Power unit*]]
+  - [[./chp-fixed-heat-power-ratio.html][*Demonstration of Link with multiple outputs: Combined-Heat-and-Power (CHP) with fixed heat-power ratio*]]
   - [[./power-to-heat-water-tank.html][*Power-to-Heat with Water Tank*]]
   - [[./battery-electric-vehicle-charging.html][*Transport: Charging Battery Electric Vehicle with Solar Panel*]]
   - [[./chained-hydro-reservoirs.html][*Chained Hydroelectric Reservoirs*]]
