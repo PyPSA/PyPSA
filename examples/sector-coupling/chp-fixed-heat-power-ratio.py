@@ -6,10 +6,19 @@
 #
 #In this example a CHP must be heat-following because there is no other supply of heat to the bus "Frankfurt heat".
 
-import pypsa
+import pypsa, numpy as np
+
+#First tell PyPSA that links will have a 2nd bus by
+#overriding the component_attrs. This can be done for
+#as many buses as you need with format busi for i = 2,3,4,5,....
+
+override_component_attrs = pypsa.descriptors.Dict({k : v.copy() for k,v in pypsa.components.component_attrs.items()})
+override_component_attrs["Link"].loc["bus2"] = ["string",np.nan,np.nan,"2nd bus","Input (optional)"]
+override_component_attrs["Link"].loc["efficiency2"] = ["static or series","per unit",1.,"2nd bus efficiency","Input (optional)"]
+override_component_attrs["Link"].loc["p2"] = ["series","MW",0.,"2nd bus output","Output"]
 
 
-network = pypsa.Network()
+network = pypsa.Network(override_component_attrs=override_component_attrs)
 
 network.add("Bus",
             "Frankfurt",
@@ -47,21 +56,16 @@ network.add("Link",
             capital_cost=600,
             efficiency=0.4)
 
+
 network.add("Link",
             "CHP",
             bus0="Frankfurt gas",
             bus1="Frankfurt",
+            bus2="Frankfurt heat",
             p_nom_extendable=True,
             capital_cost=1400,
-            efficiency=0.3)
-
-# Now add a second output bus for the CHP
-
-network.links["bus2"] = ""
-network.links.at["CHP","bus2"] = "Frankfurt heat"
-
-network.links["efficiency2"] = 0.
-network.links.at["CHP","efficiency2"] = 0.3
+            efficiency=0.3,
+            efficiency2=0.3)
 
 network.lopf()
 

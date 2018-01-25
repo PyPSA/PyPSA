@@ -923,14 +923,13 @@ def define_nodal_balances(network,snapshots):
             network._p_balance[bus1,sn].variables.append((efficiency.at[sn,cb],network.model.link_p[cb,sn]))
 
     #Add any other buses to which the links are attached
-    i = 2
-    while("bus{}".format(i) in network.links.columns):
+    for i in [int(col[3:]) for col in network.links.columns if col[:3] == "bus" and col not in ["bus0","bus1"]]:
         efficiency = get_switchable_as_dense(network, 'Link', 'efficiency{}'.format(i), snapshots)
         for cb in network.links.index[network.links["bus{}".format(i)] != ""]:
             bus = network.links.at[cb, "bus{}".format(i)]
             for sn in snapshots:
                 network._p_balance[bus,sn].variables.append((efficiency.at[sn,cb],network.model.link_p[cb,sn]))
-        i+=1
+
 
     for gen in network.generators.index:
         bus = network.generators.at[gen,"bus"]
@@ -1142,7 +1141,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                          'Bus': ['p', 'v_ang', 'v_mag_pu', 'marginal_price'],
                                          'Line': ['p0', 'p1', 'mu_lower', 'mu_upper'],
                                          'Transformer': ['p0', 'p1', 'mu_lower', 'mu_upper'],
-                                         'Link': ['p0', 'p1', 'mu_lower', 'mu_upper']})
+                                         'Link': ["p"+col[3:] for col in network.links.columns if col[:3] == "bus"]
+                                                  +['mu_lower', 'mu_upper']})
 
     #get value of objective function
     network.objective = network.results["Problem"][0]["Upper bound"]
@@ -1219,20 +1219,14 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                              .reindex(columns=network.buses_t.p.columns, fill_value=0.))
 
         #Add any other buses to which the links are attached
-        i = 2
-        while("bus{}".format(i) in network.links.columns):
+        for i in [int(col[3:]) for col in network.links.columns if col[:3] == "bus" and col not in ["bus0","bus1"]]:
             efficiency = get_switchable_as_dense(network, 'Link', 'efficiency{}'.format(i), snapshots)
             p_name = "p{}".format(i)
-            #allocate missing outputs
-            if p_name not in network.links_t:
-                network.links_t[p_name] = pd.DataFrame(index=network.snapshots)
             links = network.links.index[network.links["bus{}".format(i)] != ""]
-            network.links_t[p_name] = network.links_t[p_name].reindex(links, axis=1)
-            network.links_t[p_name].loc[snapshots] = - network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
+            network.links_t[p_name].loc[snapshots, links] = - network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
             network.buses_t.p.loc[snapshots] -= (network.links_t[p_name].loc[snapshots, links]
                                                  .groupby(network.links["bus{}".format(i)], axis=1).sum()
                                                  .reindex(columns=network.buses_t.p.columns, fill_value=0.))
-            i+=1
 
 
         set_from_series(network.links_t.mu_lower, pd.Series(list(model.link_p_lower.values()),

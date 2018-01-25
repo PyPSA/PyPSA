@@ -6,8 +6,9 @@ Release Notes
 PyPSA 0.13.0 (25th January 2018)
 ================================
 
-This release contains new features, fixes for library dependencies and
-some minor internal API changes.
+This release contains new features aimed at coupling to other energy
+sectors, fixes for library dependencies and some minor internal API
+changes.
 
 * If you want to define your own components and override the standard
   functionality of PyPSA, you can now override the standard components
@@ -17,9 +18,16 @@ some minor internal API changes.
   ``examples/new_components/``, including an example of overriding
   e.g. ``network.lopf()`` for functionality for
   combined-heat-and-power (CHP) plants.
-
-
-
+* The ``Link`` component can now be defined with multiple outputs in
+  fixed ratio to the power in the single input by defining new columns
+  ``bus2``, ``bus3``, etc. (``bus`` followed by an integer) in
+  ``network.links`` along with associated columns for the efficiencies
+  ``efficiency2``, ``efficiency3``, etc. The different outputs are
+  then proportional to the input according to the efficiency; see
+  sections :ref:`components-links-multiple-outputs` and
+  :ref:`opf-links` and the `example of a CHP with a fixed power-heat
+  ratio
+  <https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
 * Networks can now be exported to and imported from netCDF files with
   ``network.export_to_netcdf()`` and
   ``network.import_from_netcdf()``. This is faster than using CSV

@@ -441,13 +441,22 @@ Link with multiple outputs or inputs
 
 Links can also be defined with multiple outputs in fixed ratio to the
 power in the single input by defining new columns ``bus2``, ``bus3``,
-etc. (always ascending without missing an integer) in
-``network.links`` along with associated columns for the efficiencies
-``efficiency2``, ``efficiency3``, etc. The different outputs are then
-proportional to the input according to the efficiency; see
-:ref:`opf-links` for how these are used in the LOPF and the `example
-of a CHP with a fixed power-heat ratio
+etc. (``bus`` followed by an integer) in ``network.links`` along with
+associated columns for the efficiencies ``efficiency2``,
+``efficiency3``, etc. The different outputs are then proportional to
+the input according to the efficiency; see :ref:`opf-links` for how
+these are used in the LOPF and the `example of a CHP with a fixed
+power-heat ratio
 <https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
+
+To define the new columns ``bus2``, ``efficiency2``, ``bus3``,
+``efficiency3``, etc. in ``network.links`` you need to override the
+standard component attributes by passing ``pypsa.Network()`` an
+``override_component_attrs`` argument. See the section
+:ref:`custom_components` and the `example of a CHP with a fixed
+power-heat ratio
+<https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
+
 
 If the column ``bus2`` exists, values in the column are not compulsory
 for all links; if the link has no 2nd output, simply leave it empty

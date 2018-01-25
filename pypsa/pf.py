@@ -67,7 +67,8 @@ def _allocate_pf_outputs(network, linear=False):
                    'Bus': ['p', 'v_ang', 'v_mag_pu'],
                    'Line': ['p0', 'p1'],
                    'Transformer': ['p0', 'p1'],
-                   'Link': ['p0', 'p1']}
+                   'Link': ["p"+col[3:] for col in network.links.columns if col[:3] == "bus"]}
+
 
     if not linear:
         for component, attrs in to_allocate.items():
@@ -104,12 +105,8 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
             eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
             p_name = "p{}".format(i)
             efficiency = get_switchable_as_dense(network, 'Link', eff_name, snapshots)
-            #allocate missing outputs
-            if p_name not in network.links_t:
-                network.links_t[p_name] = pd.DataFrame(index=network.snapshots)
             links = network.links.index[network.links["bus{}".format(i)] != ""]
-            network.links_t['p{}'.format(i)] = network.links_t['p{}'.format(i)].reindex(links, axis=1)
-            network.links_t['p{}'.format(i)].loc[snapshots] = -network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
+            network.links_t['p{}'.format(i)].loc[snapshots, links] = -network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
 
     itdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=int)
     difdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index)
@@ -954,7 +951,6 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
             [(- c.pnl["p"+str(i)].loc[snapshots].groupby(c.df["bus"+str(i)], axis=1).sum()
               .reindex(columns=buses_o, fill_value=0))
              for c in network.iterate_components(network.controllable_branch_components)
-             for i in [0,1]])
              for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]])
 
     if not skip_pre and len(branches_i) > 0:
