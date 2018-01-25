@@ -3,17 +3,33 @@ Release Notes
 #######################
 
 
-PyPSA 0.13.0 (2*th January 2018)
+PyPSA 0.13.0 (25th January 2018)
 ================================
 
 This release contains new features, fixes for library dependencies and
 some minor internal API changes.
+
+* If you want to define your own components and override the standard
+  functionality of PyPSA, you can now override the standard components
+  by passing pypsa.Network() the arguments ``override_components`` and
+  ``override_component_attrs``, see :ref:`custom_components`. There
+  are examples for defining new components in the git repository in
+  ``examples/new_components/``, including an example of overriding
+  e.g. ``network.lopf()`` for functionality for
+  combined-heat-and-power (CHP) plants.
+
+
 
 * Networks can now be exported to and imported from netCDF files with
   ``network.export_to_netcdf()`` and
   ``network.import_from_netcdf()``. This is faster than using CSV
   files and the files take up less space. Import and export with HDF5
   files, introduced in PyPSA 0.12.0, is now deprecated.
+
+Thank Russell Smith.
+
+Acknowledge RE-Invest funding.
+
 
 
 

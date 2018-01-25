@@ -89,6 +89,19 @@ standard_types_dir_name = "standard_types"
 inf = float("inf")
 
 
+components = pd.read_csv(os.path.join(dir_name,
+                                      "components.csv"),
+                         index_col=0)
+
+component_attrs = Dict()
+
+for component in components.index:
+    file_name = os.path.join(dir_name,
+                             component_attrs_dir_name,
+                             components.at[component,"list_name"] + ".csv")
+    component_attrs[component] = pd.read_csv(file_name, index_col=0, na_values="n/a")
+
+del component
 
 class Basic(object):
     """Common to every object."""
@@ -134,8 +147,14 @@ class Network(Basic):
         If True, do not read in PyPSA standard types into standard types DataFrames.
     csv_folder_name : string
         Name of folder from which to import CSVs of network data. Overrides import_name.
-    new_components : pandas.DataFrame
-        DataFrame with index of component name and columns of list_name and description
+    override_components : pandas.DataFrame
+        If you want to override the standard PyPSA components in pypsa.components.components,
+        pass it a DataFrame with index of component name and columns of list_name and
+        description, following the format of pypsa.components.components.
+        See git repository examples/new_components/.
+    override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
+        If you want to override pypsa.component_attrs, follow its format.
+        See git repository examples/new_components/.
     kwargs
         Any remaining attributes to set
 
@@ -200,7 +219,7 @@ class Network(Basic):
     adjacency_matrix = adjacency_matrix
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
-                 new_components=None,
+                 override_components=None, override_component_attrs=None,
                  **kwargs):
 
         if 'csv_folder_name' in kwargs:
@@ -220,36 +239,31 @@ class Network(Basic):
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
-        components = pd.read_csv(os.path.join(dir_name,
-                                              "components.csv"),
-                                 index_col=0)
+        if override_components is None:
+            self.components = components
+        else:
+            self.components = override_components
 
-        components = components.reindex(components.columns|["attrs"],axis=1)
+        if override_component_attrs is None:
+            self.component_attrs = component_attrs
+        else:
+            self.component_attrs = override_component_attrs
 
-        if new_components is not None:
-            components = pd.concat((components, new_components))
-
-        for c_type in set(components.type.unique()) - {np.nan}:
+        for c_type in set(self.components.type.unique()) - {np.nan}:
             setattr(self, c_type + "_components",
-                    set(components.index[components.type == c_type]))
+                    set(self.components.index[self.components.type == c_type]))
 
         self.one_port_components = self.passive_one_port_components|self.controllable_one_port_components
 
         self.branch_components = self.passive_branch_components|self.controllable_branch_components
 
-        self.all_components = set(components.index) - {"Network"}
+        self.all_components = set(self.components.index) - {"Network"}
 
-        self.components = Dict(components.T.to_dict())
+        self.components = Dict(self.components.T.to_dict())
 
-        for component in self.components.keys():
-
-            if type(self.components[component]["attrs"]) is pd.DataFrame:
-                attrs = self.components[component]["attrs"]
-            else:
-                file_name = os.path.join(dir_name,
-                                         component_attrs_dir_name,
-                                         self.components[component]["list_name"] + ".csv")
-                attrs = pd.read_csv(file_name, index_col=0, na_values="n/a")
+        for component in self.components:
+            #make copies to prevent unexpected sharing of variables
+            attrs = self.component_attrs[component].copy()
 
             attrs['static'] = (attrs['type'] != 'series')
             attrs['varying'] = attrs['type'].isin({'series', 'static or series'})

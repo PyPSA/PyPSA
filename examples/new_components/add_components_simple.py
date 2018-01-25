@@ -1,46 +1,40 @@
 
 
 #In this example we add a new component type "dynamically" by passing
-#the pypsa.Network the required information.
+#the pypsa.Network the required information. Here we add a simple
+#"ShadowPrice" component for storing the shadow prices of global
+#constraints.
 
-import pypsa, pandas as pd
+import pypsa, pandas as pd, numpy as np
 
-#create a pandas.DataFrame with the properties of the new components
-#the format should be the same as pypsa/components.csv, except add a column "attrs"
-new_components = pd.DataFrame(data = [["chps","Combined heat and power plant.","controllable_one_port",None],
-                                      ["methanations","Methanation plant.","controllable_one_port",None]],
-                              index = ["CHP","Methanation"],
-                              columns = ["list_name","description","type","attrs"])
-print("\nNew components:\n")
-print(new_components)
+from pypsa.descriptors import Dict
 
-#now attach pandas.DataFrames for the attributes
+#take a copy of the components pandas.DataFrame
+override_components = pypsa.components.components.copy()
+
+#Pass it the list_name, description and component type.
+override_components.loc["ShadowPrice"] = ["shadow_prices","Shadow price for a global constraint.",np.nan]
+
+print("\nNew components table:\n")
+print(override_components)
+
+#create a pandas.DataFrame with the properties of the new component attributes.
 #the format should be the same as pypsa/component_attrs/*.csv
+override_component_attrs = Dict({k : v.copy() for k,v in pypsa.components.component_attrs.items()})
+override_component_attrs["ShadowPrice"] = pd.DataFrame(columns = ["type","unit","default","description","status"])
+override_component_attrs["ShadowPrice"].loc["name"] = ["string","n/a","n/a","Unique name","Input (required)"]
+override_component_attrs["ShadowPrice"].loc["value"] = ["float","n/a",0.,"shadow value","Output"]
 
-chp_attrs = pd.DataFrame(data = [["string","n/a","n/a","Unique name","Input (required)"],
-                                 ["string","n/a","n/a","name of bus to which generator is attached","Input (required)"],
-                                 ["static or series","MW",0.,"active power set point (for PF)","Input (optional)"]],
-                         index = ["name","bus","p_set"],
-                         columns = ["type","unit","default","description","status"])
-
-print("\nComponent attributes:\n")
-print(chp_attrs)
-
-new_components.at["CHP","attrs"] = chp_attrs
-new_components.at["Methanation","attrs"] = chp_attrs
+print("\nComponent attributes for ShadowPrice:\n")
+print(override_component_attrs["ShadowPrice"])
 
 #pass Network the information
-n = pypsa.Network(new_components=new_components)
+n = pypsa.Network(override_components=override_components,
+                  override_component_attrs=override_component_attrs)
 
-n.set_snapshots(range(4))
+n.add("ShadowPrice","line_volume_constraint",value=4567.1)
+n.add("ShadowPrice","co2_constraint",value=326.3)
 
-n.add("Bus","Aarhus")
-n.add("CHP","My CHP",
-      bus="Aarhus",
-      p_set=list(range(5,1,-1)))
+print("\nnetwork.shadow_prices:\n")
 
-print("\nn.chps:\n")
-print(n.chps)
-
-print("\nn.chps_t.p_set:\n")
-print(n.chps_t.p_set)
+print(n.shadow_prices)

@@ -434,10 +434,14 @@ the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
    :file: ../pypsa/component_attrs/links.csv
 
 
+
+
 Groups of Components
 ====================
 
-In the code components are grouped according to their properties.
+In the code components are grouped according to their properties in
+sets such as ``network.one_port_components`` and
+``network.branch_components``.
 
 One-ports share the property that they all connect to a single bus,
 i.e. generators, loads, storage units, etc.. They share the attributes
@@ -453,3 +457,29 @@ nodal power imbalances, i.e. lines and transformers.
 
 Controllable branches are branches whose power flow can be controlled
 by e.g. the LOPF optimisation, i.e. links.
+
+
+.. _custom_components:
+
+Custom Components
+=================
+
+If you want to define your own components and override the standard
+functionality of PyPSA, you can easily override the standard
+components by passing pypsa.Network() the arguments
+``override_components`` and ``override_component_attrs``.
+
+These will replace the standard definitions in
+``pypsa.components.components`` and
+``pypsa.components.component_attrs``, which correspond to the
+repository CSV files ``pypsa/components.csv`` and
+``pypsa/component_attrs/*.csv``. ``components`` is a pandas.DataFrame
+with the component ``name``, ``list_name`` and
+``description``. ``component_attrs`` is a pypsa.descriptors.Dict of
+pandas.DataFrame with the attribute properties for each component.
+Just follow the formatting for the standard components.
+
+There are examples for defining new components in the git repository
+in ``examples/new_components/``, including an example of
+overriding e.g. ``network.lopf()`` for functionality for
+combined-heat-and-power (CHP) plants.
