@@ -6,18 +6,18 @@ Release Notes
 PyPSA 0.13.0 (25th January 2018)
 ================================
 
-This release contains new features aimed at coupling to other energy
-sectors, fixes for library dependencies and some minor internal API
-changes.
+This release contains new features aimed at coupling power networks to
+other energy sectors, fixes for library dependencies and some minor
+internal API changes.
 
 * If you want to define your own components and override the standard
   functionality of PyPSA, you can now override the standard components
   by passing pypsa.Network() the arguments ``override_components`` and
-  ``override_component_attrs``, see :ref:`custom_components`. There
-  are examples for defining new components in the git repository in
-  ``examples/new_components/``, including an example of overriding
-  e.g. ``network.lopf()`` for functionality for
-  combined-heat-and-power (CHP) plants.
+  ``override_component_attrs``, see the section on
+  :ref:`custom_components`. There are examples for defining new
+  components in the git repository in ``examples/new_components/``,
+  including an example of overriding ``network.lopf()`` for
+  functionality for combined-heat-and-power (CHP) plants.
 * The ``Link`` component can now be defined with multiple outputs in
   fixed ratio to the power in the single input by defining new columns
   ``bus2``, ``bus3``, etc. (``bus`` followed by an integer) in
@@ -33,10 +33,31 @@ changes.
   ``network.import_from_netcdf()``. This is faster than using CSV
   files and the files take up less space. Import and export with HDF5
   files, introduced in PyPSA 0.12.0, is now deprecated.
+* The export and import code has been refactored to be more general
+  and abstract. This does not affect the API.
+* The internally-used sets such as ``pypsa.components.all_components``
+  and ``pypsa.one_port_components`` have been moved from
+  ``pypsa.components`` to ``network``, i.e. ``network.all_components``
+  and ``network.one_port_components``, since these sets may change
+  from network to network.
+* For linear power flow, PyPSA now pre-calculates the effective per
+  unit reactance ``x_pu_eff`` for AC lines to take account of the
+  transformer tap ratio, rather than doing it on the fly; this makes
+  some code faster, particularly the kirchhoff formulation of the
+  LOPF.
+* PyPSA is now compatible with networkx 2.0 and 2.1.
+* PyPSA now requires Pyomo version greater than 5.3.
+* PyPSA now uses the `Travis CI <https://travis-ci.org/PyPSA/PyPSA>`_
+  continuous integration service to test every commit in the `PyPSA
+  GitHub repository <https://github.com/PyPSA/PyPSA>`_. This will
+  allow us to catch library dependency issues faster.
 
-Thank Russell Smith.
+We thank Russell Smith of Edison Energy for the pull request for the
+effective reactance that sped up the LOPF code and Tom Edwards for
+pointing out the Pyomo version dependency issue.
 
-Acknowledge RE-Invest funding.
+For this release we also acknowledge funding to Tom Brown from the
+`RE-InVEST project <http://www.re-invest.eu/>`_.
 
 
 

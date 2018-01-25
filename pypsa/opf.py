@@ -1,6 +1,6 @@
 
 
-## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
+## Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
 ## Schlachtberger (FIAS)
 
 ## This program is free software; you can redistribute it and/or
