@@ -50,7 +50,7 @@ def _make_consense(component, attr):
         v = x.iat[0]
         assert ((x == v).all() or x.isnull().all()), (
             "In {} cluster {} the values of attribute {} do not agree:\n{}"
-            .format(component, attr, x.name, x)
+            .format(component, x.name, attr, x)
         )
         return v
     return consense
