@@ -26,7 +26,7 @@ import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
 from itertools import repeat
-from six.moves import map, zip, range
+from six.moves import map, zip, range, reduce
 from six import itervalues, iteritems
 import six
 
@@ -167,6 +167,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_min=l['s_nom_min'].sum(),
             s_nom_max=l['s_nom_max'].sum(),
             s_nom_extendable=l['s_nom_extendable'].any(),
+            num_parallel=l['num_parallel'].sum(),
             capital_cost=l['capital_cost'].sum(),
             length=length_s,
             sub_network=consense['sub_network'](l['sub_network']),
