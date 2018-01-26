@@ -458,13 +458,16 @@ def rectangular_grid_clustering(network, divisions):
 ################
 # Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
 
-def busmap_by_stubs(network):
+def busmap_by_stubs(network, matching_attrs=None):
     """Create a busmap by reducing stubs and stubby trees
     (i.e. sequentially reducing dead-ends).
 
     Parameters
     ----------
     network : pypsa.Network
+
+    matching_attrs : None|[str]
+        bus attributes clusters have to agree on
 
     Returns
     -------
@@ -474,28 +477,26 @@ def busmap_by_stubs(network):
 
     """
 
-    busmap = pd.Series(network.buses.index,network.buses.index)
+    busmap = pd.Series(network.buses.index, network.buses.index)
 
-    network = network.copy(with_time=False)
+    G = network.graph()
 
-    count = 0
+    def attrs_match(u, v):
+        return (matching_attrs is None or
+                (network.buses.loc[u, matching_attrs] ==
+                 network.buses.loc[v, matching_attrs]).all())
 
     while True:
-        old_count = count
-        logger.info("{} buses".format(len(network.buses)))
-        graph = network.graph()
-        for u in graph.node:
-            neighbours = list(graph.adj[u].keys())
+        stubs = []
+        for u in G.node:
+            neighbours = list(G.adj[u].keys())
             if len(neighbours) == 1:
-                neighbour = neighbours[0]
-                count +=1
-                lines = list(graph.adj[u][neighbour].keys())
-                for line in lines:
-                    network.remove(*line)
-                network.remove("Bus",u)
-                busmap[busmap==u] = neighbour
-        logger.info("{} deleted".format(count))
-        if old_count == count:
+                v, = neighbours
+                if attrs_match(u, v):
+                    busmap[busmap == u] = v
+                    stubs.append(u)
+        G.remove_nodes_from(stubs)
+        if len(stubs) == 0:
             break
     return busmap
 
