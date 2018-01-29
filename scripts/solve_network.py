@@ -6,8 +6,6 @@ logging.basicConfig(filename=snakemake.log.python, level=logging.INFO)
 
 import pypsa
 
-from _helpers import madd
-
 if 'tmpdir' in snakemake.config['solving']:
     # PYOMO should write its lp files into tmp here
     tmpdir = snakemake.config['solving']['tmpdir']
@@ -25,14 +23,14 @@ def prepare_network(n):
 
     if solve_opts.get('load_shedding'):
         n.add("Carrier", "Load")
-        madd(n, "Generator", "Load",
-             bus=n.buses.index,
-             carrier='load',
-             marginal_cost=1.0e5 * snakemake.config['costs']['EUR_to_ZAR'],
-             # intersect between macroeconomic and surveybased
-             # willingness to pay
-             # http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
-             p_nom=1e6)
+        n.madd("Generator", n.buses.index, " load",
+               bus=n.buses.index,
+               carrier='load',
+               marginal_cost=1.0e5,
+               # intersect between macroeconomic and surveybased
+               # willingness to pay
+               # http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
+               p_nom=1e6)
 
     if solve_opts.get('noisy_costs'):
         for t in n.iterate_components():
@@ -66,11 +64,30 @@ def solve_network(n):
             ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
             n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
+    def add_lv_constraint(n):
+        line_volume = getattr(n, 'line_volume_limit')
+        if line_volume is not None and not np.isinf(line_volume):
+            n.model.line_volume_constraint = pypsa.opt.Constraint(
+                expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"length"]
+                           for line in n.lines.index[n.lines.s_nom_extendable]) +
+                       sum(n.model.link_p_nom[link]*n.links.at[link,"length"]
+                           for link in n.links.index[(n.links.carrier=='DC') &
+                                                     n.links.p_nom_extendable]))
+                      <= line_volume)
+            )
+
+    def add_eps_storage_constraint(n):
+        if not hasattr(n, 'epsilon'):
+            n.epsilon = 1e-5
+        fix_sus_i = n.storage_units.index[~ n.storage_units.p_nom_extendable]
+        n.model.objective.expr += sum(n.epsilon * n.model.state_of_charge[su, n.snapshots[0]] for su in fix_sus_i)
+
     def fix_lines(n, lines_i=None, links_i=None): # , fix=True):
         if lines_i is not None and len(lines_i) > 0:
             s_nom = n.lines.s_nom.where(
                 n.lines.type == '',
-                np.sqrt(3) * n.lines.type.map(n.line_types.i_nom) * n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
+                np.sqrt(3) * n.lines.type.map(n.line_types.i_nom) *
+                n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
             )
             for l in lines_i:
                 n.model.passive_branch_s_nom["Line", l].fix(s_nom.at[l])
@@ -98,6 +115,8 @@ def solve_network(n):
         if not hasattr(n, 'opt') or not isinstance(n.opt, pypsa.opf.PersistentSolver):
             pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
             add_opts_constraints(n)
+            add_lv_constraint(n)
+            add_eps_storage_constraint(n)
 
             pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
 
@@ -132,7 +151,8 @@ def solve_network(n):
         lines = pd.DataFrame(n.lines[['r', 'x', 'type', 'num_parallel']])
 
         lines['s_nom'] = (
-            np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) * n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
+            np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
+            n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
         ).where(n.lines.type != '', n.lines['s_nom'])
 
         lines_ext_typed_b = (n.lines.type != '') & lines_ext_b
@@ -211,10 +231,9 @@ def solve_network(n):
     return n
 
 if __name__ == "__main__":
-    n = pypsa.Network()
-    n.import_from_hdf5(snakemake.input[0])
+    n = pypsa.Network(snakemake.input[0])
 
     n = prepare_network(n)
     n = solve_network(n)
 
-    n.export_to_hdf5(snakemake.output[0])
+    n.export_to_netcdf(snakemake.output[0])

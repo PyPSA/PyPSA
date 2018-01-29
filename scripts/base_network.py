@@ -7,12 +7,14 @@ import scipy as sp, scipy.spatial
 from scipy.sparse import csgraph
 from operator import attrgetter
 from six import iteritems
+from six.moves import filter
 from itertools import count, chain
 
 import shapely, shapely.prepared, shapely.wkt
 from shapely.geometry import Point
 
 from vresutils import shapes as vshapes
+from vresutils.graph import BreadthFirstLevels
 
 import logging
 logger = logging.getLogger(__name__)
@@ -115,6 +117,7 @@ def _set_electrical_parameters_lines(lines):
         lines.loc[lines["v_nom"] == v_nom, 'type'] = linetypes[v_nom]
 
     lines['s_max_pu'] = snakemake.config['lines']['s_max_pu']
+    lines.loc[lines.under_construction.astype(bool), 'num_parallel'] = 0.
 
     return lines
 
@@ -147,6 +150,18 @@ def _set_electrical_parameters_links(links):
 
     return links
 
+def _set_electrical_parameters_converters(converters):
+    converters['p_max_pu'] = snakemake.config['links']['s_max_pu']
+    converters['p_min_pu'] = -1. * snakemake.config['links']['s_max_pu']
+
+    converters['p_nom'] = 2000
+
+    # Converters are combined with links
+    converters['under_construction'] = False
+    converters['underground'] = False
+
+    return converters
+
 def _set_electrical_parameters_transformers(transformers):
     config = snakemake.config['transformers']
 
@@ -172,6 +187,72 @@ def _remove_unconnected_components(network):
 
     return network[component == component_sizes.index[0]]
 
+def _set_countries_and_substations(n):
+
+    buses = n.buses
+
+    def buses_in_shape(shape):
+        shape = shapely.prepared.prep(shape)
+        return pd.Series(
+            np.fromiter((shape.contains(Point(x, y))
+                        for x, y in buses.loc[:,["x", "y"]].values),
+                        dtype=bool, count=len(buses)),
+            index=buses.index
+        )
+
+    countries = snakemake.config['countries']
+    country_shapes = vshapes.countries(subset=countries, add_KV_to_RS=True,
+                                       tolerance=0.01, minarea=0.1)
+    offshore_shapes = vshapes.eez(subset=countries, tolerance=0.01)
+
+    substation_b = buses['symbol'].str.contains('substation', case=False)
+
+    def prefer_voltage(x, which):
+        index = x.index
+        if len(index) == 1:
+            return pd.Series(index, index)
+        key = (x.index[0]
+               if x['v_nom'].isnull().all()
+               else getattr(x['v_nom'], 'idx' + which)())
+        return pd.Series(key, index)
+
+    gb = buses.loc[substation_b].groupby(['x', 'y'], as_index=False,
+                                         group_keys=False, sort=False)
+    bus_map_low = gb.apply(prefer_voltage, 'min')
+    lv_b = (bus_map_low == bus_map_low.index).reindex(buses.index, fill_value=False)
+    bus_map_high = gb.apply(prefer_voltage, 'max')
+    hv_b = (bus_map_high == bus_map_high.index).reindex(buses.index, fill_value=False)
+
+    onshore_b = pd.Series(False, buses.index)
+    offshore_b = pd.Series(False, buses.index)
+
+    for country in countries:
+        onshore_shape = country_shapes[country]
+        onshore_country_b = buses_in_shape(onshore_shape)
+        onshore_b |= onshore_country_b
+
+        buses.loc[onshore_country_b, 'country'] = country
+
+        if country not in offshore_shapes: continue
+        offshore_country_b = buses_in_shape(offshore_shapes[country])
+        offshore_b |= offshore_country_b
+
+        buses.loc[offshore_country_b, 'country'] = country
+
+    buses['substation_lv'] = lv_b & onshore_b
+    buses['substation_off'] = offshore_b | (hv_b & onshore_b)
+
+    # Nearest country in numbers of hops defines country of homeless buses
+    c_nan_b = buses.country.isnull()
+    c = n.buses['country']
+    graph = n.graph()
+    n.buses.loc[c_nan_b, 'country'] = \
+        [(next(filter(len, map(lambda x: c.loc[x].dropna(), BreadthFirstLevels(graph, [b]))))
+          .value_counts().index[0])
+         for b in buses.index[c_nan_b]]
+
+    return buses
+
 def base_network():
     buses = _load_buses_from_eg()
 
@@ -181,16 +262,15 @@ def base_network():
     lines = _load_lines_from_eg(buses)
     transformers = _load_transformers_from_eg(buses)
 
-    # buses, lines, transformers = _split_aclines_with_several_voltages(buses, lines, transformers)
-
     lines = _set_electrical_parameters_lines(lines)
-    links = _set_electrical_parameters_links(links)
     transformers = _set_electrical_parameters_transformers(transformers)
+    links = _set_electrical_parameters_links(links)
+    converters = _set_electrical_parameters_converters(converters)
 
     n = pypsa.Network()
     n.name = 'PyPSA-Eur'
 
-    n.set_snapshots(pd.date_range(snakemake.config['historical_year'], periods=8760, freq='h'))
+    n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")
@@ -198,12 +278,11 @@ def base_network():
     n.import_components_from_dataframe(links, "Link")
     n.import_components_from_dataframe(converters, "Link")
 
-    if 'T' in snakemake.wildcards.opts.split('-'):
-        raise NotImplemented
-
     n = _remove_unconnected_components(n)
 
     _apply_parameter_corrections(n)
+
+    _set_countries_and_substations(n)
 
     return n
 
@@ -223,7 +302,6 @@ if __name__ == "__main__":
             links_p_nom='../data/links_p_nom.csv'
         )
 
-        snakemake.wildcards = Dict(opts='LC')
         with open('../config.yaml') as f:
             snakemake.config = yaml.load(f)
         snakemake.output = ['../networks/base_LC.nc']
