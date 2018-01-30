@@ -60,6 +60,7 @@ def load_costs(Nyears=1.):
             capital_cost += link2['capital_cost']
             efficiency *= link2['efficiency']**0.5
         return pd.Series(dict(capital_cost=capital_cost,
+                              marginal_cost=0.,
                               efficiency=efficiency,
                               co2_emissions=0.))
 

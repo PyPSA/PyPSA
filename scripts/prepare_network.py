@@ -8,7 +8,9 @@ idx = pd.IndexSlice
 import numpy as np
 import scipy as sp
 import xarray as xr
+import re
 
+from six import iterkeys
 import geopandas as gpd
 
 import pypsa
@@ -22,12 +24,24 @@ def add_co2limit(n, Nyears=1.):
           constant=snakemake.config['electricity']['co2limit'] * Nyears)
 
 def add_emission_prices(n, emission_prices=None, exclude_co2=False):
+    assert False, "Needs to be fixed, adds NAN"
+
     if emission_prices is None:
         emission_prices = snakemake.config['costs']['emission_prices']
     if exclude_co2: emission_prices.pop('co2')
     ep = (pd.Series(emission_prices).rename(lambda x: x+'_emissions') * n.carriers).sum(axis=1)
     n.generators['marginal_cost'] += n.generators.carrier.map(ep)
     n.storage_units['marginal_cost'] += n.storage_units.carrier.map(ep)
+
+def set_line_s_max_pu(n):
+    # set n-1 security margin to 0.5 for 45 clusters and to 0.7 from 200 clusters
+    n_clusters = len(n.buses)
+    s_max_pu = np.clip(0.5 + 0.2 * (n_clusters - 45) / (200 - 45), 0.5, 0.7)
+    n.lines['s_max_pu'] = s_max_pu
+
+    dc_b = n.links.carrier == 'DC'
+    n.links.loc[dc_b, 'p_max_pu'] = s_max_pu
+    n.links.loc[dc_b, 'p_min_pu'] = - s_max_pu
 
 def set_line_volume_limit(n, lv):
     # Either line_volume cap or cost
@@ -52,6 +66,24 @@ def set_line_volume_limit(n, lv):
 
     return n
 
+def average_every_nhours(n, offset):
+    logger.info('Resampling the network to {}'.format(offset))
+    m = n.copy(with_time=False)
+
+    snapshot_weightings = n.snapshot_weightings.resample(offset).sum()
+    m.set_snapshots(snapshot_weightings.index)
+    m.snapshot_weightings = snapshot_weightings
+
+    for c in n.iterate_components():
+        pnl = getattr(m, c.list_name+"_t")
+        for k in iterkeys(c.pnl):
+            df = c.pnl[k]
+            if not df.empty:
+                pnl[k] = df.resample(offset).mean()
+
+    return m
+
+
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
@@ -71,12 +103,22 @@ if __name__ == "__main__":
     n = pypsa.Network(snakemake.input[0])
     Nyears = n.snapshot_weightings.sum()/8760.
 
+    set_line_s_max_pu(n)
+
+    for o in opts:
+        m = re.match(r'^\d+h$', o, re.IGNORECASE)
+        if m is not None:
+            n = average_every_nhours(n, m.group(0))
+            break
+    else:
+        logger.info("No resampling")
+
     if 'Co2L' in opts:
         add_co2limit(n, Nyears)
-        add_emission_prices(n, exclude_co2=True)
+        # add_emission_prices(n, exclude_co2=True)
 
-    if 'Ep' in opts:
-        add_emission_prices(n)
+    # if 'Ep' in opts:
+    #     add_emission_prices(n)
 
     set_line_volume_limit(n, float(snakemake.wildcards.lv))
 
