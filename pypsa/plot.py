@@ -23,7 +23,7 @@
 from __future__ import division
 from __future__ import absolute_import
 import six
-from six import iteritems
+from six import iteritems, string_types
 
 import pandas as pd
 import numpy as np
@@ -379,8 +379,8 @@ def iplot(network, fig=None, bus_colors='blue',
     for c in network.iterate_components(branch_components):
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_nums = None
         l_colors = line_colors.get(c.name, l_defaults['color'])
+        l_nums = None
 
         if line_text is None:
             l_text = c.name + ' ' + c.df.index
@@ -404,15 +404,16 @@ def iplot(network, fig=None, bus_colors='blue',
         y1 = c.df.bus1.map(y)
 
         for line in c.df.index:
+            color = l_colors if isinstance(l_colors, string_types) else l_colors[line]
+            width = l_widths if isinstance(l_widths, (int, float)) else l_widths[line]
+
             shapes.append(dict(type='line',
-                          x0=x0[line],
-                          y0=y0[line],
-                          x1=x1[line],
-                          y1=y1[line],
-                          opacity=0.7,
-                          line=dict(color=l_colors[line],
-                                    width=l_widths[line])
-                          ))
+                               x0=x0[line],
+                               y0=y0[line],
+                               x1=x1[line],
+                               y1=y1[line],
+                               opacity=0.7,
+                               line=dict(color=color, width=width)))
 
         shape_traces.append(dict(x=0.5*(x0+x1),
                                  y=0.5*(y0+y1),
@@ -420,8 +421,7 @@ def iplot(network, fig=None, bus_colors='blue',
                                  type="scatter",
                                  mode="markers",
                                  hoverinfo="text",
-                                 marker=dict(opacity=0.))
-                            )
+                                 marker=dict(opacity=0.)))
 
     fig['data'].extend([bus_trace]+shape_traces)
 
