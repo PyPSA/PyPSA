@@ -107,7 +107,7 @@ def _apply_parameter_corrections(n):
                     r = pd.Series(repls["index"])
                 else:
                     raise NotImplementedError()
-                df.loc[r.index, attr] = r
+                df.loc[r.index, attr] = r.astype(df[attr].dtype)
 
 def _set_electrical_parameters_lines(lines):
     v_noms = snakemake.config['electricity']['voltages']
