@@ -271,7 +271,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
           line_colors='green', line_widths=2, line_text=None, title="",
-          branch_components=['Line', 'Link'], iplot=True):
+          branch_components=['Line', 'Link'], iplot=True, jitter=None):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -307,6 +307,9 @@ def iplot(network, fig=None, bus_colors='blue',
         Branch components to be plotted, defaults to Line and Link.
     iplot : bool, default True
         Automatically do an interactive plot of the figure.
+    jitter : None|float
+        Amount of random noise to add to bus positions to distinguish
+        overlapping buses
 
     Returns
     -------
@@ -325,8 +328,14 @@ def iplot(network, fig=None, bus_colors='blue',
     if bus_text is None:
         bus_text = 'Bus ' + network.buses.index
 
-    bus_trace = dict(x=network.buses.x,
-                     y=network.buses.y,
+    x = network.buses.x
+    y = network.buses.y
+
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+
+    bus_trace = dict(x=x, y=y,
                      text=bus_text,
                      type="scatter",
                      mode="markers",
@@ -385,11 +394,14 @@ def iplot(network, fig=None, bus_colors='blue',
             else:
                 l_colors.fillna(l_defaults['color'], inplace=True)
 
-        x0 = c.df.bus0.map(network.buses.x)
-        x1 = c.df.bus1.map(network.buses.x)
+        x = network.buses.x
+        y = network.buses.y
 
-        y0 = c.df.bus0.map(network.buses.y)
-        y1 = c.df.bus1.map(network.buses.y)
+        x0 = c.df.bus0.map(x)
+        x1 = c.df.bus1.map(x)
+
+        y0 = c.df.bus0.map(y)
+        y1 = c.df.bus1.map(y)
 
         for line in c.df.index:
             shapes.append(dict(type='line',
