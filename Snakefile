@@ -4,6 +4,7 @@ localrules: all, prepare_links_p_nom, base_network, add_electricity, add_sectors
 
 wildcard_constraints:
     lv="[0-9\.]+",
+    simpl="[a-zA-Z0-9]*",
     clusters="[0-9]+",
     sectors="[+a-zA-Z0-9]+",
     opts="[-+a-zA-Z0-9]+"
@@ -72,16 +73,30 @@ rule add_electricity:
     resources: mem_mb=1000
     script: "scripts/add_electricity.py"
 
-rule cluster_network:
+rule simplify_network:
     input:
         network='networks/{network}.nc',
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     output:
-        network='networks/{network}_{clusters}.nc',
-        regions_onshore="resources/regions_onshore_{network}_{clusters}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_{clusters}.geojson"
-    benchmark: "benchmarks/cluster_network/{network}_{clusters}"
+        network='networks/{network}_s{simpl}.nc',
+        regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
+    benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
+    threads: 1
+    resources: mem_mb=1000
+    script: "scripts/simplify_network.py"
+
+rule cluster_network:
+    input:
+        network='networks/{network}_s{simpl}.nc',
+        regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
+    output:
+        network='networks/{network}_s{simpl}_{clusters}.nc',
+        regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson"
+    benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1
     resources: mem_mb=1000
     script: "scripts/cluster_network.py"
@@ -97,20 +112,20 @@ rule add_sectors:
     script: "scripts/add_sectors.py"
 
 rule prepare_network:
-    input: 'networks/elec_{clusters}.nc'
-    output: 'networks/elec_{clusters}_lv{lv}_{opts}.nc'
+    input: 'networks/{network}_s{simpl}_{clusters}.nc'
+    output: 'networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
     threads: 1
     resources: mem_mb=1000
     script: "scripts/prepare_network.py"
 
 rule solve_network:
-    input: "networks/elec_{clusters}_lv{lv}_{opts}.nc"
-    output: "results/networks/{clusters}_lv{lv}_{opts}.nc"
+    input: "networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
+    output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     shadow: "shallow"
     log:
-        gurobi="logs/{clusters}_lv{lv}_{opts}_gurobi.log",
-        python="logs/{clusters}_lv{lv}_{opts}_python.log"
-    benchmark: "benchmarks/solve_network/{clusters}_lv{lv}_{opts}"
+        gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
+        python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log"
+    benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
     resources: mem_mb=lambda w: 100000 * int(w.clusters) // 362
     script: "scripts/solve_network.py"
