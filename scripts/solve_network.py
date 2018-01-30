@@ -212,7 +212,7 @@ def solve_network(n):
             iteration += 1
 
             # Not really needed, could also be taken out
-            n.export_to_hdf5(snakemake.output[0])
+            n.export_to_netcdf(snakemake.output[0])
 
             status, termination_condition = run_lopf(n, allow_warning_status=True)
 
@@ -223,14 +223,26 @@ def solve_network(n):
     # Drop zero lines from network
     zero_lines_i = n.lines.index[(n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable]
     if len(zero_lines_i):
-        n.lines.drop(zero_lines_i, inplace=True)
+        n.mremove("Line", zero_lines_i)
     zero_links_i = n.links.index[(n.links.p_nom_opt == 0.) & n.links.p_nom_extendable]
     if len(zero_links_i):
-        n.links.drop(zero_links_i, inplace=True)
+        n.mremove("Link", zero_links_i)
 
     return n
 
 if __name__ == "__main__":
+    # Detect running outside of snakemake and mock snakemake for testing
+    if 'snakemake' not in globals():
+        from vresutils.snakemake import MockSnakemake, Dict
+        snakemake = MockSnakemake(
+            path='..',
+            wildcards=dict(simpl='', clusters='45', lv='1.5', opts='Co2L'),
+            input=["networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
+            output=["results/networks/s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
+            log=dict(gurobi="logs/s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
+                     python="logs/s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
+        )
+
     n = pypsa.Network(snakemake.input[0])
 
     n = prepare_network(n)
