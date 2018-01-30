@@ -394,9 +394,6 @@ def iplot(network, fig=None, bus_colors='blue',
             else:
                 l_colors.fillna(l_defaults['color'], inplace=True)
 
-        x = network.buses.x
-        y = network.buses.y
-
         x0 = c.df.bus0.map(x)
         x1 = c.df.bus1.map(x)
 
