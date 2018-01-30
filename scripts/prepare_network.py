@@ -15,9 +15,6 @@ import geopandas as gpd
 
 import pypsa
 
-
-def normed(s): return s/s.sum()
-
 def add_co2limit(n, Nyears=1.):
     n.add("GlobalConstraint", "CO2Limit",
           carrier_attribute="co2_emissions", sense="<=",
@@ -87,14 +84,13 @@ def average_every_nhours(n, offset):
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        with open('../config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.wildcards = Dict(clusters='37', lv='2', opts='Co2L')
-        snakemake.input = ['../networks/elec_37.nc']
-        snakemake.output = ['../networks/elec_37_lv2_Co2L.nc']
+        from vresutils.snakemake import MockSnakemake
+        snakemake = MockSnakemake(
+            path='..',
+            wildcards=dict(network='elec', simpl='', clusters='37', lv='2', opts='Co2L-3H'),
+            input=['networks/{network}_s{simpl}_{clusters}.nc'],
+            output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc']
+        )
 
     logger.setLevel(snakemake.config['logging_level'])
 

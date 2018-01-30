@@ -12,6 +12,14 @@ wildcard_constraints:
 rule all:
     input: "results/summaries/costs2-summary.csv"
 
+rule solve_all_elec_networks:
+    input:
+        expand("results/networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
+               simpl='',
+               clusters=config['scenario']['clusters'],
+               lv='1.5',
+               opts=config['scenario']['opts'])
+
 rule prepare_links_p_nom:
     output: 'data/links_p_nom.csv'
     threads: 1
