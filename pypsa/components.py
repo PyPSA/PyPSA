@@ -430,19 +430,14 @@ class Network(Basic):
 
         """
 
-        if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
-            return None
+        assert class_name in self.components, "Component class {} not found".format(class_name)
 
         cls_df = self.df(class_name)
         cls_pnl = self.pnl(class_name)
 
         name = str(name)
 
-        if name in cls_df.index:
-            logger.error("Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, self.components[class_name]["list_name"]))
-            return
-
+        assert name not in cls_df.index, "Failed to add {} component {} because there is already an object with this name in {}".format(class_name, name, self.components[class_name]["list_name"])
 
         attrs = self.components[class_name]["attrs"]
 
