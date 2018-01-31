@@ -827,7 +827,7 @@ def find_tree(sub_network, weight='x_pu'):
     branches_i = branches_bus0.index
     buses_i = sub_network.buses_i()
 
-    graph = sub_network.graph(weight=weight)
+    graph = sub_network.graph(weight=weight, inf_weight=1.)
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     #find bus with highest degree to use as slack
@@ -862,7 +862,7 @@ def find_cycles(sub_network, weight='x_pu'):
     branches_i = branches_bus0.index
 
     #reduce to a non-multi-graph for cycles with > 2 edges
-    mgraph = sub_network.graph(weight=weight)
+    mgraph = sub_network.graph(weight=weight, inf_weight=False)
     graph = nx.OrderedGraph(mgraph)
 
     cycles = nx.cycle_basis(graph)
