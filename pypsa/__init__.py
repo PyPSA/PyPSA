@@ -30,9 +30,6 @@ from . import pf, opf, plot, networkclustering, io, contingency, geo
 
 from .components import Network, SubNetwork
 
-import logging
-logging.basicConfig(level=logging.INFO)
-
 __version__ = "0.13.0"
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
