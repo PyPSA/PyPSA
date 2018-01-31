@@ -106,7 +106,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
             sel = slice(None)
             no_branches = len(c.df)
         else:
-            sel = t.ind
+            sel = c.ind
             no_branches = len(c.ind)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))

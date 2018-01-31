@@ -23,7 +23,7 @@
 from __future__ import division
 from __future__ import absolute_import
 import six
-from six import iteritems
+from six import iteritems, string_types
 
 import pandas as pd
 import numpy as np
@@ -271,7 +271,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
           line_colors='green', line_widths=2, line_text=None, title="",
-          branch_components=['Line', 'Link'], iplot=True):
+          branch_components=['Line', 'Link'], iplot=True, jitter=None):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -307,6 +307,9 @@ def iplot(network, fig=None, bus_colors='blue',
         Branch components to be plotted, defaults to Line and Link.
     iplot : bool, default True
         Automatically do an interactive plot of the figure.
+    jitter : None|float
+        Amount of random noise to add to bus positions to distinguish
+        overlapping buses
 
     Returns
     -------
@@ -325,8 +328,14 @@ def iplot(network, fig=None, bus_colors='blue',
     if bus_text is None:
         bus_text = 'Bus ' + network.buses.index
 
-    bus_trace = dict(x=network.buses.x,
-                     y=network.buses.y,
+    x = network.buses.x
+    y = network.buses.y
+
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+
+    bus_trace = dict(x=x, y=y,
                      text=bus_text,
                      type="scatter",
                      mode="markers",
@@ -370,8 +379,8 @@ def iplot(network, fig=None, bus_colors='blue',
     for c in network.iterate_components(branch_components):
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_nums = None
         l_colors = line_colors.get(c.name, l_defaults['color'])
+        l_nums = None
 
         if line_text is None:
             l_text = c.name + ' ' + c.df.index
@@ -385,22 +394,23 @@ def iplot(network, fig=None, bus_colors='blue',
             else:
                 l_colors.fillna(l_defaults['color'], inplace=True)
 
-        x0 = c.df.bus0.map(network.buses.x)
-        x1 = c.df.bus1.map(network.buses.x)
+        x0 = c.df.bus0.map(x)
+        x1 = c.df.bus1.map(x)
 
-        y0 = c.df.bus0.map(network.buses.y)
-        y1 = c.df.bus1.map(network.buses.y)
+        y0 = c.df.bus0.map(y)
+        y1 = c.df.bus1.map(y)
 
         for line in c.df.index:
+            color = l_colors if isinstance(l_colors, string_types) else l_colors[line]
+            width = l_widths if isinstance(l_widths, (int, float)) else l_widths[line]
+
             shapes.append(dict(type='line',
-                          x0=x0[line],
-                          y0=y0[line],
-                          x1=x1[line],
-                          y1=y1[line],
-                          opacity=0.7,
-                          line=dict(color=l_colors[line],
-                                    width=l_widths[line])
-                          ))
+                               x0=x0[line],
+                               y0=y0[line],
+                               x1=x1[line],
+                               y1=y1[line],
+                               opacity=0.7,
+                               line=dict(color=color, width=width)))
 
         shape_traces.append(dict(x=0.5*(x0+x1),
                                  y=0.5*(y0+y1),
@@ -408,8 +418,7 @@ def iplot(network, fig=None, bus_colors='blue',
                                  type="scatter",
                                  mode="markers",
                                  hoverinfo="text",
-                                 marker=dict(opacity=0.))
-                            )
+                                 marker=dict(opacity=0.)))
 
     fig['data'].extend([bus_trace]+shape_traces)
 
