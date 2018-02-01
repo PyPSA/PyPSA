@@ -24,12 +24,13 @@ import pypsa
 def _load_buses_from_eg():
     buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
                          true_values='t', false_values='f',
-                         dtype=dict(bus_id="str"))
+                         dtype=dict(bus_id="str", under_construction='bool'))
             .set_index("bus_id")
-            .drop(['under_construction', 'station_id'], axis=1)
+            .drop(['station_id'], axis=1)
             .rename(columns=dict(voltage='v_nom')))
 
     buses['carrier'] = buses.pop('dc').map({True: 'DC', False: 'AC'})
+    buses['under_construction'] = buses['under_construction'].fillna(False).astype(bool)
 
     # remove all buses outside of all countries including exclusive economic zones (offshore)
     europe_shape = vshapes.country_cover(snakemake.config['countries'])
@@ -239,8 +240,8 @@ def _set_countries_and_substations(n):
 
         buses.loc[offshore_country_b, 'country'] = country
 
-    buses['substation_lv'] = lv_b & onshore_b
-    buses['substation_off'] = offshore_b | (hv_b & onshore_b)
+    buses['substation_lv'] = lv_b & onshore_b & (~ buses['under_construction'])
+    buses['substation_off'] = (offshore_b | (hv_b & onshore_b)) & (~ buses['under_construction'])
 
     # Nearest country in numbers of hops defines country of homeless buses
     c_nan_b = buses.country.isnull()
