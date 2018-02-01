@@ -10,7 +10,7 @@ import scipy as sp
 import xarray as xr
 import re
 
-from six import iterkeys
+from six import iteritems
 import geopandas as gpd
 
 import pypsa
@@ -73,8 +73,7 @@ def average_every_nhours(n, offset):
 
     for c in n.iterate_components():
         pnl = getattr(m, c.list_name+"_t")
-        for k in iterkeys(c.pnl):
-            df = c.pnl[k]
+        for k, df in iteritems(c.pnl):
             if not df.empty:
                 pnl[k] = df.resample(offset).mean()
 

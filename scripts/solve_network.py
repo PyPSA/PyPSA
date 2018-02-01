@@ -5,17 +5,19 @@ logger = logging.getLogger(__name__)
 
 import pypsa
 
-if 'tmpdir' in snakemake.config['solving']:
+
+def patch_pyomo_tmpdir(tmpdir):
     # PYOMO should write its lp files into tmp here
-    tmpdir = snakemake.config['solving']['tmpdir']
     import os
     if not os.path.isdir(tmpdir):
         os.mkdir(tmpdir)
     from pyutilib.services import TempfileManager
     TempfileManager.tempdir = tmpdir
 
-def prepare_network(n):
-    solve_opts = snakemake.config['solving']['options']
+def prepare_network(n, solve_opts=None):
+    if solve_opts is None:
+        solve_opts = snakemake.config['solving']['options']
+
     if 'clip_p_max_pu' in solve_opts:
         for df in (n.generators_t.p_max_pu, n.storage_units_t.inflow):
             df.where(df>solve_opts['clip_p_max_pu'], other=0., inplace=True)
@@ -45,72 +47,63 @@ def prepare_network(n):
 
     return n
 
-def solve_network(n):
-    def add_opts_constraints(n):
+def add_opts_constraints(n, opts=None):
+    if opts is None:
         opts = snakemake.wildcards.opts.split('-')
 
-        if 'BAU' in opts:
-            mincaps = snakemake.config['electricity']['BAU_mincapacities']
-            def bau_mincapacities_rule(model, carrier):
-                gens = n.generators.index[n.generators.p_nom_extendable & (n.generators.carrier == carrier)]
-                return sum(model.generator_p_nom[gen] for gen in gens) >= mincaps[carrier]
-            n.model.bau_mincapacities = pypsa.opt.Constraint(list(mincaps), rule=bau_mincapacities_rule)
+    if 'BAU' in opts:
+        mincaps = snakemake.config['electricity']['BAU_mincapacities']
+        def bau_mincapacities_rule(model, carrier):
+            gens = n.generators.index[n.generators.p_nom_extendable & (n.generators.carrier == carrier)]
+            return sum(model.generator_p_nom[gen] for gen in gens) >= mincaps[carrier]
+        n.model.bau_mincapacities = pypsa.opt.Constraint(list(mincaps), rule=bau_mincapacities_rule)
 
-        if 'SAFE' in opts:
-            peakdemand = (1. + snakemake.config['electricity']['SAFE_reservemargin']) * n.loads_t.p_set.sum(axis=1).max()
-            conv_techs = snakemake.config['plotting']['conv_techs']
-            exist_conv_caps = n.generators.loc[n.generators.carrier.isin(conv_techs) & ~n.generators.p_nom_extendable, 'p_nom'].sum()
-            ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
-            n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
+    if 'SAFE' in opts:
+        peakdemand = (1. + snakemake.config['electricity']['SAFE_reservemargin']) * n.loads_t.p_set.sum(axis=1).max()
+        conv_techs = snakemake.config['plotting']['conv_techs']
+        exist_conv_caps = n.generators.loc[n.generators.carrier.isin(conv_techs) & ~n.generators.p_nom_extendable, 'p_nom'].sum()
+        ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
+        n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
-    def add_lv_constraint(n):
-        line_volume = getattr(n, 'line_volume_limit')
-        if line_volume is not None and not np.isinf(line_volume):
-            n.model.line_volume_constraint = pypsa.opt.Constraint(
-                expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"length"]
-                           for line in n.lines.index[n.lines.s_nom_extendable]) +
-                       sum(n.model.link_p_nom[link]*n.links.at[link,"length"]
-                           for link in n.links.index[(n.links.carrier=='DC') &
-                                                     n.links.p_nom_extendable]))
-                      <= line_volume)
-            )
+def add_lv_constraint(n):
+    line_volume = getattr(n, 'line_volume_limit')
+    if line_volume is not None and not np.isinf(line_volume):
+        n.model.line_volume_constraint = pypsa.opt.Constraint(
+            expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"length"]
+                        for line in n.lines.index[n.lines.s_nom_extendable]) +
+                    sum(n.model.link_p_nom[link]*n.links.at[link,"length"]
+                        for link in n.links.index[(n.links.carrier=='DC') &
+                                                    n.links.p_nom_extendable]))
+                    <= line_volume)
+        )
 
-    def add_eps_storage_constraint(n):
-        if not hasattr(n, 'epsilon'):
-            n.epsilon = 1e-5
-        fix_sus_i = n.storage_units.index[~ n.storage_units.p_nom_extendable]
-        n.model.objective.expr += sum(n.epsilon * n.model.state_of_charge[su, n.snapshots[0]] for su in fix_sus_i)
+def add_eps_storage_constraint(n):
+    if not hasattr(n, 'epsilon'):
+        n.epsilon = 1e-5
+    fix_sus_i = n.storage_units.index[~ n.storage_units.p_nom_extendable]
+    n.model.objective.expr += sum(n.epsilon * n.model.state_of_charge[su, n.snapshots[0]] for su in fix_sus_i)
 
-    def fix_lines(n, lines_i=None, links_i=None): # , fix=True):
-        if lines_i is not None and len(lines_i) > 0:
-            s_nom = n.lines.s_nom.where(
-                n.lines.type == '',
-                np.sqrt(3) * n.lines.type.map(n.line_types.i_nom) *
-                n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
-            )
-            for l in lines_i:
-                n.model.passive_branch_s_nom["Line", l].fix(s_nom.at[l])
-                # n.model.passive_branch_s_nom[l].fixed = fix
-            if isinstance(n.opt, pypsa.opf.PersistentSolver):
-                n.opt.update_var(n.model.passive_branch_s_nom)
+def fix_branches(n, lines_s_nom=None, links_p_nom=None):
+    if lines_s_nom is not None and len(lines_s_nom) > 0:
+        for l, s_nom in lines_s_nom.iteritems():
+            n.model.passive_branch_s_nom["Line", l].fix(s_nom)
+        if isinstance(n.opt, pypsa.opf.PersistentSolver):
+            n.opt.update_var(n.model.passive_branch_s_nom)
 
-        if links_i is not None and len(links_i) > 0:
-            for l in links_i:
-                n.model.link_p_nom[l].fix(n.links.at[l, 'p_nom'])
-                # n.model.link_p_nom[l].fixed = fix
-            if isinstance(n.opt, pypsa.opf.PersistentSolver):
-                n.opt.update_var(n.model.link_p_nom)
+    if links_p_nom is not None and len(links_p_nom) > 0:
+        for l, p_nom in links_p_nom.iteritems():
+            n.model.link_p_nom[l].fix(p_nom)
+        if isinstance(n.opt, pypsa.opf.PersistentSolver):
+            n.opt.update_var(n.model.link_p_nom)
 
-        # Not sure if this is needed
-        # n.model.preprocess()
-
+def solve_network(n):
     solve_opts = snakemake.config['solving']['options']
 
     solver_options = snakemake.config['solving']['solver'].copy()
     solver_options['logfile'] = snakemake.log.gurobi
     solver_name = solver_options.pop('name')
 
-    def run_lopf(n, allow_warning_status=False, fix_zero_lines=False):
+    def run_lopf(n, allow_warning_status=False, fix_zero_lines=False, fix_ext_lines=False):
         if not hasattr(n, 'opt') or not isinstance(n.opt, pypsa.opf.PersistentSolver):
             pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
             add_opts_constraints(n)
@@ -121,19 +114,21 @@ def solve_network(n):
 
         if fix_zero_lines:
             fix_lines_b = (n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable
-            n.lines.loc[fix_lines_b & (n.lines.type == ''), 's_nom'] = 0.
-            n.lines.loc[fix_lines_b & (n.lines.type != ''), 'num_parallel'] = 0.
-
             fix_links_b = (n.links.p_nom_opt == 0.) & n.links.p_nom_extendable
-            n.links.loc[fix_links_b, 'p_nom'] = 0.
+            fix_branches(n,
+                         lines_s_nom=pd.Series(0., n.lines.index[fix_lines_b]),
+                         links_p_nom=pd.Series(0., n.links.index[fix_links_b]))
 
-            # WARNING: We are not unfixing these later
-            fix_lines(n, lines_i=n.lines.index[fix_lines_b], links_i=n.links.index[fix_links_b])
+        if fix_ext_lines:
+            fix_branches(n,
+                         lines_s_nom=n.lines.loc[n.lines.s_nom_extendable, 's_nom_opt'],
+                         links_p_nom=n.links.loc[n.links.p_nom_extendable, 'p_nom_opt'])
 
         status, termination_condition = \
         pypsa.opf.network_lopf_solve(n,
                                      solver_options=solver_options,
-                                     formulation=solve_opts['formulation'])
+                                     formulation=solve_opts['formulation'],
+                                     free_memory={'pypsa'})
 
         assert status == "ok" or allow_warning_status and status == 'warning', \
             ("network_lopf did abort with status={} "
@@ -151,7 +146,7 @@ def solve_network(n):
 
         lines['s_nom'] = (
             np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
-            n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
+            n.lines.bus0.map(n.buses.v_nom)
         ).where(n.lines.type != '', n.lines['s_nom'])
 
         lines_ext_typed_b = (n.lines.type != '') & lines_ext_b
@@ -191,7 +186,7 @@ def solve_network(n):
 
         iteration = 1
 
-        lines['s_nom_opt'] = lines['s_nom']
+        lines['s_nom_opt'] = lines['s_nom'] * n.lines['num_parallel'].where(n.lines.type != '', 1.)
         status, termination_condition = run_lopf(n, allow_warning_status=True)
 
         def msq_diff(n):
@@ -217,7 +212,9 @@ def solve_network(n):
 
         update_line_parameters(n, zero_lines_below=500)
 
-    status, termination_condition = run_lopf(n, fix_zero_lines=True)
+        logger.info("Starting last run with fixed extendable lines")
+
+    status, termination_condition = run_lopf(n, fix_ext_lines=True)
 
     # Drop zero lines from network
     zero_lines_i = n.lines.index[(n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable]
@@ -240,6 +237,10 @@ if __name__ == "__main__":
             log=dict(gurobi="logs/s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
                      python="logs/s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
         )
+
+    tmpdir = snakemake.config['solving'].get('tmpdir')
+    if tmpdir is not None:
+        patch_pyomo_tmpdir(tmpdir)
 
     logging.basicConfig(filename=snakemake.log.python, level=logging.INFO)
 
