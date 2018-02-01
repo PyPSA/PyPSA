@@ -290,24 +290,23 @@ def base_network():
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        snakemake.input = Dict(
-            eg_buses='../data/entsoegridkit/buses.csv',
-            eg_lines='../data/entsoegridkit/lines.csv',
-            eg_links='../data/entsoegridkit/links.csv',
-            eg_converters='../data/entsoegridkit/converters.csv',
-            eg_transformers='../data/entsoegridkit/transformers.csv',
-            parameter_corrections='../data/parameter_corrections.yaml',
-            links_p_nom='../data/links_p_nom.csv'
+        from vresutils.snakemake import MockSnakemake, Dict
+        snakemake = MockSnakemake(
+            path='..',
+            wildcards={},
+            input=Dict(
+                eg_buses='data/entsoegridkit/buses.csv',
+                eg_lines='data/entsoegridkit/lines.csv',
+                eg_links='data/entsoegridkit/links.csv',
+                eg_converters='data/entsoegridkit/converters.csv',
+                eg_transformers='data/entsoegridkit/transformers.csv',
+                parameter_corrections='data/parameter_corrections.yaml',
+                links_p_nom='data/links_p_nom.csv'
+            ),
+            output = ['networks/base_LC.nc']
         )
 
-        with open('../config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.output = ['../networks/base_LC.nc']
-
-    logger.setLevel(level=snakemake.config['logging_level'])
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     n = base_network()
     n.export_to_netcdf(snakemake.output[0])

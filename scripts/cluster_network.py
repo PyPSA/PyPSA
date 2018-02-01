@@ -136,7 +136,6 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
-            path='..',
             wildcards=Dict(network='elec', simpl='', clusters='45'),
             input=Dict(
                 network='networks/{network}_s{simpl}.nc',
@@ -150,8 +149,7 @@ if __name__ == "__main__":
             )
         )
 
-    logger = logging.getLogger()
-    logger.setLevel(snakemake.config['logging_level'])
+    logging.basicConfig(snakemake.config['logging_level'])
 
     n = pypsa.Network(snakemake.input.network)
 

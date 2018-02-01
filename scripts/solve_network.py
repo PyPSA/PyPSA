@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-
 import logging
-logging.basicConfig(filename=snakemake.log.python, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 import pypsa
 
@@ -235,13 +234,14 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
-            path='..',
             wildcards=dict(simpl='', clusters='45', lv='1.5', opts='Co2L'),
             input=["networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
             output=["results/networks/s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
             log=dict(gurobi="logs/s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
                      python="logs/s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
         )
+
+    logging.basicConfig(filename=snakemake.log.python, level=logging.INFO)
 
     n = pypsa.Network(snakemake.input[0])
 

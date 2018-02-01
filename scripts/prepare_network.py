@@ -86,13 +86,12 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake
         snakemake = MockSnakemake(
-            path='..',
             wildcards=dict(network='elec', simpl='', clusters='37', lv='2', opts='Co2L-3H'),
             input=['networks/{network}_s{simpl}_{clusters}.nc'],
             output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc']
         )
 
-    logger.setLevel(snakemake.config['logging_level'])
+    logging.basicConfig(snakemake.config['logging_level'])
 
     opts = snakemake.wildcards.opts.split('-')
 
