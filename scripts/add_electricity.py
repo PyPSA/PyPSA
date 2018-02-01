@@ -2,6 +2,7 @@
 
 import logging
 logger = logging.getLogger(__name__)
+
 import pandas as pd
 idx = pd.IndexSlice
 
@@ -180,6 +181,7 @@ def attach_hydro(n, costs, ppl):
         n.madd("Generator", ror.index,
                carrier='ror',
                bus=ror['bus'],
+               p_nom=ror['p_nom'],
                efficiency=costs.at['ror', 'efficiency'],
                capital_cost=costs.at['ror', 'capital_cost'],
                weight=ror['p_nom'],
@@ -191,6 +193,7 @@ def attach_hydro(n, costs, ppl):
         n.madd('StorageUnit', phs.index,
                carrier='PHS',
                bus=phs['bus'],
+               p_nom=phs['p_nom'],
                capital_cost=costs.at['PHS', 'capital_cost'],
                max_hours=c['PHS_max_hours'],
                efficiency_store=np.sqrt(costs.at['PHS','efficiency']),
@@ -209,6 +212,7 @@ def attach_hydro(n, costs, ppl):
 
         n.madd('StorageUnit', hydro.index, carrier='hydro',
                bus=hydro['bus'],
+               p_nom=hydro['p_nom'],
                max_hours=hydro_max_hours,
                capital_cost=(costs.at['hydro', 'capital_cost']
                              if c.get('hydro_capital_cost') else 0.),
@@ -328,20 +332,18 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        with open('../config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.wildcards = Dict()
-        snakemake.input = Dict(base_network='../networks/base.nc',
-                               tech_costs='../data/costs.csv',
-                               regions="../resources/regions_onshore.geojson",
-                               **{'profile_' + t: "../resources/profile_" + t + ".nc"
-                                  for t in snakemake.config['renewable']})
-        snakemake.output = ['../networks/elec.nc']
+        from vresutils.snakemake import MockSnakemake, Dict
 
-    logger.setLevel(snakemake.config['logging_level'])
+        snakemake = MockSnakemake(output=['../networks/elec.nc'])
+        snakemake.input = snakemake.expand(
+            Dict(base_network='networks/base.nc',
+                 tech_costs='data/costs/costs.csv',
+                 regions="resources/regions_onshore.geojson",
+                 **{'profile_' + t: "resources/profile_" + t + ".nc"
+                    for t in snakemake.config['renewable']})
+        )
+
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     n = pypsa.Network(snakemake.input.base_network)
     Nyears = n.snapshot_weightings.sum()/8760.
