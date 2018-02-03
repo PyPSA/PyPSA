@@ -284,6 +284,17 @@ def allocate_series_dataframes(network, series):
             pnl[attr] = pnl[attr].reindex(columns=df.index,
                                           fill_value=network.components[component]["attrs"].at[attr,"default"])
 
+def free_output_series_dataframes(network, components=None):
+    if components is None:
+        components = network.all_components
+
+    for component in components:
+        attrs = network.components[component]['attrs']
+        pnl = network.pnl(component)
+
+        for attr in attrs.index[attrs['varying'] & (attrs['status'] == 'Output')]:
+            pnl[attr] = pd.DataFrame(index=network.snapshots, columns=[])
+
 def zsum(s, *args, **kwargs):
     """
     pandas 0.21.0 changes sum() behavior so that the result of applying sum
