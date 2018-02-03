@@ -22,7 +22,7 @@
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
-from six import iteritems, string_types
+from six import iteritems, itervalues, string_types
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
@@ -1128,7 +1128,7 @@ def define_linear_objective(network,snapshots):
 
     l_objective(model,objective)
 
-def extract_optimisation_results(network, snapshots, formulation="angles"):
+def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True):
 
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
@@ -1150,32 +1150,48 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     model = network.model
 
     duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))
+    if free_pyomo:
+        model.dual.clear()
 
-    def as_series(indexedvar):
-        return pd.Series(indexedvar.get_values())
+    def clear_indexedvar(indexedvar):
+        for v in itervalues(indexedvar._data):
+            v.clear()
+
+    def get_values(indexedvar, free=free_pyomo):
+        s = pd.Series(indexedvar.get_values())
+        if free:
+            clear_indexedvar(indexedvar)
+        return s
 
     def set_from_series(df, series):
         df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
 
+    def get_shadows(constraint, multiind=True):
+        index = list(constraint.keys())
+        if multiind:
+            index = pd.MultiIndex.from_tuples(index)
+        cdata = pd.Series(list(constraint.values()), index=index)
+        return cdata.map(duals)
+
     if len(network.generators):
-        set_from_series(network.generators_t.p, as_series(model.generator_p))
+        set_from_series(network.generators_t.p, get_values(model.generator_p))
 
     if len(network.storage_units):
         set_from_series(network.storage_units_t.p,
-                        as_series(model.storage_p_dispatch)
-                        - as_series(model.storage_p_store))
+                        get_values(model.storage_p_dispatch)
+                        - get_values(model.storage_p_store))
 
         set_from_series(network.storage_units_t.state_of_charge,
-                        as_series(model.state_of_charge))
+                        get_values(model.state_of_charge))
 
         if (network.storage_units_t.inflow.max() > 0).any():
             set_from_series(network.storage_units_t.spill,
-                            as_series(model.storage_p_spill))
+                            get_values(model.storage_p_spill))
         network.storage_units_t.spill.fillna(0, inplace=True) #p_spill doesn't exist if inflow=0
 
     if len(network.stores):
-        set_from_series(network.stores_t.p, as_series(model.store_p))
-        set_from_series(network.stores_t.e, as_series(model.store_e))
+        set_from_series(network.stores_t.p, get_values(model.store_p))
+        set_from_series(network.stores_t.e, get_values(model.store_e))
 
     if len(network.loads):
         load_p_set = get_switchable_as_dense(network, 'Load', 'p_set', snapshots)
@@ -1192,19 +1208,20 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
 
     # passive branches
-    passive_branches = as_series(model.passive_branch_p)
+    passive_branches = get_values(model.passive_branch_p)
+    flow_lower = get_shadows(model.flow_lower)
+    flow_upper = get_shadows(model.flow_upper)
     for c in network.iterate_components(network.passive_branch_components):
         set_from_series(c.pnl.p0, passive_branches.loc[c.name])
         c.pnl.p1.loc[snapshots] = - c.pnl.p0.loc[snapshots]
 
-        set_from_series(c.pnl.mu_lower, pd.Series(list(model.flow_lower.values()),
-                                                  index=pd.MultiIndex.from_tuples(list(model.flow_lower.keys()))).map(duals)[c.name])
-        set_from_series(c.pnl.mu_upper, -pd.Series(list(model.flow_upper.values()),
-                                                   index=pd.MultiIndex.from_tuples(list(model.flow_upper.keys()))).map(duals)[c.name])
+        set_from_series(c.pnl.mu_lower, flow_lower[c.name])
+        set_from_series(c.pnl.mu_upper, -flow_upper[c.name])
+    del flow_lower, flow_upper
 
     # active branches
     if len(network.links):
-        set_from_series(network.links_t.p0, as_series(model.link_p))
+        set_from_series(network.links_t.p0, get_values(model.link_p))
 
         efficiency = get_switchable_as_dense(network, 'Link', 'efficiency', snapshots)
 
@@ -1229,11 +1246,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
                                                  .reindex(columns=network.buses_t.p.columns, fill_value=0.))
 
 
-        set_from_series(network.links_t.mu_lower, pd.Series(list(model.link_p_lower.values()),
-                                                            index=pd.MultiIndex.from_tuples(list(model.link_p_lower.keys()))).map(duals))
-        set_from_series(network.links_t.mu_upper, -pd.Series(list(model.link_p_upper.values()),
-                                                             index=pd.MultiIndex.from_tuples(list(model.link_p_upper.keys()))).map(duals))
-
+        set_from_series(network.links_t.mu_lower, get_shadows(model.link_p_lower))
+        set_from_series(network.links_t.mu_upper, - get_shadows(model.link_p_upper))
 
     if len(network.buses):
         if formulation in {'angles', 'kirchhoff'}:
@@ -1247,7 +1261,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
         if formulation == "angles":
             set_from_series(network.buses_t.v_ang,
-                            as_series(model.voltage_angles))
+                            get_values(model.voltage_angles))
         elif formulation in ["ptdf","cycles","kirchhoff"]:
             for sn in network.sub_networks.obj:
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
@@ -1264,20 +1278,20 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     network.generators.p_nom_opt = network.generators.p_nom
 
     network.generators.loc[network.generators.p_nom_extendable, 'p_nom_opt'] = \
-        as_series(network.model.generator_p_nom)
+        get_values(network.model.generator_p_nom)
 
     network.storage_units.p_nom_opt = network.storage_units.p_nom
 
     network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom_opt'] = \
-        as_series(network.model.storage_p_nom)
+        get_values(network.model.storage_p_nom)
 
     network.stores.e_nom_opt = network.stores.e_nom
 
     network.stores.loc[network.stores.e_nom_extendable, 'e_nom_opt'] = \
-        as_series(network.model.store_e_nom)
+        get_values(network.model.store_e_nom)
 
 
-    s_nom_extendable_passive_branches = as_series(model.passive_branch_s_nom)
+    s_nom_extendable_passive_branches = get_values(model.passive_branch_s_nom)
     for c in network.iterate_components(network.passive_branch_components):
         c.df['s_nom_opt'] = c.df.s_nom
         if c.df.s_nom_extendable.any():
@@ -1286,11 +1300,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
     network.links.p_nom_opt = network.links.p_nom
 
     network.links.loc[network.links.p_nom_extendable, "p_nom_opt"] = \
-        as_series(network.model.link_p_nom)
+        get_values(network.model.link_p_nom)
 
     try:
-        network.global_constraints.loc[:,"mu"] = -pd.Series(list(model.global_constraints.values()),
-                                                            index=list(model.global_constraints.keys())).map(duals)
+        network.global_constraints.loc[:,"mu"] = - get_shadows(model.global_constraints, multiind=False)
     except (AttributeError, KeyError) as e:
         logger.warning("Could not read out global constraint shadow prices")
 
@@ -1302,7 +1315,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles"):
 
         if len(fixed_committable_gens_i) > 0:
             network.generators_t.status.loc[snapshots,fixed_committable_gens_i] = \
-                as_series(model.generator_status).unstack(0)
+                get_values(model.generator_status).unstack(0)
 
 def network_lopf_build_model(network, snapshots=None, skip_pre=False,
                              formulation="angles", ptdf_tolerance=0.):
@@ -1402,7 +1415,7 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
 
     return network.opt
 
-def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False, free_memory={}):
+def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False, free_memory={'pyomo'}):
     """
     Solve linear optimal power flow for a group of snapshots and extract results.
 
@@ -1421,9 +1434,10 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem
         construction, e.g. .lp file - useful for debugging
-    free_memory : set, default {}
-        Any subset of {'pypsa'}. Stash time series data and/or pyomo model away
-        while the solver runs.
+    free_memory : set, default {'pyomo'}
+        Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+        data away while the solver runs (as a pickle to disk) and/or free
+        `pyomo` data after the solution has been extracted.
 
     Returns
     -------
@@ -1456,13 +1470,15 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
 
     if status == "ok" and termination_condition == "optimal":
         logger.info("Optimization successful")
-        extract_optimisation_results(network,snapshots,formulation)
+        extract_optimisation_results(network, snapshots, formulation,
+                                     free_pyomo='pyomo' in free_memory)
     elif status == "warning" and termination_condition == "other":
         logger.warn("WARNING! Optimization might be sub-optimal. Writing output anyway")
-        extract_optimisation_results(network,snapshots,formulation)
+        extract_optimisation_results(network, snapshots, formulation,
+                                     free_pyomo='pyomo' in free_memory)
     else:
         logger.error("Optimisation failed with status %s and terminal condition %s"
-              % (status,termination_condition))
+              % (status, termination_condition))
 
     return status, termination_condition
 
@@ -1504,8 +1520,10 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         one of ["angles","cycles","kirchhoff","ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
-    free_memory : set, default {}
-        Any subset of {'pypsa'}. Stash time series data away.
+    free_memory : set, default {'pyomo'}
+        Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+        data away while the solver runs (as a pickle to disk) and/or free
+        `pyomo` data after the solution has been extracted.
 
     Returns
     -------
@@ -1514,11 +1532,15 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     snapshots = _as_snapshots(network, snapshots)
 
-    network_lopf_build_model(network, snapshots, skip_pre=skip_pre, formulation=formulation, ptdf_tolerance=ptdf_tolerance)
+    network_lopf_build_model(network, snapshots, skip_pre=skip_pre,
+                             formulation=formulation, ptdf_tolerance=ptdf_tolerance)
 
     if extra_functionality is not None:
         extra_functionality(network,snapshots)
 
-    network_lopf_prepare_solver(network, solver_name=solver_name, solver_io=solver_io)
+    network_lopf_prepare_solver(network, solver_name=solver_name,
+                                solver_io=solver_io)
 
-    return network_lopf_solve(network, snapshots, formulation=formulation, solver_options=solver_options, keep_files=keep_files, free_memory=free_memory)
+    return network_lopf_solve(network, snapshots, formulation=formulation,
+                              solver_options=solver_options,
+                              keep_files=keep_files, free_memory=free_memory)
