@@ -134,3 +134,8 @@ and is not very comprehensive."""
     expected_dispatch = np.array([[3000,0,0,8000],[0,800,3000,0]],dtype=float).T
 
     np.testing.assert_array_almost_equal(nu.generators_t.p.values,expected_dispatch)
+
+if __name__ == "__main__":
+    test_minimum_down_time()
+    test_minimum_up_time()
+    test_part_load()

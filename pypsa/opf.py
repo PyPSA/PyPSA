@@ -1167,6 +1167,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
 
     def get_shadows(constraint, multiind=True):
+        if len(constraint) == 0: return pd.Series()
+
         index = list(constraint.keys())
         if multiind:
             index = pd.MultiIndex.from_tuples(index)
