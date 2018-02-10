@@ -9,16 +9,13 @@ wildcard_constraints:
     sectors="[+a-zA-Z0-9]+",
     opts="[-+a-zA-Z0-9]+"
 
-rule all:
-    input: "results/summaries/costs2-summary.csv"
+# rule all:
+#     input: "results/summaries/costs2-summary.csv"
 
 rule solve_all_elec_networks:
     input:
         expand("results/networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
-               simpl='',
-               clusters=config['scenario']['clusters'],
-               lv='1.5',
-               opts=config['scenario']['opts'])
+               **config['scenario'])
 
 rule prepare_links_p_nom:
     output: 'data/links_p_nom.csv'
@@ -100,7 +97,7 @@ rule simplify_network:
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
-    resources: mem_mb=1000
+    resources: mem_mb=3000
     script: "scripts/simplify_network.py"
 
 rule cluster_network:
@@ -114,7 +111,7 @@ rule cluster_network:
         regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson"
     benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1
-    resources: mem_mb=1000
+    resources: mem_mb=3000
     script: "scripts/cluster_network.py"
 
 rule add_sectors:
@@ -132,18 +129,27 @@ rule prepare_network:
     output: 'networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
     threads: 1
     resources: mem_mb=1000
+    benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     script: "scripts/prepare_network.py"
+
+def partition(w):
+    return 'vres' if int(w.clusters) >= 256 else 'x-men'
 
 rule solve_network:
     input: "networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     shadow: "shallow"
+    params: partition=partition
     log:
         gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
-        python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log"
+        python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log",
+        memory="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
-    resources: mem_mb=lambda w: 100000 * int(w.clusters) // 362
+    resources:
+        mem_mb=lambda w: 4890+310 * int(w.clusters), # without 5000 too small for 256
+        x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
+        vres=lambda w: 1 if partition(w) == 'vres' else 0
     script: "scripts/solve_network.py"
 
 rule plot_network:
