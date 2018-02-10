@@ -81,16 +81,10 @@ def load_costs(Nyears=1.):
 
     return costs
 
-def load_powerplants(n):
-    ppl = ppm.collection.MATCHED_dataset(aggregated_hydros=False, include_unavailables=True,
-                                         subsume_uncommon_fueltypes=True)
-    ppl = ppl.loc[ppl.lon.notnull() & ppl.lat.notnull()]
-
-    substation_lv_i = n.buses.index[n.buses['substation_lv']]
-    kdtree = sp.spatial.cKDTree(n.buses.loc[substation_lv_i, ['x','y']].values)
-    ppl = ppl.assign(bus=substation_lv_i[kdtree.query(ppl[['lon','lat']].values)[1]])
-
-    return ppl
+def load_powerplants(n, ppl_fn=None):
+    if ppl_fn is None:
+        ppl_fn = snakemake.input.powerplants
+    return pd.read_csv(ppl_fn, index_col=0, dtype={'bus': 'str'})
 
 # ## Attach components
 

@@ -1,6 +1,6 @@
 configfile: "config.yaml"
 
-localrules: all, prepare_links_p_nom, base_network, add_electricity, add_sectors, extract_summaries, plot_network, scenario_comparions
+localrules: all, prepare_links_p_nom, base_network, build_powerplants, add_electricity, add_sectors, prepare_network, extract_summaries, plot_network, scenario_comparions
 
 wildcard_constraints:
     lv="[0-9\.]+",
@@ -41,6 +41,13 @@ rule base_network:
     resources: mem_mb=500
     script: "scripts/base_network.py"
 
+rule build_powerplants:
+    input: base_network="networks/base.nc"
+    output: "resources/powerplants.csv"
+    threads: 1
+    resources: mem_mb=500
+    script: "scripts/build_powerplants.py"
+
 rule build_bus_regions:
     input:
         base_network="networks/base.nc"
@@ -73,12 +80,13 @@ rule add_electricity:
         base_network='networks/base.nc',
         tech_costs='data/costs/costs.csv',
         regions="resources/regions_onshore.geojson",
+        powerplants='resources/powerplants.csv',
         **{'profile_' + t: "resources/profile_" + t + ".nc"
            for t in config['renewable']}
     output: "networks/elec.nc"
     benchmark: "benchmarks/add_electricity"
     threads: 1
-    resources: mem_mb=1000
+    resources: mem_mb=3000
     script: "scripts/add_electricity.py"
 
 rule simplify_network:

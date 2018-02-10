@@ -90,7 +90,7 @@ if __name__ == "__main__":
             output=['networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc']
         )
 
-    logging.basicConfig(snakemake.config['logging_level'])
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     opts = snakemake.wildcards.opts.split('-')
 
