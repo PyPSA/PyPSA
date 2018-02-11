@@ -1,12 +1,17 @@
 
+@import url(https://fonts.googleapis.com/css?family=Noto+Serif);
+
+body {
+    font-family: "Noto Serif", serif;  /* wikitribune */
+    font-size: 1.1rem;
+    line-height: 1.8rem;
+}
+
 #outer_box
 {
 width:760px;
 margin-left: auto;
 margin-right: auto;
-font-size:120%;
-text-align: justify;
-line-height: 130%;
 }
 
 
@@ -27,26 +32,23 @@ margin: 0 0 20px 40px;
 h1
 {
 font-size:150%;
-line-height:1.4em;
 }
 
 h2
 {
 font-size:120%;
-line-height:1.4em;
 }
 
 h3
 {
 font-size:110%;
-line-height:1.4em;
 }
 
 #submenu {
 	padding: 0;
 	margin: 0 0 0 0;
 	height: 2em; /* Setting a height makes it act like a block */
-	font-size:100%;
+	font-size:130%;
 	}
 
 #submenu li {

@@ -20,9 +20,9 @@ PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
-and solar generation, storage units, sector coupling and mixed
-alternating and direct current networks. PyPSA is designed to scale
-well with large networks and long time series.
+and solar generation, storage units, coupling to other energy sectors,
+and mixed alternating and direct current networks. PyPSA is designed
+to scale well with large networks and long time series.
 
 As of 2018 PyPSA is under heavy development and therefore it is
 recommended to use caution when using it in a production environment.
@@ -65,10 +65,11 @@ PyPSA can calculate:
   and storage dispatch within network constraints, using the linear
   network equations, over several snapshots)
 * security-constrained linear optimal power flow
-* total electricity system least-cost investment optimisation (using
-  linear network equations, over several snapshots simultaneously for
-  optimisation of generation and storage dispatch and investment in
-  the capacities of generation, storage and transmission)
+* total electricity/energy system least-cost investment optimisation
+  (using linear network equations, over several snapshots
+  simultaneously for optimisation of generation and storage dispatch
+  and investment in the capacities of generation, storage,
+  transmission and other infrastructure)
 
 It has models for:
 
