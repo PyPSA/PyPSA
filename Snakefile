@@ -163,6 +163,25 @@ rule solve_network:
         vres=lambda w: 1 if partition(w) == 'vres' else 0
     script: "scripts/solve_network.py"
 
+rule solve_operations_network:
+    input:
+        unprepared="networks/{network}_s{simpl}_{clusters}.nc",
+        optimized="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
+    output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op.nc"
+    shadow: "shallow"
+    params: partition=partition
+    log:
+        gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_gurobi.log",
+        python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log",
+        memory="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_memory.log"
+    benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op"
+    threads: 4
+    resources:
+        mem_mb=memory,
+        x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
+        vres=lambda w: 1 if partition(w) == 'vres' else 0
+    script: "scripts/solve_operations_network.py"
+
 rule plot_network:
     input:
         network='results/networks/{cost}_{resarea}_{sectors}_{opts}.nc',
