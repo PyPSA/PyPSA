@@ -1,0 +1,13 @@
+.snakemake*
+.ipynb_checkpoints
+__pycache__
+gurobi.log
+
+/bak
+/resources
+/results
+/networks
+/benchmarks
+/logs
+
+/data/links_p_nom.csv
