@@ -4,21 +4,6 @@ import logging
 logger = logging.getLogger(__name__)
 import gc
 import os
-# TODO: provide alternative when multiprocessing is not available
-try:
-    from multiprocessing import Process, Pipe
-except ImportError:
-    from multiprocessing.dummy import Process, Pipe
-
-import pypsa
-from pypsa.descriptors import free_output_series_dataframes
-from memory_profiler import _get_memory, choose_backend
-import numpy as np
-import pandas as pd
-import logging
-logger = logging.getLogger(__name__)
-import gc
-import os
 
 # TODO: provide alternative when multiprocessing is not available
 try:
@@ -118,6 +103,8 @@ class log_memory(object):
 
             self.mem_usage = self.parent_conn.recv()
             self.n_measurements = self.parent_conn.recv()
+        else:
+            self.p.terminate()
 
         return False
 
@@ -211,11 +198,15 @@ def fix_branches(n, lines_s_nom=None, links_p_nom=None):
         if isinstance(n.opt, pypsa.opf.PersistentSolver):
             n.opt.update_var(n.model.link_p_nom)
 
-def solve_network(n):
-    solve_opts = snakemake.config['solving']['options']
+def solve_network(n, config=None, gurobi_log=None):
+    if config is None:
+        config = snakemake.config['solving']
+    solve_opts = config['options']
 
-    solver_options = snakemake.config['solving']['solver'].copy()
-    solver_options['logfile'] = snakemake.log.gurobi
+    solver_options = config['solver'].copy()
+    if gurobi_log is None:
+        gurobi_log = snakemake.log.gurobi
+    solver_options['logfile'] = gurobi_log
     solver_name = solver_options.pop('name')
 
     def run_lopf(n, allow_warning_status=False, fix_zero_lines=False, fix_ext_lines=False):
@@ -327,7 +318,6 @@ def solve_network(n):
             iteration += 1
 
             # Not really needed, could also be taken out
-            n.export_to_netcdf(snakemake.output[0])
 
             status, termination_condition = run_lopf(n, allow_warning_status=True)
 
@@ -352,11 +342,11 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
-            wildcards=dict(simpl='', clusters='45', lv='1.5', opts='Co2L'),
-            input=["networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
+            wildcards=dict(network='elec', simpl='', clusters='45', lv='1.0', opts='Co2L-3H'),
+            input=["networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
             output=["results/networks/s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
-            log=dict(gurobi="logs/s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
-                     python="logs/s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
+            log=dict(gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
+                     python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
         )
 
     tmpdir = snakemake.config['solving'].get('tmpdir')
