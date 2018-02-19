@@ -208,7 +208,7 @@ if __name__ == "__main__":
 
     if snakemake.wildcards.simpl:
         n_clusters = int(snakemake.wildcards.simpl)
-        clustering = clustering_for_n_clusters(n_clusters)
+        clustering = clustering_for_n_clusters(n, n_clusters)
 
         n = clustering.network
         busmaps.append(clustering.busmap)

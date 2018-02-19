@@ -1,11 +1,11 @@
 configfile: "config.yaml"
 
-localrules: all, prepare_links_p_nom, base_network, build_powerplants, add_electricity, add_sectors, prepare_network, extract_summaries, plot_network, scenario_comparions
+localrules: all, prepare_links_p_nom, base_network, build_renewable_potentials, build_powerplants, add_electricity, add_sectors, prepare_network, extract_summaries, plot_network, scenario_comparions
 
 wildcard_constraints:
     lv="[0-9\.]+",
     simpl="[a-zA-Z0-9]*",
-    clusters="[0-9]+",
+    clusters="[0-9]+m?",
     sectors="[+a-zA-Z0-9]+",
     opts="[-+a-zA-Z0-9]+"
 
@@ -97,7 +97,7 @@ rule simplify_network:
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
-    resources: mem_mb=3000
+    resources: mem_mb=4000
     script: "scripts/simplify_network.py"
 
 rule cluster_network:
@@ -133,7 +133,14 @@ rule prepare_network:
     script: "scripts/prepare_network.py"
 
 def partition(w):
-    return 'vres' if int(w.clusters) >= 256 else 'x-men'
+    n_clusters = int(w.clusters[:-1] if w.clusters.endswith('m') else w.clusters)
+    return 'vres' if n_clusters >= 256 else 'x-men'
+
+def memory(w):
+    if w.clusters.endswith('m'):
+        return 61000
+    else:
+        return 4890+310 * int(w.clusters)
 
 rule solve_network:
     input: "networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
@@ -147,7 +154,7 @@ rule solve_network:
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
     resources:
-        mem_mb=lambda w: 4890+310 * int(w.clusters), # without 5000 too small for 256
+        mem_mb=memory,
         x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
         vres=lambda w: 1 if partition(w) == 'vres' else 0
     script: "scripts/solve_network.py"

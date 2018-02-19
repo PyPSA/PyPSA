@@ -18,6 +18,8 @@ import networkx as nx
 from six import iteritems
 from six.moves import reduce
 
+import pyomo.environ as po
+
 import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
 from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
@@ -84,10 +86,37 @@ def distribute_clusters_exactly(n, n_clusters):
     else:
         return distribute_clusters(n, n_clusters)
 
+def distribute_clusters_optim(n, n_clusters, solver_name='gurobi'):
+    L = (n.loads_t.p_set.mean()
+         .groupby(n.loads.bus).sum()
+         .groupby([n.buses.country, n.buses.sub_network]).sum()
+         .pipe(normed))
+
+    m = po.ConcreteModel()
+    m.n = po.Var(list(L.index), bounds=(1, None), domain=po.Integers)
+    m.tot = po.Constraint(expr=(po.summation(m.n) == n_clusters))
+    m.objective = po.Objective(expr=po.sum((m.n[i] - L.loc[i]*n_clusters)**2
+                                           for i in L.index),
+                               sense=po.minimize)
+
+    opt = po.SolverFactory(solver_name)
+    if isinstance(opt, pypsa.opf.PersistentSolver):
+        opt.set_instance(m)
+    results = opt.solve(m)
+    assert results['Solver'][0]['Status'].key == 'ok', "Solver returned non-optimally: {}".format(results)
+
+    return pd.Series(m.n.get_values(), index=L.index).astype(int)
+
 def busmap_for_n_clusters(n, n_clusters):
     n.determine_network_topology()
 
-    n_clusters = distribute_clusters_exactly(n, n_clusters)
+    if 'snakemake' in globals():
+        solver_name = snakemake.config['solving']['solver']['name']
+    else:
+        solver_name = "gurobi"
+
+    n_clusters = distribute_clusters_optim(n, n_clusters, solver_name=solver_name)
+
     def busmap_for_country(x):
         prefix = x.name[0] + x.name[1] + ' '
         if len(x) == 1:
@@ -103,11 +132,15 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
     n.plot(bus_colors=busmap.map(dict(zip(cs, cr))))
     del cs, cr
 
-def clustering_for_n_clusters(n, n_clusters):
+def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True):
+    aggregate_generators_carriers = (None if aggregate_renewables
+                                     else (pd.Index(n.generators.carrier.unique())
+                                           .difference(['onwind', 'offwind', 'solar'])))
     clustering = get_clustering_from_busmap(
         n, busmap_for_n_clusters(n, n_clusters),
         bus_strategies=dict(country=_make_consense("Bus", "country")),
         aggregate_generators_weighted=True,
+        aggregate_generators_carriers=aggregate_generators_carriers,
         aggregate_one_ports=["Load", "StorageUnit"]
     )
 
@@ -153,8 +186,14 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
 
-    n_clusters = int(snakemake.wildcards.clusters)
-    clustering = clustering_for_n_clusters(n, n_clusters)
+    if snakemake.wildcards.clusters.endswith('m'):
+        n_clusters = int(snakemake.wildcards.clusters[:-1])
+        aggregate_renewables = False
+    else:
+        n_clusters = int(snakemake.wildcards.clusters)
+        aggregate_renewables = True
+
+    clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
 
