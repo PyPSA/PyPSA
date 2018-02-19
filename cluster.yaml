@@ -1,6 +1,6 @@
 __default__:
   partition: x-men
-  name: "pypsa-za.{rule}.{wildcards}"
+  name: "pypsa-eur.{rule}.{wildcards}"
   output: "logs/cluster/{rule}.{wildcards}.out"
   error: "logs/cluster/{rule}.{wildcards}.err"
 solve_network:

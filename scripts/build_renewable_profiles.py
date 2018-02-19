@@ -9,7 +9,7 @@ import geopandas as gpd
 from vresutils import landuse as vlanduse
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(level=snakemake.config['logging_level'])
+logging.basicConfig(level=snakemake.config['logging_level'])
 
 config = snakemake.config['renewable'][snakemake.wildcards.technology]
 
