@@ -181,7 +181,7 @@ def add_opts_constraints(n, opts=None):
         n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
 def add_lv_constraint(n):
-    line_volume = getattr(n, 'line_volume_limit')
+    line_volume = getattr(n, 'line_volume_limit', None)
     if line_volume is not None and not np.isinf(line_volume):
         n.model.line_volume_constraint = pypsa.opt.Constraint(
             expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"length"]

@@ -45,21 +45,22 @@ def set_line_volume_limit(n, lv):
     n.lines['capital_cost'] = 0.
     n.links['capital_cost'] = 0.
 
-    lines_s_nom = n.lines.s_nom.where(
-        n.lines.type == '',
-        np.sqrt(3) * n.lines.num_parallel *
-        n.lines.type.map(n.line_types.i_nom) *
-        n.lines.bus0.map(n.buses.v_nom)
-    )
+    if lv > 1.0:
+        lines_s_nom = n.lines.s_nom.where(
+            n.lines.type == '',
+            np.sqrt(3) * n.lines.num_parallel *
+            n.lines.type.map(n.line_types.i_nom) *
+            n.lines.bus0.map(n.buses.v_nom)
+        )
 
-    n.lines['s_nom_min'] = lines_s_nom
-    n.links['p_nom_min'] = n.links['p_nom']
+        n.lines['s_nom_min'] = lines_s_nom
+        n.links['p_nom_min'] = n.links['p_nom']
 
-    n.lines['s_nom_extendable'] = True
-    n.links['p_nom_extendable'] = True
+        n.lines['s_nom_extendable'] = True
+        n.links['p_nom_extendable'] = True
 
-    n.line_volume_limit = lv * ((lines_s_nom * n.lines['length']).sum() +
-                                n.links.loc[n.links.carrier=='DC'].eval('p_nom * length').sum())
+        n.line_volume_limit = lv * ((lines_s_nom * n.lines['length']).sum() +
+                                    n.links.loc[n.links.carrier=='DC'].eval('p_nom * length').sum())
 
     return n
 
