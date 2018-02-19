@@ -1,0 +1,11 @@
+#!/bin/sh
+
+cd $(dirname $0)
+
+[ -d "bak" ] || ( echo "Creating borg repository 'bak'"; borg init -e none bak )
+
+if [ "$#" != "0" ]; then
+  backupkey=$1; shift
+  echo "Backing up current state to bak::$backupkey"
+  borg create --stats --exclude 'bak' --exclude '.git' --exclude '*/.ipynb_checkpoints' bak::$backupkey . "$@"
+fi
