@@ -54,6 +54,8 @@ def load_costs(Nyears=1.):
 
     costs = costs.rename(columns={"CO2 intensity": "co2_emissions"})
 
+    costs.at['OCGT', 'co2_emissions'] = costs.at['gas', 'co2_emissions']
+
     def costs_for_storage(store, link1, link2=None, max_hours=1.):
         capital_cost = link1['capital_cost'] + max_hours * store['capital_cost']
         efficiency = link1['efficiency']**0.5
@@ -328,11 +330,12 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
 
-        snakemake = MockSnakemake(output=['../networks/elec.nc'])
+        snakemake = MockSnakemake(output=['networks/elec.nc'])
         snakemake.input = snakemake.expand(
             Dict(base_network='networks/base.nc',
                  tech_costs='data/costs/costs.csv',
                  regions="resources/regions_onshore.geojson",
+                 powerplants="resources/powerplants.csv",
                  **{'profile_' + t: "resources/profile_" + t + ".nc"
                     for t in snakemake.config['renewable']})
         )
