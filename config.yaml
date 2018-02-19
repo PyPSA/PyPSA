@@ -25,8 +25,8 @@ electricity:
     StorageUnit: [battery, H2] # [CAES]
 
   max_hours:
-    battery: 3
-    H2: 10
+    battery: 6
+    H2: 168
 
 renewable:
   onwind:
