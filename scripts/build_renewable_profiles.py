@@ -29,7 +29,10 @@ indicatormatrix = cutout.indicatormatrix(regions.geometry)
 
 resource = config['resource']
 func = getattr(cutout, resource.pop('method'))
-capacity_factor = func(capacity_factor=True, **resource)
+correction_factor = config.get('correction_factor', 1.)
+if correction_factor != 1.:
+    logger.warning('correction_factor is set as {}'.format(correction_factor))
+capacity_factor = correction_factor * func(capacity_factor=True, **resource)
 layout = capacity_factor * potentials
 
 profile, capacities = func(matrix=indicatormatrix, index=regions.index,
@@ -42,7 +45,7 @@ p_nom_max = xr.DataArray([np.nanmin(relativepotentials[row.nonzero()[1]])
                           for row in indicatormatrix.tocsr()],
                          [capacities.coords['bus']]) * capacities
 
-ds = xr.merge([profile.rename('profile'),
+ds = xr.merge([(correction_factor * profile).rename('profile'),
                capacities.rename('weight'),
                p_nom_max.rename('p_nom_max')])
 (ds.sel(bus=ds['profile'].mean('time') > config.get('min_p_max_pu', 0.))

@@ -36,6 +36,7 @@ renewable:
       turbine: Vestas_V112_3MW
     # ScholzPhd Tab 4.3.1: 10MW/km^2
     capacity_per_sqm: 3
+    # correction_factor: 0.93
     corine:
       #The selection of CORINE Land Cover [1] types that are allowed for wind and solar are based on [2] p.42 / p.28
       #
@@ -55,6 +56,7 @@ renewable:
     # ScholzPhd Tab 4.3.1: 10MW/km^2
     capacity_per_sqm: 3
     height_cutoff: 50
+    # correction_factor: 0.93
     corine:
       grid_codes: [44, 255]
       natura: true
@@ -66,8 +68,10 @@ renewable:
       orientation: latitude_optimal
     # ScholzPhd Tab 4.3.1: 170 MW/km^2
     capacity_per_sqm: 1.7
+    correction_factor: 0.882
     corine:
-      grid_codes: [44, 255]
+      grid_codes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+      18, 19, 20, 26, 31, 32]
       natura: true
   hydro:
     cutout: europe-2012-2016-era5
