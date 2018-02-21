@@ -36,7 +36,7 @@ internal API changes.
 * The export and import code has been refactored to be more general
   and abstract. This does not affect the API.
 * The internally-used sets such as ``pypsa.components.all_components``
-  and ``pypsa.one_port_components`` have been moved from
+  and ``pypsa.components.one_port_components`` have been moved from
   ``pypsa.components`` to ``network``, i.e. ``network.all_components``
   and ``network.one_port_components``, since these sets may change
   from network to network.

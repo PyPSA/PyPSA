@@ -9,6 +9,7 @@ hierarchy = [["index.html","home"],
              ["examples/index.html","examples"],
              ["doc/index.html","documentation"],
              ["publications/index.html","publications"],
+             ["animations/index.html","animations"],
              ["forum/index.html","forum"],
 ]
 

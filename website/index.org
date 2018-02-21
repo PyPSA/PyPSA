@@ -106,7 +106,13 @@ There are [[./examples/index.html][extensive examples]] available as Jupyter not
 
 * Screenshots
 
-The showcase for PyPSA is the [[https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html][SciGRID example]] which demonstrates
+
+
+Results from a PyPSA simulation can be converted into an interactive
+online animation using [[https://github.com/PyPSA/PyPSA-animation][PyPSA-animation]], see the [[https://www.pypsa.org/animations/pypsa-eur-30/][PyPSA-Eur-30 example]].
+
+
+Another showcase for PyPSA is the [[https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html][SciGRID example]] which demonstrates
 interactive plots generated with the [[https://plot.ly/python/][plotly]] library.
 
 

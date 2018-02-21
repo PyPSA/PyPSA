@@ -1,0 +1,8 @@
+#+TITLE: Python for Power System Analysis: Animations
+#+OPTIONS: toc:nil        no default TOC
+
+PyPSA datasets can be animated with [[https://github.com/PyPSA/PyPSA-animation][PyPSA-animation]].
+
+Here is a live example:
+
+- [[./pypsa-eur-30/][PyPSA-Eur-30]]: Europe with 95% renewable electricity

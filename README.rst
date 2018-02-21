@@ -122,7 +122,12 @@ available as Python scripts in `examples/ <examples/>`_.
 Screenshots
 ===========
 
-The showcase for PyPSA is the `SciGRID example
+Results from a PyPSA simulation can be converted into an interactive
+online animation using `PyPSA-animation
+<https://github.com/PyPSA/PyPSA-animation>`_, see the `PyPSA-Eur-30
+example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
+
+Another showcase for PyPSA is the `SciGRID example
 <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ which
 demonstrates interactive plots generated with the `plotly
 <https://plot.ly/python/>`_ library.
