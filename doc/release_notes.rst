@@ -57,7 +57,7 @@ effective reactance that sped up the LOPF code and Tom Edwards for
 pointing out the Pyomo version dependency issue.
 
 For this release we also acknowledge funding to Tom Brown from the
-`RE-InVEST project <http://www.re-invest.eu/>`_.
+`RE-INVEST project <http://www.reinvestproject.eu/>`_.
 
 
 
