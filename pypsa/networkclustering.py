@@ -60,9 +60,14 @@ def _haversine(coords):
     a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
     return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
 
-def aggregategenerators(network, busmap, with_time=True):
+def aggregategenerators(network, busmap, with_time=True, carriers=None):
+    if carriers is None:
+        carriers = network.generators.carrier.unique()
+
+    gens_agg_b = network.generators.carrier.isin(carriers)
     attrs = network.components["Generator"]["attrs"]
-    generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
+    generators = (network.generators.loc[gens_agg_b]
+                  .assign(bus=lambda df: df.bus.map(busmap)))
     columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
@@ -74,15 +79,21 @@ def aggregategenerators(network, busmap, with_time=True):
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
+    new_df = pd.concat([new_df,
+                        network.generators.loc[~gens_agg_b]
+                        .assign(bus=lambda df: df.bus.map(busmap))], axis=0)
+
     new_pnl = dict()
     if with_time:
         for attr, df in iteritems(network.generators_t):
-            if not df.empty:
+            pnl_gens_agg_b = df.columns.to_series().map(gens_agg_b)
+            df_agg = df.loc[:, pnl_gens_agg_b]
+            if not df_agg.empty:
                 if attr == 'p_max_pu':
-                    df = df.multiply(weighting.loc[df.columns], axis=1)
-                pnl_df = df.groupby(grouper, axis=1).sum()
+                    df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
+                pnl_df = df_agg.groupby(grouper, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
-                new_pnl[attr] = pnl_df
+                new_pnl[attr] = pd.concat([df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1)
 
     return new_df, new_pnl
 
@@ -209,6 +220,7 @@ Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
 
 def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
+                               aggregate_generators_carriers=None,
                                bus_strategies=dict()):
 
     buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies)
@@ -225,7 +237,8 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 
     if aggregate_generators_weighted:
         one_port_components.remove("Generator")
-        generators, generators_pnl = aggregategenerators(network, busmap, with_time=with_time)
+        generators, generators_pnl = aggregategenerators(network, busmap, with_time=with_time,
+                                                         carriers=aggregate_generators_carriers)
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
             for attr, df in iteritems(generators_pnl):
