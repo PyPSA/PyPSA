@@ -179,7 +179,7 @@ def solve_network(n, config=None, gurobi_log=None):
 
             if lines_ext_typed_b.any():
                 n.lines.loc[lines_ext_typed_b, 'num_parallel'] = (
-                    lines['num_parallel'].multiply(n.lines['s_nom_opt']/lines['s_nom'])
+                    n.lines['s_nom_opt']/lines['s_nom']
                 )
                 logger.debug("lines.num_parallel={}".format(n.lines.loc[lines_ext_typed_b, 'num_parallel']))
 
