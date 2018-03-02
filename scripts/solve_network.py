@@ -5,108 +5,10 @@ logger = logging.getLogger(__name__)
 import gc
 import os
 
-# TODO: provide alternative when multiprocessing is not available
-try:
-    from multiprocessing import Process, Pipe
-except ImportError:
-    from multiprocessing.dummy import Process, Pipe
-
 import pypsa
 from pypsa.descriptors import free_output_series_dataframes
-from memory_profiler import _get_memory, choose_backend
 
-# The memory logging facilities have been adapted from memory_profiler
-class MemTimer(Process):
-    """
-    Write memory consumption over a time interval to file until signaled to
-    stop on the pipe
-    """
-
-    def __init__(self, monitor_pid, interval, pipe, filename, max_usage, backend, *args, **kw):
-        self.monitor_pid = monitor_pid
-        self.pipe = pipe
-        self.interval = interval
-        self.backend = backend
-        self.n_measurements = 1
-        self.stream = open(filename, 'w') if filename is not None else None
-        self.max_usage = max_usage
-
-        self.timestamps = kw.pop("timestamps", False)
-        self.include_children = kw.pop("include_children", False)
-
-        # get baseline memory usage
-        self.mem_usage = [
-            _get_memory(self.monitor_pid, self.backend, timestamps=self.timestamps,
-                        include_children=self.include_children)]
-        if self.stream is not None:
-            self.stream.write("MEM {0:.6f} {1:.4f}\n".format(*self.mem_usage[0]))
-            self.stream.flush()
-
-        super(MemTimer, self).__init__(*args, **kw)
-
-    def run(self):
-        self.pipe.send(0)  # we're ready
-        stop = False
-        while True:
-            cur_mem = _get_memory(
-                self.monitor_pid, self.backend, timestamps=self.timestamps,
-                include_children=self.include_children,)
-
-            if self.stream is not None:
-                self.stream.write("MEM {0:.6f} {1:.4f}\n".format(*cur_mem))
-                self.stream.flush()
-
-            if not self.max_usage:
-                self.mem_usage.append(cur_mem)
-            else:
-                self.mem_usage[0] = max(cur_mem, self.mem_usage[0])
-
-            self.n_measurements += 1
-            if stop:
-                break
-            stop = self.pipe.poll(self.interval)
-            # do one more iteration
-
-        if self.stream is not None:
-            self.stream.close()
-
-        self.pipe.send(self.mem_usage)
-        self.pipe.send(self.n_measurements)
-
-class log_memory(object):
-    def __init__(self, filename=None, interval=1., max_usage=False,
-                 timestamps=False, include_children=True):
-        if filename is not None:
-            timestamps = True
-
-        self.filename = filename
-        self.interval = interval
-        self.max_usage = max_usage
-        self.timestamps = timestamps
-        self.include_children = include_children
-
-    def __enter__(self):
-        backend = choose_backend()
-
-        self.child_conn, self.parent_conn = Pipe()  # this will store MemTimer's results
-        self.p = MemTimer(os.getpid(), self.interval, self.child_conn, self.filename,
-                          backend=backend, timestamps=self.timestamps, max_usage=self.max_usage,
-                          include_children=self.include_children)
-        self.p.start()
-        self.parent_conn.recv()  # wait until memory logging in subprocess is ready
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            self.parent_conn.send(0) # finish timing
-
-            self.mem_usage = self.parent_conn.recv()
-            self.n_measurements = self.parent_conn.recv()
-        else:
-            self.p.terminate()
-
-        return False
+from vresutils.benchmark import memory_logger
 
 def patch_pyomo_tmpdir(tmpdir):
     # PYOMO should write its lp files into tmp here
@@ -317,8 +219,6 @@ def solve_network(n, config=None, gurobi_log=None):
             lines['s_nom_opt'] = n.lines['s_nom_opt']
             iteration += 1
 
-            # Not really needed, could also be taken out
-
             status, termination_condition = run_lopf(n, allow_warning_status=True)
 
         update_line_parameters(n, zero_lines_below=500)
@@ -356,7 +256,7 @@ if __name__ == "__main__":
     logging.basicConfig(filename=snakemake.log.python,
                         level=snakemake.config['logging_level'])
 
-    with log_memory(filename=getattr(snakemake.log, 'memory', None), interval=30., max_usage=True) as mem:
+    with memory_logger(filename=getattr(snakemake.log, 'memory', None), interval=30.) as mem:
         n = pypsa.Network(snakemake.input[0])
 
         n = prepare_network(n)
@@ -364,4 +264,4 @@ if __name__ == "__main__":
 
         n.export_to_netcdf(snakemake.output[0])
 
-    logger.info("Maximum memory usage: {}".format(mem.mem_usage[0]))
+    logger.info("Maximum memory usage: {}".format(mem.mem_usage))
