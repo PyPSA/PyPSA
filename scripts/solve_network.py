@@ -47,9 +47,12 @@ def prepare_network(n, solve_opts=None):
             if 'marginal_cost' in t.df:
                 t.df['marginal_cost'] += 1e-2 + 2e-3*(np.random.random(len(t.df)) - 0.5)
 
+        for t in n.iterate_components(['Line', 'Link']):
+            t.df['capital_cost'] += (1e-1 + 2e-2*(np.random.random(len(t.df)) - 0.5)) * t.df['length']
+
     if solve_opts.get('nhours'):
         nhours = solve_opts['nhours']
-        n = n[:solve_opts['nhours'], :]
+        n.set_snapshots(n.snapshots[:nhours])
         n.snapshot_weightings[:] = 8760./nhours
 
     return n
