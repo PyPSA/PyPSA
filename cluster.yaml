@@ -3,7 +3,7 @@ __default__:
   name: "pypsa-eur.{rule}.{wildcards}"
   output: "logs/cluster/{rule}.{wildcards}.out"
   error: "logs/cluster/{rule}.{wildcards}.err"
+  time: "0-1"
 solve_network:
   partition: "{params.partition}"
-  output: "logs/cluster/{rule}.{wildcards}.out"
-  error: "logs/cluster/{rule}.{wildcards}.err"
+  time: "8-0"
