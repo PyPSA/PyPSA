@@ -129,7 +129,7 @@ solving:
     # max_iterations: 1
     # nhours: 10
   solver:
-    name: gurobi_persistent
+    name: gurobi
     threads: 4
     method: 2
     crossover: 0 # -1 (Choose freely)

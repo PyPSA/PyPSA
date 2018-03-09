@@ -142,9 +142,10 @@ def partition(w):
 
 def memory(w):
     if w.clusters.endswith('m'):
-        return 61000
+        return 18000 + 180 * int(w.clusters[:-1])
     else:
-        return 4890+310 * int(w.clusters)
+        return 8000 + 190 * int(w.clusters)
+        # return 4890+310 * int(w.clusters)
 
 rule solve_network:
     input: "networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
