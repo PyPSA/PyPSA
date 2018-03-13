@@ -55,6 +55,9 @@ def load_costs(Nyears=1.):
     costs = costs.rename(columns={"CO2 intensity": "co2_emissions"})
 
     costs.at['OCGT', 'co2_emissions'] = costs.at['gas', 'co2_emissions']
+    costs.at['CCGT', 'co2_emissions'] = costs.at['gas', 'co2_emissions']
+
+    costs.at['solar', 'capital_cost'] = 0.5*(costs.at['solar-rooftop', 'capital_cost'] + costs.at['solar-utility', 'capital_cost'])
 
     def costs_for_storage(store, link1, link2=None, max_hours=1.):
         capital_cost = link1['capital_cost'] + max_hours * store['capital_cost']
