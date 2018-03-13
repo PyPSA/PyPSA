@@ -14,6 +14,7 @@ import xarray as xr
 import geopandas as gpd
 import shapely
 import networkx as nx
+from shutil import copyfile
 
 from six import iteritems
 from six.moves import reduce
@@ -193,8 +194,15 @@ if __name__ == "__main__":
         n_clusters = int(snakemake.wildcards.clusters)
         aggregate_renewables = True
 
-    clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables)
+    if n_clusters == len(n.buses):
+        # Fast-path if no clustering is necessary
+        n.export_to_netcdf(snakemake.output.network)
+        for which in ('regions_onshore', 'regions_offshore'):
+            copyfile(getattr(snakemake.input, which),
+                     getattr(snakemake.output, which))
+    else:
+        clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables)
 
-    clustering.network.export_to_netcdf(snakemake.output.network)
+        clustering.network.export_to_netcdf(snakemake.output.network)
 
-    cluster_regions((clustering.busmap,))
+        cluster_regions((clustering.busmap,))
