@@ -38,6 +38,10 @@ def simplify_network_to_380(n):
     n.lines.loc[lines_v_nom_b, 'num_parallel'] *= (n.lines.loc[lines_v_nom_b, 'v_nom'] / 380.)**2
     n.lines.loc[lines_v_nom_b, 'v_nom'] = 380.
     n.lines.loc[lines_v_nom_b, 'type'] = linetype_380
+    n.lines.loc[lines_v_nom_b, 's_nom'] = (
+        np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
+        n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
+    )
 
     # Replace transformers by lines
     trafo_map = pd.Series(n.transformers.bus1.values, index=n.transformers.bus0.values)

@@ -119,6 +119,10 @@ def _set_electrical_parameters_lines(lines):
 
     lines['s_max_pu'] = snakemake.config['lines']['s_max_pu']
     lines.loc[lines.under_construction.astype(bool), 'num_parallel'] = 0.
+    lines['s_nom'] = (
+        np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
+        n.lines.bus0.map(n.buses.v_nom) * n.lines.num_parallel
+    )
 
     return lines
 
