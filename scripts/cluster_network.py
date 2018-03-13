@@ -196,13 +196,17 @@ if __name__ == "__main__":
 
     if n_clusters == len(n.buses):
         # Fast-path if no clustering is necessary
-        n.export_to_netcdf(snakemake.output.network)
-        for which in ('regions_onshore', 'regions_offshore'):
-            copyfile(getattr(snakemake.input, which),
-                     getattr(snakemake.output, which))
+        busmap = n.buses.index.to_series()
+        linemap = n.lines.index.to_series()
+        clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
         clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables)
 
-        clustering.network.export_to_netcdf(snakemake.output.network)
+    clustering.network.export_to_netcdf(snakemake.output.network)
+    with pd.HDFStore(snakemake.output.clustermaps, model='w') as store:
+        for attr in ('busmap', 'linemap', 'linemap_positive', 'linemap_negative'):
+            store.put(attr, getattr(clustering, attr), format=Table, index=False)
 
-        cluster_regions((clustering.busmap,))
+    cluster_regions((clustering.busmap,))
+
+

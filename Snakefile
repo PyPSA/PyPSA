@@ -112,7 +112,8 @@ rule cluster_network:
     output:
         network='networks/{network}_s{simpl}_{clusters}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson"
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson",
+        clustermaps='resources/clustermaps_{network}_s{simpl}_{clusters}.h5'
     benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1
     resources: mem_mb=3000
