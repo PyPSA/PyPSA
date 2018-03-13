@@ -106,7 +106,7 @@ def fix_branches(n, lines_s_nom=None, links_p_nom=None):
         if isinstance(n.opt, pypsa.opf.PersistentSolver):
             n.opt.update_var(n.model.link_p_nom)
 
-def solve_network(n, config=None, gurobi_log=None):
+def solve_network(n, config=None, gurobi_log=None, opts=None):
     if config is None:
         config = snakemake.config['solving']
     solve_opts = config['options']
@@ -122,7 +122,7 @@ def solve_network(n, config=None, gurobi_log=None):
 
         if not hasattr(n, 'opt') or not isinstance(n.opt, pypsa.opf.PersistentSolver):
             pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
-            add_opts_constraints(n)
+            add_opts_constraints(n, opts)
             add_lv_constraint(n)
             add_eps_storage_constraint(n)
 
@@ -230,6 +230,11 @@ def solve_network(n, config=None, gurobi_log=None):
         update_line_parameters(n, zero_lines_below=500)
 
         logger.info("Starting last run with fixed extendable lines")
+
+        # Not really needed, could also be taken out
+        # if 'snakemake' in globals():
+        #     fn = os.path.basename(snakemake.output[0])
+        #     n.export_to_netcdf('/home/vres/data/jonas/playground/pypsa-eur/' + fn)
 
     status, termination_condition = run_lopf(n, fix_ext_lines=True)
 

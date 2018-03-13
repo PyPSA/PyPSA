@@ -137,8 +137,7 @@ rule prepare_network:
     script: "scripts/prepare_network.py"
 
 def partition(w):
-    n_clusters = int(w.clusters[:-1] if w.clusters.endswith('m') else w.clusters)
-    return 'vres' if n_clusters >= 256 else 'x-men'
+    return 'vres' if memory(w) >= 60000 else 'x-men'
 
 def memory(w):
     if w.clusters.endswith('m'):
@@ -164,23 +163,29 @@ rule solve_network:
         vres=lambda w: 1 if partition(w) == 'vres' else 0
     script: "scripts/solve_network.py"
 
+def partition_op(w):
+    return 'vres' if memory_op(w) >= 60000 else 'x-men'
+
+def memory_op(w):
+    return 5000 + 372 * int(w.clusters)
+
 rule solve_operations_network:
     input:
         unprepared="networks/{network}_s{simpl}_{clusters}.nc",
         optimized="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op.nc"
     shadow: "shallow"
-    params: partition=partition
+    params: partition=partition_op
     log:
-        gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_gurobi.log",
-        python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log",
-        memory="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_memory.log"
-    benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op"
+        gurobi="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_gurobi.log",
+        python="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log",
+        memory="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_memory.log"
+    benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
     resources:
-        mem_mb=memory,
-        x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
-        vres=lambda w: 1 if partition(w) == 'vres' else 0
+        mem_mb=memory_op,
+        x_men=lambda w: 1 if partition_op(w) == 'x-men' else 0,
+        vres=lambda w: 1 if partition_op(w) == 'vres' else 0
     script: "scripts/solve_operations_network.py"
 
 rule plot_network:
