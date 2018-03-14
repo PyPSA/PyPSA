@@ -146,7 +146,7 @@ def memory(w):
     if w.clusters.endswith('m'):
         return 18000 + 180 * int(w.clusters[:-1])
     else:
-        return 8000 + 190 * int(w.clusters)
+        return 10000 + 190 * int(w.clusters)
         # return 4890+310 * int(w.clusters)
 
 rule solve_network:
