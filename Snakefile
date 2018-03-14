@@ -51,13 +51,14 @@ rule build_bus_regions:
     output:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
+    resources: mem_mb=1000
     script: "scripts/build_bus_regions.py"
 
 rule build_renewable_potentials:
     output: "resources/potentials_{technology}.nc"
-    script: "scripts/build_renewable_potentials.py"
-    benchmark: "benchmarks/build_renewable_potentials_{technology}"
     resources: mem_mb=10000
+    benchmark: "benchmarks/build_renewable_potentials_{technology}"
+    script: "scripts/build_renewable_potentials.py"
 
 rule build_renewable_profiles:
     input:
@@ -74,6 +75,7 @@ rule build_renewable_profiles:
 
 rule build_hydro_profile:
     output: 'resources/profile_hydro.nc'
+    resources: mem_mb=5000
     script: 'scripts/build_hydro_profile.py'
 
 rule add_electricity:
