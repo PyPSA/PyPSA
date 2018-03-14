@@ -227,7 +227,7 @@ def solve_network(n, config=None, gurobi_log=None, opts=None):
 
             status, termination_condition = run_lopf(n, allow_warning_status=True)
 
-        update_line_parameters(n, zero_lines_below=500)
+        update_line_parameters(n, zero_lines_below=100)
 
         logger.info("Starting last run with fixed extendable lines")
 
@@ -239,12 +239,12 @@ def solve_network(n, config=None, gurobi_log=None, opts=None):
     status, termination_condition = run_lopf(n, fix_ext_lines=True)
 
     # Drop zero lines from network
-    zero_lines_i = n.lines.index[(n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable]
-    if len(zero_lines_i):
-        n.mremove("Line", zero_lines_i)
-    zero_links_i = n.links.index[(n.links.p_nom_opt == 0.) & n.links.p_nom_extendable]
-    if len(zero_links_i):
-        n.mremove("Link", zero_links_i)
+    # zero_lines_i = n.lines.index[(n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable]
+    # if len(zero_lines_i):
+    #     n.mremove("Line", zero_lines_i)
+    # zero_links_i = n.links.index[(n.links.p_nom_opt == 0.) & n.links.p_nom_extendable]
+    # if len(zero_links_i):
+    #     n.mremove("Link", zero_links_i)
 
     return n
 
