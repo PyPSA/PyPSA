@@ -201,16 +201,21 @@ if has_xarray:
                     if attr.startswith('network_')}
 
         def get_snapshots(self):
-            return self.get_static('snapshots')
+            return self.get_static('snapshots', 'snapshots')
 
-        def get_static(self, list_name):
+        def get_static(self, list_name, index_name=None):
             t = list_name + '_'
             i = len(t)
-            df = pd.DataFrame.from_dict({attr[i:]: self.ds[attr].to_pandas()
-                                         for attr in iterkeys(self.ds.data_vars)
-                                         if attr.startswith(t) and attr[i:i+2] != 't_'})
-            df.index.name = 'name'
-            return df if not df.empty else None
+            if index_name is None:
+                index_name = list_name + '_i'
+            if index_name not in self.ds.coords:
+                return None
+            index = self.ds.coords[index_name].to_index().rename('name')
+            df = pd.DataFrame(index=index)
+            for attr in iterkeys(self.ds.data_vars):
+                if attr.startswith(t) and attr[i:i+2] != 't_':
+                    df[attr[i:]] = self.ds[attr].to_pandas()
+            return df
 
         def get_series(self, list_name):
             t = list_name + '_t_'
@@ -238,6 +243,7 @@ if has_xarray:
 
         def save_static(self, list_name, df):
             df.index.name = list_name + '_i'
+            self.ds[list_name + '_i'] = df.index
             for attr in df.columns:
                 self.ds[list_name + '_' + attr] = df[attr]
 
