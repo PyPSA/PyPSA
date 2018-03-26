@@ -141,6 +141,7 @@ class ExporterCSV(Exporter):
 class ImporterHDF5(Importer):
     def __init__(self, path):
         self.ds = pd.HDFStore(path)
+        self.index = {}
 
     def get_attributes(self):
         return dict(self.ds["/network"].reset_index().iloc[0])
@@ -149,18 +150,25 @@ class ImporterHDF5(Importer):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
 
     def get_static(self, list_name):
-        return (self.ds["/" + list_name]
-                if "/" + list_name in self.ds else None)
+        if "/" + list_name not in self.ds:
+            return None
+
+        df = self.ds["/" + list_name].set_index('name')
+        self.index[list_name] = df.index
+        return df
 
     def get_series(self, list_name):
         for tab in self.ds:
             if tab.startswith('/' + list_name + '_t/'):
                 attr = tab[len('/' + list_name + '_t/'):]
-                yield attr, self.ds[tab]
+                df = self.ds[tab]
+                df.columns = self.index[list_name][df.columns]
+                yield attr, df
 
 class ExporterHDF5(Exporter):
     def __init__(self, path, **kwargs):
         self.ds = pd.HDFStore(path, mode='w', **kwargs)
+        self.index = {}
 
     def save_attributes(self, attrs):
         name = attrs.pop('name')
@@ -172,9 +180,13 @@ class ExporterHDF5(Exporter):
         self.ds.put('/snapshots', snapshots, format='table', index=False)
 
     def save_static(self, list_name, df):
+        df.index.name = 'name'
+        self.index[list_name] = df.index
+        df = df.reset_index()
         self.ds.put('/' + list_name, df, format='table', index=False)
 
     def save_series(self, list_name, attr, df):
+        df.columns = self.index[list_name].get_indexer(df.columns)
         self.ds.put('/' + list_name + '_t/' + attr, df, format='table', index=False)
 
 if has_xarray:
@@ -234,7 +246,7 @@ if has_xarray:
 
         def save_attributes(self, attrs):
             self.ds.attrs.update(('network_' + attr, val)
-                                for attr, val in iteritems(attrs))
+                                 for attr, val in iteritems(attrs))
 
         def save_snapshots(self, snapshots):
             snapshots.index.name = 'snapshots'
@@ -419,10 +431,6 @@ def import_from_hdf5(network, path, skip_time=False):
         Skip reading in time dependent attributes
     """
 
-    logger.warning(dedent("""HDF5 file format for PyPSA is now deprecated,
-        because HDF5 fails for tables with more than 1000 columns.
-        Please use netCDF instead."""))
-
     basename = os.path.basename(path)
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -450,10 +458,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     OR
     >>> network.export_to_hdf5(filename)
     """
-
-    logger.warning(dedent("""HDF5 file format for PyPSA is now deprecated,
-        because HDF5 fails for tables with more than 1000 columns.
-        Please use netCDF instead."""))
 
     kwargs.setdefault('complevel', 4)
 
