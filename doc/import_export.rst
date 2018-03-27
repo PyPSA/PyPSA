@@ -188,6 +188,10 @@ Export network and components to a netCDF file.
 
 netCDF files take up less space than CSV files and are faster to load.
 
+netCDF is also preferred over HDF5 because netCDF is structured more
+cleanly, is easier to use from other programming languages, can limit
+float precision to save space and supports lazy loading.
+
 Both static and series attributes of components are exported, but only
 if they have non-default values.
 
@@ -207,10 +211,12 @@ Import network data from netCDF file ``file.nc``:
 Export to HDF5
 ==============
 
-WARNING: This is now deprecated, because HDF5 fails for tables with
-more than 1000 columns. Please use netCDF instead.
-
 Export network and components to an HDF store.
+
+NB: netCDF is preferred over HDF5 because netCDF is structured more
+cleanly, is easier to use from other programming languages, can limit
+float precision to save space and supports lazy loading.
+
 
 Both static and series attributes of components are exported, but only
 if they have non-default values.
@@ -224,9 +230,6 @@ If ``path`` does not already exist, it is created.
 
 Import from HDF5
 ================
-
-WARNING: This is now deprecated, because HDF5 fails for tables with
-more than 1000 columns. Please use netCDF instead.
 
 Import network data from HDF5 store at ``path``:
 
