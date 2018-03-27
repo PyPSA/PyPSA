@@ -153,7 +153,11 @@ class ImporterHDF5(Importer):
         if "/" + list_name not in self.ds:
             return None
 
-        df = self.ds["/" + list_name].set_index('name')
+        if self.pypsa_version is None or self.pypsa_version < [0, 13, 1]:
+            df = self.ds["/" + list_name]
+        else:
+            df = self.ds["/" + list_name].set_index('name')
+
         self.index[list_name] = df.index
         return df
 
@@ -162,7 +166,8 @@ class ImporterHDF5(Importer):
             if tab.startswith('/' + list_name + '_t/'):
                 attr = tab[len('/' + list_name + '_t/'):]
                 df = self.ds[tab]
-                df.columns = self.index[list_name][df.columns]
+                if self.pypsa_version is not None and self.pypsa_version > [0, 13, 0]:
+                    df.columns = self.index[list_name][df.columns]
                 yield attr, df
 
 class ExporterHDF5(Exporter):
@@ -540,25 +545,31 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
 
     attrs = importer.get_attributes()
+
+    current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
+    pypsa_version = None
+
     if attrs is not None:
         network.name = attrs.pop('name')
 
-        ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
         try:
             pypsa_version = [int(s) for s in attrs.pop("pypsa_version").split(".")]
         except KeyError:
             pypsa_version = None
 
-        if pypsa_version is None or pypsa_version < current_pypsa_version:
-            logger.warning(dedent("""
+        for attr, val in iteritems(attrs):
+            setattr(network, attr, val)
+
+    ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+    if pypsa_version is None or pypsa_version < current_pypsa_version:
+        logger.warning(dedent("""
                 Importing PyPSA from older version of PyPSA than current version {}.
                 Please read the release notes at https://pypsa.org/doc/release_notes.html
                 carefully to prepare your network for import.
-            """).format(network.pypsa_version))
+        """).format(network.pypsa_version))
 
-        for attr, val in iteritems(attrs):
-            setattr(network, attr, val)
+    importer.pypsa_version = pypsa_version
+    importer.current_pypsa_version = current_pypsa_version
 
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
