@@ -2,6 +2,29 @@
 Release Notes
 #######################
 
+PyPSA 0.13.1 (27th March 2018)
+==============================
+
+This release contains bug fixes for the new features introduced in
+0.13.0.
+
+* Export network to netCDF file bug fixed (components that were all
+  standard except their name were ignored).
+* Import/export network to HDF5 file bug fixed and now works with more
+  than 1000 columns; HDF5 format is no longer deprecated.
+* When networks are copied or sliced, overridden components
+  (introduced in 0.13.0) are also copied.
+* Sundry other small fixes.
+
+We thank Tim Kittel for pointing out the first and second bugs. We
+thank Kostas Syranidis for not only pointing out the third issue with
+copying overridden components, but also submitting a fix as a pull
+request.
+
+For this release we acknowledge funding to Tom Brown from the
+`RE-INVEST project <http://www.reinvestproject.eu/>`_.
+
+
 
 PyPSA 0.13.0 (25th January 2018)
 ================================
