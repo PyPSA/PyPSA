@@ -606,24 +606,16 @@ class Network(Basic):
 
 
     def _retrieve_overridden_components(self):
-        override_components = components.copy()
-        override_component_attrs = Dict({k: v.copy() for k, v in component_attrs.items()})
 
-        # add new components
-        new_components = {new_component: self.components[new_component] for new_component in
-                          (set(self.components.keys()) - set(components.index))}
+        components_index = list(self.components.keys())
 
-        for new_component in new_components.keys():
-            override_components.loc[new_component] = [new_components[new_component]['list_name'],
-                                                      new_components[new_component]['description'],
-                                                      new_components[new_component]['type']]
-            override_component_attrs[new_component] = self.component_attrs[new_component]
+        cols = ["list_name","description","type"]
 
-        # override attributes of standard components
-        for component in self.all_components - set(new_components.keys()):
-            extra_attrs = self.component_attrs[component].index.difference(component_attrs[component].index)
-            if not extra_attrs.empty:
-                override_component_attrs[component] = self.component_attrs[component]
+        override_components = pd.DataFrame([[self.components[i][c] for c in cols] for i in components_index],
+                                           columns=cols,
+                                           index=components_index)
+
+        override_component_attrs = Dict({i : self.component_attrs[i].copy() for i in components_index})
 
         return override_components, override_component_attrs
 
