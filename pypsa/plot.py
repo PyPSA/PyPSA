@@ -165,7 +165,10 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         for b_i in bus_sizes.index.levels[0]:
             s = bus_sizes.loc[b_i]
             radius = s.sum()**0.5
-            ratios = s/s.sum()
+            if radius == 0.0:
+                ratios = s
+            else:
+                ratios = s/s.sum()
 
             start = 0.25
             for i, ratio in ratios.iteritems():
