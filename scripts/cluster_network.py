@@ -133,7 +133,7 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
     n.plot(bus_colors=busmap.map(dict(zip(cs, cr))))
     del cs, cr
 
-def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True):
+def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True, line_length_factor=1.25):
     aggregate_generators_carriers = (None if aggregate_renewables
                                      else (pd.Index(n.generators.carrier.unique())
                                            .difference(['onwind', 'offwind', 'solar'])))
@@ -142,7 +142,8 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True):
         bus_strategies=dict(country=_make_consense("Bus", "country")),
         aggregate_generators_weighted=True,
         aggregate_generators_carriers=aggregate_generators_carriers,
-        aggregate_one_ports=["Load", "StorageUnit"]
+        aggregate_one_ports=["Load", "StorageUnit"],
+        line_length_factor=line_length_factor
     )
 
     return clustering
@@ -200,7 +201,8 @@ if __name__ == "__main__":
         linemap = n.lines.index.to_series()
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
-        clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables)
+        line_length_factor = snakemake.config['lines']['length_factor']
+        clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables, line_length_factor=line_length_factor)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, model='w') as store:
