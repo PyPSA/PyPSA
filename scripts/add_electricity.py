@@ -27,22 +27,26 @@ def _add_missing_carriers_from_costs(n, costs, carriers):
     emissions_cols = costs.columns.to_series().loc[lambda s: s.str.endswith('_emissions')].values
     n.import_components_from_dataframe(costs.loc[missing_carriers, emissions_cols].fillna(0.), 'Carrier')
 
-def load_costs(Nyears=1.):
-    c = snakemake.config['costs']
+def load_costs(Nyears=1., tech_costs=None, config=None, elec_config=None):
+    if tech_costs is None:
+        tech_costs = snakemake.input.tech_costs
+
+    if config is None:
+        config = snakemake.config['costs']
 
     # set all asset costs and other parameters
-    costs = pd.read_csv(snakemake.input.tech_costs, index_col=list(range(3))).sort_index()
+    costs = pd.read_csv(tech_costs, index_col=list(range(3))).sort_index()
 
     # correct units to MW and EUR
     costs.loc[costs.unit.str.contains("/kW"),"value"] *= 1e3
-    costs.loc[costs.unit.str.contains("USD"),"value"] *= c['USD2013_to_EUR2013']
+    costs.loc[costs.unit.str.contains("USD"),"value"] *= config['USD2013_to_EUR2013']
 
-    costs = costs.loc[idx[:,c['year'],:], "value"].unstack(level=2).groupby("technology").sum()
+    costs = costs.loc[idx[:,config['year'],:], "value"].unstack(level=2).groupby("technology").sum()
 
     costs = costs.fillna({"CO2 intensity" : 0,
                           "FOM" : 0,
                           "VOM" : 0,
-                          "discount rate" : c['discountrate'],
+                          "discount rate" : config['discountrate'],
                           "efficiency" : 1,
                           "fuel" : 0,
                           "investment" : 0,
@@ -70,7 +74,9 @@ def load_costs(Nyears=1.):
                               efficiency=efficiency,
                               co2_emissions=0.))
 
-    max_hours = snakemake.config['electricity']['max_hours']
+    if elec_config is None:
+        elec_config = snakemake.config['electricity']
+    max_hours = elec_config['max_hours']
     costs.loc["battery"] = \
         costs_for_storage(costs.loc["battery storage"], costs.loc["battery inverter"],
                           max_hours=max_hours['battery'])
@@ -79,7 +85,7 @@ def load_costs(Nyears=1.):
                           max_hours=max_hours['H2'])
 
     for attr in ('marginal_cost', 'capital_cost'):
-        overwrites = c.get(attr)
+        overwrites = config.get(attr)
         if overwrites is not None:
             overwrites = pd.Series(overwrites)
             costs.loc[overwrites.index, attr] = overwrites
@@ -104,14 +110,12 @@ def attach_load(n):
 
 ### Set line costs
 
-def update_transmission_costs(n, costs):
-    c = snakemake.config['lines']
-
-    n.lines['capital_cost'] = (n.lines['length'] * c['length_factor'] *
+def update_transmission_costs(n, costs, length_factor=1.0):
+    n.lines['capital_cost'] = (n.lines['length'] * length_factor *
                                costs.at['HVAC overhead', 'capital_cost'])
 
     dc_b = n.links.carrier == 'DC'
-    n.links.loc[dc_b, 'capital_cost'] = (n.links.loc[dc_b, 'length'] * c['length_factor'] *
+    n.links.loc[dc_b, 'capital_cost'] = (n.links.loc[dc_b, 'length'] * length_factor *
                                          costs.at['HVDC overhead', 'capital_cost'] +
                                          costs.at['HVDC inverter pair', 'capital_cost'])
 
