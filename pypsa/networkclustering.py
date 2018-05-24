@@ -417,9 +417,15 @@ try:
         points = (network.buses.loc[buses_i, ["x","y"]].values
                   .repeat(bus_weightings.reindex(buses_i).astype(int), axis=0))
 
-        kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
-
-        kmeans.fit(points)
+        #optional load of cluster coordinates
+        if load_cluster != False:
+            busmap_array = np.loadtxt(load_cluster)
+            kmeans = KMeans(init=busmap_array, n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+        else:
+            kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+            np.savetxt("cluster_coord_k_%i_result" % (n_clusters), kmeans.cluster_centers_)#, fmt="%s")
 
         busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
                            index=buses_i).astype(str)
