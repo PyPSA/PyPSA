@@ -425,7 +425,7 @@ try:
         else:
             kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
             kmeans.fit(points)
-            np.savetxt("cluster_coord_k_%i_result" % (n_clusters), kmeans.cluster_centers_)#, fmt="%s")
+            np.savetxt("cluster_coord_k_%i_result" % (n_clusters), kmeans.cluster_centers_)
 
         busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
                            index=buses_i).astype(str)
