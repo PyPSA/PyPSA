@@ -385,7 +385,7 @@ try:
     # available using pip as scikit-learn
     from sklearn.cluster import KMeans
 
-    def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwargs):
+    def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, load_cluster=False, ** kwargs):
         """
         Create a bus map from the clustering of buses in space with a
         weighting.
@@ -417,9 +417,15 @@ try:
         points = (network.buses.loc[buses_i, ["x","y"]].values
                   .repeat(bus_weightings.reindex(buses_i).astype(int), axis=0))
 
-        kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
-
-        kmeans.fit(points)
+        #optional load of cluster coordinates
+        if load_cluster != False:
+            busmap_array = np.loadtxt(load_cluster)
+            kmeans = KMeans(init=busmap_array, n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+        else:
+            kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+            np.savetxt("cluster_coord_k_%i_result" % (n_clusters), kmeans.cluster_centers_)
 
         busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
                            index=buses_i).astype(str)
