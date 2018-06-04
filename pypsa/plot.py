@@ -177,11 +177,8 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=network.buses.index)
-        if c.dtype == np.dtype('O'):
-            c.fillna("b", inplace=True)
-            c = list(c.values)
         s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap)
+        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face')
 
     def as_branch_series(ser):
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
