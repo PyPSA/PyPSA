@@ -8,13 +8,20 @@ import pypsa
 from pypower.api import ppoption, runpf, case30 as case
 
 
+from pypower.ppver import ppver
+from distutils.version import StrictVersion
+pypower_version = StrictVersion(ppver()['Version'])
+
 import pandas as pd
 
 import numpy as np
+import pytest
 
 
 
 
+@pytest.mark.skipif(pypower_version <= '5.0.0',
+                    reason="PyPOWER 5.0.0 is broken with recent numpy and unmaintained since Aug 2017.")
 def test_pypower_case():
 
     #ppopt is a dictionary with the details of the optimization routine to run
