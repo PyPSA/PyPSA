@@ -145,6 +145,25 @@ class LConstraint(object):
     def __repr__(self):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
+try:
+    from pyomo.core.base import expr_coopr3
+
+    def _build_sum_expression(variables, constant=0.):
+        expr = expr_coopr3._SumExpression()
+        expr._args = [item[1] for item in variables]
+        expr._coef = [item[0] for item in variables]
+        expr._const = constant
+        return expr
+except ImportError:
+    from pyomo.core.expr import expr_pyomo5
+
+    def _build_sum_expression(variables, constant=0.):
+        expr = expr_pyomo5.LinearExpression()
+        expr.linear_vars = [item[1] for item in variables]
+        expr.linear_coefs = [item[0] for item in variables]
+        expr.constant = constant
+        return expr
+
 
 def l_constraint(model,name,constraints,*args):
     """A replacement for pyomo's Constraint that quickly builds linear
@@ -201,10 +220,8 @@ def l_constraint(model,name,constraints,*args):
             constant = c[2]
 
         v._data[i] = pyomo.core.base.constraint._GeneralConstraintData(None,v)
-        v._data[i]._body = pyomo.core.base.expr_coopr3._SumExpression()
-        v._data[i]._body._args = [item[1] for item in variables]
-        v._data[i]._body._coef = [item[0] for item in variables]
-        v._data[i]._body._const = 0.
+        v._data[i]._body = _build_sum_expression(variables)
+
         if sense == "==":
             v._data[i]._equality = True
             v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
@@ -254,11 +271,7 @@ def l_objective(model,objective=None):
 
     #initialise with a dummy
     model.objective = Objective(expr = 0.)
-
-    model.objective._expr = pyomo.core.base.expr_coopr3._SumExpression()
-    model.objective._expr._args = [item[1] for item in objective.variables]
-    model.objective._expr._coef = [item[0] for item in objective.variables]
-    model.objective._expr._const = objective.constant
+    model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
 
 def free_pyomo_initializers(obj):
     obj.construct()
