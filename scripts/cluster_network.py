@@ -206,6 +206,9 @@ if __name__ == "__main__":
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, model='w') as store:
+        with pd.HDFStore(snakemake.input.clustermaps) as clustermaps:
+            for attr in clustermaps.keys():
+                store.put(attr, clustermaps[attr], format="table", index=False)
         for attr in ('busmap', 'linemap', 'linemap_positive', 'linemap_negative'):
             store.put(attr, getattr(clustering, attr), format="table", index=False)
 

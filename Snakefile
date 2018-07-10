@@ -100,7 +100,8 @@ rule simplify_network:
     output:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
+        clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
     resources: mem_mb=4000
@@ -110,7 +111,8 @@ rule cluster_network:
     input:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson"
+        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
+        clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
     output:
         network='networks/{network}_s{simpl}_{clusters}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
