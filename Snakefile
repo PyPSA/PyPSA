@@ -81,7 +81,7 @@ rule build_hydro_profile:
 rule add_electricity:
     input:
         base_network='networks/base.nc',
-        tech_costs='data/costs/costs.csv',
+        tech_costs='data/costs.csv',
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',
         **{'profile_' + t: "resources/profile_" + t + ".nc"
