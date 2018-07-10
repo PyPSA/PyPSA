@@ -23,7 +23,7 @@ import numpy as np
 
 from .descriptors import OrderedGraph
 
-def graph(network, branch_components=None):
+def graph(network, branch_components=None, weight=None):
     """Build networkx graph."""
     from . import components
 
@@ -44,11 +44,19 @@ def graph(network, branch_components=None):
     graph.add_nodes_from(buses_i)
 
     # Multigraph uses the branch type and name as key
-    graph.add_edges_from((branch.bus0, branch.bus1, (c.name, branch.Index), {})
-                         for c in network.iterate_components(branch_components)
-                         for branch in c.df.loc[slice(None)
-                                                if c.ind is None
-                                                else c.ind].itertuples())
+    def gen_edges():
+        for c in network.iterate_components(branch_components):
+            for branch in c.df.loc[slice(None) if c.ind is None
+                                               else c.ind].itertuples():
+                if weight is None:
+                    data = {}
+                else:
+                    data = dict(weight=getattr(branch, weight))
+                    if np.isinf(data['weight']): continue
+
+                yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
+
+    graph.add_edges_from(gen_edges())
 
     return graph
 

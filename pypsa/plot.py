@@ -28,6 +28,9 @@ from six import iteritems
 import pandas as pd
 import numpy as np
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -48,11 +51,17 @@ except:
     basemap_present = False
 
 
+pltly_present = True
+try:
+        import plotly.offline as pltly
+except:
+        pltly_present = False
+
 
 def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
          line_colors='g', bus_sizes=10, line_widths=2, title="",
          line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_components=['Line', 'Link']):
+         geometry=False, branch_components=['Line', 'Link'], jitter=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -87,6 +96,9 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         Boundaries of the plot in format [x1,x2,y1,y2]
     branch_components : list of str
         Branch components to be plotted, defaults to Line and Link.
+    jitter : None|float
+        Amount of random noise to add to bus positions to distinguish
+        overlapping buses
 
     Returns
     -------
@@ -96,7 +108,8 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
     defaults_for_branches = {
         'Link': dict(color="cyan", width=2),
-        'Line': dict(color="b", width=2)
+        'Line': dict(color="b", width=2),
+        'Transformer': dict(color='green', width=2)
     }
 
     if not plt_present:
@@ -117,6 +130,10 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     x = network.buses["x"]
     y = network.buses["y"]
 
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+
     if basemap and basemap_present:
         if boundaries is None:
             (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
@@ -134,7 +151,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert len(network.buses.index.difference(bus_sizes.index.levels[0])) == 0, \
+        assert len(bus_sizes.index.levels[0].difference(network.buses.index)) == 0, \
             "The first MultiIndex level of bus_sizes must contain buses"
         assert isinstance(bus_colors, dict) and set(bus_colors).issuperset(bus_sizes.index.levels[1]), \
             "bus_colors must be a dictionary defining a color for each element " \
@@ -238,3 +255,174 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
     ax.set_title(title)
 
     return (bus_collection,) + tuple(branch_collections)
+
+
+#This function was borne out of a breakout group at the October 2017
+#Munich Open Energy Modelling Initiative Workshop to hack together a
+#working example of plotly for networks, see:
+#https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/384/7
+
+#We thank Bryn Pickering for holding the tutorial on plotly which
+#inspired the breakout group and for contributing ideas to the iplot
+#function below.
+
+def iplot(network, fig=None, bus_colors='blue',
+          bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
+          line_colors='green', line_widths=2, line_text=None, title="",
+          branch_components=['Line', 'Link'], iplot=True):
+    """
+    Plot the network buses and lines interactively using plotly.
+
+    Parameters
+    ----------
+    fig : dict, default None
+        If not None, figure is built upon this fig.
+    bus_colors : dict/pandas.Series
+        Colors for the buses, defaults to "b"
+    bus_colorscale : string
+        Name of colorscale if bus_colors are floats, e.g. 'Jet', 'Viridis'
+    bus_colorbar : dict
+        Plotly colorbar, e.g. {'title' : 'my colorbar'}
+    bus_sizes : dict/pandas.Series
+        Sizes of bus points, defaults to 10
+    bus_text : dict/pandas.Series
+        Text for each bus, defaults to bus names
+    line_colors : dict/pandas.Series
+        Colors for the lines, defaults to "g" for Lines and "cyan" for
+        Links. Colors for branches other than Lines can be
+        specified using a pandas Series with a MultiIndex.
+    line_widths : dict/pandas.Series
+        Widths of lines, defaults to 2. Widths for branches other
+        than Lines can be specified using a pandas Series with a
+        MultiIndex.
+    line_text : dict/pandas.Series
+        Text for lines, defaults to line names. Text for branches other
+        than Lines can be specified using a pandas Series with a
+        MultiIndex.
+    title : string
+        Graph title
+    branch_components : list of str
+        Branch components to be plotted, defaults to Line and Link.
+    iplot : bool, default True
+        Automatically do an interactive plot of the figure.
+
+    Returns
+    -------
+    fig: dictionary for plotly figure
+    """
+
+    defaults_for_branches = {
+        'Link': dict(color="cyan", width=2),
+        'Line': dict(color="blue", width=2),
+        'Transformer': dict(color='green', width=2)
+    }
+
+    if fig is None:
+        fig = dict(data=[],layout={})
+
+    if bus_text is None:
+        bus_text = 'Bus ' + network.buses.index
+
+    bus_trace = dict(x=network.buses.x,
+                     y=network.buses.y,
+                     text=bus_text,
+                     type="scatter",
+                     mode="markers",
+                     hoverinfo="text",
+                     marker=dict(color=bus_colors,
+                                 size=bus_sizes),
+                     )
+
+    if bus_colorscale is not None:
+        bus_trace['marker']['colorscale'] = bus_colorscale
+
+    if bus_colorbar is not None:
+        bus_trace['marker']['colorbar'] = bus_colorbar
+
+
+    def as_branch_series(ser):
+        if isinstance(ser, dict) and set(ser).issubset(branch_components):
+            return pd.Series(ser)
+        elif isinstance(ser, pd.Series):
+            if isinstance(ser.index, pd.MultiIndex):
+                return ser
+            index = ser.index
+            ser = ser.values
+        else:
+            index = network.lines.index
+        return pd.Series(ser,
+                         index=pd.MultiIndex(levels=(["Line"], index),
+                                             labels=(np.zeros(len(index)),
+                                                     np.arange(len(index)))))
+
+    line_colors = as_branch_series(line_colors)
+    line_widths = as_branch_series(line_widths)
+
+    if line_text is not None:
+        line_text = as_branch_series(line_text)
+
+    shapes = []
+
+    shape_traces = []
+
+    for c in network.iterate_components(branch_components):
+        l_defaults = defaults_for_branches[c.name]
+        l_widths = line_widths.get(c.name, l_defaults['width'])
+        l_nums = None
+        l_colors = line_colors.get(c.name, l_defaults['color'])
+
+        if line_text is None:
+            l_text = c.name + ' ' + c.df.index
+        else:
+            l_text = line_text.get(c.name)
+
+        if isinstance(l_colors, pd.Series):
+            if issubclass(l_colors.dtype.type, np.number):
+                l_nums = l_colors
+                l_colors = None
+            else:
+                l_colors.fillna(l_defaults['color'], inplace=True)
+
+        x0 = c.df.bus0.map(network.buses.x)
+        x1 = c.df.bus1.map(network.buses.x)
+
+        y0 = c.df.bus0.map(network.buses.y)
+        y1 = c.df.bus1.map(network.buses.y)
+
+        for line in c.df.index:
+            shapes.append(dict(type='line',
+                          x0=x0[line],
+                          y0=y0[line],
+                          x1=x1[line],
+                          y1=y1[line],
+                          opacity=0.7,
+                          line=dict(color=l_colors[line],
+                                    width=l_widths[line])
+                          ))
+
+        shape_traces.append(dict(x=0.5*(x0+x1),
+                                 y=0.5*(y0+y1),
+                                 text=l_text,
+                                 type="scatter",
+                                 mode="markers",
+                                 hoverinfo="text",
+                                 marker=dict(opacity=0.))
+                            )
+
+    fig['data'].extend([bus_trace]+shape_traces)
+
+    fig['layout'].update(dict(shapes=shapes,
+                              title=title,
+                              hovermode='closest',
+                              showlegend=False))
+                              #xaxis=dict(range=[6,14]),
+                              #yaxis=dict(range=[47,55])
+
+
+    if iplot:
+        if not pltly_present:
+            logger.warning("Plotly is not present, so interactive plotting won't work.")
+        else:
+            pltly.iplot(fig)
+
+    return fig

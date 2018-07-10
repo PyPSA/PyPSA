@@ -4,7 +4,7 @@
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
-#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#The data files for this example are in the examples folder of the github repository: <https://github.com/PyPSA/PyPSA>.
 #
 ### Data sources
 #
@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 
 #You may have to adjust this path to where 
 #you downloaded the github repository
-#https://github.com/FRESNA/PyPSA
+#https://github.com/PyPSA/PyPSA
 
 csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"
 
@@ -159,7 +159,7 @@ for line_name in ["316","527","602"]:
 
 group_size = 4
 
-solver_name = "glpk"
+solver_name = "cbc"
 
 print("Performing linear OPF for one day, {} snapshots at a time:".format(group_size))
 
@@ -315,7 +315,7 @@ for bus in network.buses.index:
 
 #For the PF, set the P to the optimised P
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
-network.generators_t.p_set.loc[now] = network.generators_t.p.loc[now] 
+network.generators_t.p_set = network.generators_t.p
 
 
 #set all buses to PV, since we don't know what Q set points are
@@ -332,7 +332,10 @@ network.generators.loc[f.index,"control"] = "PQ"
 
 print("Performing non-linear PF on results of LOPF:")
 
-network.pf(now)
+info = network.pf()
+
+#any failed to converge?
+(~info.converged).any().any()
 
 print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
 print((network.lines_t.p0.loc[now]/network.lines.s_nom*contingency_factor).describe())

@@ -95,4 +95,4 @@ Please report questions to the `mailing list
 
 If you're relatively certain you've found a bug, raise it as an issue
 on the `PyPSA Github Issues page
-<https://github.com/FRESNA/PyPSA/issues>`_.
+<https://github.com/PyPSA/PyPSA/issues>`_.

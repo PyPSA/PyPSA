@@ -26,7 +26,7 @@ import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
 from itertools import repeat
-from six.moves import map, zip, range
+from six.moves import map, zip, range, reduce
 from six import itervalues, iteritems
 import six
 
@@ -50,6 +50,16 @@ def _consense(x):
     assert ((x == v).all() or x.isnull().all())
     return v
 
+def _make_consense(component, attr):
+    def consense(x):
+        v = x.iat[0]
+        assert ((x == v).all() or x.isnull().all()), (
+            "In {} cluster {} the values of attribute {} do not agree:\n{}"
+            .format(component, attr, x.name, x)
+        )
+        return v
+    return consense
+
 def _haversine(coords):
     lon, lat = np.deg2rad(np.asarray(coords)).T
     a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
@@ -58,13 +68,16 @@ def _haversine(coords):
 def aggregategenerators(network, busmap, with_time=True):
     attrs = network.components["Generator"]["attrs"]
     generators = network.generators.assign(bus=lambda df: df.bus.map(busmap))
-    columns = (set(attrs.index[attrs.static]) | {'weight'}) & set(generators.columns)
+    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
-    weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
+    weighting = generators.p_nom.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
     generators['p_nom_max'] /= weighting
-    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
+
+    strategies = {'p_nom_min':np.min,'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum,
+                  'marginal_cost': np.mean, 'capital_cost': np.mean}
     strategies.update(zip(columns.difference(strategies), repeat(_consense)))
+ 
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
@@ -81,17 +94,47 @@ def aggregategenerators(network, busmap, with_time=True):
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True):
+
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
+
     columns = set(attrs.index[attrs.static]) & set(old_df.columns)
-    grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
+
+    if ('carrier' in columns and 'max_hours' in columns):
+        grouper = [old_df.bus, old_df.carrier, old_df.max_hours]
+    elif ('carrier' in columns and not 'max_hours' in columns):
+        grouper = [old_df.bus, old_df.carrier]
+    else:
+        grouper = old_df.bus
 
     strategies = {attr: (np.sum
                          if attr in {'p', 'q', 'p_set', 'q_set',
                                      'p_nom', 'p_nom_max', 'p_nom_min'}
-                         else _consense)
+
+                         else np.mean
+                         if attr in {'marginal_cost', 'capital_cost', 'efficiency',
+                                     'efficiency_dispatch', 'standing_loss', 'efficiency_store'}
+                         
+			         else np.min
+			         if attr in {'p_min_pu'}
+
+			         else _consense)
+
+
                   for attr in columns}
+
     new_df = old_df.groupby(grouper).agg(strategies)
+
+    if 'max_hours' in columns:
+        # index level max_hours is of type numeric.Float64Index, that cannot
+        # be handled by _flatten_multiindex, other indices are of type
+        # base.Index, thus we have to convert the datatype of max_hours. There
+        # might be a better way to do it inplace instead of reconstructing the
+        # Index.
+        new_df.reset_index(drop=True, inplace=True)
+        new_df.max_hours = new_df.max_hours.astype('str')
+        new_df.set_index(['bus', 'carrier', 'max_hours'])
+
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
@@ -107,12 +150,13 @@ def aggregateoneport(network, busmap, component, with_time=True):
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
-    columns = set(attrs.index[attrs.static]) & set(network.buses.columns)
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(network.buses.columns)
 
     strategies = dict(x=np.mean, y=np.mean,
                       v_nom=np.max,
                       v_mag_pu_max=np.min, v_mag_pu_min=np.max)
-    strategies.update(zip(columns.difference(strategies), repeat(_consense)))
+    strategies.update((attr, _make_consense("Bus", attr))
+                      for attr in columns.difference(strategies))
     strategies.update(custom_strategies)
 
     return network.buses \
@@ -130,13 +174,22 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_c = pd.concat((interlines_p,interlines_n))
 
     attrs = network.components["Line"]["attrs"]
-    columns = set(attrs.index[attrs.static]).difference(('name', 'bus0', 'bus1'))
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
+
+    consense = {
+        attr: _make_consense('Bus', attr)
+        for attr in (columns | {'sub_network'}
+                     - {'r', 'x', 'g', 'b', 'terrain_factor', 's_nom',
+                        's_nom_min', 's_nom_max', 's_nom_extendable',
+                        'capital_cost', 'length', 'v_ang_min',
+                        'v_ang_max'})
+    }
 
     def aggregatelinegroup(l):
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
-        v_nom_s = _consense(buses.loc[list(l.name),'v_nom'])
+        v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
         length_factor = (length_s/l['length'])
@@ -153,11 +206,11 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_extendable=l['s_nom_extendable'].any(),
             capital_cost=l['capital_cost'].sum(),
             length=length_s,
-            sub_network=_consense(l['sub_network']),
+            sub_network=consense['sub_network'](l['sub_network']),
             v_ang_min=l['v_ang_min'].max(),
             v_ang_max=l['v_ang_max'].min()
         )
-        data.update((f, _consense(l[f])) for f in columns.difference(data))
+        data.update((f, consense[f](l[f])) for f in columns.difference(data))
         return pd.Series(data, index=[f for f in l.columns if f in columns])
 
     lines = interlines_c.groupby(['bus0_s', 'bus1_s']).apply(aggregatelinegroup)
@@ -223,10 +276,13 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             io.import_series_from_dataframe(network_c, df, one_port, attr)
 
 
+    ##
+    # Collect remaining one ports
+
     for c in network.iterate_components(one_port_components):
         io.import_components_from_dataframe(
             network_c,
-            c.df.assign(bus=c.df.bus.map(busmap)),
+            c.df.assign(bus=c.df.bus.map(busmap)).dropna(subset=['bus']),
             c.name
         )
 
@@ -236,23 +292,18 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                 if not df.empty:
                     io.import_series_from_dataframe(network_c, df, c.name, attr)
 
-    io.import_components_from_dataframe(
-        network_c,
-        network.links.assign(bus0=network.links.bus0.map(busmap),
-                             bus1=network.links.bus1.map(busmap)),
-        "Link"
-    )
-
-    io.import_components_from_dataframe(
-        network_c,
-        network.carriers,
-        "Carrier"
-    )
+    new_links = (network.links.assign(bus0=network.links.bus0.map(busmap),
+                                      bus1=network.links.bus1.map(busmap))
+                        .dropna(subset=['bus0', 'bus1'])
+                        .loc[lambda df: df.bus0 != df.bus1])
+    io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
         for attr, df in iteritems(network.links_t):
             if not df.empty:
                 io.import_series_from_dataframe(network_c, df, "Link", attr)
+
+    io.import_components_from_dataframe(network_c, network.carriers, "Carrier")
 
     network_c.determine_network_topology()
 
@@ -334,7 +385,7 @@ try:
     # available using pip as scikit-learn
     from sklearn.cluster import KMeans
 
-    def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwargs):
+    def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, load_cluster=False, ** kwargs):
         """
         Create a bus map from the clustering of buses in space with a
         weighting.
@@ -366,9 +417,15 @@ try:
         points = (network.buses.loc[buses_i, ["x","y"]].values
                   .repeat(bus_weightings.reindex(buses_i).astype(int), axis=0))
 
-        kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
-
-        kmeans.fit(points)
+        #optional load of cluster coordinates
+        if load_cluster != False:
+            busmap_array = np.loadtxt(load_cluster)
+            kmeans = KMeans(init=busmap_array, n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+        else:
+            kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
+            kmeans.fit(points)
+            np.savetxt("cluster_coord_k_%i_result" % (n_clusters), kmeans.cluster_centers_)
 
         busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
                            index=buses_i).astype(str)

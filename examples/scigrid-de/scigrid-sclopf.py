@@ -4,7 +4,7 @@
 #
 #In this example, the dispatch of generators is optimised using the security-constrained linear OPF, to guaranteed that no branches are overloaded by certain branch outages.
 #
-#The data files for this example are in the examples folder of the github repository: <https://github.com/FRESNA/PyPSA>.
+#The data files for this example are in the examples folder of the github repository: <https://github.com/PyPSA/PyPSA>.
 #
 ### Data sources and health warnings
 #

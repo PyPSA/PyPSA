@@ -13,10 +13,10 @@ alternating and direct current networks.  PyPSA is designed to scale
 well with large networks and long time series.
 
 
-As of 2017 PyPSA is under heavy development and therefore it
-is recommended to use caution when using it in a production
-environment. Some APIs may change - those liable to be updated are
-listed in the :doc:`todo`.
+As of 2017 PyPSA is under heavy development and therefore it is
+recommended to use caution when using it in a production
+environment. Some APIs may change - the changes in each PyPSA version
+are listed in the :doc:`release_notes`.
 
 PyPSA was initially developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
@@ -59,7 +59,7 @@ It has models for:
   <http://www.pypsa.org/examples/>`_
 
 
-Functionality that will definitely be added soon (see also :doc:`todo`):
+Functionality that will definitely be added soon:
 
 * Multi-year investment optimisation
 * Simple RMS simulations with the swing equation
@@ -81,12 +81,17 @@ Functionality that may be added in the future:
 * Port to `Julia <http://julialang.org/>`_
 
 
-Screenshots and example Jupyter/iPython notebooks
-=================================================
 
-There are `extensive examples <http://www.pypsa.org/examples/>`_ available as Jupyter/iPython notebooks. They are also described in the :doc:`examples` and are available as Python scripts in ``examples/``.
+Example scripts as Jupyter notebooks
+====================================
 
-Some screenshots:
+There are `extensive examples <http://www.pypsa.org/examples/>`_
+available as Jupyter notebooks. They are also described in the
+:doc:`examples` and are available as Python scripts in ``examples/``.
+
+
+Screenshots
+===========
 
 
 .. image:: img/line-loading.png
@@ -103,7 +108,11 @@ Some screenshots:
 
 .. image:: img/meshed-ac-dc.png
 
+
+Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels:
+
 .. image:: img/euro-pie-pre-7-branch_limit-1-256.png
+.. image:: img/legend-flat.png
 
 
 Target user group
@@ -149,10 +158,12 @@ Python 3.5.
 
 It leans heavily on the following Python packages:
 
-* `pandas <http://ipython.org/>`_ for storing data about components and time series
+* `pandas <http://pandas.pydata.org/>`_ for storing data about components and time series
 * `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `plotly <https://plot.ly/python/>`_ for interactive plotting
+* `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
@@ -171,6 +182,28 @@ Mailing list
 PyPSA has a Google Group `forum / mailing list
 <https://groups.google.com/group/pypsa>`_.
 
+
+
+Citing PyPSA
+============
+
+
+
+If you use PyPSA for your research, we would appreciate it if you
+would cite the following preprint paper (which has not yet been
+through peer review):
+
+* T. Brown, J. Hörsch, D. Schlachtberger, `PyPSA: Python for Power
+  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2017,
+  `preprint arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_
+
+
+If you want to cite a specific PyPSA version, each release of PyPSA is
+stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
+This can be found linked from the overall PyPSA Zenodo DOI:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
+   :target: https://doi.org/10.5281/zenodo.786605
 
 
 

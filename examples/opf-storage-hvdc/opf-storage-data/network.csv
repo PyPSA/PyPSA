@@ -1,2 +1,2 @@
-name,co2_limit,now,srid
-Test 6 bus,1000,now,4326
+name,now,srid,pypsa_version
+Test 6 bus,now,4326,0.10.0

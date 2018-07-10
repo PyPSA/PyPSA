@@ -1,0 +1,7 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+type,string,n/a,"primary_energy","Type of constraint (only ""primary energy"", i.e. limits on the usage of primary energy before generator conversion, is supported at the moment)",Input (optional)
+carrier_attribute,string,n/a,"co2_emissions","If the global constraint is connected with an energy carrier, name the associated carrier attribute. This must appear as a column in network.carriers.",Input (optional)
+sense,string,n/a,"==","Constraint sense; must be one of <=, == or >=",Input (optional)
+constant,float,n/a,0.,"Constant for right-hand-side of constraint for optimisation period. For a CO2 constraint, this would be tonnes of CO2-equivalent emissions.",Input (optional)
+mu,float,currency/constant,0.,"Shadow price of global constraint",Output

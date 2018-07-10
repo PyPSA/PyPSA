@@ -1,0 +1,8 @@
+#+TITLE: Python for Power System Analysis: Download
+#+OPTIONS: toc:nil        no default TOC
+
+
+See the [[../doc/installation.html][installation instructions]].
+
+You can also see/download the code directly from
+[[https://github.com/PyPSA/PyPSA][github]].
