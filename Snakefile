@@ -7,7 +7,7 @@ wildcard_constraints:
     simpl="[a-zA-Z0-9]*",
     clusters="[0-9]+m?",
     sectors="[+a-zA-Z0-9]+",
-    opts="[-+a-zA-Z0-9]+"
+    opts="[-+a-zA-Z0-9]*"
 
 # rule all:
 #     input: "results/summaries/costs2-summary.csv"
