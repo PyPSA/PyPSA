@@ -47,6 +47,7 @@ p_nom_max = xr.DataArray([np.nanmin(relativepotentials[row.nonzero()[1]])
 
 ds = xr.merge([(correction_factor * profile).rename('profile'),
                capacities.rename('weight'),
-               p_nom_max.rename('p_nom_max')])
+               p_nom_max.rename('p_nom_max'),
+               layout.rename('potential')])
 (ds.sel(bus=ds['profile'].mean('time') > config.get('min_p_max_pu', 0.))
  .to_netcdf(snakemake.output.profile))
