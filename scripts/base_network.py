@@ -120,7 +120,8 @@ def _set_electrical_parameters_lines(lines):
         lines.loc[lines["v_nom"] == v_nom, 'type'] = linetypes[v_nom]
 
     lines['s_max_pu'] = snakemake.config['lines']['s_max_pu']
-    lines.loc[lines.under_construction.astype(bool), 'num_parallel'] = 0.
+    if not snakemake.config['lines']['with_under_construction']:
+        lines.loc[lines.under_construction.astype(bool), 'num_parallel'] = 0.
 
     return lines
 
@@ -155,7 +156,8 @@ def _set_electrical_parameters_links(links):
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
     links.loc[p_nom.index, "p_nom"] = p_nom
 
-    links.loc[links.under_construction.astype(bool), "p_nom"] = 0.
+    if not snakemake.config['links']['with_under_construction']:
+        links.loc[links.under_construction.astype(bool), "p_nom"] = 0.
 
     return links
 
