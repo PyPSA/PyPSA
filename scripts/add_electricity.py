@@ -143,8 +143,28 @@ def attach_wind_and_solar(n, costs):
 # # Generators
 
 
-def attach_existing_generators(n, costs):
-    raise NotImplementedError("comes later")
+def attach_conventional_generators(n, costs, ppl):
+    carriers = snakemake.config['electricity']['conventional_carriers']
+    _add_missing_carriers_from_costs(n, costs, carriers)
+    ppl = ppl.rename(columns={'Name': 'name', 'Capacity': 'p_nom'})
+    ppm_fuels = {'OCGT': 'OCGT', 'CCGT': 'CCGT',
+                 'oil': 'Oil', 'nuclear': 'Nuclear',
+                 'geothermal': 'Geothermal', 'biomass': 'Bioenergy',
+                 'coal': 'Hard Coal', 'lignite': 'Lignite'}
+
+    for tech in carriers:
+        p = pd.DataFrame(ppl.loc[ppl['Fueltype'] == ppm_fuels[tech]])
+        p.index = 'C' + p.index.astype(str)
+        logger.info('Adding {} generators of type {} with capacity {}'
+                    .format(len(p), tech, p.p_nom.sum()))
+
+        n.madd("Generator", p.index,
+               carrier=tech,
+               bus=p['bus'],
+               p_nom=p['p_nom'],
+               efficiency=costs.at[tech, 'efficiency'],
+               marginal_cost=costs.at[tech, 'marginal_cost'],
+               capital_cost=costs.at[tech, 'capital_cost'])
 
 
 def attach_hydro(n, costs, ppl):
@@ -358,7 +378,7 @@ if __name__ == "__main__":
     attach_load(n)
 
     update_transmission_costs(n, costs)
-    # attach_existing_generators(n, costs)
+    attach_conventional_generators(n, costs, ppl)
 
     attach_wind_and_solar(n, costs)
     attach_hydro(n, costs, ppl)

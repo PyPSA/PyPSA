@@ -19,7 +19,18 @@ logging.basicConfig(level=snakemake.config['logging_level'])
 
 n = pypsa.Network(snakemake.input.base_network)
 
-ppl = ppm.collection.MATCHED_dataset(include_unavailables=True)
+ppl = (ppm.collection.MATCHED_dataset(include_unavailables=True)
+       [lambda df : ~df.Fueltype.isin(('Solar', 'Wind'))]
+       .pipe(ppm.cleaning.clean_technology)
+       .assign(Fueltype=lambda df: (
+           df.Fueltype.where(df.Fueltype != 'Natural Gas',
+                             df.Technology.replace('Steam Turbine', 'OCGT').fillna('OCGT'))))
+       .pipe(ppm.utils.fill_geoposition, parse=True, only_saved_locs=True)
+       .pipe(ppm.heuristics.fill_missing_duration))
+
+# ppl.loc[(ppl.Fueltype == 'Other') & ppl.Technology.str.contains('CCGT'), 'Fueltype'] = 'CCGT'
+# ppl.loc[(ppl.Fueltype == 'Other') & ppl.Technology.str.contains('Steam Turbine'), 'Fueltype'] = 'CCGT'
+
 ppl = ppl.loc[ppl.lon.notnull() & ppl.lat.notnull()]
 
 substation_lv_i = n.buses.index[n.buses['substation_lv']]

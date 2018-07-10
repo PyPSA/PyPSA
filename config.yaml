@@ -28,6 +28,8 @@ electricity:
     battery: 6
     H2: 168
 
+  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+
 renewable:
   onwind:
     cutout: europe-2012-2016-era5
