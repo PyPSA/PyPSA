@@ -123,15 +123,15 @@ rule cluster_network:
     resources: mem_mb=3000
     script: "scripts/cluster_network.py"
 
-rule add_sectors:
-    input:
-        network="networks/elec_{cost}_{resarea}_{opts}.nc",
-        emobility="data/emobility"
-    output: "networks/sector_{cost}_{resarea}_{sectors}_{opts}.nc"
-    benchmark: "benchmarks/add_sectors/sector_{resarea}_{sectors}_{opts}"
-    threads: 1
-    resources: mem_mb=1000
-    script: "scripts/add_sectors.py"
+# rule add_sectors:
+#     input:
+#         network="networks/elec_{cost}_{resarea}_{opts}.nc",
+#         emobility="data/emobility"
+#     output: "networks/sector_{cost}_{resarea}_{sectors}_{opts}.nc"
+#     benchmark: "benchmarks/add_sectors/sector_{resarea}_{sectors}_{opts}"
+#     threads: 1
+#     resources: mem_mb=1000
+#     script: "scripts/add_sectors.py"
 
 rule prepare_network:
     input: 'networks/{network}_s{simpl}_{clusters}.nc'
