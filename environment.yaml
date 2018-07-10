@@ -1,0 +1,36 @@
+name: pypsa-eur
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python
+  - six
+  - snakemake
+  - numpy
+  - pyomo
+  - scipy
+  - pandas>=0.19.0
+  - matplotlib
+  - seaborn
+  - memory_profiler
+  - networkx>=1.10
+  - fiona
+  - pyproj
+  - pyshp
+  - geopandas
+  - rasterstats
+  - netcdf4
+  - rasterio
+  - shapely
+  - xarray
+  - xlrd
+  - scikit-learn
+  - pytables
+  - ipython
+  - pip:
+    - git+https://github.com/PyPSA/PyPSA.git
+    - git+https://github.com/FRESNA/atlite.git
+    - git+https://github.com/FRESNA/vresutils.git
+    #- git+https://github.com/FRESNA/powerplantmatching.git
+    - https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
+    - countrycode
