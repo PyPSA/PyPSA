@@ -67,10 +67,12 @@ renewable:
     resource:
       method: pv
       panel: CSi
-      orientation: latitude_optimal
+      orientation:
+        slope: 35.
+        azimuth: 180.
     # ScholzPhd Tab 4.3.1: 170 MW/km^2
     capacity_per_sqm: 1.7
-    correction_factor: 0.882
+    correction_factor: 0.877
     corine:
       grid_codes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
       18, 19, 20, 26, 31, 32]
