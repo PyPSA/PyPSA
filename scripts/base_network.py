@@ -99,6 +99,8 @@ def _apply_parameter_corrections(n):
 
     for component, attrs in iteritems(corrections):
         df = n.df(component)
+        if attrs is None: continue
+
         for attr, repls in iteritems(attrs):
             for i, r in iteritems(repls):
                 if i == 'oid':
