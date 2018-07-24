@@ -9,5 +9,6 @@ gurobi.log
 /networks
 /benchmarks
 /logs
+/notebooks
 
 /data/links_p_nom.csv
