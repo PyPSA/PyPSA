@@ -33,7 +33,7 @@ The dataset consists of:
 - Electrical demand time series from the
   [OPSD project](https://open-power-system-data.org/).
 - Renewable time series based on ERA5 and SARAH, assembled using the [atlite tool](https://github.com/FRESNA/atlite).
-- Geographical potentials based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils).
+- Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils).
 
 
 This project is maintained by the [Energy System Modelling
@@ -49,7 +49,7 @@ Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and
 at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for
 the [CoNDyNet project](http://condynet.de/), financed by the [German
 Federal Ministry for Education and Research
-(BMBF)(https://www.bmbf.de/en/index.html) as part of the [Stromnetze
+(BMBF)](https://www.bmbf.de/en/index.html) as part of the [Stromnetze
 Research
 Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/).
 
