@@ -31,7 +31,15 @@ the `doc/release_notes.rst <doc/release_notes.rst>`_.
 
 
 
-PyPSA was initially developed by the `Renewable Energy Group
+
+This project is maintained by the `Energy System Modelling
+group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for
+Automation and Applied
+Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
+`Karlsruhe Institute of
+Technology <http://www.kit.edu/english/index.php>`_. The group is funded by the
+`Helmholtz Association <https://www.helmholtz.de/en/>`_ until 2024.
+Previous versions were developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the

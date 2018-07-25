@@ -17,14 +17,16 @@ recommended to use caution when using it in a production environment.
 Some APIs may change - the changes in each PyPSA version are listed in
 the [[./doc/release_notes.html][release notes]].
 
-PyPSA was initially developed by the
-[[https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/][Renewable
-Energy Group]] at [[https://fias.uni-frankfurt.de/][FIAS]] to carry out
-simulations for the [[http://condynet.de/][CoNDyNet project]], financed
-by the [[https://www.bmbf.de/en/index.html][German Federal Ministry for
-Education and Research (BMBF)]] as part of the
-[[http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/][Stromnetze
-Research Initiative]].
+
+
+This project is maintained by the [[https://www.iai.kit.edu/english/2338.php][Energy System Modelling group]] at the
+[[https://www.iai.kit.edu/english/index.php][Institute for Automation and Applied Informatics]] at the [[http://www.kit.edu/english/index.php][Karlsruhe
+Institute of Technology]]. The group is funded by the [[https://www.helmholtz.de/en/][Helmholtz
+Association]] until 2024.  Previous versions were developed by the
+[[https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/][Renewable Energy Group]] at [[https://fias.uni-frankfurt.de/][FIAS]] to carry out simulations for the
+[[http://condynet.de/][CoNDyNet project]], financed by the [[https://www.bmbf.de/en/index.html][German Federal Ministry for
+Education and Research (BMBF)]] as part of the [[http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/][Stromnetze Research
+Initiative]].
 
 * Download
 

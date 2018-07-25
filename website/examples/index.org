@@ -75,4 +75,4 @@ repository]].
 
 
 If you have a nice example of using PyPSA, send your Jupyter notebook to
-Tom Brown (brown at fias.uni-frankfurt.de).
+Tom Brown (firstname.lastname@kit.edu).
