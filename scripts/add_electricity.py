@@ -196,7 +196,7 @@ def attach_hydro(n, costs, ppl):
             .assign_coords(name=ppl.index[ppl.has_inflow])
             .transpose('time', 'name')
             .to_pandas()
-            .multiply(dist_key / ppl.loc[ppl.has_inflow, 'p_nom'], axis=1)
+            .multiply(dist_key, axis=1)
         )
 
     if 'ror' in carriers:
@@ -209,6 +209,7 @@ def attach_hydro(n, costs, ppl):
                capital_cost=costs.at['ror', 'capital_cost'],
                weight=ror['p_nom'],
                p_max_pu=(inflow_t.loc[:, ror.index]
+                         .divide(ror['p_nom'], axis=1)
                          .where(lambda df: df<=1., other=1.)))
 
     if 'PHS' in carriers:
