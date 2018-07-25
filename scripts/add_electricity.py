@@ -41,7 +41,7 @@ def load_costs(Nyears=1., tech_costs=None, config=None, elec_config=None):
     costs.loc[costs.unit.str.contains("/kW"),"value"] *= 1e3
     costs.loc[costs.unit.str.contains("USD"),"value"] *= config['USD2013_to_EUR2013']
 
-    costs = costs.loc[idx[:,config['year'],:], "value"].unstack(level=2).groupby("technology").sum()
+    costs = costs.loc[idx[:,config['year'],:], "value"].unstack(level=2).groupby("technology").sum(min_count=1)
 
     costs = costs.fillna({"CO2 intensity" : 0,
                           "FOM" : 0,
@@ -54,6 +54,10 @@ def load_costs(Nyears=1., tech_costs=None, config=None, elec_config=None):
 
     costs["capital_cost"] = ((annuity(costs["lifetime"], costs["discount rate"]) + costs["FOM"]/100.) *
                              costs["investment"] * Nyears)
+
+    costs.at['OCGT', 'fuel'] = costs.at['gas', 'fuel']
+    costs.at['CCGT', 'fuel'] = costs.at['gas', 'fuel']
+
     costs['marginal_cost'] = costs['VOM'] + costs['fuel'] / costs['efficiency']
 
     costs = costs.rename(columns={"CO2 intensity": "co2_emissions"})
