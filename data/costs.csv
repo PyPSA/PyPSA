@@ -9,11 +9,13 @@ PHS,2030,lifetime,80,years,IEA2010
 hydro,2030,lifetime,80,years,IEA2010
 ror,2030,lifetime,80,years,IEA2010
 OCGT,2030,lifetime,30,years,IEA2010
-nuclear,2030,lifetime,60,years,IEA2010 (40 years are probably more representative)
+nuclear,2030,lifetime,45,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
 CCGT,2030,lifetime,30,years,IEA2010
 coal,2030,lifetime,40,years,IEA2010
 lignite,2030,lifetime,40,years,IEA2010
 geothermal,2030,lifetime,40,years,IEA2010
+biomass,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
+oil,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
 onwind,2030,investment,1182,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 offwind,2030,investment,2506,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 solar,2030,investment,600,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
