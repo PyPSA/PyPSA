@@ -50,15 +50,15 @@ def calculate_costs(n,label,costs):
         costs.loc[idx[c.list_name,"capital",list(capital_costs_grouped.index)],label] = capital_costs_grouped.values
 
         if c.name == "Link":
-            p = c.pnl.p0.sum()
+            p = c.pnl.p0.multiply(n.snapshot_weightings,axis=0).sum()
         elif c.name == "Line":
             continue
         elif c.name == "StorageUnit":
-            p_all = c.pnl.p.copy()
+            p_all = c.pnl.p.multiply(n.snapshot_weightings,axis=0)
             p_all[p_all < 0.] = 0.
             p = p_all.sum()
         else:
-            p = c.pnl.p.sum()
+            p = c.pnl.p.multiply(n.snapshot_weightings,axis=0).sum()
 
         marginal_costs = p*c.df.marginal_cost
 
@@ -97,9 +97,9 @@ def calculate_energy(n,label,energy):
     for c in n.iterate_components(n.one_port_components|n.branch_components):
 
         if c.name in n.one_port_components:
-            c_energies = c.pnl.p.sum().multiply(c.df.sign).groupby(c.df.carrier).sum()
+            c_energies = c.pnl.p.multiply(n.snapshot_weightings,axis=0).sum().multiply(c.df.sign).groupby(c.df.carrier).sum()
         else:
-            c_energies = (-c.pnl.p1.sum() - c.pnl.p0.sum()).groupby(c.df.carrier).sum()
+            c_energies = (-c.pnl.p1.multiply(n.snapshot_weightings,axis=0).sum() - c.pnl.p0.multiply(n.snapshot_weightings,axis=0).sum()).groupby(c.df.carrier).sum()
 
         energy = energy.reindex(energy.index|pd.MultiIndex.from_product([[c.list_name],c_energies.index]))
 
