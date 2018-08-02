@@ -13,9 +13,9 @@ from vresutils.costdata import annuity
 
 from prepare_network import generate_periodic_profiles
 
-import yaml
+from add_electricity import load_costs
 
-import helper
+import yaml
 
 idx = pd.IndexSlice
 
@@ -25,34 +25,25 @@ opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
 #separator to find group name
 find_by = " "
 
-#defaults for group name
-defaults = {"Load" : "electricity", "Link" : "transmission lines"}
+def assign_carriers(n):
 
+    if "carrier" not in n.loads:
+        n.loads["carrier"] = "electricity"
+        for carrier in ["transport","heat","urban heat"]:
+            n.loads.loc[n.loads.index.str.contains(carrier),"carrier"] = carrier
 
-def assign_groups(n):
-    for c in n.iterate_components(n.one_port_components|n.branch_components):
+    if "carrier" not in n.lines:
+        n.lines["carrier"] = "AC"
 
-        c.df["group"] = defaults.get(c.name,"default")
-
-        ifind = pd.Series(c.df.index.str.find(find_by),c.df.index)
-
-        for i in ifind.value_counts().index:
-            #these have already been assigned defaults
-            if i == -1:
-                continue
-
-            names = ifind.index[ifind == i]
-
-            c.df.loc[names,'group'] = names.str[i+1:]
-
-
+    if n.stores.loc["EU gas Store","carrier"] == "":
+        n.stores.loc["EU gas Store","carrier"] = "gas Store"
 
 
 def calculate_costs(n,label,costs):
 
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
         capital_costs = c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]
-        capital_costs_grouped = capital_costs.groupby(c.df.group).sum()
+        capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
 
         costs = costs.reindex(costs.index|pd.MultiIndex.from_product([[c.list_name],["capital"],capital_costs_grouped.index]))
 
@@ -60,6 +51,8 @@ def calculate_costs(n,label,costs):
 
         if c.name == "Link":
             p = c.pnl.p0.sum()
+        elif c.name == "Line":
+            continue
         elif c.name == "StorageUnit":
             p_all = c.pnl.p.copy()
             p_all[p_all < 0.] = 0.
@@ -69,7 +62,7 @@ def calculate_costs(n,label,costs):
 
         marginal_costs = p*c.df.marginal_cost
 
-        marginal_costs_grouped = marginal_costs.groupby(c.df.group).sum()
+        marginal_costs_grouped = marginal_costs.groupby(c.df.carrier).sum()
 
         costs = costs.reindex(costs.index|pd.MultiIndex.from_product([[c.list_name],["marginal"],marginal_costs_grouped.index]))
 
@@ -77,12 +70,14 @@ def calculate_costs(n,label,costs):
 
     #add back in costs of links if there is a line volume limit
     if label[1] != "opt":
-        costs.loc[("links-added","capital","transmission lines"),label] = ((400*1.25*n.links.length+150000.)*n.links.p_nom_opt)[n.links.group == "transmission lines"].sum()*1.5*(annuity(40., 0.07)+0.02)
+        costs.loc[("links-added","capital","transmission lines"),label] = ((costs_db.at['HVDC overhead', 'capital_cost']*n.links.length + costs_db.at['HVDC inverter pair', 'capital_cost'])*n.links.p_nom_opt)[n.links.carrier == "DC"].sum()
+        costs.loc[("lines-added","capital","transmission lines"),label] = costs_db.at["HVAC overhead", "capital_cost"]*(n.lines.length*n.lines.s_nom_opt).sum()
+
 
     #add back in all hydro
-    costs.loc[("storage_units","capital","hydro"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="hydro","p_nom"].sum()
-    costs.loc[("storage_units","capital","PHS"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="PHS","p_nom"].sum()
-    costs.loc[("generators","capital","ror"),label] = (0.02)*3e6*n.generators.loc[n.generators.group=="ror","p_nom"].sum()
+    #costs.loc[("storage_units","capital","hydro"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="hydro","p_nom"].sum()
+    #costs.loc[("storage_units","capital","PHS"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="PHS","p_nom"].sum()
+    #costs.loc[("generators","capital","ror"),label] = (0.02)*3e6*n.generators.loc[n.generators.group=="ror","p_nom"].sum()
 
     return costs
 
@@ -90,8 +85,8 @@ def calculate_costs(n,label,costs):
 
 def calculate_curtailment(n,label,curtailment):
 
-    avail = n.generators_t.p_max_pu.multiply(n.generators.p_nom_opt).sum().groupby(n.generators.group).sum()
-    used = n.generators_t.p.sum().groupby(n.generators.group).sum()
+    avail = n.generators_t.p_max_pu.multiply(n.generators.p_nom_opt).sum().groupby(n.generators.carrier).sum()
+    used = n.generators_t.p.sum().groupby(n.generators.carrier).sum()
 
     curtailment[label] = (((avail - used)/avail)*100).round(3)
 
@@ -102,9 +97,9 @@ def calculate_energy(n,label,energy):
     for c in n.iterate_components(n.one_port_components|n.branch_components):
 
         if c.name in n.one_port_components:
-            c_energies = c.pnl.p.sum().multiply(c.df.sign).groupby(c.df.group).sum()
+            c_energies = c.pnl.p.sum().multiply(c.df.sign).groupby(c.df.carrier).sum()
         else:
-            c_energies = (-c.pnl.p1.sum() - c.pnl.p0.sum()).groupby(c.df.group).sum()
+            c_energies = (-c.pnl.p1.sum() - c.pnl.p0.sum()).groupby(c.df.carrier).sum()
 
         energy = energy.reindex(energy.index|pd.MultiIndex.from_product([[c.list_name],c_energies.index]))
 
@@ -116,11 +111,11 @@ def calculate_energy(n,label,energy):
 def calculate_supply(n,label,supply):
     """calculate the max dispatch of each component at the buses where the loads are attached"""
 
-    load_types = n.loads.group.value_counts().index
+    load_types = n.loads.carrier.value_counts().index
 
     for i in load_types:
 
-        buses = n.loads.bus[n.loads.group == i].values
+        buses = n.loads.bus[n.loads.carrier == i].values
 
         bus_map = pd.Series(False,index=n.buses.index)
 
@@ -133,7 +128,7 @@ def calculate_supply(n,label,supply):
             if len(items) == 0:
                 continue
 
-            s = c.pnl.p[items].max().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'group']).sum()
+            s = c.pnl.p[items].max().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
 
             supply = supply.reindex(supply.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
             supply.loc[idx[i,c.list_name,list(s.index)],label] = s.values
@@ -149,7 +144,7 @@ def calculate_supply(n,label,supply):
                     continue
 
                 #lots of sign compensation for direction and to do maximums
-                s = (-1)**(1-int(end))*((-1)**int(end)*c.pnl["p"+end][items]).max().groupby(c.df.loc[items,'group']).sum()
+                s = (-1)**(1-int(end))*((-1)**int(end)*c.pnl["p"+end][items]).max().groupby(c.df.loc[items,'carrier']).sum()
 
                 supply = supply.reindex(supply.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
                 supply.loc[idx[i,c.list_name,list(s.index)],label] = s.values
@@ -159,11 +154,11 @@ def calculate_supply(n,label,supply):
 def calculate_supply_energy(n,label,supply_energy):
     """calculate the total dispatch of each component at the buses where the loads are attached"""
 
-    load_types = n.loads.group.value_counts().index
+    load_types = n.loads.carrier.value_counts().index
 
     for i in load_types:
 
-        buses = n.loads.bus[n.loads.group == i].values
+        buses = n.loads.bus[n.loads.carrier == i].values
 
         bus_map = pd.Series(False,index=n.buses.index)
 
@@ -176,7 +171,7 @@ def calculate_supply_energy(n,label,supply_energy):
             if len(items) == 0:
                 continue
 
-            s = c.pnl.p[items].sum().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'group']).sum()
+            s = c.pnl.p[items].sum().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
 
             supply_energy = supply_energy.reindex(supply_energy.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
             supply_energy.loc[idx[i,c.list_name,list(s.index)],label] = s.values
@@ -191,7 +186,7 @@ def calculate_supply_energy(n,label,supply_energy):
                 if len(items) == 0:
                     continue
 
-                s = (-1)*c.pnl["p"+end][items].sum().groupby(c.df.loc[items,'group']).sum()
+                s = (-1)*c.pnl["p"+end][items].sum().groupby(c.df.loc[items,'carrier']).sum()
 
                 supply_energy = supply_energy.reindex(supply_energy.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
                 supply_energy.loc[idx[i,c.list_name,list(s.index)],label] = s.values
@@ -200,15 +195,18 @@ def calculate_supply_energy(n,label,supply_energy):
 
 def calculate_metrics(n,label,metrics):
 
-    metrics = metrics.reindex(metrics.index|pd.Index(["line_volume","line_volume_shadow","co2_shadow"]))
+    metrics = metrics.reindex(metrics.index|pd.Index(["line_volume","line_volume_limit","line_volume_AC","line_volume_DC","line_volume_shadow","co2_shadow"]))
 
-    metrics.at["line_volume",label] = (n.links.length*n.links.p_nom_opt)[n.links.group == "transmission lines"].sum()
+    metrics.at["line_volume_DC",label] = (n.links.length*n.links.p_nom_opt)[n.links.carrier == "DC"].sum()
+    metrics.at["line_volume_AC",label] = (n.lines.length*n.lines.s_nom_opt).sum()
+    metrics.at["line_volume",label] = metrics.loc[["line_volume_AC","line_volume_DC"],label].sum()
 
-    if "line_volume_limit" in n.shadow_prices.index:
-        metrics.at["line_volume_shadow",label] = n.shadow_prices.at["line_volume_limit","value"]
+    if hasattr(n,"line_volume_limit"):
+        metrics.at["line_volume_limit",label] = n.line_volume_limit
+        metrics.at["line_volume_shadow",label] = n.line_volume_limit_dual
 
-    if "co2_constraint" in n.shadow_prices.index:
-        metrics.at["co2_shadow",label] = n.shadow_prices.at["co2_constraint","value"]
+    if "CO2Limit" in n.global_constraints.index:
+        metrics.at["co2_shadow",label] = n.global_constraints.at["CO2Limit","mu"]
 
     return metrics
 
@@ -322,12 +320,12 @@ def calculate_market_values(n, label, market_values):
     for i in ["0","1"]:
         all_links = n.links.index[n.buses.loc[n.links["bus"+i],"suffix"] == suffix]
 
-        techs = n.links.loc[all_links,"group"].value_counts().index
+        techs = n.links.loc[all_links,"carrier"].value_counts().index
 
         market_values = market_values.reindex(market_values.index | techs)
 
         for tech in techs:
-            links = all_links[n.links.loc[all_links,"group"] == tech]
+            links = all_links[n.links.loc[all_links,"carrier"] == tech]
 
             dispatch = n.links_t["p"+i][links].groupby(n.links.loc[links,"bus"+i],axis=1).sum().reindex(columns=buses,fill_value=0.)
 
@@ -349,7 +347,7 @@ def calculate_price_statistics(n, label, price_statistics):
 
     buses = n.buses.index[n.buses.suffix == suffix]
 
-    
+
     threshold = 0.1 #higher than phoney marginal_cost of wind/solar
 
     df = pd.DataFrame(data=0.,columns=buses,index=n.snapshots)
@@ -379,7 +377,7 @@ outputs = ["costs",
 
 def make_summaries(networks_dict):
 
-    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["scenario","line_volume_limit","co2_reduction"])
+    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["cluster","lv","opt"])
 
     df = {}
 
@@ -389,9 +387,9 @@ def make_summaries(networks_dict):
     for label, filename in iteritems(networks_dict):
         print(label, filename)
 
-        n = helper.Network(filename)
+        n = pypsa.Network(filename)
 
-        assign_groups(n)
+        assign_carriers(n)
 
         for output in outputs:
             df[output] = globals()["calculate_" + output](n, label, df[output])
@@ -416,34 +414,24 @@ if __name__ == "__main__":
         snakemake.input = Dict()
         snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
         snakemake.output = Dict()
+        name = "37-lv"
+        clusters = [37]
+        lvs = [1.0,1.25,2.0,3.0]
+        opts = ["Co2L-3H-T-H"]
         for item in outputs:
-            snakemake.output[item] = snakemake.config['summary_dir'] + 'version-{version}/csvs/{item}.csv'.format(version=snakemake.config['version'],item=item)
+            snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=name,item=item)
 
-    suffix = "nc" if int(snakemake.config['version']) > 100 else "h5"
+    networks_dict = {(cluster,lv,opt) :
+                     'results/networks/elec_s_{cluster}_lv{lv}_{opt}.nc'\
+                     .format(cluster=cluster,
+                             opt=opt,
+                             lv=lv)\
+                     for cluster in clusters \
+                     for opt in opts \
+                     for lv in lvs}
+    print(networks_dict)
 
-    networks_dict = {(flexibility,line_limit,co2_reduction) :
-                     '{results_dir}version-{version}/postnetworks/postnetwork-{flexibility}-{line_limit}-{co2_reduction}.{suffix}'\
-                     .format(results_dir=snakemake.config['results_dir'],
-                             version=snakemake.config['version'],
-                             flexibility=flexibility,
-                             line_limit=line_limit,
-                             co2_reduction=co2_reduction,
-                             suffix=suffix)\
-                     for flexibility in snakemake.config['scenario']['flexibility'] for line_limit in snakemake.config['scenario']['line_limits']
-                     for co2_reduction in snakemake.config['scenario']['co2_reduction']}
-
-    options = yaml.load(open("options.yml","r"))
-
-    with pd.HDFStore(snakemake.input.heat_demand_name, mode='r') as store:
-        #the ffill converts daily values into hourly values
-        heat_demand_df = store['heat_demand_profiles'].reindex(index=pd.date_range(options['tmin'],options['tmax'],freq='H'), method="ffill")
-
-
-    intraday_profiles = pd.read_csv("data/heating/heat_load_profile_DK_AdamJensen.csv",index_col=0)
-
-    intraday_year_profiles = generate_periodic_profiles(heat_demand_df.index.tz_localize("UTC"),weekly_profile=(list(intraday_profiles["weekday"])*5 + list(intraday_profiles["weekend"])*2)).tz_localize(None)
-
-    heat_demand_df = heat_demand_df*intraday_year_profiles
+    costs_db = load_costs(Nyears=1.,tech_costs="data/costs.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
 
     df = make_summaries(networks_dict)
 

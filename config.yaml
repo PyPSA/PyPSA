@@ -1,6 +1,8 @@
 version: 0.1
 logging_level: INFO
 
+summary_dir: results
+
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
