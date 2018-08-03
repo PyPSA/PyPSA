@@ -51,11 +51,11 @@ def weighting_for_country(n, x):
 
 ## Plot weighting for Germany
 
-def plot_weighting(n, country):
+def plot_weighting(n, country, country_shape=None):
     n.plot(bus_sizes=(2*weighting_for_country(n.buses.loc[n.buses.country == country])).reindex(n.buses.index, fill_value=1))
-    p = vshapes.countries()['DE']
-    plt.xlim(p.bounds[0], p.bounds[2])
-    plt.ylim(p.bounds[1], p.bounds[3])
+    if country_shape is not None:
+        plt.xlim(country_shape.bounds[0], country_shape.bounds[2])
+        plt.ylim(country_shape.bounds[1], country_shape.bounds[3])
 
 
 # # Determining the number of clusters per country

@@ -4,7 +4,6 @@ from operator import attrgetter
 import pandas as pd
 import geopandas as gpd
 
-from vresutils import shapes as vshapes
 from vresutils.graph import voronoi_partition_pts
 
 import pypsa
@@ -13,9 +12,8 @@ countries = snakemake.config['countries']
 
 n = pypsa.Network(snakemake.input.base_network)
 
-country_shapes = vshapes.countries(subset=countries, add_KV_to_RS=True,
-                                   tolerance=0.01, minarea=0.1)
-offshore_shapes = vshapes.eez(subset=countries, tolerance=0.01)
+country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
+offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
 
 onshore_regions = []
 offshore_regions = []
@@ -30,7 +28,7 @@ for country in countries:
             'country': country
         }, index=onshore_locs.index))
 
-    if country not in offshore_shapes: continue
+    if country not in offshore_shapes.index: continue
     offshore_shape = offshore_shapes[country]
     offshore_locs = n.buses.loc[c_b & n.buses.substation_off, ["x", "y"]]
     offshore_regions_c = gpd.GeoDataFrame({

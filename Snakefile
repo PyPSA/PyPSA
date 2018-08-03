@@ -31,12 +31,33 @@ rule base_network:
         eg_converters='data/entsoegridkit/converters.csv',
         eg_transformers='data/entsoegridkit/transformers.csv',
         parameter_corrections='data/parameter_corrections.yaml',
-        links_p_nom='data/links_p_nom.csv'
+        links_p_nom='data/links_p_nom.csv',
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
+        europe_shape='resources/europe_shape.geojson'
     output: "networks/base.nc"
     benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem_mb=500
     script: "scripts/base_network.py"
+
+rule build_shapes:
+    input:
+        naturalearth='data/bundle/naturalearth/ne_10m_admin_0_countries.shp',
+        eez='data/bundle/eez/World_EEZ_v8_2014.shp',
+        nuts3='data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
+        nuts3pop='data/bundle/nama_10r_3popgdp.tsv.gz',
+        nuts3gdp='data/bundle/nama_10r_3gdp.tsv.gz',
+        ch_cantons='data/bundle/ch_cantons.csv',
+        ch_popgdp='data/bundle/je-e-21.03.02.xls'
+    output:
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
+        europe_shape='resources/europe_shape.geojson',
+        nuts3_shapes='resources/nuts3_shapes.geojson'
+    threads: 1
+    resources: mem_mb=500
+    script: "scripts/build_shapes.py"
 
 rule build_powerplants:
     input: base_network="networks/base.nc"
@@ -47,6 +68,8 @@ rule build_powerplants:
 
 rule build_bus_regions:
     input:
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
         base_network="networks/base.nc"
     output:
         regions_onshore="resources/regions_onshore.geojson",

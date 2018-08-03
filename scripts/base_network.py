@@ -2,18 +2,16 @@
 
 import yaml
 import pandas as pd
+import geopandas as gpd
 import numpy as np
 import scipy as sp, scipy.spatial
 from scipy.sparse import csgraph
-from operator import attrgetter
 from six import iteritems
 from six.moves import filter
-from itertools import count, chain
 
-import shapely, shapely.prepared, shapely.wkt
 from shapely.geometry import Point
+import shapely, shapely.prepared, shapely.wkt
 
-from vresutils import shapes as vshapes
 from vresutils.graph import BreadthFirstLevels
 
 import logging
@@ -33,10 +31,9 @@ def _load_buses_from_eg():
     buses['under_construction'] = buses['under_construction'].fillna(False).astype(bool)
 
     # remove all buses outside of all countries including exclusive economic zones (offshore)
-    europe_shape = vshapes.country_cover(snakemake.config['countries'])
-    europe_shape_exterior = shapely.geometry.Polygon(shell=europe_shape.exterior) # no holes
-    europe_shape_exterior_prepped = shapely.prepared.prep(europe_shape_exterior)
-    buses_in_europe_b = buses[['x', 'y']].apply(lambda p: europe_shape_exterior_prepped.contains(Point(p)), axis=1)
+    europe_shape = gpd.read_file(snakemake.input.europe_shape).loc[0, 'geometry']
+    europe_shape_prepped = shapely.prepared.prep(europe_shape)
+    buses_in_europe_b = buses[['x', 'y']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
 
     buses_with_v_nom_to_keep_b = buses.v_nom.isin(snakemake.config['electricity']['voltages']) | buses.v_nom.isnull()
     logger.info("Removing buses with voltages {}".format(pd.Index(buses.v_nom.unique()).dropna().difference(snakemake.config['electricity']['voltages'])))
@@ -212,10 +209,8 @@ def _set_countries_and_substations(n):
         )
 
     countries = snakemake.config['countries']
-    country_shapes = vshapes.countries(subset=countries, add_KV_to_RS=True,
-                                       tolerance=0.01, minarea=0.1)
-    offshore_shapes = vshapes.eez(subset=countries, tolerance=0.01)
-
+    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
+    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
     substation_b = buses['symbol'].str.contains('substation', case=False)
 
     def prefer_voltage(x, which):
