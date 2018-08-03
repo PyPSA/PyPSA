@@ -31,8 +31,7 @@ electricity:
   conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
-  cutout_directory: 'cutouts'
-  nprocesses: 1
+  nprocesses: 4
   cutouts:
     europe-2013-era5:
       module: era5
