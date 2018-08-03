@@ -30,9 +30,25 @@ electricity:
 
   conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
+atlite:
+  cutout_directory: 'cutouts'
+  nprocesses: 1
+  cutouts:
+    europe-2013-era5:
+      module: era5
+      xs: [-12., 35.]
+      ys: [72., 33.]
+      years: [2013, 2013]
+    europe-2013-sarah:
+      module: sarah
+      resolution: 0.2
+      xs: [-12., 42.]
+      ys: [65., 33.]
+      years: [2013, 2013]
+
 renewable:
   onwind:
-    cutout: europe-2012-2016-era5
+    cutout: europe-2013-era5
     resource:
       method: wind
       turbine: Vestas_V112_3MW
@@ -51,7 +67,7 @@ renewable:
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
       natura: true
   offwind:
-    cutout: europe-2012-2016-era5
+    cutout: europe-2013-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
@@ -63,7 +79,7 @@ renewable:
       grid_codes: [44, 255]
       natura: true
   solar:
-    cutout: europe-2013-2015-sarah
+    cutout: europe-2013-sarah
     resource:
       method: pv
       panel: CSi

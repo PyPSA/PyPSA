@@ -77,8 +77,16 @@ rule build_bus_regions:
     resources: mem_mb=1000
     script: "scripts/build_bus_regions.py"
 
+rule build_cutout:
+    output: "cutouts/{cutout}"
+    resources: mem_mb=5000
+    threads: config['atlite'].get('nprocesses', 4)
+    benchmark: "benchmarks/build_cutout_{cutout}"
+    script: "scripts/build_cutout.py"
+
 rule build_renewable_potentials:
     input:
+        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout'],
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="data/bundle/natura/Natura2000_end2015.shp"
     output: "resources/potentials_{technology}.nc"
@@ -92,7 +100,8 @@ rule build_renewable_profiles:
         potentials="resources/potentials_{technology}.nc",
         regions=lambda wildcards: ("resources/regions_onshore.geojson"
                                    if wildcards.technology in ('onwind', 'solar')
-                                   else "resources/regions_offshore.geojson")
+                                   else "resources/regions_offshore.geojson"),
+        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout'],
     output:
         profile="resources/profile_{technology}.nc",
     resources: mem_mb=5000

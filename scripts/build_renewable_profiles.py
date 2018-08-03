@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import atlite
 import numpy as np
 import xarray as xr
@@ -18,7 +19,9 @@ params = dict(years=slice(*time.year[[0, -1]]), months=slice(*time.month[[0, -1]
 regions = gpd.read_file(snakemake.input.regions).set_index('name')
 regions.index.name = 'bus'
 
-cutout = atlite.Cutout(config['cutout'], **params)
+cutout = atlite.Cutout(config['cutout'],
+                       cutout_dir=os.path.dirname(snakemake.input.cutout),
+                       **params)
 
 # Potentials
 potentials = xr.open_dataarray(snakemake.input.potentials)

@@ -1,3 +1,4 @@
+import os
 import atlite
 import xarray as xr
 import pandas as pd
@@ -6,7 +7,8 @@ from vresutils import landuse as vlanduse
 
 config = snakemake.config['renewable'][snakemake.wildcards.technology]
 
-cutout = atlite.Cutout(config['cutout'])
+cutout = atlite.Cutout(config['cutout'],
+                       cutout_dir=os.path.dirname(snakemake.input.cutout))
 
 total_capacity = config['capacity_per_sqm'] * vlanduse._cutout_cell_areas(cutout)
 potentials = xr.DataArray(total_capacity *

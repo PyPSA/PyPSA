@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import atlite
 import pandas as pd
 import geopandas as gpd
@@ -8,7 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(level=snakemake.config['logging_level'])
 
-cutout = atlite.Cutout(snakemake.config['renewable']['hydro']['cutout'])
+cutout = atlite.Cutout(snakemake.config['renewable']['hydro']['cutout'],
+                       cutout_dir=os.path.dirname(snakemake.input.cutout))
 
 countries = snakemake.config['countries']
 country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry'].reindex(countries)
