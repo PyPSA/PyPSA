@@ -13,8 +13,7 @@ import xarray as xr
 import geopandas as gpd
 
 from vresutils.costdata import annuity
-from vresutils.load import timeseries_shapes as timeseries_load
-from vresutils import hydro as vhydro
+from vresutils.load import timeseries_opsd
 
 import pypsa
 import powerplantmatching as ppm
@@ -108,9 +107,31 @@ def load_powerplants(n, ppl_fn=None):
 def attach_load(n):
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = gpd.read_file(snakemake.input.regions).set_index('name').reindex(substation_lv_i)
-    n.madd("Load", substation_lv_i,
-           bus=substation_lv_i,
-           p_set=timeseries_load(regions.geometry, regions.country))
+    opsd_load = timeseries_opsd(snakemake.input.opsd_load)
+
+    nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('id')
+
+    def normed(x): return x.divide(x.sum())
+
+    def upsample(cntry, group):
+        l = opsd_load[cntry]
+        if len(group) == 1:
+            return pd.DataFrame({group.index[0]: l})
+        else:
+            nuts3_cntry = nuts3.loc[nuts3.country == cntry]
+            transfer = vtransfer.Shapes2Shapes(group, nuts3_cntry.geometry, normed=False).T.tocsr()
+            gdp_n = pd.Series(transfer.dot(nuts3.gdp.fillna(1.).values), index=group.index)
+            pop_n = pd.Series(transfer.dot(nuts3.pop.fillna(1.).values), index=group.index)
+
+            # relative factors 0.6 and 0.4 have been determined from a linear
+            # regression on the country to continent load data (refer to vresutils.load._upsampling_weights)
+            factors = normed(0.6 * normed(gdp_n) + 0.4 * normed(pop_n))
+            return pd.DataFrame(factors.values * l.values[:,np.newaxis], index=l.index, columns=factors.index)
+
+    load = pd.concat([upsample(cntry, group)
+                      for cntry, group in regions.geometry.groupby(regions.country)], axis=1)
+
+    n.madd("Load", substation_lv_i, bus=substation_lv_i, p_set=load)
 
 ### Set line costs
 
@@ -234,7 +255,7 @@ def attach_hydro(n, costs, ppl):
 
         hydro_max_hours = c.get('hydro_max_hours')
         if hydro_max_hours is None:
-            hydro_e_country = vhydro.get_hydro_capas()['E_store[TWh]'].clip(lower=0.2)*1e6
+            hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0).clip(lower=0.2)*1e6
             hydro_max_hours_country = hydro_e_country / hydro.p_nom.groupby(country).sum()
             hydro_max_hours = country.loc[hydro.index].map(hydro_max_hours_country)
 
@@ -368,6 +389,8 @@ if __name__ == "__main__":
                  tech_costs='data/costs/costs.csv',
                  regions="resources/regions_onshore.geojson",
                  powerplants="resources/powerplants.csv",
+                 hydro_capacities='data/hydro_capacities.csv',
+                 opsd_load='data/time_series_60min_singleindex_filtered.csv',
                  **{'profile_' + t: "resources/profile_" + t + ".nc"
                     for t in snakemake.config['renewable']})
         )

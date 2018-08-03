@@ -6,7 +6,6 @@ import xarray as xr
 import pandas as pd
 import geopandas as gpd
 
-from vresutils import landuse as vlanduse
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=snakemake.config['logging_level'])

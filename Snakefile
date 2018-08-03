@@ -78,6 +78,9 @@ rule build_bus_regions:
     script: "scripts/build_bus_regions.py"
 
 rule build_renewable_potentials:
+    input:
+        corine="data/bundle/corine/g250_clc06_V18_5.tif",
+        natura="data/bundle/natura/Natura2000_end2015.shp"
     output: "resources/potentials_{technology}.nc"
     resources: mem_mb=10000
     benchmark: "benchmarks/build_renewable_potentials_{technology}"
@@ -97,6 +100,9 @@ rule build_renewable_profiles:
     script: "scripts/build_renewable_profiles.py"
 
 rule build_hydro_profile:
+    input:
+        country_shapes='resources/country_shapes.geojson',
+        eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv'
     output: 'resources/profile_hydro.nc'
     resources: mem_mb=5000
     script: 'scripts/build_hydro_profile.py'
@@ -107,6 +113,9 @@ rule add_electricity:
         tech_costs='data/costs.csv',
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',
+        hydro_capacities='data/bundle/hydro_capacities.csv',
+        opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv',
+        nuts3_shapes='resources/nuts3_shapes.geojson',
         **{'profile_' + t: "resources/profile_" + t + ".nc"
            for t in config['renewable']}
     output: "networks/elec.nc"
