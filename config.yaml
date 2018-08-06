@@ -93,7 +93,7 @@ renewable:
       18, 19, 20, 26, 31, 32]
       natura: true
   hydro:
-    cutout: europe-2012-2016-era5
+    cutout: europe-2013-era5
     carriers: [ror, PHS, hydro]
     PHS_max_hours: 6
 

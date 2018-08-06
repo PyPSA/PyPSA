@@ -101,7 +101,7 @@ rule build_renewable_profiles:
         regions=lambda wildcards: ("resources/regions_onshore.geojson"
                                    if wildcards.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),
-        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout'],
+        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout']
     output:
         profile="resources/profile_{technology}.nc",
     resources: mem_mb=5000
@@ -111,7 +111,8 @@ rule build_renewable_profiles:
 rule build_hydro_profile:
     input:
         country_shapes='resources/country_shapes.geojson',
-        eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv'
+        eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
+        cutout="cutouts/" + config["renewable"]['hydro']['cutout']
     output: 'resources/profile_hydro.nc'
     resources: mem_mb=5000
     script: 'scripts/build_hydro_profile.py'
