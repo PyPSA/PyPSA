@@ -14,6 +14,7 @@ import geopandas as gpd
 
 from vresutils.costdata import annuity
 from vresutils.load import timeseries_opsd
+from vresutils import transfer as vtransfer
 
 import pypsa
 import powerplantmatching as ppm
@@ -109,7 +110,7 @@ def attach_load(n):
     regions = gpd.read_file(snakemake.input.regions).set_index('name').reindex(substation_lv_i)
     opsd_load = timeseries_opsd(snakemake.input.opsd_load)
 
-    nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('id')
+    nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
 
     def normed(x): return x.divide(x.sum())
 
@@ -120,8 +121,8 @@ def attach_load(n):
         else:
             nuts3_cntry = nuts3.loc[nuts3.country == cntry]
             transfer = vtransfer.Shapes2Shapes(group, nuts3_cntry.geometry, normed=False).T.tocsr()
-            gdp_n = pd.Series(transfer.dot(nuts3.gdp.fillna(1.).values), index=group.index)
-            pop_n = pd.Series(transfer.dot(nuts3.pop.fillna(1.).values), index=group.index)
+            gdp_n = pd.Series(transfer.dot(nuts3_cntry['gdp'].fillna(1.).values), index=group.index)
+            pop_n = pd.Series(transfer.dot(nuts3_cntry['pop'].fillna(1.).values), index=group.index)
 
             # relative factors 0.6 and 0.4 have been determined from a linear
             # regression on the country to continent load data (refer to vresutils.load._upsampling_weights)
@@ -255,7 +256,7 @@ def attach_hydro(n, costs, ppl):
 
         hydro_max_hours = c.get('hydro_max_hours')
         if hydro_max_hours is None:
-            hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0).clip(lower=0.2)*1e6
+            hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0)["E_store[TWh]"].clip(lower=0.2)*1e6
             hydro_max_hours_country = hydro_e_country / hydro.p_nom.groupby(country).sum()
             hydro_max_hours = country.loc[hydro.index].map(hydro_max_hours_country)
 
