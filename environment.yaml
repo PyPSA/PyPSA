@@ -32,5 +32,5 @@ dependencies:
     - git+https://github.com/FRESNA/atlite.git
     - git+https://github.com/FRESNA/vresutils.git
     #- git+https://github.com/FRESNA/powerplantmatching.git
-    - https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
+    #- https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
     - countrycode
