@@ -28,7 +28,9 @@ def _simplify_polys(polys, minarea=0.1, tolerance=0.01):
     return polys.simplify(tolerance=tolerance)
 
 def countries():
-    cntries = snakemake.config['countries'] + ['KV']
+    cntries = snakemake.config['countries']
+    if 'RS' in cntries: cntries.append('KV')
+
     df = gpd.read_file(snakemake.input.naturalearth)
 
     # Names are a hassle in naturalearth, try several fields
@@ -37,7 +39,7 @@ def countries():
 
     df = df.loc[df.name.isin(cntries) & (df['scalerank'] == 0)]
     s = df.set_index('name')['geometry'].map(_simplify_polys)
-    s['RS'] = s['RS'].union(s.pop('KV'))
+    if 'RS' in cntries: s['RS'] = s['RS'].union(s.pop('KV'))
 
     return s
 
@@ -109,6 +111,7 @@ def nuts3(country_shapes):
         columns=['NUTS_ID', 'country', 'pop']
     ).set_index('NUTS_ID')
     manual['geometry'] = manual['country'].map(country_shapes)
+    manual = manual.dropna()
 
     df = df.append(manual)
 
