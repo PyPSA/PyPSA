@@ -19,7 +19,7 @@ logging.basicConfig(level=snakemake.config['logging_level'])
 
 n = pypsa.Network(snakemake.input.base_network)
 
-ppl = (ppm.collection.MATCHED_dataset(include_unavailables=True)
+ppl = (ppm.collection.matched_data()
        [lambda df : ~df.Fueltype.isin(('Solar', 'Wind'))]
        .pipe(ppm.cleaning.clean_technology)
        .assign(Fueltype=lambda df: (
