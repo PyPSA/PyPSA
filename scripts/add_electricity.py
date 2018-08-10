@@ -17,7 +17,6 @@ from vresutils.load import timeseries_opsd
 from vresutils import transfer as vtransfer
 
 import pypsa
-import powerplantmatching as ppm
 
 
 def normed(s): return s/s.sum()
@@ -99,7 +98,8 @@ def load_costs(Nyears=1., tech_costs=None, config=None, elec_config=None):
 def load_powerplants(n, ppl_fn=None):
     if ppl_fn is None:
         ppl_fn = snakemake.input.powerplants
-    return pd.read_csv(ppl_fn, index_col=0, dtype={'bus': 'str'})
+    ppl = pd.read_csv(ppl_fn, index_col=0, dtype={'bus': 'str'})
+    return ppl.loc[ppl.bus.isin(n.buses.index)]
 
 # ## Attach components
 
