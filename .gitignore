@@ -10,5 +10,6 @@ gurobi.log
 /benchmarks
 /logs
 /notebooks
-
+/data
 /data/links_p_nom.csv
+/cutouts
