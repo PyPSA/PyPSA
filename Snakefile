@@ -17,11 +17,20 @@ rule solve_all_elec_networks:
         expand("results/networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
                **config['scenario'])
 
-rule prepare_links_p_nom:
-    output: 'data/links_p_nom.csv'
-    threads: 1
-    resources: mem_mb=500
-    script: 'scripts/prepare_links_p_nom.py'
+if config['enable']['prepare_links_p_nom']:
+    rule prepare_links_p_nom:
+        output: 'data/links_p_nom.csv'
+        threads: 1
+        resources: mem_mb=500
+        script: 'scripts/prepare_links_p_nom.py'
+
+if config['enable']['powerplantmatching']:
+    rule build_powerplants:
+        input: base_network="networks/base.nc"
+        output: "resources/powerplants.csv"
+        threads: 1
+        resources: mem_mb=500
+        script: "scripts/build_powerplants.py"
 
 rule base_network:
     input:
@@ -58,13 +67,6 @@ rule build_shapes:
     threads: 1
     resources: mem_mb=500
     script: "scripts/build_shapes.py"
-
-rule build_powerplants:
-    input: base_network="networks/base.nc"
-    output: "resources/powerplants.csv"
-    threads: 1
-    resources: mem_mb=500
-    script: "scripts/build_powerplants.py"
 
 rule build_bus_regions:
     input:
