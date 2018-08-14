@@ -260,6 +260,11 @@ def _set_countries_and_substations(n):
 
     return buses
 
+def _set_links_underwater_fraction(n):
+    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
+    links = gpd.GeoSeries(n.links.geometry.map(loads))
+    n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
+
 def base_network():
     buses = _load_buses_from_eg()
 
@@ -292,6 +297,8 @@ def base_network():
     _apply_parameter_corrections(n)
 
     _set_countries_and_substations(n)
+
+    _set_links_underwater_fraction(n)
 
     return n
 
