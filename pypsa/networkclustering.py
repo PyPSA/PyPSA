@@ -160,6 +160,12 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     }
 
     def aggregatelinegroup(l):
+        def normed(s):
+            tot = s.sum()
+            if tot == 0:
+                return 1.
+            else:
+                return s/tot
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
@@ -179,7 +185,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_max=l['s_nom_max'].sum(),
             s_nom_extendable=l['s_nom_extendable'].any(),
             num_parallel=l['num_parallel'].sum(),
-            capital_cost=l['capital_cost'].sum(),
+            capital_cost=(length_factor * normed(l['s_nom']) * l['capital_cost']).mean(),
             length=length_s,
             sub_network=consense['sub_network'](l['sub_network']),
             v_ang_min=l['v_ang_min'].max(),
