@@ -262,7 +262,7 @@ def _set_countries_and_substations(n):
 
 def _set_links_underwater_fraction(n):
     offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
-    links = gpd.GeoSeries(n.links.geometry.map(loads))
+    links = gpd.GeoSeries(n.links.geometry.map(shapely.wkt.loads))
     n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 
 def base_network():
