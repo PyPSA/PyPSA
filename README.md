@@ -56,14 +56,39 @@ Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fu
 
 # Installation
 
-See the
-[environment.yaml](https://github.com/FRESNA/pypsa-eur/blob/master/environment.yaml)
-library requirements.
+Change to an directory of your choosing (***the directory and all of it parent directories may not contain any spaces***) and clone the pypsa-eur git repository
+```shell
+cd /home/quack/vres
+git clone https://github.com/PyPSA/pypsa-eur.git
+```
+
+## Python dependencies
+The python package requirements are curated in the conda [environment.yaml](https://github.com/FRESNA/pypsa-eur/blob/master/environment.yaml) file.
+The environment can be installed and activated using
+```shell
+cd pypsa-eur
+conda env create -f environment.yaml
+source activate pypsa-eur   # or conda activate pypsa-eur on windows
+```
+
+## Data dependencies
+Not all data dependencies are shipped with the git repository (since git is not suited for handling large changing files). Instead we provide two separate data bundles:
+1. [pypsa-eur-data-bundle.tar.xz](https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz) contains common GIS datasets like NUTS3 shapes, EEZ shapes, CORINE Landcover, Natura 2000 and also electricity specific summary statistics like historic per country yearly totals of hydro generation, GDP and POP on NUTS3 levels and per-country load time-series. It should be extracted in the `data` subdirectory (so that all files are in the `data/bundle` subdirectory)
+```shell
+cd data
+wget https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz
+tar xJf pypsa-eur-data-bundle.tar.xz
+cd ..
+```
+2. [pypsa-eur-cuouts.tar.xz](https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz) are spatiotemporal subsets of the European weather data from the [ECMWF ERA5](https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation) reanalysis dataset and the [CMSAF SARAH-2](https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002) solar surface radiation dataset for the year 2013. They have been prepared by and are for use with the [atlite](https://github.com/FRESNA/atlite) package. You can either generate them yourself using the `build_cutouts` snakemake rule or extract them directly in the `pypsa-eur` directory (extracting the bundle is recommended, since procuring the source weather data files for atlite is not properly documented at the moment):
+```shell
+wget https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz
+tar xJf pypsa-eur-cutouts.tar.xz
+```
 
 # Script overview
 
-See the description in the [Zenodo
-repository](https://zenodo.org/record/1246851).
+See the description in the [Zenodo repository](https://zenodo.org/record/1246851).
 
 
 # License
