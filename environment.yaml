@@ -9,28 +9,36 @@ dependencies:
   - numpy
   - pyomo
   - scipy
-  - pandas>=0.19.0
+  - pandas>=0.22.0
   - matplotlib
   - seaborn
   - memory_profiler
   - networkx>=1.10
-  - fiona
-  - pyproj
-  - pyshp
-  - geopandas
-  - rasterstats
   - netcdf4
-  - rasterio
-  - shapely
   - xarray
   - xlrd
   - scikit-learn
   - pytables
+
+  # Include ipython so that one does not inadvertently drop out of the conda
+  # environment by calling ipython
   - ipython
+
+  # GIS dependencies have to come all from conda-forge
+  - conda-forge::fiona
+  - conda-forge::pyproj
+  - conda-forge::pyshp
+  - conda-forge::geopandas
+  - conda-forge::rasterstats
+  - conda-forge::rasterio
+  - conda-forge::shapely
+  - conda-forge::libgdal
+
+  # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    - git+https://github.com/PyPSA/PyPSA.git
+    - pypsa>=0.13
+    - vresutils>=0.2.4
     - git+https://github.com/FRESNA/atlite.git
-    - git+https://github.com/FRESNA/vresutils.git
     #- git+https://github.com/FRESNA/powerplantmatching.git
     #- https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
     - countrycode
