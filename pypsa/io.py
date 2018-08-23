@@ -666,7 +666,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     old_df = network.df(cls_name)
     new_df = dataframe.drop(non_static_attrs_in_df, axis=1)
     if not old_df.empty:
-        new_df = pd.concat((old_df, new_df))
+        new_df = pd.concat((old_df, new_df), sort=False)
 
     if not new_df.index.is_unique:
         logger.error("Error, new components for {} are not unique".format(cls_name))
@@ -712,13 +712,13 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     if len(diff) > 0:
         logger.warning("Components {} for attribute {} of {} are not in main components dataframe {}".format(diff,attr,cls_name,list_name))
 
-    diff = network.snapshots.difference(dataframe.index)
-    if len(diff):
-        logger.warning("Snapshots {} are missing from {} of {}".format(diff,attr,cls_name))
-
-
     attr_series = network.components[cls_name]["attrs"].loc[attr]
     columns = dataframe.columns
+
+    diff = network.snapshots.difference(dataframe.index)
+    if len(diff):
+        logger.warning("Snapshots {} are missing from {} of {}. Filling with default value '{}'".format(diff,attr,cls_name,attr_series["default"]))
+        dataframe = dataframe.reindex(network.snapshots, fill_value=attr_series["default"])
 
     if not attr_series.static:
         pnl[attr] = pnl[attr].reindex(columns=df.index|columns, fill_value=attr_series.default)

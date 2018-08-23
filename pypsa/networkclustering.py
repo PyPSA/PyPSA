@@ -81,7 +81,7 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None):
 
     new_df = pd.concat([new_df,
                         network.generators.loc[~gens_agg_b]
-                        .assign(bus=lambda df: df.bus.map(busmap))], axis=0)
+                        .assign(bus=lambda df: df.bus.map(busmap))], axis=0, sort=False)
 
     new_pnl = dict()
     if with_time:
@@ -93,7 +93,7 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None):
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
                 pnl_df = df_agg.groupby(grouper, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
-                new_pnl[attr] = pd.concat([df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1)
+                new_pnl[attr] = pd.concat([df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False)
 
     return new_df, new_pnl
 
@@ -145,7 +145,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     positive_order = interlines.bus0_s < interlines.bus1_s
     interlines_p = interlines[positive_order]
     interlines_n = interlines[~ positive_order].rename(columns={"bus0_s":"bus1_s", "bus1_s":"bus0_s"})
-    interlines_c = pd.concat((interlines_p,interlines_n))
+    interlines_c = pd.concat((interlines_p,interlines_n), sort=False)
 
     attrs = network.components["Line"]["attrs"]
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
@@ -199,7 +199,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
 
     linemap_p = interlines_p.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
     linemap_n = interlines_n.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
-    linemap = pd.concat((linemap_p,linemap_n))
+    linemap = pd.concat((linemap_p,linemap_n), sort=False)
 
     return lines, linemap_p, linemap_n, linemap
 
