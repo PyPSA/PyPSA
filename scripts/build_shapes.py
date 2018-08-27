@@ -14,7 +14,7 @@ try:
 except ImportError:
     from countrycode import countrycode
 
-def _simplify_polys(polys, minarea=0.1, tolerance=0.01):
+def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
     if isinstance(polys, MultiPolygon):
         polys = sorted(polys, key=attrgetter('area'), reverse=True)
         mainpoly = polys[0]
@@ -22,7 +22,7 @@ def _simplify_polys(polys, minarea=0.1, tolerance=0.01):
         if mainpoly.area > minarea:
             polys = MultiPolygon([p
                                   for p in takewhile(lambda p: p.area > minarea, polys)
-                                  if mainpoly.distance(p) < mainlength])
+                                  if not filterremote or (mainpoly.distance(p) < mainlength)])
         else:
             polys = mainpoly
     return polys.simplify(tolerance=tolerance)
@@ -49,7 +49,7 @@ def eez(country_shapes):
     df = gpd.read_file(snakemake.input.eez)
     df = df.loc[df['ISO_3digit'].isin(cntries3)]
     df['name'] = countrycode(df['ISO_3digit'], origin='iso3c', target='iso2c')
-    s = df.set_index('name').geometry.map(_simplify_polys)
+    s = df.set_index('name').geometry.map(lambda s: _simplify_polys(s, filterremote=False))
     return gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
 
 def country_cover(country_shapes, eez_shapes=None):
