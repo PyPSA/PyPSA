@@ -110,11 +110,11 @@ lines:
 
   s_max_pu: 0.7
   length_factor: 1.25
-  with_under_construction: false
+  under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 links:
   s_max_pu: 0.7
-  with_under_construction: false
+  under_construction: 'keep' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 transformers:
   x: 0.1

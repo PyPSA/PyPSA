@@ -94,6 +94,7 @@ def _apply_parameter_corrections(n):
     with open(snakemake.input.parameter_corrections) as f:
         corrections = yaml.load(f)
 
+    if corrections is None: return
     for component, attrs in iteritems(corrections):
         df = n.df(component)
         if attrs is None: continue
@@ -118,8 +119,6 @@ def _set_electrical_parameters_lines(lines):
         lines.loc[lines["v_nom"] == v_nom, 'type'] = linetypes[v_nom]
 
     lines['s_max_pu'] = snakemake.config['lines']['s_max_pu']
-    if not snakemake.config['lines']['with_under_construction']:
-        lines.loc[lines.under_construction.astype(bool), 'num_parallel'] = 0.
 
     return lines
 
@@ -153,9 +152,6 @@ def _set_electrical_parameters_links(links):
 
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
     links.loc[p_nom.index, "p_nom"] = p_nom
-
-    if not snakemake.config['links']['with_under_construction']:
-        links.loc[links.under_construction.astype(bool), "p_nom"] = 0.
 
     return links
 
@@ -302,6 +298,23 @@ def _set_links_underwater_fraction(n):
     links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
     n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 
+def _adjust_capacities_of_under_construction_branches(n):
+    lines_mode = snakemake.config['lines'].get('under_construction', 'undef')
+    if lines_mode == 'zero':
+        n.lines.loc[n.lines.under_construction, 'num_parallel'] = 0.
+    elif lines_mode == 'remove':
+        n.mremove("Line", n.lines.index[n.lines.under_construction])
+    elif lines_mode != 'keep':
+        logger.warn("Unrecognized configuration for `lines: under_construction` = `{}`. Keeping under construction lines.")
+
+    links_mode = snakemake.config['links'].get('under_construction', 'undef')
+    if links_mode == 'zero':
+        n.links.loc[n.links.under_construction, "p_nom"] = 0.
+    elif links_mode == 'remove':
+        n.mremove("Link", n.links.index[n.links.under_construction])
+    elif links_mode != 'keep':
+        logger.warn("Unrecognized configuration for `links: under_construction` = `{}`. Keeping under construction links.")
+
 def base_network():
     buses = _load_buses_from_eg()
 
@@ -338,6 +351,8 @@ def base_network():
     _set_links_underwater_fraction(n)
 
     _replace_b2b_converter_at_country_border_by_link(n)
+
+    _adjust_capacities_of_under_construction_branches(n)
 
     return n
 
