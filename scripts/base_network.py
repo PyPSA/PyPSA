@@ -260,6 +260,43 @@ def _set_countries_and_substations(n):
 
     return buses
 
+def _replace_b2b_converter_at_country_border_by_link(n):
+    # Affects only the B2B converter in Lithuania at the Polish border at the moment
+    buscntry = n.buses.country
+    linkcntry = n.links.bus0.map(buscntry)
+    converters_i = n.links.index[(n.links.carrier == 'B2B') & (linkcntry == n.links.bus1.map(buscntry))]
+
+    def findforeignbus(G, i):
+        cntry = linkcntry.at[i]
+        for busattr in ('bus0', 'bus1'):
+            b0 = n.links.at[i, busattr]
+            for b1 in G[b0]:
+                if buscntry[b1] != cntry:
+                    return busattr, b0, b1
+        return None, None, None
+
+    for i in converters_i:
+        G = n.graph()
+        busattr, b0, b1 = findforeignbus(G, i)
+        if busattr is not None:
+            comp, line = next(iter(G[b0][b1]))
+            if comp != "Line":
+                logger.warn("Unable to replace B2B `{}` expected a Line, but found a {}"
+                            .format(i, comp))
+                continue
+
+            n.links.at[i, busattr] = b1
+            n.links.at[i, 'p_nom'] = min(n.links.at[i, 'p_nom'], n.lines.at[line, 's_nom'])
+            n.links.at[i, 'carrier'] = 'DC'
+            n.links.at[i, 'underwater_fraction'] = 0.
+            n.links.at[i, 'length'] = n.lines.at[line, 'length']
+
+            n.remove("Line", line)
+            n.remove("Bus", b0)
+
+            logger.info("Replacing B2B converter `{}` together with bus `{}` and line `{}` by an HVDC tie-line {}-{}"
+                        .format(i, b0, line, linkcntry.at[i], buscntry.at[b1]))
+
 def _set_links_underwater_fraction(n):
     offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
     links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
@@ -299,6 +336,8 @@ def base_network():
     _set_countries_and_substations(n)
 
     _set_links_underwater_fraction(n)
+
+    _replace_b2b_converter_at_country_border_by_link(n)
 
     return n
 
