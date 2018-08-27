@@ -1,20 +1,27 @@
 Link:
   p_nom:
     oid:
-      "7609": 200
-      "1163": 250
-      "6119": 300
-      "6120": 300
-      "6121": 300
-      "3596": 250
-      "3595": 250
-      "1307": 700
-      "5256": 0
+      "5256": 1400 # North-Sea link (NSN Link)
+      "7609": 400  # BorWin 1
+      "7718": 800  # BorWin 2
+      "7659": 900  # DolWin 2
+      "7611": 900  # DolWin 3
+      "10687": 576 # HelWin 1
+      "1163": 250  # Konti-Skan
+      "3595": 250  # GB-IE
+      "3596": 250  # GB-IE
+      "6119": 300  # Links on Corse
+      "6120": 300  # Links on Corse
+      "6121": 300  # Links on Corse
+      "1307": 700 # NO-DK
+      "8106": 1000 # ALEGrO BE-DE
+      "5241": 1000 # NEMO GB-BE
+      "7719": 700  # Cobra DK-NL
     index:
-      "11384": 1000
-      "11087": 1000
-      "11088": 1000
-      "11565": 1440
+      "11384": 1000 # NO-DK (part 1)
+      "11087": 1000 # NO-DK (part 2)
+      "11088": 1000 # NO-DK (part 3)
+      "11565": 1440 # SE-SE
   under_construction:
     oid:
       "5256": yes
