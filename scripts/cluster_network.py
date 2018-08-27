@@ -46,7 +46,7 @@ def weighting_for_country(n, x):
     l = normed(load.reindex(b_i, fill_value=0))
 
     w= g + l
-    return (w * (100. / w.max())).astype(int)
+    return (w * (100. / w.max())).clip(lower=1.).astype(int)
 
 
 ## Plot weighting for Germany
