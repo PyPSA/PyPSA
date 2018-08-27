@@ -18,8 +18,8 @@ def multiply(s): return s.str[0].astype(float) * s.str[1].astype(float)
 links_p_nom.loc[m_b, "Power (MW)"] = links_p_nom.loc[m_b, "Power (MW)"].str.split('x').pipe(multiply)
 links_p_nom["Power (MW)"] = links_p_nom["Power (MW)"].str.extract("[-/]?([\d.]+)", expand=False).astype(float)
 
-links_p_nom['x1'], links_p_nom['y1'] = extract_coordinates(links_p_nom['Converter station 1'])
-links_p_nom['x2'], links_p_nom['y2'] = extract_coordinates(links_p_nom['Converter station 2'])
+links_p_nom['x1'], links_p_nom['y1'] = extract_coordinates(links_p_nom['Converterstation 1'])
+links_p_nom['x2'], links_p_nom['y2'] = extract_coordinates(links_p_nom['Converterstation 2'])
 
 links_p_nom.dropna(subset=['x1', 'y1', 'x2', 'y2']).to_csv(snakemake.output[0], index=False)
 
