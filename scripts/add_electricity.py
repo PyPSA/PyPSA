@@ -143,7 +143,10 @@ def update_transmission_costs(n, costs, length_factor=1.0):
 
     dc_b = n.links.carrier == 'DC'
     n.links.loc[dc_b, 'capital_cost'] = (n.links.loc[dc_b, 'length'] * length_factor *
-                                         costs.at['HVDC overhead', 'capital_cost'] +
+                                         ((1. - n.links.loc[dc_b, 'underwater_fraction']) *
+                                          costs.at['HVDC overhead', 'capital_cost'] +
+                                          n.links.loc[dc_b, 'underwater_fraction'] *
+                                          costs.at['HVDC submarine', 'capital_cost']) +
                                          costs.at['HVDC inverter pair', 'capital_cost'])
 
 # ### Generators
