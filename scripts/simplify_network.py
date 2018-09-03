@@ -141,13 +141,15 @@ def simplify_links(n):
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
             all_links = [i for _, i in sum(links, [])]
 
-            name = n.links.loc[all_links, 'length'].idxmax() + '+{}'.format(len(links) - 1)
             p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+            lengths = n.links.loc[all_links, 'length']
+            name = lengths.idxmax() + '+{}'.format(len(links) - 1)
             params = dict(
                 carrier='DC',
                 bus0=b[0], bus1=b[1],
                 length=sum(n.links.loc[[i for _, i in l], 'length'].mean() for l in links),
                 p_nom=min(n.links.loc[[i for _, i in l], 'p_nom'].sum() for l in links),
+                underwater_fraction=sum(lengths/lengths.sum() * n.links.loc[all_links, 'underwater_fraction']),
                 p_max_pu=p_max_pu,
                 p_min_pu=-p_max_pu,
                 underground=False,
