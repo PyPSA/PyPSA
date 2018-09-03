@@ -129,8 +129,9 @@ def _set_lines_s_nom_from_linetypes(n):
     )
 
 def _set_electrical_parameters_links(links):
-    links['p_max_pu'] = snakemake.config['links']['s_max_pu']
-    links['p_min_pu'] = -1. * snakemake.config['links']['s_max_pu']
+    p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+    links['p_max_pu'] = p_max_pu
+    links['p_min_pu'] = -p_max_pu
 
     links_p_nom = pd.read_csv(snakemake.input.links_p_nom)
 
@@ -156,8 +157,9 @@ def _set_electrical_parameters_links(links):
     return links
 
 def _set_electrical_parameters_converters(converters):
-    converters['p_max_pu'] = snakemake.config['links']['s_max_pu']
-    converters['p_min_pu'] = -1. * snakemake.config['links']['s_max_pu']
+    p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+    converters['p_max_pu'] = p_max_pu
+    converters['p_min_pu'] = -p_max_pu
 
     converters['p_nom'] = 2000
 

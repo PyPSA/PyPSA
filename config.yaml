@@ -113,7 +113,7 @@ lines:
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 links:
-  s_max_pu: 0.7
+  p_max_pu: 1.0
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 transformers:
