@@ -1,6 +1,6 @@
 configfile: "config.yaml"
 
-localrules: all, prepare_links_p_nom, base_network, build_renewable_potentials, build_powerplants, add_electricity, add_sectors, prepare_network, extract_summaries, plot_network, scenario_comparions
+localrules: all # , extract_summaries, plot_network, scenario_comparions
 
 wildcard_constraints:
     lv="[0-9\.]+",
@@ -22,6 +22,7 @@ if config['enable']['prepare_links_p_nom']:
         output: 'data/links_p_nom.csv'
         threads: 1
         resources: mem_mb=500
+        group: 'nonfeedin_preparation'
         script: 'scripts/prepare_links_p_nom.py'
 
 if config['enable']['powerplantmatching']:
@@ -30,6 +31,7 @@ if config['enable']['powerplantmatching']:
         output: "resources/powerplants.csv"
         threads: 1
         resources: mem_mb=500
+        group: 'nonfeedin_preparation'
         script: "scripts/build_powerplants.py"
 
 rule base_network:
@@ -48,6 +50,7 @@ rule base_network:
     benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem_mb=500
+    group: 'nonfeedin_preparation'
     script: "scripts/base_network.py"
 
 rule build_shapes:
@@ -66,6 +69,7 @@ rule build_shapes:
         nuts3_shapes='resources/nuts3_shapes.geojson'
     threads: 1
     resources: mem_mb=500
+    group: 'nonfeedin_preparation'
     script: "scripts/build_shapes.py"
 
 rule build_bus_regions:
@@ -77,6 +81,7 @@ rule build_bus_regions:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     resources: mem_mb=1000
+    group: 'nonfeedin_preparation'
     script: "scripts/build_bus_regions.py"
 
 rule build_cutout:
@@ -84,6 +89,7 @@ rule build_cutout:
     resources: mem_mb=5000
     threads: config['atlite'].get('nprocesses', 4)
     benchmark: "benchmarks/build_cutout_{cutout}"
+    group: 'feedin_preparation'
     script: "scripts/build_cutout.py"
 
 rule build_renewable_potentials:
@@ -94,6 +100,7 @@ rule build_renewable_potentials:
     output: "resources/potentials_{technology}.nc"
     resources: mem_mb=10000
     benchmark: "benchmarks/build_renewable_potentials_{technology}"
+    group: 'feedin_preparation'
     script: "scripts/build_renewable_potentials.py"
 
 rule build_renewable_profiles:
@@ -108,6 +115,7 @@ rule build_renewable_profiles:
         profile="resources/profile_{technology}.nc",
     resources: mem_mb=5000
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
+    group: 'feedin_preparation'
     script: "scripts/build_renewable_profiles.py"
 
 rule build_hydro_profile:
@@ -117,6 +125,7 @@ rule build_hydro_profile:
         cutout="cutouts/" + config["renewable"]['hydro']['cutout']
     output: 'resources/profile_hydro.nc'
     resources: mem_mb=5000
+    group: 'feedin_preparation'
     script: 'scripts/build_hydro_profile.py'
 
 rule add_electricity:
@@ -134,6 +143,7 @@ rule add_electricity:
     benchmark: "benchmarks/add_electricity"
     threads: 1
     resources: mem_mb=3000
+    group: 'build_pypsa_networks'
     script: "scripts/add_electricity.py"
 
 rule simplify_network:
@@ -149,6 +159,7 @@ rule simplify_network:
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
     resources: mem_mb=4000
+    group: 'build_pypsa_networks'
     script: "scripts/simplify_network.py"
 
 rule cluster_network:
@@ -165,6 +176,7 @@ rule cluster_network:
     benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1
     resources: mem_mb=3000
+    group: 'build_pypsa_networks'
     script: "scripts/cluster_network.py"
 
 # rule add_sectors:
@@ -183,6 +195,7 @@ rule prepare_network:
     threads: 1
     resources: mem_mb=1000
     benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
+    group: "solve"
     script: "scripts/prepare_network.py"
 
 def partition(w):
@@ -210,6 +223,7 @@ rule solve_network:
         mem_mb=memory,
         x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
         vres=lambda w: 1 if partition(w) == 'vres' else 0
+    group: "solve"
     script: "scripts/solve_network.py"
 
 def partition_op(w):
@@ -235,6 +249,7 @@ rule solve_operations_network:
         mem_mb=memory_op,
         x_men=lambda w: 1 if partition_op(w) == 'x-men' else 0,
         vres=lambda w: 1 if partition_op(w) == 'vres' else 0
+    group: "solve"
     script: "scripts/solve_operations_network.py"
 
 rule plot_network:
