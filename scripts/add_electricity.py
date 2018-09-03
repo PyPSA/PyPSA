@@ -108,7 +108,8 @@ def load_powerplants(n, ppl_fn=None):
 def attach_load(n):
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = gpd.read_file(snakemake.input.regions).set_index('name').reindex(substation_lv_i)
-    opsd_load = timeseries_opsd(snakemake.input.opsd_load)
+    opsd_load = timeseries_opsd(slice(*n.snapshots[[0,-1]].year.astype(str)),
+                                snakemake.input.opsd_load)
 
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
 

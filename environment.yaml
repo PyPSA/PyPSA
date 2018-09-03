@@ -37,7 +37,7 @@ dependencies:
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
     - pypsa>=0.13
-    - vresutils>=0.2.4
+    - vresutils>=0.2.5
     - git+https://github.com/FRESNA/atlite.git
     #- git+https://github.com/FRESNA/powerplantmatching.git
     #- https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
