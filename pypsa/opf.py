@@ -1488,9 +1488,9 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     return status, termination_condition
 
 def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
-                 skip_pre=False, extra_functionality=None, solver_options={},
-                 keep_files=False, formulation="angles", ptdf_tolerance=0.,
-                 free_memory={}):
+                 skip_pre=False, extra_functionality=None, solver_logfile=None,
+                 solver_options={}, keep_files=False, formulation="angles",
+                 ptdf_tolerance=0., free_memory={}):
     """
     Linear optimal power flow for a group of snapshots.
 
