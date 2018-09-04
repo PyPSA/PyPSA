@@ -1418,7 +1418,7 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
 
     return network.opt
 
-def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False, free_memory={'pyomo'}):
+def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, solver_logfile=None, keep_files=False, free_memory={'pyomo'}):
     """
     Solve linear optimal power flow for a group of snapshots and extract results.
 
@@ -1434,6 +1434,8 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    solver_logfile : None|string
+        If not None, sets the logfile option of the solver.
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem
         construction, e.g. .lp file - useful for debugging
@@ -1461,9 +1463,9 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
 
     if 'pypsa' in free_memory:
         with empty_network(network):
-            network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
+            network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, logfile=solver_logfile, options=solver_options)
     else:
-        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
+        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, logfile=solver_logfile, options=solver_options)
 
     if logger.isEnabledFor(logging.INFO):
         network.results.write()
@@ -1512,6 +1514,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    solver_logfile : None|string
+        If not None, sets the logfile option of the solver.
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
@@ -1545,5 +1549,5 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
                                 solver_io=solver_io)
 
     return network_lopf_solve(network, snapshots, formulation=formulation,
-                              solver_options=solver_options,
+                              solver_logfile=solver_logfile, solver_options=solver_options,
                               keep_files=keep_files, free_memory=free_memory)
