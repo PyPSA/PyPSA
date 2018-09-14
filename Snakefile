@@ -214,7 +214,7 @@ rule solve_network:
     shadow: "shallow"
     params: partition=partition
     log:
-        gurobi="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_gurobi.log",
+        solver="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_solver.log",
         python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log",
         memory="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
@@ -240,7 +240,7 @@ rule solve_operations_network:
     shadow: "shallow"
     params: partition=partition_op
     log:
-        gurobi="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_gurobi.log",
+        solver="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_solver.log",
         python="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log",
         memory="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_memory.log"
     benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"

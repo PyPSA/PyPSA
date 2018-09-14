@@ -42,7 +42,7 @@ if __name__ == "__main__":
             input=dict(unprepared="networks/{network}_s{simpl}_{clusters}.nc",
                        optimized="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"),
             output=["results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op.nc"],
-            log=dict(gurobi="logs/s{simpl}_{clusters}_lv{lv}_{opts}_op_gurobi.log",
+            log=dict(solver="logs/s{simpl}_{clusters}_lv{lv}_{opts}_op_solver.log",
                      python="logs/s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log")
         )
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     with memory_logger(filename=getattr(snakemake.log, 'memory', None), interval=30.) as mem:
         n = prepare_network(n, solve_opts=snakemake.config['solving']['options'])
-        n = solve_network(n, config=snakemake.config['solving'], gurobi_log=snakemake.log.gurobi, opts=opts)
+        n = solve_network(n, config=snakemake.config['solving'], solver_log=snakemake.log.solver, opts=opts)
         n.export_to_netcdf(snakemake.output[0])
 
     logger.info("Maximum memory usage: {}".format(mem.mem_usage))

@@ -87,7 +87,10 @@ def distribute_clusters_exactly(n, n_clusters):
     else:
         return distribute_clusters(n, n_clusters)
 
-def distribute_clusters_optim(n, n_clusters, solver_name='gurobi'):
+def distribute_clusters_optim(n, n_clusters, solver_name=None):
+    if solver_name is None:
+        solver_name = snakemake.config['solver']['solver']['name']
+
     L = (n.loads_t.p_set.mean()
          .groupby(n.loads.bus).sum()
          .groupby([n.buses.country, n.buses.sub_network]).sum()
