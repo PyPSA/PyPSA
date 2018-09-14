@@ -1,12 +1,12 @@
 __default__:
-  partition: x-men
   name: "pypsa-eur.{rule}.{wildcards}"
   output: "logs/cluster/{rule}.{wildcards}.out"
   error: "logs/cluster/{rule}.{wildcards}.err"
-  time: "0-1"
+  walltime: "00:10:00"
+  #feature: "mic"
+build_renewable_potentials:
+  walltime: "03:00:00"
+build_renewable_profiles:
+  walltime: "03:00:00"
 solve_network:
-  partition: "{params.partition}"
-  time: "8-0"
-solve_operations_network:
-  partition: "{params.partition}"
-  time: "8-0"
+  walltime: "05:00:00:00"
