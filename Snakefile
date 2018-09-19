@@ -86,7 +86,7 @@ rule build_bus_regions:
 
 rule build_cutout:
     output: "cutouts/{cutout}"
-    resources: mem_mb=5000
+    resources: mem_mb=5000, walltime="01:00:00:00"
     threads: config['atlite'].get('nprocesses', 4)
     benchmark: "benchmarks/build_cutout_{cutout}"
     group: 'feedin_preparation'
@@ -98,7 +98,7 @@ rule build_renewable_potentials:
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="data/bundle/natura/Natura2000_end2015.shp"
     output: "resources/potentials_{technology}.nc"
-    resources: mem_mb=10000
+    resources: mem_mb=12000, walltime="06:00:00"
     benchmark: "benchmarks/build_renewable_potentials_{technology}"
     group: 'feedin_preparation'
     script: "scripts/build_renewable_potentials.py"
@@ -113,7 +113,7 @@ rule build_renewable_profiles:
         cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout']
     output:
         profile="resources/profile_{technology}.nc",
-    resources: mem_mb=5000
+    resources: mem_mb=5000, walltime="06:00:00"
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
     group: 'feedin_preparation'
     script: "scripts/build_renewable_profiles.py"
@@ -124,7 +124,7 @@ rule build_hydro_profile:
         eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
         cutout="cutouts/" + config["renewable"]['hydro']['cutout']
     output: 'resources/profile_hydro.nc'
-    resources: mem_mb=5000
+    resources: mem_mb=5000, walltime="01:00:00"
     group: 'feedin_preparation'
     script: 'scripts/build_hydro_profile.py'
 
@@ -198,9 +198,6 @@ rule prepare_network:
     group: "solve"
     script: "scripts/prepare_network.py"
 
-def partition(w):
-    return 'vres' if memory(w) >= 60000 else 'x-men'
-
 def memory(w):
     if w.clusters.endswith('m'):
         return 18000 + 180 * int(w.clusters[:-1])
@@ -212,25 +209,15 @@ rule solve_network:
     input: "networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     shadow: "shallow"
-    params: partition=partition
     log:
         solver="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_solver.log",
         python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log",
         memory="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
-    resources:
-        mem_mb=memory,
-        x_men=lambda w: 1 if partition(w) == 'x-men' else 0,
-        vres=lambda w: 1 if partition(w) == 'vres' else 0
+    resources: mem_mb=memory, walltime=05:00:00:00
     group: "solve"
     script: "scripts/solve_network.py"
-
-def partition_op(w):
-    return 'vres' if memory_op(w) >= 60000 else 'x-men'
-
-def memory_op(w):
-    return 5000 + 372 * int(w.clusters)
 
 rule solve_operations_network:
     input:
@@ -238,17 +225,13 @@ rule solve_operations_network:
         optimized="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"
     output: "results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op.nc"
     shadow: "shallow"
-    params: partition=partition_op
     log:
         solver="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_solver.log",
         python="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_python.log",
         memory="logs/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_op_memory.log"
     benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
-    resources:
-        mem_mb=memory_op,
-        x_men=lambda w: 1 if partition_op(w) == 'x-men' else 0,
-        vres=lambda w: 1 if partition_op(w) == 'vres' else 0
+    resources: mem_mb=(lambda w: 5000 + 372 * int(w.clusters)), walltime=01:00:00:00
     group: "solve"
     script: "scripts/solve_operations_network.py"
 

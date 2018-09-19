@@ -1,4 +1,0 @@
-#!/bin/bash
-
-snakemake --latency-wait 100 --cluster-config cluster.yaml --cluster "sbatch --parsable -J '{cluster.name}' -p {cluster.partition} -n 1 -t {cluster.time} --cpus-per-task {threads} -o '{cluster.output}' --mem {resources.mem_mb}" "$@"
-
