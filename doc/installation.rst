@@ -136,7 +136,7 @@ We recommend always keeping your PyPSA installation up-to-date, since
 bugs get fixed and new features are added. To upgrade PyPSA with pip,
 do at the command line::
 
-    pip install -U pandas
+    pip install -U pypsa
 
 Don't forget to read the :doc:`release_notes` regarding API changes
 that might require you to update your code.
