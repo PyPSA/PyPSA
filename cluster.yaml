@@ -1,0 +1,11 @@
+__default__:
+  log: "logs/cluster/{{name}}.log"
+
+feedin_preparation:
+  walltime: "12:00:00"
+
+solve:
+  walltime: "05:00:00:00"
+
+solve_operations:
+  walltime: "01:00:00:00"
