@@ -156,12 +156,19 @@ solving:
   solver:
     name: gurobi
     threads: 4
-    method: 2
-    crossover: 0 # -1 (Choose freely)
+    method: 2 # barrier
+    crossover: 0
     BarConvTol: 1.e-5
     FeasibilityTol: 1.e-6
     LogToConsole: 0
     OutputFlag: 1
+  # solver:
+  #   name: cplex
+  #   threads: 4
+  #   lpmethod: 4 # barrier
+  #   solutiontype: 2 # non basic solution, ie no crossover
+  #   barrier.convergetol: 1.e-5
+  #   feasopt.tolerance: 1.e-6
 
 plotting:
   map:
