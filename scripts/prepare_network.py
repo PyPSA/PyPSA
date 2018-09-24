@@ -115,6 +115,7 @@ if __name__ == "__main__":
     # if 'Ep' in opts:
     #     add_emission_prices(n)
 
-    set_line_volume_limit(n, float(snakemake.wildcards.lv))
+    if snakemake.wildcards.lv != 'inf':
+        set_line_volume_limit(n, float(snakemake.wildcards.lv))
 
     n.export_to_netcdf(snakemake.output[0])

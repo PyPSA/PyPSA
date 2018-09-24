@@ -3,7 +3,7 @@ configfile: "config.yaml"
 localrules: all # , extract_summaries, plot_network, scenario_comparions
 
 wildcard_constraints:
-    lv="[0-9\.]+",
+    lv="[0-9\.]+|inf",
     simpl="[a-zA-Z0-9]*",
     clusters="[0-9]+m?",
     sectors="[+a-zA-Z0-9]+",
