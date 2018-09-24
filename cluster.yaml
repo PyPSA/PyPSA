@@ -4,8 +4,13 @@ __default__:
 feedin_preparation:
   walltime: "12:00:00"
 
+solve_network:
+  walltime: "05:00:00:00"
+  feature: "best"
+
 solve:
   walltime: "05:00:00:00"
+  threads: 4 # Group threads are not aggregated
 
 solve_operations:
   walltime: "01:00:00:00"
