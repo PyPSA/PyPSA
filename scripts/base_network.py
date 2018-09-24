@@ -9,7 +9,7 @@ from scipy.sparse import csgraph
 from six import iteritems
 from six.moves import filter
 
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString
 import shapely, shapely.prepared, shapely.wkt
 
 from vresutils.graph import BreadthFirstLevels
@@ -18,6 +18,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 import pypsa
+
+def _find_closest_links(links, new_links, distance_upper_bound=1.5):
+    tree = sp.spatial.KDTree(np.vstack([
+        new_links[['x1', 'y1', 'x2', 'y2']],
+        new_links[['x2', 'y2', 'x1', 'y1']]
+    ]))
+
+    dist, ind = tree.query(
+        np.asarray([np.asarray(shapely.wkt.loads(s))[[0, -1]].flatten()
+                    for s in links.geometry]),
+        distance_upper_bound=distance_upper_bound
+    )
+
+    return (
+        pd.DataFrame(dict(D=dist, i=new_links.index[ind % len(new_links)]), index=links.index)
+        .groupby('i').D.idxmin()
+    )
 
 def _load_buses_from_eg():
     buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
@@ -77,6 +94,49 @@ def _load_links_from_eg(buses):
 
     return links
 
+
+def _add_links_from_tyndp(buses, links):
+    links_tyndp = pd.read_csv(snakemake.input.links_tyndp)
+    links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.8)
+    # Corresponds approximately to 60km tolerances
+
+    if links_tyndp["j"].notnull().any():
+        logger.info("The following TYNDP links were already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
+        links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
+
+    tree = sp.spatial.KDTree(buses[['x', 'y']])
+    _, ind0 = tree.query(links_tyndp[["x1", "y1"]])
+    ind0_b = ind0 < len(buses)
+    links_tyndp.loc[ind0_b, "bus0"] = buses.index[ind0[ind0_b]]
+
+    _, ind1 = tree.query(links_tyndp[["x2", "y2"]])
+    ind1_b = ind1 < len(buses)
+    links_tyndp.loc[ind1_b, "bus1"] = buses.index[ind1[ind1_b]]
+
+    links_tyndp_located_b = links_tyndp["bus0"].notnull() & links_tyndp["bus1"].notnull()
+    if not links_tyndp_located_b.all():
+        logger.warn("Did not find connected buses for TYNDP links (skipping): " + ", ".join(links_tyndp.loc[~links_tyndp_located_b, "Name"]))
+        links_tyndp = links_tyndp.loc[links_tyndp_located_b]
+
+    logger.info("Adding the following TYNDP links: " + ", ".join(links_tyndp["Name"]))
+
+    links_tyndp = links_tyndp[["bus0", "bus1"]].assign(
+        carrier='DC',
+        p_nom=links_tyndp["Power (MW)"],
+        length=links_tyndp["Length (given) (km)"].fillna(links_tyndp["Length (distance*1.2) (km)"]),
+        under_construction=True,
+        underground=False,
+        geometry=(links_tyndp[["x1", "y1", "x2", "y2"]]
+                  .apply(lambda s: str(LineString([[s.x1, s.y1], [s.x2, s.y2]])), axis=1)),
+        tags=('"name"=>"' + links_tyndp["Name"] + '", ' +
+              '"ref"=>"' + links_tyndp["Ref"] + '", ' +
+              '"status"=>"' + links_tyndp["status"] + '"')
+    )
+
+    links_tyndp.index = "T" + links_tyndp.index.astype(str)
+
+    return links.append(links_tyndp)
+
 def _load_lines_from_eg(buses):
     lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values='t', false_values='f',
                          dtype=dict(line_id='str', bus0='str', bus1='str',
@@ -134,22 +194,7 @@ def _set_electrical_parameters_links(links):
     links['p_min_pu'] = -p_max_pu
 
     links_p_nom = pd.read_csv(snakemake.input.links_p_nom)
-
-    tree = sp.spatial.KDTree(np.vstack([
-        links_p_nom[['x1', 'y1', 'x2', 'y2']],
-        links_p_nom[['x2', 'y2', 'x1', 'y1']]
-    ]))
-
-    dist, ind = tree.query(
-        np.asarray([np.asarray(shapely.wkt.loads(s))[[0, -1]].flatten()
-                    for s in links.geometry]),
-        distance_upper_bound=1.5
-    )
-
-    links_p_nom["j"] =(
-        pd.DataFrame(dict(D=dist, i=links_p_nom.index[ind % len(links_p_nom)]), index=links.index)
-        .groupby('i').D.idxmin()
-    )
+    links_p_nom["j"] = _find_closest_links(links, links_p_nom)
 
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
     links.loc[p_nom.index, "p_nom"] = p_nom
@@ -321,6 +366,9 @@ def base_network():
     buses = _load_buses_from_eg()
 
     links = _load_links_from_eg(buses)
+    if snakemake.config['links'].get('include_tyndp'):
+        links = _add_links_from_tyndp(buses, links)
+
     converters = _load_converters_from_eg(buses)
 
     lines = _load_lines_from_eg(buses)

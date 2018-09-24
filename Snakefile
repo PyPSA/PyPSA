@@ -43,6 +43,7 @@ rule base_network:
         eg_transformers='data/entsoegridkit/transformers.csv',
         parameter_corrections='data/parameter_corrections.yaml',
         links_p_nom='data/links_p_nom.csv',
+        links_tyndp='data/links_tyndp.csv',
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
         europe_shape='resources/europe_shape.geojson'

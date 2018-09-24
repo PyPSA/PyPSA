@@ -5,7 +5,7 @@ scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
   lv: [1.0, 1.125, 1.25, 1.5, 2.0, 3.0]
-  clusters: [45, 64, 90, 128, 181, 256] #, 362] # (2**np.r_[5.5:9:.5]).astype(int)
+  clusters: [45, 64, 90, 128, 181] #, 256, 362] # (2**np.r_[5.5:9:.5]).astype(int)
   opts: [Co2L-3H] #, LC-FL, LC-T, Ep-T, Co2L-T]
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'] 
@@ -32,7 +32,7 @@ electricity:
     battery: 6
     H2: 168
 
-  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
   nprocesses: 4
@@ -114,6 +114,7 @@ lines:
 
 links:
   p_max_pu: 1.0
+  include_tyndp: false
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 transformers:
@@ -150,9 +151,9 @@ solving:
     load_shedding: true
     noisy_costs: true
     min_iterations: 4
-    max_iterations: 6
-    # max_iterations: 1
-    # nhours: 10
+    # max_iterations: 6
+    max_iterations: 3
+    #nhours: 10
   solver:
     name: gurobi
     threads: 4
