@@ -126,7 +126,7 @@ def busmap_for_n_clusters(n, n_clusters):
         if len(x) == 1:
             return pd.Series(prefix + '0', index=x.index)
         weight = weighting_for_country(n, x)
-        return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index)
+        return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index, n_init=1000, max_iter=30000, tol=1e-6)
     return n.buses.groupby(['country', 'sub_network'], group_keys=False).apply(busmap_for_country)
 
 def plot_busmap_for_n_clusters(n, n_clusters=50):
