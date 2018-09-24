@@ -92,13 +92,17 @@ rule build_cutout:
     group: 'feedin_preparation'
     script: "scripts/build_cutout.py"
 
+def memory_build_renewable_potentials(wildcards):
+    corine_config = config["renewable"][wildcards.technology]["corine"]
+    return 12000 if corine_config.get("distance") is None else 24000
+
 rule build_renewable_potentials:
     input:
         cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout'],
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="data/bundle/natura/Natura2000_end2015.shp"
     output: "resources/potentials_{technology}.nc"
-    resources: mem=12000
+    resources: mem=memory_build_renewable_potentials
     benchmark: "benchmarks/build_renewable_potentials_{technology}"
     group: 'feedin_preparation'
     script: "scripts/build_renewable_potentials.py"
@@ -195,7 +199,6 @@ rule prepare_network:
     threads: 1
     resources: mem=1000
     benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
-    group: "solve_prep"
     script: "scripts/prepare_network.py"
 
 def memory(w):
@@ -216,7 +219,7 @@ rule solve_network:
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
     resources: mem=memory
-    group: "solve"
+    # group: "solve" # with group, threads is ignored https://bitbucket.org/snakemake/snakemake/issues/971/group-job-description-does-not-contain
     script: "scripts/solve_network.py"
 
 rule solve_operations_network:
