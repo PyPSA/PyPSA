@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 import pypsa
 
+def _get_oid(df):
+    return df.tags.str.extract('"oid"=>"(\d+)"', expand=False)
+
 def _find_closest_links(links, new_links, distance_upper_bound=1.5):
     tree = sp.spatial.KDTree(np.vstack([
         new_links[['x1', 'y1', 'x2', 'y2']],
@@ -31,8 +34,11 @@ def _find_closest_links(links, new_links, distance_upper_bound=1.5):
         distance_upper_bound=distance_upper_bound
     )
 
+    found_b = ind < 2 * len(new_links)
     return (
-        pd.DataFrame(dict(D=dist, i=new_links.index[ind % len(new_links)]), index=links.index)
+        pd.DataFrame(dict(D=dist[found_b],
+                          i=new_links.index[ind[found_b] % len(new_links)]),
+                     index=links.index[found_b])
         .groupby('i').D.idxmin()
     )
 
@@ -157,13 +163,13 @@ def _apply_parameter_corrections(n):
     if corrections is None: return
     for component, attrs in iteritems(corrections):
         df = n.df(component)
+        oid = _get_oid(df)
         if attrs is None: continue
 
         for attr, repls in iteritems(attrs):
             for i, r in iteritems(repls):
                 if i == 'oid':
-                    df["oid"] = df.tags.str.extract('"oid"=>"(\d+)"', expand=False)
-                    r = df.oid.map(repls["oid"]).dropna()
+                    r = oid.map(repls["oid"]).dropna()
                 elif i == 'index':
                     r = pd.Series(repls["index"])
                 else:
