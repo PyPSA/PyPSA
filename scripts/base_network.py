@@ -217,7 +217,9 @@ def _set_electrical_parameters_links(links):
     links_p_nom["j"] = _find_closest_links(links, links_p_nom)
 
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
-    links.loc[p_nom.index, "p_nom"] = p_nom
+    # Don't update p_nom if it's already set
+    p_nom_unset = p_nom.drop(links.index[links.p_nom.notnull()], errors='ignore')
+    links.loc[p_nom_unset.index, "p_nom"] = p_nom_unset
 
     return links
 
