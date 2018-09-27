@@ -208,8 +208,8 @@ if __name__ == "__main__":
         clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables, line_length_factor=line_length_factor)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
-    with pd.HDFStore(snakemake.output.clustermaps, model='w') as store:
-        with pd.HDFStore(snakemake.input.clustermaps) as clustermaps:
+    with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
+        with pd.HDFStore(snakemake.input.clustermaps, mode='r') as clustermaps:
             for attr in clustermaps.keys():
                 store.put(attr, clustermaps[attr], format="table", index=False)
         for attr in ('busmap', 'linemap', 'linemap_positive', 'linemap_negative'):
