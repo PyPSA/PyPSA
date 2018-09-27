@@ -289,7 +289,13 @@ def _set_countries_and_substations(n):
 
         buses.loc[offshore_country_b, 'country'] = country
 
-    buses['substation_lv'] = lv_b & onshore_b & (~ buses['under_construction'])
+    # Only accept buses as low-voltage substations (where load is attached), if
+    # they have at least one connection which is not under_construction
+    has_connections_b = pd.Series(False, index=buses.index)
+    for b, df in product(('bus0', 'bus1'), (n.lines, n.links)):
+        has_connections_b |= ~ df.groupby(b).under_construction.min()
+
+    buses['substation_lv'] = lv_b & onshore_b & (~ buses['under_construction']) & has_connections_b
     buses['substation_off'] = (offshore_b | (hv_b & onshore_b)) & (~ buses['under_construction'])
 
     # Nearest country in numbers of hops defines country of homeless buses
