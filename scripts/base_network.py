@@ -8,6 +8,7 @@ import scipy as sp, scipy.spatial
 from scipy.sparse import csgraph
 from six import iteritems
 from six.moves import filter
+from itertools import product
 
 from shapely.geometry import Point, LineString
 import shapely, shapely.prepared, shapely.wkt
@@ -103,6 +104,19 @@ def _load_links_from_eg(buses):
 
 def _add_links_from_tyndp(buses, links):
     links_tyndp = pd.read_csv(snakemake.input.links_tyndp)
+
+    has_replaces_b = links_tyndp.replaces.notnull()
+    oids = dict(Bus=_get_oid(buses), Link=_get_oid(links))
+    keep_b = dict(Bus=pd.Series(True, index=buses.index),
+                  Link=pd.Series(True, index=links.index))
+    for reps in links_tyndp.loc[has_replaces_b, 'replaces']:
+        for comps in reps.split(':'):
+            oids_to_remove = comps.split('.')
+            c = oids_to_remove.pop(0)
+            keep_b[c] &= ~oids[c].isin(oids_to_remove)
+    buses = buses.loc[keep_b['Bus']]
+    links = links.loc[keep_b['Link']]
+
     links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.8)
     # Corresponds approximately to 60km tolerances
 
@@ -141,7 +155,7 @@ def _add_links_from_tyndp(buses, links):
 
     links_tyndp.index = "T" + links_tyndp.index.astype(str)
 
-    return links.append(links_tyndp)
+    return buses, links.append(links_tyndp)
 
 def _load_lines_from_eg(buses):
     lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values='t', false_values='f',
@@ -379,7 +393,7 @@ def base_network():
 
     links = _load_links_from_eg(buses)
     if snakemake.config['links'].get('include_tyndp'):
-        links = _add_links_from_tyndp(buses, links)
+        buses, links = _add_links_from_tyndp(buses, links)
 
     converters = _load_converters_from_eg(buses)
 
@@ -432,9 +446,10 @@ if __name__ == "__main__":
                 eg_converters='data/entsoegridkit/converters.csv',
                 eg_transformers='data/entsoegridkit/transformers.csv',
                 parameter_corrections='data/parameter_corrections.yaml',
-                links_p_nom='data/links_p_nom.csv'
+                links_p_nom='data/links_p_nom.csv',
+                links_tyndp='data/links_tyndp.csv'
             ),
-            output = ['networks/base_LC.nc']
+            output = ['networks/base.nc']
         )
 
     logging.basicConfig(level=snakemake.config['logging_level'])

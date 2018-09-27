@@ -1,19 +1,19 @@
-Name,Converterstation 1,Converterstation 2,Length (given) (km),Length (distance*1.2) (km),Power (MW),status,in links_p_nom.csv ?,Ref,x1,y1,x2,y2
+Name,Converterstation 1,Converterstation 2,Length (given) (km),Length (distance*1.2) (km),Power (MW),status,replaces,Ref,x1,y1,x2,y2
 Biscay Gulf,Gatica (ES),Cubnezais (FR),370,,2200,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/16,-2.867,43.367,-0.408943,45.074191
 Italy-France,Piossasco (IT),Grand Ile (FR),190,,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/21,7.468,44.9898,6.045,45.472
 IFA2,Tourbe (FR),Chilling (GB),,247.2,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/25,-0.172042,49.083593,-1.277269,50.839338
-Italy-Montenegro,Villanova (IT),Latsva (MT),445,,1200,under construction,HVDC MON.ITA Project?,https://tyndp.entsoe.eu/tyndp2018/projects/projects/28,14.125,42.3947222222222,18.7947222222222,42.3175
-NordLink,Tonstad (NO),Wilster (DE),514,,1400,under construction,NORD.LINK,https://tyndp.entsoe.eu/tyndp2018/projects/projects/37,6.716948,58.662631,9.373979,53.922479
+Italy-Montenegro,Villanova (IT),Latsva (MT),445,,1200,under construction,Link.5643,https://tyndp.entsoe.eu/tyndp2018/projects/projects/28,14.125,42.3947222222222,18.7947222222222,42.3175
+NordLink,Tonstad (NO),Wilster (DE),514,,1400,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/37,6.716948,58.662631,9.373979,53.922479
 COBRA cable,Endrup (DK),Eemshaven (NL),325,,700,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/71,8.718392,55.523115,6.835494,53.438589
 Thames Estuary Cluster (NEMO-Link),Richborough (GB),Gezelle (BE),140,,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/74,1.324854,51.295891,3.23043,51.24902
-Anglo-Scottish -1,Hunterston (UK),Deeside (UK),422,,2400,under construction,Yes (Western HVDC Link ),https://tyndp.entsoe.eu/tyndp2018/projects/projects/77,-4.898329,55.723331,-3.032972,53.199735
+Anglo-Scottish -1,Hunterston (UK),Deeside (UK),422,,2400,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/77,-4.898329,55.723331,-3.032972,53.199735
 ALEGrO,Lixhe (BE),Oberzier (DE),100,,1000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/92,5.67933,50.7567965,6.474704,50.867532
 North Sea Link,Kvilldal (NO),Blythe (GB),720,,1400,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/110,6.637527,59.515096,-1.510277,55.126957
 HVDC SuedOstLink,Wolmirstedt (DE),Isar (DE),,557,2000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/130,11.629014,52.252137,12.091596,48.080837
 HVDC Line A-North,Emden East (DE),Osterath (DE),,284,2000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/132,7.206009,53.359403,6.619451,51.272935
 France-Alderney-Britain,Exeter (UK),Menuel (FR),220,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/153,-3.533899,50.718412,-1.469216,49.509594
 Viking DKW-GB,Bicker Fen (GB),Revsing (DK),,807,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/167,-0.203587,52.93979,9.178363,55.509166
-ElecLink,Sellindge (UK),Mandarins (FR),,72,1000,under construction,Yes (Interconnexion France Angleterre (new)),https://tyndp.entsoe.eu/tyndp2018/projects/projects/172,0.975555555555556,51.1058333333333,1.78472222222222,50.9030555555556
+ElecLink,Sellindge (UK),Mandarins (FR),,72,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/172,0.975555555555556,51.1058333333333,1.78472222222222,50.9030555555556
 Greenconnector,Verderio (IT),Sils i.D. (CH),150,,1000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/174,9.439781,45.668539,9.76569,46.432156
 Hansa PowerBridge I,Hurva (SE),Guestrow (DE),,283,700,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/176,13.6022222222222,55.8330555555556,12.189538,53.803155
 NorthConnect,Simadalen (NO),Peterhead (UK),650,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/190,7.16027,60.500527,-1.784066,57.508123
@@ -21,6 +21,6 @@ HVDC SuedLink,Wilster (DE),Großgartach (DE),,637,4000,in permitting,,https://ty
 AQUIND Interconnector,Lovedean (GB),Barnabos (FR),254,,2000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/247,-1.020512,50.908244,0.991736,49.656631
 HVDC Ultranet,Osterath (DE),Philippsburg (DE),,314,600,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/254,6.619451,51.272935,8.458036,49.235253
 Gridlink,Kingsnorth (UK),Warande (FR),160,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/285,0.596111111111111,51.41972,2.376776,51.034368
-SACOI 3 -1,Codrongianos (IT),Lucciana (FR),,268,400,in permitting,replace SACOI 2,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,8.679351,40.65765,9.417275,42.547134
-SACOI 3 -2,Lucciana (FR),Suvereto (IT),,139,400,in permitting,replace SACOI 2,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,9.417275,42.547134,10.678444,43.076683
+SACOI 3 -1,Codrongianos (IT),Lucciana (FR),,268,400,in permitting,Link.6119.6120.5362:Bus.3740.4077,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,8.679351,40.65765,9.417275,42.547134
+SACOI 3 -2,Lucciana (FR),Suvereto (IT),,139,400,in permitting,Link.6118.6121:Bus.3739,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,9.417275,42.547134,10.678444,43.076683
 NeuConnect,Grain (UK),Fedderwarden (DE),680,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/309,0.716666666666667,51.44,8.046524,53.562763
