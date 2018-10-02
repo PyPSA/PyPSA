@@ -1478,7 +1478,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
         extract_optimisation_results(network, snapshots, formulation,
                                      free_pyomo='pyomo' in free_memory)
     elif status == "warning" and termination_condition == "other":
-        logger.warn("WARNING! Optimization might be sub-optimal. Writing output anyway")
+        logger.warning("WARNING! Optimization might be sub-optimal. Writing output anyway")
         extract_optimisation_results(network, snapshots, formulation,
                                      free_pyomo='pyomo' in free_memory)
     else:

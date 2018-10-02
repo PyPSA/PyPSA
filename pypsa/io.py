@@ -929,13 +929,13 @@ def import_from_pandapower_net(network, net):
                                                              "q_set" : -(net.sgen.scaling*net.sgen.q_kvar).values/1e3,
                                                              "bus" : net.bus.name.loc[net.sgen.bus].values,
                                                              "control" : "PQ"},
-                                                            index=net.sgen.name)))
+                                                            index=net.sgen.name)), sort=False)
 
     d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"control" : "Slack",
                                                              "p_set" : 0.,
                                                              "q_set" : 0.,
                                                              "bus" : net.bus.name.loc[net.ext_grid.bus].values},
-                                                            index=net.ext_grid.name.fillna("External Grid"))))
+                                                            index=net.ext_grid.name.fillna("External Grid"))), sort=False)
 
     d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
 

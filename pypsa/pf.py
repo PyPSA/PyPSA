@@ -178,7 +178,7 @@ def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100):
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     if diff > x_tol:
-        logger.warn("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
+        logger.warning("Warning, we didn't reach the required tolerance within %d iterations, error is at %f. See the section \"Troubleshooting\" in the documentation for tips to fix this. ", n_iter, diff)
     elif not np.isnan(diff):
         converged = True
 
@@ -548,7 +548,7 @@ def find_slack_bus(sub_network):
     gens = sub_network.generators()
 
     if len(gens) == 0:
-        logger.warn("No generators in sub-network {}, better hope power is already balanced".format(sub_network.name))
+        logger.warning("No generators in sub-network {}, better hope power is already balanced".format(sub_network.name))
         sub_network.slack_generator = None
         sub_network.slack_bus = sub_network.buses_i()[0]
 
@@ -633,7 +633,7 @@ def calculate_B_H(sub_network,skip_pre=False):
 
 
     if np.isnan(b).any():
-        logger.warn("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
+        logger.warning("Warning! Some series impedances are zero - this will cause a singularity in LPF!")
     b_diag = csr_matrix((b, (r_[:len(b)], r_[:len(b)])))
 
     #incidence matrix
@@ -699,7 +699,7 @@ def calculate_Y(sub_network,skip_pre=False):
         calculate_dependent_values(sub_network.network)
 
     if sub_network.network.sub_networks.at[sub_network.name,"carrier"] != "AC":
-        logger.warn("Non-AC networks not supported for Y!")
+        logger.warning("Non-AC networks not supported for Y!")
         return
 
     branches = sub_network.branches()
