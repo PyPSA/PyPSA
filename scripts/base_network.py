@@ -218,7 +218,7 @@ def _set_electrical_parameters_links(links):
 
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
     # Don't update p_nom if it's already set
-    p_nom_unset = p_nom.drop(links.index[links.p_nom.notnull()], errors='ignore')
+    p_nom_unset = p_nom.drop(links.index[links.p_nom.notnull()], errors='ignore') if "p_nom" in links else p_nom
     links.loc[p_nom_unset.index, "p_nom"] = p_nom_unset
 
     return links
