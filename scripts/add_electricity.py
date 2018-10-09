@@ -287,7 +287,7 @@ def attach_extendable_generators(n, costs, ppl):
     _add_missing_carriers_from_costs(n, costs, carriers)
 
     if 'OCGT' in carriers:
-        ocgt = ppl.loc[ppl.Fueltype == 'Natural Gas'].groupby('bus', as_index=False).first()
+        ocgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
         n.madd('Generator', ocgt.index,
                bus=ocgt['bus'],
                carrier='OCGT',
