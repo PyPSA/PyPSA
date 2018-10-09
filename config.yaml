@@ -161,8 +161,6 @@ solving:
     crossover: 0
     BarConvTol: 1.e-5
     FeasibilityTol: 1.e-6
-    LogToConsole: 0
-    OutputFlag: 1
   # solver:
   #   name: cplex
   #   threads: 4
