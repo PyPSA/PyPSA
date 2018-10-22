@@ -14,6 +14,7 @@ from six import iteritems
 import geopandas as gpd
 
 import pypsa
+from add_electricity import load_costs, update_transmission_costs
 
 def add_co2limit(n, Nyears=1.):
     n.add("GlobalConstraint", "CO2Limit",
@@ -41,9 +42,16 @@ def set_line_s_max_pu(n):
     n.links.loc[dc_b, 'p_min_pu'] = - s_max_pu
 
 def set_line_volume_limit(n, lv):
-    # Either line_volume cap or cost
-    n.lines['capital_cost'] = 0.
-    n.links['capital_cost'] = 0.
+    links_dc_b = n.links.carrier == 'DC'
+
+    if np.isinf(lv):
+        costs = load_costs(Nyears, snakemake.input.tech_costs,
+                           snakemake.config['costs'], snakemake.config['electricity'])
+        update_transmission_costs(n, costs, simple_hvdc_costs=True)
+    else:
+        # Either line_volume cap or cost
+        n.lines['capital_cost'] = 0.
+        n.links.loc[links_dc_b, 'capital_cost'] = 0.
 
     if lv > 1.0:
         lines_s_nom = n.lines.s_nom.where(
@@ -54,13 +62,13 @@ def set_line_volume_limit(n, lv):
         )
 
         n.lines['s_nom_min'] = lines_s_nom
-        n.links['p_nom_min'] = n.links['p_nom']
-
         n.lines['s_nom_extendable'] = True
-        n.links['p_nom_extendable'] = True
+
+        n.links.loc[links_dc_b, 'p_nom_min'] = n.links.loc[links_dc_b, 'p_nom']
+        n.links.loc[links_dc_b, 'p_nom_extendable'] = True
 
         n.line_volume_limit = lv * ((lines_s_nom * n.lines['length']).sum() +
-                                    n.links.loc[n.links.carrier=='DC'].eval('p_nom * length').sum())
+                                    n.links.loc[links_dc_b].eval('p_nom * length').sum())
 
     return n
 
@@ -115,7 +123,6 @@ if __name__ == "__main__":
     # if 'Ep' in opts:
     #     add_emission_prices(n)
 
-    if snakemake.wildcards.lv != 'inf':
-        set_line_volume_limit(n, float(snakemake.wildcards.lv))
+    set_line_volume_limit(n, float(snakemake.wildcards.lv))
 
     n.export_to_netcdf(snakemake.output[0])
