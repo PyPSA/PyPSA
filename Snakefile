@@ -247,11 +247,11 @@ rule solve_operations_network:
 
 rule plot_network:
     input:
-        network='results/networks/{cost}_{resarea}_{sectors}_{opts}.nc',
-        supply_regions='data/supply_regions/supply_regions.shp',
-        resarea=lambda w: config['data']['resarea'][w.resarea]
+        network="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
+        costs='data/costs.csv'
     output:
-        'results/plots/network_{cost}_{resarea}_{sectors}_{opts}_{attr}.pdf'
+        only_map="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}.pdf",
+        ext="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}_ext.pdf"
     script: "scripts/plot_network.py"
 
 # rule plot_costs:

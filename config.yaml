@@ -172,18 +172,18 @@ solving:
 plotting:
   map:
     figsize: [7, 7]
-    boundaries: [16, -35, 33, -22]
+    boundaries: [-10.2, 29, 35,  72]
     p_nom:
       bus_size_factor: 5.e+4
       linewidth_factor: 3.e+3 # 1.e+3  #3.e+3
 
   costs_max: 800
 
-  vre_techs: ["Wind", "PV"]
+  vre_techs: ["onwind", "offwind", "solar", "ror"]
   conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
-  storage_techs: ["Hydro", "CAES", "Battery", "Pumped storage", "Hydro+PS"]
-  store_techs: ["Li ion", "water tanks"]
-  load_carriers: ["AC load", "heat load", "Li ion load"]
+  storage_techs: ["hydro+PHS", "battery", "H2"]
+  # store_techs: ["Li ion", "water tanks"]
+  load_carriers: ["AC load"] #, "heat load", "Li ion load"]
   AC_carriers: ["AC line", "AC transformer"]
   link_carriers: ["DC line", "Converter AC-DC"] 
   heat_links: ["heat pump", "resistive heater", "CHP heat", "CHP electric",
@@ -194,7 +194,7 @@ plotting:
     onwind: "xkcd:azure"
     offwind: "blue"
     hydro: "g"
-    ror: "g"
+    ror: "lightgreen"
     PHS: "g"
     hydro+PHS: "g"
     solar: "yellow"
