@@ -4,8 +4,8 @@ logging_level: INFO
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
-  lv: [1.0, 1.125, 1.25, 1.5, 2.0, 3.0]
-  clusters: [45, 64, 90, 128, 181] #, 256, 362] # (2**np.r_[5.5:9:.5]).astype(int)
+  lv: [1.0, 1.125, 1.25, 1.5, 2.0, 3.0, 'inf']
+  clusters: [37, 45, 64, 90, 128, 181, 256, 362, 512] # (2**np.r_[5.5:9:.5]).astype(int)
   opts: [Co2L-3H] #, LC-FL, LC-T, Ep-T, Co2L-T]
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'] 
