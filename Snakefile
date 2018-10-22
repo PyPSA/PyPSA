@@ -203,10 +203,16 @@ rule prepare_network:
     script: "scripts/prepare_network.py"
 
 def memory(w):
+    factor = 3.
+    for o in w.opts.split('-'):
+        m = re.match(r'^(\d+)h$', o, re.IGNORECASE)
+        if m is not None:
+            factor /= int(m.group(1))
+            break
     if w.clusters.endswith('m'):
-        return 18000 + 180 * int(w.clusters[:-1])
+        return int(factor * (18000 + 180 * int(w.clusters[:-1])))
     else:
-        return 10000 + 190 * int(w.clusters)
+        return int(factor * (10000 + 190 * int(w.clusters)))
         # return 4890+310 * int(w.clusters)
 
 rule solve_network:
