@@ -34,11 +34,13 @@ def prepare_network(n, solve_opts=None):
         n.madd("Generator", n.buses.index, " load",
                bus=n.buses.index,
                carrier='load',
-               marginal_cost=1.0e5,
+               sign=1e-3, # Adjust sign to measure p and p_nom in kW instead of MW
+               marginal_cost=1e2, # Eur/kWh
                # intersect between macroeconomic and surveybased
                # willingness to pay
                # http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
-               p_nom=1e6)
+               p_nom=1e9 # kW
+        )
 
     if solve_opts.get('noisy_costs'):
         for t in n.iterate_components():
@@ -123,7 +125,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
             pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
             add_opts_constraints(n, opts)
             add_lv_constraint(n)
-            add_eps_storage_constraint(n)
+            # add_eps_storage_constraint(n)
 
             pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
 
