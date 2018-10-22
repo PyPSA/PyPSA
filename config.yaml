@@ -114,7 +114,7 @@ lines:
 
 links:
   p_max_pu: 1.0
-  include_tyndp: false
+  include_tyndp: true
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 transformers:
