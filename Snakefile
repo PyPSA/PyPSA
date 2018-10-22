@@ -1,7 +1,5 @@
 configfile: "config.yaml"
 
-localrules: all # , extract_summaries, plot_network, scenario_comparions
-
 wildcard_constraints:
     lv="[0-9\.]+|inf",
     simpl="[a-zA-Z0-9]*",
@@ -9,8 +7,10 @@ wildcard_constraints:
     sectors="[+a-zA-Z0-9]+",
     opts="[-+a-zA-Z0-9]*"
 
-# rule all:
-#     input: "results/summaries/costs2-summary.csv"
+rule cluster_all_elec_networks:
+    input:
+        expand("networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
+               **config['scenario'])
 
 rule solve_all_elec_networks:
     input:
@@ -172,7 +172,7 @@ rule cluster_network:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
+        clustermaps=ancient('resources/clustermaps_{network}_s{simpl}.h5')
     output:
         network='networks/{network}_s{simpl}_{clusters}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
