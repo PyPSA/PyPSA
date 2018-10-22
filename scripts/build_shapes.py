@@ -134,13 +134,13 @@ if __name__ == "__main__":
             path='..',
             wildcards={},
             input=Dict(
-                naturalearth='data/naturalearth/ne_10m_admin_0_countries.shp',
-                eez='data/eez/World_EEZ_v8_2014.shp',
-                nuts3='data/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
-                nuts3pop='data/nama_10r_3popgdp.tsv.gz',
-                nuts3gdp='data/nama_10r_3gdp.tsv.gz',
-                ch_cantons='data/ch_cantons.csv',
-                ch_popgdp='data/je-e-21.03.02.xls'
+                naturalearth='data/bundle/naturalearth/ne_10m_admin_0_countries.shp',
+                eez='data/bundle/eez/World_EEZ_v8_2014.shp',
+                nuts3='data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
+                nuts3pop='data/bundle/nama_10r_3popgdp.tsv.gz',
+                nuts3gdp='data/bundle/nama_10r_3gdp.tsv.gz',
+                ch_cantons='data/bundle/ch_cantons.csv',
+                ch_popgdp='data/bundle/je-e-21.03.02.xls'
             ),
             output=Dict(
                 country_shapes='resources/country_shapes.geojson',
