@@ -1,5 +1,7 @@
 configfile: "config.yaml"
 
+COSTS="data/costs.csv"
+
 wildcard_constraints:
     lv="[0-9\.]+|inf",
     simpl="[a-zA-Z0-9]*",
@@ -136,7 +138,7 @@ rule build_hydro_profile:
 rule add_electricity:
     input:
         base_network='networks/base.nc',
-        tech_costs='data/costs.csv',
+        tech_costs=COSTS,
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',
         hydro_capacities='data/bundle/hydro_capacities.csv',
@@ -195,7 +197,7 @@ rule cluster_network:
 #     script: "scripts/add_sectors.py"
 
 rule prepare_network:
-    input: 'networks/{network}_s{simpl}_{clusters}.nc', tech_costs='data/costs.csv'
+    input: 'networks/{network}_s{simpl}_{clusters}.nc', tech_costs=COSTS
     output: 'networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
     threads: 1
     resources: mem=1000
@@ -248,10 +250,10 @@ rule solve_operations_network:
 rule plot_network:
     input:
         network="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
-        costs='data/costs.csv'
+        tech_costs=COSTS
     output:
-        only_map="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}.pdf",
-        ext="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}_ext.pdf"
+        only_map="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}.{ext}",
+        ext="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}_ext.{ext}"
     script: "scripts/plot_network.py"
 
 # rule plot_costs:
