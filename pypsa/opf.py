@@ -751,7 +751,7 @@ def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_
 
         for cycle_i in cycle_is:
             branch_idx = branches.index[cycle_i]
-            attribute_value = branches.at[ branch_idx, attribute] *subnetwork.C[ cycle_i, col_j]
+            attribute_value = 1e5 * branches.at[ branch_idx, attribute] * subnetwork.C[ cycle_i, col_j]
             branch_idx_attributes.append( (branch_idx, attribute_value))
 
         for snapshot in snapshots:
