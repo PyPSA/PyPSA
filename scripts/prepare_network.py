@@ -41,7 +41,7 @@ def set_line_s_max_pu(n):
     n.links.loc[dc_b, 'p_max_pu'] = s_max_pu
     n.links.loc[dc_b, 'p_min_pu'] = - s_max_pu
 
-def set_line_volume_limit(n, lv):
+def set_line_volume_limit(n, lv, Nyears=1.):
     links_dc_b = n.links.carrier == 'DC'
 
     if np.isinf(lv):
@@ -123,6 +123,6 @@ if __name__ == "__main__":
     # if 'Ep' in opts:
     #     add_emission_prices(n)
 
-    set_line_volume_limit(n, float(snakemake.wildcards.lv))
+    set_line_volume_limit(n, float(snakemake.wildcards.lv), Nyears)
 
     n.export_to_netcdf(snakemake.output[0])
