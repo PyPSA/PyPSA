@@ -3,9 +3,9 @@ configfile: "config.yaml"
 COSTS="data/costs.csv"
 
 wildcard_constraints:
-    lv="[0-9\.]+|inf",
-    simpl="[a-zA-Z0-9]*",
-    clusters="[0-9]+m?",
+    lv="[0-9\.]+|inf|all",
+    simpl="[a-zA-Z0-9]*|all",
+    clusters="[0-9]+m?|all",
     sectors="[+a-zA-Z0-9]+",
     opts="[-+a-zA-Z0-9]*"
 
@@ -256,42 +256,23 @@ rule plot_network:
         ext="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}_ext.{ext}"
     script: "scripts/plot_network.py"
 
-# rule plot_costs:
-#     input: 'results/summaries/costs2-summary.csv'
-#     output:
-#         expand('results/plots/costs_{cost}_{resarea}_{sectors}_{opt}',
-#                **dict(chain(config['scenario'].items(), (('{param}')))
-#         touch('results/plots/scenario_plots')
-#     params:
-#         tmpl="results/plots/costs_[cost]_[resarea]_[sectors]_[opt]"
-#         exts=["pdf", "png"]
-#     scripts: "scripts/plot_costs.py"
+def summary_networks(w):
+    # It's mildly hacky to include the separate costs input as first entry
+    return ([COSTS] +
+            expand("results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
+                   network=w.network,
+                   **{k: config["scenario"][k] if getattr(w, k) == "all" else getattr(w, k)
+                      for k in ["simpl", "clusters", "lv", "opts"]}))
 
-# rule scenario_comparison:
-#     input:
-#         expand('results/plots/network_{cost}_{sectors}_{opts}_{attr}.pdf',
-#                version=config['version'],
-#                attr=['p_nom'],
-#                **config['scenario'])
-#     output:
-#        html='results/plots/scenario_{param}.html'
-#     params:
-#        tmpl="network_[cost]_[resarea]_[sectors]_[opts]_[attr]",
-#        plot_dir='results/plots'
-#     script: "scripts/scenario_comparison.py"
+rule make_summary:
+    input: summary_networks
+    output: directory("results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}")
+    script: "scripts/make_summary.py"
 
-# rule extract_summaries:
-#     input:
-#         expand("results/networks/{cost}_{sectors}_{opts}.nc",
-#                **config['scenario'])
-#     output:
-#         **{n: "results/summaries/{}-summary.csv".format(n)
-#            for n in ['costs', 'costs2', 'e_curtailed', 'e_nom_opt', 'e', 'p_nom_opt']}
-#     params:
-#         scenario_tmpl="[cost]_[resarea]_[sectors]_[opts]",
-#         scenarios=config['scenario']
-#     script: "scripts/extract_summaries.py"
-
+rule plot_summary:
+    input: directory("results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}")
+    output: "results/plots/summary_{summary}_{network}_s{simpl}_{clusters}_lv{lv}_{opts}.{ext}"
+    script: "scripts/plot_summary.py"
 
 # Local Variables:
 # mode: python

@@ -205,6 +205,7 @@ plotting:
     'offwind' : "c"
     'offshore wind' : "c"
     "hydro" : "#3B5323"
+    "hydro+PHS" : "#3B5323"
     "hydro reservoir" : "#3B5323"
     "ror" : "#78AB46"
     "run of river" : "#78AB46"
@@ -267,6 +268,9 @@ plotting:
     "transport" : "grey"
     "electricity" : "k"
     "transport fuel cell" : "#AAAAAA"
+    # _helpers.load_network requirements
+    "AC-AC" : "k"
+    "AC line" : "k"
   nice_names:
     # OCGT: "Gas"
     # OCGT marginal: "Gas (marginal)"

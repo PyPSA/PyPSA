@@ -1,29 +1,15 @@
-
+import os
 from six import iteritems
-
-import sys
-
-sys.path = ['/home/vres/lib/python3.5/site-packages'] + sys.path
-
+from itertools import product
 import pandas as pd
 
 import pypsa
 
-from vresutils.costdata import annuity
-
-from prepare_network import generate_periodic_profiles
-
-from add_electricity import load_costs
-
-import yaml
+from add_electricity import load_costs, update_transmission_costs
 
 idx = pd.IndexSlice
 
 opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
-
-
-#separator to find group name
-find_by = " "
 
 def assign_carriers(n):
 
@@ -35,7 +21,7 @@ def assign_carriers(n):
     if "carrier" not in n.lines:
         n.lines["carrier"] = "AC"
 
-    if n.stores.loc["EU gas Store","carrier"] == "":
+    if "EU gas store" in n.stores.index and n.stores.loc["EU gas Store","carrier"] == "":
         n.stores.loc["EU gas Store","carrier"] = "gas Store"
 
 
@@ -67,17 +53,6 @@ def calculate_costs(n,label,costs):
         costs = costs.reindex(costs.index|pd.MultiIndex.from_product([[c.list_name],["marginal"],marginal_costs_grouped.index]))
 
         costs.loc[idx[c.list_name,"marginal",list(marginal_costs_grouped.index)],label] = marginal_costs_grouped.values
-
-    #add back in costs of links if there is a line volume limit
-    if label[1] != "opt":
-        costs.loc[("links-added","capital","transmission lines"),label] = ((costs_db.at['HVDC overhead', 'capital_cost']*n.links.length + costs_db.at['HVDC inverter pair', 'capital_cost'])*n.links.p_nom_opt)[n.links.carrier == "DC"].sum()
-        costs.loc[("lines-added","capital","transmission lines"),label] = costs_db.at["HVAC overhead", "capital_cost"]*(n.lines.length*n.lines.s_nom_opt).sum()
-
-
-    #add back in all hydro
-    #costs.loc[("storage_units","capital","hydro"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="hydro","p_nom"].sum()
-    #costs.loc[("storage_units","capital","PHS"),label] = (0.01)*2e6*n.storage_units.loc[n.storage_units.group=="PHS","p_nom"].sum()
-    #costs.loc[("generators","capital","ror"),label] = (0.02)*3e6*n.generators.loc[n.generators.group=="ror","p_nom"].sum()
 
     return costs
 
@@ -203,6 +178,8 @@ def calculate_metrics(n,label,metrics):
 
     if hasattr(n,"line_volume_limit"):
         metrics.at["line_volume_limit",label] = n.line_volume_limit
+
+    if hasattr(n,"line_volume_limit_dual"):
         metrics.at["line_volume_shadow",label] = n.line_volume_limit_dual
 
     if "CO2Limit" in n.global_constraints.index:
@@ -284,83 +261,59 @@ def calculate_weighted_prices(n,label,weighted_prices):
 
 
 
+# BROKEN don't use
+#
+# def calculate_market_values(n, label, market_values):
+#     # Warning: doesn't include storage units
 
-def calculate_market_values(n, label, market_values):
-    # Warning: doesn't include storage units
+#     n.buses["suffix"] = n.buses.index.str[2:]
+#     suffix = ""
+#     buses = n.buses.index[n.buses.suffix == suffix]
 
-    n.buses["suffix"] = n.buses.index.str[2:]
+#     ## First do market value of generators ##
+#     generators = n.generators.index[n.buses.loc[n.generators.bus,"suffix"] == suffix]
+#     techs = n.generators.loc[generators,"carrier"].value_counts().index
+#     market_values = market_values.reindex(market_values.index | techs)
 
-    suffix = ""
+#     for tech in techs:
+#         gens = generators[n.generators.loc[generators,"carrier"] == tech]
+#         dispatch = n.generators_t.p[gens].groupby(n.generators.loc[gens,"bus"],axis=1).sum().reindex(columns=buses,fill_value=0.)
+#         revenue = dispatch*n.buses_t.marginal_price[buses]
+#         market_values.at[tech,label] = revenue.sum().sum()/dispatch.sum().sum()
 
-    buses = n.buses.index[n.buses.suffix == suffix]
+#     ## Now do market value of links ##
 
+#     for i in ["0","1"]:
+#         all_links = n.links.index[n.buses.loc[n.links["bus"+i],"suffix"] == suffix]
+#         techs = n.links.loc[all_links,"carrier"].value_counts().index
+#         market_values = market_values.reindex(market_values.index | techs)
 
-    ## First do market value of generators ##
+#         for tech in techs:
+#             links = all_links[n.links.loc[all_links,"carrier"] == tech]
+#             dispatch = n.links_t["p"+i][links].groupby(n.links.loc[links,"bus"+i],axis=1).sum().reindex(columns=buses,fill_value=0.)
+#             revenue = dispatch*n.buses_t.marginal_price[buses]
+#             market_values.at[tech,label] = revenue.sum().sum()/dispatch.sum().sum()
 
-    generators = n.generators.index[n.buses.loc[n.generators.bus,"suffix"] == suffix]
-
-    techs = n.generators.loc[generators,"carrier"].value_counts().index
-
-    market_values = market_values.reindex(market_values.index | techs)
-
-
-    for tech in techs:
-        gens = generators[n.generators.loc[generators,"carrier"] == tech]
-
-        dispatch = n.generators_t.p[gens].groupby(n.generators.loc[gens,"bus"],axis=1).sum().reindex(columns=buses,fill_value=0.)
-
-        revenue = dispatch*n.buses_t.marginal_price[buses]
-
-        market_values.at[tech,label] = revenue.sum().sum()/dispatch.sum().sum()
-
-
-
-    ## Now do market value of links ##
-
-    for i in ["0","1"]:
-        all_links = n.links.index[n.buses.loc[n.links["bus"+i],"suffix"] == suffix]
-
-        techs = n.links.loc[all_links,"carrier"].value_counts().index
-
-        market_values = market_values.reindex(market_values.index | techs)
-
-        for tech in techs:
-            links = all_links[n.links.loc[all_links,"carrier"] == tech]
-
-            dispatch = n.links_t["p"+i][links].groupby(n.links.loc[links,"bus"+i],axis=1).sum().reindex(columns=buses,fill_value=0.)
-
-            revenue = dispatch*n.buses_t.marginal_price[buses]
-
-            market_values.at[tech,label] = revenue.sum().sum()/dispatch.sum().sum()
-
-    return market_values
+#     return market_values
 
 
-def calculate_price_statistics(n, label, price_statistics):
+# OLD CODE must be adapted
+
+# def calculate_price_statistics(n, label, price_statistics):
 
 
-    price_statistics = price_statistics.reindex(price_statistics.index|pd.Index(["zero_hours","mean","standard_deviation"]))
+#     price_statistics = price_statistics.reindex(price_statistics.index|pd.Index(["zero_hours","mean","standard_deviation"]))
+#     n.buses["suffix"] = n.buses.index.str[2:]
+#     suffix = ""
+#     buses = n.buses.index[n.buses.suffix == suffix]
 
-    n.buses["suffix"] = n.buses.index.str[2:]
-
-    suffix = ""
-
-    buses = n.buses.index[n.buses.suffix == suffix]
-
-
-    threshold = 0.1 #higher than phoney marginal_cost of wind/solar
-
-    df = pd.DataFrame(data=0.,columns=buses,index=n.snapshots)
-
-    df[n.buses_t.marginal_price[buses] < threshold] = 1.
-
-    price_statistics.at["zero_hours", label] = df.sum().sum()/(df.shape[0]*df.shape[1])
-
-    price_statistics.at["mean", label] = n.buses_t.marginal_price[buses].unstack().mean()
-
-    price_statistics.at["standard_deviation", label] = n.buses_t.marginal_price[buses].unstack().std()
-
-    return price_statistics
+#     threshold = 0.1 #higher than phoney marginal_cost of wind/solar
+#     df = pd.DataFrame(data=0.,columns=buses,index=n.snapshots)
+#     df[n.buses_t.marginal_price[buses] < threshold] = 1.
+#     price_statistics.at["zero_hours", label] = df.sum().sum()/(df.shape[0]*df.shape[1])
+#     price_statistics.at["mean", label] = n.buses_t.marginal_price[buses].unstack().mean()
+#     price_statistics.at["standard_deviation", label] = n.buses_t.marginal_price[buses].unstack().std()
+#     return price_statistics
 
 
 outputs = ["costs",
@@ -370,69 +323,66 @@ outputs = ["costs",
            "supply_energy",
            "prices",
            "weighted_prices",
-           "price_statistics",
-           "market_values",
+           # "price_statistics",
+           # "market_values",
            "metrics",
            ]
 
 def make_summaries(networks_dict):
 
-    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["cluster","lv","opt"])
+    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["simpl","clusters","lv","opts"])
 
-    df = {}
+    dfs = {}
 
     for output in outputs:
-        df[output] = pd.DataFrame(columns=columns,dtype=float)
+        dfs[output] = pd.DataFrame(columns=columns,dtype=float)
 
     for label, filename in iteritems(networks_dict):
         print(label, filename)
+        if not os.path.exists(filename):
+            print("does not exist!!")
+            continue
 
         n = pypsa.Network(filename)
 
         assign_carriers(n)
 
+        Nyears = n.snapshot_weightings.sum()/8760.
+        costs = load_costs(Nyears, snakemake.input[0],
+                           snakemake.config['costs'], snakemake.config['electricity'])
+        update_transmission_costs(n, costs)
+
         for output in outputs:
-            df[output] = globals()["calculate_" + output](n, label, df[output])
+            dfs[output] = globals()["calculate_" + output](n, label, dfs[output])
 
-    return df
+    return dfs
 
 
-def to_csv(df):
-
-    for key in df:
-        df[key].to_csv(snakemake.output[key])
+def to_csv(dfs):
+    dir = snakemake.output[0]
+    os.makedirs(dir, exist_ok=True)
+    for key, df in iteritems(dfs):
+        df.to_csv(os.path.join(dir, f"{key}.csv"))
 
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
-    if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        with open('config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.input = Dict()
-        snakemake.input['heat_demand_name'] = 'data/heating/daily_heat_demand.h5'
-        snakemake.output = Dict()
-        name = "37-lv"
-        clusters = [37]
-        lvs = [1.0,1.25,2.0,3.0]
-        opts = ["Co2L-3H-T-H"]
-        for item in outputs:
-            snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=name,item=item)
+    def expand_from_wildcard(key):
+        w = getattr(snakemake.wildcards, key)
+        return snakemake.config["scenario"][key] if w == "all" else [w]
 
-    networks_dict = {(cluster,lv,opt) :
-                     'results/networks/elec_s_{cluster}_lv{lv}_{opt}.nc'\
-                     .format(cluster=cluster,
-                             opt=opt,
-                             lv=lv)\
-                     for cluster in clusters \
-                     for opt in opts \
-                     for lv in lvs}
+    networks_dict = {(simpl,clusters,lv,opts) : ('results/networks/elec_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
+                                                 .format(simpl=simpl,
+                                                         clusters=clusters,
+                                                         opts=opts,
+                                                         lv=lv))
+                     for simpl in expand_from_wildcard("simpl")
+                     for clusters in expand_from_wildcard("clusters")
+                     for lv in expand_from_wildcard("lv")
+                     for opts in expand_from_wildcard("opts")}
+
     print(networks_dict)
 
-    costs_db = load_costs(Nyears=1.,tech_costs="data/costs.csv",config=snakemake.config["costs"],elec_config=snakemake.config['electricity'])
+    dfs = make_summaries(networks_dict)
 
-    df = make_summaries(networks_dict)
-
-    to_csv(df)
+    to_csv(dfs)

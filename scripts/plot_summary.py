@@ -1,56 +1,47 @@
-
-
-
+import os
 import pandas as pd
-
-#allow plotting without Xwindows
-import matplotlib
-matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
-
-
 
 #consolidate and rename
 def rename_techs(label):
-    if label[:8] == "central ":
-        label = label[8:]
-    if label[:6] == "urban ":
-        label = label[6:]
+    if label.startswith("central "):
+        label = label[len("central "):]
+    elif label.startswith("urban "):
+        label = label[len("urban "):]
 
     if "retrofitting" in label:
         label = "building retrofitting"
-    if "H2" in label:
+    elif "H2" in label:
         label = "hydrogen storage"
-    if "CHP" in label:
+    elif "CHP" in label:
         label = "CHP"
-    if "water tank" in label:
+    elif "water tank" in label:
         label = "water tanks"
-    if label=="water tanks":
+    elif label == "water tanks":
         label = "hot water storage"
-    if "gas" in label and label != "gas boiler":
+    elif "gas" in label and label != "gas boiler":
         label = "natural gas"
-    if "solar thermal" in label:
+    elif "solar thermal" in label:
         label = "solar thermal"
-    if label == "solar":
+    elif label == "solar":
         label = "solar PV"
-    if label == "heat pump":
+    elif label == "heat pump":
         label = "air heat pump"
-    if label == "Sabatier":
+    elif label == "Sabatier":
         label = "methanation"
-    if label == "offwind":
+    elif label == "offwind":
         label = "offshore wind"
-    if label == "onwind":
+    elif label == "onwind":
         label = "onshore wind"
-    if label == "ror":
+    elif label == "ror":
         label = "hydroelectricity"
-    if label == "hydro":
+    elif label == "hydro":
         label = "hydroelectricity"
-    if label == "PHS":
+    elif label == "PHS":
         label = "hydroelectricity"
-    if label == "co2 Store":
+    elif label == "co2 Store":
         label = "DAC"
-    if "battery" in label:
+    elif "battery" in label:
         label = "battery storage"
 
     return label
@@ -58,11 +49,10 @@ def rename_techs(label):
 
 preferred_order = pd.Index(["transmission lines","hydroelectricity","hydro reservoir","run of river","pumped hydro storage","onshore wind","offshore wind","solar PV","solar thermal","building retrofitting","ground heat pump","air heat pump","resistive heater","CHP","OCGT","gas boiler","gas","natural gas","methanation","hydrogen storage","battery storage","hot water storage"])
 
-def plot_costs():
+def plot_costs(infn, fn=None):
 
-
-    cost_df = pd.read_csv(snakemake.input.costs,index_col=list(range(3)),header=[0,1,2])
-
+    ## For now ignore the simpl header
+    cost_df = pd.read_csv(infn,index_col=list(range(3)),header=[1,2,3])
 
     df = cost_df.groupby(cost_df.index.get_level_values(2)).sum()
 
@@ -109,12 +99,13 @@ def plot_costs():
 
     fig.tight_layout()
 
-    fig.savefig(snakemake.output.costs,transparent=True)
+    if fn is not None:
+        fig.savefig(fn, transparent=True)
 
 
-def plot_energy():
+def plot_energy(infn, fn=None):
 
-    energy_df = pd.read_csv(snakemake.input.energy,index_col=list(range(2)),header=[0,1,2])
+    energy_df = pd.read_csv(infn, index_col=list(range(2)),header=[1,2,3])
 
     df = energy_df.groupby(energy_df.index.get_level_values(1)).sum()
 
@@ -161,25 +152,15 @@ def plot_energy():
 
     fig.tight_layout()
 
-    fig.savefig(snakemake.output.energy,transparent=True)
+    if fn is not None:
+        fig.savefig(fn, transparent=True)
 
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
-    if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        with open('config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.input = Dict()
-        snakemake.output = Dict()
-        name = "37-lv"
+    summary = snakemake.wildcards.summary
+    try:
+        func = globals()[f"plot_{summary}"]
+    except KeyError:
+        raise RuntimeError(f"plotting function for {summary} has not been defined")
 
-        for item in ["costs","energy"]:
-            snakemake.input[item] = snakemake.config['summary_dir'] + '/{name}/csvs/{item}.csv'.format(name=name,item=item)
-            snakemake.output[item] = snakemake.config['summary_dir'] + '/{name}/graphs/{item}.pdf'.format(name=name,item=item)
-
-    plot_costs()
-
-    plot_energy()
+    func(os.path.join(snakemake.input[0], f"{summary}.csv"), snakemake.output[0])
