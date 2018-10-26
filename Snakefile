@@ -112,7 +112,6 @@ rule build_renewable_potentials:
 
 rule build_renewable_profiles:
     input:
-        base_network="networks/base.nc",
         potentials="resources/potentials_{technology}.nc",
         regions=lambda wildcards: ("resources/regions_onshore.geojson"
                                    if wildcards.technology in ('onwind', 'solar')

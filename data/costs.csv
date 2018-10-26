@@ -1,7 +1,7 @@
 technology,year,parameter,value,unit,source
 solar-rooftop,2030,discount rate,0.04,per unit,standard for decentral
-onwind,2030,lifetime,25,years,IEA2010
-offwind,2030,lifetime,25,years,IEA2010
+onwind,2030,lifetime,30,years,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind,2030,lifetime,30,years,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
 solar,2030,lifetime,25,years,IEA2010
 solar-rooftop,2030,lifetime,25,years,IEA2010
 solar-utility,2030,lifetime,25,years,IEA2010
@@ -16,8 +16,10 @@ lignite,2030,lifetime,40,years,IEA2010
 geothermal,2030,lifetime,40,years,IEA2010
 biomass,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
 oil,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
-onwind,2030,investment,1182,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
-offwind,2030,investment,2506,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
+onwind,2030,investment,910,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind,2030,investment,1640,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind-grid,2030,investment,255,EUR/kWel,Haertel 2017; assuming one onshore and one offshore node
+offwind-grid-perlength,2030,investment,0.97,EUR/kWel/km,Haertel 2017
 solar,2030,investment,600,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 biomass,2030,investment,2209,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 geothermal,2030,investment,3392,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
@@ -32,8 +34,8 @@ OCGT,2030,investment,400,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 nuclear,2030,investment,6000,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 CCGT,2030,investment,800,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 oil,2030,investment,400,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
-onwind,2030,FOM,2.961083,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
-offwind,2030,FOM,3.192338,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
+onwind,2030,FOM,2.450549,%/year,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind,2030,FOM,2.304878,%/year,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
 solar,2030,FOM,4.166667,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 solar-rooftop,2030,FOM,2,%/year,ETIP PV
 solar-utility,2030,FOM,3,%/year,ETIP PV
@@ -47,8 +49,8 @@ hydro,2030,FOM,1,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 ror,2030,FOM,2,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 CCGT,2030,FOM,2.5,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 OCGT,2030,FOM,3.75,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
-onwind,2030,VOM,0.015,EUR/MWhel,RES costs made up to fix curtailment order
-offwind,2030,VOM,0.02,EUR/MWhel,RES costs made up to fix curtailment order
+onwind,2030,VOM,2.3,EUR/MWhel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind,2030,VOM,2.7,EUR/MWhel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
 solar,2030,VOM,0.01,EUR/MWhel,RES costs made up to fix curtailment order
 coal,2030,VOM,6,EUR/MWhel,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
 lignite,2030,VOM,7,EUR/MWhel,DIW DataDoc http://hdl.handle.net/10419/80348

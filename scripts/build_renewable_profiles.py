@@ -6,6 +6,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import geopandas as gpd
+from pypsa.geo import haversine
+from vresutils.array import spdiag
 
 import logging
 logger = logging.getLogger(__name__)
@@ -47,9 +49,21 @@ p_nom_max = xr.DataArray([np.nanmin(relativepotentials[row.nonzero()[1]])
                           for row in indicatormatrix.tocsr()],
                          [capacities.coords['bus']]) * capacities
 
+# Determine weighted average distance to substation
+matrix_weighted = indicatormatrix * spdiag(layout.stack(spatial=('y', 'x')))
+cell_coords = cutout.grid_coordinates()
+
+average_distance = []
+for i, bus in enumerate(regions.index):
+    row = matrix_weighted[i]
+    distances = haversine(regions.loc[bus, ['x', 'y']], cell_coords[row.indices])[0]
+    average_distance.append((distances * (row.data / row.data.sum())).sum())
+average_distance = xr.DataArray(average_distance, [regions.index.rename("bus")])
+
 ds = xr.merge([(correction_factor * profile).rename('profile'),
                capacities.rename('weight'),
                p_nom_max.rename('p_nom_max'),
-               layout.rename('potential')])
+               layout.rename('potential'),
+               average_distance.rename('average_distance')])
 (ds.sel(bus=ds['profile'].mean('time') > config.get('min_p_max_pu', 0.))
  .to_netcdf(snakemake.output.profile))
