@@ -7,13 +7,12 @@ import numpy as np
 import scipy as sp, scipy.spatial
 from scipy.sparse import csgraph
 from six import iteritems
-from six.moves import filter
 from itertools import product
 
 from shapely.geometry import Point, LineString
 import shapely, shapely.prepared, shapely.wkt
 
-from vresutils.graph import BreadthFirstLevels
+import networkx as nx
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,6 +21,9 @@ import pypsa
 
 def _get_oid(df):
     return df.tags.str.extract('"oid"=>"(\d+)"', expand=False)
+
+def _get_country(df):
+    return df.tags.str.extract('"country"=>"([A-Z]{2})"', expand=False)
 
 def _find_closest_links(links, new_links, distance_upper_bound=1.5):
     tree = sp.spatial.KDTree(np.vstack([
@@ -320,14 +322,30 @@ def _set_countries_and_substations(n):
     buses['substation_lv'] = lv_b & onshore_b & (~ buses['under_construction']) & has_connections_b
     buses['substation_off'] = (offshore_b | (hv_b & onshore_b)) & (~ buses['under_construction'])
 
-    # Nearest country in numbers of hops defines country of homeless buses
     c_nan_b = buses.country.isnull()
-    c = n.buses['country']
-    graph = n.graph()
-    n.buses.loc[c_nan_b, 'country'] = \
-        [(next(filter(len, map(lambda x: c.loc[x].dropna(), BreadthFirstLevels(graph, [b]))))
-          .value_counts().index[0])
-         for b in buses.index[c_nan_b]]
+    if c_nan_b.sum() > 0:
+        c_tag = _get_country(buses.loc[c_nan_b])
+        c_tag.loc[c_tag.index.difference(countries)] = np.nan
+        n.buses.loc[c_nan_b, 'country'] = c_tag
+
+        c_tag_nan_b = n.buses.country.isnull()
+
+        # Nearest country in path length defines country of still homeless buses
+        # Work-around until commit 705119 lands in pypsa release
+        n.transformers['length'] = 0.
+        graph = n.graph(weight='length')
+        n.transformers.drop('length', axis=1, inplace=True)
+
+        for b in n.buses.index[c_tag_nan_b]:
+            df = (pd.DataFrame(dict(pathlength=nx.single_source_dijkstra_path_length(graph, b, cutoff=200)))
+                  .join(n.buses.country).dropna())
+            assert not df.empty, "No buses with defined country within 200km of bus `{}`".format(b)
+            n.buses.at[b, 'country'] = df.loc[df.pathlength.idxmin(), 'country']
+
+        logger.warning("{} buses are not in any country or offshore shape,"
+                       " {} have been assigned from the tag of the entsoe map,"
+                       " the rest from the next bus in terms of pathlength."
+                       .format(c_nan_b.sum(), c_nan_b.sum() - c_tag_nan_b.sum()))
 
     return buses
 
