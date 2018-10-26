@@ -24,7 +24,7 @@ if config['enable']['prepare_links_p_nom']:
         output: 'data/links_p_nom.csv'
         threads: 1
         resources: mem=500
-        group: 'nonfeedin_preparation'
+        # group: 'nonfeedin_preparation'
         script: 'scripts/prepare_links_p_nom.py'
 
 if config['enable']['powerplantmatching']:
@@ -33,7 +33,7 @@ if config['enable']['powerplantmatching']:
         output: "resources/powerplants.csv"
         threads: 1
         resources: mem=500
-        group: 'nonfeedin_preparation'
+        # group: 'nonfeedin_preparation'
         script: "scripts/build_powerplants.py"
 
 rule base_network:
@@ -53,7 +53,7 @@ rule base_network:
     benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem=500
-    group: 'nonfeedin_preparation'
+    # group: 'nonfeedin_preparation'
     script: "scripts/base_network.py"
 
 rule build_shapes:
@@ -72,7 +72,7 @@ rule build_shapes:
         nuts3_shapes='resources/nuts3_shapes.geojson'
     threads: 1
     resources: mem=500
-    group: 'nonfeedin_preparation'
+    # group: 'nonfeedin_preparation'
     script: "scripts/build_shapes.py"
 
 rule build_bus_regions:
@@ -84,7 +84,7 @@ rule build_bus_regions:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     resources: mem=1000
-    group: 'nonfeedin_preparation'
+    # group: 'nonfeedin_preparation'
     script: "scripts/build_bus_regions.py"
 
 rule build_cutout:
@@ -92,7 +92,7 @@ rule build_cutout:
     resources: mem=5000
     threads: config['atlite'].get('nprocesses', 4)
     benchmark: "benchmarks/build_cutout_{cutout}"
-    group: 'feedin_preparation'
+    # group: 'feedin_preparation'
     script: "scripts/build_cutout.py"
 
 def memory_build_renewable_potentials(wildcards):
@@ -107,7 +107,7 @@ rule build_renewable_potentials:
     output: "resources/potentials_{technology}.nc"
     resources: mem=memory_build_renewable_potentials
     benchmark: "benchmarks/build_renewable_potentials_{technology}"
-    group: 'feedin_preparation'
+    # group: 'feedin_preparation'
     script: "scripts/build_renewable_potentials.py"
 
 rule build_renewable_profiles:
@@ -122,7 +122,7 @@ rule build_renewable_profiles:
         profile="resources/profile_{technology}.nc",
     resources: mem=5000
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
-    group: 'feedin_preparation'
+    # group: 'feedin_preparation'
     script: "scripts/build_renewable_profiles.py"
 
 rule build_hydro_profile:
@@ -132,7 +132,7 @@ rule build_hydro_profile:
         cutout="cutouts/" + config["renewable"]['hydro']['cutout']
     output: 'resources/profile_hydro.nc'
     resources: mem=5000
-    group: 'feedin_preparation'
+    # group: 'feedin_preparation'
     script: 'scripts/build_hydro_profile.py'
 
 rule add_electricity:
@@ -150,7 +150,7 @@ rule add_electricity:
     benchmark: "benchmarks/add_electricity"
     threads: 1
     resources: mem=3000
-    group: 'build_pypsa_networks'
+    # group: 'build_pypsa_networks'
     script: "scripts/add_electricity.py"
 
 rule simplify_network:
@@ -166,7 +166,7 @@ rule simplify_network:
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
     resources: mem=4000
-    group: 'build_pypsa_networks'
+    # group: 'build_pypsa_networks'
     script: "scripts/simplify_network.py"
 
 rule cluster_network:
@@ -183,7 +183,7 @@ rule cluster_network:
     benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1
     resources: mem=3000
-    group: 'build_pypsa_networks'
+    # group: 'build_pypsa_networks'
     script: "scripts/cluster_network.py"
 
 # rule add_sectors:
@@ -201,7 +201,7 @@ rule prepare_network:
     output: 'networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
     threads: 1
     resources: mem=1000
-    benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
+    # benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     script: "scripts/prepare_network.py"
 
 def memory(w):
@@ -244,7 +244,7 @@ rule solve_operations_network:
     benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_lv{lv}_{opts}"
     threads: 4
     resources: mem=(lambda w: 5000 + 372 * int(w.clusters))
-    group: "solve_operations"
+    # group: "solve_operations"
     script: "scripts/solve_operations_network.py"
 
 rule plot_network:
