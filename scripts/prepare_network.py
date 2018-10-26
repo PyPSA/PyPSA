@@ -34,12 +34,8 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
 def set_line_s_max_pu(n):
     # set n-1 security margin to 0.5 for 37 clusters and to 0.7 from 200 clusters
     n_clusters = len(n.buses)
-    s_max_pu = np.clip(0.5 + 0.2 * (n_clusters - 37) / (200 - 45), 0.5, 0.7)
+    s_max_pu = np.clip(0.5 + 0.2 * (n_clusters - 37) / (200 - 37), 0.5, 0.7)
     n.lines['s_max_pu'] = s_max_pu
-
-    dc_b = n.links.carrier == 'DC'
-    n.links.loc[dc_b, 'p_max_pu'] = s_max_pu
-    n.links.loc[dc_b, 'p_min_pu'] = - s_max_pu
 
 def set_line_volume_limit(n, lv, Nyears=1.):
     links_dc_b = n.links.carrier == 'DC'
