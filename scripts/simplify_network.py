@@ -231,8 +231,7 @@ if __name__ == "__main__":
             )
         )
 
-    logger = logging.getLogger()
-    logger.setLevel(snakemake.config['logging_level'])
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     n = pypsa.Network(snakemake.input.network)
 
