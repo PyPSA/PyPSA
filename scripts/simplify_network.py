@@ -71,7 +71,7 @@ def _adjust_costs_using_distance(n, distance):
         if tech + "-grid-perlength" in costs.index:
             cost_perlength = costs.at[tech + "-grid-perlength", "capital_cost"]
             tech_b = n.generators.carrier == tech
-            generator_distance = n.generators.loc[tech_b, ["bus"]].join(distance.rename("distance"), on="bus")['distance'].loc[lambda s: s>0]
+            generator_distance = n.generators.loc[tech_b, "bus"].map(distance).loc[lambda s: s>0]
             if not generator_distance.empty:
                 n.generators.loc[generator_distance.index, "capital_cost"] += cost_perlength * generator_distance
                 logger.info("Displacing generator(s) {}; capital_cost is adjusted accordingly"
@@ -101,6 +101,16 @@ def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Lo
     for c in n.branch_components:
         df = n.df(c)
         n.mremove(c, df.index[df.bus0.isin(buses_to_del) | df.bus1.isin(buses_to_del)])
+
+def _compute_distance(n, busmap, buses=None, adjacency_matrix=None):
+    if buses is None:
+        buses = busmap.index[busmap.index != busmap.values]
+
+    if adjacency_matrix is None:
+        adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
+
+    dist = dijkstra(adjacency_matrix, directed=False, indices=n.buses.index.get_indexer(buses))
+    return pd.Series(dist[np.arange(len(buses)), n.buses.index.get_indexer(busmap.loc[buses])], buses)
 
 def simplify_links(n):
     ## Complex multi-node links are folded into end-points
@@ -159,8 +169,7 @@ def simplify_links(n):
             m = sp.spatial.distance_matrix(n.buses.loc[b, ['x', 'y']],
                                            n.buses.loc[buses[1:-1], ['x', 'y']])
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
-            dist = dijkstra(adjacency_matrix, directed=False, indices=n.buses.index.get_indexer(buses))
-            distance.loc[buses] += [dist[i,j] for i, j in enumerate(n.buses.index.get_indexer(busmap.loc[buses]))]
+            distance.loc[buses] += _compute_distance(n, busmap, buses)
 
             all_links = [i for _, i in sum(links, [])]
 
@@ -198,14 +207,8 @@ def remove_stubs(n):
     logger.info("Removing stubs")
 
     busmap = busmap_by_stubs(n, ['country'])
-    indices, = np.where(busmap.index != busmap.values)
-    buses = busmap.index[indices]
 
-    adjacency_matrix = n.adjacency_matrix(busorder=busmap.index, weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
-    dist = dijkstra(adjacency_matrix, directed=False, indices=indices)
-    distance = pd.Series(dist[np.arange(len(indices)), busmap.index.get_indexer(busmap.iloc[indices])], buses)
-    logger.info("The following offshore buses are displaced: {}"
-                .format(", ".join("{} by {:.0f}".format(b, d) for b,d in distance.loc[offwind_buses].iteritems())))
+    distance = _compute_distance(n, busmap)
 
     _aggregate_and_move_components(n, busmap, distance)
 
