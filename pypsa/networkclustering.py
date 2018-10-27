@@ -73,7 +73,8 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None):
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
     generators['p_nom_max'] /= weighting
-    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum}
+    generators['capital_cost'] *= weighting
+    strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum, 'capital_cost': np.sum}
     strategies.update((attr, _make_consense('Generator', attr))
                       for attr in columns.difference(strategies))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
