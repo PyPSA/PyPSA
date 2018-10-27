@@ -10,7 +10,7 @@ import os
 import re
 import numpy as np
 import scipy as sp
-from scipy.sparse.csgraph import connected_components
+from scipy.sparse.csgraph import connected_components, dijkstra
 import xarray as xr
 import geopandas as gpd
 import shapely
@@ -26,6 +26,7 @@ from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
                                      aggregategenerators, aggregateoneport)
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
+from add_electricity import load_costs
 
 def simplify_network_to_380(n):
     ## All goes to v_nom == 380
@@ -62,7 +63,22 @@ def simplify_network_to_380(n):
 
     return n, trafo_map
 
-def _aggregate_and_move_components(n, busmap, aggregate_one_ports={"Load", "StorageUnit"}):
+def _adjust_costs_using_distance(n, distance):
+    costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
+                       snakemake.config['costs'], snakemake.config['electricity'])
+
+    for tech in snakemake.config['renewable']:
+        if tech + "-grid-perlength" in costs.index:
+            cost_perlength = costs.at[tech + "-grid-perlength", "capital_cost"]
+            tech_b = n.generators.carrier == tech
+            generator_distance = n.generators.loc[tech_b, ["bus"]].join(distance.rename("distance"), on="bus")['distance'].loc[lambda s: s>0]
+            if not generator_distance.empty:
+                n.generators.loc[generator_distance.index, "capital_cost"] += cost_perlength * generator_distance
+                logger.info("Displacing generator(s) {}; capital_cost is adjusted accordingly"
+                            .format(", ".join("`{}` by {:.0f}km".format(b, d) for b, d in generator_distance.iteritems())))
+
+
+def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
         n.mremove(c, n.df(c).index)
 
@@ -70,6 +86,8 @@ def _aggregate_and_move_components(n, busmap, aggregate_one_ports={"Load", "Stor
         for attr, df in iteritems(pnl):
             if not df.empty:
                 import_series_from_dataframe(n, df, c, attr)
+
+    _adjust_costs_using_distance(n, distance)
 
     generators, generators_pnl = aggregategenerators(n, busmap)
     replace_components(n, "Generator", generators, generators_pnl)
@@ -127,6 +145,8 @@ def simplify_links(n):
             seen.add(u)
 
     busmap = n.buses.index.to_series()
+    distance = pd.Series(0., n.buses.index)
+    adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
 
     for lbl in labels.value_counts().loc[lambda s: s > 2].index:
 
@@ -139,6 +159,9 @@ def simplify_links(n):
             m = sp.spatial.distance_matrix(n.buses.loc[b, ['x', 'y']],
                                            n.buses.loc[buses[1:-1], ['x', 'y']])
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
+            dist = dijkstra(adjacency_matrix, directed=False, indices=n.buses.index.get_indexer(buses))
+            distance.loc[buses] += [dist[i,j] for i, j in enumerate(n.buses.index.get_indexer(busmap.loc[buses]))]
+
             all_links = [i for _, i in sum(links, [])]
 
             p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
@@ -168,14 +191,23 @@ def simplify_links(n):
 
     logger.debug("Collecting all components using the busmap")
 
-    _aggregate_and_move_components(n, busmap)
+    _aggregate_and_move_components(n, busmap, distance)
     return n, busmap
 
 def remove_stubs(n):
     logger.info("Removing stubs")
 
     busmap = busmap_by_stubs(n, ['country'])
-    _aggregate_and_move_components(n, busmap)
+    indices, = np.where(busmap.index != busmap.values)
+    buses = busmap.index[indices]
+
+    adjacency_matrix = n.adjacency_matrix(busorder=busmap.index, weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
+    dist = dijkstra(adjacency_matrix, directed=False, indices=indices)
+    distance = pd.Series(dist[np.arange(len(indices)), busmap.index.get_indexer(busmap.iloc[indices])], buses)
+    logger.info("The following offshore buses are displaced: {}"
+                .format(", ".join("{} by {:.0f}".format(b, d) for b,d in distance.loc[offwind_buses].iteritems())))
+
+    _aggregate_and_move_components(n, busmap, distance)
 
     return n, busmap
 
