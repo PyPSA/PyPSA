@@ -279,7 +279,7 @@ def _set_countries_and_substations(n):
     countries = snakemake.config['countries']
     country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
     offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
-    substation_b = buses['symbol'].str.contains('substation', case=False)
+    substation_b = buses['symbol'].str.contains('substation|converter station', case=False)
 
     def prefer_voltage(x, which):
         index = x.index
@@ -307,7 +307,7 @@ def _set_countries_and_substations(n):
 
         buses.loc[onshore_country_b, 'country'] = country
 
-        if country not in offshore_shapes: continue
+        if country not in offshore_shapes.index: continue
         offshore_country_b = buses_in_shape(offshore_shapes[country])
         offshore_b |= offshore_country_b
 
@@ -325,7 +325,7 @@ def _set_countries_and_substations(n):
     c_nan_b = buses.country.isnull()
     if c_nan_b.sum() > 0:
         c_tag = _get_country(buses.loc[c_nan_b])
-        c_tag.loc[c_tag.index.difference(countries)] = np.nan
+        c_tag.loc[~c_tag.isin(countries)] = np.nan
         n.buses.loc[c_nan_b, 'country'] = c_tag
 
         c_tag_nan_b = n.buses.country.isnull()
