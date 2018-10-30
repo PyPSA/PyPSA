@@ -1128,7 +1128,8 @@ def define_linear_objective(network,snapshots):
 
     l_objective(model,objective)
 
-def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True):
+def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True,
+                                 extra_postprocessing=None):
 
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
@@ -1150,6 +1151,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
     model = network.model
 
     duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))
+
     if free_pyomo:
         model.dual.clear()
 
@@ -1319,6 +1321,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             network.generators_t.status.loc[snapshots,fixed_committable_gens_i] = \
                 get_values(model.generator_status).unstack(0)
 
+    if extra_postprocessing is not None:
+        extra_postprocessing(network, snapshots, duals)
+
+
 def network_lopf_build_model(network, snapshots=None, skip_pre=False,
                              formulation="angles", ptdf_tolerance=0.):
     """
@@ -1417,7 +1423,8 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
 
     return network.opt
 
-def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False, free_memory={'pyomo'}):
+def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False,
+                       free_memory={'pyomo'},extra_postprocessing=None):
     """
     Solve linear optimal power flow for a group of snapshots and extract results.
 
@@ -1440,6 +1447,11 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
         Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
         data away while the solver runs (as a pickle to disk) and/or free
         `pyomo` data after the solution has been extracted.
+    extra_postprocessing : callable function
+        This function must take three arguments
+        `extra_postprocessing(network,snapshots,duals)` and is called after
+        the model has solved and the results are extracted. It allows the user to
+        extract further information about the solution, such as additional shadow prices.
 
     Returns
     -------
@@ -1473,11 +1485,13 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     if status == "ok" and termination_condition == "optimal":
         logger.info("Optimization successful")
         extract_optimisation_results(network, snapshots, formulation,
-                                     free_pyomo='pyomo' in free_memory)
+                                     free_pyomo='pyomo' in free_memory,
+                                     extra_postprocessing=extra_postprocessing)
     elif status == "warning" and termination_condition == "other":
         logger.warn("WARNING! Optimization might be sub-optimal. Writing output anyway")
         extract_optimisation_results(network, snapshots, formulation,
-                                     free_pyomo='pyomo' in free_memory)
+                                     free_pyomo='pyomo' in free_memory,
+                                     extra_postprocessing=extra_postprocessing)
     else:
         logger.error("Optimisation failed with status %s and terminal condition %s"
               % (status, termination_condition))
@@ -1487,7 +1501,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
 def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
                  skip_pre=False, extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles", ptdf_tolerance=0.,
-                 free_memory={}):
+                 free_memory={},extra_postprocessing=None):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -1526,6 +1540,11 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
         data away while the solver runs (as a pickle to disk) and/or free
         `pyomo` data after the solution has been extracted.
+    extra_postprocessing : callable function
+        This function must take three arguments
+        `extra_postprocessing(network,snapshots,duals)` and is called after
+        the model has solved and the results are extracted. It allows the user to
+        extract further information about the solution, such as additional shadow prices.
 
     Returns
     -------
@@ -1545,4 +1564,5 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     return network_lopf_solve(network, snapshots, formulation=formulation,
                               solver_options=solver_options,
-                              keep_files=keep_files, free_memory=free_memory)
+                              keep_files=keep_files, free_memory=free_memory,
+                              extra_postprocessing=extra_postprocessing)
