@@ -205,7 +205,7 @@ Import from netCDF
 
 Import network data from netCDF file ``file.nc``:
 
-``network.import_from_hdf5(file.nc)``
+``network.import_from_netcdf(file.nc)``
 
 
 Export to HDF5

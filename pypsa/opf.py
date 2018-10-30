@@ -751,7 +751,7 @@ def define_sub_network_cycle_constraints( subnetwork, snapshots, passive_branch_
 
         for cycle_i in cycle_is:
             branch_idx = branches.index[cycle_i]
-            attribute_value = branches.at[ branch_idx, attribute] *subnetwork.C[ cycle_i, col_j]
+            attribute_value = 1e5 * branches.at[ branch_idx, attribute] * subnetwork.C[ cycle_i, col_j]
             branch_idx_attributes.append( (branch_idx, attribute_value))
 
         for snapshot in snapshots:
@@ -872,7 +872,7 @@ def define_passive_branch_constraints(network,snapshots):
 
 
     s_max_pu = pd.concat({c : get_switchable_as_dense(network, c, 's_max_pu', snapshots)
-                          for c in network.passive_branch_components}, axis=1)
+                          for c in network.passive_branch_components}, axis=1, sort=False)
 
     flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_p[b[0],b[1],sn])],
                                     "<=", s_max_pu.at[sn,b]*fixed_branches.at[b,"s_nom"]]
@@ -1206,7 +1206,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             pd.concat({c.name:
                        c.pnl.p.loc[snapshots].multiply(c.df.sign, axis=1)
                        .groupby(c.df.bus, axis=1).sum()
-                       for c in network.iterate_components(network.controllable_one_port_components)}) \
+                       for c in network.iterate_components(network.controllable_one_port_components)},
+                      sort=False) \
               .sum(level=1) \
               .reindex(columns=network.buses_t.p.columns, fill_value=0.)
 
@@ -1423,7 +1424,8 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
 
     return network.opt
 
-def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={}, keep_files=False,
+
+def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={},solver_logfile=None,  keep_files=False,
                        free_memory={'pyomo'},extra_postprocessing=None):
     """
     Solve linear optimal power flow for a group of snapshots and extract results.
@@ -1440,6 +1442,8 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    solver_logfile : None|string
+        If not None, sets the logfile option of the solver.
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem
         construction, e.g. .lp file - useful for debugging
@@ -1472,9 +1476,9 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
 
     if 'pypsa' in free_memory:
         with empty_network(network):
-            network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
+            network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, logfile=solver_logfile, options=solver_options)
     else:
-        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, options=solver_options)
+        network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, logfile=solver_logfile, options=solver_options)
 
     if logger.isEnabledFor(logging.INFO):
         network.results.write()
@@ -1488,7 +1492,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
                                      free_pyomo='pyomo' in free_memory,
                                      extra_postprocessing=extra_postprocessing)
     elif status == "warning" and termination_condition == "other":
-        logger.warn("WARNING! Optimization might be sub-optimal. Writing output anyway")
+        logger.warning("WARNING! Optimization might be sub-optimal. Writing output anyway")
         extract_optimisation_results(network, snapshots, formulation,
                                      free_pyomo='pyomo' in free_memory,
                                      extra_postprocessing=extra_postprocessing)
@@ -1499,7 +1503,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     return status, termination_condition
 
 def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
-                 skip_pre=False, extra_functionality=None, solver_options={},
+                 skip_pre=False, extra_functionality=None, solver_logfile=None, solver_options={},
                  keep_files=False, formulation="angles", ptdf_tolerance=0.,
                  free_memory={},extra_postprocessing=None):
     """
@@ -1525,6 +1529,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    solver_logfile : None|string
+        If not None, sets the logfile option of the solver.
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
@@ -1563,6 +1569,6 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
                                 solver_io=solver_io)
 
     return network_lopf_solve(network, snapshots, formulation=formulation,
-                              solver_options=solver_options,
+                              solver_logfile=solver_logfile, solver_options=solver_options,
                               keep_files=keep_files, free_memory=free_memory,
                               extra_postprocessing=extra_postprocessing)

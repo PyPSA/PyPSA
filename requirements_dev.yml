@@ -2,7 +2,6 @@ name: pypsa
 
 channels:
   - conda-forge
-  - anaconda
 
 dependencies:
   - pytest
