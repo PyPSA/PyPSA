@@ -5,7 +5,7 @@ feedin_preparation:
   walltime: "12:00:00"
 
 solve_network:
-  walltime: "02:00:00:00"
+  walltime: "05:00:00:00"
 
 solve:
   walltime: "05:00:00:00"
