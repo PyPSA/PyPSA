@@ -156,8 +156,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
         for attr in (columns | {'sub_network'}
                      - {'r', 'x', 'g', 'b', 'terrain_factor', 's_nom',
                         's_nom_min', 's_nom_max', 's_nom_extendable',
-                        'capital_cost', 'length', 'v_ang_min',
-                        'v_ang_max'})
+                        'length', 'v_ang_min', 'v_ang_max'})
     }
 
     def aggregatelinegroup(l):
@@ -186,7 +185,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_max=l['s_nom_max'].sum(),
             s_nom_extendable=l['s_nom_extendable'].any(),
             num_parallel=l['num_parallel'].sum(),
-            capital_cost=(length_factor * normed(l['s_nom']) * l['capital_cost']).mean(),
+            capital_cost=(length_factor * normed(l['s_nom']) * l['capital_cost']).sum(),
             length=length_s,
             sub_network=consense['sub_network'](l['sub_network']),
             v_ang_min=l['v_ang_min'].max(),
