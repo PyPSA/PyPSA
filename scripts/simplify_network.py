@@ -174,7 +174,7 @@ def simplify_links(n):
 def remove_stubs(n):
     logger.info("Removing stubs")
 
-    busmap = busmap_by_stubs(n, ['country'])
+    busmap = busmap_by_stubs(n) #  ['country'])
     _aggregate_and_move_components(n, busmap)
 
     return n, busmap
