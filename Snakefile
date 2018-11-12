@@ -267,7 +267,7 @@ def summary_networks(w):
 
 rule make_summary:
     input: summary_networks
-    output: directory("results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}")
+    output: directory("results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{country}")
     script: "scripts/make_summary.py"
 
 rule plot_summary:
