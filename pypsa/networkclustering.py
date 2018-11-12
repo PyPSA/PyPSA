@@ -40,6 +40,13 @@ from .components import Network
 from . import components, io
 
 
+def _normed(s):
+    tot = s.sum()
+    if tot == 0:
+        return 1.
+    else:
+        return s/tot
+
 def _flatten_multiindex(m, join=' '):
     if m.nlevels <= 1: return m
     levels = map(m.get_level_values, range(m.nlevels))
@@ -98,17 +105,24 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None):
 
     return new_df, new_pnl
 
-def aggregateoneport(network, busmap, component, with_time=True):
+def aggregateoneport(network, busmap, component, with_time=True, custom_strategies=dict()):
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
     grouper = old_df.bus if 'carrier' not in columns else [old_df.bus, old_df.carrier]
 
-    strategies = {attr: (np.sum
-                         if attr in {'p', 'q', 'p_set', 'q_set',
-                                     'p_nom', 'p_nom_max', 'p_nom_min'}
-                         else _make_consense(component, attr))
+    def aggregate_max_hours(max_hours):
+        if (max_hours == max_hours.iloc[0]).all():
+            return max_hours.iloc[0]
+        else:
+            return (max_hours * _normed(old_df.p_nom.reindex(max_hours.index))).sum()
+
+    default_strategies = dict(p=np.sum, q=np.sum, p_set=np.sum, q_set=np.sum,
+                              p_nom=np.sum, p_nom_max=np.sum, p_nom_min=np.sum,
+                              max_hours=aggregate_max_hours)
+    strategies = {attr: default_strategies.get(attr, _make_consense(component, attr))
                   for attr in columns}
+    strategies.update(custom_strategies)
     new_df = old_df.groupby(grouper).agg(strategies)
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
@@ -160,12 +174,6 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     }
 
     def aggregatelinegroup(l):
-        def normed(s):
-            tot = s.sum()
-            if tot == 0:
-                return 1.
-            else:
-                return s/tot
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
@@ -185,7 +193,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             s_nom_max=l['s_nom_max'].sum(),
             s_nom_extendable=l['s_nom_extendable'].any(),
             num_parallel=l['num_parallel'].sum(),
-            capital_cost=(length_factor * normed(l['s_nom']) * l['capital_cost']).sum(),
+            capital_cost=(length_factor * _normed(l['s_nom']) * l['capital_cost']).sum(),
             length=length_s,
             sub_network=consense['sub_network'](l['sub_network']),
             v_ang_min=l['v_ang_min'].max(),
@@ -227,7 +235,7 @@ Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
 def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
                                aggregate_generators_carriers=None,
-                               bus_strategies=dict()):
+                               bus_strategies=dict(), one_port_strategies=dict()):
 
     buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies)
 
@@ -253,7 +261,8 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
-        new_df, new_pnl = aggregateoneport(network, busmap, component=one_port, with_time=with_time)
+        new_df, new_pnl = aggregateoneport(network, busmap, component=one_port, with_time=with_time,
+                                           custom_strategies=one_port_strategies.get(one_port, {}))
         io.import_components_from_dataframe(network_c, new_df, one_port)
         for attr, df in iteritems(new_pnl):
             io.import_series_from_dataframe(network_c, df, one_port, attr)
