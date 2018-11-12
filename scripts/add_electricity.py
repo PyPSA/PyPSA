@@ -219,13 +219,13 @@ def attach_hydro(n, costs, ppl):
         has_pump=ppl.technology.str.contains('Pumped Storage')
     )
 
-    country = ppl.loc[ppl.has_inflow, 'bus'].map(n.buses.country)
+    country = ppl['bus'].map(n.buses.country)
     # distribute by p_nom in each country
     dist_key = ppl.loc[ppl.has_inflow, 'p_nom'].groupby(country).transform(normed)
 
     with xr.open_dataarray(snakemake.input.profile_hydro) as inflow:
         inflow_t = (
-            inflow.sel(countries=country.values)
+            inflow.sel(countries=country.loc[ppl.has_inflow].values)
             .rename({'countries': 'name'})
             .assign_coords(name=ppl.index[ppl.has_inflow])
             .transpose('time', 'name')
@@ -260,13 +260,24 @@ def attach_hydro(n, costs, ppl):
                inflow=inflow_t.loc[:, phs.index[phs.has_inflow]])
 
     if 'hydro' in carriers:
-        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow]
+        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow].join(country.rename('country'))
 
         hydro_max_hours = c.get('hydro_max_hours')
-        if hydro_max_hours is None:
+        if hydro_max_hours == 'energy_capacity_totals_by_country':
             hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0)["E_store[TWh]"].clip(lower=0.2)*1e6
-            hydro_max_hours_country = hydro_e_country / hydro.p_nom.groupby(country).sum()
-            hydro_max_hours = country.loc[hydro.index].map(hydro_max_hours_country)
+            hydro_max_hours_country = hydro_e_country / hydro.groupby('country').p_nom.sum()
+            hydro_max_hours = hydro.country.map(hydro_e_country / hydro.groupby('country').p_nom.sum())
+        elif hydro_max_hours == 'estimate_by_large_installations':
+            hydro_capacities = pd.read_csv(snakemake.input.hydro_capacities, comment="#", na_values='-', index_col=0)
+            estim_hydro_max_hours = hydro_capacities.e_stor / hydro_capacities.p_nom_discharge
+
+            missing_countries = (pd.Index(hydro['country'].unique())
+                                .difference(estim_hydro_max_hours.dropna().index))
+            if not missing_countries.empty:
+                logger.warning("Assuming max_hours=6 for hydro reservoirs in the countries: {}"
+                            .format(", ".join(missing_countries)))
+
+            hydro_max_hours = hydro['country'].map(estim_hydro_max_hours).fillna(6)
 
         n.madd('StorageUnit', hydro.index, carrier='hydro',
                bus=hydro['bus'],

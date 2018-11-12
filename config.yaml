@@ -102,6 +102,8 @@ renewable:
     cutout: europe-2013-era5
     carriers: [ror, PHS, hydro]
     PHS_max_hours: 6
+    hydro_max_hours: "energy_capacity_totals_by_country" # one of energy_capacity_totals_by_country,
+                                                         # estimate_by_large_installations or a float
 
 
 lines:

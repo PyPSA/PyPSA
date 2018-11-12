@@ -142,6 +142,7 @@ rule add_electricity:
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',
         hydro_capacities='data/bundle/hydro_capacities.csv',
+        geth_hydro_capacities='data/geth2015_hydro_capacities.csv',
         opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv',
         nuts3_shapes='resources/nuts3_shapes.geojson',
         **{'profile_' + t: "resources/profile_" + t + ".nc"
