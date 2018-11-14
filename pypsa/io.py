@@ -299,13 +299,13 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #exportable component types
     #what about None???? - nan is float?
-    allowed_types = [float,int,str,bool] + list(np.typeDict.values())
+    allowed_types = (float,int,bool) + string_types + tuple(np.typeDict.values())
 
     #first export network properties
     attrs = dict((attr, getattr(network, attr))
                  for attr in dir(network)
-                 if (attr[:2] != "__" and
-                     type(getattr(network,attr)) in allowed_types))
+                 if (not attr.startswith("__") and
+                     isinstance(getattr(network,attr), allowed_types)))
     exporter.save_attributes(attrs)
 
     #now export snapshots
