@@ -140,7 +140,7 @@ class ExporterCSV(Exporter):
 
 class ImporterHDF5(Importer):
     def __init__(self, path):
-        self.ds = pd.HDFStore(path)
+        self.ds = pd.HDFStore(path, mode='r')
         self.index = {}
 
     def get_attributes(self):
