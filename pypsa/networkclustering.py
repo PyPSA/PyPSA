@@ -330,11 +330,12 @@ try:
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
     def busmap_by_spectral_clustering(network, n_clusters, **kwds):
-        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=1./network.lines.x).set_index(['bus0','bus1'])
-        G = OrderedGraph()
+        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
+        lines.weight+=0.1
+        G = nx.Graph()
         G.add_nodes_from(network.buses.index)
         G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        return pd.Series(sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1,
+        return pd.Series(list(map(str,sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1)),
                          index=network.buses.index)
 
     def spectral_clustering(network, n_clusters=8, **kwds):
@@ -351,19 +352,20 @@ try:
     # available using pip as python-louvain
     import community
 
-    def busmap_by_louvain(network, level=-1):
-        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=1./network.lines.x).set_index(['bus0','bus1'])
+    def busmap_by_louvain(network):
+        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
+        lines.weight+=0.1
         G = nx.Graph()
         G.add_nodes_from(network.buses.index)
         G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        dendrogram = community.generate_dendrogram(G)
-        if level < 0:
-            level += len(dendrogram)
-        return pd.Series(community.partition_at_level(dendrogram, level=level),
-                         index=network.buses.index)
+        b=community.best_partition(G)
+        list_cluster=[]
+        for i in b:
+            list_cluster.append(str(b[i]))
+        return pd.Series(list_cluster,index=network.buses.index)
 
-    def louvain_clustering(network, level=-1, **kwds):
-        busmap = busmap_by_louvain(network, level=level)
+    def louvain_clustering(network, **kwds):
+        busmap = busmap_by_louvain(network)
         return get_clustering_from_busmap(network, busmap)
 
 except ImportError:
