@@ -111,7 +111,7 @@ def distribute_clusters_optim(n, n_clusters, solver_name=None):
 
     return pd.Series(m.n.get_values(), index=L.index).astype(int)
 
-def busmap_for_n_clusters(n, n_clusters):
+def busmap_for_n_clusters(n, n_clusters,algo_cluster):
     n.determine_network_topology()
 
     if 'snakemake' in globals():
@@ -121,13 +121,24 @@ def busmap_for_n_clusters(n, n_clusters):
 
     n_clusters = distribute_clusters_optim(n, n_clusters, solver_name=solver_name)
 
-    def busmap_for_country(x):
+    def busmap_for_country(x,algo_cluster):
         prefix = x.name[0] + x.name[1] + ' '
         if len(x) == 1:
             return pd.Series(prefix + '0', index=x.index)
         weight = weighting_for_country(n, x)
-        return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index, n_init=1000, max_iter=30000, tol=1e-6)
-    return n.buses.groupby(['country', 'sub_network'], group_keys=False).apply(busmap_for_country)
+        if algo_cluster=="kmeans":
+            return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index, n_init=1000, max_iter=30000, tol=1e-6)
+        elif algo_cluster=="spectral":
+            n2=pypsa.Network()
+            n2.buses=x
+            n2.lines=n.lines.loc[n.lines.bus0.isin(x.index)].loc[n.lines.bus1.isin(x.index)]
+            return prefix + busmap_by_spectral_clustering(n2, n_clusters[x.name])
+        elif algo_cluster=="louvain":
+            n2=pypsa.Network()
+            n2.buses=x
+            n2.lines=n.lines.loc[n.lines.bus0.isin(x.index)].loc[n.lines.bus1.isin(x.index)]
+            return prefix + busmap_by_louvain(n2, n_clusters[x.name])
+    return n.buses.groupby(['country', 'sub_network'], group_keys=False).apply(busmap_for_country, algo_cluster)
 
 def plot_busmap_for_n_clusters(n, n_clusters=50):
     busmap = busmap_for_n_clusters(n, n_clusters)
@@ -136,12 +147,12 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
     n.plot(bus_colors=busmap.map(dict(zip(cs, cr))))
     del cs, cr
 
-def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True, line_length_factor=1.25):
+def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True, line_length_factor=1.25,algo_cluster="kmeans"):
     aggregate_generators_carriers = (None if aggregate_renewables
                                      else (pd.Index(n.generators.carrier.unique())
                                            .difference(['onwind', 'offwind', 'solar'])))
     clustering = get_clustering_from_busmap(
-        n, busmap_for_n_clusters(n, n_clusters),
+        n, busmap_for_n_clusters(n, n_clusters,algo_cluster),
         bus_strategies=dict(country=_make_consense("Bus", "country")),
         aggregate_generators_weighted=True,
         aggregate_generators_carriers=aggregate_generators_carriers,
