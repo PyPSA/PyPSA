@@ -62,13 +62,18 @@ repository]].
   - [[./power-to-heat-water-tank.html][*Power-to-Heat with Water Tank*]]
   - [[./battery-electric-vehicle-charging.html][*Transport: Charging Battery Electric Vehicle with Solar Panel*]]
   - [[./chained-hydro-reservoirs.html][*Chained Hydroelectric Reservoirs*]]
+  - [[./biomass-synthetic-fuels-carbon-management.html][*Biomass, synthetic fuels and carbon management*]]
   - [[./replace-generator-storage-units-with-store.html][*Replacing Generators and Storage Units with Fundamental Stores and
     Links*]] - This notebook demonstrates how generators and storage
     units can be replaced by more fundamental components (Stores and
     Links), and how their parameters map to each other.
-- [[./logging-demo.html][Logging]] - How to control the level of logging that PyPSA reports
+- [[./logging-demo.html][*Logging*]] - How to control the level of logging that PyPSA reports
   back, e.g. error/warning/info/debug messages.
+- [[https://github.com/PyPSA/pypsa-eur][*PyPSA-Eur*]]: An Open Optimisation Model of the European Transmission System
+- [[https://github.com/PyPSA/pypsa-za][*PyPSA-ZA*]]: PyPSA Model of the South African Energy System
+- [[https://zenodo.org/record/1146665][*Sector-Coupled European Dataset*]] - Full dataset and code from [[https://arxiv.org/abs/1801.05290][Synergies of sector coupling and transmission extension in a cost-optimised, highly renewable European energy system]], Energy, Volume 160, Pages 720-739, 2018, [[https://arxiv.org/abs/1801.05290][postprint arXiv:1801.05290]], DOI: [[https://doi.org/10.1016/j.energy.2018.06.222][10.1016/j.energy.2018.06.222]].
 - [[https://zenodo.org/record/804337][*European One-Node-Per-Country Dataset*]] - Full dataset and code from [[https://doi.org/10.1016/j.energy.2017.06.004][The Benefits of Cooperation in a Highly Renewable European Electricity Network]], Energy, Volume 134, 1 September 2017, Pages 469-481, [[https://arxiv.org/abs/1704.05492][preprint]].
+- [[https://github.com/PyPSA/WHOBS][*WHOBS*]]: Optimal Wind+Hydrogen+Other+Battery+Solar (WHOBS) electricity systems for European countries
 - [[https://github.com/openego][*open-Ego project*]] - The project open-eGo aims to develop a transparent, inter-grid-level operating grid planning tool to investigate economic viable grid expansion scenarios considering alternative flexibility options such as storages or redispatch. It uses PyPSA.
 
 
