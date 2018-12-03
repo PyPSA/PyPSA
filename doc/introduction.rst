@@ -12,12 +12,6 @@ and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
 
-
-As of 2018 PyPSA is under heavy development and therefore it is
-recommended to use caution when using it in a production
-environment. Some APIs may change - the changes in each PyPSA version
-are listed in the :doc:`release_notes`.
-
 This project is maintained by the `Energy System Modelling
 group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for
 Automation and Applied
@@ -62,30 +56,27 @@ It has models for:
 * basic components out of which more complicated assets can be built,
   such as Combined Heat and Power (CHP) units, heat pumps, resistive
   Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
-  (BEVs), etc.; each of these is demonstrated in the `examples
+  (BEVs), Fischer-Tropsch, direct air capture (DAC), etc.; each of
+  these is demonstrated in the `examples
   <http://www.pypsa.org/examples/>`_
 
 
-Functionality that will definitely be added soon:
-
-* Multi-year investment optimisation
-* Simple RMS simulations with the swing equation
-* Distributed active power slack
-* Non-linear power flow solution using `analytic continuation
-  <https://en.wikipedia.org/wiki/Holomorphic_embedding_load_flow_method>`_
-  in the complex plane following `GridCal
-  <https://github.com/SanPen/GridCal>`_
-
 Functionality that may be added in the future:
 
-* Short-circuit current calculations
-* Dynamic RMS simulations
-* Small signal stability analysis
+* Multi-year investment optimisation
+* Distributed active power slack
 * Interactive web-based GUI with SVG
 * OPF with the full non-linear network equations
-* Dynamic EMT simulations
-* Unbalanced load flow
 * Port to `Julia <http://julialang.org/>`_
+
+Other complementary libraries:
+
+* `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
+  detailed modelling of distribution grids, short-circuit
+  calculations, unbalanced load flow and more
+* `PowerDynamics.jl
+  <https://github.com/JuliaEnergy/PowerDynamics.jl>`_ for dynamic
+  modelling of power grids at time scales where differential equations are relevant
 
 
 
@@ -171,8 +162,8 @@ and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested to be compatible with Python 2.7 and
-Python 3.5.
+PyPSA is written and tested to be compatible with both Python 2.7 and
+Python 3.6.
 
 It leans heavily on the following Python packages:
 
