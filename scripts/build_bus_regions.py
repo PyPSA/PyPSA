@@ -41,7 +41,9 @@ for country in countries:
 def save_to_geojson(s, fn):
     if os.path.exists(fn):
         os.unlink(fn)
-    s.reset_index().to_file(fn, driver='GeoJSON')
+    df = s.reset_index()
+    schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
+    df.to_file(fn, driver='GeoJSON', schema=schema)
 
 save_to_geojson(pd.concat(onshore_regions), snakemake.output.regions_onshore)
 
