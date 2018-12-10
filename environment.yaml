@@ -40,6 +40,8 @@ dependencies:
     - pypsa>=0.13
     - vresutils>=0.2.5
     - git+https://github.com/FRESNA/atlite.git
+    - git+https://github.com/FZJ-IEK3-VSA/glaes.git
+    - git+https://github.com/FZJ-IEK3-VSA/geokit.git
     #- git+https://github.com/FRESNA/powerplantmatching.git
     #- https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
 

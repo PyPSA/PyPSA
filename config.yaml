@@ -58,7 +58,7 @@ renewable:
       method: wind
       turbine: Vestas_V112_3MW
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqm: 3
+    capacity_per_sqkm: 3
     # correction_factor: 0.93
     corine:
       #The selection of CORINE Land Cover [1] types that are allowed for wind and solar are based on [2] p.42 / p.28
@@ -70,19 +70,20 @@ renewable:
                    24, 25, 26, 27, 28, 29, 31, 32]
       distance: 1000
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
-      natura: true
+    natura: true
+    potential: conservative # or heuristic
   offwind:
     cutout: europe-2013-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqm: 3
-    height_cutoff: 50
+    capacity_per_sqkm: 3
     # correction_factor: 0.93
-    corine:
-      grid_codes: [44, 255]
-      natura: true
+    corine: [44, 255]
+    natura: true
+    max_depth: 50
+    potential: conservative # or heuristic
   solar:
     cutout: europe-2013-sarah
     resource:
@@ -92,12 +93,12 @@ renewable:
         slope: 35.
         azimuth: 180.
     # ScholzPhd Tab 4.3.1: 170 MW/km^2
-    capacity_per_sqm: 1.7
+    capacity_per_sqkm: 1.7
     correction_factor: 0.877
-    corine:
-      grid_codes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-      18, 19, 20, 26, 31, 32]
-      natura: true
+    corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+             14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
+    natura: true
+    potential: conservative # or heuristic
   hydro:
     cutout: europe-2013-era5
     carriers: [ror, PHS, hydro]

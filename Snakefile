@@ -89,38 +89,31 @@ rule build_bus_regions:
 
 rule build_cutout:
     output: "cutouts/{cutout}"
-    resources: mem=5000
+    resources: mem=config['atlite'].get('nprocesses', 4) * 1000
     threads: config['atlite'].get('nprocesses', 4)
     benchmark: "benchmarks/build_cutout_{cutout}"
     # group: 'feedin_preparation'
     script: "scripts/build_cutout.py"
 
-def memory_build_renewable_potentials(wildcards):
-    corine_config = config["renewable"][wildcards.technology]["corine"]
-    return 12000 if corine_config.get("distance") is None else 24000
-
-rule build_renewable_potentials:
-    input:
-        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout'],
-        corine="data/bundle/corine/g250_clc06_V18_5.tif",
-        natura="data/bundle/natura/Natura2000_end2015.shp"
-    output: "resources/potentials_{technology}.nc"
-    resources: mem=memory_build_renewable_potentials
-    benchmark: "benchmarks/build_renewable_potentials_{technology}"
-    # group: 'feedin_preparation'
-    script: "scripts/build_renewable_potentials.py"
+rule build_natura_raster:
+    input: "data/bundle/natura/Natura2000_end2015.shp"
+    output: "resources/natura.tiff"
+    script: "scripts/build_natura_raster.py"
 
 rule build_renewable_profiles:
     input:
         base_network="networks/base.nc",
-        potentials="resources/potentials_{technology}.nc",
+        corine="data/bundle/corine/g250_clc06_V18_5.tif",
+        natura="resources/natura.tiff",
+        gebco="data/bundle/GEBCO_2014_2D.nc",
+        country_shapes='resources/country_shapes.geojson',
         regions=lambda wildcards: ("resources/regions_onshore.geojson"
                                    if wildcards.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),
         cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout']
-    output:
-        profile="resources/profile_{technology}.nc",
-    resources: mem=5000
+    output: profile="resources/profile_{technology}.nc",
+    resources: mem=config['atlite'].get('nprocesses', 2) * 5000
+    threads: config['atlite'].get('nprocesses', 2)
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
     # group: 'feedin_preparation'
     script: "scripts/build_renewable_profiles.py"
