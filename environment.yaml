@@ -19,6 +19,7 @@ dependencies:
   - xlrd
   - scikit-learn
   - pytables
+  - pycountry
 
   # Include ipython so that one does not inadvertently drop out of the conda
   # environment by calling ipython
@@ -41,4 +42,4 @@ dependencies:
     - git+https://github.com/FRESNA/atlite.git
     #- git+https://github.com/FRESNA/powerplantmatching.git
     #- https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
-    - countrycode
+
