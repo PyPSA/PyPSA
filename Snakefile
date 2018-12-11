@@ -107,6 +107,7 @@ rule build_renewable_profiles:
         natura="resources/natura.tiff",
         gebco="data/bundle/GEBCO_2014_2D.nc",
         country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
         regions=lambda wildcards: ("resources/regions_onshore.geojson"
                                    if wildcards.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),

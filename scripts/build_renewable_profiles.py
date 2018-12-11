@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     with Pool(initializer=init_globals, initargs=(bounds, dx, dy),
               maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
-        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True) #.iloc[:10]
+        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True).iloc[:10]
         buses = pd.Index(regions['name'], name="bus")
         widgets = [
             pgb.widgets.Percentage(),
@@ -163,12 +163,28 @@ if __name__ == '__main__':
         row = layoutmatrix[i]
         distances = haversine(regions.loc[i, ['x', 'y']], cell_coords[row.indices])[0]
         average_distance.append((distances * (row.data / row.data.sum())).sum())
+
     average_distance = xr.DataArray(average_distance, [buses])
 
     ds = xr.merge([(correction_factor * profile).rename('profile'),
-                capacities.rename('weight'),
-                p_nom_max.rename('p_nom_max'),
-                layout.rename('potential'),
-                average_distance.rename('average_distance')])
+                   capacities.rename('weight'),
+                   p_nom_max.rename('p_nom_max'),
+                   layout.rename('potential'),
+                   average_distance.rename('average_distance')])
+
+    if snakemake.wildcards.technology.startswith("offwind"):
+        import geopandas as gpd
+        from shapely.geometry import LineString
+
+        offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
+        underwater_fraction = []
+        for i in regions.index:
+            row = layoutmatrix[i]
+            centre_of_mass = (cell_coords[row.indices] * (row.data / row.data.sum())[:,np.newaxis]).sum(axis=0)
+            line = LineString([centre_of_mass, regions.loc[i, ['x', 'y']]])
+            underwater_fraction.append(line.intersection(offshore_shape).length / line.length)
+
+        ds['underwater_fraction'] = xr.DataArray(underwater_fraction, [buses])
+
     (ds.sel(bus=(ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) & (ds['p_nom_max'] > 0.))
      .to_netcdf(snakemake.output.profile))
