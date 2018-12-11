@@ -108,8 +108,8 @@ if __name__ == '__main__':
             ' ', pgb.widgets.Timer(),
             ' ', pgb.widgets.ETA()
         ]
-        progressbar = pgb.ProgressBar(prefix='Compute GIS potentials: ', widgets=widgets, max_value=len(features))
-        matrix = vstack(list(progressbar(pool.imap(calculate_potential, features.index))))
+        progressbar = pgb.ProgressBar(prefix='Compute GIS potentials: ', widgets=widgets, max_value=len(regions))
+        matrix = vstack(list(progressbar(pool.imap(calculate_potential, regions.index))))
 
     potentials = config['capacity_per_sqkm'] * vlanduse._cutout_cell_areas(cutout)
     potmatrix = matrix * spdiag(potentials.ravel())
