@@ -10,7 +10,7 @@ import os
 import re
 import numpy as np
 import scipy as sp
-from scipy.sparse.csgraph import connected_components
+from scipy.sparse.csgraph import connected_components, dijkstra
 import xarray as xr
 import geopandas as gpd
 import shapely
@@ -26,6 +26,7 @@ from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
                                      aggregategenerators, aggregateoneport)
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
+from add_electricity import load_costs
 
 def simplify_network_to_380(n):
     ## All goes to v_nom == 380
@@ -62,7 +63,22 @@ def simplify_network_to_380(n):
 
     return n, trafo_map
 
-def _aggregate_and_move_components(n, busmap, aggregate_one_ports={"Load", "StorageUnit"}):
+def _adjust_costs_using_distance(n, distance):
+    costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
+                       snakemake.config['costs'], snakemake.config['electricity'])
+
+    for tech in snakemake.config['renewable']:
+        if tech + "-grid-perlength" in costs.index:
+            cost_perlength = costs.at[tech + "-grid-perlength", "capital_cost"]
+            tech_b = n.generators.carrier == tech
+            generator_distance = n.generators.loc[tech_b, "bus"].map(distance).loc[lambda s: s>0]
+            if not generator_distance.empty:
+                n.generators.loc[generator_distance.index, "capital_cost"] += cost_perlength * generator_distance
+                logger.info("Displacing generator(s) {}; capital_cost is adjusted accordingly"
+                            .format(", ".join("`{}` by {:.0f}km".format(b, d) for b, d in generator_distance.iteritems())))
+
+
+def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
         n.mremove(c, n.df(c).index)
 
@@ -70,6 +86,8 @@ def _aggregate_and_move_components(n, busmap, aggregate_one_ports={"Load", "Stor
         for attr, df in iteritems(pnl):
             if not df.empty:
                 import_series_from_dataframe(n, df, c, attr)
+
+    _adjust_costs_using_distance(n, distance)
 
     generators, generators_pnl = aggregategenerators(n, busmap)
     replace_components(n, "Generator", generators, generators_pnl)
@@ -83,6 +101,16 @@ def _aggregate_and_move_components(n, busmap, aggregate_one_ports={"Load", "Stor
     for c in n.branch_components:
         df = n.df(c)
         n.mremove(c, df.index[df.bus0.isin(buses_to_del) | df.bus1.isin(buses_to_del)])
+
+def _compute_distance(n, busmap, buses=None, adjacency_matrix=None):
+    if buses is None:
+        buses = busmap.index[busmap.index != busmap.values]
+
+    if adjacency_matrix is None:
+        adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
+
+    dist = dijkstra(adjacency_matrix, directed=False, indices=n.buses.index.get_indexer(buses))
+    return pd.Series(dist[np.arange(len(buses)), n.buses.index.get_indexer(busmap.loc[buses])], buses)
 
 def simplify_links(n):
     ## Complex multi-node links are folded into end-points
@@ -127,6 +155,8 @@ def simplify_links(n):
             seen.add(u)
 
     busmap = n.buses.index.to_series()
+    distance = pd.Series(0., n.buses.index)
+    adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
 
     for lbl in labels.value_counts().loc[lambda s: s > 2].index:
 
@@ -139,6 +169,8 @@ def simplify_links(n):
             m = sp.spatial.distance_matrix(n.buses.loc[b, ['x', 'y']],
                                            n.buses.loc[buses[1:-1], ['x', 'y']])
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
+            distance.loc[buses] += _compute_distance(n, busmap, buses)
+
             all_links = [i for _, i in sum(links, [])]
 
             p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
@@ -168,14 +200,17 @@ def simplify_links(n):
 
     logger.debug("Collecting all components using the busmap")
 
-    _aggregate_and_move_components(n, busmap)
+    _aggregate_and_move_components(n, busmap, distance)
     return n, busmap
 
 def remove_stubs(n):
     logger.info("Removing stubs")
 
     busmap = busmap_by_stubs(n) #  ['country'])
-    _aggregate_and_move_components(n, busmap)
+
+    distance = _compute_distance(n, busmap)
+
+    _aggregate_and_move_components(n, busmap, distance)
 
     return n, busmap
 
@@ -199,8 +234,7 @@ if __name__ == "__main__":
             )
         )
 
-    logger = logging.getLogger()
-    logger.setLevel(snakemake.config['logging_level'])
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     n = pypsa.Network(snakemake.input.network)
 

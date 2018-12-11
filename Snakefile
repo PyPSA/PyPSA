@@ -150,6 +150,7 @@ rule add_electricity:
 rule simplify_network:
     input:
         network='networks/{network}.nc',
+        tech_costs=COSTS,
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     output:

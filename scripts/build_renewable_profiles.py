@@ -12,6 +12,7 @@ import geokit as gk
 from osgeo import gdal
 from scipy.sparse import csr_matrix, vstack
 
+from pypsa.geo import haversine
 from vresutils import landuse as vlanduse
 from vresutils.array import spdiag
 
@@ -98,8 +99,8 @@ if __name__ == '__main__':
 
     with Pool(initializer=init_globals, initargs=(bounds, dx, dy),
               maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
-        features = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True) #.iloc[:10]
-        buses = pd.Index(features['name'], name="bus")
+        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True) #.iloc[:10]
+        buses = pd.Index(regions['name'], name="bus")
         widgets = [
             pgb.widgets.Percentage(),
             ' ', pgb.widgets.SimpleProgress(format='(%s)' % pgb.widgets.SimpleProgress.DEFAULT_FORMAT),
@@ -154,9 +155,20 @@ if __name__ == '__main__':
     layout = xr.DataArray(np.asarray(potmatrix.sum(axis=0)).reshape(cutout.shape),
                           [cutout.meta.indexes[ax] for ax in ['y', 'x']])
 
+    # Determine weighted average distance from substation
+    cell_coords = cutout.grid_coordinates()
+
+    average_distance = []
+    for i in regions.index:
+        row = layoutmatrix[i]
+        distances = haversine(regions.loc[i, ['x', 'y']], cell_coords[row.indices])[0]
+        average_distance.append((distances * (row.data / row.data.sum())).sum())
+    average_distance = xr.DataArray(average_distance, [buses])
+
     ds = xr.merge([(correction_factor * profile).rename('profile'),
-                   capacities.rename('weight'),
-                   p_nom_max.rename('p_nom_max'),
-                   layout.rename('potential')])
+                capacities.rename('weight'),
+                p_nom_max.rename('p_nom_max'),
+                layout.rename('potential'),
+                average_distance.rename('average_distance')])
     (ds.sel(bus=(ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) & (ds['p_nom_max'] > 0.))
      .to_netcdf(snakemake.output.profile))

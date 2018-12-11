@@ -24,6 +24,8 @@ for country in countries:
     onshore_shape = country_shapes[country]
     onshore_locs = n.buses.loc[c_b & n.buses.substation_lv, ["x", "y"]]
     onshore_regions.append(gpd.GeoDataFrame({
+            'x': onshore_locs['x'],
+            'y': onshore_locs['y'],
             'geometry': voronoi_partition_pts(onshore_locs.values, onshore_shape),
             'country': country
         }, index=onshore_locs.index))
@@ -32,6 +34,8 @@ for country in countries:
     offshore_shape = offshore_shapes[country]
     offshore_locs = n.buses.loc[c_b & n.buses.substation_off, ["x", "y"]]
     offshore_regions_c = gpd.GeoDataFrame({
+            'x': offshore_locs['x'],
+            'y': offshore_locs['y'],
             'geometry': voronoi_partition_pts(offshore_locs.values, offshore_shape),
             'country': country
         }, index=offshore_locs.index)
