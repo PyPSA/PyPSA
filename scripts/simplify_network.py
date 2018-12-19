@@ -63,22 +63,51 @@ def simplify_network_to_380(n):
 
     return n, trafo_map
 
-def _adjust_costs_using_distance(n, distance):
+def _prepare_connection_costs_per_link(n):
     costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
                        snakemake.config['costs'], snakemake.config['electricity'])
 
+    connection_costs_per_link = {}
+
     for tech in snakemake.config['renewable']:
-        if tech + "-grid-perlength" in costs.index:
-            cost_perlength = costs.at[tech + "-grid-perlength", "capital_cost"]
-            tech_b = n.generators.carrier == tech
-            generator_distance = n.generators.loc[tech_b, "bus"].map(distance).loc[lambda s: s>0]
-            if not generator_distance.empty:
-                n.generators.loc[generator_distance.index, "capital_cost"] += cost_perlength * generator_distance
-                logger.info("Displacing generator(s) {}; capital_cost is adjusted accordingly"
-                            .format(", ".join("`{}` by {:.0f}km".format(b, d) for b, d in generator_distance.iteritems())))
+        if tech.startswith('offwind'):
+            connection_costs_per_link[tech] = (
+                n.links.length * snakemake.config['lines']['length_factor'] *
+                (n.links.underwater_fraction * costs.at[tech + '-connection-submarine', 'capital_cost'] +
+                 (1. - n.links.underwater_fraction) * costs.at[tech + '-connection-underground', 'capital_cost'])
+            )
 
+    return connection_costs_per_link
 
-def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Load", "StorageUnit"}):
+def _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link=None, buses=None):
+    if connection_costs_per_link is None:
+        connection_costs_per_link = _prepare_connection_costs_per_link(n)
+
+    if buses is None:
+        buses = busmap.index[busmap.index != busmap.values]
+
+    connection_costs_to_bus = pd.DataFrame(index=buses)
+
+    for tech in connection_costs_per_link:
+        adj = n.adjacency_matrix(weights=pd.concat(dict(Link=connection_costs_per_link[tech].reindex(n.links.index),
+                                                        Line=pd.Series(0., n.lines.index))))
+
+        costs_between_buses = dijkstra(adj, directed=False, indices=n.buses.index.get_indexer(buses))
+        connection_costs_to_bus[tech] = costs_between_buses[np.arange(len(buses)),
+                                                            n.buses.index.get_indexer(busmap.loc[buses])]
+
+    return connection_costs_to_bus
+
+def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
+    for tech in connection_costs_to_bus:
+        tech_b = n.generators.carrier == tech
+        costs = n.generators.loc[tech_b, "bus"].map(connection_costs_to_bus[tech]).loc[lambda s: s>0]
+        if not costs.empty:
+            n.generators.loc[costs.index, "capital_cost"] += costs
+            logger.info("Displacing {} generator(s) and adding connection costs {} to capital_costs"
+                        .format(tech, ", ".join("of {:.0f} Eur/MW to `{}`".format(d, b) for b, d in costs.iteritems())))
+
+def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
         n.mremove(c, n.df(c).index)
 
@@ -87,7 +116,7 @@ def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Lo
             if not df.empty:
                 import_series_from_dataframe(n, df, c, attr)
 
-    _adjust_costs_using_distance(n, distance)
+    _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus)
 
     generators, generators_pnl = aggregategenerators(n, busmap)
     replace_components(n, "Generator", generators, generators_pnl)
@@ -101,16 +130,6 @@ def _aggregate_and_move_components(n, busmap, distance, aggregate_one_ports={"Lo
     for c in n.branch_components:
         df = n.df(c)
         n.mremove(c, df.index[df.bus0.isin(buses_to_del) | df.bus1.isin(buses_to_del)])
-
-def _compute_distance(n, busmap, buses=None, adjacency_matrix=None):
-    if buses is None:
-        buses = busmap.index[busmap.index != busmap.values]
-
-    if adjacency_matrix is None:
-        adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
-
-    dist = dijkstra(adjacency_matrix, directed=False, indices=n.buses.index.get_indexer(buses))
-    return pd.Series(dist[np.arange(len(buses)), n.buses.index.get_indexer(busmap.loc[buses])], buses)
 
 def simplify_links(n):
     ## Complex multi-node links are folded into end-points
@@ -155,8 +174,9 @@ def simplify_links(n):
             seen.add(u)
 
     busmap = n.buses.index.to_series()
-    distance = pd.Series(0., n.buses.index)
-    adjacency_matrix = n.adjacency_matrix(weights=pd.concat(dict(Link=n.links.length, Line=pd.Series(0., n.lines.index))))
+
+    connection_costs_per_link = _prepare_connection_costs_per_link(n)
+    connection_costs_to_bus = pd.DataFrame(0., index=n.buses.index, columns=list(connection_costs_per_link))
 
     for lbl in labels.value_counts().loc[lambda s: s > 2].index:
 
@@ -169,7 +189,7 @@ def simplify_links(n):
             m = sp.spatial.distance_matrix(n.buses.loc[b, ['x', 'y']],
                                            n.buses.loc[buses[1:-1], ['x', 'y']])
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
-            distance.loc[buses] += _compute_distance(n, busmap, buses)
+            connection_costs_to_bus.loc[buses] += _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link, buses)
 
             all_links = [i for _, i in sum(links, [])]
 
@@ -200,7 +220,7 @@ def simplify_links(n):
 
     logger.debug("Collecting all components using the busmap")
 
-    _aggregate_and_move_components(n, busmap, distance)
+    _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
     return n, busmap
 
 def remove_stubs(n):
@@ -208,9 +228,9 @@ def remove_stubs(n):
 
     busmap = busmap_by_stubs(n) #  ['country'])
 
-    distance = _compute_distance(n, busmap)
+    connection_costs_to_bus = _compute_connection_costs_to_bus(n, busmap)
 
-    _aggregate_and_move_components(n, busmap, distance)
+    _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
 
     return n, busmap
 

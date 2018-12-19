@@ -16,10 +16,15 @@ lignite,2030,lifetime,40,years,IEA2010
 geothermal,2030,lifetime,40,years,IEA2010
 biomass,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
 oil,2030,lifetime,30,years,ECF2010 in DIW DataDoc http://hdl.handle.net/10419/80348
-onwind,2030,investment,910,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+onwind,2030,investment,1110,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+onwind-landcosts,2030,investment,200,EUR/kWel,Land costs and compensation payments conservatively estimated based on DEA https://ens.dk/en/our-services/projections-and-models/technology-data
 offwind,2030,investment,1640,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
-offwind-grid,2030,investment,255,EUR/kWel,Haertel 2017; assuming one onshore and one offshore node
-offwind-grid-perlength,2030,investment,0.97,EUR/kWel/km,Haertel 2017
+offwind-ac-station,2030,investment,250,EUR/kWel,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind-ac-connection-submarine,2030,investment,2685,EUR/MW/km,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind-ac-connection-underground,2030,investment,1342,EUR/MW/km,DEA https://ens.dk/en/our-services/projections-and-models/technology-data
+offwind-dc-station,2030,investment,400,EUR/kWel,Haertel 2017; assuming one onshore and one offshore node + 13% learning reduction
+offwind-dc-connection-submarine,2030,investment,2000,EUR/MW/km,DTU report based on Fig 34 of https://ec.europa.eu/energy/sites/ener/files/documents/2014_nsog_report.pdf
+offwind-dc-connection-underground,2030,investment,1000,EUR/MW/km,Haertel 2017; average + 13% learning reduction
 solar,2030,investment,600,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 biomass,2030,investment,2209,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
 geothermal,2030,investment,3392,EUR/kWel,DIW DataDoc http://hdl.handle.net/10419/80348
@@ -177,7 +182,7 @@ HVAC overhead,2030,FOM,2,%/year,Hagspiel
 HVDC overhead,2030,investment,400,EUR/MW/km,Hagspiel
 HVDC overhead,2030,lifetime,40,years,Hagspiel
 HVDC overhead,2030,FOM,2,%/year,Hagspiel
-HVDC submarine,2030,investment,2000,EUR/MW/km,Own analysis of European submarine HVDC projects since 2000
+HVDC submarine,2030,investment,2000,EUR/MW/km,DTU report based on Fig 34 of https://ec.europa.eu/energy/sites/ener/files/documents/2014_nsog_report.pdf
 HVDC submarine,2030,lifetime,40,years,Hagspiel
 HVDC submarine,2030,FOM,2,%/year,Hagspiel
 HVDC inverter pair,2030,investment,150000,EUR/MW,Hagspiel

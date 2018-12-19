@@ -72,7 +72,7 @@ renewable:
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
     natura: true
     potential: conservative # or heuristic
-  offwind:
+  offwind-ac:
     cutout: europe-2013-era5
     resource:
       method: wind
@@ -83,6 +83,20 @@ renewable:
     corine: [44, 255]
     natura: true
     max_depth: 50
+    max_shore_distance: 80000
+    potential: conservative # or heuristic
+  offwind-dc:
+    cutout: europe-2013-era5
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    # ScholzPhd Tab 4.3.1: 10MW/km^2
+    capacity_per_sqkm: 3
+    # correction_factor: 0.93
+    corine: [44, 255]
+    natura: true
+    max_depth: 50
+    min_shore_distance: 80000
     potential: conservative # or heuristic
   solar:
     cutout: europe-2013-sarah

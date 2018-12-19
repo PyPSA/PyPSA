@@ -161,15 +161,18 @@ def attach_wind_and_solar(n, costs):
 
         n.add("Carrier", name=tech)
         with xr.open_dataset(getattr(snakemake.input, 'profile_' + tech)) as ds:
-            capital_cost = costs.at[tech, 'capital_cost']
-            if tech + "-grid" in costs.index:
-                if tech + "-grid-perlength" in costs.index:
-                    grid_cost = costs.at[tech + "-grid", "capital_cost"] + costs.at[tech + "-grid-perlength", 'capital_cost'] * ds['average_distance'].to_pandas()
-                    logger.info("Added connection cost of {:0.0f}-{:0.0f} Eur/MW/a to {}".format(grid_cost.min(), grid_cost.max(), tech))
-                else:
-                    grid_cost = costs.at[tech + "-grid", "capital_cost"]
-                    logger.info("Added connection cost of {:0.0f} Eur/MW/a to {}".format(grid_cost, tech))
-                capital_cost = capital_cost + grid_cost
+            suptech = tech.split('-', 2)[0]
+            if suptech == 'offwind':
+                underwater_fraction = ds['underwater_fraction'].to_pandas()
+                connection_cost = (snakemake.config['lines']['length_factor'] * ds['average_distance'].to_pandas() *
+                                   (underwater_fraction * costs.at[tech + '-connection-submarine', 'capital_cost'] +
+                                    (1. - underwater_fraction) * costs.at[tech + '-connection-underground', 'capital_cost']))
+                capital_cost = costs.at['offwind', 'capital_cost'] + costs.at[tech + '-station', 'capital_cost'] + connection_cost
+                logger.info("Added connection cost of {:0.0f}-{:0.0f} Eur/MW/a to {}".format(connection_cost.min(), connection_cost.max(), tech))
+            elif suptech == 'onwind':
+                capital_cost = costs.at['onwind', 'capital_cost'] + costs.at['onwind-landcosts', 'capital_cost']
+            else:
+                capital_cost = costs.at[tech, 'capital_cost']
 
             n.madd("Generator", ds.indexes['bus'], ' ' + tech,
                    bus=ds.indexes['bus'],
@@ -177,9 +180,9 @@ def attach_wind_and_solar(n, costs):
                    p_nom_extendable=True,
                    p_nom_max=ds['p_nom_max'].to_pandas(),
                    weight=ds['weight'].to_pandas(),
-                   marginal_cost=costs.at[tech, 'marginal_cost'],
+                   marginal_cost=costs.at[suptech, 'marginal_cost'],
                    capital_cost=capital_cost,
-                   efficiency=costs.at[tech, 'efficiency'],
+                   efficiency=costs.at[suptech, 'efficiency'],
                    p_max_pu=ds['profile'].transpose('time', 'bus').to_pandas())
 
 
