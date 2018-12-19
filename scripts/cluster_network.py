@@ -154,7 +154,9 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True, line_len
 def save_to_geojson(s, fn):
     if os.path.exists(fn):
         os.unlink(fn)
-    s.reset_index().to_file(fn, driver='GeoJSON')
+    df = s.reset_index()
+    schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
+    df.to_file(fn, driver='GeoJSON', schema=schema)
 
 def cluster_regions(busmaps, input=None, output=None):
     if input is None: input = snakemake.input
