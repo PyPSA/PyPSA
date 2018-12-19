@@ -169,7 +169,7 @@ if __name__ == '__main__':
         import geopandas as gpd
         from shapely.geometry import LineString
 
-        offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
+        offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
         underwater_fraction = []
         for i in regions.index:
             row = layoutmatrix[i]

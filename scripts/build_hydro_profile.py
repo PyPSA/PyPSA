@@ -13,7 +13,7 @@ cutout = atlite.Cutout(snakemake.config['renewable']['hydro']['cutout'],
                        cutout_dir=os.path.dirname(snakemake.input.cutout))
 
 countries = snakemake.config['countries']
-country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry'].reindex(countries)
+country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry'].reindex(countries)
 country_shapes.index.name = 'countries'
 
 eia_stats = vhydro.get_eia_annual_hydro_generation(snakemake.input.eia_hydro_generation).reindex(columns=countries)

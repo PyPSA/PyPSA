@@ -277,8 +277,8 @@ def _set_countries_and_substations(n):
         )
 
     countries = snakemake.config['countries']
-    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
-    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
+    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
+    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
     substation_b = buses['symbol'].str.contains('substation|converter station', case=False)
 
     def prefer_voltage(x, which):
@@ -387,7 +387,7 @@ def _replace_b2b_converter_at_country_border_by_link(n):
                         .format(i, b0, line, linkcntry.at[i], buscntry.at[b1]))
 
 def _set_links_underwater_fraction(n):
-    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
+    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
     links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
     n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 

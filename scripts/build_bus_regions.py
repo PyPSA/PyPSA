@@ -12,8 +12,8 @@ countries = snakemake.config['countries']
 
 n = pypsa.Network(snakemake.input.base_network)
 
-country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
-offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
+country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
+offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
 
 onshore_regions = []
 offshore_regions = []
