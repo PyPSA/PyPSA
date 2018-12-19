@@ -50,7 +50,7 @@ def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
 
 def calculate_potential(gid):
     feature = gk.vector.extractFeature(snakemake.input.regions, where=gid)
-    ec = gl.ExclusionCalculator(feature.geom, srs=4326, pixelRes=1e-3) # about 100m in EU, it also works in LAEA 3035
+    ec = gl.ExclusionCalculator(feature.geom)
 
     corine = config.get("corine", {})
     if isinstance(corine, list):
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     with Pool(initializer=init_globals, initargs=(bounds, dx, dy),
               maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
-        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True).iloc[:10]
+        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True)
         buses = pd.Index(regions['name'], name="bus")
         widgets = [
             pgb.widgets.Percentage(),
