@@ -121,12 +121,14 @@ def nuts3(country_shapes):
 
     return df
 
-def save_to_geojson(s, fn):
+def save_to_geojson(df, fn):
     if os.path.exists(fn):
         os.unlink(fn)
-    if isinstance(s, gpd.GeoDataFrame):
-        s = s.reset_index()
-    s.to_file(fn, driver='GeoJSON')
+    if not isinstance(df, gpd.GeoDataFrame):
+        df = gpd.GeoDataFrame(dict(geometry=df))
+    df = df.reset_index()
+    schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
+    df.to_file(fn, driver='GeoJSON', schema=schema)
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
