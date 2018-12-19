@@ -116,24 +116,17 @@ if __name__ == '__main__':
     potmatrix.data[potmatrix.data < 1.] = 0 # ignore weather cells where only less than 1 MW can be installed
     potmatrix.eliminate_zeros()
 
-    with pgb.ProgressBar(prefix='Compute capacity factors: ', max_value=1) as progressbar:
-        progressbar.update(0)
-        resource = config['resource']
-        func = getattr(cutout, resource.pop('method'))
-        correction_factor = config.get('correction_factor', 1.)
-        if correction_factor != 1.:
-            logger.warning('correction_factor is set as {}'.format(correction_factor))
-        capacity_factor = correction_factor * func(capacity_factor=True, **resource).stack(spatial=('y', 'x')).values
-        layoutmatrix = potmatrix * spdiag(capacity_factor)
-        progressbar.update(1)
+    resource = config['resource']
+    func = getattr(cutout, resource.pop('method'))
+    correction_factor = config.get('correction_factor', 1.)
+    if correction_factor != 1.:
+        logger.warning('correction_factor is set as {}'.format(correction_factor))
+    capacity_factor = correction_factor * func(capacity_factor=True, show_progress='Compute capacity factors: ', **resource).stack(spatial=('y', 'x')).values
+    layoutmatrix = potmatrix * spdiag(capacity_factor)
 
-
-    with pgb.ProgressBar(prefix='Compute profiles: ', max_value=1) as progressbar:
-        progressbar.update(0)
-        profile, capacities = func(matrix=layoutmatrix, index=buses, per_unit=True,
-                                   return_capacity=True, **resource)
-        progressbar.update(1)
-
+    profile, capacities = func(matrix=layoutmatrix, index=buses, per_unit=True,
+                               return_capacity=True, show_progress='Compute profiles: ',
+                               **resource)
 
     p_nom_max_meth = config.get('potential', 'conservative')
 
