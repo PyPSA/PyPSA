@@ -52,7 +52,9 @@ def eez(country_shapes):
     df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in snakemake.config['countries']])]
     df['name'] = df['ISO_3digit'].map(lambda c: _get_country('alpha_2', alpha_3=c))
     s = df.set_index('name').geometry.map(lambda s: _simplify_polys(s, filterremote=False))
-    return gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
+    s = gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
+    s.index.name = "name"
+    return s
 
 def country_cover(country_shapes, eez_shapes=None):
     shapes = list(country_shapes)
