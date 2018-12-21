@@ -104,8 +104,8 @@ def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
         costs = n.generators.loc[tech_b, "bus"].map(connection_costs_to_bus[tech]).loc[lambda s: s>0]
         if not costs.empty:
             n.generators.loc[costs.index, "capital_cost"] += costs
-            logger.info("Displacing {} generator(s) and adding connection costs {} to capital_costs"
-                        .format(tech, ", ".join("of {:.0f} Eur/MW to `{}`".format(d, b) for b, d in costs.iteritems())))
+            logger.info("Displacing {} generator(s) and adding connection costs to capital_costs: {} "
+                        .format(tech, ", ".join("{:.0f} Eur/MW/a for `{}`".format(d, b) for b, d in costs.iteritems())))
 
 def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
