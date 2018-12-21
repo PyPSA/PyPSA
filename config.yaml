@@ -72,12 +72,12 @@ renewable:
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
     natura: true
     potential: conservative # or heuristic
+    clip_p_max_pu: 1.e-2
   offwind-ac:
     cutout: europe-2013-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
-    # ScholzPhd Tab 4.3.1: 10MW/km^2
     capacity_per_sqkm: 3
     # correction_factor: 0.93
     corine: [44, 255]
@@ -85,6 +85,7 @@ renewable:
     max_depth: 50
     max_shore_distance: 80000
     potential: conservative # or heuristic
+    clip_p_max_pu: 1.e-2
   offwind-dc:
     cutout: europe-2013-era5
     resource:
@@ -98,6 +99,7 @@ renewable:
     max_depth: 50
     min_shore_distance: 80000
     potential: conservative # or heuristic
+    clip_p_max_pu: 1.e-2
   solar:
     cutout: europe-2013-sarah
     resource:
@@ -113,14 +115,14 @@ renewable:
              14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
     natura: true
     potential: conservative # or heuristic
+    clip_p_max_pu: 1.e-2
   hydro:
     cutout: europe-2013-era5
     carriers: [ror, PHS, hydro]
     PHS_max_hours: 6
     hydro_max_hours: "energy_capacity_totals_by_country" # one of energy_capacity_totals_by_country,
                                                          # estimate_by_large_installations or a float
-
-
+    clip_min_inflow: 1.0
 lines:
   types:
     220.: "Al/St 240/40 2-bundle 220.0"
@@ -166,7 +168,6 @@ costs:
 solving:
   options:
     formulation: kirchhoff
-    clip_p_max_pu: 1.e-2
     load_shedding: true
     noisy_costs: true
     min_iterations: 4

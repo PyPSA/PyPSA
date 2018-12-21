@@ -9,7 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(level=snakemake.config['logging_level'])
 
-cutout = atlite.Cutout(snakemake.config['renewable']['hydro']['cutout'],
+config = snakemake.config['renewable']['hydro']
+cutout = atlite.Cutout(config['cutout'],
                        cutout_dir=os.path.dirname(snakemake.input.cutout))
 
 countries = snakemake.config['countries']
@@ -21,5 +22,7 @@ inflow = cutout.runoff(shapes=country_shapes,
                        smooth=True,
                        lower_threshold_quantile=True,
                        normalize_using_yearly=eia_stats)
+
+inflow.values[inflow.values < config.get('min_inflow', 1.)] = 0.
 
 inflow.to_netcdf(snakemake.output[0])

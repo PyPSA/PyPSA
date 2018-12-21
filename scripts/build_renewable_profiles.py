@@ -179,5 +179,10 @@ if __name__ == '__main__':
 
         ds['underwater_fraction'] = xr.DataArray(underwater_fraction, [buses])
 
-    (ds.sel(bus=(ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) & (ds['p_nom_max'] > 0.))
-     .to_netcdf(snakemake.output.profile))
+    # select only buses with some capacity and minimal capacity factor
+    ds = ds.sel(bus=((ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) &
+                     (ds['p_nom_max'] > config.get('min_p_nom_max', 0.))))
+
+    ds['profile'].values[ds['profile'].values < config.get('clip_p_max_pu')] = 0.
+
+    ds.to_netcdf(snakemake.output.profile)
