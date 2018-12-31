@@ -23,6 +23,7 @@ inflow = cutout.runoff(shapes=country_shapes,
                        lower_threshold_quantile=True,
                        normalize_using_yearly=eia_stats)
 
-inflow.values[inflow.values < config.get('min_inflow', 1.)] = 0.
+if 'clip_min_inflow' in config:
+    inflow.values[inflow.values < config['clip_min_inflow']] = 0.
 
 inflow.to_netcdf(snakemake.output[0])
