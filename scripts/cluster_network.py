@@ -136,17 +136,25 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
     n.plot(bus_colors=busmap.map(dict(zip(cs, cr))))
     del cs, cr
 
-def clustering_for_n_clusters(n, n_clusters, aggregate_renewables=True, line_length_factor=1.25):
-    aggregate_generators_carriers = (None if aggregate_renewables
-                                     else (pd.Index(n.generators.carrier.unique())
-                                           .difference(['onwind', 'offwind', 'solar'])))
+def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
+                              line_length_factor=1.25, potential_mode='conservative'):
+
+    if potential_mode == 'conservative':
+        p_nom_max_strategy = np.min
+    elif potential_mode == 'heuristic':
+        p_nom_max_strategy = np.sum
+    else:
+        raise AttributeError("potential_mode should be one of 'conservative' or 'heuristic', "
+                             "but is '{}'".format(potential_mode))
+
     clustering = get_clustering_from_busmap(
         n, busmap_for_n_clusters(n, n_clusters),
         bus_strategies=dict(country=_make_consense("Bus", "country")),
         aggregate_generators_weighted=True,
-        aggregate_generators_carriers=aggregate_generators_carriers,
+        aggregate_generators_carriers=aggregate_carriers,
         aggregate_one_ports=["Load", "StorageUnit"],
-        line_length_factor=line_length_factor
+        line_length_factor=line_length_factor,
+        generator_strategies={'p_nom_max': p_nom_max_strategy}
     )
 
     return clustering
@@ -193,12 +201,16 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
 
+    renewable_carriers = pd.Index([tech
+                                   for tech in n.generators.carrier.unique()
+                                   if tech.split('-', 2)[0] in snakemake.config['renewable']])
+
     if snakemake.wildcards.clusters.endswith('m'):
         n_clusters = int(snakemake.wildcards.clusters[:-1])
-        aggregate_renewables = False
+        aggregate_carriers = None # All
     else:
         n_clusters = int(snakemake.wildcards.clusters)
-        aggregate_renewables = True
+        aggregate_carriers = pd.Index(n.generators.carrier.unique()).difference(renewable_carriers)
 
     if n_clusters == len(n.buses):
         # Fast-path if no clustering is necessary
@@ -207,7 +219,18 @@ if __name__ == "__main__":
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
         line_length_factor = snakemake.config['lines']['length_factor']
-        clustering = clustering_for_n_clusters(n, n_clusters, aggregate_renewables, line_length_factor=line_length_factor)
+
+        def consense(x):
+            v = x.iat[0]
+            assert ((x == v).all() or x.isnull().all()), (
+                "The `potential` configuration option must agree for all renewable carriers, for now!"
+            )
+            return v
+        potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+                                             for tech in renewable_carriers]))
+        clustering = clustering_for_n_clusters(n, n_clusters, aggregate_carriers,
+                                               line_length_factor=line_length_factor,
+                                               potential_mode=potential_mode)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:

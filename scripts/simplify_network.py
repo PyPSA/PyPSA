@@ -268,7 +268,19 @@ if __name__ == "__main__":
 
     if snakemake.wildcards.simpl:
         n_clusters = int(snakemake.wildcards.simpl)
-        clustering = clustering_for_n_clusters(n, n_clusters)
+
+        renewable_carriers = pd.Index([tech
+                                       for tech in n.generators.carrier.unique()
+                                       if tech.split('-', 2)[0] in snakemake.config['renewable']])
+        def consense(x):
+            v = x.iat[0]
+            assert ((x == v).all() or x.isnull().all()), (
+                "The `potential` configuration option must agree for all renewable carriers, for now!"
+            )
+            return v
+        potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+                                             for tech in renewable_carriers]))
+        clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode)
 
         n = clustering.network
         busmaps.append(clustering.busmap)
