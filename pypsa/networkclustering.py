@@ -67,7 +67,7 @@ def _haversine(coords):
     a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
     return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
 
-def aggregategenerators(network, busmap, with_time=True, carriers=None):
+def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_strategies=dict()):
     if carriers is None:
         carriers = network.generators.carrier.unique()
 
@@ -79,9 +79,12 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None):
     grouper = [generators.bus, generators.carrier]
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
-    generators['p_nom_max'] /= weighting
     generators['capital_cost'] *= weighting
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum, 'capital_cost': np.sum}
+    strategies.update(custom_strategies)
+    if strategies['p_nom_max'] is np.min:
+        generators['p_nom_max'] /= weighting
+
     strategies.update((attr, _make_consense('Generator', attr))
                       for attr in columns.difference(strategies))
     new_df = generators.groupby(grouper, axis=0).agg(strategies)
@@ -235,7 +238,8 @@ Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
 def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
                                aggregate_generators_carriers=None,
-                               bus_strategies=dict(), one_port_strategies=dict()):
+                               bus_strategies=dict(), one_port_strategies=dict(),
+                               generator_strategies=dict()):
 
     buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies)
 
@@ -252,7 +256,8 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     if aggregate_generators_weighted:
         one_port_components.remove("Generator")
         generators, generators_pnl = aggregategenerators(network, busmap, with_time=with_time,
-                                                         carriers=aggregate_generators_carriers)
+                                                         carriers=aggregate_generators_carriers,
+                                                         custom_strategies=generator_strategies)
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
             for attr, df in iteritems(generators_pnl):
