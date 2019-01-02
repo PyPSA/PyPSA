@@ -107,6 +107,15 @@ def _load_links_from_eg(buses):
 def _add_links_from_tyndp(buses, links):
     links_tyndp = pd.read_csv(snakemake.input.links_tyndp)
 
+    # remove all links from list which lie outside all of the desired countries
+    europe_shape = gpd.read_file(snakemake.input.europe_shape).loc[0, 'geometry']
+    europe_shape_prepped = shapely.prepared.prep(europe_shape)
+    x1y1_in_europe_b = links_tyndp[['x1', 'y1']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
+    x2y2_in_europe_b = links_tyndp[['x2', 'y2']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
+    is_within_covered_countries_b = x1y1_in_europe_b & x2y2_in_europe_b
+
+    links_tyndp = links_tyndp.loc[is_within_covered_countries_b]
+
     has_replaces_b = links_tyndp.replaces.notnull()
     oids = dict(Bus=_get_oid(buses), Link=_get_oid(links))
     keep_b = dict(Bus=pd.Series(True, index=buses.index),
