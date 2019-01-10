@@ -1,7 +1,7 @@
 
 
-## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
-## Schlachtberger (FIAS)
+## Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT,
+## FIAS), David Schlachtberger (FIAS)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -30,6 +30,6 @@ from . import pf, opf, plot, networkclustering, io, contingency, geo
 
 from .components import Network, SubNetwork
 
-__version__ = "0.13.1"
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__version__ = "0.13.2"
+__author__ = "Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), David Schlachtberger (FIAS)"
+__copyright__ = "Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), David Schlachtberger (FIAS), GNU GPL 3"

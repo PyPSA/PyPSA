@@ -2,6 +2,29 @@
 Release Notes
 #######################
 
+
+PyPSA 0.13.2 (10th January 2019)
+================================
+
+This minor release contains small new features and fixes.
+
+* Optimisation now works with Pyomo >= 5.6 (there was a Pyomo update
+  that affected the opt.py LConstraint object).
+* New functional argument can be passed to Network.lopf:
+  extra_postprocessing(network,snapshots,duals), which is called after
+  solving and results are extracted. It can be used to get the values
+  of shadow prices for constraints that are not normally extracted by
+  PyPSA.
+* In the lopf kirchhoff formulation, the cycle constraint is rescaled
+  by a factor 1e5, which improves the numerical stability of the
+  interior point algorithm (since the coefficients in the constraint
+  matrix were very small).
+* Updates and fixes to networkclustering, io, plot.
+
+We thank Soner Candas of TUM for reporting the problem with the most
+recent version of Pyomo and providing the fix.
+
+
 PyPSA 0.13.1 (27th March 2018)
 ==============================
 

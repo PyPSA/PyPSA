@@ -228,8 +228,8 @@ This can be found linked from the overall PyPSA Zenodo DOI:
 Licence
 =======
 
-Copyright 2015-2018 Tom Brown (FIAS), Jonas Hörsch (FIAS), David
-Schlachtberger (FIAS)
+Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
+David Schlachtberger (FIAS)
 
 This program is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
