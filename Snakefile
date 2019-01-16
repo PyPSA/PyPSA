@@ -266,8 +266,8 @@ rule make_summary:
     script: "scripts/make_summary.py"
 
 rule plot_summary:
-    input: directory("results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}")
-    output: "results/plots/summary_{summary}_{network}_s{simpl}_{clusters}_lv{lv}_{opts}.{ext}"
+    input: "results/summaries/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{country}"
+    output: "results/plots/summary_{summary}_{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{country}.{ext}"
     script: "scripts/plot_summary.py"
 
 # Local Variables:

@@ -187,7 +187,7 @@ fig.savefig(snakemake.output.only_map, dpi=150,
 ax1 = ax = fig.add_axes([-0.115, 0.625, 0.2, 0.2])
 ax.set_title('Energy per technology', fontdict=dict(fontsize="medium"))
 
-e_primary = aggregate_p(n).drop('load').loc[lambda s: s>0]
+e_primary = aggregate_p(n).drop('load', errors='ignore').loc[lambda s: s>0]
 
 patches, texts, autotexts = ax.pie(e_primary,
        startangle=90,
@@ -214,8 +214,8 @@ def split_costs(n):
 
 costs, costs_cap_ex, costs_cap_new, costs_marg = split_costs(n)
 
-costs_graph = pd.DataFrame(dict(a=costs.drop('load')),
-                          index=['AC-AC', 'AC line', 'onwind', 'offwind', 'solar', 'OCGT', 'battery', 'H2']).dropna()
+costs_graph = pd.DataFrame(dict(a=costs.drop('load', errors='ignore')),
+                          index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT', 'battery', 'H2']).dropna()
 bottom = np.array([0., 0.])
 texts = []
 

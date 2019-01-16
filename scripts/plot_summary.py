@@ -31,6 +31,10 @@ def rename_techs(label):
         label = "methanation"
     elif label == "offwind":
         label = "offshore wind"
+    elif label == "offwind-ac":
+        label = "offshore wind ac"
+    elif label == "offwind-dc":
+        label = "offshore wind dc"
     elif label == "onwind":
         label = "onshore wind"
     elif label == "ror":
@@ -47,7 +51,7 @@ def rename_techs(label):
     return label
 
 
-preferred_order = pd.Index(["transmission lines","hydroelectricity","hydro reservoir","run of river","pumped hydro storage","onshore wind","offshore wind","solar PV","solar thermal","building retrofitting","ground heat pump","air heat pump","resistive heater","CHP","OCGT","gas boiler","gas","natural gas","methanation","hydrogen storage","battery storage","hot water storage"])
+preferred_order = pd.Index(["transmission lines","hydroelectricity","hydro reservoir","run of river","pumped hydro storage","onshore wind","offshore wind ac", "offshore wind dc","solar PV","solar thermal","building retrofitting","ground heat pump","air heat pump","resistive heater","CHP","OCGT","gas boiler","gas","natural gas","methanation","hydrogen storage","battery storage","hot water storage"])
 
 def plot_costs(infn, fn=None):
 

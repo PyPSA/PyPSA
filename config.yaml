@@ -206,7 +206,7 @@ plotting:
   energy_threshold: 50.
 
 
-  vre_techs: ["onwind", "offwind", "solar", "ror"]
+  vre_techs: ["onwind", "offwind-ac", "offwind-dc", "solar", "ror"]
   conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
   storage_techs: ["hydro+PHS", "battery", "H2"]
   # store_techs: ["Li ion", "water tanks"]
@@ -221,7 +221,11 @@ plotting:
     "onwind" : "b"
     "onshore wind" : "b"
     'offwind' : "c"
+    'offwind-ac' : "c"
+    'offwind-dc' : "aquamarine"
     'offshore wind' : "c"
+    'offshore wind ac' : "c"
+    'offshore wind dc' : "aquamarine"
     "hydro" : "#3B5323"
     "hydro+PHS" : "#3B5323"
     "hydro reservoir" : "#3B5323"
