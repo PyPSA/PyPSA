@@ -309,7 +309,7 @@ def attach_hydro(n, costs, ppl):
 def attach_extendable_generators(n, costs, ppl):
     elec_opts = snakemake.config['electricity']
     carriers = list(elec_opts['extendable_carriers']['Generator'])
-    assert carriers == ['OCGT'], "Only OCGT plants as extendable generators allowed for now"
+    assert set(carriers).issubset(['OCGT']), "Only OCGT plants as extendable generators allowed for now"
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
