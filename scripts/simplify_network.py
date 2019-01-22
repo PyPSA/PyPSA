@@ -278,8 +278,9 @@ if __name__ == "__main__":
                 "The `potential` configuration option must agree for all renewable carriers, for now!"
             )
             return v
-        potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+        potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
                                              for tech in renewable_carriers]))
+                          if len(renewable_carriers) > 0 else 'conservative')
         clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode)
 
         n = clustering.network
