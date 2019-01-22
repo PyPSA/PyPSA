@@ -114,6 +114,9 @@ def _add_links_from_tyndp(buses, links):
     x2y2_in_europe_b = links_tyndp[['x2', 'y2']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
     is_within_covered_countries_b = x1y1_in_europe_b & x2y2_in_europe_b
 
+    if not is_within_covered_countries_b.all():
+        logger.info("TYNDP links outside of the covered area (skipping): " +
+                    ", ".join(links_tyndp.loc[~ is_within_covered_countries_b, "Name"]))
     links_tyndp = links_tyndp.loc[is_within_covered_countries_b]
 
     has_replaces_b = links_tyndp.replaces.notnull()
@@ -132,7 +135,7 @@ def _add_links_from_tyndp(buses, links):
     # Corresponds approximately to 60km tolerances
 
     if links_tyndp["j"].notnull().any():
-        logger.info("The following TYNDP links were already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
+        logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
         links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
 
     tree = sp.spatial.KDTree(buses[['x', 'y']])
