@@ -420,6 +420,12 @@ def _adjust_capacities_of_under_construction_branches(n):
     elif links_mode != 'keep':
         logger.warn("Unrecognized configuration for `links: under_construction` = `{}`. Keeping under construction links.")
 
+    if lines_mode == 'remove' or links_mode == 'remove':
+        # We might need to remove further unconnected components
+        n = _remove_unconnected_components(n)
+
+    return n
+
 def base_network():
     buses = _load_buses_from_eg()
 
@@ -460,7 +466,7 @@ def base_network():
 
     _replace_b2b_converter_at_country_border_by_link(n)
 
-    _adjust_capacities_of_under_construction_branches(n)
+    n = _adjust_capacities_of_under_construction_branches(n)
 
     return n
 
