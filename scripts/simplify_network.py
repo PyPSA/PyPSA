@@ -234,6 +234,24 @@ def remove_stubs(n):
 
     return n, busmap
 
+def cluster(n, n_clusters):
+    logger.info("Clustering to {} buses".format(n_clusters))
+
+    renewable_carriers = pd.Index([tech
+                                    for tech in n.generators.carrier.unique()
+                                    if tech.split('-', 2)[0] in snakemake.config['renewable']])
+    def consense(x):
+        v = x.iat[0]
+        assert ((x == v).all() or x.isnull().all()), (
+            "The `potential` configuration option must agree for all renewable carriers, for now!"
+        )
+        return v
+    potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+                                            for tech in renewable_carriers]))
+                        if len(renewable_carriers) > 0 else 'conservative')
+    clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode)
+
+    return clustering.network, clustering.busmap
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
@@ -269,25 +287,8 @@ if __name__ == "__main__":
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
     if snakemake.wildcards.simpl:
-        n_clusters = int(snakemake.wildcards.simpl)
-        logger.info("Clustering to {} buses".format(n_clusters))
-
-        renewable_carriers = pd.Index([tech
-                                       for tech in n.generators.carrier.unique()
-                                       if tech.split('-', 2)[0] in snakemake.config['renewable']])
-        def consense(x):
-            v = x.iat[0]
-            assert ((x == v).all() or x.isnull().all()), (
-                "The `potential` configuration option must agree for all renewable carriers, for now!"
-            )
-            return v
-        potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
-                                             for tech in renewable_carriers]))
-                          if len(renewable_carriers) > 0 else 'conservative')
-        clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode)
-
-        n = clustering.network
-        busmaps.append(clustering.busmap)
+        n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
+        busmaps.append(cluster_map)
 
     n.export_to_netcdf(snakemake.output.network)
 
