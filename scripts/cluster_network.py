@@ -96,8 +96,12 @@ def distribute_clusters_optim(n, n_clusters, solver_name=None):
          .groupby([n.buses.country, n.buses.sub_network]).sum()
          .pipe(normed))
 
+    N = n.buses.groupby(['country', 'sub_network']).size()
+
     m = po.ConcreteModel()
-    m.n = po.Var(list(L.index), bounds=(1, None), domain=po.Integers)
+    def n_bounds(model, *n_id):
+        return (1, N[n_id])
+    m.n = po.Var(list(L.index), bounds=n_bounds, domain=po.Integers)
     m.tot = po.Constraint(expr=(po.summation(m.n) == n_clusters))
     m.objective = po.Objective(expr=po.sum((m.n[i] - L.loc[i]*n_clusters)**2
                                            for i in L.index),
