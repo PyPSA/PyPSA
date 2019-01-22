@@ -60,34 +60,7 @@ def plot_weighting(n, country, country_shape=None):
 
 # # Determining the number of clusters per country
 
-def distribute_clusters(n, n_clusters):
-    load = n.loads_t.p_set.mean().groupby(n.loads.bus).sum()
-    loadc = load.groupby([n.buses.country, n.buses.sub_network]).sum()
-    n_cluster_per_country = n_clusters * normed(loadc)
-    one_cluster_b = n_cluster_per_country < 0.5
-    n_one_cluster, n_one_cluster_prev = one_cluster_b.sum(), 0
-
-    while n_one_cluster > n_one_cluster_prev:
-        n_clusters_rem = n_clusters - one_cluster_b.sum()
-        assert n_clusters_rem > 0
-        n_cluster_per_country[~one_cluster_b] = n_clusters_rem * normed(loadc[~one_cluster_b])
-        one_cluster_b = n_cluster_per_country < 0.5
-        n_one_cluster, n_one_cluster_prev = one_cluster_b.sum(), n_one_cluster
-
-    n_cluster_per_country[one_cluster_b] = 1.1
-    n_cluster_per_country[~one_cluster_b] = n_cluster_per_country[~one_cluster_b] + 0.5
-
-    return n_cluster_per_country.astype(int)
-
-def distribute_clusters_exactly(n, n_clusters):
-    for d in [0, 1, -1, 2, -2]:
-        n_cluster_per_country = distribute_clusters(n, n_clusters + d)
-        if n_cluster_per_country.sum() == n_clusters:
-            return n_cluster_per_country
-    else:
-        return distribute_clusters(n, n_clusters)
-
-def distribute_clusters_optim(n, n_clusters, solver_name=None):
+def distribute_clusters(n, n_clusters, solver_name=None):
     if solver_name is None:
         solver_name = snakemake.config['solver']['solver']['name']
 
@@ -127,7 +100,7 @@ def busmap_for_n_clusters(n, n_clusters, **kmeans_kwds):
     else:
         solver_name = "gurobi"
 
-    n_clusters = distribute_clusters_optim(n, n_clusters, solver_name=solver_name)
+    n_clusters = distribute_clusters(n, n_clusters, solver_name=solver_name)
 
     def busmap_for_country(x):
         prefix = x.name[0] + x.name[1] + ' '
