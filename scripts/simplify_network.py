@@ -241,16 +241,18 @@ if __name__ == "__main__":
         from vresutils.snakemake import MockSnakemake, Dict
         snakemake = MockSnakemake(
             path='..',
-            wildcards=Dict(simpl=''),
+            wildcards=Dict(simpl='1024', network='elec'),
             input=Dict(
-                network='networks/elec.nc',
-                regions_onshore='resources/regions_onshore.geojson',
-                regions_offshore='resources/regions_offshore.geojson'
+                network='networks/{network}.nc',
+                tech_costs="data/costs.csv",
+                regions_onshore="resources/regions_onshore.geojson",
+                regions_offshore="resources/regions_offshore.geojson"
             ),
             output=Dict(
-                network='networks/elec_s{simpl}.nc',
-                regions_onshore='resources/regions_onshore_s{simpl}.geojson',
-                regions_offshore='resources/regions_offshore_s{simpl}.geojson'
+                network='networks/{network}_s{simpl}.nc',
+                regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
+                regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
+                clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
             )
         )
 
@@ -268,6 +270,7 @@ if __name__ == "__main__":
 
     if snakemake.wildcards.simpl:
         n_clusters = int(snakemake.wildcards.simpl)
+        logger.info("Clustering to {} buses".format(n_clusters))
 
         renewable_carriers = pd.Index([tech
                                        for tech in n.generators.carrier.unique()

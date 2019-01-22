@@ -111,7 +111,11 @@ def distribute_clusters_optim(n, n_clusters, solver_name=None):
 
     return pd.Series(m.n.get_values(), index=L.index).astype(int)
 
-def busmap_for_n_clusters(n, n_clusters):
+def busmap_for_n_clusters(n, n_clusters, **kmeans_kwds):
+    kmeans_kwds.setdefault('n_init', 1000)
+    kmeans_kwds.setdefault('max_iter', 30000)
+    kmeans_kwds.setdefault('tol', 1e-6)
+
     n.determine_network_topology()
 
     if 'snakemake' in globals():
@@ -123,10 +127,11 @@ def busmap_for_n_clusters(n, n_clusters):
 
     def busmap_for_country(x):
         prefix = x.name[0] + x.name[1] + ' '
+        logger.debug("Determining busmap for country {}".format(prefix[:-1]))
         if len(x) == 1:
             return pd.Series(prefix + '0', index=x.index)
         weight = weighting_for_country(n, x)
-        return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index, n_init=1000, max_iter=30000, tol=1e-6)
+        return prefix + busmap_by_kmeans(n, weight, n_clusters[x.name], buses_i=x.index, **kmeans_kwds)
     return n.buses.groupby(['country', 'sub_network'], group_keys=False).apply(busmap_for_country)
 
 def plot_busmap_for_n_clusters(n, n_clusters=50):
