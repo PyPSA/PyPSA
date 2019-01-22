@@ -397,8 +397,11 @@ try:
             Series of integer weights for buses, indexed by bus names.
         n_clusters : int
             Final number of clusters desired.
+        buses_i : None|pandas.Index
+            If not None (default), subset of buses to cluster.
         kwargs
-            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
+            Any remaining arguments to be passed to KMeans (e.g. n_init,
+            n_jobs).
 
         Returns
         -------
