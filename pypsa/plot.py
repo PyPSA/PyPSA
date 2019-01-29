@@ -147,7 +147,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
         bmap.drawcountries()
         bmap.drawcoastlines()
 
-        x, y = bmap(x.values, y.values)
+        x, y = bmap(x.values, y.values, inverse=True)
         x = pd.Series(x, network.buses.index)
         y = pd.Series(y, network.buses.index)
 
