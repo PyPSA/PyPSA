@@ -231,7 +231,7 @@ def plot(network, margin=0.05, ax=None, basemap=True, bus_colors='b',
                 "The WKT-encoded geometry in the 'geometry' column must be composed of LineStrings"
             segments = np.asarray(list(linestrings.map(np.asarray)))
             if basemap and basemap_present:
-                segments = np.transpose(bmap(*np.transpose(segments, (2, 0, 1))), (1, 2, 0))
+                segments = np.transpose(bmap(*np.transpose(segments, (2, 0, 1)), inverse=True), (1, 2, 0))
 
         l_collection = LineCollection(segments,
                                       linewidths=l_widths,
