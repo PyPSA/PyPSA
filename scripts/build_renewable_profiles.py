@@ -131,7 +131,7 @@ if __name__ == '__main__':
     p_nom_max_meth = config.get('potential', 'conservative')
 
     if p_nom_max_meth == 'simple':
-        p_nom_max = 0.8 * xr.DataArray(np.asarray(potmatrix.sum(axis=1)).squeeze(), [buses])
+        p_nom_max = xr.DataArray(np.asarray(potmatrix.sum(axis=1)).squeeze(), [buses])
     elif p_nom_max_meth == 'conservative':
         # p_nom_max has to be calculated for each bus and is the minimal ratio
         # (min over all weather grid cells of the bus region) between the available
