@@ -119,14 +119,14 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
     del cs, cr
 
 def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
-                              line_length_factor=1.25, potential_mode='conservative'):
+                              line_length_factor=1.25, potential_mode='simple'):
 
-    if potential_mode == 'conservative':
-        p_nom_max_strategy = np.min
-    elif potential_mode == 'heuristic':
+    if potential_mode == 'simple':
         p_nom_max_strategy = np.sum
+    elif potential_mode == 'conservative':
+        p_nom_max_strategy = np.min
     else:
-        raise AttributeError("potential_mode should be one of 'conservative' or 'heuristic', "
+        raise AttributeError("potential_mode should be one of 'simple' or 'conservative', "
                              "but is '{}'".format(potential_mode))
 
     clustering = get_clustering_from_busmap(

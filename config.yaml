@@ -71,7 +71,7 @@ renewable:
       distance: 1000
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
     natura: true
-    potential: conservative # or heuristic
+    potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-ac:
     cutout: europe-2013-era5
@@ -84,7 +84,7 @@ renewable:
     natura: true
     max_depth: 50
     max_shore_distance: 80000
-    potential: conservative # or heuristic
+    potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-dc:
     cutout: europe-2013-era5
@@ -98,7 +98,7 @@ renewable:
     natura: true
     max_depth: 50
     min_shore_distance: 80000
-    potential: conservative # or heuristic
+    potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   solar:
     cutout: europe-2013-sarah
@@ -114,7 +114,7 @@ renewable:
     corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
              14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
     natura: true
-    potential: conservative # or heuristic
+    potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   hydro:
     cutout: europe-2013-era5

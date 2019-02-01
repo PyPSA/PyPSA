@@ -130,7 +130,9 @@ if __name__ == '__main__':
 
     p_nom_max_meth = config.get('potential', 'conservative')
 
-    if p_nom_max_meth == 'conservative':
+    if p_nom_max_meth == 'simple':
+        p_nom_max = 0.8 * xr.DataArray(np.asarray(potmatrix.sum(axis=1)).squeeze(), [buses])
+    elif p_nom_max_meth == 'conservative':
         # p_nom_max has to be calculated for each bus and is the minimal ratio
         # (min over all weather grid cells of the bus region) between the available
         # potential (potmatrix) and the used normalised layout (layoutmatrix /
@@ -139,10 +141,8 @@ if __name__ == '__main__':
         # corresponds to capacities/max(capacity factor in the voronoi cell)
         p_nom_max = xr.DataArray([1./np.max(capacity_factor[inds]) if len(inds) else 0.
                                   for inds in np.split(potmatrix.indices, potmatrix.indptr[1:-1])], [buses]) * capacities
-    elif p_nom_max_meth == 'heuristic':
-        p_nom_max = 0.8 * xr.DataArray(np.asarray(potmatrix.sum(axis=1)).squeeze(), [buses])
     else:
-        raise AssertionError('Config key `potential` should be one of "conservative" (default) or "heuristic",'
+        raise AssertionError('Config key `potential` should be one of "simple" (default) or "conservative",'
                              ' not "{}"'.format(p_nom_max_meth))
 
     layout = xr.DataArray(np.asarray(potmatrix.sum(axis=0)).reshape(cutout.shape),
