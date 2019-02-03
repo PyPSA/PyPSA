@@ -11,6 +11,11 @@ wildcard_constraints:
 
 rule cluster_all_elec_networks:
     input:
+        expand("networks/elec_s{simpl}_{clusters}.nc",
+               **config['scenario'])
+
+rule prepare_all_elec_networks:
+    input:
         expand("networks/elec_s{simpl}_{clusters}_l{ll}_{opts}.nc",
                **config['scenario'])
 
