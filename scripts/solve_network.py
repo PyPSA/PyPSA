@@ -131,12 +131,12 @@ def solve_network(n, config=None, solver_log=None, opts=None):
     solver_name = solver_options.pop('name')
 
     def extra_postprocessing(n, snapshots, duals):
-        if hasattr(n, 'line_volume_limit'):
+        if hasattr(n, 'line_volume_limit') and hasattr(n.model, 'line_volume_constraint'):
             cdata = pd.Series(list(n.model.line_volume_constraint.values()),
                               index=list(n.model.line_volume_constraint.keys()))
             n.line_volume_limit_dual = -cdata.map(duals).sum()
 
-        if hasattr(n, 'line_cost_limit'):
+        if hasattr(n, 'line_cost_limit') and hasattr(n.model, 'line_cost_constraint'):
             cdata = pd.Series(list(n.model.line_cost_constraint.values()),
                               index=list(n.model.line_cost_constraint.keys()))
             n.line_cost_limit_dual = -cdata.map(duals).sum()
