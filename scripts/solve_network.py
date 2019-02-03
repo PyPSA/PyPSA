@@ -43,7 +43,7 @@ def prepare_network(n, solve_opts=None):
         )
 
     if solve_opts.get('noisy_costs'):
-        for t in n.iterate_components():
+        for t in n.iterate_components(n.one_port_components):
             #if 'capital_cost' in t.df:
             #    t.df['capital_cost'] += 1e1 + 2.*(np.random.random(len(t.df)) - 0.5)
             if 'marginal_cost' in t.df:
@@ -89,6 +89,18 @@ def add_lv_constraint(n):
                     <= line_volume)
         )
 
+def add_lc_constraint(n):
+    line_cost = getattr(n, 'line_cost_limit', None)
+    if line_cost is not None and not np.isinf(line_cost):
+        n.model.line_cost_constraint = pypsa.opt.Constraint(
+            expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"capital_cost_lc"]
+                        for line in n.lines.index[n.lines.s_nom_extendable]) +
+                    sum(n.model.link_p_nom[link]*n.links.at[link,"capital_cost_lc"]
+                        for link in n.links.index[(n.links.carrier=='DC') &
+                                                    n.links.p_nom_extendable]))
+                    <= line_cost)
+        )
+
 def add_eps_storage_constraint(n):
     if not hasattr(n, 'epsilon'):
         n.epsilon = 1e-5
@@ -125,6 +137,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
             pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
             add_opts_constraints(n, opts)
             add_lv_constraint(n)
+            add_lc_constraint(n)
             # add_eps_storage_constraint(n)
 
             pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)

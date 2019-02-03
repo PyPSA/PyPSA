@@ -6,7 +6,9 @@ summary_dir: results
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
-  lv: [1.0, 1.125, 1.25, 1.5, 2.0, 3.0, 'inf']
+  #ll: ['v1.0', 'v1.09', 'v1.125', 'v1.18', 'v1.25', 'v1.35', 'v1.5', 'v1.7', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
+  ll: ['vopt', 'copt'] #['v1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
+  #ll: ['c1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
   clusters: [37, 45, 64, 90, 128, 181, 256, 362, 512] # (2**np.r_[5.5:9:.5]).astype(int)
   opts: [Co2L-3H] #, LC-FL, LC-T, Ep-T, Co2L-T]
 
