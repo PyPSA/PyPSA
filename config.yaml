@@ -170,12 +170,13 @@ costs:
 solving:
   options:
     formulation: kirchhoff
-    load_shedding: true
+    #load_shedding: true
     noisy_costs: true
     min_iterations: 4
     # max_iterations: 6
     max_iterations: 3
     #nhours: 10
+    clip_p_max_pu: 0.01
   solver:
     name: gurobi
     threads: 4
