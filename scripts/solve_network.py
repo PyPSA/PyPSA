@@ -130,24 +130,27 @@ def solve_network(n, config=None, solver_log=None, opts=None):
         solver_log = snakemake.log.solver
     solver_name = solver_options.pop('name')
 
-    def run_lopf(n, allow_warning_status=False, fix_zero_lines=False, fix_ext_lines=False):
+    def extra_postprocessing(n, snapshots, duals):
+        if hasattr(n, 'line_volume_limit'):
+            cdata = pd.Series(list(n.model.line_volume_constraint.values()),
+                              index=list(n.model.line_volume_constraint.keys()))
+            n.line_volume_limit_dual = -cdata.map(duals).sum()
+
+        if hasattr(n, 'line_cost_limit'):
+            cdata = pd.Series(list(n.model.line_cost_constraint.values()),
+                              index=list(n.model.line_cost_constraint.keys()))
+            n.line_cost_limit_dual = -cdata.map(duals).sum()
+
+    def run_lopf(n, allow_warning_status=False, fix_ext_lines=False):
         free_output_series_dataframes(n)
 
-        if not hasattr(n, 'opt') or not isinstance(n.opt, pypsa.opf.PersistentSolver):
-            pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
-            add_opts_constraints(n, opts)
+        pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
+        add_opts_constraints(n, opts)
+        if not fix_ext_lines:
             add_lv_constraint(n)
             add_lc_constraint(n)
-            # add_eps_storage_constraint(n)
 
-            pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
-
-        if fix_zero_lines:
-            fix_lines_b = (n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable
-            fix_links_b = (n.links.p_nom_opt == 0.) & n.links.p_nom_extendable
-            fix_branches(n,
-                         lines_s_nom=pd.Series(0., n.lines.index[fix_lines_b]),
-                         links_p_nom=pd.Series(0., n.links.index[fix_links_b]))
+        pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
 
         if fix_ext_lines:
             fix_branches(n,
@@ -162,6 +165,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
                                      solver_logfile=solver_log,
                                      solver_options=solver_options,
                                      formulation=solve_opts['formulation'],
+                                     extra_postprocessing=extra_postprocessing
                                      #free_memory={'pypsa'}
                                      )
 
@@ -187,7 +191,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
         lines_ext_typed_b = (n.lines.type != '') & lines_ext_b
         lines_ext_untyped_b = (n.lines.type == '') & lines_ext_b
 
-        def update_line_parameters(n, zero_lines_below=10, fix_zero_lines=False):
+        def update_line_parameters(n, zero_lines_below=10):
             if zero_lines_below > 0:
                 n.lines.loc[n.lines.s_nom_opt < zero_lines_below, 's_nom_opt'] = 0.
                 n.links.loc[n.links.p_nom_opt < zero_lines_below, 'p_nom_opt'] = 0.
@@ -203,21 +207,6 @@ def solve_network(n, config=None, solver_log=None, opts=None):
                     n.lines['s_nom_opt']/lines['s_nom']
                 )
                 logger.debug("lines.num_parallel={}".format(n.lines.loc[lines_ext_typed_b, 'num_parallel']))
-
-            if isinstance(n.opt, pypsa.opf.PersistentSolver):
-                n.calculate_dependent_values()
-
-                assert solve_opts['formulation'] == 'kirchhoff', \
-                    "Updating persistent solvers has only been implemented for the kirchhoff formulation for now"
-
-                n.opt.remove_constraint(n.model.cycle_constraints)
-                del n.model.cycle_constraints_index
-                del n.model.cycle_constraints_index_0
-                del n.model.cycle_constraints_index_1
-                del n.model.cycle_constraints
-
-                pypsa.opf.define_passive_branch_flows_with_kirchhoff(n, n.snapshots, skip_vars=True)
-                n.opt.add_constraint(n.model.cycle_constraints)
 
         iteration = 1
 
@@ -246,20 +235,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
 
         logger.info("Starting last run with fixed extendable lines")
 
-        # Not really needed, could also be taken out
-        # if 'snakemake' in globals():
-        #     fn = os.path.basename(snakemake.output[0])
-        #     n.export_to_netcdf('/home/vres/data/jonas/playground/pypsa-eur/' + fn)
-
     status, termination_condition = run_lopf(n, fix_ext_lines=True)
-
-    # Drop zero lines from network
-    # zero_lines_i = n.lines.index[(n.lines.s_nom_opt == 0.) & n.lines.s_nom_extendable]
-    # if len(zero_lines_i):
-    #     n.mremove("Line", zero_lines_i)
-    # zero_links_i = n.links.index[(n.links.p_nom_opt == 0.) & n.links.p_nom_extendable]
-    # if len(zero_links_i):
-    #     n.mremove("Link", zero_links_i)
 
     return n
 
