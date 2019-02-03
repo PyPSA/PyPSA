@@ -275,6 +275,15 @@ rule plot_summary:
     output: "results/plots/summary_{summary}_{network}_s{simpl}_{clusters}_l{ll}_{opts}_{country}.{ext}"
     script: "scripts/plot_summary.py"
 
+def input_plot_p_nom_max(wildcards):
+    return [('networks/{network}_s{simpl}{maybe_cluster}.nc'
+             .format(maybe_cluster=('' if c == 'full' else ('_' + c)), **wildcards))
+            for c in wildcards.clusters.split(",")]
+rule plot_p_nom_max:
+    input: input_plot_p_nom_max
+    output: "results/plots/{network}_s{simpl}_cum_p_nom_max_{clusters}_{technology}_{country}.{ext}"
+    script: "scripts/plot_p_nom_max.py"
+
 # Local Variables:
 # mode: python
 # End:
