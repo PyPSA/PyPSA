@@ -61,7 +61,7 @@ def set_line_cost_limit(n, lc, Nyears=1.):
         n.lines['capital_cost'] = 0.
         n.links.loc[links_dc_b, 'capital_cost'] = 0.
 
-    if lc == 'opt' or lc > 1.0:
+    if lc == 'opt' or float(lc) > 1.0:
         n.lines['s_nom_min'] = lines_s_nom
         n.lines['s_nom_extendable'] = True
 
@@ -69,7 +69,7 @@ def set_line_cost_limit(n, lc, Nyears=1.):
         n.links.loc[links_dc_b, 'p_nom_extendable'] = True
 
         if lc != 'opt':
-            n.line_cost_limit = lc * total_line_cost
+            n.line_cost_limit = float(lc) * total_line_cost
 
     return n
 
@@ -95,7 +95,7 @@ def set_line_volume_limit(n, lv, Nyears=1.):
         n.lines['capital_cost'] = 0.
         n.links.loc[links_dc_b, 'capital_cost'] = 0.
 
-    if lv == 'opt' or lv > 1.0:
+    if lv == 'opt' or float(lv) > 1.0:
         n.lines['s_nom_min'] = lines_s_nom
         n.lines['s_nom_extendable'] = True
 
@@ -103,7 +103,7 @@ def set_line_volume_limit(n, lv, Nyears=1.):
         n.links.loc[links_dc_b, 'p_nom_extendable'] = True
 
         if lv != 'opt':
-            n.line_volume_limit = lv * total_line_volume
+            n.line_volume_limit = float(lv) * total_line_volume
 
     return n
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # if 'Ep' in opts:
     #     add_emission_prices(n)
 
-    ll_type, factor = snakemake.wildcards.ll[0], float(snakemake.wildcards.ll[1:])
+    ll_type, factor = snakemake.wildcards.ll[0], snakemake.wildcards.ll[1:]
     if ll_type == 'v':
         set_line_volume_limit(n, factor, Nyears)
     elif ll_type == 'c':
