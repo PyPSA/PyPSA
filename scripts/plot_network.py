@@ -215,7 +215,7 @@ def split_costs(n):
 costs, costs_cap_ex, costs_cap_new, costs_marg = split_costs(n)
 
 costs_graph = pd.DataFrame(dict(a=costs.drop('load', errors='ignore')),
-                          index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT', 'battery', 'H2']).dropna()
+                           index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT', 'battery', 'H2']).dropna()
 bottom = np.array([0., 0.])
 texts = []
 
@@ -249,8 +249,13 @@ ax.grid(True, axis="y", color='k', linestyle='dotted')
 
 #fig.tight_layout()
 
-fig.suptitle('Expansion to {lv} x today\'s line volume at {clusters} clusters'
-             .format(lv=snakemake.wildcards.lv, clusters=snakemake.wildcards.clusters))
+ll = snakemake.wildcards.ll
+ll_type = ll[0]
+ll_factor = ll[1:]
+lbl = dict(c='line cost', v='line volume')[ll_type]
+amnt = '{lv} x today\'s'.format(ll_factor) if ll_factor != 'opt' else 'optimal'
+fig.suptitle('Expansion to {amount} {label} at {clusters} clusters'
+             .format(amount=amnt, label=lbl, clusters=snakemake.wildcards.clusters))
 
 fig.savefig(snakemake.output.ext, transparent=True,
             bbox_inches='tight', bbox_extra_artists=[l1, l2, l3, ax1, ax2])
