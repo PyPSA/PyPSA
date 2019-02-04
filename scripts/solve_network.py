@@ -120,7 +120,7 @@ def fix_branches(n, lines_s_nom=None, links_p_nom=None):
         if isinstance(n.opt, pypsa.opf.PersistentSolver):
             n.opt.update_var(n.model.link_p_nom)
 
-def solve_network(n, config=None, solver_log=None, opts=None):
+def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
     if config is None:
         config = snakemake.config['solving']
     solve_opts = config['options']
@@ -212,6 +212,7 @@ def solve_network(n, config=None, solver_log=None, opts=None):
 
         lines['s_nom_opt'] = lines['s_nom'] * n.lines['num_parallel'].where(n.lines.type != '', 1.)
         status, termination_condition = run_lopf(n, allow_warning_status=True)
+        if callback is not None: callback(n, iteration, status)
 
         def msq_diff(n):
             lines_err = np.sqrt(((n.lines['s_nom_opt'] - lines['s_nom_opt'])**2).mean())/lines['s_nom_opt'].mean()
@@ -230,12 +231,16 @@ def solve_network(n, config=None, solver_log=None, opts=None):
             iteration += 1
 
             status, termination_condition = run_lopf(n, allow_warning_status=True)
+            if callback is not None: callback(n, iteration, status)
+
 
         update_line_parameters(n, zero_lines_below=100)
 
         logger.info("Starting last run with fixed extendable lines")
 
+    iteration += 1
     status, termination_condition = run_lopf(n, fix_ext_lines=True)
+    if callback is not None: callback(n, iteration, status)
 
     return n
 
