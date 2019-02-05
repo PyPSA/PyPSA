@@ -36,6 +36,11 @@ electricity:
     battery: 6
     H2: 168
 
+  # estimate_renewable_capacities_from_capacity_stats:
+  #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
+  #   Wind: [onwind, offwind-ac, offwind-dc]
+  #   Solar: [solar]
+
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:

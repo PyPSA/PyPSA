@@ -18,6 +18,13 @@ from vresutils import transfer as vtransfer
 
 import pypsa
 
+try:
+    import powerplantmatching as ppm
+    from build_powerplants import country_alpha_2
+
+    has_ppm = True
+except ImportError:
+    has_ppm = False
 
 def normed(s): return s/s.sum()
 
@@ -396,6 +403,29 @@ def attach_storage(n, costs):
     #                  marginal_cost=options['marginal_cost_storage'],
     #                  p_nom_extendable=True)
 
+def estimate_renewable_capacities(n, tech_map=None):
+    if tech_map is None:
+        tech_map = snakemake.config['electricity'].get('estimate_renewable_capacities_from_capacity_stats', {})
+
+    if len(tech_map) == 0: return
+
+    assert has_ppm, "The estimation of renewable capacities needs the powerplantmatching package"
+
+    capacities = ppm.data.Capacity_stats()
+    capacities['alpha_2'] = capacities['Country'].map(country_alpha_2)
+    capacities = capacities.loc[capacities.Energy_Source_Level_2].set_index(['Fueltype', 'alpha_2']).sort_index()
+
+    countries = n.buses.country.unique()
+
+    for ppm_fueltype, techs in tech_map.items():
+        tech_capacities = capacities.loc[ppm_fueltype, 'Capacity'].reindex(countries, fill_value=0.)
+        tech_b = n.generators.carrier.isin(techs)
+        n.generators.loc[tech_b, 'p_nom'] = (
+            (n.generators_t.p_max_pu.mean().loc[tech_b] * n.generators.loc[tech_b, 'p_nom_max']) # maximal yearly generation
+            .groupby(n.generators.bus.map(n.buses.country)) # for each country
+            .transform(lambda s: normed(s) * tech_capacities.at[s.name])
+            .where(lambda s: s>0.1, 0.)  # only capacities above 100kW
+        )
 
 def add_co2limit(n, Nyears=1.):
     n.add("GlobalConstraint", "CO2Limit",
@@ -418,11 +448,12 @@ if __name__ == "__main__":
         snakemake = MockSnakemake(output=['networks/elec.nc'])
         snakemake.input = snakemake.expand(
             Dict(base_network='networks/base.nc',
-                 tech_costs='data/costs/costs.csv',
+                 tech_costs='data/costs.csv',
                  regions="resources/regions_onshore.geojson",
                  powerplants="resources/powerplants.csv",
-                 hydro_capacities='data/hydro_capacities.csv',
-                 opsd_load='data/time_series_60min_singleindex_filtered.csv',
+                 hydro_capacities='data/bundle/hydro_capacities.csv',
+                 opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv',
+                 nuts3_shapes='resources/nuts3_shapes.geojson',
                  **{'profile_' + t: "resources/profile_" + t + ".nc"
                     for t in snakemake.config['renewable']})
         )
@@ -444,5 +475,7 @@ if __name__ == "__main__":
     attach_hydro(n, costs, ppl)
     attach_extendable_generators(n, costs, ppl)
     attach_storage(n, costs)
+
+    estimate_renewable_capacities(n)
 
     n.export_to_netcdf(snakemake.output[0])
