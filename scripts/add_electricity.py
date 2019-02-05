@@ -118,6 +118,9 @@ def attach_load(n):
     opsd_load = timeseries_opsd(slice(*n.snapshots[[0,-1]].year.astype(str)),
                                 snakemake.input.opsd_load)
 
+    # Convert to naive UTC (has to be explicit since pandas 0.24)
+    opsd_load.index = opsd_load.index.tz_localize(None)
+
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
 
     def normed(x): return x.divide(x.sum())
