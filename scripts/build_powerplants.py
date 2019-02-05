@@ -13,6 +13,8 @@ def country_alpha_2(name):
     try:
         cntry = pyc.countries.get(name=name)
     except KeyError:
+        cntry = None
+    if cntry is None:
         cntry = pyc.countries.get(official_name=name)
     return cntry.alpha_2
 
