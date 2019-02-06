@@ -176,6 +176,7 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
 
         return status, termination_condition
 
+    iteration = 0
     lines_ext_b = n.lines.s_nom_extendable
     if lines_ext_b.any():
         # puh: ok, we need to iterate, since there is a relation
@@ -208,8 +209,7 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
                 )
                 logger.debug("lines.num_parallel={}".format(n.lines.loc[lines_ext_typed_b, 'num_parallel']))
 
-        iteration = 1
-
+        iteration += 1
         lines['s_nom_opt'] = lines['s_nom'] * n.lines['num_parallel'].where(n.lines.type != '', 1.)
         status, termination_condition = run_lopf(n, allow_warning_status=True)
         if callback is not None: callback(n, iteration, status)

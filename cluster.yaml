@@ -7,6 +7,9 @@ feedin_preparation:
 solve_network:
   walltime: "05:00:00:00"
 
+trace_solve_network:
+  walltime: "05:00:00:00"
+
 solve:
   walltime: "05:00:00:00"
   threads: 4 # Group threads are not aggregated
