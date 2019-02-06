@@ -107,6 +107,18 @@ def _load_links_from_eg(buses):
 def _add_links_from_tyndp(buses, links):
     links_tyndp = pd.read_csv(snakemake.input.links_tyndp)
 
+    # remove all links from list which lie outside all of the desired countries
+    europe_shape = gpd.read_file(snakemake.input.europe_shape).loc[0, 'geometry']
+    europe_shape_prepped = shapely.prepared.prep(europe_shape)
+    x1y1_in_europe_b = links_tyndp[['x1', 'y1']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
+    x2y2_in_europe_b = links_tyndp[['x2', 'y2']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
+    is_within_covered_countries_b = x1y1_in_europe_b & x2y2_in_europe_b
+
+    if not is_within_covered_countries_b.all():
+        logger.info("TYNDP links outside of the covered area (skipping): " +
+                    ", ".join(links_tyndp.loc[~ is_within_covered_countries_b, "Name"]))
+    links_tyndp = links_tyndp.loc[is_within_covered_countries_b]
+
     has_replaces_b = links_tyndp.replaces.notnull()
     oids = dict(Bus=_get_oid(buses), Link=_get_oid(links))
     keep_b = dict(Bus=pd.Series(True, index=buses.index),
@@ -123,7 +135,7 @@ def _add_links_from_tyndp(buses, links):
     # Corresponds approximately to 60km tolerances
 
     if links_tyndp["j"].notnull().any():
-        logger.info("The following TYNDP links were already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
+        logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
         links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
 
     tree = sp.spatial.KDTree(buses[['x', 'y']])
@@ -277,8 +289,8 @@ def _set_countries_and_substations(n):
         )
 
     countries = snakemake.config['countries']
-    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
-    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
+    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
+    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
     substation_b = buses['symbol'].str.contains('substation|converter station', case=False)
 
     def prefer_voltage(x, which):
@@ -387,7 +399,7 @@ def _replace_b2b_converter_at_country_border_by_link(n):
                         .format(i, b0, line, linkcntry.at[i], buscntry.at[b1]))
 
 def _set_links_underwater_fraction(n):
-    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).set_index('id').unary_union
+    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
     links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
     n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 
@@ -407,6 +419,12 @@ def _adjust_capacities_of_under_construction_branches(n):
         n.mremove("Link", n.links.index[n.links.under_construction])
     elif links_mode != 'keep':
         logger.warn("Unrecognized configuration for `links: under_construction` = `{}`. Keeping under construction links.")
+
+    if lines_mode == 'remove' or links_mode == 'remove':
+        # We might need to remove further unconnected components
+        n = _remove_unconnected_components(n)
+
+    return n
 
 def base_network():
     buses = _load_buses_from_eg()
@@ -448,7 +466,7 @@ def base_network():
 
     _replace_b2b_converter_at_country_border_by_link(n)
 
-    _adjust_capacities_of_under_construction_branches(n)
+    n = _adjust_capacities_of_under_construction_branches(n)
 
     return n
 

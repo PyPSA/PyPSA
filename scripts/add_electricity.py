@@ -18,6 +18,13 @@ from vresutils import transfer as vtransfer
 
 import pypsa
 
+try:
+    import powerplantmatching as ppm
+    from build_powerplants import country_alpha_2
+
+    has_ppm = True
+except ImportError:
+    has_ppm = False
 
 def normed(s): return s/s.sum()
 
@@ -111,6 +118,9 @@ def attach_load(n):
     opsd_load = timeseries_opsd(slice(*n.snapshots[[0,-1]].year.astype(str)),
                                 snakemake.input.opsd_load)
 
+    # Convert to naive UTC (has to be explicit since pandas 0.24)
+    opsd_load.index = opsd_load.index.tz_localize(None)
+
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
 
     def normed(x): return x.divide(x.sum())
@@ -161,6 +171,18 @@ def attach_wind_and_solar(n, costs):
 
         n.add("Carrier", name=tech)
         with xr.open_dataset(getattr(snakemake.input, 'profile_' + tech)) as ds:
+            suptech = tech.split('-', 2)[0]
+            if suptech == 'offwind':
+                underwater_fraction = ds['underwater_fraction'].to_pandas()
+                connection_cost = (snakemake.config['lines']['length_factor'] * ds['average_distance'].to_pandas() *
+                                   (underwater_fraction * costs.at[tech + '-connection-submarine', 'capital_cost'] +
+                                    (1. - underwater_fraction) * costs.at[tech + '-connection-underground', 'capital_cost']))
+                capital_cost = costs.at['offwind', 'capital_cost'] + costs.at[tech + '-station', 'capital_cost'] + connection_cost
+                logger.info("Added connection cost of {:0.0f}-{:0.0f} Eur/MW/a to {}".format(connection_cost.min(), connection_cost.max(), tech))
+            elif suptech == 'onwind':
+                capital_cost = costs.at['onwind', 'capital_cost'] + costs.at['onwind-landcosts', 'capital_cost']
+            else:
+                capital_cost = costs.at[tech, 'capital_cost']
 
             n.madd("Generator", ds.indexes['bus'], ' ' + tech,
                    bus=ds.indexes['bus'],
@@ -168,9 +190,9 @@ def attach_wind_and_solar(n, costs):
                    p_nom_extendable=True,
                    p_nom_max=ds['p_nom_max'].to_pandas(),
                    weight=ds['weight'].to_pandas(),
-                   marginal_cost=costs.at[tech, 'marginal_cost'],
-                   capital_cost=costs.at[tech, 'capital_cost'],
-                   efficiency=costs.at[tech, 'efficiency'],
+                   marginal_cost=costs.at[suptech, 'marginal_cost'],
+                   capital_cost=capital_cost,
+                   efficiency=costs.at[suptech, 'efficiency'],
                    p_max_pu=ds['profile'].transpose('time', 'bus').to_pandas())
 
 
@@ -219,13 +241,13 @@ def attach_hydro(n, costs, ppl):
         has_pump=ppl.technology.str.contains('Pumped Storage')
     )
 
-    country = ppl.loc[ppl.has_inflow, 'bus'].map(n.buses.country)
+    country = ppl['bus'].map(n.buses.country)
     # distribute by p_nom in each country
     dist_key = ppl.loc[ppl.has_inflow, 'p_nom'].groupby(country).transform(normed)
 
     with xr.open_dataarray(snakemake.input.profile_hydro) as inflow:
         inflow_t = (
-            inflow.sel(countries=country.values)
+            inflow.sel(countries=country.loc[ppl.has_inflow].values)
             .rename({'countries': 'name'})
             .assign_coords(name=ppl.index[ppl.has_inflow])
             .transpose('time', 'name')
@@ -260,13 +282,24 @@ def attach_hydro(n, costs, ppl):
                inflow=inflow_t.loc[:, phs.index[phs.has_inflow]])
 
     if 'hydro' in carriers:
-        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow]
+        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow].join(country.rename('country'))
 
         hydro_max_hours = c.get('hydro_max_hours')
-        if hydro_max_hours is None:
+        if hydro_max_hours == 'energy_capacity_totals_by_country':
             hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0)["E_store[TWh]"].clip(lower=0.2)*1e6
-            hydro_max_hours_country = hydro_e_country / hydro.p_nom.groupby(country).sum()
-            hydro_max_hours = country.loc[hydro.index].map(hydro_max_hours_country)
+            hydro_max_hours_country = hydro_e_country / hydro.groupby('country').p_nom.sum()
+            hydro_max_hours = hydro.country.map(hydro_e_country / hydro.groupby('country').p_nom.sum())
+        elif hydro_max_hours == 'estimate_by_large_installations':
+            hydro_capacities = pd.read_csv(snakemake.input.hydro_capacities, comment="#", na_values='-', index_col=0)
+            estim_hydro_max_hours = hydro_capacities.e_stor / hydro_capacities.p_nom_discharge
+
+            missing_countries = (pd.Index(hydro['country'].unique())
+                                .difference(estim_hydro_max_hours.dropna().index))
+            if not missing_countries.empty:
+                logger.warning("Assuming max_hours=6 for hydro reservoirs in the countries: {}"
+                            .format(", ".join(missing_countries)))
+
+            hydro_max_hours = hydro['country'].map(estim_hydro_max_hours).fillna(6)
 
         n.madd('StorageUnit', hydro.index, carrier='hydro',
                bus=hydro['bus'],
@@ -286,7 +319,7 @@ def attach_hydro(n, costs, ppl):
 def attach_extendable_generators(n, costs, ppl):
     elec_opts = snakemake.config['electricity']
     carriers = list(elec_opts['extendable_carriers']['Generator'])
-    assert carriers == ['OCGT'], "Only OCGT plants as extendable generators allowed for now"
+    assert set(carriers).issubset(['OCGT']), "Only OCGT plants as extendable generators allowed for now"
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
@@ -373,6 +406,29 @@ def attach_storage(n, costs):
     #                  marginal_cost=options['marginal_cost_storage'],
     #                  p_nom_extendable=True)
 
+def estimate_renewable_capacities(n, tech_map=None):
+    if tech_map is None:
+        tech_map = snakemake.config['electricity'].get('estimate_renewable_capacities_from_capacity_stats', {})
+
+    if len(tech_map) == 0: return
+
+    assert has_ppm, "The estimation of renewable capacities needs the powerplantmatching package"
+
+    capacities = ppm.data.Capacity_stats()
+    capacities['alpha_2'] = capacities['Country'].map(country_alpha_2)
+    capacities = capacities.loc[capacities.Energy_Source_Level_2].set_index(['Fueltype', 'alpha_2']).sort_index()
+
+    countries = n.buses.country.unique()
+
+    for ppm_fueltype, techs in tech_map.items():
+        tech_capacities = capacities.loc[ppm_fueltype, 'Capacity'].reindex(countries, fill_value=0.)
+        tech_b = n.generators.carrier.isin(techs)
+        n.generators.loc[tech_b, 'p_nom'] = (
+            (n.generators_t.p_max_pu.mean().loc[tech_b] * n.generators.loc[tech_b, 'p_nom_max']) # maximal yearly generation
+            .groupby(n.generators.bus.map(n.buses.country)) # for each country
+            .transform(lambda s: normed(s) * tech_capacities.at[s.name])
+            .where(lambda s: s>0.1, 0.)  # only capacities above 100kW
+        )
 
 def add_co2limit(n, Nyears=1.):
     n.add("GlobalConstraint", "CO2Limit",
@@ -395,11 +451,12 @@ if __name__ == "__main__":
         snakemake = MockSnakemake(output=['networks/elec.nc'])
         snakemake.input = snakemake.expand(
             Dict(base_network='networks/base.nc',
-                 tech_costs='data/costs/costs.csv',
+                 tech_costs='data/costs.csv',
                  regions="resources/regions_onshore.geojson",
                  powerplants="resources/powerplants.csv",
-                 hydro_capacities='data/hydro_capacities.csv',
-                 opsd_load='data/time_series_60min_singleindex_filtered.csv',
+                 hydro_capacities='data/bundle/hydro_capacities.csv',
+                 opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv',
+                 nuts3_shapes='resources/nuts3_shapes.geojson',
                  **{'profile_' + t: "resources/profile_" + t + ".nc"
                     for t in snakemake.config['renewable']})
         )
@@ -421,5 +478,7 @@ if __name__ == "__main__":
     attach_hydro(n, costs, ppl)
     attach_extendable_generators(n, costs, ppl)
     attach_storage(n, costs)
+
+    estimate_renewable_capacities(n)
 
     n.export_to_netcdf(snakemake.output[0])

@@ -6,7 +6,9 @@ summary_dir: results
 scenario:
   sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
   simpl: ['']
-  lv: [1.0, 1.125, 1.25, 1.5, 2.0, 3.0, 'inf']
+  #ll: ['v1.0', 'v1.09', 'v1.125', 'v1.18', 'v1.25', 'v1.35', 'v1.5', 'v1.7', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
+  ll: ['vopt', 'copt'] #['v1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
+  #ll: ['c1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
   clusters: [37, 45, 64, 90, 128, 181, 256, 362, 512] # (2**np.r_[5.5:9:.5]).astype(int)
   opts: [Co2L-3H] #, LC-FL, LC-T, Ep-T, Co2L-T]
 
@@ -34,6 +36,11 @@ electricity:
     battery: 6
     H2: 168
 
+  # estimate_renewable_capacities_from_capacity_stats:
+  #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
+  #   Wind: [onwind, offwind-ac, offwind-dc]
+  #   Solar: [solar]
+
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
@@ -58,7 +65,7 @@ renewable:
       method: wind
       turbine: Vestas_V112_3MW
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqm: 3
+    capacity_per_sqkm: 3
     # correction_factor: 0.93
     corine:
       #The selection of CORINE Land Cover [1] types that are allowed for wind and solar are based on [2] p.42 / p.28
@@ -70,19 +77,36 @@ renewable:
                    24, 25, 26, 27, 28, 29, 31, 32]
       distance: 1000
       distance_grid_codes: [1, 2, 3, 4, 5, 6]
-      natura: true
-  offwind:
+    natura: true
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+  offwind-ac:
+    cutout: europe-2013-era5
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    capacity_per_sqkm: 3
+    # correction_factor: 0.93
+    corine: [44, 255]
+    natura: true
+    max_depth: 50
+    max_shore_distance: 80000
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+  offwind-dc:
     cutout: europe-2013-era5
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqm: 3
-    height_cutoff: 50
+    capacity_per_sqkm: 3
     # correction_factor: 0.93
-    corine:
-      grid_codes: [44, 255]
-      natura: true
+    corine: [44, 255]
+    natura: true
+    max_depth: 50
+    min_shore_distance: 80000
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
   solar:
     cutout: europe-2013-sarah
     resource:
@@ -92,18 +116,20 @@ renewable:
         slope: 35.
         azimuth: 180.
     # ScholzPhd Tab 4.3.1: 170 MW/km^2
-    capacity_per_sqm: 1.7
+    capacity_per_sqkm: 1.7
     correction_factor: 0.877
-    corine:
-      grid_codes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-      18, 19, 20, 26, 31, 32]
-      natura: true
+    corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+             14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
+    natura: true
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
   hydro:
     cutout: europe-2013-era5
     carriers: [ror, PHS, hydro]
     PHS_max_hours: 6
-
-
+    hydro_max_hours: "energy_capacity_totals_by_country" # one of energy_capacity_totals_by_country,
+                                                         # estimate_by_large_installations or a float
+    clip_min_inflow: 1.0
 lines:
   types:
     220.: "Al/St 240/40 2-bundle 220.0"
@@ -149,13 +175,13 @@ costs:
 solving:
   options:
     formulation: kirchhoff
-    clip_p_max_pu: 1.e-2
-    load_shedding: true
+    #load_shedding: true
     noisy_costs: true
     min_iterations: 4
     # max_iterations: 6
     max_iterations: 3
     #nhours: 10
+    clip_p_max_pu: 0.01
   solver:
     name: gurobi
     threads: 4
@@ -188,7 +214,7 @@ plotting:
   energy_threshold: 50.
 
 
-  vre_techs: ["onwind", "offwind", "solar", "ror"]
+  vre_techs: ["onwind", "offwind-ac", "offwind-dc", "solar", "ror"]
   conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
   storage_techs: ["hydro+PHS", "battery", "H2"]
   # store_techs: ["Li ion", "water tanks"]
@@ -203,7 +229,11 @@ plotting:
     "onwind" : "b"
     "onshore wind" : "b"
     'offwind' : "c"
+    'offwind-ac' : "c"
+    'offwind-dc' : "aquamarine"
     'offshore wind' : "c"
+    'offshore wind ac' : "c"
+    'offshore wind dc' : "aquamarine"
     "hydro" : "#3B5323"
     "hydro+PHS" : "#3B5323"
     "hydro reservoir" : "#3B5323"

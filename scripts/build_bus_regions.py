@@ -12,8 +12,8 @@ countries = snakemake.config['countries']
 
 n = pypsa.Network(snakemake.input.base_network)
 
-country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('id')['geometry']
-offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('id')['geometry']
+country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
+offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
 
 onshore_regions = []
 offshore_regions = []
@@ -24,6 +24,8 @@ for country in countries:
     onshore_shape = country_shapes[country]
     onshore_locs = n.buses.loc[c_b & n.buses.substation_lv, ["x", "y"]]
     onshore_regions.append(gpd.GeoDataFrame({
+            'x': onshore_locs['x'],
+            'y': onshore_locs['y'],
             'geometry': voronoi_partition_pts(onshore_locs.values, onshore_shape),
             'country': country
         }, index=onshore_locs.index))
@@ -32,6 +34,8 @@ for country in countries:
     offshore_shape = offshore_shapes[country]
     offshore_locs = n.buses.loc[c_b & n.buses.substation_off, ["x", "y"]]
     offshore_regions_c = gpd.GeoDataFrame({
+            'x': offshore_locs['x'],
+            'y': offshore_locs['y'],
             'geometry': voronoi_partition_pts(offshore_locs.values, offshore_shape),
             'country': country
         }, index=offshore_locs.index)
@@ -41,7 +45,9 @@ for country in countries:
 def save_to_geojson(s, fn):
     if os.path.exists(fn):
         os.unlink(fn)
-    s.reset_index().to_file(fn, driver='GeoJSON')
+    df = s.reset_index()
+    schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
+    df.to_file(fn, driver='GeoJSON', schema=schema)
 
 save_to_geojson(pd.concat(onshore_regions), snakemake.output.regions_onshore)
 

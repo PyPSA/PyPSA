@@ -9,10 +9,14 @@ import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import cascaded_union
 
-try:
-    from countrycode.countrycode import countrycode
-except ImportError:
-    from countrycode import countrycode
+import pycountry as pyc
+
+def _get_country(target, **keys):
+    assert len(keys) == 1
+    try:
+        return getattr(pyc.countries.get(**keys), target)
+    except KeyError:
+        return np.nan
 
 def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
     if isinstance(polys, MultiPolygon):
@@ -44,13 +48,13 @@ def countries():
     return s
 
 def eez(country_shapes):
-    cntries = snakemake.config['countries']
-    cntries3 = frozenset(countrycode(cntries, origin='iso2c', target='iso3c'))
     df = gpd.read_file(snakemake.input.eez)
-    df = df.loc[df['ISO_3digit'].isin(cntries3)]
-    df['name'] = countrycode(df['ISO_3digit'], origin='iso3c', target='iso2c')
+    df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in snakemake.config['countries']])]
+    df['name'] = df['ISO_3digit'].map(lambda c: _get_country('alpha_2', alpha_3=c))
     s = df.set_index('name').geometry.map(lambda s: _simplify_polys(s, filterremote=False))
-    return gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
+    s = gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
+    s.index.name = "name"
+    return s
 
 def country_cover(country_shapes, eez_shapes=None):
     shapes = list(country_shapes)
@@ -119,12 +123,14 @@ def nuts3(country_shapes):
 
     return df
 
-def save_to_geojson(s, fn):
+def save_to_geojson(df, fn):
     if os.path.exists(fn):
         os.unlink(fn)
-    if isinstance(s, gpd.GeoDataFrame):
-        s = s.reset_index()
-    s.to_file(fn, driver='GeoJSON')
+    if not isinstance(df, gpd.GeoDataFrame):
+        df = gpd.GeoDataFrame(dict(geometry=df))
+    df = df.reset_index()
+    schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
+    df.to_file(fn, driver='GeoJSON', schema=schema)
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
