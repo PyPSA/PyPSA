@@ -15,7 +15,7 @@ def _get_country(target, **keys):
     assert len(keys) == 1
     try:
         return getattr(pyc.countries.get(**keys), target)
-    except KeyError:
+    except (KeyError, AttributeError):
         return np.nan
 
 def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
