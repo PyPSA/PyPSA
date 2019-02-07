@@ -246,8 +246,12 @@ def attach_hydro(n, costs, ppl):
     dist_key = ppl.loc[ppl.has_inflow, 'p_nom'].groupby(country).transform(normed)
 
     with xr.open_dataarray(snakemake.input.profile_hydro) as inflow:
+        inflow_countries = pd.Index(country.loc[ppl.has_inflow].values)
+        assert len(inflow_countries.unique().difference(inflow.indexes['countries'])) == 0, \
+            "'{}' is missing inflow time-series for at least one country: {}".format(snakemake.input.profile_hydro, ", ".join(inflow_countries.unique().difference(inflow.indexes['countries'])))
+
         inflow_t = (
-            inflow.sel(countries=country.loc[ppl.has_inflow].values)
+            inflow.sel(countries=inflow_countries)
             .rename({'countries': 'name'})
             .assign_coords(name=ppl.index[ppl.has_inflow])
             .transpose('time', 'name')
