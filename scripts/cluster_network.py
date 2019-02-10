@@ -81,8 +81,10 @@ def distribute_clusters(n, n_clusters, solver_name=None):
                                sense=po.minimize)
 
     opt = po.SolverFactory(solver_name)
-    if isinstance(opt, pypsa.opf.PersistentSolver):
-        opt.set_instance(m)
+    if not opt.has_capability('quadratic_objective'):
+        logger.warn(f'The configured solver `{solver_name}` does not support quadratic objectives. Falling back to `ipopt`.')
+        opt = po.SolverFactory('ipopt')
+
     results = opt.solve(m)
     assert results['Solver'][0]['Status'].key == 'ok', "Solver returned non-optimally: {}".format(results)
 
