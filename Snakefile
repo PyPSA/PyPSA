@@ -268,11 +268,18 @@ rule plot_network:
 
 def input_make_summary(w):
     # It's mildly hacky to include the separate costs input as first entry
+    if w.ll.endswith("all"):
+        ll = config["scenario"]["ll"]
+        if len(w.ll) == 4:
+            ll = [l for l in ll if l[0] == w.ll[0]]
+    else:
+        ll = w.ll
     return ([COSTS] +
             expand("results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc",
                    network=w.network,
+                   ll=ll,
                    **{k: config["scenario"][k] if getattr(w, k) == "all" else getattr(w, k)
-                      for k in ["simpl", "clusters", "l", "opts"]}))
+                      for k in ["simpl", "clusters", "opts"]}))
 
 rule make_summary:
     input: input_make_summary

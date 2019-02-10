@@ -353,7 +353,7 @@ outputs = ["costs",
 
 def make_summaries(networks_dict, country='all'):
 
-    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["simpl","clusters","lv","opts"])
+    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["simpl","clusters","ll","opts"])
 
     dfs = {}
 
@@ -401,15 +401,22 @@ if __name__ == "__main__":
         w = getattr(snakemake.wildcards, key)
         return snakemake.config["scenario"][key] if w == "all" else [w]
 
-    networks_dict = {(simpl,clusters,lv,opts) : ('results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc'
+    if snakemake.wildcards.ll.endswith("all"):
+        ll = snakemake.config["scenario"]["ll"]
+        if len(snakemake.wildcards.ll) == 4:
+            ll = [l for l in ll if l[0] == snakemake.wildcards.ll[0]]
+    else:
+        ll = [snakemake.wildcards.ll]
+
+    networks_dict = {(simpl,clusters,l,opts) : ('results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc'
                                                  .format(network=snakemake.wildcards.network,
                                                          simpl=simpl,
                                                          clusters=clusters,
                                                          opts=opts,
-                                                         lv=lv))
+                                                         ll=l))
                      for simpl in expand_from_wildcard("simpl")
                      for clusters in expand_from_wildcard("clusters")
-                     for lv in expand_from_wildcard("lv")
+                     for l in ll
                      for opts in expand_from_wildcard("opts")}
 
     print(networks_dict)
