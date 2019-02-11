@@ -78,7 +78,8 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
     grouper = [generators.bus, generators.carrier]
 
-    weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: (x/x.sum()).fillna(1.))
+    generators.weight.fillna(1., inplace=True)
+    weighting = generators.weight.groupby(grouper, axis=0).transform(lambda x: x/x.sum() )
     generators['capital_cost'] *= weighting
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum, 'capital_cost': np.sum}
     strategies.update(custom_strategies)
