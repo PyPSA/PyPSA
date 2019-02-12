@@ -117,7 +117,10 @@ def _add_links_from_tyndp(buses, links):
     if not is_within_covered_countries_b.all():
         logger.info("TYNDP links outside of the covered area (skipping): " +
                     ", ".join(links_tyndp.loc[~ is_within_covered_countries_b, "Name"]))
-    links_tyndp = links_tyndp.loc[is_within_covered_countries_b]
+
+        links_tyndp = links_tyndp.loc[is_within_covered_countries_b]
+        if links_tyndp.empty:
+            return buses, links
 
     has_replaces_b = links_tyndp.replaces.notnull()
     oids = dict(Bus=_get_oid(buses), Link=_get_oid(links))
