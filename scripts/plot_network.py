@@ -87,17 +87,17 @@ if snakemake.wildcards.attr == 'p_nom':
     # bus_sizes = n.generators_t.p.sum().loc[n.generators.carrier == "load"].groupby(n.generators.bus).sum()
     bus_sizes = pd.concat((n.generators.query('carrier != "load"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
                            n.storage_units.groupby(['bus', 'carrier']).p_nom_opt.sum()))
-    line_widths_exp = pd.concat(dict(Line=n.lines.s_nom_opt, Link=n.links.p_nom_opt))
-    line_widths_cur = pd.concat(dict(Line=n.lines.s_nom_min, Link=n.links.p_nom_min))
+    line_widths_exp = dict(Line=n.lines.s_nom_opt, Link=n.links.p_nom_opt)
+    line_widths_cur = dict(Line=n.lines.s_nom_min, Link=n.links.p_nom_min)
 else:
     raise 'plotting of {} has not been implemented yet'.format(plot)
 
 
 line_colors_with_alpha = \
-pd.concat(dict(Line=(line_widths_cur['Line'] / n.lines.s_nom > 1e-3)
-                    .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}),
-               Link=(line_widths_cur['Link'] / n.links.p_nom > 1e-3)
-                    .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)})))
+dict(Line=(line_widths_cur['Line'] / n.lines.s_nom > 1e-3)
+     .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}),
+     Link=(line_widths_cur['Link'] / n.links.p_nom > 1e-3)
+     .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}))
 
 ## FORMAT
 linewidth_factor = opts['map'][snakemake.wildcards.attr]['linewidth_factor']
@@ -105,15 +105,15 @@ bus_size_factor  = opts['map'][snakemake.wildcards.attr]['bus_size_factor']
 
 ## PLOT
 fig, ax = plt.subplots(figsize=map_figsize)
-n.plot(line_widths=line_widths_exp/linewidth_factor,
+n.plot(line_widths=pd.concat(line_widths_exp)/linewidth_factor,
        line_colors=dict(Line=line_colors['exp'], Link=line_colors['exp']),
        bus_sizes=bus_sizes/bus_size_factor,
        bus_colors=tech_colors,
        boundaries=map_boundaries,
        basemap=True,
        ax=ax)
-n.plot(line_widths=line_widths_cur/linewidth_factor,
-       line_colors=line_colors_with_alpha,
+n.plot(line_widths=pd.concat(line_widths_cur)/linewidth_factor,
+       line_colors=pd.concat(line_colors_with_alpha),
        bus_sizes=0,
        bus_colors=tech_colors,
        boundaries=map_boundaries,
@@ -253,7 +253,7 @@ ll = snakemake.wildcards.ll
 ll_type = ll[0]
 ll_factor = ll[1:]
 lbl = dict(c='line cost', v='line volume')[ll_type]
-amnt = '{lv} x today\'s'.format(ll_factor) if ll_factor != 'opt' else 'optimal'
+amnt = '{ll} x today\'s'.format(ll=ll_factor) if ll_factor != 'opt' else 'optimal'
 fig.suptitle('Expansion to {amount} {label} at {clusters} clusters'
              .format(amount=amnt, label=lbl, clusters=snakemake.wildcards.clusters))
 

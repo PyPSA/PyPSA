@@ -64,6 +64,8 @@ def simplify_network_to_380(n):
     return n, trafo_map
 
 def _prepare_connection_costs_per_link(n):
+    if n.links.empty: return {}
+
     costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
                        snakemake.config['costs'], snakemake.config['electricity'])
 
@@ -134,6 +136,9 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
 def simplify_links(n):
     ## Complex multi-node links are folded into end-points
     logger.info("Simplifying connected link components")
+
+    if n.links.empty:
+        return n, n.buses.index.to_series()
 
     # Determine connected link components, ignore all links but DC
     adjacency_matrix = n.adjacency_matrix(branch_components=['Link'],

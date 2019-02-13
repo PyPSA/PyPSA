@@ -71,6 +71,9 @@ def distribute_clusters(n, n_clusters, solver_name=None):
 
     N = n.buses.groupby(['country', 'sub_network']).size()
 
+    assert n_clusters >= len(N) and n_clusters <= N.sum(), \
+        "Number of clusters must be {} <= n_clusters <= {} for this selection of countries.".format(len(N), N.sum())
+
     m = po.ConcreteModel()
     def n_bounds(model, *n_id):
         return (1, N[n_id])

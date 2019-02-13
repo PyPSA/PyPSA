@@ -20,10 +20,16 @@ logger = logging.getLogger(__name__)
 import pypsa
 
 def _get_oid(df):
-    return df.tags.str.extract('"oid"=>"(\d+)"', expand=False)
+    if "tags" in df.columns:
+        return df.tags.str.extract('"oid"=>"(\d+)"', expand=False)
+    else:
+        return pd.Series(np.nan, df.index)
 
 def _get_country(df):
-    return df.tags.str.extract('"country"=>"([A-Z]{2})"', expand=False)
+    if "tags" in df.columns:
+        return df.tags.str.extract('"country"=>"([A-Z]{2})"', expand=False)
+    else:
+        return pd.Series(np.nan, df.index)
 
 def _find_closest_links(links, new_links, distance_upper_bound=1.5):
     tree = sp.spatial.KDTree(np.vstack([
@@ -226,6 +232,8 @@ def _set_lines_s_nom_from_linetypes(n):
     )
 
 def _set_electrical_parameters_links(links):
+    if links.empty: return links
+
     p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
     links['p_max_pu'] = p_max_pu
     links['p_min_pu'] = -p_max_pu
@@ -402,6 +410,8 @@ def _replace_b2b_converter_at_country_border_by_link(n):
                         .format(i, b0, line, linkcntry.at[i], buscntry.at[b1]))
 
 def _set_links_underwater_fraction(n):
+    if n.links.empty: return
+
     offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
     links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
     n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
@@ -488,7 +498,10 @@ if __name__ == "__main__":
                 eg_transformers='data/entsoegridkit/transformers.csv',
                 parameter_corrections='data/parameter_corrections.yaml',
                 links_p_nom='data/links_p_nom.csv',
-                links_tyndp='data/links_tyndp.csv'
+                links_tyndp='data/links_tyndp.csv',
+                country_shapes='resources/country_shapes.geojson',
+                offshore_shapes='resources/offshore_shapes.geojson',
+                europe_shape='resources/europe_shape.geojson'
             ),
             output = ['networks/base.nc']
         )

@@ -24,6 +24,8 @@ def assign_carriers(n):
         n.lines["carrier"] = "AC"
 
     n.lines["carrier"].replace({"AC": "lines"}, inplace=True)
+
+    if n.links.empty: n.links["carrier"] = pd.Series(dtype=str)
     n.links["carrier"].replace({"DC": "lines"}, inplace=True)
 
     if "EU gas store" in n.stores.index and n.stores.loc["EU gas Store","carrier"] == "":

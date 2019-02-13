@@ -151,6 +151,8 @@ def update_transmission_costs(n, costs, length_factor=1.0, simple_hvdc_costs=Fal
     n.lines['capital_cost'] = (n.lines['length'] * length_factor *
                                costs.at['HVAC overhead', 'capital_cost'])
 
+    if n.links.empty: return
+
     dc_b = n.links.carrier == 'DC'
     if simple_hvdc_costs:
         n.links.loc[dc_b, 'capital_cost'] = (n.links.loc[dc_b, 'length'] * length_factor *

@@ -38,7 +38,7 @@ def set_line_s_max_pu(n):
     n.lines['s_max_pu'] = s_max_pu
 
 def set_line_cost_limit(n, lc, Nyears=1.):
-    links_dc_b = n.links.carrier == 'DC'
+    links_dc_b = n.links.carrier == 'DC' if not n.links.empty else pd.Series()
 
     lines_s_nom = n.lines.s_nom.where(
         n.lines.type == '',
@@ -74,7 +74,7 @@ def set_line_cost_limit(n, lc, Nyears=1.):
     return n
 
 def set_line_volume_limit(n, lv, Nyears=1.):
-    links_dc_b = n.links.carrier == 'DC'
+    links_dc_b = n.links.carrier == 'DC' if not n.links.empty else pd.Series()
 
     lines_s_nom = n.lines.s_nom.where(
         n.lines.type == '',

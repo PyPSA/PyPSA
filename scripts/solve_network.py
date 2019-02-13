@@ -80,24 +80,24 @@ def add_opts_constraints(n, opts=None):
 def add_lv_constraint(n):
     line_volume = getattr(n, 'line_volume_limit', None)
     if line_volume is not None and not np.isinf(line_volume):
+        links_dc_ext_i = n.links.index[(n.links.carrier == 'DC') & n.links.p_nom_extendable] if not n.links.empty else pd.Index([])
         n.model.line_volume_constraint = pypsa.opt.Constraint(
             expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"length"]
                         for line in n.lines.index[n.lines.s_nom_extendable]) +
                     sum(n.model.link_p_nom[link]*n.links.at[link,"length"]
-                        for link in n.links.index[(n.links.carrier=='DC') &
-                                                    n.links.p_nom_extendable]))
+                        for link in links_dc_ext_i))
                     <= line_volume)
         )
 
 def add_lc_constraint(n):
     line_cost = getattr(n, 'line_cost_limit', None)
     if line_cost is not None and not np.isinf(line_cost):
+        links_dc_ext_i = n.links.index[(n.links.carrier == 'DC') & n.links.p_nom_extendable] if not n.links.empty else pd.Index([])
         n.model.line_cost_constraint = pypsa.opt.Constraint(
             expr=((sum(n.model.passive_branch_s_nom["Line",line]*n.lines.at[line,"capital_cost_lc"]
                         for line in n.lines.index[n.lines.s_nom_extendable]) +
                     sum(n.model.link_p_nom[link]*n.links.at[link,"capital_cost_lc"]
-                        for link in n.links.index[(n.links.carrier=='DC') &
-                                                    n.links.p_nom_extendable]))
+                        for link in links_dc_ext_i))
                     <= line_cost)
         )
 
