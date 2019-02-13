@@ -27,6 +27,7 @@ from six import string_types
 import pandas as pd
 import numpy as np
 
+import warnings
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ cartopy_present = True
 try:
     import cartopy
     import cartopy.crs as ccrs
-except:
+except ImportError:
     cartopy_present = False
 
 pltly_present = True
@@ -64,10 +65,11 @@ except ImportError:
         pltly_present = False
 
 
-def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
-         line_colors='g', bus_sizes=10, line_widths=2, title="",
-         line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_components=['Line', 'Link'], jitter=None):
+def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
+         bus_colors='b', line_colors='g', bus_sizes=10, line_widths=2,
+         title="", line_cmap=None, bus_cmap=None, boundaries=None,
+         geometry=False, branch_components=['Line', 'Link'], jitter=None,
+         basemap=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -126,13 +128,22 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
         logger.error("Matplotlib is not present, so plotting won't work.")
         return
 
+    if basemap is not None:
+        warnings.warn("`basemap` is deprecated, use `geomap` instead.",
+                      DeprecationWarning)
+        geomap = basemap
+
+
     if ax is None:
-        if cartopy_present and drawmap:
-            ax = plt.gca(projection=ccrs.PlateCarree())
+        if cartopy_present and geomap:
+            if projection is None:
+               projection = get_projection_from_crs(network.srid)
+
+            ax = plt.gca(projection=projection)
         else:
             ax = plt.gca()
     else:
-        if cartopy_present and drawmap:
+        if cartopy_present and geomap:
             import cartopy.mpl.geoaxes
             assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
                     'The passed axis is not a GeoAxesSubplot. You can '
@@ -140,9 +151,8 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
 
-    if drawmap:
-        geomap, x, y = draw_map(network, jitter, ax, boundaries,
-                                margin, drawmap)
+    if geomap:
+        x, y = draw_map(network, jitter, ax, boundaries, margin, geomap)
     else:
         x, y = network.buses['x'], network.buses['y']
 
@@ -156,7 +166,7 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
             "in the second MultiIndex level of bus_sizes"
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)\
-                        * projected_area_factor(ax)**2
+                        * projected_area_factor(ax, network.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -192,7 +202,7 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
             index = network.lines.index
         return pd.Series(ser,
                          index=pd.MultiIndex(levels=(["Line"], index),
-                                             labels=(np.zeros(len(index)),
+                                             codes=(np.zeros(len(index)),
                                                      np.arange(len(index)))))
 
     line_colors = as_branch_series(line_colors)
@@ -228,9 +238,9 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
                 "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings")
             segments = np.asarray(list(linestrings.map(np.asarray)))
-            if drawmap and basemap_present:
-                segments = np.transpose(geomap(
-                        *np.transpose(segments, (2, 0, 1))), (1, 2, 0))
+#            if geomap and basemap_present:
+#                segments = np.transpose(gmap(
+#                        *np.transpose(segments, (2, 0, 1))), (1, 2, 0))
 
         l_collection = LineCollection(segments,
                                       linewidths=l_widths,
@@ -255,12 +265,24 @@ def plot(network, margin=0.05, ax=None, drawmap=True, bus_colors='b',
 
     if basemap_present:
         ax.axis('off')
-    if cartopy_present and drawmap:
+    if cartopy_present and geomap:
         ax.outline_patch.set_visible(False)
 
     ax.set_title(title)
 
     return (bus_collection,) + tuple(branch_collections)
+
+
+def get_projection_from_crs(crs):
+    if crs == 4326:
+        # if data is in latlon system, return default map with latlon system
+        return ccrs.PlateCarree()
+    try:
+        return ccrs.epsg(crs)
+    except ValueError:
+        logger.warning(f"'{crs}' does not define a projected coordinate system. "
+                    "Falling back to latlong.")
+        return ccrs.PlateCarree()
 
 
 def compute_bbox_with_margins(margin, x, y):
@@ -273,18 +295,18 @@ def compute_bbox_with_margins(margin, x, y):
     return tuple(xy1), tuple(xy2)
 
 
-def projected_area_factor(ax):
+def projected_area_factor(ax, original_crs):
     """
     Helper function to get the area scale of the current projection in
     reference to the default projection.
     """
-    if not 'projection' in ax.__dict__:
+    if not hasattr(ax, 'projection'):
         return 1
-    if ax.projection is ccrs.PlateCarree():
+    if isinstance(ax.projection, ccrs.PlateCarree):
         return 1
     x1, x2, y1, y2 = ax.get_extent()
     pbounds = \
-        ccrs.PlateCarree().transform_points(ax.projection,
+        get_projection_from_crs(original_crs).transform_points(ax.projection,
                     np.array([x1, x2]), np.array([y1, y2]))
 
     return np.sqrt(abs((x2 - x1) * (y2 - y1))
@@ -293,7 +315,7 @@ def projected_area_factor(ax):
 
 
 def draw_map(network=None, jitter=None, ax=None, boundaries=None,
-             margin=0.05, drawmap=True):
+             margin=0.05, geomap=True):
 
     x, y = network.buses["x"],  network.buses["y"]
 
@@ -308,40 +330,40 @@ def draw_map(network=None, jitter=None, ax=None, boundaries=None,
 
     #First choice should be cartopy
     if cartopy_present:
-        resolution = '50m' if isinstance(drawmap, bool) else drawmap
+        resolution = '50m' if isinstance(geomap, bool) else geomap
         assert resolution in ['10m', '50m', '110m'], (
                 "Resolution has to be one of '10m', '50m', '110m'")
-        geomap = ax.projection
+        gmap = ax.projection
+        orig_projection = get_projection_from_crs(network.srid)
         transformed = pd.DataFrame(
-                    geomap.transform_points(
-                        ccrs.PlateCarree(), x.values, y.values),
+                    gmap.transform_points(
+                        orig_projection, x.values, y.values),
                         columns=['x', 'y', 'z'], index=network.buses.index)
         x, y = transformed.x, transformed.y
-        ax.set_extent([x1, x2, y1, y2], crs=ccrs.PlateCarree())
+        ax.set_extent([x1, x2, y1, y2], crs=orig_projection)
         ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
         border = cartopy.feature.BORDERS.with_scale(resolution)
         ax.add_feature(border, linewidth=0.3)
 
     elif basemap_present:
-        resolution = 'l' if isinstance(drawmap, bool) else drawmap
-        geomap = Basemap(resolution=resolution, epsg=network.srid,
+        resolution = 'l' if isinstance(geomap, bool) else geomap
+        gmap = Basemap(resolution=resolution, epsg=network.srid,
                        llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
                        urcrnrlon=x2, ax=ax)
-        geomap.drawcountries(linewidth=0.3, zorder=-1)
-        geomap.drawcoastlines(linewidth=0.4, zorder=-1)
+        gmap.drawcountries(linewidth=0.3, zorder=-1)
+        gmap.drawcoastlines(linewidth=0.4, zorder=-1)
 
-        x, y = geomap(x.values, y.values)
+        x, y = gmap(x.values, y.values)
         x = pd.Series(x, network.buses.index)
         y = pd.Series(y, network.buses.index)
-
-    return geomap, x, y
+    # if gmap is needed outside, this could also be passed
+    return x, y
 
 
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
 #working example of plotly for networks, see:
-#https://forum.openmod-initiative.org/t/
-#breakout-group-on-visualising-networks-with-plotly/384/7
+#https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/384/7
 
 #We thank Bryn Pickering for holding the tutorial on plotly which
 #inspired the breakout group and for contributing ideas to the iplot
