@@ -891,11 +891,11 @@ class Network(Basic):
 
                 # check for NaN values:
                 if max_pu.isnull().values.any():
-                    for col in max_pu.dropna(axis=1, how='any').columns:
+                    for col in max_pu.columns[max_pu.isnull().any()]:
                         logger.warning("The attribute %s of element %s of %s has NaN values for the following snapshots:\n%s",
                                        varying_attr[0][0] + "_max_pu", col, c.list_name, max_pu.index[max_pu[col].isnull()])
                 if min_pu.isnull().values.any():
-                    for col in min_pu.dropna(axis=1, how='any').columns:
+                    for col in min_pu.columns[min_pu.isnull().any()]:
                         logger.warning("The attribute %s of element %s of %s has NaN values for the following snapshots:\n%s",
                                        varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[min_pu[col].isnull()])
 
