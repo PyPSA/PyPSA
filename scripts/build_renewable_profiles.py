@@ -20,22 +20,24 @@ import progressbar as pgb
 import logging
 logger = logging.getLogger(__name__)
 
-bounds = dx = dy = gebco = clc = natura = None
-def init_globals(n_bounds, n_dx, n_dy):
+bounds = dx = dy = config = paths = gebco = clc = natura = None
+def init_globals(n_bounds, n_dx, n_dy, n_config, n_paths):
     # global in each process of the multiprocessing.Pool
-    global bounds, dx, dy, gebco, clc, natura
+    global bounds, dx, dy, config, paths, gebco, clc, natura
 
     bounds = n_bounds
     dx = n_dx
     dy = n_dy
+    config = n_config
+    paths = n_paths
 
-    gebco = gk.raster.loadRaster(snakemake.input.gebco)
+    gebco = gk.raster.loadRaster(paths["gebco"])
     gebco.SetProjection(gk.srs.loadSRS(4326).ExportToWkt())
 
-    clc = gk.raster.loadRaster(snakemake.input.corine)
+    clc = gk.raster.loadRaster(paths["corine"])
     clc.SetProjection(gk.srs.loadSRS(3035).ExportToWkt())
 
-    natura = gk.raster.loadRaster(snakemake.input.natura)
+    natura = gk.raster.loadRaster(paths["natura"])
 
 def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
     # The GDAL warp function with the 'average' resample algorithm needs a band of zero values of at least
@@ -49,7 +51,7 @@ def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
     return average
 
 def calculate_potential(gid):
-    feature = gk.vector.extractFeature(snakemake.input.regions, where=gid)
+    feature = gk.vector.extractFeature(paths["regions"], where=gid)
     ec = gl.ExclusionCalculator(feature.geom)
 
     corine = config.get("corine", {})
@@ -67,9 +69,9 @@ def calculate_potential(gid):
 
     # TODO compute a distance field as a raster beforehand
     if 'max_shore_distance' in config:
-        ec.excludeVectorType(snakemake.input.country_shapes, buffer=config['max_shore_distance'], invert=True)
+        ec.excludeVectorType(paths["country_shapes"], buffer=config['max_shore_distance'], invert=True)
     if 'min_shore_distance' in config:
-        ec.excludeVectorType(snakemake.input.country_shapes, buffer=config['min_shore_distance'])
+        ec.excludeVectorType(paths["country_shapes"], buffer=config['min_shore_distance'])
 
     availability = downsample_to_coarse_grid(bounds, dx, dy, ec.region, np.where(ec.region.mask, ec._availability, 0))
 
@@ -86,8 +88,8 @@ if __name__ == '__main__':
     params = dict(years=slice(*time.year[[0, -1]]), months=slice(*time.month[[0, -1]]))
 
     cutout = atlite.Cutout(config['cutout'],
-                        cutout_dir=os.path.dirname(snakemake.input.cutout),
-                        **params)
+                           cutout_dir=os.path.dirname(snakemake.input.cutout),
+                           **params)
 
     minx, maxx, miny, maxy = cutout.extent
     dx = (maxx - minx) / (cutout.shape[1] - 1)
@@ -96,10 +98,11 @@ if __name__ == '__main__':
                                   miny - dy/2., maxy + dy/2.))
 
     # Use GLAES to compute available potentials and the transition matrix
+    paths = dict(snakemake.input)
 
-    with Pool(initializer=init_globals, initargs=(bounds, dx, dy),
+    with Pool(initializer=init_globals, initargs=(bounds, dx, dy, config, paths),
               maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
-        regions = gk.vector.extractFeatures(snakemake.input.regions, onlyAttr=True)
+        regions = gk.vector.extractFeatures(paths["regions"], onlyAttr=True)
         buses = pd.Index(regions['name'], name="bus")
         widgets = [
             pgb.widgets.Percentage(),
