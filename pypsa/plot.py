@@ -85,6 +85,10 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         For Basemap users 'c' (crude), 'l' (low), 'i' (intermediate),
         'h' (high), 'f' (full) are valid resolutions options.
         For Cartopy users '10m', '50m', '110m' are valid resolutions options.
+    projection: cartopy.crs.Projection, defaults to None
+        Define the projection of your geomap, only valid if cartopy is
+        installed. If None (default) is passed the projection for cartropy
+        is set to cartopy.crs.PlateCarree
     bus_colors : dict/pandas.Series
         Colors for the buses, defaults to "b"
     bus_sizes : dict/pandas.Series
