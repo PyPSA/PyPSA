@@ -64,23 +64,27 @@ def build_aggregate(flh, countries, areamatrix, breaks, p_area, fn):
     agg_a = pd.Series(np.ravel((areamatrix / areamatrix.sum(axis=1)).dot(flh.values)),
                             countries, name="PyPSA-Eur")
 
-    if p_area is not None:
+    if p_area is None:
+        agg_a['Overall'] = float((np.asarray((areamatrix.sum(axis=0) / areamatrix.sum())
+                                                .dot(flh.values)).squeeze()))
+
+        agg = pd.DataFrame({'PyPSA-Eur': agg_a})
+    else:
         # Determine indices of countries which are also in Pietzcker
         inds = pd.Index(countries).get_indexer(p_area.index)
         areamatrix = areamatrix[inds]
 
-    agg_a['Overall'] = float((np.asarray((areamatrix.sum(axis=0) / areamatrix.sum())
-                                            .dot(flh.values)).squeeze()))
+        agg_a['Overall'] = float((np.asarray((areamatrix.sum(axis=0) / areamatrix.sum())
+                                             .dot(flh.values)).squeeze()))
 
+        midpoints = (breaks[1:] + breaks[:-1])/2.
+        p = p_area.T
 
-    midpoints = (breaks[1:] + breaks[:-1])/2.
-    p = p_area.T
+        # Per-country FLH comparison
+        agg_p = pd.Series((p / p.sum()).multiply(midpoints, axis=0).sum(), name="Pietzker")
+        agg_p['Overall'] = float((p.sum(axis=1) / p.sum().sum()).multiply(midpoints, axis=0).sum())
 
-    # Per-country FLH comparison
-    agg_p = pd.Series((p / p.sum()).multiply(midpoints, axis=0).sum(), name="Pietzker")
-    agg_p['Overall'] = float((p.sum(axis=1) / p.sum().sum()).multiply(midpoints, axis=0).sum())
-
-    agg = pd.DataFrame({'PyPSA-Eur': agg_a, 'Pietzcker': agg_p, 'Ratio': agg_p / agg_a})
+        agg = pd.DataFrame({'PyPSA-Eur': agg_a, 'Pietzcker': agg_p, 'Ratio': agg_p / agg_a})
 
     agg.to_csv(fn)
 
