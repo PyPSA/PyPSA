@@ -97,6 +97,7 @@ Not all data dependencies are shipped with the git repository (since git is not 
 The model has several configuration options collected in the [config.yaml](config.yaml) file
 located in the root directory.
 
+## Model workflow
 The generation of the model is controlled by the workflow management system
 [Snakemake](https://snakemake.bitbucket.io/). In a nutshell, one declares in the
 `Snakefile` for each python script in the `scripts` directory a rule which
@@ -110,6 +111,7 @@ snakemake networks/elec_s_128.nc
 follows the dependency graph
 ![Dependency graph for network elec_s_128](img/dependencies-elec_s_128.png)
 
+## Building the network
 In detail this means it has to run the independent scripts,
 - `build_shapes` to generate GeoJSON files with country, exclusive economic zones and nuts3 shapes
 - `build_cutout` to prepare smaller weather data portions from ERA5 for cutout `europe-2013-era5` and SARAH for cutout `europe-2013-sarah`.
@@ -141,6 +143,34 @@ The additional rules prepare approximations of the full model, in which generati
 
 The simplification and clustering steps are described in detail in the paper
 [The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios](https://arxiv.org/abs/1705.07617), 2017, [arXiv:1705.07617](https://arxiv.org/abs/1705.07617), [doi:10.1109/EEM.2017.7982024](https://doi.org/10.1109/EEM.2017.7982024).
+
+## Solving the network
+After generating the network it can be solved by using 'solve_all_elec_networks'. This runs the following rules:
+- 'cluster_network'
+- 'prepare_network'
+- 'solve_all_elec_networks'
+- 'solve_network'
+
+## Summarising the results and making plots
+The following rule can be used to summarize the results in seperate .csv files:
+```
+snakemake results/summaries/elec_s_all_lall_Co2L-3H_all
+                                      ^ clusters
+                                          ^ line volume or cost cap
+                                               ^- options
+                                                       ^- all countries
+```
+the line volume/cost cap field can be set to one of the following:
+* `lv1.25` for a particular line volume extension by 25%
+* `lc1.25` for a line cost extension by 25 %
+* `lall` for all evalutated caps
+* `lvall` for all line volume caps
+* `lcall` for all line cost caps
+
+Replacing '/summaries/' with '/plots/' creates nice colored maps of the results.
+
+# Solver choice
+Default choice for the solver is Gurobi (freely available under academic license) or CPLEX. If you want to go fully opensource the CBC solver (https://projects.coin-or.org/Cbc) can be used. To install CBC run 'conda install -c conda-forge coincbc'.
 
 # Hints
 
