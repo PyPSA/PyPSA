@@ -30,8 +30,13 @@ def normed(s): return s/s.sum()
 
 def _add_missing_carriers_from_costs(n, costs, carriers):
     missing_carriers = pd.Index(carriers).difference(n.carriers.index)
+    if missing_carriers.empty: return
+
     emissions_cols = costs.columns.to_series().loc[lambda s: s.str.endswith('_emissions')].values
-    n.import_components_from_dataframe(costs.loc[missing_carriers, emissions_cols].fillna(0.), 'Carrier')
+    suptechs = missing_carriers.str.split('-').str[0]
+    emissions = costs.loc[suptechs, emissions_cols].fillna(0.)
+    emissions.index = missing_carriers
+    n.import_components_from_dataframe(emissions, 'Carrier')
 
 def load_costs(Nyears=1., tech_costs=None, config=None, elec_config=None):
     if tech_costs is None:
@@ -324,21 +329,26 @@ def attach_hydro(n, costs, ppl):
 
 def attach_extendable_generators(n, costs, ppl):
     elec_opts = snakemake.config['electricity']
-    carriers = list(elec_opts['extendable_carriers']['Generator'])
-    assert set(carriers).issubset(['OCGT']), "Only OCGT plants as extendable generators allowed for now"
+    carriers = pd.Index(elec_opts['extendable_carriers']['Generator'])
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
-    if 'OCGT' in carriers:
-        ocgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
-        n.madd('Generator', ocgt.index,
-               bus=ocgt['bus'],
-               carrier='OCGT',
-               p_nom_extendable=True,
-               p_nom=0.,
-               capital_cost=costs.at['OCGT', 'capital_cost'],
-               marginal_cost=costs.at['OCGT', 'marginal_cost'],
-               efficiency=costs.at['OCGT', 'efficiency'])
+    for tech in carriers:
+        suptech = tech.split('-')[0]
+
+        if suptech == 'OCGT':
+            ocgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
+            n.madd('Generator', ocgt.index,
+                   bus=ocgt['bus'],
+                   carrier=tech,
+                   p_nom_extendable=True,
+                   p_nom=0.,
+                   capital_cost=costs.at['OCGT', 'capital_cost'],
+                   marginal_cost=costs.at['OCGT', 'marginal_cost'],
+                   efficiency=costs.at['OCGT', 'efficiency'])
+        else:
+            raise NotImplementedError(f"Adding extendable generators for carrier '{tech}' is not implemented, yet."
+                                       "Only OCGT are allowed at the moment.")
 
 
 def attach_storage(n, costs):
