@@ -300,6 +300,30 @@ rule plot_p_nom_max:
     output: "results/plots/{network}_s{simpl}_cum_p_nom_max_{clusters}_{technology}_{country}.{ext}"
     script: "scripts/plot_p_nom_max.py"
 
+rule build_country_flh:
+    input:
+        base_network="networks/base.nc",
+        corine="data/bundle/corine/g250_clc06_V18_5.tif",
+        natura="resources/natura.tiff",
+        gebco="data/bundle/GEBCO_2014_2D.nc",
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
+        pietzker="data/pietzker2014.xlsx",
+        regions=lambda w: ("resources/country_shapes.geojson"
+                                   if w.technology in ('onwind', 'solar')
+                                   else "resources/offshore_shapes.geojson"),
+        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout']
+    output:
+        area="resources/country_flh_area_{technology}.csv",
+        aggregated="resources/country_flh_aggregated_{technology}.csv",
+        uncorrected="resources/country_flh_uncorrected_{technology}.csv",
+        plot="resources/country_flh_{technology}.pdf",
+        exclusion=directory("resources/country_exclusion_{technology}")
+    resources: mem=10000
+    benchmark: "benchmarks/build_country_flh_{technology}"
+    # group: 'feedin_preparation'
+    script: "scripts/build_country_flh.py"
+
 # Local Variables:
 # mode: python
 # End:
