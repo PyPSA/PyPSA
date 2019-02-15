@@ -21,7 +21,7 @@ dependencies:
 
   # Second order dependencies which should really be deps of atlite
   - xarray
-  - netcdf4
+  - netcdf4!=1.4.2 # Don't use 1.4.2 https://github.com/Unidata/netcdf4-python/issues/870
   - bottleneck
   - cyordereddict
   - toolz
