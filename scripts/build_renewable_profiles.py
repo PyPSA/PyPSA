@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import matplotlib.pyplot as plt
+
 import os
 import atlite
 import numpy as np
@@ -50,7 +52,7 @@ def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
     assert gdal.Warp(average, padded, resampleAlg='average') == 1, "gdal warp failed: %s" % gdal.GetLastErrorMsg()
     return average
 
-def calculate_potential(gid):
+def calculate_potential(gid, save_map=None):
     feature = gk.vector.extractFeature(paths["regions"], where=gid)
     ec = gl.ExclusionCalculator(feature.geom)
 
@@ -72,6 +74,11 @@ def calculate_potential(gid):
         ec.excludeVectorType(paths["country_shapes"], buffer=config['max_shore_distance'], invert=True)
     if 'min_shore_distance' in config:
         ec.excludeVectorType(paths["country_shapes"], buffer=config['min_shore_distance'])
+
+    if save_map is not None:
+        ec.draw()
+        plt.savefig(save_map, transparent=True)
+        plt.close()
 
     availability = downsample_to_coarse_grid(bounds, dx, dy, ec.region, np.where(ec.region.mask, ec._availability, 0))
 
