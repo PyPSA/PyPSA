@@ -339,6 +339,7 @@ def attach_extendable_generators(n, costs, ppl):
         if suptech == 'OCGT':
             ocgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
             n.madd('Generator', ocgt.index,
+                   suffix=' OCGT'
                    bus=ocgt['bus'],
                    carrier=tech,
                    p_nom_extendable=True,
@@ -346,9 +347,21 @@ def attach_extendable_generators(n, costs, ppl):
                    capital_cost=costs.at['OCGT', 'capital_cost'],
                    marginal_cost=costs.at['OCGT', 'marginal_cost'],
                    efficiency=costs.at['OCGT', 'efficiency'])
+
+        elif suptech == 'CCGT':
+            ccgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
+            n.madd('Generator', ccgt.index,
+                   suffix=' CCGT'
+                   bus=ccgt['bus'],
+                   carrier=tech,
+                   p_nom_extendable=True,
+                   p_nom=0.,
+                   capital_cost=costs.at['CCGT', 'capital_cost'],
+                   marginal_cost=costs.at['CCGT', 'marginal_cost'],
+                   efficiency=costs.at['CCGT', 'efficiency'])
         else:
             raise NotImplementedError(f"Adding extendable generators for carrier '{tech}' is not implemented, yet."
-                                       "Only OCGT are allowed at the moment.")
+                                       "Only OCGT and CCGT are allowed at the moment.")
 
 
 def attach_storage(n, costs):
