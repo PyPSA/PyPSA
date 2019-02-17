@@ -339,7 +339,7 @@ def attach_extendable_generators(n, costs, ppl):
         if suptech == 'OCGT':
             ocgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
             n.madd('Generator', ocgt.index,
-                   suffix=' OCGT'
+                   suffix=' OCGT',
                    bus=ocgt['bus'],
                    carrier=tech,
                    p_nom_extendable=True,
@@ -351,7 +351,7 @@ def attach_extendable_generators(n, costs, ppl):
         elif suptech == 'CCGT':
             ccgt = ppl.loc[ppl.Fueltype.isin(('OCGT', 'CCGT'))].groupby('bus', as_index=False).first()
             n.madd('Generator', ccgt.index,
-                   suffix=' CCGT'
+                   suffix=' CCGT',
                    bus=ccgt['bus'],
                    carrier=tech,
                    p_nom_extendable=True,
