@@ -227,7 +227,7 @@ def attach_conventional_generators(n, costs, ppl):
                p_nom=p['p_nom'],
                efficiency=costs.at[tech, 'efficiency'],
                marginal_cost=costs.at[tech, 'marginal_cost'],
-               capital_cost=costs.at[tech, 'capital_cost'])
+               capital_cost=0)
 
 
 def attach_hydro(n, costs, ppl):
