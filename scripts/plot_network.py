@@ -215,7 +215,7 @@ def split_costs(n):
 costs, costs_cap_ex, costs_cap_new, costs_marg = split_costs(n)
 
 costs_graph = pd.DataFrame(dict(a=costs.drop('load', errors='ignore')),
-                           index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT', 'battery', 'H2']).dropna()
+                           index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT','CCGT', 'battery', 'H2']).dropna()
 bottom = np.array([0., 0.])
 texts = []
 
