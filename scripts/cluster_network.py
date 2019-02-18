@@ -30,7 +30,7 @@ def normed(x):
     return (x/x.sum()).fillna(0.)
 
 def weighting_for_country(n, x):
-    conv_carriers = {'OCGT', 'PHS', 'hydro'}
+    conv_carriers = {'OCGT','CCGT','PHS', 'hydro'}
     gen = (n
            .generators.loc[n.generators.carrier.isin(conv_carriers)]
            .groupby('bus').p_nom.sum()
