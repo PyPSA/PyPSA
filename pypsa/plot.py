@@ -155,10 +155,15 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
 
+    x, y = network.buses["x"],  network.buses["y"]
+
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+
     if geomap:
-        x, y = draw_map(network, jitter, ax, boundaries, margin, geomap)
-    else:
-        x, y = network.buses['x'], network.buses['y']
+        x, y = draw_map(network, x, y, ax, boundaries, margin, geomap)
+
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
@@ -267,10 +272,10 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     ax.update_datalim(compute_bbox_with_margins(margin, x, y))
     ax.autoscale_view()
 
-    if basemap_present:
+    if geomap:
+        if cartopy_present:
+            ax.outline_patch.set_visible(False)
         ax.axis('off')
-    if cartopy_present and geomap:
-        ax.outline_patch.set_visible(False)
 
     ax.set_title(title)
 
@@ -318,14 +323,8 @@ def projected_area_factor(ax, original_crs):
 
 
 
-def draw_map(network=None, jitter=None, ax=None, boundaries=None,
+def draw_map(network, x, y, ax, boundaries=None,
              margin=0.05, geomap=True):
-
-    x, y = network.buses["x"],  network.buses["y"]
-
-    if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
     if boundaries is None:
         (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
@@ -338,13 +337,13 @@ def draw_map(network=None, jitter=None, ax=None, boundaries=None,
         assert resolution in ['10m', '50m', '110m'], (
                 "Resolution has to be one of '10m', '50m', '110m'")
         gmap = ax.projection
-        orig_projection = get_projection_from_crs(network.srid)
+        data_projection = get_projection_from_crs(network.srid)
         transformed = pd.DataFrame(
                     gmap.transform_points(
-                        orig_projection, x.values, y.values),
+                        data_projection, x.values, y.values),
                         columns=['x', 'y', 'z'], index=network.buses.index)
         x, y = transformed.x, transformed.y
-        ax.set_extent([x1, x2, y1, y2], crs=orig_projection)
+        ax.set_extent([x1, x2, y1, y2], crs=data_projection)
         ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
         border = cartopy.feature.BORDERS.with_scale(resolution)
         ax.add_feature(border, linewidth=0.3)
@@ -357,9 +356,9 @@ def draw_map(network=None, jitter=None, ax=None, boundaries=None,
         gmap.drawcountries(linewidth=0.3, zorder=-1)
         gmap.drawcoastlines(linewidth=0.4, zorder=-1)
 
-        x, y = gmap(x.values, y.values)
-        x = pd.Series(x, network.buses.index)
-        y = pd.Series(y, network.buses.index)
+        # disable gmap transformation due to arbitrary conversion
+        # x, y = gmap(x.values, y.values)
+
     # if gmap is needed outside, this could also be passed
     return x, y
 
