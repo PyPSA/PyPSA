@@ -125,7 +125,8 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, algorithm="kmeans", **algo
         else:
             raise ArgumentError("`algorithm` must be one of 'kmeans', 'spectral' or 'louvain'")
 
-    return n.buses.groupby(['country', 'sub_network'], group_keys=False).apply(busmap_for_country)
+    return (n.buses.groupby(['country', 'sub_network'], group_keys=False, squeeze=True)
+            .apply(busmap_for_country).rename('busmap'))
 
 def plot_busmap_for_n_clusters(n, n_clusters=50):
     busmap = busmap_for_n_clusters(n, n_clusters)
@@ -187,12 +188,14 @@ if __name__ == "__main__":
             input=Dict(
                 network='networks/{network}_s{simpl}.nc',
                 regions_onshore='resources/regions_onshore_{network}_s{simpl}.geojson',
-                regions_offshore='resources/regions_offshore_{network}_s{simpl}.geojson'
+                regions_offshore='resources/regions_offshore_{network}_s{simpl}.geojson',
+                clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
             ),
             output=Dict(
                 network='networks/{network}_s{simpl}_{clusters}.nc',
                 regions_onshore='resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson',
-                regions_offshore='resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson'
+                regions_offshore='resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson',
+                clustermaps='resources/clustermaps_{network}_s{simpl}_{clusters}.h5'
             )
         )
 
