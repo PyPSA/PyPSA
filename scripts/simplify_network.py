@@ -21,9 +21,7 @@ from six.moves import reduce
 
 import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
-from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
-                                     _make_consense, get_clustering_from_busmap,
-                                     aggregategenerators, aggregateoneport)
+from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
@@ -254,7 +252,8 @@ def cluster(n, n_clusters):
     potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
-    clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode)
+    clustering = clustering_for_n_clusters(n, n_clusters, potential_mode=potential_mode,
+                                           solver_name=snakemake.config['solving']['solver']['name'])
 
     return clustering.network, clustering.busmap
 
