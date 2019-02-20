@@ -228,6 +228,7 @@ def attach_conventional_generators(n, costs, ppl):
                efficiency=costs.at[tech, 'efficiency'],
                marginal_cost=costs.at[tech, 'marginal_cost'],
                capital_cost=0)
+        logger.warn(f'Capital costs for conventional generators put to 0 EUR/MW.')
 
 
 def attach_hydro(n, costs, ppl):
