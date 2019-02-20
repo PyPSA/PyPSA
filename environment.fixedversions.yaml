@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - coincbc
   - ipopt
   - snakemake=5.4.0=0
   - snakemake-minimal=5.4.0=py_0
