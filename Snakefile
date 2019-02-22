@@ -3,7 +3,7 @@ configfile: "config.yaml"
 COSTS="data/costs.csv"
 
 wildcard_constraints:
-    ll="(v|c)([0-9\.]+|opt|all)", # line limit, can be volume or cost
+    ll="(v|c)([0-9\.]+|opt|all)|all", # line limit, can be volume or cost
     simpl="[a-zA-Z0-9]*|all",
     clusters="[0-9]+m?|all",
     sectors="[+a-zA-Z0-9]+",
