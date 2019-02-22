@@ -121,7 +121,7 @@ def attach_load(n):
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = gpd.read_file(snakemake.input.regions).set_index('name').reindex(substation_lv_i)
     opsd_load = timeseries_opsd(slice(*n.snapshots[[0,-1]].year.astype(str)),
-                                snakemake.input.opsd_load)
+                                snakemake.input.opsd_load)*snakemake.config['load']['scaling_factor']
 
     # Convert to naive UTC (has to be explicit since pandas 0.24)
     opsd_load.index = opsd_load.index.tz_localize(None)

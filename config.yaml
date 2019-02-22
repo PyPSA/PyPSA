@@ -157,6 +157,9 @@ transformers:
   s_nom: 2000.
   type: ''
 
+load:
+  scaling_factor: 1.0
+
 costs:
   year: 2030
 
