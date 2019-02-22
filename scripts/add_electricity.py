@@ -178,6 +178,8 @@ def attach_wind_and_solar(n, costs):
 
         n.add("Carrier", name=tech)
         with xr.open_dataset(getattr(snakemake.input, 'profile_' + tech)) as ds:
+            if ds.indexes['bus'].empty: continue
+
             suptech = tech.split('-', 2)[0]
             if suptech == 'offwind':
                 underwater_fraction = ds['underwater_fraction'].to_pandas()
@@ -249,83 +251,88 @@ def attach_hydro(n, costs, ppl):
         has_pump=ppl.technology.str.contains('Pumped Storage')
     )
 
-    country = ppl['bus'].map(n.buses.country)
-    # distribute by p_nom in each country
-    dist_key = ppl.loc[ppl.has_inflow, 'p_nom'].groupby(country).transform(normed)
+    country = ppl['bus'].map(n.buses.country).rename("country")
 
-    with xr.open_dataarray(snakemake.input.profile_hydro) as inflow:
-        inflow_countries = pd.Index(country.loc[ppl.has_inflow].values)
-        assert len(inflow_countries.unique().difference(inflow.indexes['countries'])) == 0, \
-            "'{}' is missing inflow time-series for at least one country: {}".format(snakemake.input.profile_hydro, ", ".join(inflow_countries.unique().difference(inflow.indexes['countries'])))
+    if ppl.has_inflow.any():
+        dist_key = ppl.loc[ppl.has_inflow, 'p_nom'].groupby(country).transform(normed)
 
-        inflow_t = (
-            inflow.sel(countries=inflow_countries)
-            .rename({'countries': 'name'})
-            .assign_coords(name=ppl.index[ppl.has_inflow])
-            .transpose('time', 'name')
-            .to_pandas()
-            .multiply(dist_key, axis=1)
-        )
+        with xr.open_dataarray(snakemake.input.profile_hydro) as inflow:
+            inflow_countries = pd.Index(country.loc[ppl.has_inflow].values)
+            assert len(inflow_countries.unique().difference(inflow.indexes['countries'])) == 0, (
+                "'{}' is missing inflow time-series for at least one country: {}"
+                .format(snakemake.input.profile_hydro, ", ".join(inflow_countries.unique().difference(inflow.indexes['countries'])))
+            )
+
+            inflow_t = (
+                inflow.sel(countries=inflow_countries)
+                .rename({'countries': 'name'})
+                .assign_coords(name=ppl.index[ppl.has_inflow])
+                .transpose('time', 'name')
+                .to_pandas()
+                .multiply(dist_key, axis=1)
+            )
 
     if 'ror' in carriers:
         ror = ppl.loc[ppl.has_inflow & ~ ppl.has_store]
-        n.madd("Generator", ror.index,
-               carrier='ror',
-               bus=ror['bus'],
-               p_nom=ror['p_nom'],
-               efficiency=costs.at['ror', 'efficiency'],
-               capital_cost=costs.at['ror', 'capital_cost'],
-               weight=ror['p_nom'],
-               p_max_pu=(inflow_t.loc[:, ror.index]
-                         .divide(ror['p_nom'], axis=1)
-                         .where(lambda df: df<=1., other=1.)))
+        if not ror.empty:
+            n.madd("Generator", ror.index,
+                   carrier='ror',
+                   bus=ror['bus'],
+                   p_nom=ror['p_nom'],
+                   efficiency=costs.at['ror', 'efficiency'],
+                   capital_cost=costs.at['ror', 'capital_cost'],
+                   weight=ror['p_nom'],
+                   p_max_pu=(inflow_t.loc[:, ror.index]
+                             .divide(ror['p_nom'], axis=1)
+                             .where(lambda df: df<=1., other=1.)))
 
     if 'PHS' in carriers:
         phs = ppl.loc[ppl.has_store & ppl.has_pump]
-        n.madd('StorageUnit', phs.index,
-               carrier='PHS',
-               bus=phs['bus'],
-               p_nom=phs['p_nom'],
-               capital_cost=costs.at['PHS', 'capital_cost'],
-               max_hours=c['PHS_max_hours'],
-               efficiency_store=np.sqrt(costs.at['PHS','efficiency']),
-               efficiency_dispatch=np.sqrt(costs.at['PHS','efficiency']),
-               cyclic_state_of_charge=True,
-               inflow=inflow_t.loc[:, phs.index[phs.has_inflow]])
+        if not phs.empty:
+            n.madd('StorageUnit', phs.index,
+                   carrier='PHS',
+                   bus=phs['bus'],
+                   p_nom=phs['p_nom'],
+                   capital_cost=costs.at['PHS', 'capital_cost'],
+                   max_hours=c['PHS_max_hours'],
+                   efficiency_store=np.sqrt(costs.at['PHS','efficiency']),
+                   efficiency_dispatch=np.sqrt(costs.at['PHS','efficiency']),
+                   cyclic_state_of_charge=True,
+                   inflow=inflow_t.loc[:, phs.index[phs.has_inflow]])
 
     if 'hydro' in carriers:
-        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow].join(country.rename('country'))
+        hydro = ppl.loc[ppl.has_store & ~ ppl.has_pump & ppl.has_inflow].join(country)
+        if not hydro.empty:
+            hydro_max_hours = c.get('hydro_max_hours')
+            if hydro_max_hours == 'energy_capacity_totals_by_country':
+                hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0)["E_store[TWh]"].clip(lower=0.2)*1e6
+                hydro_max_hours_country = hydro_e_country / hydro.groupby('country').p_nom.sum()
+                hydro_max_hours = hydro.country.map(hydro_e_country / hydro.groupby('country').p_nom.sum())
+            elif hydro_max_hours == 'estimate_by_large_installations':
+                hydro_capacities = pd.read_csv(snakemake.input.hydro_capacities, comment="#", na_values='-', index_col=0)
+                estim_hydro_max_hours = hydro_capacities.e_stor / hydro_capacities.p_nom_discharge
 
-        hydro_max_hours = c.get('hydro_max_hours')
-        if hydro_max_hours == 'energy_capacity_totals_by_country':
-            hydro_e_country = pd.read_csv(snakemake.input.hydro_capacities, index_col=0)["E_store[TWh]"].clip(lower=0.2)*1e6
-            hydro_max_hours_country = hydro_e_country / hydro.groupby('country').p_nom.sum()
-            hydro_max_hours = hydro.country.map(hydro_e_country / hydro.groupby('country').p_nom.sum())
-        elif hydro_max_hours == 'estimate_by_large_installations':
-            hydro_capacities = pd.read_csv(snakemake.input.hydro_capacities, comment="#", na_values='-', index_col=0)
-            estim_hydro_max_hours = hydro_capacities.e_stor / hydro_capacities.p_nom_discharge
+                missing_countries = (pd.Index(hydro['country'].unique())
+                                     .difference(estim_hydro_max_hours.dropna().index))
+                if not missing_countries.empty:
+                    logger.warning("Assuming max_hours=6 for hydro reservoirs in the countries: {}"
+                                   .format(", ".join(missing_countries)))
 
-            missing_countries = (pd.Index(hydro['country'].unique())
-                                .difference(estim_hydro_max_hours.dropna().index))
-            if not missing_countries.empty:
-                logger.warning("Assuming max_hours=6 for hydro reservoirs in the countries: {}"
-                            .format(", ".join(missing_countries)))
+                hydro_max_hours = hydro['country'].map(estim_hydro_max_hours).fillna(6)
 
-            hydro_max_hours = hydro['country'].map(estim_hydro_max_hours).fillna(6)
-
-        n.madd('StorageUnit', hydro.index, carrier='hydro',
-               bus=hydro['bus'],
-               p_nom=hydro['p_nom'],
-               max_hours=hydro_max_hours,
-               capital_cost=(costs.at['hydro', 'capital_cost']
-                             if c.get('hydro_capital_cost') else 0.),
-               marginal_cost=costs.at['hydro', 'marginal_cost'],
-               p_max_pu=1.,  # dispatch
-               p_min_pu=0.,  # store
-               efficiency_dispatch=costs.at['hydro', 'efficiency'],
-               efficiency_store=0.,
-               cyclic_state_of_charge=True,
-               inflow=inflow_t.loc[:, hydro.index])
+            n.madd('StorageUnit', hydro.index, carrier='hydro',
+                   bus=hydro['bus'],
+                   p_nom=hydro['p_nom'],
+                   max_hours=hydro_max_hours,
+                   capital_cost=(costs.at['hydro', 'capital_cost']
+                                 if c.get('hydro_capital_cost') else 0.),
+                   marginal_cost=costs.at['hydro', 'marginal_cost'],
+                   p_max_pu=1.,  # dispatch
+                   p_min_pu=0.,  # store
+                   efficiency_dispatch=costs.at['hydro', 'efficiency'],
+                   efficiency_store=0.,
+                   cyclic_state_of_charge=True,
+                   inflow=inflow_t.loc[:, hydro.index])
 
 
 def attach_extendable_generators(n, costs, ppl):
