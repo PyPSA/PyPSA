@@ -79,7 +79,7 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     grouper = [generators.bus, generators.carrier]
 
     def normed_or_uniform(x):
-        return x/x.sum() if x.notnull().all() else pd.Series(1./len(x), x.index)
+        return x/x.sum() if x.sum(skipna=False) > 0 else pd.Series(1./len(x), x.index)
     weighting = generators.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
     generators['capital_cost'] *= weighting
     strategies = {'p_nom_max': np.min, 'weight': np.sum, 'p_nom': np.sum, 'capital_cost': np.sum}
