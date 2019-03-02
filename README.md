@@ -1,5 +1,12 @@
 # PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 
+*NOTE (02. March 2019): There is a bug in the network clustering routines for
+PyPSA 0.13.2 that distorts the `capital_cost` for expanding conventional
+generators (OCGT and CCGT) in the aggregated networks. [See
+#52](https://github.com/PyPSA/PyPSA/pull/52) which is fixed by commit
+[6dd8cb](https://github.com/PyPSA/PyPSA/commit/6dd8cb2a8dfc1a409e0b8b6bfe7372b4f914d0fa).
+Use the new `environment.yaml` to update PyPSA to the current `master` branch!.*
+
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
 
