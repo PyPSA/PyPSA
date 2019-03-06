@@ -54,7 +54,7 @@ def _find_closest_links(links, new_links, distance_upper_bound=1.5):
 def _load_buses_from_eg():
     buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
                          true_values='t', false_values='f',
-                         dtype=dict(bus_id="str", under_construction='bool'))
+                         dtype=dict(bus_id="str"))
             .set_index("bus_id")
             .drop(['station_id'], axis=1)
             .rename(columns=dict(voltage='v_nom')))
