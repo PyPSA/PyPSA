@@ -79,8 +79,7 @@ def distribute_clusters(n, n_clusters, solver_name=None):
         return (1, N[n_id])
     m.n = po.Var(list(L.index), bounds=n_bounds, domain=po.Integers)
     m.tot = po.Constraint(expr=(po.summation(m.n) == n_clusters))
-    m.objective = po.Objective(expr=po.summation((m.n[i] - L.loc[i]*n_clusters)**2
-                                           for i in L.index),
+    m.objective = po.Objective(expr=sum((m.n[i] - L.loc[i]*n_clusters)**2 for i in L.index),
                                sense=po.minimize)
 
     opt = po.SolverFactory(solver_name)
