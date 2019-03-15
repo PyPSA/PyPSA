@@ -888,7 +888,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
 
 
-def import_from_pandapower_net(network, net):
+def import_from_pandapower_net(network, net, extra_line_data=False):
     """
     Import network from pandapower net.
 
