@@ -9,4 +9,4 @@ dependencies:
   - twine
   - pip:
     - pypower
-    - pandapower
+    - pandapower>=2.0
