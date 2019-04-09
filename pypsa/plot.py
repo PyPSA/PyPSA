@@ -56,6 +56,7 @@ try:
     import cartopy
     import cartopy.crs as ccrs
     import cartopy.mpl.geoaxes
+    import requests
 except ImportError:
     cartopy_present = False
 
@@ -134,10 +135,9 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         return
 
     if basemap is not None:
-        warnings.warn("`basemap` is deprecated, use `geomap` instead.",
-                      DeprecationWarning)
+        logger.warning("argument `basemap` is deprecated, "
+                       "use `geomap` instead.")
         geomap = basemap
-
 
     if cartopy_present and geomap:
         if projection is None:
@@ -162,6 +162,8 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
 
     if geomap:
         transform = draw_map(network, x, y, ax, boundaries, margin, geomap)
+    else:
+        transform = ax.transData
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
@@ -210,7 +212,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         return pd.Series(ser,
                          index=pd.MultiIndex(levels=(["Line"], index),
                                              codes=(np.zeros(len(index)),
-                                                     np.arange(len(index)))))
+                                                    np.arange(len(index)))))
 
     line_colors = as_branch_series(line_colors)
     line_widths = as_branch_series(line_widths)
@@ -343,12 +345,13 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
 
     elif basemap_present:
         resolution = 'l' if isinstance(geomap, bool) else geomap
-        gmap = Basemap(resolution=resolution, epsg=network.srid,
+        gmap = Basemap(resolution=resolution,
                        llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
                        urcrnrlon=x2, ax=ax)
         gmap.drawcountries(linewidth=0.3, zorder=-1)
         gmap.drawcoastlines(linewidth=0.4, zorder=-1)
-        data_projection = None
+        # no transformation -> use the default
+        data_projection = ax.transData
 
         # disable gmap transformation due to arbitrary conversion
         # x, y = gmap(x.values, y.values)
