@@ -60,18 +60,24 @@ try:
 except ImportError:
     cartopy_present = False
 
+# Use cartopy by default, fall back on basemap
+use_basemap = False
+use_cartopy = cartopy_present
+if not use_cartopy:
+    use_basemap = basemap_present
+
 pltly_present = True
 try:
-        import plotly.offline as pltly
+    import plotly.offline as pltly
 except ImportError:
-        pltly_present = False
+    pltly_present = False
 
 
 def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
          bus_colors='b', line_colors='g', bus_sizes=10, line_widths=2,
          title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
-         basemap=None):
+         basemap=None, basemap_parameters=None):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -117,12 +123,18 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     jitter : None|float
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
+    basemap_parameters : dict
+        Specify a dict with additional contstructor parameters for the
+        Basemap. Will disable Cartopy.
+        Use this feature to set a custom projection.
+        (e.g. `{'projection': 'tmerc', 'lon_0':10.0, 'lat_0':50.0}`)
 
     Returns
     -------
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
+    global use_cartopy, use_basemap
 
     defaults_for_branches = {
         'Link': dict(color="cyan", width=2),
@@ -139,7 +151,30 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                        "use `geomap` instead.")
         geomap = basemap
 
-    if cartopy_present and geomap:
+    if geomap:
+        if not (cartopy_present or basemap_present):
+            # Not suggesting Basemap since it is being deprecated
+            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+            geomap = False
+
+        # Use cartopy by default, fall back on basemap
+        use_basemap = False
+        use_cartopy = cartopy_present
+        if not use_cartopy:
+            use_basemap = basemap_present
+
+        # If the user specifies basemap parameters, they prefer
+        # basemap over cartopy.
+        # (This means that you can force the use of basemap by
+        # setting `basemap_parameters={}`)
+        if basemap_present:
+            if basemap_parameters is not None:
+                logger.warning("Basemap is being deprecated, consider "
+                               "switching to Cartopy.")
+                use_basemap = True
+                use_cartopy = False
+
+    if use_cartopy and geomap:
         if projection is None:
             projection = get_projection_from_crs(network.srid)
 
@@ -161,9 +196,17 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
     if geomap:
-        transform = draw_map(network, x, y, ax, boundaries, margin, geomap)
+        axis_transform, basemap_transform = draw_map(network, x, y, ax,
+                        boundaries, margin, geomap, basemap_parameters)
+        if use_basemap:
+            # A non-standard projection might be used; the easiest way to
+            # support this is to tranform the bus coordinates.
+            x, y = basemap_transform(x.values, y.values)
+            x = pd.Series(x, network.buses.index)
+            y = pd.Series(y, network.buses.index)
+
     else:
-        transform = ax.transData
+        axis_transform = ax.transData
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
@@ -192,12 +235,12 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                      360*start, 360*(start+ratio),
                                      facecolor=bus_colors[i]))
                 start += ratio
-        bus_collection = PatchCollection(patches, match_original=True, transform=transform)
+        bus_collection = PatchCollection(patches, match_original=True, transform=axis_transform)
         ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=network.buses.index)
         s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face', transform=transform)
+        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face', transform=axis_transform)
 
     def as_branch_series(ser):
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
@@ -220,6 +263,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         line_cmap = {'Line': line_cmap}
 
     branch_collections = []
+
     for c in network.iterate_components(branch_components):
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
@@ -253,7 +297,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                       antialiaseds=(1,),
                                       colors=l_colors,
                                       transOffset=ax.transData,
-                                      transform=transform)
+                                      transform=axis_transform)
 
         if l_nums is not None:
             l_collection.set_array(np.asarray(l_nums))
@@ -271,7 +315,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     ax.autoscale_view()
 
     if geomap:
-        if cartopy_present:
+        if use_cartopy:
             ax.outline_patch.set_visible(False)
         ax.axis('off')
 
@@ -324,7 +368,10 @@ def projected_area_factor(ax, original_crs):
 
 
 
-def draw_map(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
+def draw_map(network, x, y, ax, boundaries=None, margin=0.05,
+             geomap=True, basemap_parameters={}):
+    axis_transformation = None
+    basemap_projection = None
 
     if boundaries is None:
         (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
@@ -332,31 +379,32 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
         x1, x2, y1, y2 = boundaries
 
     #First choice should be cartopy
-    if cartopy_present:
+    if use_cartopy:
         resolution = '50m' if isinstance(geomap, bool) else geomap
         assert resolution in ['10m', '50m', '110m'], (
                 "Resolution has to be one of '10m', '50m', '110m'")
         gmap = ax.projection
-        data_projection = get_projection_from_crs(network.srid)
-        ax.set_extent([x1, x2, y1, y2], crs=data_projection)
+        axis_transformation = get_projection_from_crs(network.srid)
+        ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
         ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
         border = cartopy.feature.BORDERS.with_scale(resolution)
         ax.add_feature(border, linewidth=0.3)
 
-    elif basemap_present:
+    elif use_basemap:
         resolution = 'l' if isinstance(geomap, bool) else geomap
         gmap = Basemap(resolution=resolution,
                        llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
-                       urcrnrlon=x2, ax=ax)
+                       urcrnrlon=x2, ax=ax, **basemap_parameters)
         gmap.drawcountries(linewidth=0.3, zorder=-1)
         gmap.drawcoastlines(linewidth=0.4, zorder=-1)
         # no transformation -> use the default
-        data_projection = ax.transData
+        axis_transformation = ax.transData
+        basemap_projection = gmap
 
         # disable gmap transformation due to arbitrary conversion
         # x, y = gmap(x.values, y.values)
 
-    return data_projection
+    return axis_transformation, basemap_projection
 
 
 #This function was borne out of a breakout group at the October 2017
