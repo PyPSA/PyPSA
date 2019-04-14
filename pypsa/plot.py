@@ -60,12 +60,6 @@ try:
 except ImportError:
     cartopy_present = False
 
-# Use cartopy by default, fall back on basemap
-use_basemap = False
-use_cartopy = cartopy_present
-if not use_cartopy:
-    use_basemap = basemap_present
-
 pltly_present = True
 try:
     import plotly.offline as pltly
@@ -134,8 +128,6 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-    global use_cartopy, use_basemap
-
     defaults_for_branches = {
         'Link': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2),
@@ -197,7 +189,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
 
     if geomap:
         axis_transform, basemap_transform = draw_map(network, x, y, ax,
-                        boundaries, margin, geomap, basemap_parameters)
+                          boundaries, margin, geomap, basemap_parameters)
         if use_basemap:
             # A non-standard projection might be used; the easiest way to
             # support this is to tranform the bus coordinates.
@@ -332,10 +324,10 @@ def get_projection_from_crs(crs):
         return ccrs.epsg(crs)
     except requests.RequestException:
         logger.warning("A connection to http://epsg.io/ is required for a projected coordinate reference system. "
-                    "Falling back to latlong.")
+                       "Falling back to latlong.")
     except ValueError:
         logger.warning(f"'{crs}' does not define a projected coordinate system. "
-                    "Falling back to latlong.")
+                       "Falling back to latlong.")
         return ccrs.PlateCarree()
 
 
@@ -369,7 +361,7 @@ def projected_area_factor(ax, original_crs):
 
 
 def draw_map(network, x, y, ax, boundaries=None, margin=0.05,
-             geomap=True, basemap_parameters={}):
+             geomap=True, basemap_parameters=None):
     axis_transformation = None
     basemap_projection = None
 
@@ -378,8 +370,8 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05,
     else:
         x1, x2, y1, y2 = boundaries
 
-    #First choice should be cartopy
-    if use_cartopy:
+    # First choice is cartopy
+    if cartopy_present and basemap_parameters is None:
         resolution = '50m' if isinstance(geomap, bool) else geomap
         assert resolution in ['10m', '50m', '110m'], (
                 "Resolution has to be one of '10m', '50m', '110m'")
@@ -390,7 +382,9 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05,
         border = cartopy.feature.BORDERS.with_scale(resolution)
         ax.add_feature(border, linewidth=0.3)
 
-    elif use_basemap:
+    elif basemap_present:
+        if basemap_parameters is None:
+            basemap_parameters = {}
         resolution = 'l' if isinstance(geomap, bool) else geomap
         gmap = Basemap(resolution=resolution,
                        llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
