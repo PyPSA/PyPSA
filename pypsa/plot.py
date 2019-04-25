@@ -71,7 +71,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
          bus_colors='b', line_colors='g', bus_sizes=10, line_widths=2,
          title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
-         basemap=None):
+         basemap=None, color_geomap=False):
     """
     Plot the network buses and lines using matplotlib and Basemap.
 
@@ -117,6 +117,8 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     jitter : None|float
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
+    color_geomap : bool, default False
+        Switch to paint land and sea areas in light colors
 
     Returns
     -------
@@ -339,6 +341,11 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
         gmap = ax.projection
         data_projection = get_projection_from_crs(network.srid)
         ax.set_extent([x1, x2, y1, y2], crs=data_projection)
+        if color_geomap:
+            ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
+                           facecolor='lightblue')
+            ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
+                           facecolor='whitesmoke')
         ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
         border = cartopy.feature.BORDERS.with_scale(resolution)
         ax.add_feature(border, linewidth=0.3)
@@ -350,6 +357,10 @@ def draw_map(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
                        urcrnrlon=x2, ax=ax)
         gmap.drawcountries(linewidth=0.3, zorder=-1)
         gmap.drawcoastlines(linewidth=0.4, zorder=-1)
+        if color_geomap:
+            gmap.drawlsmaks(land_color="whitesmoke",
+                            ocean_color="lightblue",
+                            grid=1.25, ax=ax)
         # no transformation -> use the default
         data_projection = ax.transData
 
