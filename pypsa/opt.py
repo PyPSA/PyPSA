@@ -154,11 +154,21 @@ try:
         expr._coef = [item[0] for item in variables]
         expr._const = constant
         return expr
-except ImportError:
-    from pyomo.core.expr import expr_pyomo5
 
-    def _build_sum_expression(variables, constant=0.):
-        expr = expr_pyomo5.LinearExpression()
+except ImportError:
+    try:
+        from pyomo.core.expr import expr_pyomo5
+        _refactored_expr_pyomo5 = False
+
+    except ImportError:
+        from pyomo.core.expr import numeric_expr
+        _refactored_expr_pyomo5 = True
+
+    def _build_sum_expression(variables, constant=0., refactored_expr_pyomo5=_refactored_expr_pyomo5):
+        if refactored_expr_pyomo5:
+            expr = numeric_expr.LinearExpression()
+        else:
+            expr = expr_pyomo5.LinearExpression()
         expr.linear_vars = [item[1] for item in variables]
         expr.linear_coefs = [item[0] for item in variables]
         expr.constant = constant
