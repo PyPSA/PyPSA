@@ -89,7 +89,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         For Cartopy users '10m', '50m', '110m' are valid resolutions options.
     projection: cartopy.crs.Projection, defaults to None
         Define the projection of your geomap, only valid if cartopy is
-        installed. If None (default) is passed the projection for cartropy
+        installed. If None (default) is passed the projection for cartopy
         is set to cartopy.crs.PlateCarree
     bus_colors : dict/pandas.Series
         Colors for the buses, defaults to "b"
@@ -118,7 +118,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
     basemap_parameters : dict
-        Specify a dict with additional contstructor parameters for the
+        Specify a dict with additional constructor parameters for the
         Basemap. Will disable Cartopy.
         Use this feature to set a custom projection.
         (e.g. `{'projection': 'tmerc', 'lon_0':10.0, 'lat_0':50.0}`)
@@ -187,18 +187,20 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
+    axis_transform = ax.transData
+
     if geomap:
-        axis_transform, basemap_transform = draw_map(network, x, y, ax,
-                          boundaries, margin, geomap, basemap_parameters)
-        if use_basemap:
+        if use_cartopy:
+            axis_transform = draw_map_cartopy(network, x, y, ax, boundaries, margin, geomap)
+        elif use_basemap:
+            basemap_transform = draw_map_basemap(network, x, y, ax,
+                    boundaries, margin, geomap, basemap_parameters)
+
             # A non-standard projection might be used; the easiest way to
             # support this is to tranform the bus coordinates.
             x, y = basemap_transform(x.values, y.values)
             x = pd.Series(x, network.buses.index)
             y = pd.Series(y, network.buses.index)
-
-    else:
-        axis_transform = ax.transData
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
@@ -360,46 +362,50 @@ def projected_area_factor(ax, original_crs):
 
 
 
-def draw_map(network, x, y, ax, boundaries=None, margin=0.05,
-             geomap=True, basemap_parameters=None):
-    axis_transformation = None
-    basemap_projection = None
+def draw_map_basemap(network, x, y, ax, boundaries=None, margin=0.05,
+                     geomap=True, basemap_parameters=None):
 
     if boundaries is None:
         (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
     else:
         x1, x2, y1, y2 = boundaries
 
-    # First choice is cartopy
-    if cartopy_present and basemap_parameters is None:
-        resolution = '50m' if isinstance(geomap, bool) else geomap
-        assert resolution in ['10m', '50m', '110m'], (
-                "Resolution has to be one of '10m', '50m', '110m'")
-        gmap = ax.projection
-        axis_transformation = get_projection_from_crs(network.srid)
-        ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
-        ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
-        border = cartopy.feature.BORDERS.with_scale(resolution)
-        ax.add_feature(border, linewidth=0.3)
+    if basemap_parameters is None:
+        basemap_parameters = {}
 
-    elif basemap_present:
-        if basemap_parameters is None:
-            basemap_parameters = {}
-        resolution = 'l' if isinstance(geomap, bool) else geomap
-        gmap = Basemap(resolution=resolution,
-                       llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
-                       urcrnrlon=x2, ax=ax, **basemap_parameters)
-        gmap.drawcountries(linewidth=0.3, zorder=-1)
-        gmap.drawcoastlines(linewidth=0.4, zorder=-1)
-        # no transformation -> use the default
-        axis_transformation = ax.transData
-        basemap_projection = gmap
+    resolution = 'l' if isinstance(geomap, bool) else geomap
+    gmap = Basemap(resolution=resolution,
+                    llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
+                    urcrnrlon=x2, ax=ax, **basemap_parameters)
+    gmap.drawcountries(linewidth=0.3, zorder=-1)
+    gmap.drawcoastlines(linewidth=0.4, zorder=-1)
+    # no transformation -> use the default
+    axis_transformation = ax.transData
+    basemap_projection = gmap
 
-        # disable gmap transformation due to arbitrary conversion
-        # x, y = gmap(x.values, y.values)
+    # disable gmap transformation due to arbitrary conversion
+    # x, y = gmap(x.values, y.values)
 
-    return axis_transformation, basemap_projection
+    return basemap_projection
 
+def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05, geomap=True):
+
+    if boundaries is None:
+        (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
+    else:
+        x1, x2, y1, y2 = boundaries
+
+    resolution = '50m' if isinstance(geomap, bool) else geomap
+    assert resolution in ['10m', '50m', '110m'], (
+            "Resolution has to be one of '10m', '50m', '110m'")
+    gmap = ax.projection
+    axis_transformation = get_projection_from_crs(network.srid)
+    ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
+    ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
+    border = cartopy.feature.BORDERS.with_scale(resolution)
+    ax.add_feature(border, linewidth=0.3)
+
+    return axis_transformation
 
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
