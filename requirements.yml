@@ -13,3 +13,4 @@ dependencies:
   - pyomo
   - coincbc
   - glpk
+  - cartopy>=0.16
