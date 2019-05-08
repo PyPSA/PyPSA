@@ -187,16 +187,17 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
 
     x, y = network.buses["x"],  network.buses["y"]
 
-    if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
-
     axis_transform = ax.transData
 
     if geomap:
         if use_cartopy:
             axis_transform = draw_map_cartopy(network, x, y, ax,
                     boundaries, margin, geomap, color_geomap)
+            new_coords = pd.DataFrame(
+                    ax.projection.transform_points(axis_transform,
+                                                   x.values, y.values),
+                       index=network.buses.index, columns=['x', 'y', 'z'])
+            x, y = new_coords['x'], new_coords['y']
         elif use_basemap:
             basemap_transform = draw_map_basemap(network, x, y, ax,
                     boundaries, margin, geomap, basemap_parameters, color_geomap)
@@ -206,6 +207,10 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
             x, y = basemap_transform(x.values, y.values)
             x = pd.Series(x, network.buses.index)
             y = pd.Series(y, network.buses.index)
+
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
@@ -234,12 +239,12 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                      360*start, 360*(start+ratio),
                                      facecolor=bus_colors[i]))
                 start += ratio
-        bus_collection = PatchCollection(patches, match_original=True, transform=axis_transform)
+        bus_collection = PatchCollection(patches, match_original=True)
         ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=network.buses.index)
         s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face', transform=axis_transform)
+        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face')
 
     def as_branch_series(ser):
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
@@ -295,8 +300,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                       linewidths=l_widths,
                                       antialiaseds=(1,),
                                       colors=l_colors,
-                                      transOffset=ax.transData,
-                                      transform=axis_transform)
+                                      transOffset=ax.transData)
 
         if l_nums is not None:
             l_collection.set_array(np.asarray(l_nums))
