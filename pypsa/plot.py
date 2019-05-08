@@ -122,9 +122,9 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         Basemap. Will disable Cartopy.
         Use this feature to set a custom projection.
         (e.g. `{'projection': 'tmerc', 'lon_0':10.0, 'lat_0':50.0}`)
-    color_geomap : dict
+    color_geomap : dict or bool
         Specify colors to paint land and sea areas in.
-        (e.g. `{'ocean': 'lightblue', 'land': 'whitesmoke'}`)
+        If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
         If no dictionary is provided, colors are white.
 
     Returns
@@ -304,11 +304,11 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
             l_collection.autoscale()
 
         ax.add_collection(l_collection)
-        l_collection.set_zorder(1)
+        l_collection.set_zorder(3)
 
         branch_collections.append(l_collection)
 
-    bus_collection.set_zorder(2)
+    bus_collection.set_zorder(4)
 
     ax.update_datalim(compute_bbox_with_margins(margin, x, y))
     ax.autoscale_view()
@@ -382,15 +382,17 @@ def draw_map_basemap(network, x, y, ax, boundaries=None, margin=0.05,
     gmap = Basemap(resolution=resolution,
                     llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
                     urcrnrlon=x2, ax=ax, **basemap_parameters)
-    gmap.drawcountries(linewidth=0.3, zorder=-1)
-    gmap.drawcoastlines(linewidth=0.4, zorder=-1)
+    gmap.drawcountries(linewidth=0.3, zorder=2)
+    gmap.drawcoastlines(linewidth=0.4, zorder=2)
 
     if color_geomap is None:
-        color_geomap = {'ocean': 'w', 'land': 'w'} 
+        color_geomap = {'ocean': 'w', 'land': 'w'}
+    elif color_geomap & (not isinstance(dict, color_geomap)):
+        color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
     gmap.drawlsmask(land_color=color_geomap['land'],
                     ocean_color=color_geomap['ocean'],
-                    grid=1.25, ax=ax)
+                    grid=1.25, ax=ax, zorder=1)
 
     # no transformation -> use the default
     axis_transformation = ax.transData
@@ -418,13 +420,15 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}
+    elif color_geomap & (not isinstance(dict, color_geomap)):
+        color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
     ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
                     facecolor=color_geomap['land'])
     ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
                     facecolor=color_geomap['ocean'])
 
-    ax.coastlines(linewidth=0.4, zorder=-1, resolution=resolution)
+    ax.coastlines(linewidth=0.4, zorder=2, resolution=resolution)
     border = cartopy.feature.BORDERS.with_scale(resolution)
     ax.add_feature(border, linewidth=0.3)
 
