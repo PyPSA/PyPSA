@@ -387,7 +387,7 @@ def draw_map_basemap(network, x, y, ax, boundaries=None, margin=0.05,
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}
-    elif color_geomap & (not isinstance(dict, color_geomap)):
+    elif color_geomap and not isinstance(color_geomap, dict):
         color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
     gmap.drawlsmask(land_color=color_geomap['land'],
@@ -420,7 +420,7 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}
-    elif color_geomap & (not isinstance(dict, color_geomap)):
+    elif color_geomap and not isinstance(color_geomap, dict):
         color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
     ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
