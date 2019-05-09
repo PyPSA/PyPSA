@@ -34,6 +34,7 @@ from glob import glob
 import pandas as pd
 import pypsa
 import numpy as np
+import math
 
 try:
     import xarray as xr
@@ -887,7 +888,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
 
 
-def import_from_pandapower_net(network, net):
+def import_from_pandapower_net(network, net, extra_line_data=False):
     """
     Import network from pandapower net.
 
@@ -896,10 +897,19 @@ def import_from_pandapower_net(network, net):
     Parameters
     ----------
     net : pandapower network
+    extra_line_data : boolean, default: False
+        if True, the line data for all parameters is imported instead of only
+        the type
 
     Examples
     --------
     >>> network.import_from_pandapower_net(net)
+    OR
+    >>> import pandapower as pp
+    >>> import pandapower.networks as pn
+    >>> net = pn.create_cigre_network_mv(with_der='all')
+    >>> pp.runpp(net)
+    >>> network.import_from_pandapower_net(net, extra_line_data=True)
     """
     logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers.")
 
@@ -939,23 +949,69 @@ def import_from_pandapower_net(network, net):
 
     d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
 
-    d["Line"] = pd.DataFrame({"type" : net.line.std_type.values,
-                              "bus0" : net.bus.name.loc[net.line.from_bus].values,
-                              "bus1" : net.bus.name.loc[net.line.to_bus].values,
-                              "length" : net.line.length_km.values,
-                              "num_parallel" : net.line.parallel.values},
-                             index=net.line.name)
+    if extra_line_data == False:
+        d["Line"] = pd.DataFrame({"type": net.line.std_type.values,
+                                  "bus0": net.bus.name.loc[net.line.from_bus].values,
+                                  "bus1": net.bus.name.loc[net.line.to_bus].values,
+                                  "length": net.line.length_km.values,
+                                  "num_parallel": net.line.parallel.values},
+                                 index=net.line.name)
+    else:
+        r = net.line.r_ohm_per_km.values * net.line.length_km.values
+        x = net.line.x_ohm_per_km.values * net.line.length_km.values
+        # capacitance values from pandapower in nF; transformed here:
+        f = net.f_hz
+        b = net.line.c_nf_per_km.values * net.line.length_km.values*1e-9
+        b = b*2*math.pi*f
 
-    d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
-                                     "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
-                                     "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
-                                     "tap_position" : net.trafo.tap_pos.values},
-                                    index=net.trafo.name)
+        u = net.bus.vn_kv.loc[net.line.from_bus].values
+        s_nom = u*net.line.max_i_ka.values
+
+        d["Line"] = pd.DataFrame({"r" : r,
+                                  "x" : x,
+                                  "b" : b,
+                                  "s_nom" : s_nom,
+                                  "bus0" : net.bus.name.loc[net.line.from_bus].values,
+                                  "bus1" : net.bus.name.loc[net.line.to_bus].values,
+                                  "length" : net.line.length_km.values,
+                                  "num_parallel" : net.line.parallel.values},
+                                 index=net.line.name)
+
+    # check, if the trafo is based on a standard-type:
+    if net.trafo.std_type.any():
+        d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
+                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
+                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                         "tap_position" : net.trafo.tp_pos.values},
+                                        index=net.trafo.name)
+        d["Transformer"] = d["Transformer"].fillna(0)
+
+    # if it's not based on a standard-type - get the included values:
+    else:
+        s_nom = net.trafo.sn_kva.values/1000.
+
+        r = net.trafo.vscr_percent.values/100.
+        x = np.sqrt((net.trafo.vsc_percent.values/100.)**2 - r**2)
+        # NB: b and g are per unit of s_nom
+        g = net.trafo.pfe_kw.values/(1000. * s_nom)
+
+        # for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
+        b = - np.sqrt(((net.trafo.i0_percent.values/100.)**2 - g**2).clip(min=0))
+
+        d["Transformer"] = pd.DataFrame({"phase_shift" : net.trafo.shift_degree.values,
+                                         "s_nom" : s_nom,
+                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
+                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                         "r" : r,
+                                         "x" : x,
+                                         "g" : g,
+                                         "b" : b,
+                                         "tap_position" : net.trafo.tp_pos.values},
+                                        index=net.trafo.name)
+        d["Transformer"] = d["Transformer"].fillna(0)
 
     for c in ["Bus","Load","Generator","Line","Transformer"]:
         network.import_components_from_dataframe(d[c],c)
-
-
 
     #amalgamate buses connected by closed switches
 
