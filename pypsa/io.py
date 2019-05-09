@@ -982,7 +982,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
         d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
                                          "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
                                          "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
-                                         "tap_position" : net.trafo.tp_pos.values},
+                                         "tap_position" : net.trafo.tap_pos.values},
                                         index=net.trafo.name)
         d["Transformer"] = d["Transformer"].fillna(0)
 
@@ -1006,7 +1006,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
                                          "x" : x,
                                          "g" : g,
                                          "b" : b,
-                                         "tap_position" : net.trafo.tp_pos.values},
+                                         "tap_position" : net.trafo.tap_pos.values},
                                         index=net.trafo.name)
         d["Transformer"] = d["Transformer"].fillna(0)
 
