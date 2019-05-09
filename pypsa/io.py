@@ -919,13 +919,13 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
                              "v_mag_pu_set" : 1.},
                             index=net.bus.name)
 
-    d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_kw).values/1e3,
-                              "q_set" : (net.load.scaling*net.load.q_kvar).values/1e3,
+    d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_mw).values,
+                              "q_set" : (net.load.scaling*net.load.q_mvar).values,
                               "bus" : net.bus.name.loc[net.load.bus].values},
                              index=net.load.name)
 
     #deal with PV generators
-    d["Generator"] = pd.DataFrame({"p_set" : -(net.gen.scaling*net.gen.p_kw).values/1e3,
+    d["Generator"] = pd.DataFrame({"p_set" : -(net.gen.scaling*net.gen.p_mw).values,
                                    "q_set" : 0.,
                                    "bus" : net.bus.name.loc[net.gen.bus].values,
                                    "control" : "PV"},
@@ -935,8 +935,8 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
 
     #deal with PQ "static" generators
-    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : -(net.sgen.scaling*net.sgen.p_kw).values/1e3,
-                                                             "q_set" : -(net.sgen.scaling*net.sgen.q_kvar).values/1e3,
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : -(net.sgen.scaling*net.sgen.p_mw).values,
+                                                             "q_set" : -(net.sgen.scaling*net.sgen.q_mvar).values,
                                                              "bus" : net.bus.name.loc[net.sgen.bus].values,
                                                              "control" : "PQ"},
                                                             index=net.sgen.name)), sort=False)
@@ -1012,8 +1012,6 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     for c in ["Bus","Load","Generator","Line","Transformer"]:
         network.import_components_from_dataframe(d[c],c)
-
-
 
     #amalgamate buses connected by closed switches
 

@@ -7,9 +7,10 @@ dependencies:
   - numpy
   - pyomo
   - scipy
-  - pandas>=0.19.0
+  - pandas>=0.24.0
   - matplotlib
   - networkx>=1.10
   - pyomo
   - coincbc
   - glpk
+  - cartopy>=0.16

@@ -28,7 +28,7 @@ def test_pandapower_case():
 
     #create bus elements
     pp.create_ext_grid(net, bus=b1, vm_pu=1.02, name="Grid Connection")
-    pp.create_load(net, bus=b3, p_kw=100, q_kvar=50, name="Load")
+    pp.create_load(net, bus=b3, p_mw=0.1, q_mvar=0.05, name="Load")
 
     #create branch elements
     tid = pp.create_transformer(net, hv_bus=b1, lv_bus=b2, std_type="0.4 MVA 20/0.4 kV",
@@ -37,7 +37,7 @@ def test_pandapower_case():
                                   std_type="NAYY 4x50 SE")
 
     #because of phase angles, need to init with DC
-    pp.runpp(net,calculate_voltage_angles=True,init="dc")
+    pp.runpp(net,calculate_voltage_angles=True, init="dc")
 
     n = pypsa.Network()
 
@@ -58,18 +58,18 @@ def test_pandapower_case():
     np.testing.assert_array_almost_equal(n.buses_t.v_mag_pu.loc["now"],net.res_bus.vm_pu)
 
     #compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.p.loc["now"],-net.res_bus.p_kw/1e3)
+    np.testing.assert_array_almost_equal(n.buses_t.p.loc["now"],-net.res_bus.p_mw)
 
     #compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.q.loc["now"],-net.res_bus.q_kvar/1e3)
+    np.testing.assert_array_almost_equal(n.buses_t.q.loc["now"],-net.res_bus.q_mvar)
 
     #compare branch flows
-    np.testing.assert_array_almost_equal(n.lines_t.p0.loc["now"],net.res_line.p_from_kw/1e3)
-    np.testing.assert_array_almost_equal(n.lines_t.p1.loc["now"],net.res_line.p_to_kw/1e3)
-    np.testing.assert_array_almost_equal(n.lines_t.q0.loc["now"],net.res_line.q_from_kvar/1e3)
-    np.testing.assert_array_almost_equal(n.lines_t.q1.loc["now"],net.res_line.q_to_kvar/1e3)
+    np.testing.assert_array_almost_equal(n.lines_t.p0.loc["now"],net.res_line.p_from_mw)
+    np.testing.assert_array_almost_equal(n.lines_t.p1.loc["now"],net.res_line.p_to_mw)
+    np.testing.assert_array_almost_equal(n.lines_t.q0.loc["now"],net.res_line.q_from_mvar)
+    np.testing.assert_array_almost_equal(n.lines_t.q1.loc["now"],net.res_line.q_to_mvar)
 
-    np.testing.assert_array_almost_equal(n.transformers_t.p0.loc["now"],net.res_trafo.p_hv_kw/1e3)
-    np.testing.assert_array_almost_equal(n.transformers_t.p1.loc["now"],net.res_trafo.p_lv_kw/1e3)
-    np.testing.assert_array_almost_equal(n.transformers_t.q0.loc["now"],net.res_trafo.q_hv_kvar/1e3)
-    np.testing.assert_array_almost_equal(n.transformers_t.q1.loc["now"],net.res_trafo.q_lv_kvar/1e3)
+    np.testing.assert_array_almost_equal(n.transformers_t.p0.loc["now"],net.res_trafo.p_hv_mw)
+    np.testing.assert_array_almost_equal(n.transformers_t.p1.loc["now"],net.res_trafo.p_lv_mw)
+    np.testing.assert_array_almost_equal(n.transformers_t.q0.loc["now"],net.res_trafo.q_hv_mvar)
+    np.testing.assert_array_almost_equal(n.transformers_t.q1.loc["now"],net.res_trafo.q_lv_mvar)
