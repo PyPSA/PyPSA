@@ -2,6 +2,37 @@
 Release Notes
 #######################
 
+PyPSA 0.14.0 (15th May 2019)
+============================
+
+This release contains a new feature and bug fixes.
+
+* Network plotting can now use the mapping library `cartopy
+  <https://scitools.org.uk/cartopy/>`_ as well as `basemap
+  <https://matplotlib.org/basemap/>`_, which was used in previous
+  versions of PyPSA. The basemap developers will be phasing out
+  basemap over the next few years in favour of cartopy (see their
+  `end-of-life announcement
+  <https://matplotlib.org/basemap/users/intro.html#cartopy-new-management-and-eol-announcement>`_). PyPSA
+  now defaults to cartopy unless you tell it explicitly to use
+  basemap. Otherwise the plotting interface is the same as in previous
+  versions.
+* Optimisation now works with the newest version of Pyomo 5.6.2 (there
+  was a Pyomo update that affected the opt.py expression for building
+  linear sums).
+* A critical bug in the networkclustering sub-library has been fixed
+  which was preventing the capital_cost parameter of conventional
+  generators being handled correctly when networks are aggregated.
+* Network.consistency_check() now only prints necessary columns when
+  reporting NaN values.
+* Import from `pandapower <https://www.pandapower.org/>`_ networks has
+  been updated to pandapower 2.0 and to include non-standard lines and
+  transformers.
+
+We thank Fons van der Plas and Fabian Hofmann for helping with the
+cartopy interface, Chloe Syranidis for pointing out the problem with
+the Pyomo 5.6.2 update, Hailiang Liu for the consistency check update
+and Christian Brosig for the pandapower updates.
 
 PyPSA 0.13.2 (10th January 2019)
 ================================
