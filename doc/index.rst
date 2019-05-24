@@ -27,9 +27,8 @@ Contents:
    troubleshooting
    unit_testing
    comparable_software
-   developers
+   contributing
    release_notes
-   mailing_list
 
 Indices and tables
 ==================

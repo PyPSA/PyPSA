@@ -2,20 +2,11 @@
 Quick Start
 ###########################
 
+For installation instructions see :doc:`installation`.
+
 See also the existing :doc:`examples` and the example Jupyter
 notebooks at `http://www.pypsa.org/examples/
 <http://www.pypsa.org/examples/>`_.
-
-
-Installation
-============
-
-For full installation instructions see :doc:`installation`.
-
-If you have the Python package installer ``pip`` then just run::
-
-    pip install pypsa
-
 
 
 Build a minimal network for power flow
