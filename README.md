@@ -99,6 +99,8 @@ Not all data dependencies are shipped with the git repository (since git is not 
 .../pypsa-eur % tar xJf pypsa-eur-cutouts.tar.xz
 ```
 
+3. Optionally, you can download a rasterized version of the NATURA dataset [natura.tiff](https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/natura.tiff&dl=1) and put it into the `resources` sub-directory. If you don't, it will be generated automatically, which takes several hours.
+
 # Script overview
 
 The model has several configuration options collected in the [config.yaml](config.yaml) file
