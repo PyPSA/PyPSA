@@ -44,15 +44,10 @@ dependencies:
 
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    #- pypsa>=0.13.2
-    - git+https://github.com/PyPSA/pypsa.git#egg=pypsa # Until https://github.com/PyPSA/PyPSA/commit/6dd8cb2a8dfc1a409e0b8b6bfe7372b4f914d0fa is released
-
+    - pypsa>=0.14
     - vresutils>=0.2.5
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     #- git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
 
-    - git+https://github.com/Unidata/netcdf4-python.git#egg=netcdf4
-    # Upgrade from 1.4.2 https://github.com/Unidata/netcdf4-python/issues/870 
-    # Until https://github.com/Unidata/netcdf4-python/commit/d1a806aa7a0c46c46bde89b83bb2ceaa05da5f0b is released
