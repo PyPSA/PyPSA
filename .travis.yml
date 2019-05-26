@@ -10,6 +10,8 @@ matrix:
       - PYTHON_VERSION="2.7"
     - env:
       - PYTHON_VERSION="3.6"
+    - env:
+      - PYTHON_VERSION="3.7"
 
 before_install:
   - if [[ "$PYTHON_VERSION" == "2.7" ]]; then
@@ -27,8 +29,8 @@ before_install:
 
 install:
   - conda create -q -n pypsa python=$PYTHON_VERSION
-  - conda env update -q -n pypsa --file=requirements.yml
-  - conda env update -q -n pypsa --file=requirements_dev.yml
+  - conda env update -q -n pypsa --file=environment.yaml
+  - conda env update -q -n pypsa --file=environment_dev.yaml
   - source activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
