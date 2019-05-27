@@ -4,6 +4,7 @@ channels:
   - conda-forge
 
 dependencies:
+  - pip
   - pytest
   - pytest-cov
   - twine

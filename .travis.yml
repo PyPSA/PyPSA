@@ -26,12 +26,14 @@ before_install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
+  - source $HOME/miniconda/etc/profile.d/conda.sh
 
 install:
-  - conda create -q -n pypsa python=$PYTHON_VERSION
-  - conda env update -q -n pypsa --file=environment.yaml
-  - conda env update -q -n pypsa --file=environment_dev.yaml
-  - source activate pypsa
+  - conda config --add pinned_packages python=$PYTHON_VERSION
+  - conda create -n pypsa python pip
+  - conda env update -n pypsa --file=environment.yaml
+  - conda env update -n pypsa --file=environment_dev.yaml
+  - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
 
