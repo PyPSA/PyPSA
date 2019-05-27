@@ -337,8 +337,8 @@ def get_projection_from_crs(crs):
         logger.warning("A connection to http://epsg.io/ is required for a projected coordinate reference system. "
                        "Falling back to latlong.")
     except ValueError:
-        logger.warning(f"'{crs}' does not define a projected coordinate system. "
-                       "Falling back to latlong.")
+        logger.warning("'{crs}' does not define a projected coordinate system. "
+                       "Falling back to latlong.".format(crs=crs))
         return ccrs.PlateCarree()
 
 
