@@ -15,10 +15,7 @@ See :ref:`upgrading-packages` and :ref:`upgrading-pypsa`.
 Consistency check on network
 ============================
 
-Running ``network.consistency_check()`` will examine the network
-components to make sure that all components are connected to existing
-buses and that no impedances are singular.
-
+.. automethod:: pypsa.Network.consistency_check
 
 
 Problems with power flow convergence
@@ -49,7 +46,9 @@ There are some steps you can take to distinguish these two cases:
 
    now = network.snapshots[0]
 
-   angle_diff = pd.Series(network.buses_t.v_ang.loc[now,network.lines.bus0].values -    network.buses_t.v_ang.loc[now,network.lines.bus1].values,index=network.lines.index)
+   angle_diff = pd.Series(network.buses_t.v_ang.loc[now,network.lines.bus0].values - 
+                          network.buses_t.v_ang.loc[now,network.lines.bus1].values,
+                          index=network.lines.index)
 
    (angle_diff*180/np.pi).describe()
 
@@ -90,9 +89,9 @@ Reporting bugs/issues
 
 Please do not contact the developers directly.
 
-Please report questions to the `mailing list
+Instead, please post questions to the `mailing list
 <https://groups.google.com/group/pypsa>`_.
 
 If you're relatively certain you've found a bug, raise it as an issue
 on the `PyPSA Github Issues page
-<https://github.com/PyPSA/PyPSA/issues>`_.
+<https://github.com/PyPSA/PyPSA/issues>`_ or prepare a pull request.

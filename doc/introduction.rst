@@ -163,7 +163,7 @@ What PyPSA uses under the hood
 ===============================
 
 PyPSA is written and tested to be compatible with both Python 2.7 and
-Python 3.6.
+Python 3.7.
 
 It leans heavily on the following Python packages:
 
@@ -173,17 +173,18 @@ It leans heavily on the following Python packages:
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
 * `plotly <https://plot.ly/python/>`_ for interactive plotting
 * `matplotlib <https://matplotlib.org/>`_ for static plotting
+* `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 
 
 The optimisation uses pyomo so that it is independent of the preferred
-solver (you can use e.g. the free software GLPK or the commercial
-software Gurobi).
+solver. You can use e.g. the free solver `GLPK <https://www.gnu.org/software/glpk/>`_ or the commercial
+solver `Gurobi <http://www.gurobi.com/>`_) for which free academic licenses are available.
 
 The time-expensive calculations, such as solving sparse linear
-equations, are carried out using the scipy.sparse libraries.
+equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/scipy/reference/sparse.html>`_ libraries.
 
 Mailing list
 ============
@@ -194,10 +195,12 @@ PyPSA has a Google Group `forum / mailing list
 Anyone can join and anyone can read the posts; only members of the
 group can post to the list.
 
-
 The intention is to have a place where announcements of new releases
-can be made and to discuss issues and suggest/contribute features for
-future development.
+can be made and questions can be asked.
+
+To discuss issues and suggest/contribute features
+for future development we prefer ticketing through the `PyPSA Github Issues page
+<https://github.com/PyPSA/PyPSA/issues>`_.
 
 
 Citing PyPSA

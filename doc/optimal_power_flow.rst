@@ -17,6 +17,8 @@ supported.
 Linear Optimal Power Flow
 =========================
 
+.. automethod:: pypsa.Network.lopf
+
 Optimisation with the linearised power flow equations for (mixed) AC
 and DC networks is fully supported.
 

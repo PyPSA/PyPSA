@@ -34,6 +34,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
+    'numpydoc',
 #    'sphinx.ext.imgmath',
 #    'sphinxcontrib.tikz',
 #    'rinoh.frontend.sphinx',

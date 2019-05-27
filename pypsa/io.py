@@ -374,7 +374,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
     """
     Import network data from CSVs in a folder.
 
-    The CSVs must follow the standard form, see pypsa/examples.
+    The CSVs must follow the standard form, see ``pypsa/examples``.
 
     Parameters
     ----------
@@ -386,6 +386,12 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
     skip_time : bool, default False
         Skip reading in time dependent attributes
+
+    Examples
+    ----------
+    >>> import_from_csv(network,csv_folder_name)
+    OR
+    >>> network.import_from_csv(csv_folder_name)
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -396,10 +402,16 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
     """
     Export network and components to a folder of CSVs.
 
-    Both static and series attributes of components are exported, but only
+    Both static and series attributes of all components are exported, but only
     if they have non-default values.
 
-    If csv_folder_name does not already exist, it is created.
+    If ``csv_folder_name`` does not already exist, it is created.
+
+    Static attributes are exported in one CSV file per component,
+    e.g. ``generators.csv``.
+
+    Series attributes are exported in one CSV file per component per
+    attribute, e.g. ``generators-p_set.csv``.
 
     Parameters
     ----------
@@ -411,7 +423,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
-        should then set "ignore_standard_types" when initialising the netowrk).
+        should then set "ignore_standard_types" when initialising the network).
 
     Examples
     --------
@@ -454,6 +466,9 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     ----------
     path : string
         Name of hdf5 file to which to export (if it exists, it is overwritten)
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the network).
     **kwargs
         Extra arguments for pd.HDFStore to specify f.i. compression
         (default: complevel=4)
@@ -511,6 +526,9 @@ def export_to_netcdf(network, path=None, export_standard_types=False,
     path : string|None
         Name of netCDF file to which to export (if it exists, it is overwritten);
         if None is passed, no file is exported.
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the network).
     least_significant_digit
         This is passed to the netCDF exporter, but currently makes no difference
         to file size or float accuracy. We're working on improving this...
@@ -616,12 +634,23 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     Parameters
     ----------
     dataframe : pandas.DataFrame
+        A DataFrame whose index is the names of the components and
+        whose columns are the non-default attributes.
     cls_name : string
-        Name of class of component
+        Name of class of component, e.g. ``"Line","Bus","Generator", "StorageUnit"``
 
     Examples
     --------
-    >>> network.import_components_from_dataframe(dataframe,"Line")
+    >>> import pandas as pd
+    >>> buses = ['Berlin', 'Frankfurt', 'Munich', 'Hamburg']
+    >>> network.import_components_from_dataframe(
+            pd.DataFrame({"v_nom" : 380, "control" : 'PV'},
+			index=buses),
+			"Bus")
+    >>> network.import_components_from_dataframe(
+            pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
+			index=[b+" PV" for b in buses]),
+			"Generator")
     """
 
     if cls_name == "Generator" and "source" in dataframe.columns:
@@ -695,14 +724,23 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     Parameters
     ----------
     dataframe : pandas.DataFrame
+        A DataFrame whose index is ``network.snapshots`` and
+        whose columns are a subset of the relevant components.
     cls_name : string
         Name of class of component
     attr : string
-        Name of series attribute
+        Name of time-varying series attribute
 
     Examples
     --------
-    >>> import_series_from_dataframe(dataframe,"Load","p_set")
+    >>> import numpy as np
+    >>> network.set_snapshots(range(10))
+    >>> network.import_series_from_dataframe(
+            pd.DataFrame(np.random.rand(10,4), 
+                columns=network.generators.index,
+			    index=range(10)),
+			"Generator",
+			"p_max_pu")
     """
 
     df = network.df(cls_name)
@@ -745,6 +783,8 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     Examples
     --------
+    >>> from pypower.api import case30
+    >>> ppc = case30()
     >>> network.import_from_pypower_ppc(ppc)
     """
 
@@ -892,7 +932,15 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     """
     Import network from pandapower net.
 
-    This import function is not yet finished (see warning below).
+    Importing from pandapower is still in beta;
+    not all pandapower data is supported.
+    
+    Unsupported features include:
+    - three-winding transformers
+    - switches
+    - in_service status,
+    - shunt impedances, and
+    -  tap positions of transformers."
 
     Parameters
     ----------

@@ -64,6 +64,9 @@ def calculate_BODF(sub_network, skip_pre=False):
     skip_pre: bool, default False
         Skip the preliminary step of computing the PTDF.
 
+    Examples
+    --------
+    >>> sub_network.caculate_BODF()
     """
 
     if not skip_pre:
@@ -101,6 +104,9 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     p0 : pandas.DataFrame
         num_passive_branch x num_branch_outages DataFrame of new power flows
 
+    Examples
+    --------
+    >>> network.lpf_contingency(snapshot, branch_outages)
     """
 
     if snapshots is None:
@@ -196,6 +202,10 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
     Returns
     -------
     None
+
+    Examples
+    --------
+    >>> network.sclopf(network, branch_outages)
     """
 
     if not skip_pre:
