@@ -44,9 +44,18 @@ Mac OS X `brew <http://brew.sh/>`_ is your friend.
 Installing PyPSA with conda
 ===========================
 
-If you are using ``conda`` you can simply install PyPSA with::
+If you are using ``conda`` you can install PyPSA with::
+
+    conda install -c conda-forge pypsa
+
+or by adding the ``conda-forge`` channel to your ``conda`` installation with::
+
+    conda config --add channels conda-forge
+
+and then installing simply with::
 
     conda install pypsa
+
 
 Installing PyPSA with pip
 =========================

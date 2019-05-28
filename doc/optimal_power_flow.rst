@@ -164,9 +164,15 @@ See ``pypsa.opf.define_linear_objective(network,snapshots)``.
 The objective function is composed of capital costs :math:`c` for each component and operation costs :math:`o` for generators
 
 .. math::
-   \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
-   + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
-   + \sum_{t} \left[suc_{n,s,t} + sdc_{n,s,t} \right]
+  :nowrap:
+
+    \begin{gather*}
+    \sum_{n,s} c_{n,s} \bar{g}_{n,s} + \sum_{n,s} c_{n,s} \bar{h}_{n,s} + \sum_{l} c_{l} F_l \\
+    + \sum_{t} w_t \left[\sum_{n,s} o_{n,s,t} g_{n,s,t} + \sum_{n,s} o_{n,s,t} h_{n,s,t} \right]
+    + \sum_{t} \left[suc_{n,s,t} + sdc_{n,s,t} \right]
+    \end{gather*}
+
+   
 
 
 Additional variables which do not appear in the objective function are
@@ -289,14 +295,13 @@ For generators with unit commitment you can also specify ramp limits
 at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
 
 .. math::
+  :nowrap:
 
-  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s}
-
-  \leq (g_{n,s,t} - g_{n,s,t-1}) \leq 
-
+  \begin{gather*}
+  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s} \\
+  \leq (g_{n,s,t} - g_{n,s,t-1}) \leq  \\
   \left[ru_{n,s}*u_{n,s,t-1} +   rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right]\bar{g}_{n,s}
-
-
+  \end{gather*}
 
 Storage Unit constraints
 ------------------------

@@ -1,4 +1,4 @@
-|badge_travis| |badge_pypi| |badge_license|
+|badge_travis| |badge_docs| |badge_pypi| |badge_license| |link-latest-doi|
 
 -----
 
@@ -254,3 +254,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
+
+.. |badge_docs| image:: https://readthedocs.org/projects/pypsa-readthedocs/badge/?version=readthedocs
+    :target: https://pypsa-readthedocs.readthedocs.io/en/readthedocs/?badge=readthedocs
+    :alt: Documentation Status

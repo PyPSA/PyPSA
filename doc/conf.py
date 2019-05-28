@@ -42,6 +42,9 @@ extensions = [
     'sphinx.ext.imgconverter', # for SVG conversion
 ]
 
+autodoc_default_flags = ['members']
+autosummary_generate = True
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -125,10 +128,10 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    #'canonical_url': '',
+    'canonical_url': 'https://www.pypsa.org/doc',
     'display_version': True,
     'sticky_navigation': True,
-    'style_nav_header_background': '#009682',
+    #'style_nav_header_background': '#009682',
 }
 
 

@@ -1,5 +1,5 @@
 ######################
-Network Methods
+API Reference
 ######################
 
 Network

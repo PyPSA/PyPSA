@@ -14,9 +14,8 @@ dependencies:
   - pyomo
   - cartopy>=0.16
   - coincbc
-  - glpk
 
   - pip:
-    - pypsa>=0.14
+    - pypsa>=0.14.1
     - sphinx
     - sphinx_rtd_theme

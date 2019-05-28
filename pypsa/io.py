@@ -389,8 +389,6 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
 
     Examples
     ----------
-    >>> import_from_csv(network,csv_folder_name)
-    OR
     >>> network.import_from_csv(csv_folder_name)
     """
 
@@ -427,8 +425,6 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
     Examples
     --------
-    >>> export_to_csv(network,csv_folder_name)
-    OR
     >>> network.export_to_csv(csv_folder_name)
     """
 
@@ -475,8 +471,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
 
     Examples
     --------
-    >>> export_to_hdf5(network, filename)
-    OR
     >>> network.export_to_hdf5(filename)
     """
 
@@ -539,8 +533,6 @@ def export_to_netcdf(network, path=None, export_standard_types=False,
 
     Examples
     --------
-    >>> export_to_netcdf(network, "my_file.nc")
-    OR
     >>> network.export_to_netcdf("my_file.nc")
 
     """
@@ -651,6 +643,10 @@ def import_components_from_dataframe(network, dataframe, cls_name):
             pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
 			index=[b+" PV" for b in buses]),
 			"Generator")
+
+    See Also
+    --------
+    pypsa.Network.madd
     """
 
     if cls_name == "Generator" and "source" in dataframe.columns:
@@ -741,6 +737,10 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 			    index=range(10)),
 			"Generator",
 			"p_max_pu")
+
+    See Also
+    --------
+    pypsa.Network.madd()
     """
 
     df = network.df(cls_name)

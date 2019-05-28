@@ -3,10 +3,10 @@
 ################
 
 
-See ``pypsa/examples/`` and ``pypsa/test/`` in the `PyPSA github
-repository <https://github.com/PyPSA/PyPSA>`_ for usage cases; there
-are Jupyter notebooks available of these examples at
-`<http://www.pypsa.org/examples/>`_.
+There are `extensive examples <http://www.pypsa.org/examples/>`_
+available as Jupyter notebooks.
+They are also available as Python scripts in ``pypsa/examples/`` and ``pypsa/test/``
+in the `PyPSA github repository <https://github.com/PyPSA/PyPSA>`_.
 
 
 SciGRID Germany LOPF, LPF and SCLOPF

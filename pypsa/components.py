@@ -540,10 +540,38 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.madd("Load", ["load 1", "load 2"],
-                bus=["1","2"],
-                p_set=np.random.rand(len(network.snapshots),2))
 
+        Short Example:
+
+        >>> network.madd("Load", ["load 1", "load 2"],
+        ...        bus=["1","2"],
+        ...        p_set=np.random.rand(len(network.snapshots),2))
+
+        Long Example:
+
+        >>> import pandas as pd, numpy as np
+        >>> buses = range(13)
+        >>> snapshots = range(7)
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(snapshots)
+        >>> n.madd("Bus", buses)
+        >>> # add load as numpy array
+        >>> n.madd("Load",
+        ...        n.buses.index + " load",
+        ...        bus=buses,
+        ...        p_set=np.random.rand(len(snapshots),len(buses)))
+        >>> # add wind availability as pandas DataFrame
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
+        ...        index=n.snapshots,
+        ...        columns=buses)
+        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> n.madd("Generator",
+        ...        buses,
+        ...        suffix=' wind',
+        ...        bus=buses,
+        ...        p_nom_extendable=True,
+        ...        capital_cost=1e5,
+        ...        p_max_pu=wind)
         """
 
         if class_name not in self.components:
