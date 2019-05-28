@@ -144,9 +144,10 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
 
     Returns
     -------
-    Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
-    values indicating number of iterations, convergence status, and
-    iteration error for each snapshot (rows) and sub_network (columns)
+    dict
+        Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
+        values indicating number of iterations, convergence status, and
+        iteration error for each snapshot (rows) and sub_network (columns)
     """
 
     return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol, use_seed=use_seed)
