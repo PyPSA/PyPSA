@@ -61,7 +61,7 @@ def calculate_BODF(sub_network, skip_pre=False):
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary step of computing the PTDF.
 
     Examples
@@ -179,7 +179,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
     extra_functionality : callable function

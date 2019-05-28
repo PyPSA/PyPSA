@@ -135,7 +135,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to network.snapshots
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
         Tolerance for Newton-Raphson power flow.
@@ -399,7 +399,7 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to network.snapshots
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
 
@@ -661,7 +661,7 @@ def calculate_PTDF(sub_network,skip_pre=False):
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
 
@@ -905,7 +905,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     snapshots : list-like|single snapshot
         A subset or an elements of network.snapshots on which to run
         the power flow, defaults to network.snapshots
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
 

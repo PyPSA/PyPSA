@@ -35,10 +35,10 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
-    'numpydoc',
-#    'sphinx.ext.imgmath',
+    'sphinx.ext.napoleon',
+#    'sphinx.ext.pngmath',
 #    'sphinxcontrib.tikz',
-#    'rinoh.frontend.sphinx',
+    #'rinoh.frontend.sphinx',
     'sphinx.ext.imgconverter', # for SVG conversion
 ]
 
