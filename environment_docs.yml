@@ -17,6 +17,7 @@ dependencies:
   - glpk
 
   - pip:
+    - pypsa>=0.14
     - sphinx
     - sphinx_rtd_theme
     - numpydoc
