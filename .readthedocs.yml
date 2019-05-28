@@ -1,9 +1,4 @@
 version: 2
 
-python:
-    version: 3.5
-    install:
-       - method: pip
-         path: .
-         extra_requirements:
-            - docs
+conda:
+    environment: environment_docs.yml

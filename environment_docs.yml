@@ -1,0 +1,22 @@
+name: pypsa
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - python
+  - six
+  - numpy
+  - pyomo
+  - scipy
+  - pandas>=0.24.0
+  - matplotlib
+  - networkx>=1.10
+  - pyomo
+  - cartopy>=0.16
+  - coincbc
+  - glpk
+
+  - pip:
+    - sphinx
+    - sphinx_rtd_theme
+    - numpydoc
