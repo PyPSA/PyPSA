@@ -7,7 +7,7 @@ import atlite
 import numpy as np
 import xarray as xr
 import pandas as pd
-from multiprocessing import Pool
+import multiprocessing as mp
 
 import glaes as gl
 import geokit as gk
@@ -23,11 +23,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 bounds = dx = dy = config = paths = gebco = clc = natura = None
-def init_globals(n_bounds, n_dx, n_dy, n_config, n_paths):
+def init_globals(bounds_xXyY, n_dx, n_dy, n_config, n_paths):
     # global in each process of the multiprocessing.Pool
     global bounds, dx, dy, config, paths, gebco, clc, natura
 
-    bounds = n_bounds
+    bounds = gk.Extent.from_xXyY(bounds_xXyY)
     dx = n_dx
     dy = n_dy
     config = n_config
@@ -101,14 +101,15 @@ if __name__ == '__main__':
     minx, maxx, miny, maxy = cutout.extent
     dx = (maxx - minx) / (cutout.shape[1] - 1)
     dy = (maxy - miny) / (cutout.shape[0] - 1)
-    bounds = gk.Extent.from_xXyY((minx - dx/2., maxx + dx/2.,
-                                  miny - dy/2., maxy + dy/2.))
+    bounds_xXyY = (minx - dx/2., maxx + dx/2., miny - dy/2., maxy + dy/2.)
 
     # Use GLAES to compute available potentials and the transition matrix
     paths = dict(snakemake.input)
 
-    with Pool(initializer=init_globals, initargs=(bounds, dx, dy, config, paths),
-              maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
+    # Use the following for testing the default windows method on linux
+    # mp.set_start_method('spawn')
+    with mp.Pool(initializer=init_globals, initargs=(bounds_xXyY, dx, dy, config, paths),
+                 maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
         regions = gk.vector.extractFeatures(paths["regions"], onlyAttr=True)
         buses = pd.Index(regions['name'], name="bus")
         widgets = [
