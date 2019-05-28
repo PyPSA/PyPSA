@@ -5,7 +5,7 @@
 What PyPSA does and does not do (yet)
 =======================================
 
-** PyPSA can calculate: **
+**PyPSA can calculate:**
 
 * static power flow (using both the full non-linear network equations and
   the linearised network equations)
@@ -18,7 +18,7 @@ What PyPSA does and does not do (yet)
   optimisation of generation and storage dispatch and investment in
   the capacities of generation, storage, transmission and other infrastructure)
 
-** It has models for: **
+**It has models for:**
 
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
@@ -37,7 +37,7 @@ What PyPSA does and does not do (yet)
   <http://www.pypsa.org/examples/>`_
 
 
-** Functionality that may be added in the future: **
+**Functionality that may be added in the future:**
 
 * Multi-year investment optimisation
 * Distributed active power slack
