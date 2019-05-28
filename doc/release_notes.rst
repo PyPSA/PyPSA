@@ -12,7 +12,7 @@ This minor release contains three small bug fixes:
 * PyPSA on Python 2.7 was fixed
 
 This will also be the first release to be available directly from
-`conda-forge`<https://conda-forge.org/>.
+`conda-forge <https://conda-forge.org/>`_.
 
 PyPSA 0.14.0 (15th May 2019)
 ============================
