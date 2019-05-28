@@ -2,6 +2,18 @@
 Release Notes
 #######################
 
+PyPSA 0.14.1 (27th May 2019)
+================================
+
+This minor release contains three small bug fixes:
+
+* Documentation parses now correctly on PyPI
+* Python 2.7 and 3.6 are automatically tested using Travis
+* PyPSA on Python 2.7 was fixed
+
+This will also be the first release to be available directly from
+`conda-forge`<https://conda-forge.org/>.
+
 PyPSA 0.14.0 (15th May 2019)
 ============================
 
