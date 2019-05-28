@@ -181,7 +181,7 @@ It leans heavily on the following Python packages:
 
 The optimisation uses pyomo so that it is independent of the preferred
 solver. You can use e.g. the free solver `GLPK <https://www.gnu.org/software/glpk/>`_ or the commercial
-solver `Gurobi <http://www.gurobi.com/>`_) for which free academic licenses are available.
+solver `Gurobi <http://www.gurobi.com/>`_ for which free academic licenses are available.
 
 The time-expensive calculations, such as solving sparse linear
 equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/scipy/reference/sparse.html>`_ libraries.

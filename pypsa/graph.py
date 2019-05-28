@@ -27,8 +27,8 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     """
     Build NetworkX graph.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     network : Network|SubNetwork
 
     branch_components : [str]

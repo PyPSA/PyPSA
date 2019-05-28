@@ -18,7 +18,7 @@ Then run ``network.import_from_csv_folder(csv_folder_name)``.
 
 .. autofunction:: pypsa.io.import_from_csv_folder
 
-Note that is is NOT necessary to add every single column, only those where values differ from the defaults listed in :doc:`components`. All empty values/columns are filled with the defaults.
+.. note:: Note that is is NOT necessary to add every single column, only those where values differ from the defaults listed in :doc:`components`. All empty values/columns are filled with the defaults.
 
 
 .. _export-csv:

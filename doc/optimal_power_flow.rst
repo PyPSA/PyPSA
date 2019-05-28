@@ -17,8 +17,6 @@ supported.
 Linear Optimal Power Flow
 =========================
 
-.. automethod:: pypsa.Network.lopf
-
 Optimisation with the linearised power flow equations for (mixed) AC
 and DC networks is fully supported.
 
@@ -27,12 +25,15 @@ All constraints and variables are listed below.
 
 Overview
 --------
+
 Execute:
 
+.. code:: python
 
-``network.lopf(snapshots, solver_name="glpk", solver_io=None,
-extra_functionality=None, solver_options={}, keep_files=False,
-formulation="angles",extra_postprocessing=None)``
+    network.lopf(snapshots, solver_name="glpk", solver_io=None,
+                 extra_functionality=None, solver_options={},
+                 keep_files=False, formulation="angles",
+                 extra_postprocessing=None)``
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
 string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
@@ -45,8 +46,10 @@ the solver, ``keep_files`` means that the ``.lp`` file is saved and
 ``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
 for more details).
 
-The linear OPF module can optimises the dispatch of generation and storage
-and the capacities of generation, storage and transmission.
+.. automethod:: pypsa.Network.lopf
+
+The linear OPF module can optimise the dispatch of generation and storage
+and the capacities of generation, storage and transmission infrastructure.
 
 It is assumed that the load is inelastic and must be met in every
 snapshot (this will be relaxed in future versions).
@@ -69,11 +72,7 @@ Each transmission asset has a capital cost.
 Each generation and storage asset has a capital cost and a marginal cost.
 
 
-WARNING: If the transmission capacity is changed in passive networks,
-then the impedance will also change (i.e. if parallel lines are
-installed). This is NOT reflected in the LOPF, so the network
-equations may no longer be valid. Note also that all the expansion is
-continuous.
+.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the LOPF, so the network equations may no longer be valid. Note also that all the expansion is continuous.
 
 
 Optimising dispatch only: a market model
@@ -242,15 +241,15 @@ period :math:`t`. The restrictions on generator output now become:
 
 so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
 
-If :math:`T_{\textrm{min\_up}}` is the minimum up time then we have
+If :math:`T_{\textrm{min_up}}` is the minimum up time then we have
 
 .. math::
-   \sum_{t'=t}^{t+T_\textrm{min\_up}} u_{n,s,t'}\geq T_\textrm{min\_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
+   \sum_{t'=t}^{t+T_\textrm{min_up}} u_{n,s,t'}\geq T_\textrm{min_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
 
-(i.e. if the generator has just started up (:math:`u_{n,s,t} - u_{n,s,t-1} = 1`) then it has to run for at least :math:`T_{\textrm{min\_up}}` periods). Similarly for a minimum down time of :math:`T_{\textrm{min\_down}}`
+(i.e. if the generator has just started up (:math:`u_{n,s,t} - u_{n,s,t-1} = 1`) then it has to run for at least :math:`T_{\textrm{min_up}}` periods). Similarly for a minimum down time of :math:`T_{\textrm{min_down}}`
 
 .. math::
-   \sum_{t'=t}^{t+T_\textrm{min\_down}} (1-u_{n,s,t'})\geq T_\textrm{min\_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
+   \sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{n,s,t'})\geq T_\textrm{min_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
 
 
 For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
@@ -290,7 +289,12 @@ For generators with unit commitment you can also specify ramp limits
 at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
 
 .. math::
-  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s} \leq (g_{n,s,t} - g_{n,s,t-1}) \leq \left[ru_{n,s}*u_{n,s,t-1} +   rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right]\bar{g}_{n,s}
+
+  \left[ -rd_{n,s}*u_{n,s,t} -rdsd_{n,s}(u_{n,s,t-1} - u_{n,s,t})\right] \bar{g}_{n,s}
+
+  \leq (g_{n,s,t} - g_{n,s,t-1}) \leq 
+
+  \left[ru_{n,s}*u_{n,s,t-1} +   rusu_{n,s} (u_{n,s,t} - u_{n,s,t-1})\right]\bar{g}_{n,s}
 
 
 
@@ -450,14 +454,13 @@ Cycle Flows <https://arxiv.org/abs/1704.01881>`_.
 
 You can choose the formulation by passing ``network.lopf`` the
 argument ``formulation``, which must be in
-``["angles","cycles","kirchhoff","ptdf"]``. ``angles`` is the standard
-formulations based on voltage angles described above, used for the
-linear power flow and found in textbooks. ``ptdf`` uses the Power
-Transfer Distribution Factor (PTDF) formulation, found for example in
-`<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_. ``kirchhoff``
-and ``cycles`` are two new formulations based on a graph-theoretic
-decomposition of the network flows into a spanning tree and closed
-cycles.
+``["angles","cycles","kirchhoff","ptdf"]``. 
+
+* ``angles`` is the standard formulations based on voltage angles described above, used for the linear power flow and found in textbooks.
+
+* ``ptdf`` uses the Power Transfer Distribution Factor (PTDF) formulation, found for example in `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
+
+* ``kirchhoff`` and ``cycles`` are two new formulations based on a graph-theoretic decomposition of the network flows into a spanning tree and closed cycles.
 
 Based on the benchmarking in `Linear Optimal Power Flow Using Cycle
 Flows <https://arxiv.org/abs/1704.01881>`_ for standard networks,
@@ -609,8 +612,7 @@ carrier.{carrier_attribute}
 
 global_constraint.{type, carrier_attribute, sense, constant}
 
-Note that for lines and transformers you MUST make sure that
-:math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+.. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------

@@ -140,7 +140,7 @@ class Network(Basic):
     Parameters
     ----------
     import_name : string
-        Name of HDF5 .h5 store or folder from which to import CSVs of network data.
+        Name of netCDF file, HDF5 .h5 store or folder from which to import CSVs of network data.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
