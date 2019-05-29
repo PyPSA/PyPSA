@@ -1,6 +1,7 @@
 ## LOPF then non-linear power flow with SciGRID
 #
-#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb> and can be viewed as an HTML page at: <http://pypsa.org/examples/scigrid-lopf-then-pf.html>.
+#This Jupyter Notebook is also available to download at:
+# <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb> and can be viewed as an HTML page at: <http://pypsa.org/examples/scigrid-lopf-then-pf.html>.
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
@@ -37,7 +38,8 @@
 #
 #i) Rough approximations have been made for missing grid data, e.g. 220kV-380kV transformers and connections between close sub-stations missing from OSM.
 #
-#ii) There appears to be some unexpected congestion in parts of the network, which may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
+#ii) There appears to be some unexpected congestion in parts of the network, which
+# may mean for example that the load attachment method (by Voronoi cell overlap with Landkreise) isn't working, particularly in regions with a high density of substations.
 #
 #iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
 #
@@ -70,11 +72,15 @@ import os
 
 import matplotlib.pyplot as plt
 
+import cartopy.crs as ccrs
+
 #%matplotlib inline
 
-#You may have to adjust this path to where 
+#You may have to adjust this path to where
 #you downloaded the github repository
 #https://github.com/PyPSA/PyPSA
+
+plt.rcParams['savefig.dpi'] = 250
 
 csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"
 
@@ -82,16 +88,17 @@ network = pypsa.Network(csv_folder_name=csv_folder_name)
 
 ### Plot the distribution of the load and of generating tech
 
-fig,ax = plt.subplots(1,1)
+fig, ax = plt.subplots(subplot_kw={"projection":ccrs.PlateCarree()})
 
 fig.set_size_inches(6,6)
 
 load_distribution = network.loads_t.p_set.loc[network.snapshots[0]].groupby(network.loads.bus).sum()
 
-network.plot(bus_sizes=0.5*load_distribution,ax=ax,title="Load distribution")
+network.plot(bus_sizes=0.5*load_distribution,ax=ax,title="Load distribution",
+             bus_colors='indianred', line_colors='lightgrey')
 
 fig.tight_layout()
-#fig.savefig('load-distribution.png')
+fig.savefig('load-distribution.png')
 
 network.generators.groupby("carrier")["p_nom"].sum()
 
@@ -108,28 +115,38 @@ if n_graphs % n_cols == 0:
 else:
     n_rows = n_graphs // n_cols + 1
 
-    
-fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols)
+colors = {"Brown Coal" : "brown",
+          "Hard Coal" : "k",
+          "Nuclear" : "r",
+          "Run of River" : "green",
+          "Wind Onshore" : "blue",
+          "Solar" : "yellow",
+          "Wind Offshore" : "cyan",
+          "Waste" : "orange",
+          "Gas" : "orange"}
+
+fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols,
+                         subplot_kw={"projection":ccrs.PlateCarree()})
 
 size = 4
-
 fig.set_size_inches(size*n_cols,size*n_rows)
 
 for i,tech in enumerate(techs):
     i_row = i // n_cols
     i_col = i % n_cols
-    
+
     ax = axes[i_row,i_col]
-    
+
     gens = network.generators[network.generators.carrier == tech]
-    
+
     gen_distribution = gens.groupby("bus").sum()["p_nom"].reindex(network.buses.index,fill_value=0.)
-    
-    network.plot(ax=ax,bus_sizes=0.2*gen_distribution)
-    
+
+    network.plot(ax=ax,bus_sizes=0.2*gen_distribution, line_widths=0.1,
+                 line_colors='grey', bus_colors=colors[tech])
+
     ax.set_title(tech)
-    
-    
+
+
 
 ### Run Linear Optimal Power Flow on the first day of 2011
 
@@ -140,7 +157,7 @@ contingency_factor = 0.7
 
 network.lines.s_nom = contingency_factor*network.lines.s_nom
 
-#There are some infeasibilities without small extensions                                                                                 
+#There are some infeasibilities without small extensions
 for line_name in ["316","527","602"]:
     network.lines.loc[line_name,"s_nom"] = 1200
 
@@ -159,7 +176,7 @@ for line_name in ["316","527","602"]:
 
 group_size = 4
 
-solver_name = "cbc"
+solver_name = "glpk"
 
 print("Performing linear OPF for one day, {} snapshots at a time:".format(group_size))
 
@@ -168,7 +185,9 @@ network.storage_units.state_of_charge_initial = 0.
 for i in range(int(24/group_size)):
     #set the initial state of charge based on previous round
     if i>0:
-        network.storage_units.state_of_charge_initial = network.storage_units_t.state_of_charge.loc[network.snapshots[group_size*i-1]]
+        network.storage_units.state_of_charge_initial = \
+            network.storage_units_t.state_of_charge\
+                   .loc[network.snapshots[group_size*i-1]]
     network.lopf(network.snapshots[group_size*i:group_size*i+group_size],
                  solver_name=solver_name,
                  keep_files=True)
@@ -179,91 +198,90 @@ for i in range(int(24/group_size)):
 
 p_by_carrier = network.generators_t.p.groupby(network.generators.carrier, axis=1).sum()
 
-p_by_carrier.drop((p_by_carrier.max()[p_by_carrier.max() < 1700.]).index,axis=1,inplace=True)
+p_by_carrier.drop((p_by_carrier.max()[p_by_carrier.max() \
+                   < 1700.]).index,axis=1,inplace=True)
 
 p_by_carrier.columns
 
-colors = {"Brown Coal" : "brown",
-          "Hard Coal" : "k",
-          "Nuclear" : "r",
-          "Run of River" : "green",
-          "Wind Onshore" : "blue",
-          "Solar" : "yellow",
-          "Wind Offshore" : "cyan",
-          "Waste" : "orange",
-          "Gas" : "orange"}
 #reorder
-cols = ["Nuclear","Run of River","Brown Coal","Hard Coal","Gas","Wind Offshore","Wind Onshore","Solar"]
+cols = ["Nuclear","Run of River","Brown Coal","Hard Coal",
+        "Gas","Wind Offshore","Wind Onshore","Solar"]
 p_by_carrier = p_by_carrier[cols]
 
-fig,ax = plt.subplots(1,1)
-
-fig.set_size_inches(12,6)
-
-(p_by_carrier/1e3).plot(kind="area",ax=ax,linewidth=4,colors=[colors[col] for col in p_by_carrier.columns])
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(10,6),
+                              gridspec_kw={'height_ratios':[2,1]})
 
 
-ax.legend(ncol=4,loc="upper left")
+(p_by_carrier/1e3).plot(kind="area",ax=ax1,linewidth=4,colors=[colors[col] for col in p_by_carrier.columns])
 
-ax.set_ylabel("GW")
+handles, labels = ax1.get_legend_handles_labels()
+ax1.legend(reversed(handles), reversed(labels),
+           ncol=1,loc="upper left", bbox_to_anchor=(1,1),
+           labelspacing=2, frameon=False)
 
-ax.set_xlabel("")
+ax1.set_ylabel("GW")
 
-fig.tight_layout()
 #fig.savefig("stacked-gen.png")
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(12,6)
 
 p_storage = network.storage_units_t.p.sum(axis=1)
 state_of_charge = network.storage_units_t.state_of_charge.sum(axis=1)
-p_storage.plot(label="Pumped hydro dispatch",ax=ax,linewidth=3)
-state_of_charge.plot(label="State of charge",ax=ax,linewidth=3)
+p_storage.plot(label="Pumped hydro dispatch",ax=ax2,linewidth=3)
+state_of_charge.plot(label="State of charge",ax=ax2,linewidth=3)
 
-ax.legend()
-ax.grid()
-ax.set_ylabel("MWh")
-ax.set_xlabel("")
+handles, labels = ax2.get_legend_handles_labels()
+ax2.legend(reversed(handles), reversed(labels),
+           ncol=1,loc="lower left", bbox_to_anchor=(1,0),
+           labelspacing=2, frameon=False)
+ax2.grid(linestyle='dashed')
+ax2.set_ylabel("MWh")
+ax2.set_xlabel("")
 
 fig.tight_layout()
-#fig.savefig("storage-scigrid.png")
+fig.savefig("stacked-gen_and_storage-scigrid.png", bbox_inches='tight')
 
 now = network.snapshots[4]
 
 print("With the linear load flow, there is the following per unit loading:")
 loading = network.lines_t.p0.loc[now]/network.lines.s_nom
 print(loading.describe())
+#-----------------------------------------------------------------------------
+#line loading
+fig, (ax1, ax2) = plt.subplots(1,2, subplot_kw={"projection":ccrs.PlateCarree()},
+                                       figsize=(10,4))
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(6,6)
-
-network.plot(ax=ax,line_colors=abs(loading),line_cmap=plt.cm.jet,title="Line loading")
-
-fig.tight_layout()
+nplot = network.plot(ax=ax1,line_colors=abs(loading), bus_colors='grey',
+                     bus_sizes=0.5, geomap='10m',
+                     line_cmap=plt.cm.jet,title="Line loading")
+cb = fig.colorbar(nplot[1], ax=ax1)
+cb.set_label('Relative line loading')
+cb.outline.set_visible(False)
+fig.canvas.draw(); fig.tight_layout()
 #fig.savefig("line-loading.png")
 
 network.buses_t.marginal_price.loc[now].describe()
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(6,4)
+#-----------------------------------------------------------------------------
+#marginal prices
+#fig,ax = plt.subplots(1,1, subplot_kw={"projection":ccrs.PlateCarree()},
+#                                       figsize=(6,4))
 
-
-network.plot(ax=ax,line_widths=pd.Series(0.5,network.lines.index))
-plt.hexbin(network.buses.x, network.buses.y, 
+network.plot(ax=ax2,line_widths=pd.Series(0.5,network.lines.index),
+             geomap='10m',
+             title='Locational Marginal Price', bus_sizes=0)
+hbin = ax2.hexbin(network.buses.x, network.buses.y,
            gridsize=20,
            C=network.buses_t.marginal_price.loc[now],
            cmap=plt.cm.jet)
 
-#for some reason the colorbar only works with graphs plt.plot
-#and must be attached plt.colorbar
+cb = fig.colorbar(hbin, ax=ax2)
+cb.set_label('EUR/MWh')
+cb.outline.set_visible(False)
 
-cb = plt.colorbar()
-cb.set_label('Locational Marginal Price (EUR/MWh)') 
-
-fig.tight_layout()
-#fig.savefig('lmp.png')
-
-### Look at variable curtailment
+fig.canvas.draw(); fig.tight_layout()
+fig.savefig('lmp_and_line-loading.png')
+#------------------------------------------------------------------------------
+# variable curtailment
 
 carrier = "Wind Onshore"
 
@@ -283,8 +301,8 @@ p_df[carrier + " capacity"] = capacity
 
 p_df["Wind Onshore curtailed"][p_df["Wind Onshore curtailed"] < 0.] = 0.
 
-fig,ax = plt.subplots(1,1)
-fig.set_size_inches(12,6)
+fig,ax = plt.subplots()
+fig.set_size_inches(10,5)
 p_df[[carrier + " dispatched",carrier + " curtailed"]].plot(kind="area",ax=ax,linewidth=3)
 p_df[[carrier + " available",carrier + " capacity"]].plot(ax=ax,linewidth=3)
 
@@ -294,9 +312,9 @@ ax.set_ylim([0,40000])
 ax.legend()
 
 fig.tight_layout()
-#fig.savefig("scigrid-curtailment.png")
-
-## Check power flow
+fig.savefig("scigrid-curtailment.png")
+#-----------------------------------------------------------------------------
+# Check power flow
 
 now = network.snapshots[0]
 
@@ -311,6 +329,7 @@ for bus in network.buses.index:
     if abs(bus_sum-branches_sum) > 1e-4:
         print(bus,bus_sum,branches_sum)
 
+#-----------------------------------------------------------------------------
 ### Now perform a full Newton-Raphson power flow on the first hour
 
 #For the PF, set the P to the optimised P
@@ -353,11 +372,14 @@ s = df[str(now)+"_x"]- df[str(now)+"_y"]
 print("The voltage angle differences across the lines have (in degrees):")
 print((s*180/np.pi).describe())
 
+
+#-----------------------------------------------------------------------------
+
 #plot the reactive power
 
-fig,ax = plt.subplots(1,1)
+fig,ax = plt.subplots(1,1, subplot_kw={"projection":ccrs.PlateCarree()})
 
-fig.set_size_inches(6,6)
+fig.set_size_inches(8,6)
 
 q = network.buses_t.q.loc[now]
 
@@ -365,10 +387,13 @@ bus_colors = pd.Series("r",network.buses.index)
 bus_colors[q< 0.] = "b"
 
 
-network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,title="Reactive power feed-in (red=+ve, blue=-ve)")
+network.plot(bus_sizes=abs(q),ax=ax,bus_colors=bus_colors,
+             line_widths=0.1, geomap='10m', color_geomap=True,
+             title="Reactive power feed-in (red=+ve, blue=-ve)")
 
+fig.canvas.draw()
 fig.tight_layout()
-#fig.savefig("reactive-power.png")
+fig.savefig("reactive-power.png")
 
 network.generators_t.q.loc[now].sum()
 
