@@ -6,6 +6,14 @@
 PyPSA: Python for Power System Analysis
 =======================================
 
+.. image:: https://img.shields.io/pypi/v/pypsa.svg
+    :target: https://pypi.python.org/pypi/pypsa
+    :alt: PyPI version
+
+.. image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg
+    :target: https://anaconda.org/conda-forge/pypsa
+    :alt: Conda version
+
 .. image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
@@ -13,10 +21,6 @@ PyPSA: Python for Power System Analysis
 .. image:: https://readthedocs.org/projects/pypsa-readthedocs/badge/?version=readthedocs
     :target: https://pypsa-readthedocs.readthedocs.io/en/readthedocs/?badge=readthedocs
     :alt: Documentation Status
-
-.. image:: https://img.shields.io/pypi/v/pypsa.svg
-    :target: https://pypi.python.org/pypi/pypsa
-    :alt: PyPI version
 
 .. image:: https://img.shields.io/pypi/l/pypsa.svg
     :target: License
