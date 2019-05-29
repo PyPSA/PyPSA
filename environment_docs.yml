@@ -1,4 +1,4 @@
-name: pypsa
+name: pypsa-doc
 channels:
   - conda-forge
 dependencies:
@@ -16,6 +16,6 @@ dependencies:
   - coincbc
 
   - pip:
-    - pypsa>=0.14.1
+    - .
     - sphinx
     - sphinx_rtd_theme

@@ -33,8 +33,8 @@ If your ``network.pf()`` is not converging there are two possible reasons:
 
 There are some steps you can take to distinguish these two cases:
 
-* Check the units you have used to define the problem are correct; see
-  :doc:`conventions`. If your units are out by a factor 1000
+* Check the units you have used to define the problem are correct.
+  If your units are out by a factor 1000
   (e.g. using kW instead of MW) don't be surprised if your problem is
   no longer solvable.
 * Check with a linear power flow ``network.lpf()`` that all voltage

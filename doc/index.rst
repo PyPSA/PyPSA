@@ -81,7 +81,7 @@ Documentation
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Getting Started
+   :caption: User Guide
 
    design
    components
