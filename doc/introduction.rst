@@ -45,7 +45,7 @@ What PyPSA does and does not do (yet)
 * OPF with the full non-linear network equations
 * Port to `Julia <http://julialang.org/>`_
 
-** Other complementary libraries: **
+**Other complementary libraries:**
 
 * `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
   detailed modelling of distribution grids, short-circuit
