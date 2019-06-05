@@ -195,7 +195,7 @@ def _load_lines_from_eg(buses):
 
 def _apply_parameter_corrections(n):
     with open(snakemake.input.parameter_corrections) as f:
-        corrections = yaml.load(f)
+        corrections = yaml.safe_load(f)
 
     if corrections is None: return
     for component, attrs in iteritems(corrections):
