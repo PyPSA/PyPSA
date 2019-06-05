@@ -6,17 +6,7 @@ dependencies:
   - python
   - pip
 
-  # Dependencies of PyPSA
-  - six
-  - numpy
-  - pyomo
-  - scipy
-  - pandas>=0.22.0
-  - matplotlib
-  - memory_profiler
-  - networkx>=1.10
-  - netcdf4
-  - pytables
+  - pypsa>=0.14
 
   # Dependencies of the workflow itself
   - xlrd
@@ -24,6 +14,7 @@ dependencies:
   - pycountry
   - seaborn
   - snakemake-minimal
+  - memory_profiler
 
   # Second order dependencies which should really be deps of atlite
   - xarray
@@ -42,14 +33,12 @@ dependencies:
   - conda-forge::pyproj
   - conda-forge::pyshp
   - conda-forge::geopandas
-  - conda-forge::rasterstats
   - conda-forge::rasterio
   - conda-forge::shapely
   - conda-forge::libgdal
 
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    - pypsa>=0.14
     - vresutils>=0.2.5
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
