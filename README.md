@@ -101,6 +101,16 @@ Not all data dependencies are shipped with the git repository (since git is not 
 
 3. Optionally, you can download a rasterized version of the NATURA dataset [natura.tiff](https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/natura.tiff&dl=1) and put it into the `resources` sub-directory. If you don't, it will be generated automatically, which takes several hours.
 
+```shell
+.../pypsa-eur % curl -L "https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/natura.tiff&dl=1" -o "resources/natura.tiff"
+```
+
+4. Optionally, if you want to save disk space, you can delete `data/pypsa-eur-data-bundle.tar.xz` and `pypsa-eur-cutouts.tar.xz` once extracting the bundles is complete. E.g.
+
+```shell
+.../pypsa-eur % rm -rf data/pypsa-eur-data-bundle.tar.xz pypsa-eur-cutouts.tar.xz
+```
+
 # Script overview
 
 The model has several configuration options collected in the [config.yaml](config.yaml) file
