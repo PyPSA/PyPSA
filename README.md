@@ -3,7 +3,7 @@
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
 
-![PyPSA-Eur Grid Model](https://raw.githubusercontent.com/PyPSA/pypsa-eur/master/doc/img/pypsa-eur-grid.png)
+![PyPSA-Eur Grid Model](doc/img/pypsa-eur-grid.png)
 
 
 The model is described and partially validated in the paper
