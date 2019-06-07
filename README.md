@@ -3,7 +3,7 @@
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
 
-![PyPSA-Eur Grid Model](https://raw.githubusercontent.com/PyPSA/pypsa-eur/master/img/pypsa-eur-grid.png)
+![PyPSA-Eur Grid Model](https://raw.githubusercontent.com/PyPSA/pypsa-eur/master/doc/img/pypsa-eur-grid.png)
 
 
 The model is described and partially validated in the paper
@@ -121,7 +121,7 @@ with the [Snakefile of pypsa-eur](Snakefile), an invocation to
 snakemake networks/elec_s_128.nc
 ```
 follows the dependency graph
-![Dependency graph for network elec_s_128](img/dependencies-elec_s_128.png)
+![Dependency graph for network elec_s_128](doc/img/dependencies-elec_s_128.png)
 
 ## Building the network
 In detail this means it has to run the independent scripts,

@@ -14,4 +14,4 @@ gurobi.log
 /data/links_p_nom.csv
 /cutouts
 
-doc/_build/
+doc/_build
