@@ -161,7 +161,10 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
         free_output_series_dataframes(n)
 
         pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
+        
+        add_country_carrier_generation_constraints(n, opts)
         add_opts_constraints(n, opts)
+        
         if not fix_ext_lines:
             add_lv_constraint(n)
             add_lc_constraint(n)
