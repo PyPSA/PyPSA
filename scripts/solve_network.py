@@ -77,6 +77,22 @@ def add_opts_constraints(n, opts=None):
         ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
         n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
+def add_country_carrier_generation_constraints(n, opts=None):
+    agg_p_nom_minmax = pd.read_csv("data/agg_p_nom_minmax.csv", index_col=list(range(2)))
+
+    gen_country = n.generators.bus.map(n.buses.country)
+
+    def agg_p_nom_min_rule(model, country, carrier):
+        return sum(model.generator_p_nom[gen]
+                for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) >= agg_p_nom_minmax.at[(country, carrier),'min']
+    
+    def agg_p_nom_max_rule(model, country, carrier):
+        return sum(model.generator_p_nom[gen]
+                for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) <= agg_p_nom_minmax.at[(country, carrier),'max']
+
+    n.model.agg_p_nom_min = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_min_rule)
+    n.model.agg_p_nom_max = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_max_rule)
+    
 def add_lv_constraint(n):
     line_volume = getattr(n, 'line_volume_limit', None)
     if line_volume is not None and not np.isinf(line_volume):
