@@ -78,7 +78,11 @@ def add_opts_constraints(n, opts=None):
         n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
 def add_country_carrier_generation_constraints(n, opts=None):
-    agg_p_nom_minmax = pd.read_csv("data/agg_p_nom_minmax.csv", index_col=list(range(2)))
+    agg_p_nom_limits = snakemake.config['electricity']['agg_p_nom_limits']
+    if os.path.isfile(agg_p_nom_limits):
+        agg_p_nom_minmax = pd.read_csv(agg_p_nom_limits, index_col=list(range(2)))
+    else:
+        raise FileNotFoundError("Need to specify the path to a .csv file containing aggregate capacity limits per country in config['electricity']['agg_p_nom_limit'].")
 
     gen_country = n.generators.bus.map(n.buses.country)
 
