@@ -77,22 +77,32 @@ def add_opts_constraints(n, opts=None):
         ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
         n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
-def add_country_carrier_generation_constraints(n, opts=None):
-    agg_p_nom_limits = snakemake.config['electricity']['agg_p_nom_limits']
-    if os.path.isfile(agg_p_nom_limits):
+def add_country_carrier_generation_constraints(n):
+    agg_p_nom_limits = snakemake.config['electricity'].get('agg_p_nom_limits')
+    if agg_p_nom_limits is None: return
+    
+    try:
         agg_p_nom_minmax = pd.read_csv(agg_p_nom_limits, index_col=list(range(2)))
-    else:
-        raise FileNotFoundError("Need to specify the path to a .csv file containing aggregate capacity limits per country in config['electricity']['agg_p_nom_limit'].")
+    except IOError:
+        logger.exception("Need to specify the path to a .csv file containing aggregate capacity limits per country in config['electricity']['agg_p_nom_limit'].")
 
+    logger.info("Adding per carrier generation capacity constraints for individual countries")
+        
     gen_country = n.generators.bus.map(n.buses.country)
 
     def agg_p_nom_min_rule(model, country, carrier):
-        return sum(model.generator_p_nom[gen]
-                for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) >= agg_p_nom_minmax.at[(country, carrier),'min']
-    
+        min = agg_p_nom_minmax.at[(country, carrier), 'min']
+        return ((sum(model.generator_p_nom[gen]
+                     for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
+                <= min) 
+                if np.isfinite(min) else po.Constraint.Skip)
+
     def agg_p_nom_max_rule(model, country, carrier):
-        return sum(model.generator_p_nom[gen]
-                for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) <= agg_p_nom_minmax.at[(country, carrier),'max']
+        max = agg_p_nom_minmax.at[(country, carrier), 'max']
+        return ((sum(model.generator_p_nom[gen]
+                     for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
+                <= max) 
+                if np.isfinite(max) else po.Constraint.Skip)
 
     n.model.agg_p_nom_min = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_min_rule)
     n.model.agg_p_nom_max = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_max_rule)
