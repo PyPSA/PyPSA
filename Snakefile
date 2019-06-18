@@ -7,7 +7,7 @@ wildcard_constraints:
     simpl="[a-zA-Z0-9]*|all",
     clusters="[0-9]+m?|all",
     sectors="[+a-zA-Z0-9]+",
-    opts="[-+a-zA-Z0-9]*"
+    opts="[-+a-zA-Z0-9\.]*"
 
 rule cluster_all_elec_networks:
     input:

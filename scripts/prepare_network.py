@@ -16,10 +16,16 @@ import geopandas as gpd
 import pypsa
 from add_electricity import load_costs, update_transmission_costs
 
-def add_co2limit(n, Nyears=1.):
+def add_co2limit(n, Nyears=1., factor=None):
+
+    if factor:
+        annual_emissions = factor*snakemake.config['electricity']['co2base']
+    else:
+        annual_emissions = snakemake.config['electricity']['co2limit']
+
     n.add("GlobalConstraint", "CO2Limit",
           carrier_attribute="co2_emissions", sense="<=",
-          constant=snakemake.config['electricity']['co2limit'] * Nyears)
+          constant=annual_emissions * Nyears)
 
 def add_emission_prices(n, emission_prices=None, exclude_co2=False):
     assert False, "Needs to be fixed, adds NAN"
@@ -151,9 +157,13 @@ if __name__ == "__main__":
     else:
         logger.info("No resampling")
 
-    if 'Co2L' in opts:
-        add_co2limit(n, Nyears)
-        # add_emission_prices(n, exclude_co2=True)
+    for o in opts:
+        if "Co2L" in o:
+            m = re.findall("[0-9]*\.?[0-9]+$", o)
+            if len(m) > 0:
+                add_co2limit(n, Nyears, float(m[0]))
+            else:
+                add_co2limit(n, Nyears)
 
     # if 'Ep' in opts:
     #     add_emission_prices(n)
