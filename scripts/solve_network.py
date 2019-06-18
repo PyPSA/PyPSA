@@ -94,7 +94,7 @@ def add_opts_constraints(n, opts=None):
             min = agg_p_nom_minmax.at[(country, carrier), 'min']
             return ((sum(model.generator_p_nom[gen]
                          for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
-                    <= min) 
+                    >= min) 
                     if np.isfinite(min) else po.Constraint.Skip)
 
         def agg_p_nom_max_rule(model, country, carrier):
