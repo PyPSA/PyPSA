@@ -77,6 +77,36 @@ def add_opts_constraints(n, opts=None):
         ext_gens_i = n.generators.index[n.generators.carrier.isin(conv_techs) & n.generators.p_nom_extendable]
         n.model.safe_peakdemand = pypsa.opt.Constraint(expr=sum(n.model.generator_p_nom[gen] for gen in ext_gens_i) >= peakdemand - exist_conv_caps)
 
+    # Add constraints on the per-carrier capacity in each country
+    if 'CCL' in opts:
+        agg_p_nom_limits = snakemake.config['electricity'].get('agg_p_nom_limits')
+
+        try:
+            agg_p_nom_minmax = pd.read_csv(agg_p_nom_limits, index_col=list(range(2)))
+        except IOError:
+            logger.exception("Need to specify the path to a .csv file containing aggregate capacity limits per country in config['electricity']['agg_p_nom_limit'].")
+
+        logger.info("Adding per carrier generation capacity constraints for individual countries")
+
+        gen_country = n.generators.bus.map(n.buses.country)
+
+        def agg_p_nom_min_rule(model, country, carrier):
+            min = agg_p_nom_minmax.at[(country, carrier), 'min']
+            return ((sum(model.generator_p_nom[gen]
+                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
+                    >= min) 
+                    if np.isfinite(min) else pypsa.opt.Constraint.Skip)
+
+        def agg_p_nom_max_rule(model, country, carrier):
+            max = agg_p_nom_minmax.at[(country, carrier), 'max']
+            return ((sum(model.generator_p_nom[gen]
+                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
+                    <= max) 
+                    if np.isfinite(max) else pypsa.opt.Constraint.Skip)
+
+        n.model.agg_p_nom_min = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_min_rule)
+        n.model.agg_p_nom_max = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_max_rule)
+    
 def add_lv_constraint(n):
     line_volume = getattr(n, 'line_volume_limit', None)
     if line_volume is not None and not np.isinf(line_volume):
@@ -145,7 +175,9 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
         free_output_series_dataframes(n)
 
         pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
+        
         add_opts_constraints(n, opts)
+        
         if not fix_ext_lines:
             add_lv_constraint(n)
             add_lc_constraint(n)
