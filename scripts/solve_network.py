@@ -120,7 +120,10 @@ def fix_branches(n, lines_s_nom=None, links_p_nom=None):
         if isinstance(n.opt, pypsa.opf.PersistentSolver):
             n.opt.update_var(n.model.link_p_nom)
 
-def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
+def solve_network(n, config=None, solver_log=None, opts=None, callback=None,
+                  skip_iterating=False,
+                  extra_functionality=None, extra_functionality_args=None,
+                  extra_postprocessing=None):
     if config is None:
         config = snakemake.config['solving']
     solve_opts = config['options']
@@ -130,16 +133,20 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
         solver_log = snakemake.log.solver
     solver_name = solver_options.pop('name')
 
-    def extra_postprocessing(n, snapshots, duals):
-        if hasattr(n, 'line_volume_limit') and hasattr(n.model, 'line_volume_constraint'):
-            cdata = pd.Series(list(n.model.line_volume_constraint.values()),
-                              index=list(n.model.line_volume_constraint.keys()))
-            n.line_volume_limit_dual = -cdata.map(duals).sum()
+    if extra_postprocessing is None:
 
-        if hasattr(n, 'line_cost_limit') and hasattr(n.model, 'line_cost_constraint'):
-            cdata = pd.Series(list(n.model.line_cost_constraint.values()),
-                              index=list(n.model.line_cost_constraint.keys()))
-            n.line_cost_limit_dual = -cdata.map(duals).sum()
+        def get_line_limit_duals(n, snapshots, duals):
+            if hasattr(n, 'line_volume_limit') and hasattr(n.model, 'line_volume_constraint'):
+                cdata = pd.Series(list(n.model.line_volume_constraint.values()),
+                                index=list(n.model.line_volume_constraint.keys()))
+                n.line_volume_limit_dual = -cdata.map(duals).sum()
+
+            if hasattr(n, 'line_cost_limit') and hasattr(n.model, 'line_cost_constraint'):
+                cdata = pd.Series(list(n.model.line_cost_constraint.values()),
+                                index=list(n.model.line_cost_constraint.keys()))
+                n.line_cost_limit_dual = -cdata.map(duals).sum()
+
+        extra_postprocessing = get_line_limit_duals
 
     def run_lopf(n, allow_warning_status=False, fix_ext_lines=False):
         free_output_series_dataframes(n)
@@ -149,6 +156,9 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
         if not fix_ext_lines:
             add_lv_constraint(n)
             add_lc_constraint(n)
+
+        if extra_functionality is not None:
+            extra_functionality(n, *extra_functionality_args)
 
         pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
 
@@ -176,70 +186,73 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None):
 
         return status, termination_condition
 
-    iteration = 0
-    lines_ext_b = n.lines.s_nom_extendable
-    if lines_ext_b.any():
-        # puh: ok, we need to iterate, since there is a relation
-        # between s/p_nom and r, x for branches.
-        msq_threshold = 0.01
-        lines = pd.DataFrame(n.lines[['r', 'x', 'type', 'num_parallel']])
+    if not skip_iterating:
+        iteration = 0
+        lines_ext_b = n.lines.s_nom_extendable
+        if lines_ext_b.any():
+            # puh: ok, we need to iterate, since there is a relation
+            # between s/p_nom and r, x for branches.
+            msq_threshold = 0.01
+            lines = pd.DataFrame(n.lines[['r', 'x', 'type', 'num_parallel']])
 
-        lines['s_nom'] = (
-            np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
-            n.lines.bus0.map(n.buses.v_nom)
-        ).where(n.lines.type != '', n.lines['s_nom'])
+            lines['s_nom'] = (
+                np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
+                n.lines.bus0.map(n.buses.v_nom)
+            ).where(n.lines.type != '', n.lines['s_nom'])
 
-        lines_ext_typed_b = (n.lines.type != '') & lines_ext_b
-        lines_ext_untyped_b = (n.lines.type == '') & lines_ext_b
+            lines_ext_typed_b = (n.lines.type != '') & lines_ext_b
+            lines_ext_untyped_b = (n.lines.type == '') & lines_ext_b
 
-        def update_line_parameters(n, zero_lines_below=10):
-            if zero_lines_below > 0:
-                n.lines.loc[n.lines.s_nom_opt < zero_lines_below, 's_nom_opt'] = 0.
-                n.links.loc[n.links.p_nom_opt < zero_lines_below, 'p_nom_opt'] = 0.
+            def update_line_parameters(n, zero_lines_below=10):
+                if zero_lines_below > 0:
+                    n.lines.loc[n.lines.s_nom_opt < zero_lines_below, 's_nom_opt'] = 0.
+                    n.links.loc[n.links.p_nom_opt < zero_lines_below, 'p_nom_opt'] = 0.
 
-            if lines_ext_untyped_b.any():
-                for attr in ('r', 'x'):
-                    n.lines.loc[lines_ext_untyped_b, attr] = (
-                        lines[attr].multiply(lines['s_nom']/n.lines['s_nom_opt'])
+                if lines_ext_untyped_b.any():
+                    for attr in ('r', 'x'):
+                        n.lines.loc[lines_ext_untyped_b, attr] = (
+                            lines[attr].multiply(lines['s_nom']/n.lines['s_nom_opt'])
+                        )
+
+                if lines_ext_typed_b.any():
+                    n.lines.loc[lines_ext_typed_b, 'num_parallel'] = (
+                        n.lines['s_nom_opt']/lines['s_nom']
                     )
+                    logger.debug("lines.num_parallel={}".format(n.lines.loc[lines_ext_typed_b, 'num_parallel']))
 
-            if lines_ext_typed_b.any():
-                n.lines.loc[lines_ext_typed_b, 'num_parallel'] = (
-                    n.lines['s_nom_opt']/lines['s_nom']
-                )
-                logger.debug("lines.num_parallel={}".format(n.lines.loc[lines_ext_typed_b, 'num_parallel']))
-
-        iteration += 1
-        lines['s_nom_opt'] = lines['s_nom'] * n.lines['num_parallel'].where(n.lines.type != '', 1.)
-        status, termination_condition = run_lopf(n, allow_warning_status=True)
-        if callback is not None: callback(n, iteration, status)
-
-        def msq_diff(n):
-            lines_err = np.sqrt(((n.lines['s_nom_opt'] - lines['s_nom_opt'])**2).mean())/lines['s_nom_opt'].mean()
-            logger.info("Mean square difference after iteration {} is {}".format(iteration, lines_err))
-            return lines_err
-
-        min_iterations = solve_opts.get('min_iterations', 2)
-        max_iterations = solve_opts.get('max_iterations', 999)
-        while msq_diff(n) > msq_threshold or iteration < min_iterations:
-            if iteration >= max_iterations:
-                logger.info("Iteration {} beyond max_iterations {}. Stopping ...".format(iteration, max_iterations))
-                break
-
-            update_line_parameters(n)
-            lines['s_nom_opt'] = n.lines['s_nom_opt']
             iteration += 1
-
+            lines['s_nom_opt'] = lines['s_nom'] * n.lines['num_parallel'].where(n.lines.type != '', 1.)
             status, termination_condition = run_lopf(n, allow_warning_status=True)
             if callback is not None: callback(n, iteration, status)
 
+            def msq_diff(n):
+                lines_err = np.sqrt(((n.lines['s_nom_opt'] - lines['s_nom_opt'])**2).mean())/lines['s_nom_opt'].mean()
+                logger.info("Mean square difference after iteration {} is {}".format(iteration, lines_err))
+                return lines_err
 
-        update_line_parameters(n, zero_lines_below=100)
+            min_iterations = solve_opts.get('min_iterations', 2)
+            max_iterations = solve_opts.get('max_iterations', 999)
+            while msq_diff(n) > msq_threshold or iteration < min_iterations:
+                if iteration >= max_iterations:
+                    logger.info("Iteration {} beyond max_iterations {}. Stopping ...".format(iteration, max_iterations))
+                    break
 
-        logger.info("Starting last run with fixed extendable lines")
+                update_line_parameters(n)
+                lines['s_nom_opt'] = n.lines['s_nom_opt']
+                iteration += 1
 
-    iteration += 1
-    status, termination_condition = run_lopf(n, fix_ext_lines=True)
+                status, termination_condition = run_lopf(n, allow_warning_status=True)
+                if callback is not None: callback(n, iteration, status)
+
+
+            update_line_parameters(n, zero_lines_below=100)
+
+            logger.info("Starting last run with fixed extendable lines")
+
+        iteration += 1
+        status, termination_condition = run_lopf(n, fix_ext_lines=True)
+    else:
+        status, termination_condition = run_lopf(n, fix_ext_lines=False)
     if callback is not None: callback(n, iteration, status)
 
     return n
