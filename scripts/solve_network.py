@@ -95,14 +95,14 @@ def add_opts_constraints(n, opts=None):
             return ((sum(model.generator_p_nom[gen]
                          for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
                     >= min) 
-                    if np.isfinite(min) else po.Constraint.Skip)
+                    if np.isfinite(min) else pypsa.opt.Constraint.Skip)
 
         def agg_p_nom_max_rule(model, country, carrier):
             max = agg_p_nom_minmax.at[(country, carrier), 'max']
             return ((sum(model.generator_p_nom[gen]
                          for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
                     <= max) 
-                    if np.isfinite(max) else po.Constraint.Skip)
+                    if np.isfinite(max) else pypsa.opt.Constraint.Skip)
 
         n.model.agg_p_nom_min = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_min_rule)
         n.model.agg_p_nom_max = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_max_rule)
