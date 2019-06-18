@@ -170,18 +170,18 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                 use_basemap = True
                 use_cartopy = False
 
-    if use_cartopy and geomap:
-        if projection is None:
-            projection = get_projection_from_crs(network.srid)
+        if use_cartopy:
+            if projection is None:
+                projection = get_projection_from_crs(network.srid)
 
-        if ax is None:
-            ax = plt.gca(projection=projection)
-        else:
-            assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
-                    'The passed axis is not a GeoAxesSubplot. You can '
-                    'create one with: \nimport cartopy.crs as ccrs \n'
-                    'fig, ax = plt.subplots('
-                    'subplot_kw={"projection":ccrs.PlateCarree()})')
+            if ax is None:
+                ax = plt.gca(projection=projection)
+            else:
+                assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
+                        'The passed axis is not a GeoAxesSubplot. You can '
+                        'create one with: \nimport cartopy.crs as ccrs \n'
+                        'fig, ax = plt.subplots('
+                        'subplot_kw={"projection":ccrs.PlateCarree()})')
     elif ax is None:
         ax = plt.gca()
 
