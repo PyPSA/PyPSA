@@ -19,18 +19,22 @@ Documentation
    installation
    configuration
 
-**Rules**
+**Rules Overview**
 
-
-* :doc:`ruleA`
+* :doc:`preparation`
+* :doc:`simplification`
+* :doc:`solving`
+* :doc:`plotting`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Rules
+   :caption: Rules Overview
 
-   ruleA
-   
+   preparation
+   simplification
+   solving
+   plotting
    
 **References**
    
