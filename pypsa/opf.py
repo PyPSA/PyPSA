@@ -61,7 +61,7 @@ from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_record_memusage_before_solving,
                   empty_network, free_pyomo_initializers)
 from .descriptors import (get_switchable_as_dense, get_switchable_as_iter,
-                          allocate_series_dataframes, zsum)
+                          allocate_series_dataframes, zsum, ind_operational)
 
 pd.Series.zsum = zsum
 
@@ -1166,7 +1166,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         return s
 
     def set_from_series(df, series):
-        df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
+        df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns).fillna(0.)
 
     def get_shadows(constraint, multiind=True):
         if len(constraint) == 0: return pd.Series()
@@ -1298,9 +1298,10 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     s_nom_extendable_passive_branches = get_values(model.passive_branch_s_nom)
     for c in network.iterate_components(network.passive_branch_components):
-        c.df['s_nom_opt'] = c.df.s_nom
+        c.df['s_nom_opt'] = 0.
+        c.df.loc[c.df.operational, 's_nom_opt'] = c.df.loc[c.df.operational].s_nom
         if c.df.s_nom_extendable.any():
-            c.df.loc[c.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
+            c.df.loc[c.df.s_nom_extendable & c.df.operational, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
 
     network.links.p_nom_opt = network.links.p_nom
 

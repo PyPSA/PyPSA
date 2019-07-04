@@ -21,7 +21,7 @@
 import scipy as sp, scipy.sparse
 import numpy as np
 
-from .descriptors import OrderedGraph
+from .descriptors import OrderedGraph, ind_operational
 
 def graph(network, branch_components=None, weight=None, inf_weight=False):
     """
@@ -71,8 +71,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     # Multigraph uses the branch type and name as key
     def gen_edges():
         for c in network.iterate_components(branch_components):
-            for branch in c.df.loc[slice(None) if c.ind is None
-                                               else c.ind].itertuples():
+            for branch in c.df.loc[ind_operational(c)].itertuples():
                 if weight is None:
                     data = {}
                 else:
@@ -132,12 +131,8 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     bus1_inds = []
     weight_vals = []
     for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            sel = slice(None)
-            no_branches = len(c.df)
-        else:
-            sel = c.ind
-            no_branches = len(c.ind)
+        sel = ind_operational(c)
+        no_branches = len(sel)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
         weight_vals.append(np.ones(no_branches)
@@ -192,12 +187,8 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     bus0_inds = []
     bus1_inds = []
     for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            sel = slice(None)
-            no_branches += len(c.df)
-        else:
-            sel = c.ind
-            no_branches += len(c.ind)
+        sel = ind_operational(c)
+        no_branches = len(sel)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)

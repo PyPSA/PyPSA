@@ -303,3 +303,23 @@ def zsum(s, *args, **kwargs):
     Meant to be set as pd.Series.zsum = zsum.
     """
     return 0 if s.empty else s.sum(*args, **kwargs)
+
+
+def ind_operational(c):
+    """
+    Returns intersection of c.ind and indices of operational lines for passive branch components.
+    """
+
+    if c.name=='Line':
+        operational_i = c.df[c.df.operational].index
+        if c.ind is None:
+            sel = operational_i
+        else:
+            sel = c.ind.intersection(operational_i)
+    else:
+        if c.ind is None:
+            sel = slice(None)
+        else:
+            sel = c.ind
+
+    return sel

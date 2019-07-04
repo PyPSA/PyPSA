@@ -48,7 +48,7 @@ try:
 except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
-from .descriptors import Dict, get_switchable_as_dense
+from .descriptors import Dict, get_switchable_as_dense, ind_operational
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -749,7 +749,8 @@ class Network(Basic):
                          keys=self.branch_components, sort=False)
 
     def passive_branches(self):
-        return pd.concat((self.df(c) for c in self.passive_branch_components),
+        return pd.concat((self.df(c)[self.df(c).operational] if c=='Line' else self.df(c)
+                         for c in self.passive_branch_components),
                          keys=self.passive_branch_components, sort=False)
 
     def controllable_branches(self):
@@ -988,8 +989,9 @@ class SubNetwork(Common):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            types += len(c.ind) * [c.name]
-            names += list(c.ind)
+            sel = ind_operational(c)
+            types += len(sel) * [c.name]
+            names += list(sel)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
