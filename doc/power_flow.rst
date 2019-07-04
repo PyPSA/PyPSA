@@ -21,6 +21,8 @@ more performant than calling ``network.pf`` on each snapshot
 separately). If no argument is passed, it will be called on all
 ``network.snapshots``.
 
+.. automethod:: pypsa.Network.pf
+
 
 
 Non-linear power flow for AC networks
@@ -133,7 +135,7 @@ then the user can specify the ``tap_position`` which results in a
 ``tap ratio`` :math:`\tau` given by:
 
 .. math::
-  \tau = 1 + (\textrm{tap\_position} - \textrm{tap\_neutral})\cdot \frac{\textrm{tap\_step}}{100}
+  \tau = 1 + (\textrm{tap_position} - \textrm{tap_neutral})\cdot \frac{\textrm{tap_step}}{100}
 
 
 For a transformer with tap ratio :math:`\tau` on the primary side
@@ -252,18 +254,10 @@ link.{p_set}
 
 
 
-Note that the control strategy for active and reactive power
-PQ/PV/Slack is set on the generators NOT on the buses. Buses then
-inherit the control strategy from the generators attached at the bus
-(defaulting to PQ if there is no generator attached). Any PV generator
-will make the whole bus a PV bus. For PV buses, the voltage magnitude
-set point is set on the bus, not the generator, with bus.v_mag_pu_set
-since it is a bus property.
+.. note:: Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators NOT on the buses. Buses then inherit the  control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
 
 
-Note that for lines and transformers you MUST make sure that
-:math:`r+jx` is non-zero, otherwise the bus admittance matrix will be
-singular.
+.. note:: Note that for lines and transformers you MUST make sure that :math:`r+jx` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
@@ -293,12 +287,12 @@ Linear power flow
 The linear power flow ``network.lpf()`` can be called for a
 particular ``snapshot`` as ``network.lpf(snapshot)`` or on an iterable
 of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
-non-linear power flow on a selection of snapshots at once (which is
+linear power flow on a selection of snapshots at once (which is
 more performant than calling ``network.lpf`` on each snapshot
 separately). If no argument is passed, it will be called on all
 ``network.snapshots``.
 
-
+.. automethod:: pypsa.Network.lpf
 
 For AC networks, it is assumed for the linear power flow that reactive
 power decouples, there are no voltage magnitude variations, voltage
@@ -366,8 +360,7 @@ transformer.{x}
 
 link.{p_set}
 
-Note that for lines and transformers you MUST make sure that
-:math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+.. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------

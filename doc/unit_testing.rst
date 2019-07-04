@@ -3,9 +3,9 @@ Unit Testing
 ########################
 
 
-Unit testing is performed with py.test.
+Unit testing is performed with ``py.test``.
 
-Tests can be found in pypsa/test/.
+Tests can be found in ``pypsa/test/``.
 
 Power flow is tested against Pypower (the Python implementation of MATPOWER) using its built-in cases.
 

@@ -4,21 +4,32 @@
 from __future__ import print_function, division
 from __future__ import absolute_import
 
-
-import pypsa,os
-
-import pandas as pd
-
+import pypsa, os
 import numpy as np
-
-from itertools import chain
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
 
 network = pypsa.Network()
 
 folder_name = "ac-dc-data"
 network.import_from_csv_folder(folder_name)
 
+
 network.lopf(network.snapshots)
+
+fig, ax = plt.subplots(subplot_kw={'projection': ccrs.EqualEarth()},
+                                   figsize=(5,5))
+line_colors = network.lines.bus0.map(network.buses.carrier)\
+                     .replace({'AC': 'indianred', 'DC': 'limegreen'})
+network.plot(bus_colors='grey', ax=ax,
+       margin=.5, line_widths={'Line':2., 'Link':0},
+       line_colors=line_colors,
+       geomap='10m', title='Mixed AC-DC (red - green) network',
+#       flow='mean',
+       color_geomap=True)
+fig.canvas.draw(); fig.tight_layout()
+fig.savefig('ac_dc_meshed.png')
+
 
 for sn in network.sub_networks.obj:
     print(sn,network.sub_networks.at[sn.name,"carrier"],len(sn.buses()),len(sn.branches()))
@@ -70,3 +81,4 @@ results_folder_name = os.path.join(folder_name,"results-lopf")
 
 if True:
     network.export_to_csv_folder(results_folder_name)
+

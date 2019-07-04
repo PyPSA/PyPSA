@@ -1336,7 +1336,7 @@ def network_lopf_build_model(network, snapshots=None, skip_pre=False,
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
         network.snapshots, defaults to network.snapshots
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
     formulation : string
@@ -1520,7 +1520,7 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     solver_io : string, default None
         Solver Input-Output option, e.g. "python" to use "gurobipy" for
         solver_name="gurobi"
-    skip_pre: bool, default False
+    skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
     extra_functionality : callable function

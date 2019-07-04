@@ -140,7 +140,7 @@ class Network(Basic):
     Parameters
     ----------
     import_name : string
-        Name of HDF5 .h5 store or folder from which to import CSVs of network data.
+        Name of netCDF file, HDF5 .h5 store or folder from which to import CSVs of network data.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -413,7 +413,12 @@ class Network(Basic):
         """
         Add a single component to the network.
 
-        Adds it to component DataFrames.
+        Adds it to component DataFrame.
+
+        Any attributes which are not specified will be given the default value from :doc:`components`.
+
+        This method is slow for many components; instead use ``madd`` or
+        ``import_components_from_dataframe`` (see below).
 
         Parameters
         ----------
@@ -426,8 +431,9 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.add("Line", "line 12345", x=0.1)
-
+        >>> network.add("Bus","my_bus_0")
+        >>> network.add("Bus","my_bus_1",v_nom=380)
+        >>> network.add("Line","my_line_name",bus0="my_bus_0",bus1="my_bus_1",length=34,r=2,x=4)
         """
 
         assert class_name in self.components, "Component class {} not found".format(class_name)
@@ -513,6 +519,8 @@ class Network(Basic):
         their index is a superset of network.snapshots and their columns are a
         subset of names.
 
+        Any attributes which are not specified will be given the default value from :doc:`components`.
+
         Parameters
         ----------
         class_name : string
@@ -532,8 +540,38 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.madd("Load", ["load 1", "load 2"], bus=["1","2"], p_set=np.random.rand(len(network.snapshots),2))
 
+        Short Example:
+
+        >>> network.madd("Load", ["load 1", "load 2"],
+        ...        bus=["1","2"],
+        ...        p_set=np.random.rand(len(network.snapshots),2))
+
+        Long Example:
+
+        >>> import pandas as pd, numpy as np
+        >>> buses = range(13)
+        >>> snapshots = range(7)
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(snapshots)
+        >>> n.madd("Bus", buses)
+        >>> # add load as numpy array
+        >>> n.madd("Load",
+        ...        n.buses.index + " load",
+        ...        bus=buses,
+        ...        p_set=np.random.rand(len(snapshots),len(buses)))
+        >>> # add wind availability as pandas DataFrame
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
+        ...        index=n.snapshots,
+        ...        columns=buses)
+        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> n.madd("Generator",
+        ...        buses,
+        ...        suffix=' wind',
+        ...        bus=buses,
+        ...        p_nom_extendable=True,
+        ...        capital_cost=1e5,
+        ...        p_max_pu=wind)
         """
 
         if class_name not in self.components:
@@ -809,7 +847,10 @@ class Network(Basic):
 
     def consistency_check(self):
         """
-        Checks the network for consistency, including bus definitions and impedances.
+        Checks the network for consistency; e.g. 
+        that all components are connected to existing buses and
+        that no impedances are singular.
+        
         Prints warnings if anything is potentially inconsistent.
 
         Examples

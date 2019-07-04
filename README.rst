@@ -1,4 +1,4 @@
-|badge_travis| |badge_pypi| |badge_license|
+|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi|
 
 -----
 
@@ -249,8 +249,16 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     :alt: PyPI version
 
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: #license
+    :target: License
 
 .. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
+
+.. |badge_docs| image:: https://readthedocs.org/projects/pypsa-readthedocs/badge/?version=readthedocs
+    :target: https://pypsa-readthedocs.readthedocs.io/en/readthedocs/?badge=readthedocs
+    :alt: Documentation Status
+
+.. |badge_conda| image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg
+    :target: https://anaconda.org/conda-forge/pypsa
+    :alt: Conda version

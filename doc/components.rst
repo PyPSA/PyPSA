@@ -56,7 +56,6 @@ has the major functions as methods, such as ``network.lopf()`` and
    :file: ../pypsa/component_attrs/networks.csv
 
 
-
 Sub-Network
 ===========
 
@@ -118,7 +117,7 @@ table, the canonical example being CO2 emissions of the carrier
 relevant for limits on CO2 emissions.
 
 
-(NB: In versions of PyPSA < 0.6.0, this was called Source.)
+.. note:: In versions of PyPSA < 0.6.0, this was called Source.
 
 
 .. csv-table::
@@ -145,8 +144,7 @@ after conversion), "generation capacity" (for limits on total capacity
 expansion of given carriers) and "transmission capacity" (for limits
 on the total expansion of lines and links).
 
-Global constraints were added in PyPSA 0.10.0 and replace the ad hoc
-``network.co2_limit`` attribute.
+.. note:: Global constraints were added in PyPSA 0.10.0 and replace the ad hoc ``network.co2_limit`` attribute.
 
 
 .. csv-table::
@@ -422,12 +420,7 @@ power flow: a bidirectional point-to-point HVDC link, a unidirectional
 lossy HVDC link, a converter between an AC and a DC network, a heat
 pump or resistive heater from an AC/DC bus to a heat bus, etc.
 
-NB: ``Link`` has replaced the ``Converter`` component for linking AC
-with DC buses and the ``TransportLink`` component for providing
-controllable flows between AC buses. If you want to replace
-``Converter`` and ``TransportLink`` components in your old code, use
-the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``,
-``p_min_pu = -1``, ``p_max_pu = 1`` and ``p_nom* = s_nom*``.
+.. note:: ``Link`` has replaced the ``Converter`` component for linking AC with DC buses and the ``TransportLink`` component for providing controllable flows between AC buses. If you want to replace ``Converter`` and ``TransportLink`` components in your old code, use the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``, ``p_min_pu = -1``, ``p_max_pu = 1`` and ``p_nom* = s_nom*``.
 
 .. csv-table::
    :header-rows: 1

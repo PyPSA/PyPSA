@@ -41,6 +41,21 @@ and there are similar packages for other GNU/Linux distributions.
 For Windows there is `WinGLPK <http://winglpk.sourceforge.net/>`_. For
 Mac OS X `brew <http://brew.sh/>`_ is your friend.
 
+Installing PyPSA with conda
+===========================
+
+If you are using ``conda`` you can install PyPSA with::
+
+    conda install -c conda-forge pypsa
+
+or by adding the ``conda-forge`` channel to your ``conda`` installation with::
+
+    conda config --add channels conda-forge
+
+and then installing simply with::
+
+    conda install pypsa
+
 
 Installing PyPSA with pip
 =========================
@@ -53,7 +68,8 @@ If you're feeling adventurous, you can also install the latest master branch fro
 
     pip install git+https://github.com/PyPSA/PyPSA.git
 
-"Manual" installation with setuptools
+
+Manual installation with setuptools
 =====================================
 
 PyPSA relies on the following packages which are not contained in a
@@ -64,6 +80,7 @@ standard Python installation:
 * pandas
 * networkx
 * pyomo
+* cartopy
 
 It is recommended to use PyPSA with the following additional packages:
 
@@ -110,7 +127,7 @@ Upgrade all packages to the latest versions
 ===========================================
 
 PyPSA is only tested with the latest stable versions of all the
-dependent packages (pandas, pyomo, networkx, etc.). Therefore it is
+dependent packages. Therefore it is
 very important that you upgrade these packages; otherwise PyPSA may
 not work.
 
