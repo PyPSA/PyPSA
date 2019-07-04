@@ -132,7 +132,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weight_vals = []
     for c in network.iterate_components(branch_components):
         sel = ind_operational(c)
-        no_branches = len(sel)
+        no_branches = len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
         weight_vals.append(np.ones(no_branches)
@@ -188,7 +188,7 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     bus1_inds = []
     for c in network.iterate_components(branch_components):
         sel = ind_operational(c)
-        no_branches = len(sel)
+        no_branches += len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)

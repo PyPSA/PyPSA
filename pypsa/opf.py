@@ -1298,10 +1298,15 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     s_nom_extendable_passive_branches = get_values(model.passive_branch_s_nom)
     for c in network.iterate_components(network.passive_branch_components):
-        c.df['s_nom_opt'] = 0.
-        c.df.loc[c.df.operational, 's_nom_opt'] = c.df.loc[c.df.operational].s_nom
-        if c.df.s_nom_extendable.any():
-            c.df.loc[c.df.s_nom_extendable & c.df.operational, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
+        if c=="Line":
+            c.df['s_nom_opt'] = 0.
+            c.df.loc[c.df.operational, 's_nom_opt'] = c.df.loc[c.df.operational].s_nom
+            if c.df.s_nom_extendable.any():
+                c.df.loc[c.df.s_nom_extendable & c.df.operational, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
+        else:
+            c.df['s_nom_opt'] = c.df.s_nom
+            if c.df.s_nom_extendable.any():
+                c.df.loc[c.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
 
     network.links.p_nom_opt = network.links.p_nom
 
