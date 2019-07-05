@@ -255,8 +255,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
 
-.. |badge_docs| image:: https://readthedocs.org/projects/pypsa-readthedocs/badge/?version=readthedocs
-    :target: https://pypsa-readthedocs.readthedocs.io/en/readthedocs/?badge=readthedocs
+.. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
+    :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 .. |badge_conda| image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg

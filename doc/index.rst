@@ -18,8 +18,8 @@ PyPSA: Python for Power System Analysis
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
 
-.. image:: https://readthedocs.org/projects/pypsa-readthedocs/badge/?version=readthedocs
-    :target: https://pypsa-readthedocs.readthedocs.io/en/readthedocs/?badge=readthedocs
+.. image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
+    :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/pypi/l/pypsa.svg
