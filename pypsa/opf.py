@@ -957,8 +957,8 @@ def define_nodal_balances(network,snapshots):
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.store_p[store,sn]))
 
-
-def define_nodal_balance_constraints(network,snapshots):
+# TODO: needs to include candidates of n.lines where operational=False 
+def define_nodal_balance_constraints(network,snapshots, with_candidates=False):
 
     passive_branches = network.passive_branches()
 
@@ -1045,8 +1045,8 @@ def define_global_constraints(network,snapshots):
 
 
 
-
-def define_linear_objective(network,snapshots):
+# TODO: needs to consider the candidates from n.lines where operational=False for tepopf.py
+def define_linear_objective(network,snapshots, with_candidates=False):
 
     model = network.model
 
