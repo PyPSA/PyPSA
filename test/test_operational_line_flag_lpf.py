@@ -19,7 +19,7 @@ import os
 from distutils.spawn import find_executable
 
 
-def test_operational_line_flag_lpf():
+def test_operative_line_flag_lpf():
 
     csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/ac-dc-meshed/ac-dc-data")
 
@@ -30,7 +30,7 @@ def test_operational_line_flag_lpf():
     # need two lines to create potential new cycle
 
     network_op.add("Line", "FRA-LND",
-        operational=False,
+        operative=False,
         bus0="Frankfurt",
         bus1="London",
         x=0.5,
@@ -39,7 +39,7 @@ def test_operational_line_flag_lpf():
         capital_cost = 0.01)
 
     network_op.add("Line", "FRA-NRW",
-        operational=False,
+        operative=False,
         bus0="Frankfurt",
         bus1="Norwich",
         x=0.5,
@@ -64,4 +64,4 @@ def test_operational_line_flag_lpf():
     np.testing.assert_array_almost_equal(network.links_t.p0[network.links.index],network_op.links_t.p0[network.links.index])
 
 if __name__ == "__main__":
-    test_operational_line_flag_lpf()
+    test_operative_line_flag_lpf()

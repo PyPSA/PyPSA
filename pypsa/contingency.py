@@ -116,7 +116,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     # Store the flows from the base case
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     if branch_outages is None:
         branch_outages = passive_branches.index
@@ -203,7 +203,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
 
     snapshots = _as_snapshots(network, snapshots)
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     if branch_outages is None:
         branch_outages = passive_branches.index

@@ -48,7 +48,9 @@ try:
 except ValueError:
     _pd_version = LooseVersion(pd.__version__)
 
-from .descriptors import Dict, get_switchable_as_dense, ind_operational
+from .descriptors import Dict, get_switchable_as_dense
+
+from .utils import ind_select
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -65,6 +67,8 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 
 from .opf import network_lopf, network_opf
+
+from .tepopf import network_teplopf
 
 from .plot import plot, iplot
 
@@ -199,6 +203,8 @@ class Network(Basic):
     pf = network_pf
 
     lopf = network_lopf
+
+    teplopf = network_teplopf
 
     opf = network_opf
 
@@ -748,8 +754,35 @@ class Network(Basic):
         return pd.concat((self.df(c) for c in self.branch_components),
                          keys=self.branch_components, sort=False)
 
-    def passive_branches(self):
-        return pd.concat((self.df(c)[self.df(c).operational] if c=='Line' else self.df(c)
+    def passive_branches(self, sel=None):
+        """
+        Returns the passive branches of a network.
+
+        Parameters
+        ==========
+        sel : string
+            Specifies selection of passive branches. 'operative' includes only operative lines,
+            'inoperative' includes only inoperative lines, and 'all' includes both operative and
+            inoperative lines.
+
+        Returns
+        =======
+        pandas.DataFrame 
+        """
+
+        def sel_b(c, sel):
+
+            s = slice(None)
+
+            if c == 'Line' and sel is not None:
+                if sel == 'operative':
+                    s = self.df(c).operative == True
+                elif sel == 'inoperative':
+                    s = self.df(c).operative == False
+
+            return s
+
+        return pd.concat((self.df(c)[sel_b(c, sel)]
                          for c in self.passive_branch_components),
                          keys=self.passive_branch_components, sort=False)
 
@@ -903,7 +936,7 @@ class Network(Basic):
                 diff = max_pu - min_pu
                 diff = diff[diff < 0].dropna(axis=1, how='all')
                 for col in diff.columns:
-                    logger.warning("The element %s of %s has a smaller maximum than minimum operational limit which can lead to infeasibility for the following snapshots:\n%s",
+                    logger.warning("The element %s of %s has a smaller maximum than minimum operative limit which can lead to infeasibility for the following snapshots:\n%s",
                                    col, c.list_name, diff[col].dropna().index)
 
         #check all dtypes of component attributes
@@ -989,13 +1022,13 @@ class SubNetwork(Common):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            sel = ind_operational(c)
+            sel = ind_select(c, sel='operative')
             types += len(sel) * [c.name]
             names += list(sel)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self):
-        branches = self.network.passive_branches()
+        branches = self.network.passive_branches(sel='operative')
         return branches[branches.sub_network == self.name]
 
     def generators_i(self):

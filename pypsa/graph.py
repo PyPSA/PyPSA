@@ -21,28 +21,29 @@
 import scipy as sp, scipy.sparse
 import numpy as np
 
-from .descriptors import OrderedGraph, ind_operational
+from .descriptors import OrderedGraph
+from .utils import ind_select
 
-def graph(network, branch_components=None, weight=None, inf_weight=False):
+def graph(network, branch_components=None, weight=None, inf_weight=False,
+          line_selector='operative'):
     """
     Build NetworkX graph.
 
     Arguments
     ---------
     network : Network|SubNetwork
-
     branch_components : [str]
         Components to use as branches. The default are
         passive_branch_components in the case of a SubNetwork and
         branch_components in the case of a Network.
-
     weight : str
         Branch attribute to use as weight
-
     inf_weight : bool|float
         How to treat infinite weights (default: False). True keeps the infinite
         weight. False skips edges with infinite weight. If a float is given it
         is used instead.
+    line_selector : string
+        Subset of lines
 
     Returns
     -------
@@ -71,7 +72,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     # Multigraph uses the branch type and name as key
     def gen_edges():
         for c in network.iterate_components(branch_components):
-            for branch in c.df.loc[ind_operational(c)].itertuples():
+            for branch in c.df.loc[ind_select(c, sel=line_selector)].itertuples():
                 if weight is None:
                     data = {}
                 else:
@@ -88,7 +89,8 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
 
     return graph
 
-def adjacency_matrix(network, branch_components=None, busorder=None, weights=None):
+def adjacency_matrix(network, branch_components=None, busorder=None, weights=None,
+                     line_selector='operative'):
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -103,6 +105,8 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weights : pd.Series or None (default)
        If given must provide a weight for each branch, multi-indexed
        on branch_component name and branch name.
+    line_selector : string
+        Subset of lines
 
     Returns
     -------
@@ -131,7 +135,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     bus1_inds = []
     weight_vals = []
     for c in network.iterate_components(branch_components):
-        sel = ind_operational(c)
+        sel = ind_select(c, sel=line_selector)
         no_branches = len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
@@ -149,7 +153,8 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     return sp.sparse.coo_matrix((weight_vals, (bus0_inds, bus1_inds)),
                                 shape=(no_buses, no_buses))
 
-def incidence_matrix(network, branch_components=None, busorder=None):
+def incidence_matrix(network, branch_components=None, busorder=None,
+                     line_selector='operative'):
     """
     Construct a sparse incidence matrix (directed)
 
@@ -161,6 +166,8 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     busorder : pd.Index subset of network.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
+    line_selector : string
+       Subset of lines
 
     Returns
     -------
@@ -187,7 +194,7 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     bus0_inds = []
     bus1_inds = []
     for c in network.iterate_components(branch_components):
-        sel = ind_operational(c)
+        sel = ind_select(c, sel=line_selector)
         no_branches += len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))

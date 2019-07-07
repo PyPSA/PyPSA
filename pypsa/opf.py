@@ -61,7 +61,8 @@ from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   patch_optsolver_record_memusage_before_solving,
                   empty_network, free_pyomo_initializers)
 from .descriptors import (get_switchable_as_dense, get_switchable_as_iter,
-                          allocate_series_dataframes, zsum, ind_operational)
+                          allocate_series_dataframes, zsum)
+from .utils import ind_select
 
 pd.Series.zsum = zsum
 
@@ -577,7 +578,7 @@ def define_store_variables_constraints(network,snapshots):
 
 def define_branch_extension_variables(network,snapshots):
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
 
@@ -671,7 +672,7 @@ def define_passive_branch_flows_with_angles(network,snapshots):
     l_constraint(network.model,"slack_angle",slack,list(network.sub_networks.index),snapshots)
 
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
 
@@ -697,7 +698,7 @@ def define_passive_branch_flows_with_angles(network,snapshots):
 
 def define_passive_branch_flows_with_PTDF(network,snapshots,ptdf_tolerance=0.):
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
 
@@ -775,7 +776,7 @@ def define_passive_branch_flows_with_cycles(network,snapshots):
             calculate_B_H(sub_network)
 
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
 
     network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
@@ -841,7 +842,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
         if len(sub_network.branches_i()) > 0:
             calculate_B_H(sub_network)
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     if not skip_vars:
         network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
@@ -866,7 +867,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
 def define_passive_branch_constraints(network,snapshots):
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~ passive_branches.s_nom_extendable]
 
@@ -957,10 +958,9 @@ def define_nodal_balances(network,snapshots):
         for sn in snapshots:
             network._p_balance[bus,sn].variables.append((sign,network.model.store_p[store,sn]))
 
-# TODO: needs to include candidates of n.lines where operational=False 
-def define_nodal_balance_constraints(network,snapshots, with_candidates=False):
+def define_nodal_balance_constraints(network,snapshots):
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
 
     for branch in passive_branches.index:
@@ -1045,8 +1045,7 @@ def define_global_constraints(network,snapshots):
 
 
 
-# TODO: needs to consider the candidates from n.lines where operational=False for tepopf.py
-def define_linear_objective(network,snapshots, with_candidates=False):
+def define_linear_objective(network,snapshots,candidates=False):
 
     model = network.model
 
@@ -1056,7 +1055,7 @@ def define_linear_objective(network,snapshots, with_candidates=False):
 
     ext_stores = network.stores[network.stores.e_nom_extendable]
 
-    passive_branches = network.passive_branches()
+    passive_branches = network.passive_branches(sel='operative')
 
     extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
 
@@ -1126,10 +1125,22 @@ def define_linear_objective(network,snapshots, with_candidates=False):
     objective.variables.extend([(1, model.generator_shut_down_cost[gen,sn]) for gen in sdc_gens_i for sn in snapshots])
 
 
+    # Candidate line investment costs
+
+    if candidates:
+
+        inoperative_passive_branches = network.passive_branches(sel='inoperative')
+
+        candidate_passive_branches = inoperative_passive_branches[inoperative_passive_branches.s_nom_extendable]
+
+        objective.variables.extend([(candidate_passive_branches.at[b,"capital_cost"] * candidate_passive_branches.at[b,"s_nom"],
+                                    model.passive_branch_inv[b])
+                                    for b in candidate_passive_branches.index])
+
     l_objective(model,objective)
 
 def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True,
-                                 extra_postprocessing=None):
+                                 extra_postprocessing=None, candidates=False):
 
     if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
         # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
@@ -1216,6 +1227,48 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
     passive_branches = get_values(model.passive_branch_p)
     flow_lower = get_shadows(model.flow_lower)
     flow_upper = get_shadows(model.flow_upper)
+
+    if candidates:
+        passive_branches_inv = get_values(model.passive_branch_inv_p)
+        network.inv_p = passive_branches_inv
+        investment = get_values(model.passive_branch_inv)
+        flow_lower_inv = get_shadows(model.inv_flow_lower)
+        flow_upper_inv = get_shadows(model.inv_flow_upper)
+
+        def map_corridor_to_candidate(network, investment):
+            passive_branches = network.passive_branches(sel='inoperative')
+            candidate_branches = passive_branches[passive_branches.s_nom_extendable]
+            idx = candidate_branches.loc[investment==1,['bus0', 'bus1']].droplevel(0)
+            rev_mapping = idx.apply(lambda x: (x.bus0, x.bus1), axis=1).to_dict()
+            return {v: k for k, v in rev_mapping.items() if v!={}}
+
+        # TODO: this fails if flow for an invested line is always zero!
+        def non_zero_flows(series):
+            minabs_flows = series.unstack(level=[0,1,2]).abs().min()
+            idx = minabs_flows[minabs_flows>0].index
+            s = [idx.get_level_values(i) for i in range(3)]
+            return series.loc[s[0],s[1],s[2],:]
+
+        def index_corridor_to_candidate(network, investment, series):
+            series = non_zero_flows(series)
+            if len(series) > 0:
+                mapping = map_corridor_to_candidate(network, investment)
+                current_idx = series.index.tolist()
+                mapped_idx = []
+                for bt, bus0, bus1, sn in current_idx:
+                    idx_element = (bt, mapping[(bus0,bus1)], sn)
+                    mapped_idx.append(idx_element)
+                series.index = pd.MultiIndex.from_tuples(mapped_idx)     
+            return series
+
+        passive_branches_inv = index_corridor_to_candidate(network, investment, passive_branches_inv)       
+        flow_lower_inv = index_corridor_to_candidate(network, investment, flow_lower_inv)
+        flow_upper_inv = index_corridor_to_candidate(network, investment, flow_upper_inv)
+
+        passive_branches = pd.concat([passive_branches, passive_branches_inv])
+        flow_lower = pd.concat([flow_lower, flow_lower_inv])
+        flow_upper = pd.concat([flow_upper, flow_upper_inv])
+
     for c in network.iterate_components(network.passive_branch_components):
         set_from_series(c.pnl.p0, passive_branches.loc[c.name])
         c.pnl.p1.loc[snapshots] = - c.pnl.p0.loc[snapshots]
@@ -1300,13 +1353,21 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
     for c in network.iterate_components(network.passive_branch_components):
         if c.name == "Line":
             c.df['s_nom_opt'] = 0.
-            c.df.loc[c.df.operational, 's_nom_opt'] = c.df.loc[c.df.operational].s_nom
-            if c.df.s_nom_extendable.any():
-                c.df.loc[c.df.s_nom_extendable & c.df.operational, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
+            c.df.loc[c.df.operative, 's_nom_opt'] = c.df.loc[c.df.operative].s_nom
+            if c.df.loc[c.df.operative].s_nom_extendable.any():
+                extendables_b = c.df.s_nom_extendable & c.df.operative
+                c.df.loc[extendables_b, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
         else:
             c.df['s_nom_opt'] = c.df.s_nom
             if c.df.s_nom_extendable.any():
                 c.df.loc[c.df.s_nom_extendable, 's_nom_opt'] = s_nom_extendable_passive_branches.loc[c.name]
+
+    if candidates:
+        investment_passive_branch = get_values(model.passive_branch_inv)
+        for c in network.iterate_components({'Line'}):
+            if c.df.loc[c.df.operative==False].s_nom_extendable.any():
+                candidates_b = c.df.s_nom_extendable & (c.df.operative==False)
+                c.df.loc[candidates_b, 's_nom_opt'] = investment_passive_branch.loc[c.name] * c.df.loc[candidates_b,'s_nom']
 
     network.links.p_nom_opt = network.links.p_nom
 
@@ -1432,7 +1493,7 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
 
 
 def network_lopf_solve(network, snapshots=None, formulation="angles", solver_options={},solver_logfile=None,  keep_files=False,
-                       free_memory={'pyomo'},extra_postprocessing=None):
+                       free_memory={'pyomo'}, extra_postprocessing=None, candidates=False):
     """
     Solve linear optimal power flow for a group of snapshots and extract results.
 
@@ -1496,12 +1557,14 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
         logger.info("Optimization successful")
         extract_optimisation_results(network, snapshots, formulation,
                                      free_pyomo='pyomo' in free_memory,
-                                     extra_postprocessing=extra_postprocessing)
+                                     extra_postprocessing=extra_postprocessing,
+                                     candidates=candidates)
     elif status == "warning" and termination_condition == "other":
         logger.warning("WARNING! Optimization might be sub-optimal. Writing output anyway")
         extract_optimisation_results(network, snapshots, formulation,
                                      free_pyomo='pyomo' in free_memory,
-                                     extra_postprocessing=extra_postprocessing)
+                                     extra_postprocessing=extra_postprocessing,
+                                     candidates=candidates)
     else:
         logger.error("Optimisation failed with status %s and terminal condition %s"
               % (status, termination_condition))

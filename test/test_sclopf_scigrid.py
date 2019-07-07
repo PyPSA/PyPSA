@@ -36,7 +36,7 @@ def test_sclopf():
 
     #check loading as per unit of s_nom in each contingency
 
-    max_loading = abs(p0_test.divide(network.passive_branches().s_nom,axis=0)).describe().loc["max"]
+    max_loading = abs(p0_test.divide(network.passive_branches(sel='operative').s_nom,axis=0)).describe().loc["max"]
 
 
     np.testing.assert_array_almost_equal(max_loading,np.ones((len(max_loading))))
