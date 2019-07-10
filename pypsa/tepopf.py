@@ -34,6 +34,19 @@
 
 # TODO: write tests for tepopf()
 
+# TODO: what happens if separate subnetworks are connected through candidate lines?
+# **angles:**
+# say a candidate line connects 2 sub_networks, then
+# (1) treat them as one sub_network (for calculating K, B, H, etc.)
+# (2) enforce slack theta_0 = 0 in one sub_network only if bridging line is not invested in
+# (3) gets more complicated if there are more sub_networks joining; need an order of slacks in an
+# investment group (e.g. individual subnetworks that could join through candidates),
+# lower ranking slack constraint is coupled to investment of connecting candidate line
+# **kirchhoff:**
+# no need to worry;
+# just treat possibly connected subnetworks as one sub_network;
+# just calculate B and H matrices based on candidate investment decisions ex-post!
+
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
 from six import iteritems, itervalues, string_types
