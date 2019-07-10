@@ -852,7 +852,6 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
     for subnetwork in network.sub_networks.obj:
 
-        branches = subnetwork.branches()
         attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
 
         sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
