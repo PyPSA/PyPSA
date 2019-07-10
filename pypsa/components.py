@@ -1018,17 +1018,17 @@ class SubNetwork(Common):
     def transformers_i(self):
         return self.network.transformers.index[self.network.transformers.sub_network == self.name]
 
-    def branches_i(self):
+    def branches_i(self, line_selector='operative'):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            sel = ind_select(c, sel='operative')
+            sel = ind_select(c, sel=line_selector)
             types += len(sel) * [c.name]
             names += list(sel)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
-    def branches(self):
-        branches = self.network.passive_branches(sel='operative')
+    def branches(self, line_selector='operative'):
+        branches = self.network.passive_branches(sel=line_selector)
         return branches[branches.sub_network == self.name]
 
     def generators_i(self):
