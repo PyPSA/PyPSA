@@ -104,7 +104,6 @@ def _corridors(lines):
         return []
 
 
-# preprocessing:
 def infer_candidates_from_existing(network, exclusive_candidates=True):
     """
     Infer candidate lines from existing lines.
@@ -404,9 +403,9 @@ def bigm_for_kirchhoff(n):
     return m
 
 
-def kvl_dual_check(network):
+def assert_candidate_kvl_duals(network):
     """
-    Check whether all KVL constraints of candidate lines are
+    Assert that all KVL constraints of candidate lines are
     non-binding if they are not invested in. If this check fails,
     Big-M parameters must be larger. 
 
@@ -422,7 +421,6 @@ def kvl_dual_check(network):
     pass
 
 
-# formulation
 def define_integer_branch_extension_variables(network, snapshots):
     """
     Defines candidate line investment variables based on 'inoperative' and 'extendable' lines.
@@ -577,10 +575,10 @@ def define_integer_passive_branch_flows_with_angles(network, snapshots):
             flows_lower[bt,bn,sn] = LConstraint(lhs,">=",-rhs)
         
 
-    l_constraint(network.model, "passive_branch_p_inv_upper_def", flows_upper,
+    l_constraint(network.model, "passive_branch_inv_p_upper_def", flows_upper,
                  list(extendable_branches.index), snapshots)
 
-    l_constraint(network.model, "passive_branch_p_inv_lower_def", flows_lower,
+    l_constraint(network.model, "passive_branch_inv_p_lower_def", flows_lower,
                  list(extendable_branches.index), snapshots)
 
 def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
@@ -593,7 +591,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
 # TODO: this very nicely separates integer from continuous flow variables
 # therefore, possibly include in pypsa.opf.define_nodal_balance_constraints
-def define_nodal_balance_constraints_with_integer(network,snapshots):
+def define_integer_nodal_balance_constraints(network,snapshots):
     """
     Identical to `pypsa.opf.define_nodal_balance_constraints` but including candidate corridor flows.
     """
@@ -684,7 +682,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     define_integer_passive_branch_constraints(network,snapshots)
 
     if formulation in ["angles", "kirchhoff"]:
-        define_nodal_balance_constraints_with_integer(network,snapshots)
+        define_integer_nodal_balance_constraints(network,snapshots)
 
     define_global_constraints(network,snapshots)
 
