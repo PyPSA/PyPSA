@@ -58,14 +58,16 @@ def _haversine(coords):
 
 def ind_select(c, sel=None):
     """
-    Returns intersection of c.ind and indices of operative lines for passive branch components.
+    Returns intersection of `c.ind` and indices of 'operative' or 'inoperative'
+    lines for passive branch components based on the choice of the parameter `sel`.
     
     Parameters
     ==========
     sel : string
-        Specifies selection of passive branches. If None it includes both operative and
-        inoperative lines. If 'operative' it includes only operative lines.
-        If 'inoperative' it includes only inoperative lines.
+        Specifies selection of passive branches.
+        If `None` (default) it includes both operative and inoperative lines.
+        If `"operative"` it includes only operative lines.
+        If `"inoperative"` it includes only inoperative lines.
     
     Returns
     =======

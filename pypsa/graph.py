@@ -42,8 +42,11 @@ def graph(network, branch_components=None, weight=None, inf_weight=False,
         How to treat infinite weights (default: False). True keeps the infinite
         weight. False skips edges with infinite weight. If a float is given it
         is used instead.
-    line_selector : string
-        Subset of lines
+    line_selector : string|None
+        Specifies subset of lines.
+        If `None` (default) it includes both operative and inoperative lines.
+        If `"operative"` it includes only operative lines.
+        If `"inoperative"` it includes only inoperative lines.
 
     Returns
     -------
@@ -105,8 +108,11 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weights : pd.Series or None (default)
        If given must provide a weight for each branch, multi-indexed
        on branch_component name and branch name.
-    line_selector : string
-        Subset of lines
+    line_selector : string|None
+        Specifies subset of lines.
+        If `None` (default) it includes both operative and inoperative lines.
+        If `"operative"` it includes only operative lines.
+        If `"inoperative"` it includes only inoperative lines.
 
     Returns
     -------
@@ -166,8 +172,11 @@ def incidence_matrix(network, branch_components=None, busorder=None,
     busorder : pd.Index subset of network.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
-    line_selector : string
-       Subset of lines
+    line_selector : string|None
+        Specifies subset of lines.
+        If `None` (default) it includes both operative and inoperative lines.
+        If `"operative"` it includes only operative lines.
+        If `"inoperative"` it includes only inoperative lines.
 
     Returns
     -------

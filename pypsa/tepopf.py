@@ -81,21 +81,25 @@ from .descriptors import (get_switchable_as_dense, get_switchable_as_iter)
 from .utils import (_make_consense, _haversine, _normed)
 
 
-def _corridors(passive_branches):
+def _corridors(lines):
     """
-    Description
+    From a set of lines, determine unique corridors between
+    pairs of buses which describe all connections.
 
     Parameters
     ----------
-    passive_branches : pandas.DataFrame
+    lines : pandas.DataFrame
+        For example a set of candidate lines
+        `n.lines.loc[n.lines.operative==False]`.
 
     Returns
     -------
-    list
+    corridors : list
+        For example `[('Line', 'bus_name_0', 'bus_name_1')]
     """
 
-    if len(passive_branches) > 0:
-        return list(passive_branches.apply(lambda ln: ('Line', ln.bus0, ln.bus1), axis=1).unique())
+    if len(lines) > 0:
+        return list(lines.apply(lambda ln: ('Line', ln.bus0, ln.bus1), axis=1).unique())
     else:
         return []
 
@@ -110,11 +114,11 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
     network : pypsa.Network
     exclusive_candidates : bool
         Indicator whether individual candidate lines should be 
-        grouped into combinations of investments
+        transformed into combinations of investments
 
     Returns
     -------
-    pandas.DataFrame
+    network.lines : pandas.DataFrame
     """
 
     network.lines = add_candidate_lines(network)
@@ -130,9 +134,11 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
 
 def potential_num_parallels(network):
     """
-    Determine the set of additional circuits per line  
-    based on `s_nom_extendable` and the difference between
-    `s_nom_max` and `s_nom`.
+    Determine the number of allowable additional parallel circuits
+    per line based on `s_nom_extendable`, the difference between
+    `s_nom_max` and `s_nom`, and the `type` if specified.
+    Otherwise, the line type will be inferred from `num_parallel`
+    and its electrical parameters.
 
     Parameters
     ----------
@@ -144,19 +150,20 @@ def potential_num_parallels(network):
     """
 
     # TODO: assert that all extendable lines have line type that is in network.line_types
+    # otherwise derive line type from num_parallel, s_nom, r, x
     
     ext_lines = network.lines[network.lines.s_nom_extendable]
     ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil) # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
     unit_s_nom = np.sqrt(3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
-    candidates = investment_potential.divide(unit_s_nom).map(np.floor).map(int)
+    num_parallels = investment_potential.divide(unit_s_nom).map(np.floor).map(int)
     
-    return candidates.apply(lambda c: np.arange(1,c+1))
+    return num_parallels
 
 
 def add_candidate_lines(network):
     """
-    Create a Dataframe of individual candidate lines that can be built.
+    Create a DataFrame of individual candidate lines that can be built.
 
     Parameters
     ----------
@@ -167,18 +174,19 @@ def add_candidate_lines(network):
     pandas.DataFrame
     """
 
-    c_sets = potential_num_parallels(network)
+    num_parallels = potential_num_parallels(network)
+    c_sets = num_parallels.apply(lambda num: np.arange(1,num+1))
 
     candidates = pd.DataFrame(columns=network.lines.columns)
     
-    for ind, cand in c_sets.iteritems():
-        for c in cand:
+    for ind, c_set in c_sets.iteritems():
+        for c in c_set:
             candidate = network.lines.loc[ind].copy()
-            params = network.line_types.loc[candidate.type]
+            type_params = network.line_types.loc[candidate.type]
             candidate.num_parallel = 1
-            candidate.x = params.x_per_length * candidate.length
-            candidate.r = params.r_per_length * candidate.length
-            candidate.s_nom = np.sqrt(3) * params.i_nom * candidate.v_nom
+            candidate.x = type_params.x_per_length * candidate.length
+            candidate.r = type_params.r_per_length * candidate.length
+            candidate.s_nom = np.sqrt(3) * type_params.i_nom * candidate.v_nom
             candidate.s_nom_max = candidate.s_nom
             candidate.s_nom_min = 0.
             candidate.operative = False
@@ -249,8 +257,8 @@ def aggregate_candidates(network, l):
 
 def get_investment_combinations(candidate_group):
     """
-    Find all possible investment combinations from a set of candidates
-    that connects the same pair of buses.
+    Find all possible investment combinations from a set of candidate
+    lines that connects the same pair of buses.
 
     Parameters
     ----------
@@ -259,7 +267,9 @@ def get_investment_combinations(candidate_group):
 
     Returns
     -------
-    None
+    combinations : list
+        For example `[["cand1", "cand2"], ["cand1"], ["cand2"]]`
+        where list contents are values from `candidate_group.index`.
     """
 
     for bus in ['bus0', 'bus1']:
@@ -277,7 +287,8 @@ def get_investment_combinations(candidate_group):
 # TODO: need to ensure unique order, possibly by sorting, cf. networkclustering
 def candidate_lines_to_investment(network):
     """
-    Merge combinations of candidate lines to candididate investment blocks.
+    Merge combinations of candidate lines to
+    candididate investment combinations.
 
     Parameters
     ----------
@@ -285,7 +296,7 @@ def candidate_lines_to_investment(network):
 
     Returns
     -------
-    pandas.DataFrame
+    lines : pandas.DataFrame
     """
     
     lines = network.lines
@@ -306,17 +317,17 @@ def candidate_lines_to_investment(network):
 
 def bigm(n, formulation):
     """
-    Determines the minimal Big-M parameters .
+    Determines the minimal Big-M parameters.
 
     Parameters
     ----------
     n : pypsa.Network
     formulation : string
-        Power flow formulation used. E.g. "angles" or "cycles".
+        Power flow formulation used. E.g. `"angles"` or `"kirchhoff"`.
 
     Returns
     -------
-    pandas.DataFrame
+    big_m : dict
     """
 
     if formulation == "angles":
@@ -330,33 +341,47 @@ def bigm(n, formulation):
     return m
 
 
-def bigm_for_angles(n):
+def bigm_for_angles(n, keep_weights=False):
     """
-    Determines the minimal Big-M parameters for the `angles` formulation.
+    Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
 
     Parameters
     ----------
     n : pypsa.Network
+    keep_weights : bool
+        Keep the weights used for calculating the Big-M parameters.
 
     Returns
     -------
-    dict
+    big_m : dict
+
+    References
+    ----------
+    .. [1] S. Binato, M. V. F. Pereira and S. Granville,
+           "A new Benders decomposition approach to solve power
+           transmission network design problems,"
+           in IEEE Transactions on Power Systems,
+           vol. 16, no. 2, pp. 235-240, May 2001.
+           doi: https://doi.org/10.1109/59.918292
     """
 
     n.calculate_dependent_values()
 
-    n.lines['weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff 
+    n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff 
                                       if l.operative
                                       else np.nan, axis=1)
 
     candidates = n.lines[n.lines.operative==False]
 
-    G = n.graph(line_selector='operative', branch_components=['Line'], weight='weight')
+    ngraph = n.graph(line_selector='operative', branch_components=['Line'], weight='bigm_weight')
 
     bigm = {}
     for name, candidate in candidates.iterrows():
-        path_length = nx.dijkstra_path_length(G, candidate.bus0, candidate.bus1)
+        path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
         bigm[name] = path_length / candidate.x_pu_eff
+
+    if not keep_weights:
+        n.lines.drop("bigm_weight")
 
     return bigm
 
@@ -371,7 +396,7 @@ def bigm_for_kirchhoff(n):
 
     Returns
     -------
-    dict
+    big_m : dict
     """
 
     m = None
@@ -383,7 +408,7 @@ def kvl_dual_check(network):
     """
     Check whether all KVL constraints of candidate lines are
     non-binding if they are not invested in. If this check fails,
-    Big-M parameters must be higher. 
+    Big-M parameters must be larger. 
 
     Parameters
     ----------
@@ -400,14 +425,7 @@ def kvl_dual_check(network):
 # formulation
 def define_integer_branch_extension_variables(network, snapshots):
     """
-    Description
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Defines candidate line investment variables based on 'inoperative' and 'extendable' lines.
     """
 
     passive_branches = network.passive_branches(sel='inoperative')
@@ -416,19 +434,15 @@ def define_integer_branch_extension_variables(network, snapshots):
 
     network.model.passive_branch_inv = Var(list(extendable_passive_branches.index),
                                            domain=Binary)
+
     free_pyomo_initializers(network.model.passive_branch_inv)
 
 
+# TODO: multiple flow variables (one per candidate line)
 def define_integer_passive_branch_constraints(network, snapshots): 
     """
-    Description
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Capacity constraints of investment corridor flows.
+    There is currently only one flow variable for all candidate lines per corridor.
     """
 
     passive_branches = network.passive_branches(sel='inoperative')
@@ -466,17 +480,12 @@ def define_integer_passive_branch_constraints(network, snapshots):
 
 def define_rank_constraints(network, snapshots):
     """
-    iterate through duplicates in same investment corridor and require
-    d_1 >= d_2 >= d_3 to avoid problem degeneracy.
+    Iterate through candidate line duplicates of the same investment corridor
+    and require a distinct order of investment to avoid problem degeneracy.
 
-    Duplicate is identified by `s_nom`, `x` and `capital_cost`
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Notes
+    -----
+    A duplicate is identified by the parameters `s_nom`, `x` and `capital_cost`.
     """
 
     ranks = {}
@@ -497,16 +506,9 @@ def define_rank_constraints(network, snapshots):
     l_constraint(network.model, "corridor_rank_constraints", ranks, list(ranks.keys()))
 
 
-def define_exclusive_constraints(network, snapshots):
+def define_exclusive_candidates_constraints(network, snapshots):
     """
-    Only one investment can be selected per corridor.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Only one candidate line investment can be selected per corridor.
     """
 
     passive_branches = network.passive_branches(sel='inoperative')
@@ -525,14 +527,13 @@ def define_exclusive_constraints(network, snapshots):
 
 def define_integer_passive_branch_flows(network, snapshots, formulation='angles'):
     """
-    Description
+    Enforce Kirchhoff's Second Law only if candidate line is
+    invested in using the disjunctive Big-M reformulation.
 
     Parameters
     ----------
-
-    Returns
-    -------
-    None
+    formulation : string
+        Power flow formulation used; e.g. `"angles"` or `"kirchhoff"`.        
     """
     
     if formulation == "angles":
@@ -543,14 +544,7 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
 # TODO: needs to consider combinations of investment if investments are not exclusive! 
 def define_integer_passive_branch_flows_with_angles(network, snapshots):
     """
-    Description
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
     """
 
     passive_branches = network.passive_branches(sel='inoperative')
@@ -591,14 +585,7 @@ def define_integer_passive_branch_flows_with_angles(network, snapshots):
 
 def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     """
-    Description
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
     """
 
     pass
@@ -608,14 +595,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 # therefore, possibly include in pypsa.opf.define_nodal_balance_constraints
 def define_nodal_balance_constraints_with_integer(network,snapshots):
     """
-    Description
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    None
+    Identical to `pypsa.opf.define_nodal_balance_constraints` but including candidate corridor flows.
     """
 
     # copied from pypsa.opf.define_nodal_balance_constraints
@@ -657,6 +637,9 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     Parameters
     ----------
+    exclusive_candidates : bool
+        Indicator whether only one candidate line investment
+        can be chosen per corridor.
 
     Returns
     -------
@@ -686,7 +669,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     define_integer_branch_extension_variables(network,snapshots)
 
     if exclusive_candidates:
-        define_exclusive_constraints(network, snapshots)
+        define_exclusive_candidates_constraints(network,snapshots)
         
     define_rank_constraints(network, snapshots)
 
@@ -726,10 +709,18 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     Parameters
     ----------
+    infer_candidates : bool
+        Indicator whether candidate lines should be inferred
+        based on potential and line type using
+        `pypsa.tepopf.infer_candidates_from_exiting()`.
+    exclusive_candidates : bool
+        Indicator whether only one candidate line investment
+        can be chosen per corridor.
 
     Returns
     -------
-    None
+    status
+    termination_condition
     """
 
     if infer_candidates:
