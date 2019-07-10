@@ -790,12 +790,12 @@ class Network(Basic):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
                          keys=self.controllable_branch_components, sort=False)
 
-    def determine_network_topology(self):
+    def determine_network_topology(self, line_selector='operative'):
         """
         Build sub_networks from topology.
         """
 
-        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components)
+        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components, line_selector=line_selector)
         n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks

@@ -645,7 +645,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     """
 
     if not skip_pre:
-        network.determine_network_topology()
+        network.determine_network_topology(line_selector=None)
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:
             find_slack_bus(sub_network)
