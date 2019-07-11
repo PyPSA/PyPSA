@@ -34,14 +34,18 @@
 
 # TODO: write tests for tepopf()
 
+# TODO: add line_selector = 'operable' : either candidate or existing
+# adapt functionality to presence of lines that are not operative and not extendable
+
 # TODO: what happens if separate subnetworks are connected through candidate lines?
 # **angles:**
 # say a candidate line connects 2 sub_networks, then
 # (1) treat them as one sub_network (for calculating K, B, H, etc.)
 # (2) enforce slack theta_0 = 0 in one sub_network only if bridging line is not invested in
+#     use 2*pi~=6.3 as big-M as it is a voltage angle in radians
 # (3) gets more complicated if there are more sub_networks joining; need an order of slacks in an
-# investment group (e.g. individual subnetworks that could join through candidates),
-# lower ranking slack constraint is coupled to investment of connecting candidate line
+#     investment group (e.g. individual subnetworks that could join through candidates),
+#     lower ranking slack constraint is coupled to investment of connecting candidate line
 # **kirchhoff:**
 # no need to worry;
 # just treat possibly connected subnetworks as one sub_network;
@@ -366,6 +370,7 @@ def bigm_for_angles(n, keep_weights=False):
     Returns
     -------
     big_m : dict
+        Keys are lines.
 
     References
     ----------
@@ -409,12 +414,102 @@ def bigm_for_kirchhoff(n):
     Returns
     -------
     big_m : dict
+        Keys are candidate cycles.
     """
+
+    # make sure every sub_network has a candidate cycle matrix
+    for sub_network in network.sub_networks.obj:
+        if not hasattr(sub_network, 'CC'):
+            find_candidate_cycles(sub_network)
 
     m = None
 
     return m
 
+def find_candidate_cycles(sub_network):
+    """
+    Constructs an additional cycle matrix based cycles added by
+    candidate lines and records them in sub_network.CC.
+    """
+
+    sub_lines = sub_network.branches(line_selector=None)
+    pot_sub_lines = sub_lines[sub_lines.operative | sub_lines.s_nom_extendable] # possibly reflect this in ind_select
+    
+    cand_sub_lines = pot_sub_lines.loc[pot_sub_lines.operative==False]
+    cand_edges = cand_sub_lines.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
+    
+    cand_weight = len(pot_sub_lines)
+    
+    weights = pot_sub_lines.apply(lambda x: [(x.bus0, x.bus1, x.name), 1 if x.operative else cand_weight], result_type='expand', axis=1)
+    weights.columns = ['index', 'weight']
+    weights.set_index('index', inplace=True)
+    weights = weights.to_dict()['weight']
+    
+    mgraph = sub_network.graph(inf_weight=False, line_selector=None)
+    nx.set_edge_attributes(mgraph, weights, name='weight')
+    
+    def equivalent_cycle(c,d):
+        dc, dd = (deque(c), deque(d))
+        dd_rev = dd.copy()
+        dd_rev.reverse()
+        for i in range(len(dd)):
+            dd.rotate(1)
+            dd_rev.rotate(1)
+            if dd==dc or dd_rev==dc:
+                return True         
+        return False
+    
+    cycles = {}
+    for candidate in cand_edges:
+        mgraph.remove_edge(*candidate)
+        if nx.has_path(mgraph, candidate[0], candidate[1]):
+            cycle = nx.dijkstra_path(mgraph, candidate[0], candidate[1])
+
+            def add_cycle_b():
+                for k, v in cycles.items():
+                    if k[:2] != candidate[:2] and equivalent_cycle(v,cycle):
+                        return False
+                return True
+
+            if add_cycle_b():
+                cycles[candidate] = cycle
+        mgraph.add_edge(*candidate, weight=weights[candidate])
+    
+    branches_bus0 = pot_sub_lines['bus0']
+    branches_i = branches_bus0.index
+    
+    sub_network.CC = dok_matrix((len(branches_bus0),len(cycles)))
+
+    for j, (candidate, cycle)  in enumerate(iteritems(cycles)):
+        for i in range(len(cycle)-1):
+            branch, weight = (None, np.inf)
+            corridor_branches = mgraph[cycle[i]][cycle[i+1]]
+            for k,v in iteritems(corridor_branches):
+                if v['weight'] < weight or branch is None:
+                    branch = k 
+                    weight = v['weight']
+            branch_i = branches_i.get_loc(branch)
+            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
+            sub_network.CC[branch_i,j] += sign
+
+        branch_i = branches_i.get_loc(candidate[2])
+        sub_network.CC[branch_i,j] += -1
+
+def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
+                                                   passive_branch_p, passive_branch_inv_p,
+                                                   attribute, big_m):
+    """
+    Constructs cycle constraints for candidate cycles
+    of a particular subnetwork.
+    """
+
+    subn_cycle_index = []
+    subn_cycle_constraints_upper = {}
+    subn_cycle_constraints_lower = {}
+
+    matrix = subnetwork.CC.tocsc() # subnetwork.CC should be set by find_candidate_cycles()
+
+    return (subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower)
 
 def assert_candidate_kvl_duals(network):
     """
@@ -599,7 +694,41 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
     """
 
-    pass
+    for sub_network in network.sub_networks.obj:
+        find_tree(sub_network) # TODO: is this necessary?
+        find_cycles(sub_network)
+        find_candidate_cycles(sub_network)
+
+        # omitted bus_controls and B H calculation should be done ex-post given candidate investment decisions!
+
+    passive_branches = network.passive_branches(sel='inoperative')
+    extendable_branches = passive_branches[passive_branches.s_nom_extendable]
+
+    investment_corridors = _corridors(extendable_branches)
+
+    network.model.passive_branch_inv_p = Var(investment_corridors, snapshots)
+
+    big_m = bigm(network, "kirchhoff")
+
+    cycle_index = []
+    cycle_constraints_upper = {}
+    cycle_constraints_lower = {}
+
+    for subnetwork in network.sub_networks.obj:
+
+        attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
+
+        subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower = \
+            define_sub_network_candidate_cycle_constraints(subnetwork, snapshots, 
+                                                network.model.passive_branch_p,
+                                                network.model.passive_branch_inv_p,
+                                                attribute, big_m)
+
+    l_constraint(network.model, "cycle_constraints_upper", cycle_constraints_upper,
+                 cycle_index, snapshots)
+
+    l_constraint(network.model, "cycle_constraints_lower", cycle_constraints_lower,
+                 cycle_index, snapshots)
 
 
 # TODO: this very nicely separates integer from continuous flow variables
@@ -658,7 +787,10 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     """
 
     if not skip_pre:
-        network.determine_network_topology(line_selector=None)
+        # considered network topology depends on formulation.
+        ls = 'operative' if formulation=="angles" else None
+        network.determine_network_topology(line_selector=ls)
+        
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:
             find_slack_bus(sub_network)
