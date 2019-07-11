@@ -63,6 +63,10 @@ import numpy as np
 import networkx as nx
 import itertools
 
+from collections import deque
+
+from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack, dok_matrix
+
 from pyomo.environ import (ConcreteModel, Var, Objective,
                            NonNegativeReals, Constraint, Reals,
                            Suffix, Expression, Binary, SolverFactory)
@@ -89,7 +93,7 @@ from .opf import (define_generator_variables_constraints,
                   network_lopf_prepare_solver,
                   network_lopf_solve)
 
-from .pf import (_as_snapshots, calculate_dependent_values, find_slack_bus)
+from .pf import (_as_snapshots, calculate_dependent_values, find_slack_bus, find_cycles)
 
 from .opt import (free_pyomo_initializers, l_constraint, LExpression, LConstraint)
 
@@ -337,13 +341,13 @@ def bigm(n, formulation):
 
     Parameters
     ----------
-    n : pypsa.Network
+    n : pypsa.Network|pypsa.SubNetwork
     formulation : string
         Power flow formulation used. E.g. `"angles"` or `"kirchhoff"`.
 
     Returns
     -------
-    big_m : dict
+    m : dict
     """
 
     if formulation == "angles":
@@ -369,7 +373,7 @@ def bigm_for_angles(n, keep_weights=False):
 
     Returns
     -------
-    big_m : dict
+    m : dict
         Keys are lines.
 
     References
@@ -392,37 +396,58 @@ def bigm_for_angles(n, keep_weights=False):
 
     ngraph = n.graph(line_selector='operative', branch_components=['Line'], weight='bigm_weight')
 
-    bigm = {}
+    m = {}
     for name, candidate in candidates.iterrows():
         path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
-        bigm[name] = path_length / candidate.x_pu_eff
+        m[name] = path_length / candidate.x_pu_eff
 
     if not keep_weights:
         n.lines.drop("bigm_weight")
 
-    return bigm
+    return m
 
 
-def bigm_for_kirchhoff(n):
+def bigm_for_kirchhoff(sub_network):
     """
     Determines the minimal Big-M parameters for the `kirchhoff` formulation.
 
     Parameters
     ----------
-    n : pypsa.Network
+    sub_network : pypsa.SubNetwork
 
     Returns
     -------
-    big_m : dict
-        Keys are candidate cycles.
+    m : dict
+        Keys are candidate cycles starting from 0.
     """
 
-    # make sure every sub_network has a candidate cycle matrix
-    for sub_network in network.sub_networks.obj:
-        if not hasattr(sub_network, 'CC'):
-            find_candidate_cycles(sub_network)
+    # make sure sub_network has a candidate cycle matrix
+    if not hasattr(sub_network, 'CC'):
+        find_candidate_cycles(sub_network)
 
-    m = None
+
+    branches = sub_network.branches(line_selector=None)
+    matrix = sub_network.CC.tocsc()
+
+    m = {}
+    for col_j in range(matrix.shape[1]):
+        cycle_is = matrix.getcol(col_j).nonzero()[0]
+        
+        bigm_cycle_i = 0
+        for cycle_i in cycle_is:
+            b = branches.iloc[cycle_i]
+            if b.operative:
+                branch_idx = b.name
+                bigm_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product()
+            else:
+                branch_idx = ( branches.operative==False ) & \
+                             ( 
+                                ( (branches.bus0==b.bus0) & (branches.bus1==b.bus1) ) | \
+                                ( (branches.bus0==b.bus1) & (branches.bus1==b.bus0) )
+                             )
+                bigm_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product(axis=1).max()
+            
+        m[col_j] = 1e5 * bigm_cycle_i
 
     return m
 
@@ -497,17 +522,58 @@ def find_candidate_cycles(sub_network):
 
 def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
                                                    passive_branch_p, passive_branch_inv_p,
-                                                   attribute, big_m):
+                                                   attribute):
     """
     Constructs cycle constraints for candidate cycles
     of a particular subnetwork.
     """
 
+    big_m = bigm(subnetwork, "kirchhoff")
+
     subn_cycle_index = []
     subn_cycle_constraints_upper = {}
     subn_cycle_constraints_lower = {}
 
-    matrix = subnetwork.CC.tocsc() # subnetwork.CC should be set by find_candidate_cycles()
+    matrix = subnetwork.CC.tocsc()
+    branches = subnetwork.branches(line_selector=None)
+
+    for col_j in range( matrix.shape[1] ):
+        cycle_is = matrix.getcol(col_j).nonzero()[0]
+
+        if len(cycle_is) == 0: continue
+
+        subn_cycle_index.append((subnetwork.name, col_j))
+
+        branch_idx_attributes = []
+        branch_inv_idx_attributes = []
+
+        for cycle_i in cycle_is:
+            branch_idx = branches.index[cycle_i]
+            attribute_value = 1e5 * branches.at[branch_idx, attribute] * subnetwork.CC[ cycle_i, col_j]
+            if branches.at[branch_idx,'operative']:
+                branch_idx_attributes.append((branch_idx, attribute_value))
+            else:
+                corridor_idx = ('Line', branches.at[branch_idx,'bus0'], branches.at[branch_idx,'bus1'])
+                branch_inv_idx_attributes.append((corridor_idx, attribute_value))
+
+        for snapshot in snapshots:
+            expression_list = [ (attribute_value,
+                                 passive_branch_p[branch_idx[0], branch_idx[1], snapshot])
+                                 for (branch_idx, attribute_value) in branch_idx_attributes]
+
+            expression_list += [ (attribute_value,
+                                 passive_branch_inv_p[corr_idx[0], corr_idx[1], corridor_idx[2], snapshot])
+                                 for (corr_idx, attribute_value) in branch_inv_idx_attributes]
+
+            lhs = LExpression(expression_list)
+
+            # through col_is
+            # TODO: as in integer_passive_branch_constraints sum(1-i_l)*M
+            #rhs = LExpression((1 - sum(n.model.passive_branch_s_nom[corr] for corr, _ in branch_inv_idx_attributes)) * 1e4)
+            rhs = LExpression()
+
+            subn_cycle_constraints_upper[subnetwork.name, col_j, snapshot] = LConstraint(lhs,"<=",rhs)
+            subn_cycle_constraints_lower[subnetwork.name, col_j, snapshot] = LConstraint(lhs,">=",-rhs)
 
     return (subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower)
 
@@ -695,7 +761,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     """
 
     for sub_network in network.sub_networks.obj:
-        find_tree(sub_network) # TODO: is this necessary?
+        # find_tree(sub_network) # TODO: is this necessary?
         find_cycles(sub_network)
         find_candidate_cycles(sub_network)
 
@@ -707,8 +773,6 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     investment_corridors = _corridors(extendable_branches)
 
     network.model.passive_branch_inv_p = Var(investment_corridors, snapshots)
-
-    big_m = bigm(network, "kirchhoff")
 
     cycle_index = []
     cycle_constraints_upper = {}
@@ -722,7 +786,11 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
             define_sub_network_candidate_cycle_constraints(subnetwork, snapshots, 
                                                 network.model.passive_branch_p,
                                                 network.model.passive_branch_inv_p,
-                                                attribute, big_m)
+                                                attribute)
+
+        cycle_index.extend(subn_cycle_index)
+        cycle_constraints_upper.update(subn_cycle_constraints_upper)
+        cycle_constraints_lower.update(subn_cycle_constraints_lower)
 
     l_constraint(network.model, "cycle_constraints_upper", cycle_constraints_upper,
                  cycle_index, snapshots)

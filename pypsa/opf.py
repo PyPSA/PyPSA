@@ -834,7 +834,7 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
     """ define passive branch flows with the kirchoff method """
 
     for sub_network in network.sub_networks.obj:
-        find_tree(sub_network)
+        # find_tree(sub_network) # TODO: is this required for kirchhoff? Maybe ex_post?
         find_cycles(sub_network)
 
         #following is necessary to calculate angles post-facto
