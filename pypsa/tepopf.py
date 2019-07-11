@@ -522,6 +522,7 @@ def find_candidate_cycles(sub_network):
 
 def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
                                                    passive_branch_p, passive_branch_inv_p,
+                                                   passive_branch_inv,
                                                    attribute):
     """
     Constructs cycle constraints for candidate cycles
@@ -546,6 +547,7 @@ def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
 
         branch_idx_attributes = []
         branch_inv_idx_attributes = []
+        candidates_idx = []
 
         for cycle_i in cycle_is:
             branch_idx = branches.index[cycle_i]
@@ -553,6 +555,7 @@ def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
             if branches.at[branch_idx,'operative']:
                 branch_idx_attributes.append((branch_idx, attribute_value))
             else:
+                candidates_idx.append(branch_idx)
                 corridor_idx = ('Line', branches.at[branch_idx,'bus0'], branches.at[branch_idx,'bus1'])
                 branch_inv_idx_attributes.append((corridor_idx, attribute_value))
 
@@ -567,10 +570,8 @@ def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
 
             lhs = LExpression(expression_list)
 
-            # through col_is
-            # TODO: as in integer_passive_branch_constraints sum(1-i_l)*M
-            #rhs = LExpression((1 - sum(n.model.passive_branch_s_nom[corr] for corr, _ in branch_inv_idx_attributes)) * 1e4)
-            rhs = LExpression()
+            rhs = LExpression(variables= [ (-big_m[col_j], passive_branch_inv[c]) for c in candidates_idx],
+                              constant= len(candidates_idx) * big_m[col_j] )
 
             subn_cycle_constraints_upper[subnetwork.name, col_j, snapshot] = LConstraint(lhs,"<=",rhs)
             subn_cycle_constraints_lower[subnetwork.name, col_j, snapshot] = LConstraint(lhs,">=",-rhs)
@@ -786,6 +787,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
             define_sub_network_candidate_cycle_constraints(subnetwork, snapshots, 
                                                 network.model.passive_branch_p,
                                                 network.model.passive_branch_inv_p,
+                                                network.model.passive_branch_inv,
                                                 attribute)
 
         cycle_index.extend(subn_cycle_index)
