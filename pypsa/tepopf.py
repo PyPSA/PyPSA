@@ -360,7 +360,7 @@ def bigm(n, formulation):
 
     return m
 
-
+# TODO: connecting sub_networks
 def bigm_for_angles(n, keep_weights=False):
     """
     Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
@@ -388,9 +388,7 @@ def bigm_for_angles(n, keep_weights=False):
 
     n.calculate_dependent_values()
 
-    n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff 
-                                      if l.operative
-                                      else np.nan, axis=1)
+    n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
     candidates = n.lines[n.lines.operative==False]
 
@@ -398,11 +396,16 @@ def bigm_for_angles(n, keep_weights=False):
 
     m = {}
     for name, candidate in candidates.iterrows():
-        path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
-        m[name] = path_length / candidate.x_pu_eff
+        if nx.has_path(ngraph, candidate.bus0, candidate.bus1):
+            path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
+            m[name] = path_length / candidate.x_pu_eff 
+        else:
+            # no path through existing network
+            # Binato proposes solving non-polynomial longest path problem
+            m[name] = 4 * np.pi / candidate.x_pu_eff + candidate.s_nom
 
     if not keep_weights:
-        n.lines.drop("bigm_weight")
+        n.lines.drop("bigm_weight", axis=1)
 
     return m
 
