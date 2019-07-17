@@ -3,15 +3,22 @@ from __future__ import absolute_import
 
 import pypsa
 
-import pandapower as pp
-
 import pandas as pd
 
 import numpy as np
 
+pandapower_compatible = True
+try:
+    import pandapower as pp
+except ImportError:
+    pandapower_compatible = False
 
+import six
 
+import pytest
 
+@pytest.mark.skipif(six.PY2 and not pandapower_compatible,
+                    reason="Pandapower 2.0.0 dropped support for Python 2.")
 def test_pandapower_case():
 
     #more complicated examples like
