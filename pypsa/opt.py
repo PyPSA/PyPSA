@@ -38,7 +38,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pyomo.environ import Constraint, Objective, Var, ComponentUID
+from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize, maximize
 from weakref import ref as weakref_ref
 
 import pyomo
@@ -248,7 +248,7 @@ def l_constraint(model,name,constraints,*args):
             v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant[1])
         else: raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
 
-def l_objective(model,objective=None):
+def l_objective(model,objective=None, sense=minimize):
     """
     A replacement for pyomo's Objective that quickly builds linear
     objectives.
@@ -259,7 +259,7 @@ def l_objective(model,objective=None):
 
     call instead
 
-    l_objective(model,objective)
+    l_objective(model,objective,sense)
 
     where objective is an LExpression.
 
@@ -271,6 +271,7 @@ def l_objective(model,objective=None):
     ----------
     model : pyomo.environ.ConcreteModel
     objective : LExpression
+    sense : minimize / maximize
 
     """
 
@@ -278,7 +279,7 @@ def l_objective(model,objective=None):
         objective = LExpression()
 
     #initialise with a dummy
-    model.objective = Objective(expr = 0.)
+    model.objective = Objective(expr = 0., sense=sense)
     model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
 
 def free_pyomo_initializers(obj):
