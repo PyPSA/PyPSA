@@ -169,9 +169,13 @@ def potential_num_parallels(network):
     pandas.Series
     """
 
-    # TODO: assert that all extendable lines have line type that is in network.line_types
-    # otherwise derive line type from num_parallel, s_nom, r, x
+    ext_lines = network.lines[network.lines.s_nom_extendable]
+
+    # TODO: derive line type from num_parallel, s_nom, r, x if no valid line type given
+    assert pd.Series([lt in network.line_types.index for lt in ext_lines.type]).all(), "Currently all extendable lines must have a `type` in TEP-LOPF"
     
+    assert (ext_lines.s_nom_max!=np.inf).all(), "TEP-LOPF requires `s_nom_max` to be a finite number"
+
     ext_lines = network.lines[network.lines.s_nom_extendable]
     ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil) # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
