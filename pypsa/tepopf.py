@@ -51,6 +51,11 @@
 # just treat possibly connected subnetworks as one sub_network;
 # just calculate B and H matrices based on candidate investment decisions ex-post!
 
+# TODO: handling inoperative but not-extendable lines
+
+# TODO: infer candidates should ignore operative but extendable lines
+# (two consecutive runs give different results if inferred in both cases)
+
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
 from six import iteritems, itervalues, string_types
@@ -141,6 +146,8 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
     network.lines : pandas.DataFrame
     """
 
+    network.calculate_dependent_values()
+
     network.lines = add_candidate_lines(network)
 
     if exclusive_candidates:
@@ -176,7 +183,6 @@ def potential_num_parallels(network):
     
     assert (ext_lines.s_nom_max!=np.inf).all(), "TEP-LOPF requires `s_nom_max` to be a finite number"
 
-    ext_lines = network.lines[network.lines.s_nom_extendable]
     ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil) # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
     unit_s_nom = np.sqrt(3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
@@ -207,7 +213,7 @@ def add_candidate_lines(network):
         for c in c_set:
             candidate = network.lines.loc[ind].copy()
             type_params = network.line_types.loc[candidate.type]
-            candidate.num_parallel = 1
+            candidate.num_parallel = 1.
             candidate.x = type_params.x_per_length * candidate.length
             candidate.r = type_params.r_per_length * candidate.length
             candidate.s_nom = np.sqrt(3) * type_params.i_nom * candidate.v_nom
@@ -218,6 +224,7 @@ def add_candidate_lines(network):
             candidates.loc[candidate.name] = candidate
 
     lines = pd.concat([network.lines,candidates])
+    lines.operative = lines .operative.astype('bool')
 
     return  lines.loc[~lines.index.duplicated(keep='first')]
 
@@ -326,6 +333,7 @@ def candidate_lines_to_investment(network):
     lines = network.lines
     candidate_lines = lines[lines.operative==False]
     candidate_inv = pd.DataFrame(columns=lines.columns)
+    candidate_inv.astype(lines.dtypes)
     
     for name, group in candidate_lines.groupby(['bus0', 'bus1']):
         combinations = get_investment_combinations(group)
@@ -336,7 +344,10 @@ def candidate_lines_to_investment(network):
             cinv.name = ("{}"+"_{}"*len(c)).format(names.iloc[0][0], *names.apply(lambda x: x[1]))
             candidate_inv.loc[cinv.name] = cinv
 
-    return pd.concat([lines[lines.operative], candidate_inv.drop_duplicates()])
+    updated_lines = pd.concat([lines[lines.operative], candidate_inv.drop_duplicates()])
+    updated_lines.operative = updated_lines.operative.astype('bool')
+
+    return updated_lines
 
 
 def bigm(n, formulation):
@@ -932,7 +943,7 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     infer_candidates : bool
         Indicator whether candidate lines should be inferred
         based on potential and line type using
-        `pypsa.tepopf.infer_candidates_from_exiting()`.
+        `pypsa.tepopf.infer_candidates_from_existing()`.
     exclusive_candidates : bool
         Indicator whether only one candidate line investment
         can be chosen per corridor.
