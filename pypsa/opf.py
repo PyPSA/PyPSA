@@ -839,8 +839,8 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
         #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network)
-        if len(sub_network.branches_i()) > 0:
-            calculate_B_H(sub_network)
+        # if len(sub_network.branches_i()) > 0:
+            #calculate_B_H(sub_network) # TODO: possibly do after solution is obtained and we have final sub_networks (as multiple may become connected)
 
     passive_branches = network.passive_branches(sel='operative')
 
@@ -1228,8 +1228,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
     flow_upper = get_shadows(model.flow_upper)
 
     if candidates:
-        passive_branches_inv = get_values(model.passive_branch_inv_p)
-        network.inv_p = passive_branches_inv
+        passive_branches_inv_p = get_values(model.passive_branch_inv_p)
+        network.inv_p = passive_branches_inv_p
         investment = get_values(model.passive_branch_inv)
         flow_lower_inv = get_shadows(model.inv_flow_lower)
         flow_upper_inv = get_shadows(model.inv_flow_upper)
@@ -1241,12 +1241,12 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             rev_mapping = idx.apply(lambda x: (x.bus0, x.bus1), axis=1).to_dict()
             return {v: k for k, v in rev_mapping.items() if v!={}}
 
-        # TODO: this fails if flow for an invested line is always zero!
         def non_zero_flows(series):
-            minabs_flows = series.unstack(level=[0,1,2]).abs().min()
-            idx = minabs_flows[minabs_flows>0].index
-            s = [idx.get_level_values(i) for i in range(3)]
-            return series.loc[s[0],s[1],s[2],:]
+            maxabs_flows = series.unstack(level=[0,1,2]).abs().max()
+            idx = maxabs_flows[maxabs_flows>1e-3].index
+            hours = series.index.get_level_values(3).unique()
+            x = [(*crd,h) for crd in idx.tolist() for h in hours]
+            return series.loc[x].sort_index()
 
         def index_corridor_to_candidate(network, investment, series):
             series = non_zero_flows(series)
@@ -1260,11 +1260,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
                 series.index = pd.MultiIndex.from_tuples(mapped_idx)     
             return series
 
-        passive_branches_inv = index_corridor_to_candidate(network, investment, passive_branches_inv)       
+        passive_branches_inv_p = index_corridor_to_candidate(network, investment, passive_branches_inv_p)       
         flow_lower_inv = index_corridor_to_candidate(network, investment, flow_lower_inv)
         flow_upper_inv = index_corridor_to_candidate(network, investment, flow_upper_inv)
 
-        passive_branches = pd.concat([passive_branches, passive_branches_inv])
+        passive_branches = pd.concat([passive_branches, passive_branches_inv_p])
         flow_lower = pd.concat([flow_lower, flow_lower_inv])
         flow_upper = pd.concat([flow_upper, flow_upper_inv])
 
@@ -1320,7 +1320,9 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             set_from_series(network.buses_t.v_ang,
                             get_values(model.voltage_angles))
         elif formulation in ["ptdf","cycles","kirchhoff"]:
+            # TODO: determine new network topology based on investment; currently only works if sub_networks are not connected
             for sn in network.sub_networks.obj:
+                calculate_B_H(sn)
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
                 if len(sn.pvpqs) > 0:
                     network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T
