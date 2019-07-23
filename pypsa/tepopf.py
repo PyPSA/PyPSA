@@ -336,7 +336,14 @@ def candidate_lines_to_investment(network):
     """
     
     lines = network.lines
-    candidate_lines = lines[lines.operative==False]
+    candidate_lines = lines[(lines.operative==False) & (lines.s_nom_extendable==True)]
+
+    #make sure all lines have same bus ordering
+    positive_order = candidate_lines.bus0 < candidate_lines.bus1
+    candidate_lines_p = candidate_lines[positive_order]
+    candidate_lines_n = candidate_lines[~ positive_order].rename(columns={"bus0":"bus1", "bus1":"bus0"})
+    candidate_lines = pd.concat((candidate_lines_p,candidate_lines_n), sort=False)
+
     candidate_inv = pd.DataFrame(columns=lines.columns)
     candidate_inv.astype(lines.dtypes)
     
