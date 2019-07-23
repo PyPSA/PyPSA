@@ -584,7 +584,8 @@ def find_bus_controls(sub_network):
 
     network = sub_network.network
 
-    find_slack_bus(sub_network)
+    if not hasattr(sub_network, 'slack_bus'):
+        find_slack_bus(sub_network)
 
     gens = sub_network.generators()
     buses_i = sub_network.buses_i()
