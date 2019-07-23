@@ -176,7 +176,7 @@ def potential_num_parallels(network):
     pandas.Series
     """
 
-    ext_lines = network.lines[network.lines.s_nom_extendable]
+    ext_lines = network.lines[network.lines.s_nom_extendable & network.lines.operative]
 
     # TODO: derive line type from num_parallel, s_nom, r, x if no valid line type given
     assert pd.Series([lt in network.line_types.index for lt in ext_lines.type]).all(), "Currently all extendable lines must have a `type` in TEP-LOPF"
@@ -444,7 +444,7 @@ def bigm_for_kirchhoff(sub_network):
         find_candidate_cycles(sub_network)
 
 
-    branches = sub_network.branches(line_selector=None)
+    branches = sub_network.branches(line_selector='potential')
     matrix = sub_network.CC.tocsc()
 
     m = {}
@@ -475,12 +475,10 @@ def find_candidate_cycles(sub_network):
     candidate lines and records them in sub_network.CC.
     """
 
-    sub_lines = sub_network.branches(line_selector=None)
-    pot_sub_lines = sub_lines[sub_lines.operative | sub_lines.s_nom_extendable] # possibly reflect this in ind_select
-    
-    cand_sub_lines = pot_sub_lines.loc[pot_sub_lines.operative==False]
+    pot_sub_lines = sub_network.branches(line_selector='potential')
+    cand_sub_lines = sub_network.branches(line_selector='candidate')
+
     cand_edges = cand_sub_lines.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
-    
     cand_weight = len(pot_sub_lines)
     
     weights = pot_sub_lines.apply(lambda x: [(x.bus0, x.bus1, x.name), 1 if x.operative else cand_weight], result_type='expand', axis=1)
@@ -488,7 +486,7 @@ def find_candidate_cycles(sub_network):
     weights.set_index('index', inplace=True)
     weights = weights.to_dict()['weight']
     
-    mgraph = sub_network.graph(inf_weight=False, line_selector=None)
+    mgraph = sub_network.graph(inf_weight=False, line_selector='potential')
     nx.set_edge_attributes(mgraph, weights, name='weight')
     
     def equivalent_cycle(c,d):
@@ -554,7 +552,7 @@ def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
     subn_cycle_constraints_lower = {}
 
     matrix = subnetwork.CC.tocsc()
-    branches = subnetwork.branches(line_selector=None)
+    branches = subnetwork.branches(line_selector='potential')
 
     for col_j in range( matrix.shape[1] ):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
@@ -619,11 +617,9 @@ def define_integer_branch_extension_variables(network, snapshots):
     Defines candidate line investment variables based on 'inoperative' and 'extendable' lines.
     """
 
-    passive_branches = network.passive_branches(sel='inoperative')
+    candidate_passive_branches = network.passive_branches(sel='candidate')
 
-    extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
-
-    network.model.passive_branch_inv = Var(list(extendable_passive_branches.index),
+    network.model.passive_branch_inv = Var(list(candidate_passive_branches.index),
                                            domain=Binary)
 
     free_pyomo_initializers(network.model.passive_branch_inv)
@@ -636,19 +632,18 @@ def define_integer_passive_branch_constraints(network, snapshots):
     There is currently only one flow variable for all candidate lines per corridor.
     """
 
-    passive_branches = network.passive_branches(sel='inoperative')
-    extendable_branches = eb = passive_branches[passive_branches.s_nom_extendable]
+    candidate_branches = cb = network.passive_branches(sel='candidate')
 
     s_max_pu = pd.concat({c : get_switchable_as_dense(network, c, 's_max_pu', snapshots)
                           for c in network.passive_branch_components}, axis=1, sort=False)
 
-    investment_corridors = _corridors(extendable_branches)
+    investment_corridors = _corridors(candidate_branches)
 
     flow_upper = {(*c,sn) : [[(1,network.model.passive_branch_inv_p[c,sn]),
                             *[(
-                                -s_max_pu.at[sn,b] * extendable_branches.at[b,"s_nom"],
+                                -s_max_pu.at[sn,b] * candidate_branches.at[b,"s_nom"],
                                 network.model.passive_branch_inv[b[0],b[1]])
-                            for b, bd in eb.loc[(eb.bus0==c[1]) & (eb.bus1==c[2])].iterrows()]
+                            for b, bd in cb.loc[(cb.bus0==c[1]) & (cb.bus1==c[2])].iterrows()]
                             ],"<=",0]
                   for c in investment_corridors
                   for sn in snapshots}
@@ -658,9 +653,9 @@ def define_integer_passive_branch_constraints(network, snapshots):
 
     flow_lower = {(*c,sn): [[(1,network.model.passive_branch_inv_p[c,sn]),
                             *[(
-                                s_max_pu.at[sn,b] * extendable_branches.at[b,"s_nom"],
+                                s_max_pu.at[sn,b] * candidate_branches.at[b,"s_nom"],
                                 network.model.passive_branch_inv[b[0],b[1]])
-                            for b, bd in eb.loc[(eb.bus0==c[1]) & (eb.bus1==c[2])].iterrows()]
+                            for b, bd in cb.loc[(cb.bus0==c[1]) & (cb.bus1==c[2])].iterrows()]
                             ],">=",0]
                    for c in investment_corridors
                    for sn in snapshots}
@@ -681,8 +676,7 @@ def define_rank_constraints(network, snapshots):
 
     ranks = {}
 
-    passive_branches = network.passive_branches(sel='inoperative')
-    candidate_branches = cb = passive_branches[passive_branches.s_nom_extendable]
+    candidate_branches = cb = network.passive_branches(sel='candidate')
 
     corridors = _corridors(candidate_branches)
     for c in corridors:
@@ -702,8 +696,7 @@ def define_exclusive_candidates_constraints(network, snapshots):
     Only one candidate line investment can be selected per corridor.
     """
 
-    passive_branches = network.passive_branches(sel='inoperative')
-    extendable_branches = eb = passive_branches[passive_branches.s_nom_extendable]
+    extendable_branches = eb = network.passive_branches(sel='candidate')
 
     investment_corridors = _corridors(extendable_branches)
 
@@ -738,8 +731,7 @@ def define_integer_passive_branch_flows_with_angles(network, snapshots):
     Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
     """
 
-    passive_branches = network.passive_branches(sel='inoperative')
-    extendable_branches = passive_branches[passive_branches.s_nom_extendable]
+    extendable_branches = network.passive_branches(sel='candidate')
 
     investment_corridors = _corridors(extendable_branches)
 
@@ -786,8 +778,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
         # omitted bus_controls and B H calculation should be done ex-post given candidate investment decisions!
 
-    passive_branches = network.passive_branches(sel='inoperative')
-    extendable_branches = passive_branches[passive_branches.s_nom_extendable]
+    extendable_branches = network.passive_branches(sel='candidate')
 
     investment_corridors = _corridors(extendable_branches)
 
@@ -839,8 +830,7 @@ def define_integer_nodal_balance_constraints(network,snapshots):
             network._p_balance[bus1,sn].variables.append((1,network.model.passive_branch_p[bt,bn,sn]))
 
     # similar to pypsa.opf.define_nodal_balance_constraints
-    inoperative_passive_branches = network.passive_branches(sel='inoperative')
-    candidate_branches = inoperative_passive_branches[inoperative_passive_branches.s_nom_extendable]
+    candidate_branches = network.passive_branches(sel='candidate')
 
     investment_corridors = _corridors(candidate_branches)
 
@@ -876,7 +866,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     if not skip_pre:
         # considered network topology depends on formulation.
-        ls = 'operative' if formulation=="angles" else None
+        ls = 'operative' if formulation=="angles" else 'potential'
         network.determine_network_topology(line_selector=ls)
         
         calculate_dependent_values(network)

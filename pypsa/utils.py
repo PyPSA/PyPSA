@@ -68,6 +68,9 @@ def ind_select(c, sel=None):
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
         If `"inoperative"` it includes only inoperative lines.
+        If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
+        If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
+        If `"used"` it includes operative and built candidate lines. Can only be called after successful optimisation.
     
     Returns
     =======
@@ -80,6 +83,12 @@ def ind_select(c, sel=None):
             selection_b = c.df.operative == True
         elif sel=='inoperative':
             selection_b = c.df.operative == False
+        elif sel=='potential':
+            selection_b = (c.df.operative == True) | (c.df.s_nom_extendable == True)
+        elif sel=='candidate':
+            selection_b = (c.df.operative == False) & (c.df.s_nom_extendable == True)
+        elif sel=='used':
+            selection_b = (c.df.s_nom_opt > 0.0)
 
         selection_i = c.df[selection_b].index
 

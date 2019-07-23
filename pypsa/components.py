@@ -762,8 +762,9 @@ class Network(Basic):
         ==========
         sel : string
             Specifies selection of passive branches. 'operative' includes only operative lines,
-            'inoperative' includes only inoperative lines, and 'all' includes both operative and
-            inoperative lines.
+            'inoperative' includes only inoperative lines, and 'potential' includes operative
+            or extendable lines. `candidate` selects lines which are inoperative but extendable,
+            whereas `None` makes no selection at all.
 
         Returns
         =======
@@ -779,6 +780,12 @@ class Network(Basic):
                     s = self.df(c).operative == True
                 elif sel == 'inoperative':
                     s = self.df(c).operative == False
+                elif sel == 'potential':
+                    s = (self.df(c).operative == True) | (self.df(c).s_nom_extendable == True)
+                elif sel == 'candidate':
+                    s = (self.df(c).operative == False) & (self.df(c).s_nom_extendable == True)
+                elif sel == 'used':
+                    s = self.df(c).s_nom_opt > 0.
 
             return s
 
