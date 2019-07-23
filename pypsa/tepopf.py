@@ -116,9 +116,9 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
 
     if exclusive_candidates:
         
-        if not getattr(network, "cand_to_inv_performed", False):
+        if not getattr(network, "cand_to_inv_performed", 0) == 1:
             network.lines = candidate_lines_to_investment(network)
-            network.cand_to_inv_performed = True
+            network.cand_to_inv_performed = 1
         else:
             logger.warn("Skipping conversion from candidates to investment representation. Force via `network.cand_to_inv_performed=False`")
 
