@@ -1548,6 +1548,12 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     else:
         network.results = network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files, logfile=solver_logfile, options=solver_options)
 
+    if candidates:
+        logger.info("Rerun as LP with fixed integer values to determine dual values.")
+        network.model.passive_branch_inv.fix()
+        network.model.preprocess()
+        network.opt.solve(*args, suffixes=["dual"], keepfiles=keep_files)
+
     if logger.isEnabledFor(logging.INFO):
         network.results.write()
 
