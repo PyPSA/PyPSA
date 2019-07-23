@@ -16,45 +16,9 @@
 """Optimal Power Flow functions with Integer Transmission Expansion Planning.
 """
 
-# TODO: make insensitive to order of bus0 bus1
-# at the moment it is assumed corridors have unique order from bus0 to bus1
-
-# TODO: duals in mixed-integer programming?
-
-# TODO: unify candidates arguments in functions {exclusive_candidates, candidates}
-# possibly allow string an boolean, where boolean has some default behaviour (e.g. exclusive)
-# e.g. extracting optimisation results varies whether investment is exclusive or not.
-
-# TODO: discuss whether moving networkclustering utilities to utils is acceptable (used in .tepopf)
-# should these maybe be in .descriptors?
-# haversine function seems to be duplicated in .geo and (now) .utils?
-
-# TODO: discuss whether it is better to duplicate some code from opf.py in tepopf.py
-# or whether it is also recommendable to avoid code duplication through if / else in opf.py functions
+# TODO: variant with multiple flow variables per corridor
 
 # TODO: write tests for tepopf()
-
-# TODO: add line_selector = 'operable' : either candidate or existing
-# adapt functionality to presence of lines that are not operative and not extendable
-
-# TODO: what happens if separate subnetworks are connected through candidate lines?
-# **angles:**
-# say a candidate line connects 2 sub_networks, then
-# (1) treat them as one sub_network (for calculating K, B, H, etc.)
-# (2) enforce slack theta_0 = 0 in one sub_network only if bridging line is not invested in
-#     use 2*pi~=6.3 as big-M as it is a voltage angle in radians
-# (3) gets more complicated if there are more sub_networks joining; need an order of slacks in an
-#     investment group (e.g. individual subnetworks that could join through candidates),
-#     lower ranking slack constraint is coupled to investment of connecting candidate line
-# **kirchhoff:**
-# no need to worry;
-# just treat possibly connected subnetworks as one sub_network;
-# just calculate B and H matrices based on candidate investment decisions ex-post!
-
-# TODO: handling inoperative but not-extendable lines
-
-# TODO: infer candidates should ignore operative but extendable lines
-# (two consecutive runs give different results if inferred in both cases)
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
@@ -320,7 +284,6 @@ def get_investment_combinations(candidate_group):
     return combinations
 
 
-# TODO: need to ensure unique order, possibly by sorting, cf. networkclustering
 def candidate_lines_to_investment(network):
     """
     Merge combinations of candidate lines to
@@ -387,7 +350,6 @@ def bigm(n, formulation):
 
     return m
 
-# TODO: connecting sub_networks
 def bigm_for_angles(n, keep_weights=False):
     """
     Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
@@ -427,9 +389,11 @@ def bigm_for_angles(n, keep_weights=False):
             path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
             m[name] = path_length / candidate.x_pu_eff 
         else:
+            # TODO: adjust for connecting sub_networks
             # no path through existing network
             # Binato proposes solving non-polynomial longest path problem
-            m[name] = 4 * np.pi / candidate.x_pu_eff + candidate.s_nom
+            # this is an unchecked alternative:
+            m[name] = 40 * np.pi / candidate.x_pu_eff + candidate.s_nom
 
     if not keep_weights:
         n.lines.drop("bigm_weight", axis=1)
@@ -675,7 +639,6 @@ def define_integer_branch_extension_variables(network, snapshots):
     free_pyomo_initializers(network.model.passive_branch_inv)
 
 
-# TODO: multiple flow variables (one per candidate line)
 def define_integer_passive_branch_constraints(network, snapshots): 
     """
     Capacity constraints of investment corridor flows.
@@ -839,7 +802,6 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     """
 
     for sub_network in network.sub_networks.obj:
-        # find_tree(sub_network) # TODO: is this necessary?
         find_cycles(sub_network)
         find_candidate_cycles(sub_network)
 
@@ -877,8 +839,6 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
                  cycle_index, snapshots)
 
 
-# TODO: this very nicely separates integer from continuous flow variables
-# therefore, possibly include in pypsa.opf.define_nodal_balance_constraints
 def define_integer_nodal_balance_constraints(network,snapshots):
     """
     Identical to `pypsa.opf.define_nodal_balance_constraints` but including candidate corridor flows.

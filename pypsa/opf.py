@@ -62,7 +62,6 @@ from .opt import (l_constraint, l_objective, LExpression, LConstraint,
                   empty_network, free_pyomo_initializers)
 from .descriptors import (get_switchable_as_dense, get_switchable_as_iter,
                           allocate_series_dataframes, zsum)
-from .utils import ind_select
 
 pd.Series.zsum = zsum
 
@@ -838,13 +837,8 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
     """ define passive branch flows with the kirchoff method """
 
     for sub_network in network.sub_networks.obj:
-        # find_tree(sub_network) # TODO: is this required for kirchhoff? Maybe ex_post?
         find_cycles(sub_network)
-
-        #following is necessary to calculate angles post-facto
         find_bus_controls(sub_network)
-        # if len(sub_network.branches_i()) > 0:
-            #calculate_B_H(sub_network) # TODO: possibly do after solution is obtained and we have final sub_networks (as multiple may become connected)
 
     passive_branches = network.passive_branches(sel='operative')
 
@@ -1132,9 +1126,7 @@ def define_linear_objective(network,snapshots,candidates=False):
 
     if candidates:
 
-        inoperative_passive_branches = network.passive_branches(sel='inoperative')
-
-        candidate_passive_branches = inoperative_passive_branches[inoperative_passive_branches.s_nom_extendable]
+        candidate_passive_branches = network.passive_branches(sel='candidate')
 
         objective.variables.extend([(candidate_passive_branches.at[b,"capital_cost"] * candidate_passive_branches.at[b,"s_nom"],
                                     model.passive_branch_inv[b])
@@ -1239,8 +1231,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         flow_upper_inv = get_shadows(model.inv_flow_upper)
 
         def map_corridor_to_candidate(network, investment):
-            passive_branches = network.passive_branches(sel='inoperative')
-            candidate_branches = passive_branches[passive_branches.s_nom_extendable]
+            candidate_branches = network.passive_branches(sel='candidate')
             idx = candidate_branches.loc[investment==1,['bus0', 'bus1']].droplevel(0)
             rev_mapping = idx.apply(lambda x: (x.bus0, x.bus1), axis=1).to_dict()
             return {v: k for k, v in rev_mapping.items() if v!={}}
@@ -1534,6 +1525,8 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
         `extra_postprocessing(network,snapshots,duals)` and is called after
         the model has solved and the results are extracted. It allows the user to
         extract further information about the solution, such as additional shadow prices.
+    candidates : bool
+        Indicator whether candidate lines are present.
 
     Returns
     -------
