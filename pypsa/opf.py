@@ -1306,49 +1306,6 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         set_from_series(network.links_t.mu_lower, get_shadows(model.link_p_lower))
         set_from_series(network.links_t.mu_upper, - get_shadows(model.link_p_upper))
 
-    if len(network.buses):
-        if formulation in {'angles', 'kirchhoff'}:
-            set_from_series(network.buses_t.marginal_price,
-                            pd.Series(list(model.power_balance.values()),
-                                      index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
-                            .map(duals))
-
-            #correct for snapshot weightings
-            network.buses_t.marginal_price.loc[snapshots] = network.buses_t.marginal_price.loc[snapshots].divide(network.snapshot_weightings.loc[snapshots],axis=0)
-
-        if formulation == "angles":
-            set_from_series(network.buses_t.v_ang,
-                            get_values(model.voltage_angles))
-        elif formulation in ["ptdf","cycles","kirchhoff"]:
-            # TODO: determine new network topology based on investment; currently only works if sub_networks are not connected
-            for sn in network.sub_networks.obj:
-                calculate_B_H(sn)
-                network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
-                if len(sn.pvpqs) > 0:
-                    network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T
-
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="AC"] = 1.
-        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"]
-
-
-    #now that we've used the angles to calculate the flow, set the DC ones to zero
-    network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"] = 0.
-
-    network.generators.p_nom_opt = network.generators.p_nom
-
-    network.generators.loc[network.generators.p_nom_extendable, 'p_nom_opt'] = \
-        get_values(network.model.generator_p_nom)
-
-    network.storage_units.p_nom_opt = network.storage_units.p_nom
-
-    network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom_opt'] = \
-        get_values(network.model.storage_p_nom)
-
-    network.stores.e_nom_opt = network.stores.e_nom
-
-    network.stores.loc[network.stores.e_nom_extendable, 'e_nom_opt'] = \
-        get_values(network.model.store_e_nom)
-
 
     s_nom_extendable_passive_branches = get_values(model.passive_branch_s_nom)
     for c in network.iterate_components(network.passive_branch_components):
@@ -1374,6 +1331,52 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     network.links.loc[network.links.p_nom_extendable, "p_nom_opt"] = \
         get_values(network.model.link_p_nom)
+
+
+    if len(network.buses):
+        if formulation in {'angles', 'kirchhoff'}:
+            set_from_series(network.buses_t.marginal_price,
+                            pd.Series(list(model.power_balance.values()),
+                                      index=pd.MultiIndex.from_tuples(list(model.power_balance.keys())))
+                            .map(duals))
+
+            #correct for snapshot weightings
+            network.buses_t.marginal_price.loc[snapshots] = network.buses_t.marginal_price.loc[snapshots].divide(network.snapshot_weightings.loc[snapshots],axis=0)
+
+        if formulation == "angles":
+            set_from_series(network.buses_t.v_ang,
+                            get_values(model.voltage_angles))
+        elif formulation in ["ptdf","cycles","kirchhoff"]:
+            if candidates: network.determine_network_topology(line_selector='used')
+            for sn in network.sub_networks.obj:
+                if candidates: find_slack_bus(sn)
+                if len(sn.branches_i()) > 0:
+                    calculate_B_H(sn, line_selector='used')
+                network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
+                if len(sn.pvpqs) > 0:
+                    network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T
+
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="AC"] = 1.
+        network.buses_t.v_mag_pu.loc[snapshots,network.buses.carrier=="DC"] = 1 + network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"]
+
+
+    #now that we've used the angles to calculate the flow, set the DC ones to zero
+    network.buses_t.v_ang.loc[snapshots,network.buses.carrier=="DC"] = 0.
+
+    network.generators.p_nom_opt = network.generators.p_nom
+
+    network.generators.loc[network.generators.p_nom_extendable, 'p_nom_opt'] = \
+        get_values(network.model.generator_p_nom)
+
+    network.storage_units.p_nom_opt = network.storage_units.p_nom
+
+    network.storage_units.loc[network.storage_units.p_nom_extendable, 'p_nom_opt'] = \
+        get_values(network.model.storage_p_nom)
+
+    network.stores.e_nom_opt = network.stores.e_nom
+
+    network.stores.loc[network.stores.e_nom_extendable, 'e_nom_opt'] = \
+        get_values(network.model.store_e_nom)
 
     try:
         network.global_constraints.loc[:,"mu"] = - get_shadows(model.global_constraints, multiind=False)
