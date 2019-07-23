@@ -536,6 +536,44 @@ def find_candidate_cycles(sub_network):
         branch_i = branches_i.get_loc(candidate[2])
         sub_network.CC[branch_i,j] += -1
 
+
+def find_slack_dependencies(network):
+    """
+    Allocates candidate lines connecting two subnetworks to the one with
+    the lower order that defines the slack of which subnetwork should be
+    disregarded if that candidate line is built.
+    
+    Parameters
+    ----------
+    network : pypsa.Network
+    
+    Returns
+    -------
+    slack_dependencies : dict
+        A dictionary where keys are sub_network names and
+        values are a list of tuples identifying the candidate lines
+        associated with this subnetwork's slack constraint; e.g. 
+        {'0': [('Line', 'c1'),('Line', 'c1')], '1': [('Line','c3')], '2': []}
+    """
+
+    if not len(network.sub_networks) > 0:
+        network.determine_network_topology()
+
+    candidate_branches = network.passive_branches(sel='candidate')
+
+    slack_dependencies = {sn_i: [] for sn_i in network.sub_networks.index}
+    
+    for cnd_i, cnd in candidate_branches.iterrows():
+        sn0 = network.buses.loc[cnd.bus0].sub_network
+        sn1 = network.buses.loc[cnd.bus1].sub_network
+        if sn0 != sn1:
+            order = lambda sn: len(network.sub_networks.loc[sn].obj.buses())
+            allocated_sn = sn0 if order(sn0) <= order(sn1) else sn1
+            slack_dependencies[allocated_sn].append(cnd_i)
+
+    return slack_dependencies
+
+
 def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
                                                    passive_branch_p, passive_branch_inv_p,
                                                    passive_branch_inv,
@@ -725,7 +763,24 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
     elif formulation == "kirchhoff":
         define_integer_passive_branch_flows_with_kirchhoff(network, snapshots)
 
-# TODO: needs to consider combinations of investment if investments are not exclusive! 
+
+def define_integer_slack_angle(network, snapshots):
+
+    slack_dependencies = find_slack_dependencies(network)
+
+    slack_upper = {}
+    slack_lower = {}
+    for sub, lines in slack_dependencies.items():
+        for sn in snapshots:
+            lhs = LExpression([(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])])
+            rhs = LExpression([(20*np.pi, network.model.passive_branch_inv[l]) for l in lines])
+            slack_upper[sub,sn] = LConstraint(lhs,"<=",rhs)
+            slack_lower[sub,sn] = LConstraint(lhs,">=",-rhs)
+
+    l_constraint(network.model,"slack_angle_upper",slack_upper,list(network.sub_networks.index), snapshots)
+    l_constraint(network.model,"slack_angle_lower",slack_lower,list(network.sub_networks.index), snapshots)
+    
+
 def define_integer_passive_branch_flows_with_angles(network, snapshots):
     """
     Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
@@ -900,6 +955,9 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     define_passive_branch_flows(network,snapshots,formulation)
     define_integer_passive_branch_flows(network,snapshots,formulation)
+    
+    if formulation == "angles":
+        define_integer_slack_angle(network,snapshots)
 
     define_passive_branch_constraints(network,snapshots)
     define_integer_passive_branch_constraints(network,snapshots)
