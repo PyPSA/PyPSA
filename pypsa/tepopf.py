@@ -151,7 +151,12 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
     network.lines = add_candidate_lines(network)
 
     if exclusive_candidates:
-        network.lines = candidate_lines_to_investment(network)
+        
+        if not getattr(network, "cand_to_inv_performed", False):
+            network.lines = candidate_lines_to_investment(network)
+            network.cand_to_inv_performed = True
+        else:
+            logger.warn("Skipping conversion from candidates to investment representation. Force via `network.cand_to_inv_performed=False`")
 
     # extendability is transferred to candidate lines
     network.lines.loc[network.lines.operative, 's_nom_extendable'] = False
@@ -918,6 +923,8 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     -------
     None
     """
+
+    assert exclusive_candidates, "Current implementation requires exclusively one investment per corridor."
 
     if not skip_pre:
         # considered network topology depends on formulation.
