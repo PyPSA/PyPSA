@@ -660,10 +660,10 @@ def define_passive_branch_flows(network,snapshots,formulation="angles",ptdf_tole
         define_passive_branch_flows_with_kirchhoff(network,snapshots)
 
 
+def define_slack_angle(network,snapshots):
 
-def define_passive_branch_flows_with_angles(network,snapshots):
-
-    network.model.voltage_angles = Var(list(network.buses.index), snapshots)
+    if not hasattr(network.model, 'voltage_angles'):
+        network.model.voltage_angles = Var(list(network.buses.index), snapshots)
 
     slack = {(sub,sn) :
              [[(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])], "==", 0.]
@@ -671,6 +671,10 @@ def define_passive_branch_flows_with_angles(network,snapshots):
 
     l_constraint(network.model,"slack_angle",slack,list(network.sub_networks.index),snapshots)
 
+
+def define_passive_branch_flows_with_angles(network,snapshots):
+
+    network.model.voltage_angles = Var(list(network.buses.index), snapshots)
 
     passive_branches = network.passive_branches(sel='operative')
 
@@ -1448,6 +1452,9 @@ def network_lopf_build_model(network, snapshots=None, skip_pre=False,
     define_nodal_balances(network,snapshots)
 
     define_passive_branch_flows(network,snapshots,formulation,ptdf_tolerance)
+    
+    if formulation == "angles":
+        define_slack_angle(network,snapshots)
 
     define_passive_branch_constraints(network,snapshots)
 
