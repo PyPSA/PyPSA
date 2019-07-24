@@ -113,7 +113,7 @@ def infer_candidates_from_existing(network, exclusive_candidates=True):
     network.lines = add_candidate_lines(network)
 
     if exclusive_candidates:
-        
+
         if not getattr(network, "cand_to_inv_performed", 0) == 1:
             network.lines = candidate_lines_to_investment(network)
             network.cand_to_inv_performed = 1
@@ -145,14 +145,14 @@ def potential_num_parallels(network):
 
     ext_lines = network.lines[network.lines.s_nom_extendable & network.lines.operative]
 
-    assert (ext_lines.s_nom_max!=np.inf).all(), "TEP-LOPF requires `s_nom_max` to be a finite number"
+    assert (ext_lines.s_nom_max != np.inf).all(), "TEP-LOPF requires `s_nom_max` to be a finite number"
 
-    ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil) # to avoid rounding errors
+    ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil)  # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
     unit_s_nom = np.sqrt(3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
     unit_s_nom = unit_s_nom.fillna(ext_lines.s_nom/ext_lines.num_parallel) # fallback if no line type given
     num_parallels = investment_potential.divide(unit_s_nom).map(np.floor).map(int)
-    
+
     return num_parallels
 
 
@@ -173,7 +173,7 @@ def add_candidate_lines(network):
     c_sets = num_parallels.apply(lambda num: np.arange(1,num+1))
 
     candidates = pd.DataFrame(columns=network.lines.columns)
-    
+
     for ind, c_set in c_sets.iteritems():
         for c in c_set:
             candidate = network.lines.loc[ind].copy()
@@ -190,13 +190,13 @@ def add_candidate_lines(network):
             candidate.s_nom_max = candidate.s_nom
             candidate.s_nom_min = 0.
             candidate.operative = False
-            candidate.name = "{}_c{}".format(candidate.name,c)
+            candidate.name = "{}_c{}".format(candidate.name, c)
             candidates.loc[candidate.name] = candidate
 
-    lines = pd.concat([network.lines,candidates])
+    lines = pd.concat([network.lines, candidates])
     lines.operative = lines .operative.astype('bool')
 
-    return  lines.loc[~lines.index.duplicated(keep='first')]
+    return lines.loc[~lines.index.duplicated(keep='first')]
 
 
 # this is an adapted version from pypsa.networkclustering
@@ -213,24 +213,25 @@ def aggregate_candidates(network, l):
     -------
     pandas.Series
     """
-    
+
     attrs = network.components["Line"]["attrs"]
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name',))
-    
+
     consense = {
         attr: _make_consense('Bus', attr)
         for attr in (columns | {'sub_network'}
                         - {'r', 'x', 'g', 'b', 'terrain_factor', 's_nom',
-                        's_nom_min', 's_nom_max', 's_nom_extendable',
-                        'length', 'v_ang_min', 'v_ang_max'})
+                           's_nom_min', 's_nom_max', 's_nom_extendable',
+                           'length', 'v_ang_min', 'v_ang_max'}
+                    )
     }
 
     line_length_factor = 1.0
     buses = l.iloc[0][['bus0', 'bus1']].values
-    length_s = _haversine(network.buses.loc[buses,['x', 'y']])*line_length_factor
-    v_nom_s = network.buses.loc[buses,'v_nom'].max()
+    length_s = _haversine(network.buses.loc[buses, ['x', 'y']])*line_length_factor
+    v_nom_s = network.buses.loc[buses, 'v_nom'].max()
 
-    voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
+    voltage_factor = (np.asarray(network.buses.loc[l.bus0, 'v_nom'])/v_nom_s)**2
     length_factor = (length_s/l['length'])
 
     data = dict(
@@ -298,19 +299,19 @@ def candidate_lines_to_investment(network):
     -------
     lines : pandas.DataFrame
     """
-    
+
     lines = network.lines
     candidate_lines = lines[(lines.operative==False) & (lines.s_nom_extendable==True)]
 
-    #make sure all lines have same bus ordering
+    # make sure all lines have same bus ordering
     positive_order = candidate_lines.bus0 < candidate_lines.bus1
     candidate_lines_p = candidate_lines[positive_order]
-    candidate_lines_n = candidate_lines[~ positive_order].rename(columns={"bus0":"bus1", "bus1":"bus0"})
-    candidate_lines = pd.concat((candidate_lines_p,candidate_lines_n), sort=False)
+    candidate_lines_n = candidate_lines[~ positive_order].rename(columns={"bus0": "bus1", "bus1": "bus0"})
+    candidate_lines = pd.concat((candidate_lines_p, candidate_lines_n), sort=False)
 
     candidate_inv = pd.DataFrame(columns=lines.columns)
     candidate_inv.astype(lines.dtypes)
-    
+
     for name, group in candidate_lines.groupby(['bus0', 'bus1']):
         combinations = get_investment_combinations(group)
         for c in combinations:
@@ -351,6 +352,7 @@ def bigm(n, formulation):
 
     return m
 
+
 def bigm_for_angles(n, keep_weights=False):
     """
     Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
@@ -380,9 +382,11 @@ def bigm_for_angles(n, keep_weights=False):
 
     n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
-    candidates = n.lines[n.lines.operative==False]
+    candidates = n.lines[n.lines.operative == False]
 
-    ngraph = n.graph(line_selector='operative', branch_components=['Line'], weight='bigm_weight')
+    ngraph = n.graph(line_selector='operative',
+                     branch_components=['Line'],
+                     weight='bigm_weight')
 
     m = {}
     for name, candidate in candidates.iterrows():
@@ -427,7 +431,7 @@ def bigm_for_kirchhoff(sub_network):
     m = {}
     for col_j in range(matrix.shape[1]):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
-        
+
         bigm_cycle_i = 0
         for cycle_i in cycle_is:
             b = branches.iloc[cycle_i]
@@ -435,13 +439,13 @@ def bigm_for_kirchhoff(sub_network):
                 branch_idx = b.name
                 bigm_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product()
             else:
-                branch_idx = ( branches.operative==False ) & \
+                branch_idx = ( branches.operative == False ) & \
                              ( 
-                                ( (branches.bus0==b.bus0) & (branches.bus1==b.bus1) ) | \
-                                ( (branches.bus0==b.bus1) & (branches.bus1==b.bus0) )
+                                ( (branches.bus0 == b.bus0) & (branches.bus1 == b.bus1) ) |
+                                ( (branches.bus0 == b.bus1) & (branches.bus1 == b.bus0) )
                              )
                 bigm_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product(axis=1).max()
-            
+
         m[col_j] = 1e5 * bigm_cycle_i
 
     return m
@@ -457,20 +461,20 @@ def find_candidate_cycles(sub_network):
 
     cand_edges = cand_sub_lines.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
     cand_weight = len(pot_sub_lines)
-    
+
     weights = pot_sub_lines.apply(lambda x: [(x.bus0, x.bus1, x.name), 1 if x.operative else cand_weight], result_type='expand', axis=1)
     weights.columns = ['index', 'weight']
     weights.set_index('index', inplace=True)
     weights = weights.to_dict()['weight']
-    
+
     mgraph = sub_network.graph(inf_weight=False, line_selector='potential')
     nx.set_edge_attributes(mgraph, weights, name='weight')
-    
+
     def equivalent_cycle(c,d):
         dc, dd = (deque(c), deque(d))
         dd_rev = dd.copy()
         dd_rev.reverse()
-        for i in range(len(dd)):
+        for _ in range(len(dd)):
             dd.rotate(1)
             dd_rev.rotate(1)
             if dd==dc or dd_rev==dc:

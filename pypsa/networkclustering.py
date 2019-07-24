@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 from .descriptors import OrderedGraph
 from .components import Network
 
-from . import components, io, utils
+from . import components, io
+from .utils import _normed, _flatten_multiindex,_make_consense, _haversine
 
 
 def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_strategies=dict()):

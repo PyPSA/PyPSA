@@ -21,6 +21,7 @@
 from __future__ import division
 from __future__ import absolute_import
 from six import iteritems, string_types
+from six.moves import map, range, reduce
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
@@ -51,16 +52,18 @@ def _make_consense(component, attr):
         return v
     return consense
 
+
 def _haversine(coords):
     lon, lat = np.deg2rad(np.asarray(coords)).T
     a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
     return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
 
+
 def ind_select(c, sel=None):
     """
     Returns intersection of `c.ind` and indices of a selection of lines
     for passive branch components based on the choice of the parameter `sel`.
-    
+
     Parameters
     ----------
     sel : string
@@ -70,24 +73,25 @@ def ind_select(c, sel=None):
         If `"inoperative"` it includes only inoperative lines.
         If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
         If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
-        If `"used"` it includes operative and built candidate lines. Can only be called after successful optimisation.
-    
+        If `"used"` it includes operative and built candidate lines.
+        Can only be called after successful optimisation.
+
     Returns
     -------
     pandas.Index
     """
 
-    if c.name=='Line' and sel is not None:
+    if c.name == 'Line' and sel is not None:
 
-        if sel=='operative':
+        if sel == 'operative':
             selection_b = c.df.operative == True
-        elif sel=='inoperative':
+        elif sel == 'inoperative':
             selection_b = c.df.operative == False
-        elif sel=='potential':
+        elif sel == 'potential':
             selection_b = (c.df.operative == True) | (c.df.s_nom_extendable == True)
-        elif sel=='candidate':
+        elif sel == 'candidate':
             selection_b = (c.df.operative == False) & (c.df.s_nom_extendable == True)
-        elif sel=='used':
+        elif sel == 'used':
             selection_b = (c.df.s_nom_opt > 0.0)
 
         selection_i = c.df[selection_b].index
