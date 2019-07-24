@@ -16,9 +16,7 @@
 """Optimal Power Flow functions with Integer Transmission Expansion Planning.
 """
 
-# TODO: variant with multiple flow variables per corridor
-
-# TODO: write tests for tepopf()
+# TODO: teplopf variant with one flow variable per candidate line
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
@@ -392,7 +390,7 @@ def bigm_for_angles(n, keep_weights=False):
             path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
             m[name] = path_length / candidate.x_pu_eff 
         else:
-            # TODO: adjust for connecting sub_networks
+            # TODO: solve longest path problem or adjust for connecting sub_networks
             # no path through existing network
             # Binato proposes solving non-polynomial longest path problem
             # this is an unchecked alternative:
@@ -751,6 +749,7 @@ def define_integer_slack_angle(network, snapshots):
     for sub, lines in slack_dependencies.items():
         for sn in snapshots:
             lhs = LExpression([(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])])
+            # TODO: adjust maximum value of voltage angle
             rhs = LExpression([(20*np.pi, network.model.passive_branch_inv[l]) for l in lines])
             slack_upper[sub,sn] = LConstraint(lhs,"<=",rhs)
             slack_lower[sub,sn] = LConstraint(lhs,">=",-rhs)
@@ -881,10 +880,20 @@ def define_integer_nodal_balance_constraints(network,snapshots):
 def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
                                 formulation="angles", exclusive_candidates=True):
     """
-    Description
+    Build pyomo model for transmission expansion planning version of 
+    linear optimal power flow for a group of snapshots.
 
     Parameters
     ----------
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    formulation : string
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","kirchhoff"]
     exclusive_candidates : bool
         Indicator whether only one candidate line investment
         can be chosen per corridor.
@@ -961,10 +970,50 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
                     free_memory={}, extra_postprocessing=None,
                     infer_candidates=False, exclusive_candidates=True):
     """
-    Description
+    Transmission Expansion Planning with linear optimal power flow for a group of snapshots.
 
     Parameters
     ----------
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
+    solver_name : string
+        Must be a solver name that pyomo recognises and that is
+        installed, e.g. "glpk", "gurobi"
+    solver_io : string, default None
+        Solver Input-Output option, e.g. "python" to use "gurobipy" for
+        solver_name="gurobi"
+    skip_pre: bool, default False
+        Skip the preliminary steps of computing topology, calculating
+        dependent values and finding bus controls.
+    extra_functionality : callable function
+        This function must take two arguments
+        `extra_functionality(network,snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to
+        add/change constraints and add/change the objective function.
+    solver_logfile : None|string
+        If not None, sets the logfile option of the solver.
+    solver_options : dictionary
+        A dictionary with additional options that get passed to the solver.
+        (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    keep_files : bool, default False
+        Keep the files that pyomo constructs from OPF problem
+        construction, e.g. .lp file - useful for debugging
+    formulation : string
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","cycles","kirchhoff","ptdf"]
+    ptdf_tolerance : float
+        Value below which PTDF entries are ignored
+    free_memory : set, default {'pyomo'}
+        Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+        data away while the solver runs (as a pickle to disk) and/or free
+        `pyomo` data after the solution has been extracted.
+    extra_postprocessing : callable function
+        This function must take three arguments
+        `extra_postprocessing(network,snapshots,duals)` and is called after
+        the model has solved and the results are extracted. It allows the user to
+        extract further information about the solution, such as additional shadow prices.
     infer_candidates : bool
         Indicator whether candidate lines should be inferred
         based on potential and line type using
