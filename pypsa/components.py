@@ -764,7 +764,7 @@ class Network(Basic):
             Specifies selection of passive branches. 'operative' includes only operative lines,
             'inoperative' includes only inoperative lines, and 'potential' includes operative
             or extendable lines. `candidate` selects lines which are inoperative but extendable,
-            whereas `None` makes no selection at all.
+            whereas `None` makes no selection at all. `used` selects existing plus newly built lines.
 
         Returns
         =======

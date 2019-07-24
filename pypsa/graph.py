@@ -47,6 +47,9 @@ def graph(network, branch_components=None, weight=None, inf_weight=False,
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
         If `"inoperative"` it includes only inoperative lines.
+        If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
+        If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
+        If `"used"` it includes operative and built candidate lines. Can only be called after successful optimisation.
 
     Returns
     -------
@@ -113,6 +116,9 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
         If `"inoperative"` it includes only inoperative lines.
+        If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
+        If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
+        If `"used"` it includes operative and built candidate lines. Can only be called after successful optimisation.
 
     Returns
     -------
@@ -177,6 +183,9 @@ def incidence_matrix(network, branch_components=None, busorder=None,
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
         If `"inoperative"` it includes only inoperative lines.
+        If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
+        If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
+        If `"used"` it includes operative and built candidate lines. Can only be called after successful optimisation.
 
     Returns
     -------

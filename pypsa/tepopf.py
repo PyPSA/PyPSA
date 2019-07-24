@@ -609,27 +609,10 @@ def define_sub_network_candidate_cycle_constraints(subnetwork, snapshots,
 
     return (subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower)
 
-def assert_candidate_kvl_duals(network):
-    """
-    Assert that all KVL constraints of candidate lines are
-    non-binding if they are not invested in. If this check fails,
-    Big-M parameters must be larger. 
-
-    Parameters
-    ----------
-    network : pypsa.Network
-
-    Returns
-    -------
-    None
-    """
-
-    pass
-
 
 def define_integer_branch_extension_variables(network, snapshots):
     """
-    Defines candidate line investment variables based on 'inoperative' and 'extendable' lines.
+    Defines candidate investment variables based on 'inoperative' and 'extendable' lines.
     """
 
     candidate_passive_branches = network.passive_branches(sel='candidate')
@@ -643,7 +626,8 @@ def define_integer_branch_extension_variables(network, snapshots):
 def define_integer_passive_branch_constraints(network, snapshots): 
     """
     Capacity constraints of investment corridor flows.
-    There is currently only one flow variable for all candidate lines per corridor.
+    There is currently only one flow variable for all candidate lines per corridor,
+    as candidates are exclusive.
     """
 
     candidate_branches = cb = network.passive_branches(sel='candidate')
@@ -680,7 +664,7 @@ def define_integer_passive_branch_constraints(network, snapshots):
 
 def define_rank_constraints(network, snapshots):
     """
-    Iterate through candidate line duplicates of the same investment corridor
+    Iterate through candidate line investment option duplicates of the same investment corridor
     and require a distinct order of investment to avoid problem degeneracy.
 
     Notes
@@ -707,7 +691,7 @@ def define_rank_constraints(network, snapshots):
 
 def define_exclusive_candidates_constraints(network, snapshots):
     """
-    Only one candidate line investment can be selected per corridor.
+    Only one candidate investment combination can be selected per corridor.
     """
 
     extendable_branches = eb = network.passive_branches(sel='candidate')
@@ -726,7 +710,7 @@ def define_exclusive_candidates_constraints(network, snapshots):
 def define_integer_passive_branch_flows(network, snapshots, formulation='angles'):
     """
     Enforce Kirchhoff's Second Law only if candidate line is
-    invested in using the disjunctive Big-M reformulation.
+    invested in by using the disjunctive Big-M reformulation.
 
     Parameters
     ----------
@@ -900,7 +884,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     Returns
     -------
-    None
+    network.model : pyomo.core.base.PyomoModel.ConcreteModel
     """
 
     assert exclusive_candidates, "Current implementation requires exclusively one investment per corridor."
@@ -1024,8 +1008,8 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     Returns
     -------
-    status
-    termination_condition
+    status : string
+    termination_condition : string
     """
 
     if infer_candidates:
