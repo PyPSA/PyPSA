@@ -147,14 +147,12 @@ def potential_num_parallels(network):
 
     ext_lines = network.lines[network.lines.s_nom_extendable & network.lines.operative]
 
-    # TODO: derive line type from num_parallel, s_nom, r, x if no valid line type given
-    assert pd.Series([lt in network.line_types.index for lt in ext_lines.type]).all(), "Currently all extendable lines must have a `type` in TEP-LOPF"
-    
     assert (ext_lines.s_nom_max!=np.inf).all(), "TEP-LOPF requires `s_nom_max` to be a finite number"
 
     ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil) # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
     unit_s_nom = np.sqrt(3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
+    unit_s_nom = unit_s_nom.fillna(ext_lines.s_nom/ext_lines.num_parallel) # fallback if no line type given
     num_parallels = investment_potential.divide(unit_s_nom).map(np.floor).map(int)
     
     return num_parallels
@@ -181,7 +179,12 @@ def add_candidate_lines(network):
     for ind, c_set in c_sets.iteritems():
         for c in c_set:
             candidate = network.lines.loc[ind].copy()
-            type_params = network.line_types.loc[candidate.type]
+            try:
+                type_params = network.line_types.loc[candidate.type]
+            except KeyError:
+                type_params = pd.Series({'x_per_length': c.x/c.length,
+                                         'r_per_length': c.r/c.length,
+                                         'i_nom': c.s_nom/c.num_parallel/np.sqrt(3)/c.v_nom})
             candidate.num_parallel = 1.
             candidate.x = type_params.x_per_length * candidate.length
             candidate.r = type_params.r_per_length * candidate.length
