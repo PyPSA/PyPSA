@@ -459,6 +459,11 @@ def find_candidate_cycles(sub_network):
     pot_sub_lines = sub_network.branches(line_selector='potential')
     cand_sub_lines = sub_network.branches(line_selector='candidate')
 
+    # skip if sub_network is just a single bus
+    if len(pot_sub_lines) == 0:
+        sub_network.CC = dok_matrix((0,0))
+        return
+
     cand_edges = cand_sub_lines.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
     cand_weight = len(pot_sub_lines)
 
