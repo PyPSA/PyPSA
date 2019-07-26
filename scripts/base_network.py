@@ -420,6 +420,7 @@ def _adjust_capacities_of_under_construction_branches(n):
     lines_mode = snakemake.config['lines'].get('under_construction', 'undef')
     if lines_mode == 'zero':
         n.lines.loc[n.lines.under_construction, 'num_parallel'] = 0.
+        n.lines.loc[n.lines.under_construction, 's_nom'] = 0.
     elif lines_mode == 'remove':
         n.mremove("Line", n.lines.index[n.lines.under_construction])
     elif lines_mode != 'keep':
