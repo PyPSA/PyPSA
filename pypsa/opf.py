@@ -1154,6 +1154,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
     #get value of objective function
     network.objective = network.results["Problem"][0]["Upper bound"]
 
+    network.bestbound = network.results["Problem"][0]["Lower bound"]
+
     model = network.model
 
     duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))
