@@ -2,8 +2,10 @@
 Configuration
 ##########################################
 
-Single-level entries
-====================
+by changing the default configuration in ``config.yaml``.
+
+Top-level configuration
+=======================
 
 .. literalinclude:: ../config.yaml
    :language: yaml
@@ -11,8 +13,9 @@ Single-level entries
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/toplevel.csv
+
 
 Wildcards and ``scenario``
 ==========================
@@ -23,7 +26,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/scenario.csv
    
 
@@ -31,13 +34,15 @@ Wildcards and ``scenario``
 ``snapshots``
 =============
 
+Arguments to `pandas.date_range <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.date_range.html>`_
+
 .. literalinclude:: ../config.yaml
    :language: yaml
    :lines: 17-21
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/snapshots.csv
 
 
@@ -50,8 +55,11 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/electricity.csv
+
+.. warning::
+    Carriers in ``conventional_carriers`` must not also be in ``extendable_carriers``.
 
 ``atlite``
 =============
@@ -62,7 +70,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/atlite.csv
 
 ``renewable``
@@ -73,7 +81,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/onwind.csv
 
 ``offwind-ac``
@@ -81,7 +89,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/offwind-ac.csv
 
 ``offwind-dc``
@@ -89,7 +97,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/offwind-dc.csv
 
 ``solar``
@@ -97,7 +105,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/solar.csv
 
 ``hydro``
@@ -105,7 +113,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/hydro.csv
 
 ``lines``
@@ -113,7 +121,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/lines.csv
 
 ``links``
@@ -121,7 +129,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/links.csv
 
 ``transformers``
@@ -129,7 +137,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/transformers.csv
 
 ``load``
@@ -137,7 +145,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/load.csv
 
 ``costs``
@@ -145,7 +153,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/costs.csv
 
 ``solving``
@@ -156,7 +164,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/solving-options.csv
 
 ``solver``
@@ -164,7 +172,7 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/solving-solver.csv
 
 ``plotting``
@@ -172,5 +180,5 @@ Wildcards and ``scenario``
 
 .. csv-table::
    :header-rows: 1
-   :align: left
+   :widths: 25,7,22,30
    :file: configtables/plotting.csv

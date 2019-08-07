@@ -1,10 +1,10 @@
 ,Unit,Values,Description
-voltages,--,{'E'},TODO
-co2limit,--,E,TODO
-extendable_carriers,--,E,TODO
--- Generator,--,E,TODO
--- StorageUnit,--,E,TODO
-max_hours,--,E,TODO
--- battery,--,E,TODO
--- H2,--,E,TODO
-conventional_carriers,--,E,TODO
+voltages,kV,"Any subset of {220., 300., 380.}","Voltage levels to consider when"
+co2limit,:math:`t_{CO_2-eq}/a`,float,"Cap on total annual system carbon dioxide emissions"
+extendable_carriers,,,
+-- Generator,--,"Any subset  of {'OCGT','CCGT'}","Places extendable conventional power plants (OCGT and/or CCGT) where gas power plants are located today without capacity limits."
+-- StorageUnit,--,"Any subset of {'battery','H2'}","Places extendable storage units (battery and/or hydrogen) at every node/bus without capacity limits."
+max_hours,,,
+-- battery,h,float,"Maximum state of charge capacity of the battery in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_."
+-- H2,h,float,"Maximum state of charge capacity of the hydrogen storage in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_."
+conventional_carriers,--,"Any subset of {nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass}","List of conventional power plants to include in the model from ``resources/powerplants.csv``."
