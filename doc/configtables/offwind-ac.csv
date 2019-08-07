@@ -1,0 +1,12 @@
+,Unit,Values,Description
+cutout,--,{'E'},TODO
+resource,--,E,TODO
+-- method,--,E,TODO
+-- turbine,--,E,TODO
+capacity_per_sqkm,--,E,TODO
+corine,--,E,TODO
+natura,--,E,TODO
+max_depth,--,E,TODO
+min_shore_distance,--,E,TODO
+potential,--,E,TODO
+clip_p_max_pu,--,E,TODO

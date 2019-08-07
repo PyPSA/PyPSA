@@ -1,3 +1,16 @@
+"""
+Test module description
+
+Examples
+--------
+Test example
+`Example <http://www.example.com>`_
+
+:ref:`Installation <installation>`
+
+``code``
+"""
+
 import os
 from six import iteritems
 from itertools import product

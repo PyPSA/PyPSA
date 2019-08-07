@@ -1,0 +1,8 @@
+,Unit,Values,Description
+version,--,{'E'},TODO
+logging_level,--,E,TODO
+summary_dir,--,E,TODO
+countries,--,E,TODO
+enable,--,E,TODO
+-- powerplantmatching,--,{'E'},TODO
+-- prepare_links_p_nom,--,E,TODO

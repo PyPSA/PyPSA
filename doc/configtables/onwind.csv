@@ -1,0 +1,13 @@
+,Unit,Values,Description
+cutout,--,{'E'},TODO
+resource,--,E,TODO
+-- method,--,E,TODO
+-- turbine,--,E,TODO
+capacity_per_sqkm,--,E,TODO
+corine,--,E,TODO
+-- grid_codes,--,E,TODO
+-- distance,--,E,TODO
+-- distance_grid_codes,--,E,TODO
+natura,--,E,TODO
+potential,--,E,TODO
+clip_p_max_pu,--,E,TODO

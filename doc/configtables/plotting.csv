@@ -1,0 +1,24 @@
+,Unit,Values,Description
+map,--,{'E'},TODO
+-- figsize,--,E,TODO
+-- boundaries,--,E,TODO
+-- p_nom,--,E,TODO
+-- -- bus_size_factor,--,E,TODO
+-- -- linewidth_factor,--,E,TODO
+costs_max,--,E,TODO
+costs_threshold,--,E,TODO
+energy_max,--,E,TODO
+energy_min,--,E,TODO
+energy_threshold,--,E,TODO
+vre_techs,--,E,TODO
+conv_techs,--,E,TODO
+storage_techs,--,E,TODO
+store_techs,--,E,TODO
+load_carriers,--,E,TODO
+AC_carriers,--,E,TODO
+link_carriers,--,E,TODO
+heat_links,--,E,TODO
+heat_generators,--,E,TODO
+tech_colors,--,E,TODO
+nice_names,--,E,TODO
+nice_names_n,--,E,TODO

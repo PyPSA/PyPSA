@@ -1,0 +1,14 @@
+,Unit,Values,Description
+cutout,--,{'E'},TODO
+resource,--,E,TODO
+-- method,--,E,TODO
+-- panel,--,E,TODO
+-- orientation,--,E,TODO
+-- -- slope,--,E,TODO
+-- -- azimuth,--,E,TODO
+capacity_per_sqkm,--,E,TODO
+correction_factor,--,E,TODO
+corine,--,E,TODO
+natura,--,E,TODO
+potential,--,E,TODO
+clip_p_max_pu,--,E,TODO

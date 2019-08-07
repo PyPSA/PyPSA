@@ -1,3 +1,5 @@
+.. _installation:
+
 ##########################################
 Installation
 ##########################################
@@ -23,6 +25,7 @@ Clone the PyPSA-Eur repository using ``git``
     The path to the directory into which the ``git repository`` is cloned, 
     must not have any spaces.
 
+.. _deps:
 
 Install Python Dependencies
 ===============================
@@ -43,6 +46,7 @@ The environment can be installed and activated using
     After opening a new terminal window,
     one needs to reissue the second command! 
 
+.. _data:
 
 Download Data Dependencies
 ==============================

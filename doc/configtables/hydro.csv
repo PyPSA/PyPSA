@@ -1,0 +1,6 @@
+,Unit,Values,Description
+cutout,--,{'E'},TODO
+carriers,--,E,TODO
+PHS_max_hours,--,E,TODO
+hydro_max_hours,--,E,TODO
+clip_min_inflow,--,E,TODO

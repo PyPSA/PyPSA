@@ -1,0 +1,8 @@
+,Unit,Values,Description
+formulation,--,{'E'},TODO
+load_shedding,--,E,TODO
+noisy_costs,--,E,TODO
+min_iterations,--,E,TODO
+max_iterations,--,E,TODO
+nhours,--,E,TODO
+clip_p_max_pu,--,E,TODO

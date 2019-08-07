@@ -1,0 +1,10 @@
+,Unit,Values,Description
+voltages,--,{'E'},TODO
+co2limit,--,E,TODO
+extendable_carriers,--,E,TODO
+-- Generator,--,E,TODO
+-- StorageUnit,--,E,TODO
+max_hours,--,E,TODO
+-- battery,--,E,TODO
+-- H2,--,E,TODO
+conventional_carriers,--,E,TODO
