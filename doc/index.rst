@@ -23,6 +23,7 @@ Documentation
 
 * :doc:`introduction`
 * :doc:`installation`
+* :doc:`wildcards`
 * :doc:`configuration`
 
 .. toctree::
@@ -32,6 +33,7 @@ Documentation
 
    introduction
    installation
+   wildcards
    configuration
 
 **Rules Overview**
@@ -100,4 +102,5 @@ Licence
 =======
 
 The code in PyPSA-Eur is released as free software under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
+<http://www.gnu.org/licenses/gpl-3.0.en.html>`_, see
+`LICENSE <https://github.com/PyPSA/pypsa-eur/blob/master/LICENSE.txt>`_.

@@ -4,6 +4,14 @@
 Simplifying Networks
 ##########################################
 
+The additional rules prepare approximations of the full model, in which generation, storage and transmission capacities can be co-optimized
+- `simplify_network` transforms the transmission grid to a 380 kV-only equivalent network, while
+- `cluster_network` uses a kmeans based clustering technique to partition the network into a certain number of zones and then reduce the network to a representation with one bus per zone.
+
+The simplification and clustering steps are described in detail in the paper
+[The role of spatial scale in joint optimisations of generation and transmission for European highly renewable scenarios](https://arxiv.org/abs/1705.07617), 2017, [arXiv:1705.07617](https://arxiv.org/abs/1705.07617), [doi:10.1109/EEM.2017.7982024](https://doi.org/10.1109/EEM.2017.7982024).
+
+
 Simplify Network
 ================
 

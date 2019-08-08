@@ -82,3 +82,10 @@ Not all data dependencies are shipped with the git repository, since git is not 
 .. code:: bash
 
     .../pypsa-eur % rm -rf data/pypsa-eur-data-bundle.tar.xz pypsa-eur-cutouts.tar.xz
+
+Install a Solver
+================
+
+Default choice for the solver is Gurobi (freely available under academic license) or CPLEX. If you want to go fully opensource the CBC solver (https://projects.coin-or.org/Cbc) can be used. To install CBC run ::
+
+    conda install -c conda-forge coincbc

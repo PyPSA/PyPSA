@@ -2,7 +2,7 @@
 Configuration
 ##########################################
 
-by changing the default configuration in ``config.yaml``.
+PyPSA-Eur has several configuration options which are documented in this section and are collected in a ``config.yaml`` file located in the root directory. Users can amend their own modifications and assumptions by changing the default configuration provided in the configuration file (``config.yaml``).
 
 Top-level configuration
 =======================
@@ -29,7 +29,7 @@ Wildcards and ``scenario``
    :widths: 25,7,22,30
    :file: configtables/scenario.csv
    
-
+.. image:: img/scenarios.png
 
 ``snapshots``
 =============
@@ -155,6 +155,9 @@ Arguments to `pandas.date_range <https://pandas.pydata.org/pandas-docs/stable/re
    :header-rows: 1
    :widths: 25,7,22,30
    :file: configtables/costs.csv
+
+.. note::
+    To change cost assumptions in more detail (i.e. other than ``marginal_cost`` and ``capital_cost``), consider modifying cost assumptions directly in ``data/costs.csv`` as this is not yet supported through the config file.
 
 ``solving``
 =============
