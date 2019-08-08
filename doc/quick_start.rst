@@ -24,28 +24,33 @@ This example is downloadable at `http://www.pypsa.org/examples/
     network = pypsa.Network()
 
     #add three buses
-    for i in range(3):
-        network.add("Bus","My bus {}".format(i))
+    n_buses = 3
+
+    for i in range(n_buses):
+        network.add("Bus","My bus {}".format(i),
+	            v_nom=20.)
 
     print(network.buses)
 
     #add three lines in a ring
-    for i in range(3):
+    for i in range(n_buses):
         network.add("Line","My line {}".format(i),
 	            bus0="My bus {}".format(i),
 		    bus1="My bus {}".format((i+1)%3),
-		    x=0.0001)
+		    x=0.1,
+		    r=0.01)
 
     print(network.lines)
 
     #add a generator at bus 0
     network.add("Generator","My gen",
                 bus="My bus 0",
-		p_set=100)
+		p_set=100,
+		control="PQ")
 
     print(network.generators)
 
-    print(network.generators_t.p_set)
+    print(network.generators.p_set)
 
     #add a load at bus 1
     network.add("Load","My load",
@@ -54,7 +59,9 @@ This example is downloadable at `http://www.pypsa.org/examples/
 
     print(network.loads)
 
-    print(network.loads_t.p_set)
+    print(network.loads.p_set)
+
+    network.loads.q_set = 100.
 
     #Do a Newton-Raphson power flow
     network.pf()
@@ -63,7 +70,7 @@ This example is downloadable at `http://www.pypsa.org/examples/
 
     print(network.buses_t.v_ang*180/np.pi)
 
-
+    print(network.buses_t.v_mag_pu)
 
 Build a minimal network for optimal power flow
 ==============================================
