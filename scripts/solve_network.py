@@ -1,3 +1,7 @@
+"""
+Solve networks iteratively linear optimal power flow, while updating reactances
+"""
+
 import numpy as np
 import pandas as pd
 import logging

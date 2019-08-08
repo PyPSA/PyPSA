@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+Create networks clustered to `cluster` number of zones with aggregated buses, generators and transmission corridors
+"""
 
 import pandas as pd
 idx = pd.IndexSlice
@@ -243,5 +246,3 @@ if __name__ == "__main__":
             store.put(attr, getattr(clustering, attr), format="table", index=False)
 
     cluster_regions((clustering.busmap,))
-
-

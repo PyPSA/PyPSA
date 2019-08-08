@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+Creates the network topology from ENTSO-E map extracts as a PyPSA network
+"""
 
 import yaml
 import pandas as pd

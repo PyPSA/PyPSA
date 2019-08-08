@@ -1,4 +1,79 @@
 #!/usr/bin/env python
+"""
+Summary
+-------
+The script ``build_renewable_profiles.py`` calculates for each node several geographical properties:
+
+  1. the installable capacity (based on land-use)
+  2. the available generation time series (based on weather data) and
+  3. the average distance from the node for onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar PV generators.
+  4. In addition for offshore wind it calculates the fraction of the grid connection which is under water.
+
+.. note:: Hydroelectric profiles are built in script :mod:`build_hydro_profiles`.
+
+Relevant settings
+-----------------
+
+config.renewable (describes the parameters for onwind, offwind-ac, offwind-dc
+and solar)
+config.snapshots (describes the time dimensions of the selection of snapshots)
+
+Inputs
+------
+
+base_network
+land-use shapes
+region shapes for onshore, offshore and countries
+cutout
+
+Outputs
+-------
+
+profile_{tech}.nc for tech in [onwind,offwind-ac,offwind-dc,solar]
+
+profile_{tech}.nc contains five common fields:
+
+profile (bus x time) - the per unit hourly availability factors for each node
+weight (bus) - the sum of the layout weighting for each node
+p_nom_max (bus) - the maximal installable capacity at the node (in MW)
+potential (y,x) - the layout of generator units at cutout grid cells inside the
+voronoi cell (maximal installable capacity at each grid cell multiplied by the
+capacity factor)
+average_distance (bus) - the average distance of units in the voronoi cell to
+the grid node (in km)
+
+for offshore we also have:
+
+underwater_fraction (bus) - the fraction of the average connection distance
+which is under water
+
+Long description:
+
+First the script computes how much of the technology can be installed at each
+cutout grid cell and each node using the library `GLAES
+<https://github.com/FZJ-IEK3-VSA/glaes>`_. This uses the CORINE land use data,
+Natura2000 nature reserves and GEBCO for bathymetry.
+
+To compute the layout of generators in each node's voronoi cell, the installable
+potential in each grid cell is multiplied with the capacity factor at each grid
+cell (since we assume more generators are installed at cells with a higher
+capacity factor).
+
+This layout is then used to compute the generation availability time series from
+the atlite cutout.
+
+Two methods are available to compute the maximal installable potential for the
+node (`p_nom_max`): `simple` and `conservative`:
+
+`simple` adds up the installable potentials of the individual grid cells (if the
+model comes close to this limit, then the time series may slightly overestimate
+production since we assumed the geographical distribution is proportional to
+capacity factor).
+
+`conservative` assertains the nodal limit by increasing capacities proportional
+to the layout until the limit of an individual grid cell is reached.
+
+"""
 
 import matplotlib.pyplot as plt
 

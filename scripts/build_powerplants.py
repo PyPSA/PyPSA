@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+Get conventional powerplants from `powerplantmatching`, assign to buses and create csv file
+"""
 
 import logging
 import numpy as np

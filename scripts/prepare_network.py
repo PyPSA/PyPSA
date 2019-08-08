@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+Prepare PyPSA network for solving according to `opts`-wildcard
+"""
 
 import logging
 logger = logging.getLogger(__name__)

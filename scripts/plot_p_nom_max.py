@@ -1,3 +1,7 @@
+"""
+Plot renewable installation potentials per capacity factor
+"""
+
 import pypsa
 import pandas as pd
 import matplotlib.pyplot as plt

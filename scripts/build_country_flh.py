@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Create csv files and plots for comparing per country full load hours of renewable time-series
+"""
 
 import os
 import atlite

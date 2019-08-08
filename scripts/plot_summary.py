@@ -1,3 +1,7 @@
+"""
+Plot energy and cost summaries for several solved networks
+"""
+
 import os
 import pandas as pd
 import matplotlib.pyplot as plt

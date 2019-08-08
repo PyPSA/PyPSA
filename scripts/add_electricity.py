@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+Adds electrical generators and storage units to base network
+"""
 
 import logging
 logger = logging.getLogger(__name__)

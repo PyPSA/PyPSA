@@ -1,14 +1,5 @@
 """
-Test module description
-
-Examples
---------
-Test example
-`Example <http://www.example.com>`_
-
-:ref:`Installation <installation>`
-
-``code``
+Create summaries of aggregated energy and costs as csv files
 """
 
 import os

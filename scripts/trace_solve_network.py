@@ -1,3 +1,8 @@
+"""
+Iteratively solves expansion problem like solve_network, but additionally
+records intermediate branch capacity steps and values of the objective
+"""
+
 import numpy as np
 import pandas as pd
 import logging

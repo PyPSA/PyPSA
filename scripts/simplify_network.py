@@ -1,4 +1,8 @@
 # coding: utf-8
+"""Bring electrical transmission network to a single 380kV voltage layer,
+remove network dead-ends, and reduce multi-hop linear HVDC connections to a
+single link
+"""
 
 import pandas as pd
 idx = pd.IndexSlice

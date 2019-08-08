@@ -1,3 +1,14 @@
+"""
+Plot map with pie charts and cost box plots
+"""
+
+# Dirty work-around so that sphinx can import this module and get the
+# doc-string should be refactored in the style of the other scripts, ideally
+# several functions for the different plots
+if __name__ != "__main__":
+    import sys
+    sys.exit(0)
+
 if 'snakemake' not in globals():
     from vresutils.snakemake import MockSnakemake, Dict
     from snakemake.rules import expand

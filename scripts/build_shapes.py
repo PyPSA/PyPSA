@@ -1,3 +1,7 @@
+"""
+Create GIS shape files for countries on-shore and off-shore, europe and nuts3 regions
+"""
+
 import os
 import numpy as np
 from operator import attrgetter
