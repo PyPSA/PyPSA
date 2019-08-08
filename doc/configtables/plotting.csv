@@ -1,6 +1,6 @@
 ,Unit,Values,Description
-map,--,{'E'},TODO
--- figsize,--,E,TODO
+map,,,
+-- figsize,--,"[width, height]; e.g. [7, 7]","Figure size in inches."
 -- boundaries,--,E,TODO
 -- p_nom,--,E,TODO
 -- -- bus_size_factor,--,E,TODO
