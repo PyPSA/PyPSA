@@ -1073,9 +1073,9 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     for i in to_replace.index:
         network.remove("Bus",i)
 
-        for c in network.iterate_components({"Load","Generator"}):
-            c.df.bus.replace(to_replace,inplace=True)
+    for c in network.iterate_components({"Load","Generator"}):
+        c.df.bus.replace(to_replace,inplace=True)
 
-        for c in network.iterate_components({"Line","Transformer"}):
-            c.df.bus0.replace(to_replace,inplace=True)
-            c.df.bus1.replace(to_replace,inplace=True)
+    for c in network.iterate_components({"Line","Transformer"}):
+        c.df.bus0.replace(to_replace,inplace=True)
+        c.df.bus1.replace(to_replace,inplace=True)
