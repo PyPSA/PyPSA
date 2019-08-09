@@ -1,34 +1,33 @@
 name: pypsa-eur-docs
 channels:
   - conda-forge
-  - bioconda
+  #- bioconda
 dependencies:
-  #- python
+  - python
   - pip
-
   - pypsa>=0.14
 
   # Dependencies of the workflow itself
-  - xlrd
-  - scikit-learn
+  #- xlrd
+  #- scikit-learn
   - pycountry
   - seaborn
-  - snakemake-minimal
+  #- snakemake-minimal
   - memory_profiler
 
   # Second order dependencies which should really be deps of atlite
   - xarray
-  - bottleneck
-  - toolz
-  - dask
+  #- bottleneck
+  #- toolz
+  #- dask
   - progressbar2
 
   # Include ipython so that one does not inadvertently drop out of the conda
   # environment by calling ipython
-  - ipython
+  # - ipython
 
   # GIS dependencies have to come all from conda-forge
-  #- conda-forge::cartopy
+  - conda-forge::cartopy
   - conda-forge::fiona
   - conda-forge::pyproj
   - conda-forge::pyshp
@@ -44,5 +43,5 @@ dependencies:
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     - git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
-    #- sphinx
-    #- sphinx_rtd_theme
+    - sphinx
+    - sphinx_rtd_theme
