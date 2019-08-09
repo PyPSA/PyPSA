@@ -39,11 +39,10 @@ dependencies:
 
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    - .
-    - sphinx
-    - sphinx_rtd_theme
     - vresutils>=0.2.5
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    #- git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
+    - git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
+    - sphinx
+    - sphinx_rtd_theme
