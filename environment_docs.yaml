@@ -3,7 +3,7 @@ channels:
   - conda-forge
   #- bioconda
 dependencies:
-  - python
+  #- python
   - pip
   - pypsa>=0.14
 
