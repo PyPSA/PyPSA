@@ -1,9 +1,9 @@
-name: pypsa-eur
+name: pypsa-eur-docs
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python
+  #- python
   - pip
 
   - pypsa>=0.14
@@ -28,7 +28,7 @@ dependencies:
   - ipython
 
   # GIS dependencies have to come all from conda-forge
-  - conda-forge::cartopy
+  #- conda-forge::cartopy
   - conda-forge::fiona
   - conda-forge::pyproj
   - conda-forge::pyshp
@@ -44,5 +44,5 @@ dependencies:
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     - git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
-    - sphinx
-    - sphinx_rtd_theme
+    #- sphinx
+    #- sphinx_rtd_theme
