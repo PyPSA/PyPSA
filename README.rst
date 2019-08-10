@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi|
+|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter|
 
 -----
 
@@ -277,3 +277,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |badge_conda| image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg
     :target: https://anaconda.org/conda-forge/pypsa
     :alt: Conda version
+    
+.. |gitter| image:: https://badges.gitter.im/PyPSA/community.svg
+    :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
+    :alt: Chat on Gitter
