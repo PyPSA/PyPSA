@@ -2,30 +2,36 @@
 Preparing Networks
 ##########################################
 
-In detail this means it has to run the independent scripts,
-- `build_shapes` to generate GeoJSON files with country, exclusive economic zones and nuts3 shapes
-- `build_cutout` to prepare smaller weather data portions from ERA5 for cutout `europe-2013-era5` and SARAH for cutout `europe-2013-sarah`.
+The preparation process of the PyPSA-Eur energy system model consists of a group of ``snakemake`` rules which are briefly outlined and explained in detail in the sections below:
 
-With these and the externally extracted `ENTSO-E online map topology`, it can build the PyPSA basis model
-- `base_network` stored at `networks/base.nc` with all `buses`, HVAC `lines` and HVDC `links`, and in
-- `build_bus_regions` determine the Voronoi cell of each substation.
+- ``build_shapes`` to generate GeoJSON files with shapes of the countries, exclusive economic zones and `NUTS3 <https://en.wikipedia.org/wiki/Nomenclature_of_Territorial_Units_for_Statistics>`_ areas.
+- ``build_cutout`` to prepare smaller weather data portions from `ERA5 <https://www.ecmwf.int/en/forecasts/datasets/reanalysis-datasets/era5>`_ for cutout ``europe-2013-era5`` and SARAH for cutout ``europe-2013-sarah``.
 
-Then it hands these over to the scripts for generating renewable and hydro feedin data,
-- `build_hydro_profile` for the hourly hydro energy availability,
-- `build_renewable_potentials` for the landuse/natura2000 constrained installation potentials for PV and wind,
-- `build_renewable_profiles` for the PV and wind hourly capacity factors in each Voronoi cell.
-- `build_powerplants` uses [powerplantmatching](https://github.com/FRESNA/powerplantmatching) to determine today's thermal power plant capacities and then locates the closest substation for each powerplant.
+With these and the externally extracted ENTSO-E online map topology (``data/entsoegridkit``), it can build a base ``PyPSA`` network with the following rules:
 
-The central rule `add_electricity` then ties all the different data inputs together to a detailed PyPSA model stored in `networks/elec.nc`, containing:
+- ``base_network`` builds and stores the base network with all buses, HVAC lines and HVDC links, while
+- ``build_bus_regions`` determines `Voronoi cells <https://en.wikipedia.org/wiki/Voronoi_diagram>`_ for all substations.
 
-- Today's transmission topology and capacities (optionally including lines which are under construction according to the config settings `lines: under_construction` and `links: under_construction`)
-- Today's thermal and hydro generation capacities (for the technologies listed in the config setting `electricity: conventional_carriers`)
-- Today's load time-series (upsampled according to population and gross domestic product)
+Then the process continues by calculating conventional power plant capacities, potentials, and per-unit availability time series for variable renewable energy carriers and hydro power plants with the following rules:
 
-It further adds extendable `generators` and `storage_units` with *zero* capacity for
-- wind and pv installations with today's locational, hourly wind and solar pv capacity factors (but **no** capacities)
-- long-term hydrogen and short-term battery storage units (if listed in `electricity: extendable_carriers`)
-- additional open-cycle gas turbines (if `OCGT` is listed in `electricity: extendable_carriers`)
+- ``build_powerplants`` for today's thermal power plant capacities using `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_ allocating these to the closest substation for each powerplant,
+- ``build_renewable_potentials`` for the installation potentials for solar panels, onshore and offshore wind turbines constrained by landuse restrictions and natural protection areas,
+- ``build_renewable_profiles`` for the hourly capacity factors in each substation's Voronoi cell for PV, onshore and offshore wind, and
+- ``build_hydro_profile`` for the hourly per-unit hydro power availability time series.
+
+The central rule ``add_electricity`` then ties all the different data inputs together into a detailed `PyPSA` network stored in ``networks/elec.nc`` containing
+
+.. todo:: probably move parts into ``add_electricity`` docstring
+
+- today's transmission topology and transfer capacities (optionally including lines which are under construction according to the config settings ``lines: under_construction`` and ``links: under_construction``),
+- today's thermal and hydro power generation capacities (for the technologies listed in the config setting ``electricity: conventional_carriers``), and
+- today's load time-series (upsampled in a top-down approach according to population and gross domestic product)
+
+It further adds extendable ``generators`` and ``storage_units`` with **zero** capacity for
+
+- photovoltaic, onshore and offshore wind installations with today's locational, hourly wind and solar pv capacity factors (but **no** current capacities)
+- long-term hydrogen and short-term battery storage units (if listed in the config setting ``electricity: extendable_carriers``)
+- additional open- and combined-cycle gas turbines (if ``OCGT`` and/or ``CCGT`` is listed in the config setting ``electricity: extendable_carriers``)
 
 .. each rule description should have a list of parameters
 .. from the config.yaml that affect this rule.

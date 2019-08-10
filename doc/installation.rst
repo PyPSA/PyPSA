@@ -4,7 +4,7 @@
 Installation
 ##########################################
 
-TODO: install via bash installation script
+.. todo:: install instructions via bash installation script
 
 .. note:: 
     The steps are demonstrated as shell commands, where the path before the ``%`` sign denotes the
@@ -30,7 +30,7 @@ Clone the PyPSA-Eur repository using ``git``
 Install Python Dependencies
 ===============================
 
-TODO: conda link
+.. todo:: conda explanation
 
 The python package requirements are curated in the conda `environment.yaml <https://github.com/PyPSA/pypsa-eur/blob/master/environment.yaml>`_ file.
 The environment can be installed and activated using

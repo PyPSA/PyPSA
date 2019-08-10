@@ -48,6 +48,7 @@ underwater_fraction (bus) - the fraction of the average connection distance
 which is under water
 
 Long description:
+-----------------
 
 First the script computes how much of the technology can be installed at each
 cutout grid cell and each node using the library `GLAES

@@ -34,7 +34,7 @@ For the use of ``snakemake``, it makes sense to familiarize oneself quickly with
 Modification
 ============
 
-TODO: wildcards modification
+.. todo:: wildcards modification
 
 The model has several configuration options collected in the ``config.yaml`` file
 located in the root directory.

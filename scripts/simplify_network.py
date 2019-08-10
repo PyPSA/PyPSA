@@ -2,6 +2,16 @@
 """Bring electrical transmission network to a single 380kV voltage layer,
 remove network dead-ends, and reduce multi-hop linear HVDC connections to a
 single link
+
+The rule simplify_network does up to four things:
+
+1. Create an equivalent transmission network in which all voltage levels are mapped to the 380 kV level by the function ``simplify_network(...)``.
+
+2. DC only sub-networks that are connected at only two buses to the AC network are reduced to a single representative link by the function ``simplify_links(...)``. The components attached to buses in between are moved to the nearest endpoint. The grid connection cost of offshore wind generators are added to the captial costs of the generator.
+
+3. Stub lines and links, i.e. dead-ends of the network, are sequentially removed from the network by the function ``remove_stubs(...)``. Components are moved along.
+
+4. If a number was provided after the s (as in elec_s500_...), the network is clustered to this number of clusters with the routines from the cluster_network rule by the function cluster. This step is usually skipped.
 """
 
 import pandas as pd
