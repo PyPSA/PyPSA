@@ -26,7 +26,11 @@ PyPSA: Python for Power System Analysis
     :target: License
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-   :target: https://doi.org/10.5281/zenodo.786605
+    :target: https://doi.org/10.5281/zenodo.786605
+   
+.. image:: https://badges.gitter.im/PyPSA/community.svg
+    :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
+    :alt: Chat on Gitter
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
