@@ -12,6 +12,31 @@ The script ``build_renewable_profiles.py`` calculates for each node several geog
 Relevant settings
 -----------------
 
+.. code:: yaml
+
+    snapshots:
+
+    atlite:
+        nprocesses:
+
+    renewable:
+        {technology}:
+            cutout:
+            corine:
+            grid_codes:
+            distance:
+            natura:
+            max_depth:
+            max_shore_distance:
+            min_shore_distance:
+            capacity_per_sqkm:
+            correction_factor:
+            potential:
+            min_p_max_pu:
+            clip_p_max_pu:
+            resource:
+
+
 config.renewable (describes the parameters for onwind, offwind-ac, offwind-dc
 and solar)
 config.snapshots (describes the time dimensions of the selection of snapshots)

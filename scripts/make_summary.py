@@ -4,6 +4,17 @@ Create summaries of aggregated energy and costs as csv files
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    costs:
+        USD2013_to_EUR2013:
+        discountrate:
+        marginal_cost:
+        capital_cost:
+
+    electricity:
+        max_hours:
+
 Inputs
 ------
 

@@ -5,6 +5,8 @@ Extract capacities for HVDC links from wikipedia
 Relevant Settings
 -----------------
 
+*None*
+
 Inputs
 ------
 

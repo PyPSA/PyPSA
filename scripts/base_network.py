@@ -5,6 +5,30 @@ Creates the network topology from ENTSO-E map extracts as a PyPSA network
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    snapshots:
+
+    countries:
+
+    electricity:
+        voltages:
+
+    lines:
+        types:
+        s_max_pu:
+        under_construction:
+        
+    links:
+        p_max_pu:
+        under_construction:
+        include_tyndp:
+        
+    transformers:
+        x:
+        s_nom:
+        type:
+        
 Inputs
 ------
 

@@ -4,6 +4,10 @@ Create GIS shape files for countries on-shore and off-shore, europe and nuts3 re
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    countries:
+
 Inputs
 ------
 

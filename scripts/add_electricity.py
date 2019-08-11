@@ -5,6 +5,37 @@ Adds electrical generators and storage units to base network
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    costs:
+        year:
+        USD2013_to_EUR2013:
+        dicountrate:
+        emission_prices:
+
+    electricity:
+        max_hours:
+        marginal_cost:
+        capital_cost:
+        conventional_carriers:
+        co2limit:
+        extendable_carriers:
+            Generator:
+            StorageUnit:
+        estimate_renewable_capacities_from_capacity_stats:
+
+    load:
+        scaling_factor:
+
+    renewable: (keys)
+        hydro:
+            carriers:
+            hydro_max_hours:
+            hydro_capital_cost:
+
+    lines:
+        length_factor:
+
 Inputs
 ------
 

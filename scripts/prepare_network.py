@@ -5,6 +5,19 @@ Prepare PyPSA network for solving according to `opts`-wildcard
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    costs:
+        emission_prices:
+        USD2013_to_EUR2013:
+        discountrate:
+        marginal_cost:
+        capital_cost:
+
+    electricity:
+        co2limit:
+        max_hours:
+
 Inputs
 ------
 

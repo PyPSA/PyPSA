@@ -4,6 +4,13 @@ Create cutouts configured in `atlite` config section
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    atlite:
+        nprocesses:
+        cutouts:
+            {cutout}:
+
 Inputs
 ------
 

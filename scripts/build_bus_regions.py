@@ -4,6 +4,11 @@ Creates onshore and offshore Voronoi shapes for each bus
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    countries:
+
+
 Inputs
 ------
 

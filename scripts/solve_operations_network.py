@@ -5,6 +5,22 @@ capacity expansion
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    solving:
+        tmpdir:
+        options:
+            formulation:
+            clip_p_max_pu:
+            load_shedding:
+            noisy_costs:
+            nhours:
+            min_iterations:
+            max_iterations:
+        solver:
+            name:
+            {solveroptions}:
+
 Inputs
 ------
 

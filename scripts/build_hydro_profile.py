@@ -5,6 +5,15 @@ Build hydroelectric inflow time-series for each country
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    countries:
+
+    renewable:
+        hydro:
+            cutout:
+            clip_min_inflow:
+
 Inputs
 ------
 

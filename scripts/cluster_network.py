@@ -5,6 +5,19 @@ Create networks clustered to `cluster` number of zones with aggregated buses, ge
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    renewable: (keys)
+        {technology}:
+            potential:
+
+    solving:
+        solver:
+            name:
+
+    lines:
+        length_factor:
+
 Inputs
 ------
 
@@ -103,7 +116,7 @@ def plot_weighting(n, country, country_shape=None):
 
 def distribute_clusters(n, n_clusters, solver_name=None):
     if solver_name is None:
-        solver_name = snakemake.config['solver']['solver']['name']
+        solver_name = snakemake.config['solving']['solver']['name']
 
     L = (n.loads_t.p_set.mean()
          .groupby(n.loads.bus).sum()

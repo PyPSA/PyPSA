@@ -5,6 +5,16 @@ Create csv files and plots for comparing per country full load hours of renewabl
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    snapshots:
+
+    renewable:
+        {technology}:
+            cutout:
+            resource:
+            correction_factor:
+
 Inputs
 ------
 

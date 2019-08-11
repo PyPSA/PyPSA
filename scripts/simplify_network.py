@@ -6,6 +6,31 @@ single link
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    costs:
+        USD2013_to_EUR2013:
+        discountrate:
+        marginal_cost:
+        capital_cost:
+
+    electricity:
+        max_hours:
+
+    renewables: (keys)
+        {technology}:
+            potential:
+
+    lines:
+        length_factor:
+
+    links:
+        p_max_pu:
+
+    solving:
+        solver:
+            name:
+
 Inputs
 ------
 

@@ -4,6 +4,29 @@ Solve networks iteratively linear optimal power flow, while updating reactances
 Relevant Settings
 -----------------
 
+.. code:: yaml
+
+    (electricity:)
+        (BAU_mincapacities:)
+        (SAFE_reservemargin:)
+
+    solving:
+        tmpdir:
+        options:
+            formulation:
+            clip_p_max_pu:
+            load_shedding:
+            noisy_costs:
+            nhours:
+            min_iterations:
+            max_iterations:
+        solver:
+            name:
+            {solveroptions}:
+
+    (plotting:)
+        (conv_techs:)
+
 Inputs
 ------
 

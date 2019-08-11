@@ -5,6 +5,8 @@ Get conventional powerplants from `powerplantmatching`, assign to buses and crea
 Relevant Settings
 -----------------
 
+*None*
+
 Inputs
 ------
 
