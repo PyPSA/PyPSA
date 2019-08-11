@@ -41,8 +41,7 @@ Documentation
 
 * :doc:`introduction`
 * :doc:`installation`
-* :doc:`wildcards`
-* :doc:`configuration`
+* :doc:`examples`
 
 .. toctree::
    :hidden:
@@ -51,6 +50,18 @@ Documentation
 
    introduction
    installation
+   examples
+
+**Configuration**
+
+* :doc:`wildcards`
+* :doc:`configuration`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: Configuration
+
    wildcards
    configuration
 
@@ -115,6 +126,11 @@ This can be found linked from the overall PyPSA-Eur Zenodo DOI:
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg
    :target: https://doi.org/10.5281/zenodo.1246852
+
+Publications using/citing PyPSA-Eur
+===================================
+
+.. bibliography:: references.bib
 
 Licence
 =======
