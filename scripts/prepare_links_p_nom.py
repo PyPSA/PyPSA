@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 """
 Extract capacities for HVDC links from wikipedia
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import pandas as pd

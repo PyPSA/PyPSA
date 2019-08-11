@@ -1,6 +1,19 @@
 # coding: utf-8
 """
 Adds electrical generators and storage units to base network
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import logging

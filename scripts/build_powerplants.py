@@ -1,6 +1,19 @@
 # coding: utf-8
 """
 Get conventional powerplants from `powerplantmatching`, assign to buses and create csv file
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import logging

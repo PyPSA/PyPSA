@@ -1,6 +1,19 @@
 # coding: utf-8
 """
 Creates the network topology from ENTSO-E map extracts as a PyPSA network
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import yaml

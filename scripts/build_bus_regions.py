@@ -1,5 +1,18 @@
 """
 Creates onshore and offshore Voronoi shapes for each bus
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import os

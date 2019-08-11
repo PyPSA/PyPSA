@@ -3,6 +3,18 @@
 remove network dead-ends, and reduce multi-hop linear HVDC connections to a
 single link
 
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 The rule simplify_network does up to four things:
 
 1. Create an equivalent transmission network in which all voltage levels are mapped to the 380 kV level by the function ``simplify_network(...)``.

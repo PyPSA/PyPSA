@@ -2,8 +2,17 @@
 """
 Create networks clustered to `cluster` number of zones with aggregated buses, generators and transmission corridors
 
-Summary
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
 -------
+
+Description
+-----------
 
 The rule cluster_network instead clusters the network to a given number of buses.
 

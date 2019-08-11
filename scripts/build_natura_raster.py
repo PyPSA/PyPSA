@@ -1,5 +1,18 @@
 """
 Rasters the vector data of the NATURA2000 data onto all cutout regions
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import numpy as np

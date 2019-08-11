@@ -1,5 +1,18 @@
 """
 Plot renewable installation potentials per capacity factor
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import pypsa

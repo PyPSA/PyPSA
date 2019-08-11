@@ -1,5 +1,18 @@
 """
 Plot map with pie charts and cost box plots
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 # Dirty work-around so that sphinx can import this module and get the

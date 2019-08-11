@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 """
 Create csv files and plots for comparing per country full load hours of renewable time-series
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import os

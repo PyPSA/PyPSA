@@ -1,6 +1,19 @@
 # coding: utf-8
 """
 Prepare PyPSA network for solving according to `opts`-wildcard
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import logging

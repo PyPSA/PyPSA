@@ -1,6 +1,19 @@
 """
 Iteratively solves expansion problem like solve_network, but additionally
 records intermediate branch capacity steps and values of the objective
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import numpy as np

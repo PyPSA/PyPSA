@@ -2,9 +2,20 @@
 """
 Build hydroelectric inflow time-series for each country
 
-See also
---------
-build_renewable_profiles
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
+.. seealso::
+    build_renewable_profiles
 """
 
 import os

@@ -1,5 +1,18 @@
 """
 Create GIS shape files for countries on-shore and off-shore, europe and nuts3 regions
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import os

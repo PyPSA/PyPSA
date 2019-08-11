@@ -1,5 +1,18 @@
 """
 Create cutouts configured in `atlite` config section
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 import os
 import atlite

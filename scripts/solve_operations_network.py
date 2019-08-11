@@ -1,6 +1,19 @@
 """
 Solve linear optimal dispatch in hourly resolution with capacities of previous
 capacity expansion
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import pypsa

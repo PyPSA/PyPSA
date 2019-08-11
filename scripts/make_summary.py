@@ -1,5 +1,18 @@
 """
 Create summaries of aggregated energy and costs as csv files
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import os

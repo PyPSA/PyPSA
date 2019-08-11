@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 """
-Summary
--------
 The script ``build_renewable_profiles.py`` calculates for each node several geographical properties:
 
   1. the installable capacity (based on land-use)
@@ -47,7 +45,7 @@ for offshore we also have:
 underwater_fraction (bus) - the fraction of the average connection distance
 which is under water
 
-Long description:
+Description:
 -----------------
 
 First the script computes how much of the technology can be installed at each

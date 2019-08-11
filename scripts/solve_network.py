@@ -1,5 +1,18 @@
 """
 Solve networks iteratively linear optimal power flow, while updating reactances
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import numpy as np
