@@ -14,15 +14,21 @@ The simplification and clustering steps are described in detail in the paper
 
 .. bibliography:: references.bib
 
+.. _simplify:
+
 Simplify Network
 ================
 
 .. automodule:: simplify_network
 
+.. _cluster:
+
 Cluster Network
 ===============
 
 .. automodule:: cluster_network
+
+.. _prepare:
 
 Prepare Network
 ===============

@@ -39,6 +39,9 @@ Modification
 The model has several configuration options collected in the ``config.yaml`` file
 located in the root directory.
 
+Folder Structure
+================
+
 System Requirements
 ===================
 

@@ -1,6 +1,6 @@
 """
-Iteratively solves expansion problem like solve_network, but additionally
-records intermediate branch capacity steps and values of the objective
+Iteratively solves expansion problem like the rule ``solve_network``, but additionally
+records intermediate branch capacity steps and values of the objective function.
 
 Relevant Settings
 -----------------
@@ -24,8 +24,13 @@ Relevant Settings
 Inputs
 ------
 
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+
 Outputs
 -------
+
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_trace.nc``:
+- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_python_trace.log``:
 
 Description
 -----------

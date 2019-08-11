@@ -10,5 +10,5 @@ capacity_per_sqkm,:math:`MW/km^2`,float,"Allowable density of solar panel placem
 correction_factor,--,float,"A correction factor for the capacity factor (availability) time series."
 corine,--,"Any subset of the `CORINE Land Cover code list <http://www.eea.europa.eu/data-and-maps/data/corine-land-cover-2006-raster-1/corine-land-cover-classes-and/clc_legend.csv/at_download/file>`_","Specifies areas according to CORINE Land Cover codes which are generally eligible for solar panel placement."
 natura,bool,"{true, false}","Switch to exclude `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas. Area is excluded if ``true``."
-potential,--,"One of {'simple', 'conservative'}",TODO
+potential,--,"One of {'simple', 'conservative'}","Method to compute the maximal installable potential for a node; confer :ref:`renewableprofiles`"
 clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."

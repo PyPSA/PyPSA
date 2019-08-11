@@ -1,5 +1,5 @@
 """
-Rasters the vector data of the NATURA2000 data onto all cutout regions
+Rasters the vector data of the `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas onto all cutout regions.
 
 Relevant Settings
 -----------------
@@ -13,8 +13,18 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/bundle/natura/Natura2000_end2015.shp``:
+
+    .. image:: img/natura.png
+        :scale: 33 %
+
 Outputs
 -------
+
+- ``resources/natura.tiff``:
+
+    .. image:: img/natura.png
+        :scale: 33 %
 
 Description
 -----------

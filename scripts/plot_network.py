@@ -1,5 +1,5 @@
 """
-Plot map with pie charts and cost box plots
+Plots map with pie charts and cost box bar charts.
 
 Relevant Settings
 -----------------

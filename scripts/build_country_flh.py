@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Create csv files and plots for comparing per country full load hours of renewable time-series
+Create ``.csv`` files and plots for comparing per country full load hours of renewable time series.
 
 Relevant Settings
 -----------------
@@ -18,8 +18,29 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/bundle/corine/g250_clc06_V18_5.tif``:
+
+    .. image:: img/corine.png
+        :scale: 33 %
+
+- ``data/bundle/GEBCO_2014_2D.nc``:
+- ``data/pietzker2014.xlsx``: NOT IN DATA BUNDLE!
+- ``resources/natura.tiff``: confer :ref:`natura`
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``resources/regions_onshore.geojson``: (if not offshore wind), confer :ref:`busregions`
+- ``resources/regions_offshore.geojson``: (if offshore wind), :ref:`busregions`
+- ``"cutouts/" + config["renewable"][{technology}]['cutout']``: :ref:`cutout`
+- ``networks/base.nc``: :ref:`base`
+
 Outputs
 -------
+
+- ``resources/country_flh_area_{technology}.csv``:
+- ``resources/country_flh_aggregated_{technology}.csv``:
+- ``resources/country_flh_uncorrected_{technology}.csv``:
+- ``resources/country_flh_{technology}.pdf``:
+- ``resources/country_exclusion_{technology}``:
 
 Description
 -----------

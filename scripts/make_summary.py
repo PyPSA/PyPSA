@@ -1,5 +1,5 @@
 """
-Create summaries of aggregated energy and costs as csv files
+Creates summaries of aggregated energy and costs as ``.csv`` files.
 
 Relevant Settings
 -----------------

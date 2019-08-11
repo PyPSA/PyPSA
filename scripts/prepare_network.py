@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Prepare PyPSA network for solving according to `opts`-wildcard
+Prepare PyPSA network for solving according to ``{opts}`` wildcard.
 
 Relevant Settings
 -----------------
@@ -21,11 +21,21 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/costs.csv``:
+- ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
+
 Outputs
 -------
 
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``:
+
 Description
 -----------
+
+.. tip::
+    The rule ``prepare_all_networks`` runs
+    for all ``scenario`` s in the configuration file
+    the rule ``prepare_network``.
 
 """
 

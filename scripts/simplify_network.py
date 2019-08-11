@@ -1,7 +1,8 @@
 # coding: utf-8
-"""Bring electrical transmission network to a single 380kV voltage layer,
-remove network dead-ends, and reduce multi-hop linear HVDC connections to a
-single link
+"""
+Lifts electrical transmission network to a single 380 kV voltage layer,
+removes dead-ends of the network,
+and reduces multi-hop HVDC connections to a single link.
 
 Relevant Settings
 -----------------
@@ -34,8 +35,21 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/costs.csv``:
+- ``resources/regions_onshore.geojson``: confer :ref:`busregions`
+- ``resources/regions_offshore.geojson``: confer :ref:`busregions`
+- ``networks/{network}.nc``: confer :ref:`electricity`
+
 Outputs
 -------
+
+- ``resources/regions_onshore_{network}_s{simpl}.geojson``:
+- ``resources/regions_offshore_{network}_s{simpl}.geojson``:
+- ``resources/clustermaps_{network}_s{simpl}.h5``:
+- ``networks/{network}_s{simpl}.nc``:
+
+    .. image:: img/elec_s.png
+        :scale: 33 %
 
 Description
 -----------

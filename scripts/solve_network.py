@@ -1,5 +1,5 @@
 """
-Solve networks iteratively linear optimal power flow, while updating reactances
+Solves linear optimal power flow for a network iteratively while updating reactances.
 
 Relevant Settings
 -----------------
@@ -30,11 +30,23 @@ Relevant Settings
 Inputs
 ------
 
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+
 Outputs
 -------
 
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``:
+- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_solver.log``:
+- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_python.log``:
+- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_memory.log``:
+
 Description
 -----------
+
+.. tip::
+    The rule ``solve_all_networks`` runs
+    for all ``scenario`` s in the configuration file 
+    the rule ``solve_network``.
 
 """
 

@@ -1,5 +1,5 @@
 """
-Create cutouts configured in `atlite` config section
+Create cutouts with `atlite <https://atlite.readthedocs.io/en/latest/>`_.
 
 Relevant Settings
 -----------------
@@ -14,8 +14,12 @@ Relevant Settings
 Inputs
 ------
 
+*None*
+
 Outputs
 -------
+
+- ``cutouts/{cutout}``:
 
 Description
 -----------

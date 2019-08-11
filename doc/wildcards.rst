@@ -13,6 +13,11 @@ The ``ll`` wildcard
 The ``clusters`` wildcard
 =========================
 
+.. warning::
+    The number of clusters must be lower than the total number of nodes
+    and higher than the number of countries. A country counts twice if
+    it has two asynchronous subnetworks (e.g. Denmark).
+
 The ``network`` wildcard
 ========================
 

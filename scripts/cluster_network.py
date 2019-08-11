@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Create networks clustered to `cluster` number of zones with aggregated buses, generators and transmission corridors
+Creates networks clustered to ``{cluster}`` number of zones with aggregated buses, generators and transmission corridors.
 
 Relevant Settings
 -----------------
@@ -21,8 +21,18 @@ Relevant Settings
 Inputs
 ------
 
+- ``resources/regions_onshore_{network}_s{simpl}.geojson``: confer :ref:`simplify`
+- ``resources/regions_offshore_{network}_s{simpl}.geojson``: confer :ref:`simplify`
+- ``resources/clustermaps_{network}_s{simpl}.h5``: confer :ref:`simplify`
+- ``networks/{network}_s{simpl}.nc``: confer :ref:`simplify`
+
 Outputs
 -------
+
+- ``resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson``:
+- ``resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson``:
+- ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``:
+- ``networks/{network}_s{simpl}_{clusters}.nc``:
 
 Description
 -----------
@@ -51,6 +61,11 @@ Why are you asking three times the same question?
     I tryed to run the snakemake without the s for simplification.
 
 No, the network clustering methods in PyPSA's networkclustering module don't work reliably with multiple voltage levels and transformers. If it is somehow necessary for you we could include switches to make Step 2 and 3 optional as well. But that's about it.
+
+.. tip::
+    The rule ``cluster_all_networks`` runs
+    for all ``scenario`` s in the configuration file 
+    the rule ``cluster_network``.
 
 """
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Build hydroelectric inflow time-series for each country
+Build hydroelectric inflow time-series for each country.
 
 Relevant Settings
 -----------------
@@ -17,8 +17,14 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/bundle/EIA_hydro_generation_2000_2014.csv``:
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``"cutouts/" + config["renewable"]['hydro']['cutout']``: confer :ref:`cutout`
+
 Outputs
 -------
+
+- ``resources/profile_hydro.nc``:
 
 Description
 -----------

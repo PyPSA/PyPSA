@@ -1,5 +1,5 @@
 """
-Plot renewable installation potentials per capacity factor
+Plots renewable installation potentials per capacity factor.
 
 Relevant Settings
 -----------------

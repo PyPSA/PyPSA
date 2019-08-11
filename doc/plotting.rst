@@ -2,6 +2,8 @@
 Plotting and Summary
 ##########################################
 
+.. _summary:
+
 Make Summary
 ============
 
@@ -27,10 +29,14 @@ Replacing '/summaries/' with '/plots/' creates nice colored maps of the results.
 
 .. automodule:: make_summary
 
+.. _summary_plot:
+
 Plot Summary
 ============
 
 .. automodule:: plot_summary
+
+.. _map_plot:
 
 Plot Network
 ============

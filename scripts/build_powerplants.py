@@ -1,17 +1,24 @@
 # coding: utf-8
 """
-Get conventional powerplants from `powerplantmatching`, assign to buses and create csv file
+Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file.
 
 Relevant Settings
 -----------------
 
-*None*
+.. code:: yaml
+
+    enable:
+        powerplantmatching:
 
 Inputs
 ------
 
+- ``networks/base.nc``: confer :ref:`base`.
+
 Outputs
 -------
+
+- ``resource/powerplants.csv``
 
 Description
 -----------

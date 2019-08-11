@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Creates the network topology from ENTSO-E map extracts as a PyPSA network
+Creates the network topology from the ENTSO-E map extracts as a PyPSA network.
 
 Relevant Settings
 -----------------
@@ -32,8 +32,21 @@ Relevant Settings
 Inputs
 ------
 
+- ``data/entsoegridkit``:
+- ``data/parameter_corrections.yaml``:
+- ``data/links_p_nom.csv``: confer :ref:`links`
+- ``data/links_tyndp.csv``:
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``resources/europe_shape.geojson``: confer :ref:`shapes`
+
 Outputs
 -------
+
+- ``networks/base.nc``
+
+    .. image:: img/base.png
+        :scale: 33 %
 
 Description
 -----------

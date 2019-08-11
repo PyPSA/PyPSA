@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """
-The script ``build_renewable_profiles.py`` calculates for each node several geographical properties:
+Calculates for each node several geographical properties:
 
-  1. the installable capacity (based on land-use)
-  2. the available generation time series (based on weather data) and
-  3. the average distance from the node for onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar PV generators.
-  4. In addition for offshore wind it calculates the fraction of the grid connection which is under water.
+  1. the installable capacity (based on land-use),
+  2. the available generation time series (based on weather data),
+  3. the average distance from the node for onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar PV generators, and
+  4. the fraction of the grid connection which is under water for offshore wind turbines.
 
 .. note:: Hydroelectric profiles are built in script :mod:`build_hydro_profiles`.
 
@@ -36,39 +36,33 @@ Relevant settings
             clip_p_max_pu:
             resource:
 
-
-config.renewable (describes the parameters for onwind, offwind-ac, offwind-dc
-and solar)
-config.snapshots (describes the time dimensions of the selection of snapshots)
-
 Inputs
 ------
 
-base_network
-land-use shapes
-region shapes for onshore, offshore and countries
-cutout
+- ``data/bundle/corine/g250_clc06_V18_5.tif``:
+- ``data/bundle/GEBCO_2014_2D.nc``:
+- ``resources/natura.tiff``: confer :ref:`natura`
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``resources/regions_onshore.geojson``: (if not offshore wind), confer :ref:`busregions`
+- ``resources/regions_offshore.geojson``: (if offshore wind), :ref:`busregions`
+- ``"cutouts/" + config["renewable"][{technology}]['cutout']``: :ref:`cutout`
+- ``networks/base.nc``: :ref:`base`
 
 Outputs
 -------
 
-profile_{tech}.nc for tech in [onwind,offwind-ac,offwind-dc,solar]
+- ``resources/profile_{technology}.nc``:
 
-profile_{tech}.nc contains five common fields:
+    The files have the fields *(dimensions)*:
 
-profile (bus x time) - the per unit hourly availability factors for each node
-weight (bus) - the sum of the layout weighting for each node
-p_nom_max (bus) - the maximal installable capacity at the node (in MW)
-potential (y,x) - the layout of generator units at cutout grid cells inside the
-voronoi cell (maximal installable capacity at each grid cell multiplied by the
-capacity factor)
-average_distance (bus) - the average distance of units in the voronoi cell to
-the grid node (in km)
+    - ``profile`` *(bus, time)*: the per unit hourly availability factors for each node
+    - ``weight`` *(bus)*: the sum of the layout weighting for each node
+    - ``p_nom_max`` *(bus)*: the maximal installable capacity at the node (in MW)
+    - ``potential`` *(y, x)*: the layout of generator units at cutout grid cells inside the voronoi cell (maximal installable capacity at each grid cell multiplied by the capacity factor)
+    - ``average_distance`` *(bus)*: the average distance of units in the voronoi cell to the grid node (in km)
 
-for offshore we also have:
-
-underwater_fraction (bus) - the fraction of the average connection distance
-which is under water
+    - ``underwater_fraction`` *(bus)* [offshore only]: the fraction of the average connection distance which is under water
 
 Description:
 -----------------

@@ -1,6 +1,6 @@
 """
-Solve linear optimal dispatch in hourly resolution with capacities of previous
-capacity expansion
+Solves linear optimal dispatch in hourly resolution
+using the capacities of previous capacity expansion in rule ``solve_network``.
 
 Relevant Settings
 -----------------
@@ -24,8 +24,16 @@ Relevant Settings
 Inputs
 ------
 
+- ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solver`
+
 Outputs
 -------
+
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op.nc``:
+- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_solver.log``:
+- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_python.log``:
+- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_memory.log``:
 
 Description
 -----------

@@ -1,20 +1,29 @@
 #!/usr/bin/env python
 """
-Extract capacities for HVDC links from wikipedia
+Extracts capacities of HVDC links from `Wikipedia <https://en.wikipedia.org/wiki/List_of_HVDC_projects>`_.
 
 Relevant Settings
 -----------------
 
-*None*
+.. code:: yaml
+
+    enable:
+        prepare_links_p_nom:
 
 Inputs
 ------
 
+*None*
+
 Outputs
 -------
 
+- ``data/links_p_nom.csv``: A plain download of https://en.wikipedia.org/wiki/List_of_HVDC_projects#Europe plus extracted coordinates.
+
 Description
 -----------
+
+*None*
 
 """
 
