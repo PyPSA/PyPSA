@@ -52,17 +52,31 @@ Description
 
     **Why is clustering used both in** ``simplify_network`` **and** ``cluster_network`` **?**
     
-        Consider for example a network ``networks/elec_s100_50.nc`` in which ``simplify_network`` clusters the network to 100 buses and in a second step ``cluster_network``` reduces it down to 50 buses.
+        Consider for example a network ``networks/elec_s100_50.nc`` in which
+        ``simplify_network`` clusters the network to 100 buses and in a second
+        step ``cluster_network``` reduces it down to 50 buses.
 
-        In preliminary tests, it turns out, that the principal effect of changing spatial resolution is actually only partially due to the transmission network. It is more important to differentiate between wind generators with higher capacity factors from those with lower capacity factors, i.e. to have a higher spatial resolution in the renewable generation than in the number of buses.
+        In preliminary tests, it turns out, that the principal effect of
+        changing spatial resolution is actually only partially due to the
+        transmission network. It is more important to differentiate between
+        wind generators with higher capacity factors from those with lower
+        capacity factors, i.e. to have a higher spatial resolution in the
+        renewable generation than in the number of buses.
 
-        The two-step clustering allows to study this effect by looking at networks like ``networks/elec_s100_50m.nc``. Note the additional ``m`` in the ``{cluster}`` wildcard). So in the example network there are still up to 100 different wind generators.
+        The two-step clustering allows to study this effect by looking at
+        networks like ``networks/elec_s100_50m.nc``. Note the additional
+        ``m`` in the ``{cluster}`` wildcard. So in the example network
+        there are still up to 100 different wind generators.
 
-        In combination these two features allow you to study the spatial resolution of the transmission network separately from the spatial resolution of renewable generators.
+        In combination these two features allow you to study the spatial
+        resolution of the transmission network separately from the
+        spatial resolution of renewable generators.
 
     **Is it possible to run the model without the** ``simplify_network`` **rule?**
 
-        No, the network clustering methods in the PyPSA module `pypsa.networkclustering <https://github.com/PyPSA/PyPSA/blob/master/pypsa/networkclustering.py>`_ do not work reliably with multiple voltage levels and transformers.
+        No, the network clustering methods in the PyPSA module
+        `pypsa.networkclustering <https://github.com/PyPSA/PyPSA/blob/master/pypsa/networkclustering.py>`_
+        do not work reliably with multiple voltage levels and transformers.
 
 .. tip::
     The rule ``cluster_all_networks`` runs

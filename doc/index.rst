@@ -101,10 +101,9 @@ Documentation
 Citing PyPSA-Eur
 ================
 
-If you use PyPSA-Eur for your research, we would appreciate it if you would cite the following paper :cite:`PyPSAEur`:
+If you use PyPSA-Eur for your research, we would appreciate it if you would cite the following paper:
 
-.. bibliography:: references.bib
-    :cited:
+- Jonas Hörsch, Fabian Hofmann, David Schlachtberger, and Tom Brown. `PyPSA-Eur: An open optimisation model of the European transmission system <https://arxiv.org/abs/1806.01613>`_. Energy Strategy Reviews, 22:207-215, 2018. `arXiv:1806.01613 <https://arxiv.org/abs/1806.01613>`_, `doi:10.1016/j.esr.2018.08.012 <https://doi.org/10.1016/j.esr.2018.08.012>`_.
 
 Please use the following BibTeX: ::
 
@@ -129,10 +128,6 @@ This can be found linked from the overall PyPSA-Eur Zenodo DOI:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg
    :target: https://doi.org/10.5281/zenodo.1246852
 
-Publications using/citing PyPSA-Eur
-===================================
-
-.. bibliography:: references.bib
 
 Licence
 =======

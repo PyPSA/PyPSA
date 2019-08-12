@@ -19,13 +19,13 @@ Relevant Settings
             max_iterations:
         solver:
             name:
-            {solveroptions}:
+            (solveroptions):
 
 Inputs
 ------
 
 - ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solver`
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solve    `
 
 Outputs
 -------

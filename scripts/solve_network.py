@@ -22,7 +22,7 @@ Relevant Settings
             max_iterations:
         solver:
             name:
-            {solveroptions}:
+            (solveroptions):
 
     (plotting:)
         (conv_techs:)

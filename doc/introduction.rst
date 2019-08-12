@@ -36,7 +36,7 @@ Scenarios, Configuration and Modification
 
 It is easy to run PyPSA-Eur for multiple scenarios using the `wildcards feature <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#wildcards>`_ of ``snakemake``. Wildcards allow to generalise a rule to produce all files that follow a `regular expression <https://en.wikipedia.org/wiki/Regular_expression>`_ pattern, which e.g. defines one particular scenario. One can think of a wildcard as a parameter that shows up in the input/output file names and thereby determines which rules to run, what data to retrieve and what files to produce. **Details are explained in** :ref:`wildcards` **and** :ref:`scenario`.
 
-The model has several configuration options collected in the ``config.yaml`` file
+The model also has several further configuration options collected in the ``config.yaml`` file
 located in the root directory. **All options are explained in detail in** :ref:`config`.
 
 Folder Structure

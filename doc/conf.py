@@ -36,7 +36,6 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
-    'sphinxcontrib.bibtex',
     #'sphinx.ext.pngmath',
     #'sphinxcontrib.tikz',
     #'rinoh.frontend.sphinx',

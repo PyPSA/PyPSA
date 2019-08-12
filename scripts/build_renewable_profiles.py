@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-"""The script build_renewable_profiles.py calculates for each network node the
-*installable capacity* (based on land-use), the *available generation time
-series* (based on weather data) and the *average distance from the node* for
+"""Calculates for each network node the
+(i) installable capacity (based on land-use), (ii) the available generation time
+series (based on weather data), and (iii) the average distance from the node for
 onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar
-PV generators. In addition for offshore wind it calculates the *fraction of the
-grid connection which is under water*.
+PV generators. In addition for offshore wind it calculates the fraction of the
+grid connection which is under water.
 
 .. note:: Hydroelectric profiles are built in script :mod:`build_hydro_profiles`.
 
@@ -35,11 +35,6 @@ Relevant settings
             clip_p_max_pu:
             resource:
 
-`config.renewable` describes the parameters for onwind, offwind-ac, offwind-dc
-and solar
-
-`config.snapshots` describes the time dimensions of the selection of snapshots
-
 Inputs
 ------
 
@@ -66,7 +61,6 @@ Inputs
 Outputs
 -------
 
-<<<<<<< HEAD
 - ``resources/profile_{technology}.nc`` with the following structure
 
     ===================  ==========  =========================================================

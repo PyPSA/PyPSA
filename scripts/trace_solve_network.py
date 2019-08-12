@@ -19,7 +19,7 @@ Relevant Settings
             max_iterations:
         solver:
             name:
-            {solveroptions}:
+            (solveroptions):
 
 Inputs
 ------

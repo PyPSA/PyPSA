@@ -30,6 +30,13 @@ Outputs
 
 - ``resources/profile_hydro.nc``:
 
+    ===================  ================  =========================================================
+    Field                Dimensions        Description
+    ===================  ================  =========================================================
+    inflow               countries, time   Inflow to the state of charge (in MW),
+                                           e.g. due to river inflow in hydro reservoir.
+    ===================  ================  =========================================================
+
 Description
 -----------
 
