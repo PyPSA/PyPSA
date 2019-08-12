@@ -28,10 +28,10 @@ setup(
         'pandas>=0.19.0',
         'pyomo>=5.3',
         'matplotlib',
-        'cartopy>=0.16',
         'networkx>=1.10',
     ],
     extras_require = {
+        "cartopy": ['cartopy>=0.16'],
         "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"]
     },
     classifiers=[
