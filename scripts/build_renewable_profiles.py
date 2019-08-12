@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-"""
-Calculates for each node several geographical properties:
-
-  1. the installable capacity (based on land-use),
-  2. the available generation time series (based on weather data),
-  3. the average distance from the node for onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar PV generators, and
-  4. the fraction of the grid connection which is under water for offshore wind turbines.
+"""The script build_renewable_profiles.py calculates for each network node the
+*installable capacity* (based on land-use), the *available generation time
+series* (based on weather data) and the *average distance from the node* for
+onshore wind, AC-connected offshore wind, DC-connected offshore wind and solar
+PV generators. In addition for offshore wind it calculates the *fraction of the
+grid connection which is under water*.
 
 .. note:: Hydroelectric profiles are built in script :mod:`build_hydro_profiles`.
 
@@ -36,6 +35,11 @@ Relevant settings
             clip_p_max_pu:
             resource:
 
+`config.renewable` describes the parameters for onwind, offwind-ac, offwind-dc
+and solar
+
+`config.snapshots` describes the time dimensions of the selection of snapshots
+
 Inputs
 ------
 
@@ -50,7 +54,7 @@ Inputs
         :scale: 50 %
 
     **Source:** `GEBCO <https://www.gebco.net/data_and_products/images/gebco_2019_grid_image.jpg>`_
-    
+
 - ``resources/natura.tiff``: confer :ref:`natura`
 - ``resources/country_shapes.geojson``: confer :ref:`shapes`
 - ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
@@ -62,40 +66,66 @@ Inputs
 Outputs
 -------
 
-- ``resources/profile_{technology}.nc``:
+<<<<<<< HEAD
+- ``resources/profile_{technology}.nc`` with the following structure
 
-    The files have the fields *(dimensions)*:
+    ===================  ==========  =========================================================
+    Field                Dimensions  Description
+    ===================  ==========  =========================================================
+    profile              bus, time   the per unit hourly availability factors for each node
+    -------------------  ----------  ---------------------------------------------------------
+    weight               bus         sum of the layougt weighting for each node
+    -------------------  ----------  ---------------------------------------------------------
+    p_nom_max            bus         maximal installable capacity at the node (in MW)
+    -------------------  ----------  ---------------------------------------------------------
+    potential            y, x        layout of generator units at cutout grid cells inside the
+                                     Voronoi cell (maximal installable capacity at each grid
+                                     cell multiplied by capacity factor)
+    -------------------  ----------  ---------------------------------------------------------
+    average_distance     bus         average distance of units in the Voronoi cell to the
+                                     grid node (in km)
+    -------------------  ----------  ---------------------------------------------------------
+    underwater_fraction  bus         fraction of the average connection distance which is
+                                     under water (only for offshore)
+    ===================  ==========  =========================================================
 
-    - ``profile`` *(bus, time)*: the per unit hourly availability factors for each node
-    - ``weight`` *(bus)*: the sum of the layout weighting for each node
-    - ``p_nom_max`` *(bus)*: the maximal installable capacity at the node (in MW)
-    - ``potential`` *(y, x)*: the layout of generator units at cutout grid cells inside the voronoi cell (maximal installable capacity at each grid cell multiplied by the capacity factor)
-    - ``average_distance`` *(bus)*: the average distance of units in the voronoi cell to the grid node (in km)
+Description
+-----------
 
-    - ``underwater_fraction`` *(bus)* [offshore only]: the fraction of the average connection distance which is under water
-
-Description:
------------------
+This script functions at two main spatial resolutions: the resolution of the
+network nodes and their `Voronoi cells
+<https://en.wikipedia.org/wiki/Voronoi_diagram>`_, and the resolution of the
+cutout grid cells for the weather data. Typically the weather data grid is
+finer than the network nodes, so we have to work out the distribution of
+generators across the grid cells within each Voronoi cell. This is done by
+taking account of a combination of the available land at each grid cell and the
+capacity factor there.
 
 First the script computes how much of the technology can be installed at each
 cutout grid cell and each node using the `GLAES
 <https://github.com/FZJ-IEK3-VSA/glaes>`_ library. This uses the CORINE land use data,
 Natura2000 nature reserves and GEBCO bathymetry data.
 
-To compute the layout of generators in each node's `Voronoi cell <https://en.wikipedia.org/wiki/Voronoi_diagram>`_, the installable
-potential in each grid cell is multiplied with the capacity factor at each grid
-cell. This is done since we assume more generators are installed at cells with a higher
-capacity factor.
+To compute the layout of generators in each node's Voronoi cell, the
+installable potential in each grid cell is multiplied with the capacity factor
+at each grid cell. This is done since we assume more generators are installed
+at cells with a higher capacity factor.
 
-This layout is then used to compute the generation availability time series from
-the weather data cutout from ``atlite``.
+This layout is then used to compute the generation availability time series
+from the weather data cutout from ``atlite``.
 
 Two methods are available to compute the maximal installable potential for the
 node (`p_nom_max`): ``simple`` and ``conservative``:
 
-- ``simple`` adds up the installable potentials of the individual grid cells. If the model comes close to this limit, then the time series may slightly overestimate production since it is assumed the geographical distribution is proportional to capacity factor.
+- ``simple`` adds up the installable potentials of the individual grid cells.
+  If the model comes close to this limit, then the time series may slightly
+  overestimate production since it is assumed the geographical distribution is
+  proportional to capacity factor.
 
-- ``conservative`` assertains the nodal limit by increasing capacities proportional to the layout until the limit of an individual grid cell is reached.
+- ``conservative`` assertains the nodal limit by increasing capacities
+  proportional to the layout until the limit of an individual grid cell is
+  reached.
+
 """
 
 import matplotlib.pyplot as plt
