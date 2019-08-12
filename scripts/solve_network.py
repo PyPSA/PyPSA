@@ -35,10 +35,7 @@ Inputs
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``:
-- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_solver.log``:
-- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_python.log``:
-- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_memory.log``:
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
 
 Description
 -----------

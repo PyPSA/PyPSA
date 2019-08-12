@@ -29,8 +29,7 @@ Inputs
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_trace.nc``:
-- ``logs/{network}_s{simpl}_{clusters}_l{ll}_{opts}_python_trace.log``:
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_trace.nc``: Solved PyPSA network including optimisation results (with trace)
 
 Description
 -----------

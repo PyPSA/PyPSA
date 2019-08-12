@@ -1,6 +1,6 @@
 ,Unit,Values,Description
 nprocesses,--,int,"Number of parallel processes in cutout preparation"
-cutouts,--,E,TODO
+cutouts,,,
 -- europe-2013-era5,--,,"Directory to write cutout data to."
 -- -- module,--,"Must be 'era5'","Source of the reanalysis weather dataset. `ERA5 <https://www.ecmwf.int/en/forecasts/datasets/reanalysis-datasets/era5>`_"
 -- -- xs,°,"Float interval within [-180, 180]","Range of longitudes to download weather data for."

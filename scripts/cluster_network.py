@@ -30,37 +30,39 @@ Outputs
 -------
 
 - ``resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson``:
+
+    .. image:: img/regions_onshore_elec_s_X.png
+        :scale: 33 %
+
 - ``resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson``:
-- ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``:
-- ``networks/{network}_s{simpl}_{clusters}.nc``:
+
+    .. image:: img/regions_offshore_elec_s_X.png
+        :scale: 33 %
+
+- ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``: Mapping of buses and lines from ``networks/elec_s{simpl}.nc`` to ``networks/elec_s{simpl}_{clusters}.nc``; has keys ['/busmap', '/busmap_s', '/linemap', '/linemap_negative', '/linemap_positive']
+- ``networks/{network}_s{simpl}_{clusters}.nc``: 
+
+    .. image:: img/elec_s_X.png
+        :scale: 40  %
 
 Description
 -----------
 
-The rule cluster_network instead clusters the network to a given number of buses.
+.. note::
 
-    -Why is this cluster function used?
-    -Why the user can set a number behind the elec_sXXX for simplification?
+    **Why is clustering used both in** ``simplify_network`` **and** ``cluster_network`` **?**
+    
+        Consider for example a network ``networks/elec_s100_50.nc`` in which ``simplify_network`` clusters the network to 100 buses and in a second step ``cluster_network``` reduces it down to 50 buses.
 
-As you found out for yourself, elec_s100_50.nc for example is a network in which simplify_network clusters the network to 100 buses and in a second step cluster_network reduces it down to 50 buses.
+        In preliminary tests, it turns out, that the principal effect of changing spatial resolution is actually only partially due to the transmission network. It is more important to differentiate between wind generators with higher capacity factors from those with lower capacity factors, i.e. to have a higher spatial resolution in the renewable generation than in the number of buses.
 
-Well, let me provide a use-case where this makes sense:
+        The two-step clustering allows to study this effect by looking at networks like ``networks/elec_s100_50m.nc``. Note the additional ``m`` in the ``{cluster}`` wildcard). So in the example network there are still up to 100 different wind generators.
 
-In preliminary tests, it turns out, that the principal effect of changing spatial resolution is actually only partially due to the transmission network. It is more important to differentiate between wind generators with higher capacity factors from those with lower capacity factors, ie to have a higher spatial resolution in the renewable generation than in the number of buses.
+        In combination these two features allow you to study the spatial resolution of the transmission network separately from the spatial resolution of renewable generators.
 
-This two-step clustering can take advantage of that fact (and allows to study it)
-by looking at networks like networks/elec_s100_50m.nc (note the additional m in the cluster wildcard). For this example simplify_network clusters to 100 buses and then cluster_network clusters to 50m buses, which means 50 buses for the network topology but only moving instead of aggregating the generators to the clustered buses. So in this network you still have up to 100 different wind generators, 2 at each bus on average.
+    **Is it possible to run the model without the** ``simplify_network`` **rule?**
 
-In combination these two features allow you to study the spatial resolution of the transmission network separately from the spatial resolution of renewable generators. Beware: There is no clear evidence telling you what is a good representation of the full model. These options are under active study.
-
-    Why we have a cluster function inside of the simplification method?
-
-Why are you asking three times the same question?
-
-    Is it possible to run the model without the simplification method / rule?
-    I tryed to run the snakemake without the s for simplification.
-
-No, the network clustering methods in PyPSA's networkclustering module don't work reliably with multiple voltage levels and transformers. If it is somehow necessary for you we could include switches to make Step 2 and 3 optional as well. But that's about it.
+        No, the network clustering methods in the PyPSA module `pypsa.networkclustering <https://github.com/PyPSA/PyPSA/blob/master/pypsa/networkclustering.py>`_ do not work reliably with multiple voltage levels and transformers.
 
 .. tip::
     The rule ``cluster_all_networks`` runs

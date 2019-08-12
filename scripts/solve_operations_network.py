@@ -30,10 +30,7 @@ Inputs
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op.nc``:
-- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_solver.log``:
-- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_python.log``:
-- ``logs/solve_operations_network/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op_memory.log``:
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op.nc``: Solved PyPSA network for optimal dispatch including optimisation results
 
 Description
 -----------

@@ -21,13 +21,13 @@ Relevant Settings
 Inputs
 ------
 
-- ``data/costs.csv``:
+- ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
 
 Outputs
 -------
 
-- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``:
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Complete PyPSA network that will be handed to the ``solve_network`` rule.
 
 Description
 -----------

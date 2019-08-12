@@ -31,16 +31,24 @@ The **blocks** represent the individual rules which are required to create the f
 
 For the use of ``snakemake``, it makes sense to familiarize oneself quickly with its `basic tutorial <https://snakemake.readthedocs.io/en/stable/tutorial/basics.html>`_ and then read carefully through the section `Executing Snakemake <https://snakemake.readthedocs.io/en/stable/executable.html>`_, noting the arguments ``-n``, ``-r``, but also ``--dag``, ``-R`` and ``-t``.
 
-Modification
-============
+Scenarios, Configuration and Modification
+=========================================
 
-.. todo:: wildcards modification
+It is easy to run PyPSA-Eur for multiple scenarios using the `wildcards feature <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#wildcards>`_ of ``snakemake``. Wildcards allow to generalise a rule to produce all files that follow a `regular expression <https://en.wikipedia.org/wiki/Regular_expression>`_ pattern, which e.g. defines one particular scenario. One can think of a wildcard as a parameter that shows up in the input/output file names and thereby determines which rules to run, what data to retrieve and what files to produce. **Details are explained in** :ref:`wildcards` **and** :ref:`scenario`.
 
 The model has several configuration options collected in the ``config.yaml`` file
-located in the root directory.
+located in the root directory. **All options are explained in detail in** :ref:`config`.
 
 Folder Structure
 ================
+
+- ``data``: Includes input data that is not produced by any ``snakemake`` rule.
+- ``scripts``: Includes all the Python scripts executed by the ``snakemake`` rules.
+- ``resources``: Stores intermediate results of the workflow which can be picked up again by subsequent rules.
+- ``networks``: Stores intermediate, unsolved stages of the PyPSA network that describes the energy system model.
+- ``results``: Stores the solved PyPSA network data, summary files and plots.
+- ``benchmarks``: Stores ``snakemake`` benchmarks.
+- ``logs``: Stores log files about solving, including the solver output, console output and the output of a memory logger.
 
 System Requirements
 ===================

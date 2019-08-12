@@ -18,12 +18,18 @@ Relevant Settings
 Inputs
 ------
 
-- ``data/bundle/corine/g250_clc06_V18_5.tif``:
+- ``data/bundle/corine/g250_clc06_V18_5.tif``: `CORINE Land Cover (CLC) <https://land.copernicus.eu/pan-european/corine-land-cover>`_ inventory on `44 classes <https://wiki.openstreetmap.org/wiki/Corine_Land_Cover#Tagging>`_ of land use (e.g. forests, arable land, industrial, urban areas).
 
     .. image:: img/corine.png
         :scale: 33 %
 
-- ``data/bundle/GEBCO_2014_2D.nc``:
+- ``data/bundle/GEBCO_2014_2D.nc``:  A `bathymetric <https://en.wikipedia.org/wiki/Bathymetry>`_ data set with a global terrain model for ocean and land at 15 arc-second intervals by the `General Bathymetric Chart of the Oceans (GEBCO) <https://www.gebco.net/data_and_products/gridded_bathymetry_data/>`_.
+
+    .. image:: img/gebco_2019_grid_image.jpg
+        :scale: 50 %
+
+    **Source:** `GEBCO <https://www.gebco.net/data_and_products/images/gebco_2019_grid_image.jpg>`_
+
 - ``data/pietzker2014.xlsx``: NOT IN DATA BUNDLE!
 - ``resources/natura.tiff``: confer :ref:`natura`
 - ``resources/country_shapes.geojson``: confer :ref:`shapes`

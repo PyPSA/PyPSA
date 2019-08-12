@@ -35,7 +35,7 @@ Relevant Settings
 Inputs
 ------
 
-- ``data/costs.csv``:
+- ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``resources/regions_onshore.geojson``: confer :ref:`busregions`
 - ``resources/regions_offshore.geojson``: confer :ref:`busregions`
 - ``networks/{network}.nc``: confer :ref:`electricity`
@@ -44,8 +44,16 @@ Outputs
 -------
 
 - ``resources/regions_onshore_{network}_s{simpl}.geojson``:
+
+    .. image:: img/regions_onshore_elec_s.png
+            :scale: 33 %
+
 - ``resources/regions_offshore_{network}_s{simpl}.geojson``:
-- ``resources/clustermaps_{network}_s{simpl}.h5``:
+
+    .. image:: img/regions_offshore_elec_s  .png
+            :scale: 33 %
+
+- ``resources/clustermaps_{network}_s{simpl}.h5``: Mapping of buses from ``networks/elec.nc`` to ``networks/elec_s{simpl}.nc``; has keys ['/busmap_s']
 - ``networks/{network}_s{simpl}.nc``:
 
     .. image:: img/elec_s.png
@@ -54,15 +62,15 @@ Outputs
 Description
 -----------
 
-The rule simplify_network does up to four things:
+The rule ``simplify_network`` does up to four things:
 
 1. Create an equivalent transmission network in which all voltage levels are mapped to the 380 kV level by the function ``simplify_network(...)``.
 
-2. DC only sub-networks that are connected at only two buses to the AC network are reduced to a single representative link by the function ``simplify_links(...)``. The components attached to buses in between are moved to the nearest endpoint. The grid connection cost of offshore wind generators are added to the captial costs of the generator.
+2. DC only sub-networks that are connected at only two buses to the AC network are reduced to a single representative link in the function ``simplify_links(...)``. The components attached to buses in between are moved to the nearest endpoint. The grid connection cost of offshore wind generators are added to the captial costs of the generator.
 
-3. Stub lines and links, i.e. dead-ends of the network, are sequentially removed from the network by the function ``remove_stubs(...)``. Components are moved along.
+3. Stub lines and links, i.e. dead-ends of the network, are sequentially removed from the network in the function ``remove_stubs(...)``. Components are moved along.
 
-4. If a number was provided after the s (as in elec_s500_...), the network is clustered to this number of clusters with the routines from the cluster_network rule by the function cluster. This step is usually skipped.
+4. Optionally, if an integer were provided for the wildcard ``{simpl}`` (e.g. ``networks/elec_s500.nc``), the network is clustered to this number of clusters with the routines from the ``cluster_network`` rule with the function ``cluster_network.cluster(...)``. This step is usually skipped!
 """
 
 import pandas as pd

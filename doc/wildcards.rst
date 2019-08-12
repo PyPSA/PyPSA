@@ -1,26 +1,40 @@
+.. _wildcards:
+
 #########
 Wildcards
 #########
 
 Detailed explanations of how wildcards work in ``snakemake`` can be found in the `relevant section of the documentation <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#wildcards>`_.
 
+.. _simpl:
+
 The ``simpl`` wildcard
 ======================
+
+.. _ll:
 
 The ``ll`` wildcard
 ===================
 
+.. _clusters:
+
 The ``clusters`` wildcard
 =========================
+
+.. todo:: explain placing `m` behind number of clusters: only moving instead of aggregating the generators to the clustered buses
 
 .. warning::
     The number of clusters must be lower than the total number of nodes
     and higher than the number of countries. A country counts twice if
     it has two asynchronous subnetworks (e.g. Denmark).
 
+.. _network:
+
 The ``network`` wildcard
 ========================
 
+
+.. _opts:
 
 The ``opts`` wildcard
 =====================
@@ -34,6 +48,8 @@ The ``opts`` wildcard triggers optional constraints, which are activated in eith
    :file: configtables/opts.csv
 
 
+.. _country:
+
 The ``country`` wildcard
 ========================
 
@@ -46,14 +62,22 @@ If ``country = all``, then the rule acts on the network for all countries define
 
     snakemake results/summaries/elec_s_all_lall_Co2L-3H_DE
 
+.. _cutout:
+
 The ``cutout`` wildcard
 =======================
+
+.. _technology:
 
 The ``technology`` wildcard
 ===========================
 
+.. _attr:
+
 The ``attr`` wildcard
 =====================
+
+.. _ext:
 
 The ``ext`` wildcard
 ====================
