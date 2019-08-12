@@ -251,6 +251,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     if with_time:
+        network_c.snapshot_weightings = network.snapshot_weightings.copy()
         network_c.set_snapshots(network.snapshots)
 
     one_port_components = network.one_port_components.copy()
