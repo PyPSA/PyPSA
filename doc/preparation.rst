@@ -17,8 +17,7 @@ With these and the externally extracted ENTSO-E online map topology
 Then the process continues by calculating conventional power plant capacities, potentials, and per-unit availability time series for variable renewable energy carriers and hydro power plants with the following rules:
 
 - :mod:`build_powerplants` for today's thermal power plant capacities using `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_ allocating these to the closest substation for each powerplant,
-- :mod:`build_renewable_potentials` for the installation potentials for solar panels, onshore and offshore wind turbines constrained by landuse restrictions and natural protection areas,
-- :mod:`build_renewable_profiles` for the hourly capacity factors in each substation's Voronoi cell for PV, onshore and offshore wind, and
+- :mod:`build_renewable_profiles` for the hourly capacity factors and installation potentials constrained by land-use in each substation's Voronoi cell for PV, onshore and offshore wind, and
 - :mod:`build_hydro_profile` for the hourly per-unit hydro power availability time series.
 
 The central rule :mod:`add_electricity` then ties all the different data inputs
