@@ -15,12 +15,6 @@ Description
 
 """
 
-# Dirty work-around so that sphinx can import this module and get the
-# doc-string
-if __name__ != "__main__":
-    import sys
-    sys.exit(0)
-
 import pypsa
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -43,7 +37,7 @@ def cum_p_nom_max(net, tech, country=None):
     return generators
 
 
-if __name__ == __main__:
+if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
