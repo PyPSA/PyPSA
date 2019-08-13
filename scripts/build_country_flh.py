@@ -15,6 +15,10 @@ Relevant Settings
             resource:
             correction_factor:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`snapshots_cf`, :ref:`renewable_cf`
+
 Inputs
 ------
 

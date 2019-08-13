@@ -27,6 +27,10 @@ Relevant Settings
     (plotting:)
         (conv_techs:)
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`electricity_cf`, :ref:`solving_cf`, :ref:`plotting_cf`
+
 Inputs
 ------
 

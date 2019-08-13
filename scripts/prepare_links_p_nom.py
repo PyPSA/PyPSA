@@ -10,6 +10,10 @@ Relevant Settings
     enable:
         prepare_links_p_nom:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`
+
 Inputs
 ------
 

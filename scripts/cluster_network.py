@@ -18,6 +18,10 @@ Relevant Settings
     lines:
         length_factor:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`renewable_cf`, :ref:`solving_cf`, :ref:`lines_cf`
+
 Inputs
 ------
 

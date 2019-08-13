@@ -15,6 +15,12 @@ Description
 
 """
 
+# Dirty work-around so that sphinx can import this module and get the
+# doc-string
+if __name__ != "__main__":
+    import sys
+    sys.exit(0)
+
 import pypsa
 import pandas as pd
 import matplotlib.pyplot as plt

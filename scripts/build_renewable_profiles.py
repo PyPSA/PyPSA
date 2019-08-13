@@ -35,6 +35,10 @@ Relevant settings
             clip_p_max_pu:
             resource:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`snapshots_cf`, :ref:`atlite_cf`, :ref:`renewable_cf`
+
 Inputs
 ------
 

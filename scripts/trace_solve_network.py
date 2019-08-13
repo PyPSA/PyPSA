@@ -21,6 +21,10 @@ Relevant Settings
             name:
             (solveroptions):
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`solving_cf`
+
 Inputs
 ------
 

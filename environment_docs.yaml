@@ -45,4 +45,3 @@ dependencies:
     - git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
     - sphinx
     - sphinx_rtd_theme
-    - sphinxcontrib-bibtex

@@ -6,6 +6,8 @@ Configuration
 
 PyPSA-Eur has several configuration options which are documented in this section and are collected in a ``config.yaml`` file located in the root directory. Users can amend their own modifications and assumptions by changing the default configuration provided in the configuration file (``config.yaml``).
 
+.. _toplevel_cf:
+
 Top-level configuration
 =======================
 
@@ -50,6 +52,8 @@ An exemplary dependency graph (starting from the simplification rules) then look
    :widths: 25,7,22,30
    :file: configtables/scenario.csv
 
+.. _snapshots_cf:
+
 ``snapshots``
 =============
 
@@ -64,6 +68,7 @@ Specifies the temporal range to build an energy system model for as arguments to
    :widths: 25,7,22,30
    :file: configtables/snapshots.csv
 
+.. _electricity_cf:
 
 ``electricity``
 ===============
@@ -80,6 +85,8 @@ Specifies the temporal range to build an energy system model for as arguments to
 .. warning::
     Carriers in ``conventional_carriers`` must not also be in ``extendable_carriers``.
 
+.. _atlite_cf:
+
 ``atlite``
 =============
 
@@ -91,6 +98,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :header-rows: 1
    :widths: 25,7,22,30
    :file: configtables/atlite.csv
+
+.. _renewable_cf:
 
 ``renewable``
 =============
@@ -135,6 +144,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :widths: 25,7,22,30
    :file: configtables/hydro.csv
 
+.. _lines_cf:
+
 ``lines``
 =============
 
@@ -142,6 +153,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :header-rows: 1
    :widths: 25,7,22,30
    :file: configtables/lines.csv
+
+.. _links_cf:
 
 ``links``
 =============
@@ -151,6 +164,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :widths: 25,7,22,30
    :file: configtables/links.csv
 
+.. _transformers_cf:
+
 ``transformers``
 ================
 
@@ -159,6 +174,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :widths: 25,7,22,30
    :file: configtables/transformers.csv
 
+.. _load_cf:
+
 ``load``
 =============
 
@@ -166,6 +183,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :header-rows: 1
    :widths: 25,7,22,30
    :file: configtables/load.csv
+
+.. _costs_cf:
 
 ``costs``
 =============
@@ -179,6 +198,8 @@ Specifies the temporal range to build an energy system model for as arguments to
     To change cost assumptions in more detail (i.e. other than ``marginal_cost`` and ``capital_cost``), consider modifying cost assumptions directly in ``data/costs.csv`` as this is not yet supported through the config file.
 
     You can also build multiple different cost databases. Make a renamed copy of ``data/costs.csv`` (e.g. ``data/costs-optimistic.csv``) and set the variable ``COSTS=data/costs-optimistic.csv`` in the ``Snakefile``.
+
+.. _solving_cf:
 
 ``solving``
 =============
@@ -198,6 +219,8 @@ Specifies the temporal range to build an energy system model for as arguments to
    :header-rows: 1
    :widths: 25,7,22,30
    :file: configtables/solving-solver.csv
+
+.. _plotting_cf:
 
 ``plotting``
 =============

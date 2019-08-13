@@ -14,6 +14,10 @@ Relevant Settings
             cutout:
             clip_min_inflow:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`, :ref:`renewable_cf`
+
 Inputs
 ------
 

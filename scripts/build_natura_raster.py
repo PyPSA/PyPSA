@@ -10,6 +10,10 @@ Relevant Settings
         {technology}:
             cutout:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`renewable_cf`
+
 Inputs
 ------
 

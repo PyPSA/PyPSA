@@ -8,6 +8,9 @@ Relevant Settings
 
     countries:
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`
 
 Inputs
 ------

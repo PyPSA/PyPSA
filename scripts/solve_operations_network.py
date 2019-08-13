@@ -21,11 +21,15 @@ Relevant Settings
             name:
             (solveroptions):
 
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`solving_cf`
+
 Inputs
 ------
 
 - ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solve    `
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solve`
 
 Outputs
 -------
