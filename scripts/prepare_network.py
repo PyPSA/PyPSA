@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Prepare PyPSA network for solving according to ``{opts}`` wildcard.
+Prepare PyPSA network for solving according to the ``{opts}`` wildcard (:ref:`opts`).
 
 Relevant Settings
 -----------------

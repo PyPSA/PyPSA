@@ -53,7 +53,7 @@ Outputs
     .. image:: img/europe_shape.png
         :scale: 33 %
         
-- ``resources/nuts3_shapes.geojson``: NUTS3 shapes out of country selection
+- ``resources/nuts3_shapes.geojson``: NUTS3 shapes out of country selection including population and GDP data.
         
     .. image:: img/nuts3_shapes.png
         :scale: 33 %

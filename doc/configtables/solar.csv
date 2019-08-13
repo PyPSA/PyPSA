@@ -1,5 +1,5 @@
 ,Unit,Values,Description
-cutout,--,"One of {'europe-2013-era5', 'europe-2013-sarah'}","Specifies the directory where the relevant weather data ist stored that is specified at ``atlite/cutouts`` configuration. Both ``sarah`` and ``era5`` work."
+cutout,--,"Should be a folder listed in the configuration ``atlite: cutouts:`` (e.g. 'europe-2013-era5') or reference an existing folder in the directory ``cutouts``. Source module can be ERA5 or SARAH-2.","Specifies the directory where the relevant weather data ist stored that is specified at ``atlite/cutouts`` configuration. Both ``sarah`` and ``era5`` work."
 resource,,,
 -- method,--,"Must be 'pv'","A superordinate technology type."
 -- panel,--,"One of {'Csi', 'CdTe', 'KANENA'} as defined in `atlite <https://github.com/PyPSA/atlite/tree/master/atlite/resources/solarpanel>`_","Specifies the solar panel technology and its characteristic attributes."

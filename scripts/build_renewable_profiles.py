@@ -72,7 +72,7 @@ Outputs
     ===================  ==========  =========================================================
     profile              bus, time   the per unit hourly availability factors for each node
     -------------------  ----------  ---------------------------------------------------------
-    weight               bus         sum of the layougt weighting for each node
+    weight               bus         sum of the layout weighting for each node
     -------------------  ----------  ---------------------------------------------------------
     p_nom_max            bus         maximal installable capacity at the node (in MW)
     -------------------  ----------  ---------------------------------------------------------
@@ -86,6 +86,31 @@ Outputs
     underwater_fraction  bus         fraction of the average connection distance which is
                                      under water (only for offshore)
     ===================  ==========  =========================================================
+
+    - **profile**
+
+    .. image:: img/profile_ts.png
+        :scale: 33 %
+    
+    - **p_nom_max**
+
+    .. image:: img/p_nom_max_hist.png
+        :scale: 33 %
+    
+    - **potential**
+
+    .. image:: img/potential_heatmap.png
+        :scale: 33 %
+    
+    - **average_distance**
+    
+    .. image:: img/distance_hist.png
+        :scale: 33 %
+    
+    - **underwater_fraction**
+    
+    .. image:: img/underwater_hist.png
+        :scale: 33 %
 
 Description
 -----------

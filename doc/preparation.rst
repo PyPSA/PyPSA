@@ -2,12 +2,14 @@
 Preparing Networks
 ##########################################
 
-The preparation process of the PyPSA-Eur energy system model consists of a group of ``snakemake`` rules which are briefly outlined and explained in detail in the sections below:
+The preparation process of the PyPSA-Eur energy system model consists of a group of ``snakemake``
+rules which are briefly outlined and explained in detail in the sections below:
 
 - ``build_shapes`` generates GeoJSON files with shapes of the countries, exclusive economic zones and `NUTS3 <https://en.wikipedia.org/wiki/Nomenclature_of_Territorial_Units_for_Statistics>`_ areas.
 - ``build_cutout`` prepares smaller weather data portions from `ERA5 <https://www.ecmwf.int/en/forecasts/datasets/reanalysis-datasets/era5>`_ for cutout ``europe-2013-era5`` and SARAH for cutout ``europe-2013-sarah``.
 
-With these and the externally extracted ENTSO-E online map topology (``data/entsoegridkit``), it can build a base PyPSA network with the following rules:
+With these and the externally extracted ENTSO-E online map topology
+(``data/entsoegridkit``), it can build a base PyPSA network with the following rules:
 
 - ``base_network`` builds and stores the base network with all buses, HVAC lines and HVDC links, while
 - ``build_bus_regions`` determines `Voronoi cells <https://en.wikipedia.org/wiki/Voronoi_diagram>`_ for all substations.
@@ -19,7 +21,8 @@ Then the process continues by calculating conventional power plant capacities, p
 - ``build_renewable_profiles`` for the hourly capacity factors in each substation's Voronoi cell for PV, onshore and offshore wind, and
 - ``build_hydro_profile`` for the hourly per-unit hydro power availability time series.
 
-The central rule ``add_electricity`` then ties all the different data inputs together into a detailed PyPSA network stored in ``networks/elec.nc``.
+The central rule ``add_electricity`` then ties all the different data inputs
+together into a detailed PyPSA network stored in ``networks/elec.nc``.
 
 .. _shapes:
 

@@ -41,6 +41,12 @@ Outputs
                                            e.g. due to river inflow in hydro reservoir.
     ===================  ================  =========================================================
 
+    .. image:: img/inflow-ts.png
+        :scale: 33 %
+    
+    .. image:: img/inflow-box.png
+        :scale: 33 %
+
 Description
 -----------
 
