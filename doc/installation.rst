@@ -4,16 +4,14 @@
 Installation
 ##########################################
 
-TODO: install via bash installation script
-
-.. note:: 
-    The steps are demonstrated as shell commands, where the path before the ``%`` sign denotes the
-    directory in which the commands following the ``%`` should be entered.
+The subsequently described installation steps are demonstrated as shell commands, where the path before the ``%`` sign denotes the
+directory in which the commands following the ``%`` should be entered.
 
 Clone the Repository
 ====================
 
-Clone the PyPSA-Eur repository using ``git``
+First of all, clone the `PyPSA-Eur repository <https://github.com/PyPSA/pypsa-eur>`_ using the version control system ``git``.
+The path to the directory into which the ``git repository`` is cloned, must **not** have any spaces!
 
 .. code:: bash
 
@@ -22,17 +20,19 @@ Clone the PyPSA-Eur repository using ``git``
     /some/path/without/spaces % git clone https://github.com/PyPSA/pypsa-eur.git
 
 .. note::
-    The path to the directory into which the ``git repository`` is cloned, 
-    must not have any spaces.
+    If you do not have ``git`` installed, follow installation instructions `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`_.
 
 .. _deps:
 
 Install Python Dependencies
 ===============================
 
-TODO: conda link
+PyPSA-Eur relies on a set of other Python packages to function.
+We recommend using the package manager and environment management system ``conda`` to install them.
+Install `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, which is a mini version of `Anaconda <https://www.anaconda.com/>`_ that includes only ``conda`` and its dependencies or make sure ``conda`` is already installed on your system.
+For instructions for your operating system follow the ``conda`` `installation guide <https://docs.conda.io/projects/conda/en/latest/user-guide/install/>`_.
 
-The python package requirements are curated in the conda `environment.yaml <https://github.com/PyPSA/pypsa-eur/blob/master/environment.yaml>`_ file.
+The python package requirements are curated in the `environment.yaml <https://github.com/PyPSA/pypsa-eur/blob/master/environment.yaml>`_ file.
 The environment can be installed and activated using
 
 .. code:: bash
@@ -43,15 +43,18 @@ The environment can be installed and activated using
 
 .. note::
     Note that activation is local to the currently open shell!
-    After opening a new terminal window,
-    one needs to reissue the second command! 
+    After opening a new terminal window, one needs to reissue the second command! 
 
 .. _data:
 
 Download Data Dependencies
 ==============================
 
-Not all data dependencies are shipped with the git repository, since git is not suited for handling large changing files. Instead we provide separate data bundles:
+Not all data dependencies are shipped with the git repository,
+since git is not suited for handling large changing files.
+Instead we provide separate data bundles which can be obtained
+using the described shell commands or by downloading and
+extracting them manually in the locations outlined below.
 
 1. **Data Bundle:** `pypsa-eur-data-bundle.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz>`_ contains common GIS datasets like NUTS3 shapes, EEZ shapes, CORINE Landcover, Natura 2000 and also electricity specific summary statistics like historic per country yearly totals of hydro generation, GDP and POP on NUTS3 levels and per-country load time-series. It should be extracted in the ``data`` sub-directory, such that all files of the bundle are stored in the ``data/bundle`` subdirectory)
 
@@ -86,6 +89,22 @@ Not all data dependencies are shipped with the git repository, since git is not 
 Install a Solver
 ================
 
-Default choice for the solver is Gurobi (freely available under academic license) or CPLEX. If you want to go fully opensource the CBC solver (https://projects.coin-or.org/Cbc) can be used. To install CBC run ::
+PyPSA passes the PyPSA-Eur network model to an external solver for performing a total annual system cost minimization with optimal power flow.
+PyPSA is known to work with the free software
 
-    conda install -c conda-forge coincbc
+- `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
+- `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
+
+and the non-free, commercial software (for which free academic licenses are available)
+
+- `Gurobi <https://www.gurobi.com/documentation/8.1/remoteservices/installation.html>`_
+- `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
+
+and any other solver that works with the underlying modelling framework `Pyomo <http://www.pyomo.org/>`_. For installation instructions of these solvers for your operating system, follow the links above.
+
+.. seealso::
+    `Getting a solver in the PyPSA documentation <https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-linear-optimisation>`_
+
+.. note::
+    Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
+    It might be the case that you can only retrieve solutions by using a commercial solver.

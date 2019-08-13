@@ -1,5 +1,40 @@
 """
-Creates onshore and offshore Voronoi shapes for each bus
+Creates Voronoi shapes for each bus representing both onshore and offshore regions.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    countries:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`
+
+Inputs
+------
+
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``networks/base.nc``: confer :ref:`base`
+
+Outputs
+-------
+
+- ``resources/regions_onshore.geojson``:
+
+    .. image:: img/regions_onshore.png
+        :scale: 33 %
+
+- ``resources/regions_offshore.geojson``:
+
+    .. image:: img/regions_offshore.png
+        :scale: 33 %
+
+Description
+-----------
+
 """
 
 import os

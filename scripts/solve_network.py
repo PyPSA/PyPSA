@@ -1,5 +1,54 @@
 """
-Solve networks iteratively linear optimal power flow, while updating reactances
+Solves linear optimal power flow for a network iteratively while updating reactances.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    (electricity:)
+        (BAU_mincapacities:)
+        (SAFE_reservemargin:)
+
+    solving:
+        tmpdir:
+        options:
+            formulation:
+            clip_p_max_pu:
+            load_shedding:
+            noisy_costs:
+            nhours:
+            min_iterations:
+            max_iterations:
+        solver:
+            name:
+            (solveroptions):
+
+    (plotting:)
+        (conv_techs:)
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`electricity_cf`, :ref:`solving_cf`, :ref:`plotting_cf`
+
+Inputs
+------
+
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+
+Outputs
+-------
+
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
+
+Description
+-----------
+
+.. tip::
+    The rule ``solve_all_networks`` runs
+    for all ``scenario`` s in the configuration file 
+    the rule ``solve_network``.
+
 """
 
 import numpy as np

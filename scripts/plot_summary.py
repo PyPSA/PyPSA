@@ -1,5 +1,18 @@
 """
-Plot energy and cost summaries for several solved networks
+Plots energy and cost summaries for solved networks.
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import os

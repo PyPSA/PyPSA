@@ -1,5 +1,38 @@
 """
-Rasters the vector data of the NATURA2000 data onto all cutout regions
+Rasters the vector data of the `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas onto all cutout regions.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    renewable:
+        {technology}:
+            cutout:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`renewable_cf`
+
+Inputs
+------
+
+- ``data/bundle/natura/Natura2000_end2015.shp``: `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas.
+
+    .. image:: img/natura.png
+        :scale: 33 %
+
+Outputs
+-------
+
+- ``resources/natura.tiff``: Rasterized version of `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas to reduce computation times.
+
+    .. image:: img/natura.png
+        :scale: 33 %
+
+Description
+-----------
+
 """
 
 import numpy as np

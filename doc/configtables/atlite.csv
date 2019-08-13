@@ -1,13 +1,8 @@
 ,Unit,Values,Description
 nprocesses,--,int,"Number of parallel processes in cutout preparation"
-cutouts,--,E,TODO
--- europe-2013-era5,--,,"Directory to write cutout data to."
--- -- module,--,"Must be 'era5'","Source of the reanalysis weather dataset. `ERA5 <https://www.ecmwf.int/en/forecasts/datasets/reanalysis-datasets/era5>`_"
+cutouts,,,
+-- {name},--,"Convention is to name cutouts like ``<region>-<year>-<source>`` (e.g. ``europe-2013-era5``).","Directory to write cutout data to. The user may specify multiple cutouts under configuration ``atlite: cutouts:``. Reference is used in configuration ``renewable: {technology}: cutout:``"
+-- -- module,--,"One of {'era5','sarah'}","Source of the reanalysis weather dataset (e.g. `ERA5 <https://www.ecmwf.int/en/forecasts/datasets/reanalysis-datasets/era5>`_ or `SARAH-2 <https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002>`_)"
 -- -- xs,°,"Float interval within [-180, 180]","Range of longitudes to download weather data for."
 -- -- ys,°,"Float interval within [-90, 90]","Range of latitudes to download weather data for."
 -- -- years,--,"Integer interval within [1979,2018]","Range of years to download weather data for."
--- europe-2013-sarah,--,,"Directory to write cutout data to."
--- -- module,--,"Must be 'sarah'","Source of the surface solar radiation dataset. `SARAH-2 <https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002>`_"
--- -- xs,°,"Float interval within [-180, 180]","Range of longitudes to download weather data for."
--- -- ys,°,"Float interval within [-90, 90]","Range of latitudes to download weather data for."
--- -- years,--,"Integer interval within [1983,2015]","Range of years to download weather data for."

@@ -1,5 +1,18 @@
 """
-Plot renewable installation potentials per capacity factor
+Plots renewable installation potentials per capacity factor.
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
 """
 
 import pypsa
@@ -24,7 +37,7 @@ def cum_p_nom_max(net, tech, country=None):
     return generators
 
 
-if __name__ == __main__:
+if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict

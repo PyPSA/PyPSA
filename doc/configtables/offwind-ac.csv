@@ -1,5 +1,5 @@
 ,Unit,Values,Description
-cutout,--,"Must be 'europe-2013-era5'","Specifies the directory where the relevant weather data ist stored."
+cutout,--,"Should be a folder listed in the configuration ``atlite: cutouts:`` (e.g. 'europe-2013-era5') or reference an existing folder in the directory ``cutouts``. Source module must be ERA5.","Specifies the directory where the relevant weather data ist stored."
 resource,,,
 -- method,--,"Must be 'wind'","A superordinate technology type."
 -- turbine,--,"One of turbine types included in `atlite <https://github.com/PyPSA/atlite/tree/master/atlite/resources/windturbine>`_","Specifies the turbine type and its characteristic power curve."
@@ -8,5 +8,5 @@ corine,--,"Any *realistic* subset of the `CORINE Land Cover code list <http://ww
 natura,bool,"{true, false}","Switch to exclude `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas. Area is excluded if ``true``."
 max_depth,m,float,"Maximum sea water depth at which wind turbines can be build. Maritime areas with deeper waters are excluded in the process of calculating the AC-connected offshore wind potential."
 min_shore_distance,m,float,"Minimum distance to the shore below which wind turbines cannot be build. Such areas close to the shore are excluded in the process of calculating the AC-connected offshore wind potential."
-potential,--,"One of {'simple', 'conservative'}",TODO
+potential,--,"One of {'simple', 'conservative'}","Method to compute the maximal installable potential for a node; confer :ref:`renewableprofiles`"
 clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."

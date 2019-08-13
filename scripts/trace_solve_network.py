@@ -1,6 +1,43 @@
 """
-Iteratively solves expansion problem like solve_network, but additionally
-records intermediate branch capacity steps and values of the objective
+Iteratively solves expansion problem like the rule ``solve_network``, but additionally
+records intermediate branch capacity steps and values of the objective function.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    solving:
+        tmpdir:
+        options:
+            formulation:
+            clip_p_max_pu:
+            load_shedding:
+            noisy_costs:
+            nhours:
+            min_iterations:
+            max_iterations:
+        solver:
+            name:
+            (solveroptions):
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`solving_cf`
+
+Inputs
+------
+
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+
+Outputs
+-------
+
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_trace.nc``: Solved PyPSA network including optimisation results (with trace)
+
+Description
+-----------
+
 """
 
 import numpy as np

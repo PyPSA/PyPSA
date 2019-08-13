@@ -10,15 +10,6 @@ costs_threshold,bn Euro,float,"Threshold below which technologies will not be sh
 energy_max,TWh,float,"Upper y-axis limit in energy bar plots."
 energy_min,TWh,float,"Lower y-axis limit in energy bar plots."
 energy_threshold,TWh,float,"Threshold below which technologies will not be shown in energy bar plots."
-vre_techs,--,E,TODO
-conv_techs,--,E,TODO
-storage_techs,--,E,TODO
-store_techs,--,E,TODO
-load_carriers,--,E,TODO
-AC_carriers,--,E,TODO
-link_carriers,--,E,TODO
-heat_links,--,E,TODO
-heat_generators,--,E,TODO
-tech_colors,--,E,TODO
-nice_names,--,E,TODO
-nice_names_n,--,E,TODO
+tech_colors,--,"carrier -> HEX colour code","Mapping from network ``carrier`` to a colour (`HEX colour code <https://en.wikipedia.org/wiki/Web_colors#Hex_triplet>`_)."
+nice_names,--,"str -> str","Mapping from network ``carrier`` to a more readable name."
+nice_names_n,--,"str -> str","Same as nice_names, but with linebreaks."

@@ -1,6 +1,44 @@
 """
-Solve linear optimal dispatch in hourly resolution with capacities of previous
-capacity expansion
+Solves linear optimal dispatch in hourly resolution
+using the capacities of previous capacity expansion in rule ``solve_network``.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    solving:
+        tmpdir:
+        options:
+            formulation:
+            clip_p_max_pu:
+            load_shedding:
+            noisy_costs:
+            nhours:
+            min_iterations:
+            max_iterations:
+        solver:
+            name:
+            (solveroptions):
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`solving_cf`
+
+Inputs
+------
+
+- ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solve`
+
+Outputs
+-------
+
+- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op.nc``: Solved PyPSA network for optimal dispatch including optimisation results
+
+Description
+-----------
+
 """
 
 import pypsa
