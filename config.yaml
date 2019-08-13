@@ -27,6 +27,7 @@ enable:
 electricity:
   voltages: [220., 300., 380.]
   co2limit: 7.75e+7 # 0.05 * 3.1e9*0.5
+  agg_p_nom_limits: data/agg_p_nom_minmax.csv
 
   extendable_carriers:
     Generator: [OCGT]
@@ -349,4 +350,4 @@ plotting:
     H2: "Hydrogen\nstorage"
     # OCGT marginal: "Gas (marginal)"
     lines: "transmission\nlines"
-    ror: "run of river"
+ror: "run of river"

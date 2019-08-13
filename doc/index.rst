@@ -25,6 +25,7 @@ Documentation
 * :doc:`installation`
 * :doc:`wildcards`
 * :doc:`configuration`
+* :doc:`example`
 
 .. toctree::
    :hidden:
@@ -35,6 +36,7 @@ Documentation
    installation
    wildcards
    configuration
+   example
 
 **Rules Overview**
 
