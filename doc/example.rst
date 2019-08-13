@@ -1,6 +1,8 @@
 #####################
-A PyPSA-EUR Example
+Examples
 #####################
+
+.. todo:: some of this is duplicated in other sections in the documentation. Consense!
 
 As PyPSA-EUR has mostly the same features as PyPSA in general, this provided example will guide the reader through running a simplified model:
 
