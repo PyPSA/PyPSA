@@ -66,6 +66,7 @@ Documentation
 
    wildcards
    configuration
+   example
 
 **Rules Overview**
 
