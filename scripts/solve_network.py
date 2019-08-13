@@ -45,9 +45,9 @@ Description
 -----------
 
 .. tip::
-    The rule ``solve_all_networks`` runs
+    The rule :mod:`solve_all_networks` runs
     for all ``scenario`` s in the configuration file 
-    the rule ``solve_network``.
+    the rule :mod:`solve_network`.
 
 """
 

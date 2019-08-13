@@ -30,7 +30,7 @@ The ``{simpl}`` wildcard
 
 The ``{simpl}`` wildcard specifies number of buses a detailed
 network model should be pre-clustered to in the rule
-``simplify_network`` (before ``cluster_network``).
+:mod:`simplify_network` (before :mod:`cluster_network`).
 
 .. seealso::
     :mod:`simplify_network`
@@ -41,7 +41,7 @@ The ``{clusters}`` wildcard
 ===========================
 
 The ``{clusters}`` wildcard specifies the number of buses a detailed
-network model should be reduced to in the rule ``cluster_network``.
+network model should be reduced to in the rule :mod:`cluster_network`.
 The number of clusters must be lower than the total number of nodes
 and higher than the number of countries. However, a country counts twice if
 it has two asynchronous subnetworks (e.g. Denmark or Italy).
@@ -91,7 +91,7 @@ The ``{opts}`` wildcard
 =======================
 
 The ``{opts}`` wildcard triggers optional constraints, which are activated in either
-``prepare_network`` or the ``solve_network`` step.
+:mod:`prepare_network` or the :mod:`solve_network` step.
 It may hold multiple triggers separated by ``-``, i.e. ``Co2L-3H`` contains the
 ``Co2L`` trigger and the ``3H`` switch. There are currently:
 
@@ -132,7 +132,7 @@ in Germany (in the solution for Europe) use:
 The ``{cutout}`` wildcard
 =========================
 
-The ``{cutout}`` wildcard facilitates running the rule ``build_cutout``
+The ``{cutout}`` wildcard facilitates running the rule :mod:`build_cutout`
 for all cutout configurations specified under ``atlite: cutouts:``.
 These cutouts will be stored in a folder specified by ``{cutout}``.
 
@@ -176,7 +176,7 @@ The ``{ext}`` wildcard
 ======================
 
 The ``{ext}`` wildcard specifies the file type of the figures the
-rule ``plot_network``, ``plot_summary``, and ``plot_p_nom_max`` produce.
+rule :mod:`plot_network`, :mod:`plot_summary`, and :mod:`plot_p_nom_max` produce.
 Typical examples are ``pdf`` and ``png``. The list of supported file
 formats depends on the used backend. To query the supported file types on your system, issue:
 

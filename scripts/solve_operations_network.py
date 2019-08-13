@@ -1,6 +1,6 @@
 """
 Solves linear optimal dispatch in hourly resolution
-using the capacities of previous capacity expansion in rule ``solve_network``.
+using the capacities of previous capacity expansion in rule :mod:`solve_network`.
 
 Relevant Settings
 -----------------

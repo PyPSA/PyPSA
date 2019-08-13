@@ -6,8 +6,8 @@ Simplifying Networks
 
 The simplification ``snakemake`` rules prepare **approximations** of the full model, for which it is computationally viable to co-optimize generation, storage and transmission capacities.
 
-- ``simplify_network`` transforms the transmission grid to a 380 kV only equivalent network, while
-- ``cluster_network`` uses a `k-means <https://en.wikipedia.org/wiki/K-means_clustering>`_ based clustering technique to partition the network into a given number of zones and then reduce the network to a representation with one bus per zone.
+- :mod:`simplify_network` transforms the transmission grid to a 380 kV only equivalent network, while
+- :mod:`cluster_network` uses a `k-means <https://en.wikipedia.org/wiki/K-means_clustering>`_ based clustering technique to partition the network into a given number of zones and then reduce the network to a representation with one bus per zone.
 
 The simplification and clustering steps are described in detail in the paper
 

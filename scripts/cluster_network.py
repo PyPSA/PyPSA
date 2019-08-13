@@ -83,9 +83,9 @@ Description
         do not work reliably with multiple voltage levels and transformers.
 
 .. tip::
-    The rule ``cluster_all_networks`` runs
+    The rule :mod:`cluster_all_networks` runs
     for all ``scenario`` s in the configuration file 
-    the rule ``cluster_network``.
+    the rule :mod:`cluster_network`.
 
 """
 

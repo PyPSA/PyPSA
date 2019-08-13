@@ -1,5 +1,5 @@
 """
-Iteratively solves expansion problem like the rule ``solve_network``, but additionally
+Iteratively solves expansion problem like the rule :mod:`solve_network`, but additionally
 records intermediate branch capacity steps and values of the objective function.
 
 Relevant Settings
