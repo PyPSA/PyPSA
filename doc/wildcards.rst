@@ -4,7 +4,14 @@
 Wildcards
 #########
 
-Detailed explanations of how wildcards work in ``snakemake`` can be found in the `relevant section of the documentation <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#wildcards>`_.
+It is easy to run PyPSA-Eur for multiple scenarios using the wildcards feature of ``snakemake``.
+Wildcards allow to generalise a rule to produce all files that follow a regular expression pattern
+which e.g. defines one particular scenario. One can think of a wildcard as a parameter that shows
+up in the input/output file names of the ``Snakefile`` and thereby determines which rules to run,
+what data to retrieve and what files to produce.
+
+Detailed explanations of how wildcards work in ``snakemake`` can be found in the
+`relevant section of the documentation <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#wildcards>`_.
 
 .. _network:
 
@@ -21,7 +28,9 @@ future extensions including multiple energy sectors at once.
 The ``{simpl}`` wildcard
 ========================
 
-The ``{simpl}`` wildcard specifies number of buses a detailed network model should be pre-clustered to in the rule ``simplify_network`` (before ``cluster_network``).
+The ``{simpl}`` wildcard specifies number of buses a detailed
+network model should be pre-clustered to in the rule
+``simplify_network`` (before ``cluster_network``).
 
 .. seealso::
     :mod:`simplify_network`
@@ -31,12 +40,15 @@ The ``{simpl}`` wildcard specifies number of buses a detailed network model shou
 The ``{clusters}`` wildcard
 ===========================
 
-The ``{clusters}`` wildcard specifies the number of buses a detailed network model should be reduced to in the rule ``cluster_network``.
+The ``{clusters}`` wildcard specifies the number of buses a detailed
+network model should be reduced to in the rule ``cluster_network``.
 The number of clusters must be lower than the total number of nodes
 and higher than the number of countries. However, a country counts twice if
 it has two asynchronous subnetworks (e.g. Denmark or Italy).
 
-If an `m` is placed behind the number of clusters (e.g. ``100m``), generators are only moved to the clustered buses but not aggregated by carrier; i.e. the clustered bus may have more than one e.g. wind generator.
+If an `m` is placed behind the number of clusters (e.g. ``100m``),
+generators are only moved to the clustered buses but not aggregated
+by carrier; i.e. the clustered bus may have more than one e.g. wind generator.
 
 .. seealso::
     :mod:`cluster_network`
@@ -46,9 +58,29 @@ If an `m` is placed behind the number of clusters (e.g. ``100m``), generators ar
 The ``{ll}`` wildcard
 =====================
 
-``v`` (volume) or ``c`` (cost)
+The ``{ll}`` wildcard specifies what limits on
+line expansion are set for the optimisation model.
+It is handled in the rule :mod:`prepare_network`.
 
-``opt`` or a float bigger than one (e.g. 1.25)
+The wildcard, in general, consists of two parts:
+
+    1. The first part can be
+       ``v`` (for setting a limit on line volume) or
+       ``c`` (for setting a limit on line cost)
+
+    2. The second part can be
+       ``opt`` or a float bigger than one (e.g. 1.25).
+       
+       (a) If ``opt`` is chosen line expansion is optimised
+           according to its capital cost
+           (regardless of the choice of ``v`` or ``c``).
+
+       (b) ``v1.25`` will limit the total volume of line expansion
+           to 25 % of currently installed capacities weighted by
+           individual line lengths; investment costs are neglected. 
+
+       (c) ``c1.25`` will allow to build a transmission network that
+           costs no more than 25 % more than the current system.
 
 .. seealso::
     :mod:`prepare_network`
@@ -100,13 +132,27 @@ in Germany (in the solution for Europe) use:
 The ``{cutout}`` wildcard
 =========================
 
+The ``{cutout}`` wildcard facilitates running the rule ``build_cutout``
+for all cutout configurations specified under ``atlite: cutouts:``.
+These cutouts will be stored in a folder specified by ``{cutout}``.
+
 .. seealso::
-    :mod:`build_cutout`
+    :mod:`build_cutout`, :ref:`atlite_cf`
 
 .. _technology:
 
 The ``{technology}`` wildcard
 =============================
+
+The ``{technology}`` wildcard specifies for which renewable energy technology to produce availablity time
+series and potentials using the rule :mod:`build_renewable_profiles`.
+It can take the values ``onwind``, ``offwind-ac``, ``offwind-dc``, and ``solar`` but **not** ``hydro``
+(since hydroelectric plant profiles are created by a different rule.
+
+The wildcard can moreover be used to create technology specific figures and summaries.
+For instance ``{technology}`` can be used to plot regionally disaggregated potentials
+with the rule :mod:`plot_p_nom_max` or to summarize a particular technology's
+full load hours in various countries with the rule :mod:`build_country_flh`.
 
 .. seealso::
     :mod:`build_renewable_profiles`, :mod:`plot_p_nom_max`, :mod:`build_country_flh`
@@ -116,7 +162,10 @@ The ``{technology}`` wildcard
 The ``{attr}`` wildcard
 =======================
 
-The ``{attr}`` wildcard specifies which attribute are used for size representations of network components on a map plot produced by the rule ``plot_network``. While it might be extended in the future, ``{attr}`` currently only supports plotting of ``p_nom``.
+The ``{attr}`` wildcard specifies which attribute are used for size
+representations of network components on a map plot produced by the rule
+``plot_network``. While it might be extended in the future, ``{attr}``
+currently only supports plotting of ``p_nom``.
 
 .. seealso::
     :mod:`plot_network`
@@ -126,7 +175,10 @@ The ``{attr}`` wildcard specifies which attribute are used for size representati
 The ``{ext}`` wildcard
 ======================
 
-The ``{ext}`` wildcard specifies the file type of the figures the rule ``plot_network``, ``plot_summary``, and ``plot_p_nom_max`` produce. Typical examples are ``pdf`` and ``png``. The list of supported file formats depends on the used backend. To query the supported file types on your system, issue:
+The ``{ext}`` wildcard specifies the file type of the figures the
+rule ``plot_network``, ``plot_summary``, and ``plot_p_nom_max`` produce.
+Typical examples are ``pdf`` and ``png``. The list of supported file
+formats depends on the used backend. To query the supported file types on your system, issue:
 
 .. code:: python
 
