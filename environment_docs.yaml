@@ -9,7 +9,7 @@ dependencies:
 
   # Dependencies of the workflow itself
   #- xlrd
-  #- scikit-learn
+  - scikit-learn
   - pycountry
   - seaborn
   #- snakemake-minimal
