@@ -32,7 +32,6 @@ together into a detailed PyPSA network stored in ``networks/elec.nc``.
    preparation/base_network
    preparation/build_bus_regions
    preparation/build_natura_raster
-   preparation/build_country_flh
    preparation/build_powerplants
    preparation/build_renewable_profiles
    preparation/build_hydro_profile
