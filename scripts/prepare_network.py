@@ -1,6 +1,13 @@
 # coding: utf-8
 """
-Prepare PyPSA network for solving according to the ``{opts}`` wildcard (:ref:`opts`).
+Prepare PyPSA network for solving according to :ref:`opts` and :ref:`ll`, such as
+
+- adding an annual **limit** of carbon-dioxide emissions,
+- adding an exogenous **price** of carbon-dioxide emissions,
+- setting an **N-1 security margin** factor for transmission line capacities,
+- specifying a limit on the **cost** of transmission expansion,
+- specifying a limit on the **volume** of transmission expansion, and
+- reducing the **temporal** resolution by averaging over multiple hours.
 
 Relevant Settings
 -----------------
