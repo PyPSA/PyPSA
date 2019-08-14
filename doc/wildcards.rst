@@ -73,7 +73,7 @@ The wildcard, in general, consists of two parts:
        
        (a) If ``opt`` is chosen line expansion is optimised
            according to its capital cost
-           (where the choice ``v`` only considers overhead costs and
+           (where the choice ``v`` only considers overhead costs for HVDC transmission lines, while
            ``c`` uses more accurate costs distinguishing between
            overhead and underwater sections and including inverter pairs).
 
