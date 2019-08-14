@@ -78,6 +78,7 @@ Documentation
    :hidden:
    :maxdepth: 1
    :caption: Rules Overview
+   :numbered:
 
    preparation
    simplification
