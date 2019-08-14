@@ -1,6 +1,6 @@
 .. _cluster:
 
-Rule :mod:`cluster_network`
+Rule ``cluster_network``
 ===========================
 
 .. graphviz::

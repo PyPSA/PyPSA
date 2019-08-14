@@ -1,6 +1,6 @@
 .. _electricity:
 
-Rule :mod:`add_electricity`
+Rule ``add_electricity``
 =============================
 
 .. graphviz::

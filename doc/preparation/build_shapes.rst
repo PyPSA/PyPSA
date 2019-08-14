@@ -1,6 +1,6 @@
 .. _shapes:
 
-Rule :mod:`build_shapes`
+Rule ``build_shapes``
 =============================
 
 .. graphviz::

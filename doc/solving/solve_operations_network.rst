@@ -1,6 +1,6 @@
 .. _solve_operations:
 
-Rule :mod:`solve_operations_network`
+Rule ``solve_operations_network``
 ====================================
 
 .. graphviz::

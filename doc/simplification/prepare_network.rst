@@ -1,6 +1,6 @@
 .. _prepare:
 
-Rule :mod:`prepare_network`
+Rule ``prepare_network``
 ===========================
 
 .. graphviz::

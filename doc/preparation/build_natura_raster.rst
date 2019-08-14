@@ -1,6 +1,6 @@
 .. _natura:
 
-Rule :mod:`build_natura_raster`
+Rule ``build_natura_raster``
 ===============================
 
 .. graphviz::

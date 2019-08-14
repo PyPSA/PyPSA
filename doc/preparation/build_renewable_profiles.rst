@@ -1,6 +1,6 @@
 .. _renewableprofiles:
 
-Rule :mod:`build_renewable_profiles`
+Rule ``build_renewable_profiles``
 ====================================
 
 .. graphviz::

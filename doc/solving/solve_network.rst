@@ -1,6 +1,6 @@
 .. _solve:
 
-Rule :mod:`solve_network`
+Rule ``solve_network``
 =========================
 
 .. graphviz::

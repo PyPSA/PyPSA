@@ -1,6 +1,6 @@
 .. _links:
 
-Rule :mod:`prepare_links_p_nom`
+Rule ``prepare_links_p_nom``
 ===============================
 
 .. graphviz::

@@ -1,6 +1,6 @@
 .. _base:
 
-Rule :mod:`base_network`
+Rule ``base_network``
 =============================
 
 .. graphviz::

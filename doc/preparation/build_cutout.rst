@@ -1,6 +1,6 @@
 .. _cutout:
 
-Rule :mod:`build_cutout`
+Rule ``build_cutout``
 =============================
 
 .. graphviz::

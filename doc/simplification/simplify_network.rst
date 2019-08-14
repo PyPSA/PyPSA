@@ -1,6 +1,6 @@
 .. _simplify:
 
-Rule :mod:`simplify_network`
+Rule ``simplify_network``
 ============================
 
 .. graphviz::

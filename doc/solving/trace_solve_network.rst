@@ -1,6 +1,6 @@
 .. _trace_solve:
 
-Rule :mod:`trace_solve_network`
+Rule ``trace_solve_network``
 ===============================
 
 .. graphviz::

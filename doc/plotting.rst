@@ -6,7 +6,7 @@ Plotting and Summary
 
 .. _flh:
 
-Rule :mod:`build_country_flh`
+Rule ``build_country_flh``
 =============================
 
 .. graphviz::
@@ -50,7 +50,7 @@ Rule :mod:`build_country_flh`
 
 .. _plot_potentials:
 
-Rule :mod:`plot_p_nom_max`
+Rule ``plot_p_nom_max``
 ==========================
 
 .. graphviz::
@@ -85,7 +85,7 @@ Rule :mod:`plot_p_nom_max`
 
 .. _summary:
 
-Rule :mod:`make_summary`
+Rule ``make_summary``
 ========================
 
 .. graphviz::
@@ -120,7 +120,7 @@ Rule :mod:`make_summary`
 
 .. _summary_plot:
 
-Rule :mod:`plot_summary`
+Rule ``plot_summary``
 ========================
 
 .. graphviz::
@@ -134,7 +134,7 @@ Rule :mod:`plot_summary`
 
 .. _map_plot:
 
-Rule :mod:`plot_network`
+Rule ``plot_network``
 ========================
 
 .. graphviz::

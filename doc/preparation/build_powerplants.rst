@@ -1,6 +1,6 @@
 .. _powerplants:
 
-Rule :mod:`build_powerplants`
+Rule ``build_powerplants``
 =============================
 
 .. graphviz::

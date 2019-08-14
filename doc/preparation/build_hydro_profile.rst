@@ -1,6 +1,6 @@
 .. _hydroprofiles:
 
-Rule :mod:`build_hydro_profile`
+Rule ``build_hydro_profile``
 ===============================
 
 .. graphviz::

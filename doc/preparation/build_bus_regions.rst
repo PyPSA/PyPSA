@@ -1,6 +1,6 @@
 .. _busregions:
 
-Rule :mod:`build_bus_regions`
+Rule ``build_bus_regions``
 =============================
 
 .. graphviz::
