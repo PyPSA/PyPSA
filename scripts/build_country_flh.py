@@ -34,7 +34,7 @@ Inputs
 
     **Source:** `GEBCO <https://www.gebco.net/data_and_products/images/gebco_2019_grid_image.jpg>`_
 
-- ``data/pietzker2014.xlsx``: NOT IN DATA BUNDLE!
+- ``data/pietzker2014.xlsx``: `Supplementary material 2 <https://ars.els-cdn.com/content/image/1-s2.0-S0306261914008149-mmc2.xlsx>`_ from `Pietzcker et al. <https://doi.org/10.1016/j.apenergy.2014.08.011>`_; not part of the data bundle; download and place here yourself.
 - ``resources/natura.tiff``: confer :ref:`natura`
 - ``resources/country_shapes.geojson``: confer :ref:`shapes`
 - ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
