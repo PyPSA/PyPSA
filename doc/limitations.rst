@@ -42,12 +42,13 @@ improving the approximations.
 - **Hydro-electric power plants:**
   The database of hydro-electric power plants does not include plant-specific
   energy storage information, so that blanket values based on country storage
-  totals have been used. Inflow time series are based on country-wide approxima-
-  tions, ignoring local topography and basin drainage; in principle a full hydro-
-  logical model should be used.
+  totals have been used. Inflow time series are based on country-wide approximations,
+  ignoring local topography and basin drainage; in principle a full
+  hydrological model should be used.
 
 - **International interactions:**
   Border connections and power flows to Russia,
-  Belarus, Ukraine, Turkey and Morocco have not been taken into account; is-
-  lands which are not connected to the main European system, such as Malta,
+  Belarus, Ukraine, Turkey and Morocco have not been taken into account;
+  islands which are not connected to the main European system, such as Malta,
   Crete and Cyprus, are also excluded from the model.
+  
