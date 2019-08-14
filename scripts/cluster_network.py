@@ -35,18 +35,18 @@ Outputs
 
 - ``resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson``:
 
-    .. image:: img/regions_onshore_elec_s_X.png
+    .. image:: ../img/regions_onshore_elec_s_X.png
         :scale: 33 %
 
 - ``resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson``:
 
-    .. image:: img/regions_offshore_elec_s_X.png
+    .. image:: ../img/regions_offshore_elec_s_X.png
         :scale: 33 %
 
 - ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``: Mapping of buses and lines from ``networks/elec_s{simpl}.nc`` to ``networks/elec_s{simpl}_{clusters}.nc``; has keys ['/busmap', '/busmap_s', '/linemap', '/linemap_negative', '/linemap_positive']
 - ``networks/{network}_s{simpl}_{clusters}.nc``: 
 
-    .. image:: img/elec_s_X.png
+    .. image:: ../img/elec_s_X.png
         :scale: 40  %
 
 Description

@@ -23,79 +23,17 @@ Then the process continues by calculating conventional power plant capacities, p
 The central rule :mod:`add_electricity` then ties all the different data inputs
 together into a detailed PyPSA network stored in ``networks/elec.nc``.
 
-.. _shapes:
+.. toctree::
+   :caption: Overview
 
-Build Shapes
-=============================
-
-.. automodule:: build_shapes
-
-.. _cutout:
-
-Build Cutout
-=============================
-
-.. automodule:: build_cutout
-
-.. _links:
-
-Prepare HVDC Links
-=============================
-
-.. automodule:: prepare_links_p_nom
-
-.. _base:
-
-Base Network
-=============================
-
-.. automodule:: base_network
-
-.. _busregions:
-
-Build Bus Regions
-=============================
-
-.. automodule:: build_bus_regions
-
-.. _natura:
-
-Build Natura Raster
-=============================
-
-.. automodule:: build_natura_raster
-
-.. _flh:
-
-Build Country Full Load Hours
-=============================
-
-.. automodule:: build_country_flh
-
-.. _powerplants:
-
-Build Power Plants
-=============================
-
-.. automodule:: build_powerplants
-
-.. _renewableprofiles:
-
-Build Renewable Profiles
-========================
-
-.. automodule:: build_renewable_profiles
-
-.. _hydroprofiles:
-
-Build Hydro Profile
-=============================
-
-.. automodule:: build_hydro_profile
-
-.. _electricity:
-
-Add Electricity
-=============================
-
-.. automodule:: add_electricity
+   preparation/build_shapes
+   preparation/build_cutout
+   preparation/prepare_links_p_nom
+   preparation/base_network
+   preparation/build_bus_regions
+   preparation/build_natura_raster
+   preparation/build_country_flh
+   preparation/build_powerplants
+   preparation/build_renewable_profiles
+   preparation/build_hydro_profile
+   preparation/add_electricity

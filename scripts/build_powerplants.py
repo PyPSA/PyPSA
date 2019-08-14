@@ -24,7 +24,7 @@ Outputs
 
 - ``resource/powerplants.csv``: A list of conventional power plants (i.e. neither wind nor solar) with fields for name, fuel type, technology, country, capacity in MW, duration, commissioning year, retrofit year, latitude, longitude, and dam information as documented in the `powerplantmatching README <https://github.com/FRESNA/powerplantmatching/blob/master/README.md>`_; additionally it includes information on the closest substation/bus in ``networks/base.nc``.
 
-    .. image:: img/powerplantmatching.png
+    .. image:: ../img/powerplantmatching.png
         :scale: 30 %
 
     **Source:** `powerplantmatching on GitHub <https://github.com/FRESNA/powerplantmatching>`_

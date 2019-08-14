@@ -17,17 +17,17 @@ Inputs
 
 - ``data/bundle/naturalearth/ne_10m_admin_0_countries.shp``: World country shapes
 
-    .. image:: img/countries.png
+    .. image:: ../img/countries.png
         :scale: 33 %
 
 - ``data/bundle/eez/World_EEZ_v8_2014.shp``: World `exclusive economic zones <https://en.wikipedia.org/wiki/Exclusive_economic_zone>`_ (EEZ)
 
-    .. image:: img/eez.png
+    .. image:: ../img/eez.png
         :scale: 33 %
 
 - ``data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp``: Europe NUTS3 regions
 
-    .. image:: img/nuts3.png
+    .. image:: ../img/nuts3.png
         :scale: 33 %
 
 - ``data/bundle/nama_10r_3popgdp.tsv.gz``: Average annual population by NUTS3 region (`eurostat <http://appsso.eurostat.ec.europa.eu/nui/show.do?dataset=nama_10r_3popgdp&lang=en>`_)
@@ -40,22 +40,22 @@ Outputs
 
 - ``resources/country_shapes.geojson``: country shapes out of country selection
 
-    .. image:: img/country_shapes.png
+    .. image:: ../img/country_shapes.png
         :scale: 33 %
 
 - ``resources/offshore_shapes.geojson``: EEZ shapes out of country selection
 
-    .. image:: img/offshore_shapes.png
+    .. image:: ../img/offshore_shapes.png
         :scale: 33 %
 
 - ``resources/europe_shape.geojson``: Shape of Europe including countries and EEZ
 
-    .. image:: img/europe_shape.png
+    .. image:: ../img/europe_shape.png
         :scale: 33 %
         
 - ``resources/nuts3_shapes.geojson``: NUTS3 shapes out of country selection including population and GDP data.
         
-    .. image:: img/nuts3_shapes.png
+    .. image:: ../img/nuts3_shapes.png
         :scale: 33 %
 
 Description

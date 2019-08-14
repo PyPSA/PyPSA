@@ -45,16 +45,16 @@ Inputs
 - ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``data/bundle/hydro_capacities.csv``: Hydropower plant store/discharge power capacities, energy storage capacity, and average hourly inflow by country.
 
-    .. image:: img/hydrocapacities.png
+    .. image:: ../img/hydrocapacities.png
         :scale: 34 %
 
 - ``data/geth2015_hydro_capacities.csv``: alternative to capacities above; NOT CURRENTLY USED!
 - ``data/bundle/time_series_60min_singleindex_filtered.csv``: Hourly per-country load profiles since 2010 from the `ENTSO-E statistical database <https://www.entsoe.eu/data/power-stats/hourly_load/>`_
 
-    .. image:: img/load-box.png
+    .. image:: ../img/load-box.png
         :scale: 33 %
 
-    .. image:: img/load-ts.png
+    .. image:: ../img/load-ts.png
         :scale: 33 %
 
 - ``resources/regions_onshore.geojson``: confer :ref:`busregions`
@@ -68,7 +68,7 @@ Outputs
 
 - ``networks/elec.nc``:
 
-    .. image:: img/elec.png
+    .. image:: ../img/elec.png
             :scale: 33 %
 
 Description
