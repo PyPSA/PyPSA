@@ -73,7 +73,9 @@ The wildcard, in general, consists of two parts:
        
        (a) If ``opt`` is chosen line expansion is optimised
            according to its capital cost
-           (regardless of the choice of ``v`` or ``c``).
+           (where the choice ``v`` only considers overhead costs and
+           ``c`` uses more accurate costs distinguishing between
+           overhead and underwater sections and including inverter pairs).
 
        (b) ``v1.25`` will limit the total volume of line expansion
            to 25 % of currently installed capacities weighted by
