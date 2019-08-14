@@ -47,6 +47,29 @@ Outputs
 Description
 -----------
 
+Total annual system costs are minimised with PyPSA. The full formulation of the
+linear optimal power flow (plus investment planning
+is provided in the
+`documentation of PyPSA <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#linear-optimal-power-flow>`_.
+Additionaly some extra constraints from :mod:`prepare_network` are added.
+
+Solving the network in multiple iterations is motivated through the dependence of transmission line capacities and impedances.
+As lines are expanded their electrical parameters change, which renders the optimisation bilinear even if the power flow
+equations are linearized.
+To retain the computational advantage of continuous linear programming, a sequential linear programming technique
+is used, where in between iterations the line impedances are updated.
+Details (and errors made through this heuristic) are discussed in the paper
+
+- Fabian Neumann and Tom Brown. `Heuristics for Transmission Expansion Planning in Low-Carbon Energy System Models <https://arxiv.org/abs/1907.10548>`_), *16th International Conference on the European Energy Market*, 2019. `arXiv:1907.10548 <https://arxiv.org/abs/1907.10548>`_.
+
+.. warning::
+    Capital costs of existing network components are not included in the objective function,
+    since for the optimisation problem they are just a constant term (no influence on optimal result).
+
+    Therefore, these capital costs are not included in ``network.objective``!
+
+    If you want to calculate the full total annual system costs add these to the objective value.
+
 .. tip::
     The rule :mod:`solve_all_networks` runs
     for all ``scenario`` s in the configuration file 
