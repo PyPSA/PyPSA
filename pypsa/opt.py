@@ -312,15 +312,6 @@ def empty_model(model):
             bounds[obj.name] = obj._bounds_init_rule
             obj._bounds_init_rule = None
 
-    smap_id, symbol_map = (next(iteritems(model.solutions.symbol_map))
-               if model.solutions.symbol_map
-               else (None, None))
-    if smap_id is not None:
-        for m in ('bySymbol', 'aliases'):
-            setattr(symbol_map, m,
-                    {n: ComponentUID(obj())
-                     for n, obj in iteritems(getattr(symbol_map, m))})
-
     fd, fn = tempfile.mkstemp()
     with os.fdopen(fd, 'wb') as f:
         pickle.dump(model.__getstate__(), f, -1)
@@ -343,14 +334,6 @@ def empty_model(model):
     for n, bound in iteritems(bounds):
         getattr(model, n)._bounds_init_rule = bound
 
-    if smap_id is not None:
-        for m in ('bySymbol', 'aliases'):
-            setattr(symbol_map, m,
-                    {n: weakref_ref(cuid.find_component(model))
-                     for n, cuid in iteritems(getattr(symbol_map, m))})
-        symbol_map.byObject = {id(obj()): symb
-                               for symb, obj in iteritems(symbol_map.bySymbol)}
-        model.solutions.symbol_map[smap_id] = symbol_map
     logger.debug("Reloaded pyomo model")
 
 @contextmanager
