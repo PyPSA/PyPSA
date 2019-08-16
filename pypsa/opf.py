@@ -1227,31 +1227,27 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     if candidates:
         passive_branches_inv_p = get_values(model.passive_branch_inv_p)
-        network.inv_p = passive_branches_inv_p
         investment = get_values(model.passive_branch_inv)
         flow_lower_inv = get_shadows(model.inv_flow_lower)
         flow_upper_inv = get_shadows(model.inv_flow_upper)
 
         def map_corridor_to_candidate(network, investment):
-            print(investment)
             candidate_branches = network.passive_branches(sel='candidate')
-            print(len(candidate_branches))
             idx = candidate_branches.loc[investment==1,['bus0', 'bus1']].droplevel(0)
-            print(idx)
             rev_mapping = idx.apply(lambda x: (x.bus0, x.bus1), axis=1).to_dict()
             return {v: k for k, v in rev_mapping.items() if v!={}}
 
-        def non_zero_flows(series):
-            maxabs_flows = series.unstack(level=[0,1,2]).abs().max()
-            idx = maxabs_flows[maxabs_flows>1e-3].index
-            hours = series.index.get_level_values(3).unique()
-            x = [(*crd,h) for crd in idx.tolist() for h in hours]
-            return series.loc[x].sort_index()
+        def filter_for_inv_values(series, mapping):
+            selector = None
+            for i,j in mapping.keys():
+                s = (series.index.get_level_values(1) == i) & (series.index.get_level_values(2) == j)
+                selector = selector | s if selector is not None else s
+            return series.loc[selector].sort_index()
 
         def index_corridor_to_candidate(network, investment, series):
-            series = non_zero_flows(series)
-            if len(series) > 0:
+            if investment.sum() > 0:
                 mapping = map_corridor_to_candidate(network, investment)
+                series = filter_for_inv_values(series, mapping)
                 current_idx = series.index.tolist()
                 mapped_idx = []
                 for bt, bus0, bus1, sn in current_idx:
@@ -1264,13 +1260,14 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         flow_lower_inv = index_corridor_to_candidate(network, investment, flow_lower_inv)
         flow_upper_inv = index_corridor_to_candidate(network, investment, flow_upper_inv)
 
-        print("passive_branches_pre")
-        print(passive_branches)
-        passive_branches = pd.concat([passive_branches, passive_branches_inv_p])
-        print("passive_branches_post")
-        print(passive_branches)
-        flow_lower = pd.concat([flow_lower, flow_lower_inv])
-        flow_upper = pd.concat([flow_upper, flow_upper_inv])
+        if passive_branches.empty:
+            passive_branches = passive_branches_inv_p
+            flow_lower = flow_lower_inv
+            flow_upper = flow_upper_inv
+        else:
+            passive_branches = pd.concat([passive_branches, passive_branches_inv_p])
+            flow_lower = pd.concat([flow_lower, flow_lower_inv])
+            flow_upper = pd.concat([flow_upper, flow_upper_inv])
 
     for c in network.iterate_components(network.passive_branch_components):
         set_from_series(c.pnl.p0, passive_branches.loc[c.name])
