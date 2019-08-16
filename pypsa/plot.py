@@ -63,6 +63,7 @@ except ImportError:
 pltly_present = True
 try:
     import plotly.offline as pltly
+    import plotly.graph_objects as go
 except ImportError:
     pltly_present = False
 
@@ -449,8 +450,9 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
 
 def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
-          line_colors='green', line_widths=2, line_text=None, title="",
-          branch_components=['Line', 'Link'], iplot=True, jitter=None):
+          line_colors='green', line_widths=2, line_text=None, title="", size=None,
+          branch_components=['Line', 'Link'], iplot=True, jitter=None,
+          mapbox=False, mapbox_token="", mapbox_parameters={}):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -482,6 +484,8 @@ def iplot(network, fig=None, bus_colors='blue',
         MultiIndex.
     title : string
         Graph title
+    size : None|tuple
+        Tuple specifying width and height of figure; e.g. (width, heigh).
     branch_components : list of str
         Branch components to be plotted, defaults to Line and Link.
     iplot : bool, default True
@@ -489,6 +493,15 @@ def iplot(network, fig=None, bus_colors='blue',
     jitter : None|float
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
+    mapbox : bool, default False
+        Switch to use Mapbox.
+    mapbox_token : string
+        Mapbox API access token. Obtain from https://www.mapbox.com.
+        Can also be included in mapbox_parameters as `accesstoken=mapbox_token`.
+    mapbox_parameters : dict
+        Configuration parameters of the Mapbox layout.
+        E.g. {"bearing": 5, "pitch": 10, "zoom": 1, "style": 'dark'}.
+
 
     Returns
     -------
@@ -599,14 +612,56 @@ def iplot(network, fig=None, bus_colors='blue',
                                  hoverinfo="text",
                                  marker=dict(opacity=0.)))
 
-    fig['data'].extend([bus_trace]+shape_traces)
+    if mapbox:
+        shape_traces_latlon = []
+        for st in shape_traces:
+            st['lon'] = st.pop('x')
+            st['lat'] = st.pop('y')
+            shape_traces_latlon.append(go.Scattermapbox(st))
+        shape_traces = shape_traces_latlon
+        
+        shapes_mapbox = []
+        for s in shapes:
+            s['lon'] = [s.pop('x0'), s.pop('x1')]
+            s['lat'] = [s.pop('y0'), s.pop('y1')]
+            shapes_mapbox.append(go.Scattermapbox(s, mode='lines'))
+        shapes = shapes_mapbox
+        
+        bus_trace['lon'] = bus_trace.pop('x')
+        bus_trace['lat'] = bus_trace.pop('y')
+        bus_trace = go.Scattermapbox(bus_trace)
 
-    fig['layout'].update(dict(shapes=shapes,
-                              title=title,
+        fig['data'].extend(shapes + shape_traces + [bus_trace])
+    else:
+        fig['data'].extend([bus_trace]+shape_traces)
+
+    fig['layout'].update(dict(title=title,
                               hovermode='closest',
                               showlegend=False))
-                              #xaxis=dict(range=[6,14]),
-                              #yaxis=dict(range=[47,55])
+    
+    if size is not None:
+        assert len(size) == 2, "Parameter size must specify a tuple (width, height)."
+        fig['layout'].update(dict(width=size[0],
+                                  height=size[1]))
+        
+    if mapbox:
+        if mapbox_token != "":
+            mapbox_parameters['accesstoken'] = mapbox_token
+        
+        assert 'accesstoken' in mapbox_parameters.keys(),\
+                "Using Mapbox requires a valid access token from https://www.mapbox.com/"
+        
+        if 'center' not in mapbox_parameters.keys():
+            lon=(network.buses.x.min() + network.buses.x.max()) / 2
+            lat=(network.buses.y.min() + network.buses.y.max()) / 2
+            mapbox_parameters['center'] = dict(lat=lat, lon=lon)
+            
+        if 'zoom' not in mapbox_parameters.keys():
+            mapbox_parameters['zoom'] = 2
+        
+        fig['layout']['mapbox'] = mapbox_parameters
+    else:
+        fig['layout']['shapes'] = shapes
 
 
     if iplot:
