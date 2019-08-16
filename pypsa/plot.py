@@ -290,7 +290,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         else:
             from shapely.wkt import loads
             from shapely.geometry import LineString
-            linestrings = c.df.geometry.map(loads)
+            linestrings = c.df.geometry[lambda ds: ds != ''].map(loads)
             assert all(isinstance(ls, LineString) for ls in linestrings), (
                 "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings")
