@@ -733,6 +733,16 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
         define_integer_passive_branch_flows_with_kirchhoff(network, snapshots)
 
 
+def big_m_slack(network):
+    """
+    one M for each line
+    """
+
+    m = None
+
+    return m
+
+
 def define_integer_slack_angle(network, snapshots):
 
     slack_dependencies = find_slack_dependencies(network)
@@ -743,7 +753,7 @@ def define_integer_slack_angle(network, snapshots):
         for sn in snapshots:
             lhs = LExpression([(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])])
             # TODO: adjust maximum value of voltage angle
-            rhs = LExpression([(20*np.pi, network.model.passive_branch_inv[l]) for l in lines])
+            rhs = LExpression([(200*np.pi, network.model.passive_branch_inv[l]) for l in lines])
             slack_upper[sub,sn] = LConstraint(lhs,"<=",rhs)
             slack_lower[sub,sn] = LConstraint(lhs,">=",-rhs)
 

@@ -1233,8 +1233,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         flow_upper_inv = get_shadows(model.inv_flow_upper)
 
         def map_corridor_to_candidate(network, investment):
+            print(investment)
             candidate_branches = network.passive_branches(sel='candidate')
+            print(len(candidate_branches))
             idx = candidate_branches.loc[investment==1,['bus0', 'bus1']].droplevel(0)
+            print(idx)
             rev_mapping = idx.apply(lambda x: (x.bus0, x.bus1), axis=1).to_dict()
             return {v: k for k, v in rev_mapping.items() if v!={}}
 
@@ -1261,7 +1264,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         flow_lower_inv = index_corridor_to_candidate(network, investment, flow_lower_inv)
         flow_upper_inv = index_corridor_to_candidate(network, investment, flow_upper_inv)
 
+        print("passive_branches_pre")
+        print(passive_branches)
         passive_branches = pd.concat([passive_branches, passive_branches_inv_p])
+        print("passive_branches_post")
+        print(passive_branches)
         flow_lower = pd.concat([flow_lower, flow_lower_inv])
         flow_upper = pd.concat([flow_upper, flow_upper_inv])
 
