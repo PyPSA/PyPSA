@@ -382,7 +382,7 @@ def bigm_for_angles(n, keep_weights=False):
 
     n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
-    candidates = n.lines[n.lines.operative == False]
+    candidates = n.lines[(n.lines.operative == False) & (n.lines.s_nom_extendable == True)]
 
     ngraph = n.graph(line_selector='operative',
                      branch_components=['Line'],
@@ -394,11 +394,7 @@ def bigm_for_angles(n, keep_weights=False):
             path_length = nx.dijkstra_path_length(ngraph, candidate.bus0, candidate.bus1)
             m[name] = path_length / candidate.x_pu_eff 
         else:
-            # TODO: solve longest path problem or adjust for connecting sub_networks
-            # no path through existing network
-            # Binato proposes solving non-polynomial longest path problem
-            # this is an unchecked alternative:
-            m[name] = 40 * np.pi / candidate.x_pu_eff + candidate.s_nom
+            m[name] = n.lines.s_nom.sum()
 
     if not keep_weights:
         n.lines.drop("bigm_weight", axis=1)
@@ -930,7 +926,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     define_storage_variables_constraints(network,snapshots)
 
-    define_store_variables_constraints(network,snapshots)
+    define_store_variables_bconstraints(network,snapshots)
 
     define_branch_extension_variables(network,snapshots)
     define_integer_branch_extension_variables(network,snapshots)
