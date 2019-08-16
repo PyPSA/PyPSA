@@ -908,6 +908,8 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     assert exclusive_candidates, "Current implementation requires exclusively one investment per corridor."
 
+    assert len(network.passive_branches(sel='candidate')) > 0, "No candidate lines given. Run `network.lopf` instead!"
+
     if not skip_pre:
         # considered network topology depends on formulation.
         ls = 'operative' if formulation=="angles" else 'potential'
