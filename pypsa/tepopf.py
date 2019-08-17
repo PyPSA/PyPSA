@@ -535,7 +535,7 @@ def find_slack_dependencies(network):
         A dictionary where keys are sub_network names and
         values are a list of tuples identifying the candidate lines
         associated with this subnetwork's slack constraint; e.g. 
-        {'0': [('Line', 'c1'),('Line', 'c1')], '1': [('Line','c3')], '2': []}
+        {'0': [('Line', 'c1'),('Line', 'c2')], '1': [('Line','c3')], '2': []}
     """
 
     if not len(network.sub_networks) > 0:
@@ -729,27 +729,101 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
         define_integer_passive_branch_flows_with_kirchhoff(network, snapshots)
 
 
-def big_m_slack(network):
+def big_m_slack(n, slack_dependencies=None, keep_weights=False):
     """
-    one M for each line
+    Calculates a big-M parameter for each candidate line that relaxes 
+    the lower order (subnetwork with fewer buses) slack variable
+    in the `angle` formulation.
+    
+    The parameter is determined based on the maximum angle difference
+    regardless of the investment of other candidate lines (that also 
+    can connect to other subnetworks).
+    
+    Recursive strategy if multiple subnetworks are synchronized; adds
+    maximum big-M parameter of higher order subnetwork
+    to all big-M parameters of the lower order subnetwork (where the
+    slack is relaxed).
+    
+    Not minimal values, but low computational effort to calculate
+    and guarantee to make slack constraint non-binding with corresponding
+    investments.
+    
+    Parameters
+    ----------
+    n : pypsa.Network
+    slack_dependencies : dict
+        Output of function pypsa.tepopf.find_slack_dependencies(network).
+        A dictionary where keys are sub_network names and
+        values are a list of tuples identifying the candidate lines
+        associated with this subnetwork's slack constraint; e.g. 
+        {'0': [('Line', 'c1'),('Line', 'c2')], '1': [('Line','c3')], '2': []}
+    keep_weights : bool
+        Keep the weights used for calculating the Big-M parameters.
+        
+    
+    Returns
+    -------
+    m : dict
+        Keys are candidate lines that synchronize subnetworks.
     """
+    
+    n.calculate_dependent_values()
+    
+    if slack_dependencies is None:
+        slack_dependencies = find_slack_dependencies(n)
+        
+    if not len(n.sub_networks) > 0:
+        n.determine_network_topology()
+      
+    if any(n.sub_networks.slack_bus == ""):
+        for sn in n.sub_networks.obj:
+            find_slack_bus(sn)
+    
+    def order(sn):
+        return len(n.sub_networks.loc[sn].obj.buses())
+    
+    rank = pd.Series(
+                {sn: order(sn)
+                 for sn in slack_dependencies.keys()}).sort_values(ascending=False)
 
-    m = None
+    n.lines['bigm_weight'] = n.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
+    ngraph = n.graph(line_selector='operative',
+                branch_components=['Line'],
+                weight='bigm_weight')
+
+    m = {}
+    for i in range(1,len(rank)):
+        for cnd_i in slack_dependencies[rank.index[i]]:
+            cnd = n.lines.loc[cnd_i[1]]
+            sn0 = n.buses.loc[cnd.bus0].sub_network
+            sn1 = n.buses.loc[cnd.bus1].sub_network
+            slack0 = n.sub_networks.slack_bus[sn0]
+            slack1 = n.sub_networks.slack_bus[sn1]
+            ngraph.add_edge(cnd.bus0, cnd.bus1, weight=cnd.x_pu_eff * cnd.s_nom)
+            path_length = nx.dijkstra_path_length(ngraph, slack0, slack1)
+            m[cnd_i] = path_length
+            if i > 1:
+                m[cnd_i] += max([m[prec] for prec in slack_dependencies[rank.index[i-1]]])
+            ngraph.remove_edge(cnd.bus0, cnd.bus1)
+    
+    if not keep_weights:
+        n.lines.drop("bigm_weight", axis=1)
+    
     return m
 
 
 def define_integer_slack_angle(network, snapshots):
 
     slack_dependencies = find_slack_dependencies(network)
+    big_m = big_m_slack(network, slack_dependencies=slack_dependencies)
 
     slack_upper = {}
     slack_lower = {}
     for sub, lines in slack_dependencies.items():
         for sn in snapshots:
             lhs = LExpression([(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])])
-            # TODO: adjust maximum value of voltage angle
-            rhs = LExpression([(200*np.pi, network.model.passive_branch_inv[l]) for l in lines])
+            rhs = LExpression([(big_m[l], network.model.passive_branch_inv[l]) for l in lines])
             slack_upper[sub,sn] = LConstraint(lhs,"<=",rhs)
             slack_lower[sub,sn] = LConstraint(lhs,">=",-rhs)
 
