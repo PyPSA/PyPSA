@@ -926,7 +926,7 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
 
     define_storage_variables_constraints(network,snapshots)
 
-    define_store_variables_bconstraints(network,snapshots)
+    define_store_variables_constraints(network,snapshots)
 
     define_branch_extension_variables(network,snapshots)
     define_integer_branch_extension_variables(network,snapshots)
