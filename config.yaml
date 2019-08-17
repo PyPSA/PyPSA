@@ -43,6 +43,9 @@ electricity:
   #   Solar: [solar]
 
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  my_carriers_for_countries: ['DE'] # will replace generators in Germany by those saved in resources/powerplants_DE.csv
+  my_carriers_switch: replace-selection #replace-all, replace-selection or add (replace whole country/replace carriertype within country/add and do not delete from original generators)
+  restrict_buildyear: 2050 #delete generators built in between x-2050 
 
 atlite:
   nprocesses: 4
