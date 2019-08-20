@@ -68,7 +68,8 @@ except ImportError:
 
 
 def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', line_colors='g', bus_sizes=10, line_widths=2,
+         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=10,
+         line_widths={'Line':2, 'Link':2},
          flow=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
          basemap=None, basemap_parameters=None, color_geomap=None):
