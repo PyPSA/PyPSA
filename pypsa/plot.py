@@ -375,10 +375,11 @@ def compute_bbox_with_margins(margin, x, y):
     return tuple(xy1), tuple(xy2)
 
 
-def projected_area_factor(ax, original_crs):
+def projected_area_factor(ax, original_crs=4326):
     """
     Helper function to get the area scale of the current projection in
-    reference to the default projection.
+    reference to the default projection. The default 'original crs' is assumed
+    to be 4326, which translates to the cartopy default cartopy.crs.PlateCarree()
     """
     if not hasattr(ax, 'projection'):
         return 1
