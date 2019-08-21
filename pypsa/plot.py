@@ -281,10 +281,10 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
 
     if flow is not None:
         flow = (_flow_ds_from_arg(flow, network, branch_components)
-                     .pipe(as_branch_series)
-                     .div(sum(len(t.df) for t in
-                              network.iterate_components(branch_components)) + 100)
-                     .mul(line_widths, fill_value=1))
+                .pipe(as_branch_series)
+                .div(sum(len(t.df) for t in
+                         network.iterate_components(branch_components)) + 100)
+                .mul(line_widths, fill_value=1))
         # update the line width, allows to set line widths separately from flows
         line_widths.update((5 * flow.abs()).pipe(np.sqrt))
         arrows = directed_flow(network, flow, x=x, y=y, ax=ax, geomap=geomap,
