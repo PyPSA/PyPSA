@@ -231,8 +231,9 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
             "bus_colors must be a dictionary defining a color for each element " \
             "in the second MultiIndex level of bus_sizes"
 
-        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)\
-                        * projected_area_factor(ax, network.srid)**2
+        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+        if geomap:
+            bus_sizes *= projected_area_factor(ax, network.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -259,11 +260,12 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     def as_branch_series(ser):
         # ensure that this function always return a multiindexed series
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return network.branches().loc[branch_components] \
-                          .join(pd.Series(ser, name='value') \
-                          .rename_axis('component')).value
+            return pd.concat(
+                    {c.name: pd.Series(s, index=c.df.index) for c, s in
+                         zip(network.iterate_components(ser.keys()), ser.values())},
+                    names=['component', 'name'])
         elif isinstance(ser, pd.Series) and isinstance(ser.index, pd.MultiIndex):
-                return ser.rename_axis(['component', 'name'])
+                return ser.rename_axis(index=['component', 'name'])
         else:
             ser =  pd.Series(ser, network.lines.index)
         return pd.concat([ser], axis=0, keys=['Line'],
@@ -278,13 +280,14 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     branch_collections = []
 
     if flow is not None:
-        flow = _flow_ds_from_arg(flow, network, branch_components)\
-                        .pipe(as_branch_series)\
-                        .div(len(network.branches()) + 100)\
-                        .mul(line_widths, fill_value=1)
+        flow = (_flow_ds_from_arg(flow, network, branch_components)
+                     .pipe(as_branch_series)
+                     .div(sum(len(t.df) for t in
+                              network.iterate_components(branch_components)) + 100)
+                     .mul(line_widths, fill_value=1))
         # update the line width, allows to set line widths separately from flows
         line_widths.update((5 * flow.abs()).pipe(np.sqrt))
-        arrows = directed_flow(network, flow, x=x, y=y, ax=ax,
+        arrows = directed_flow(network, flow, x=x, y=y, ax=ax, geomap=geomap,
                                branch_colors=line_colors,
                                branch_comps=branch_components,
                                cmap=line_cmap['Line'])
@@ -475,18 +478,20 @@ def _flow_ds_from_arg(flow, n, branch_components):
                 .agg(flow, axis=0))
 
 
-def directed_flow(n, flow, x=None, y=None, ax=None,
+def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
                   branch_colors='darkgreen', branch_comps=['Line', 'Link'],
                   cmap=None):
     """
     Helper function to generate arrows from flow data.
     """
+    #Probably plt.quiver is much faster here!
     # this funtion is used for diplaying arrows representing the network flow
     from matplotlib.patches import FancyArrow
     if ax is None:
         ax = plt.gca()
     x = n.buses.x if x is None else x
     y = n.buses.y if y is None else y
+
     #set the scale of the arrowsizes
     fdata = pd.concat([pd.DataFrame(
                       {'x1': n.df(l).bus0.map(x),
@@ -495,8 +500,9 @@ def directed_flow(n, flow, x=None, y=None, ax=None,
                        'y2': n.df(l).bus1.map(y)})
                       for l in branch_comps], keys=branch_comps,
                     names=['component', 'name'])
-    fdata['arrowsize'] = (flow.abs().pipe(np.sqrt)
-                          .clip(lower=1e-8).mul(projected_area_factor(ax, 4326)))
+    fdata['arrowsize'] = flow.abs().pipe(np.sqrt).clip(lower=1e-8)
+    if geomap:
+        fdata['arrowsize']= fdata['arrowsize'].mul(projected_area_factor(ax, n.srid))
     fdata['direction'] = np.sign(flow)
     fdata['linelength'] = (np.sqrt((fdata.x1 - fdata.x2)**2. +
                            (fdata.y1 - fdata.y2)**2))
@@ -523,7 +529,7 @@ def directed_flow(n, flow, x=None, y=None, ax=None,
                            0.001*(ds.y2 - ds.y1),
                            head_width=ds.arrowsize), axis=1))
     if isinstance(branch_colors.index, (pd.MultiIndex, str)):
-        # Catch the case that only multiindex with lines as passed
+        # Catch the case that only multiindex with 'Line' in first level is passed
         fdata = fdata.assign(color=branch_colors.reindex_like(fdata)
                                                 .fillna('darkgreen'))
     else:
