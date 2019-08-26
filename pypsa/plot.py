@@ -265,11 +265,11 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                          zip(network.iterate_components(ser.keys()), ser.values())},
                     names=['component', 'name'])
         elif isinstance(ser, pd.Series) and isinstance(ser.index, pd.MultiIndex):
-                return ser.rename_axis(index=['component', 'name'])
+            return ser.rename_axis(index=['component', 'name'])
         else:
             ser =  pd.Series(ser, network.lines.index)
-        return pd.concat([ser], axis=0, keys=['Line'],
-                         names=['component', 'name']).fillna(0)
+            return pd.concat([ser], axis=0, keys=['Line'],
+                             names=['component', 'name']).fillna(0)
 
     line_colors = as_branch_series(line_colors)
     line_widths = as_branch_series(line_widths)
@@ -484,7 +484,6 @@ def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
     """
     Helper function to generate arrows from flow data.
     """
-    #Probably plt.quiver is much faster here!
     # this funtion is used for diplaying arrows representing the network flow
     from matplotlib.patches import FancyArrow
     if ax is None:
