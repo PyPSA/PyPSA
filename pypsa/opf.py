@@ -1350,7 +1350,9 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         elif formulation in ["ptdf","cycles","kirchhoff"]:
             if candidates: network.determine_network_topology(line_selector='used')
             for sn in network.sub_networks.obj:
-                if candidates: find_slack_bus(sn)
+                if candidates:
+                    find_slack_bus(sn)
+                    find_bus_controls(sn)
                 if len(sn.branches_i()) > 0:
                     calculate_B_H(sn, line_selector='used')
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
