@@ -873,15 +873,24 @@ class Network(Basic):
                     logger.warning("The following %s have %s which are not defined:\n%s",
                                    c.list_name, attr, missing)
 
+        def bad_by_type(branch, attr):
+            if branch.type not in self.line_types.index:
+                return True
+            elif self.line_types.loc[branch.type, attr+'_per_length'] * branch.length == 0.:
+                return True
+            else:
+                return False
 
         for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x","r"]:
-                bad = c.df.index[c.df[attr] == 0.]
+                bad = c.df.index[(c.df[attr] == 0.) & c.df.apply(bad_by_type, args=(attr,), axis=1)]
                 if len(bad) > 0:
                     logger.warning("The following %s have zero %s, which could break the linear load flow:\n%s",
                                    c.list_name, attr, bad)
 
-            bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.)]
+            bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.) &
+                             c.df.apply(bad_by_type, args=('x',), axis=1) & 
+                             c.df.apply(bad_by_type, args=('r',), axis=1)]
             if len(bad) > 0:
                 logger.warning("The following %s have zero series impedance, which will break the load flow:\n%s",
                                c.list_name, bad)
