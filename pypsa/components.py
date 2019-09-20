@@ -80,7 +80,6 @@ logger = logging.getLogger(__name__)
 
 
 dir_name = os.path.dirname(__file__)
-
 component_attrs_dir_name = "component_attrs"
 
 standard_types_dir_name = "standard_types"
@@ -712,9 +711,9 @@ class Network(Basic):
         Parameters
         ----------
         key : indexer or tuple of indexer
-            If only one indexer is provided it is used in the .ix
+            If only one indexer is provided it is used in the .loc
             indexer of the buses dataframe (refer also to the help for
-            pd.DataFrame.ix). If a tuple of two indexers are provided,
+            pd.DataFrame.loc). If a tuple of two indexers are provided,
             the first one is used to slice snapshots and the second
             one buses.
 
@@ -738,7 +737,7 @@ class Network(Basic):
         override_components, override_component_attrs = self._retrieve_overridden_components()
         n = self.__class__(override_components=override_components, override_component_attrs=override_component_attrs)
         n.import_components_from_dataframe(
-            pd.DataFrame(self.buses.ix[key]).assign(sub_network=""),
+            pd.DataFrame(self.buses.loc[key]).assign(sub_network=""),
             "Bus"
         )
         buses_i = n.buses.index
@@ -767,7 +766,7 @@ class Network(Basic):
                 pnl = self.pnl(c)
 
                 for k in pnl:
-                    npnl[k] = pnl[k].ix[time_i,i.intersection(pnl[k].columns)]
+                    npnl[k] = pnl[k].loc[time_i,i.intersection(pnl[k].columns)]
             except AttributeError:
                 pass
 
@@ -775,7 +774,7 @@ class Network(Basic):
         for attr in ["name", "srid"]:
             setattr(n,attr,getattr(self, attr))
 
-        n.snapshot_weightings = self.snapshot_weightings.ix[time_i]
+        n.snapshot_weightings = self.snapshot_weightings.loc[time_i]
 
         return n
 
@@ -784,7 +783,8 @@ class Network(Basic):
     #presence of links without s_nom_extendable
     def branches(self):
         return pd.concat((self.df(c) for c in self.branch_components),
-                         keys=self.branch_components, sort=False)
+                         keys=self.branch_components, sort=False,
+                         names=['component', 'name'])
 
     def passive_branches(self):
         return pd.concat((self.df(c) for c in self.passive_branch_components),
@@ -847,10 +847,10 @@ class Network(Basic):
 
     def consistency_check(self):
         """
-        Checks the network for consistency; e.g. 
+        Checks the network for consistency; e.g.
         that all components are connected to existing buses and
         that no impedances are singular.
-        
+
         Prints warnings if anything is potentially inconsistent.
 
         Examples

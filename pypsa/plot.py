@@ -69,8 +69,9 @@ except ImportError:
 
 
 def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', line_colors='g', bus_sizes=10, line_widths=2,
-         title="", line_cmap=None, bus_cmap=None, boundaries=None,
+         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=10,
+         line_widths={'Line':2, 'Link':2},
+         flow=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
          basemap=None, basemap_parameters=None, color_geomap=None):
     """
@@ -104,6 +105,15 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         Widths of lines, defaults to 2. Widths for branches other
         than Lines can be specified using a pandas Series with a
         MultiIndex.
+    flow : snapshot/pandas.Series/function/string
+        Flow to be displayed in the plot, defaults to None. If an element of
+        network.snapshots is given, the flow at this timestamp will be
+        displayed. If an aggregation function is given, is will be applied
+        to the total network flow via pandas.DataFrame.agg (accepts also
+        function names). Otherwise flows can be specified by passing a pandas
+        Series with MultiIndex including all necessary branch components.
+        Use the line_widths argument to additionally adjust the size of the
+        flow arrows.
     title : string
         Graph title
     line_cmap : plt.cm.ColorMap/str|dict
@@ -133,11 +143,11 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-    defaults_for_branches = {
+    defaults_for_branches = pd.Series({
         'Link': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2),
         'Transformer': dict(color='green', width=2)
-    }
+    }).rename_axis('component')
 
     if not plt_present:
         logger.error("Matplotlib is not present, so plotting won't work.")
@@ -222,8 +232,9 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
             "bus_colors must be a dictionary defining a color for each element " \
             "in the second MultiIndex level of bus_sizes"
 
-        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)\
-                        * projected_area_factor(ax, network.srid)**2
+        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+        if geomap:
+            bus_sizes *= projected_area_factor(ax, network.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -248,26 +259,41 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face')
 
     def as_branch_series(ser):
+        # ensure that this function always return a multiindexed series
         if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return pd.Series(ser)
-        elif isinstance(ser, pd.Series):
-            if isinstance(ser.index, pd.MultiIndex):
-                return ser
-            index = ser.index
-            ser = ser.values
+            return pd.concat(
+                    {c.name: pd.Series(s, index=c.df.index) for c, s in
+                         zip(network.iterate_components(ser.keys()), ser.values())},
+                    names=['component', 'name'])
+        elif isinstance(ser, pd.Series) and isinstance(ser.index, pd.MultiIndex):
+            return ser.rename_axis(index=['component', 'name'])
         else:
-            index = network.lines.index
-        return pd.Series(ser,
-                         index=pd.MultiIndex(levels=(["Line"], index),
-                                             codes=(np.zeros(len(index)),
-                                                    np.arange(len(index)))))
+            ser =  pd.Series(ser, network.lines.index)
+            return pd.concat([ser], axis=0, keys=['Line'],
+                             names=['component', 'name']).fillna(0)
 
     line_colors = as_branch_series(line_colors)
     line_widths = as_branch_series(line_widths)
+
     if not isinstance(line_cmap, dict):
         line_cmap = {'Line': line_cmap}
 
     branch_collections = []
+
+    if flow is not None:
+        flow = (_flow_ds_from_arg(flow, network, branch_components)
+                .pipe(as_branch_series)
+                .div(sum(len(t.df) for t in
+                         network.iterate_components(branch_components)) + 100))
+        flow = flow.mul(line_widths[flow.index], fill_value=1)
+        # update the line width, allows to set line widths separately from flows
+        line_widths.update((5 * flow.abs()).pipe(np.sqrt))
+        arrows = directed_flow(network, flow, x=x, y=y, ax=ax, geomap=geomap,
+                               branch_colors=line_colors,
+                               branch_comps=branch_components,
+                               cmap=line_cmap['Line'])
+        branch_collections.append(arrows)
+
 
     for c in network.iterate_components(branch_components):
         l_defaults = defaults_for_branches[c.name]
@@ -291,7 +317,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         else:
             from shapely.wkt import loads
             from shapely.geometry import LineString
-            linestrings = c.df.geometry.map(loads)
+            linestrings = c.df.geometry[lambda ds: ds != ''].map(loads)
             assert all(isinstance(ls, LineString) for ls in linestrings), (
                 "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings")
@@ -335,7 +361,8 @@ def get_projection_from_crs(crs):
     try:
         return ccrs.epsg(crs)
     except requests.RequestException:
-        logger.warning("A connection to http://epsg.io/ is required for a projected coordinate reference system. "
+        logger.warning("A connection to http://epsg.io/ is "
+                       "required for a projected coordinate reference system. "
                        "Falling back to latlong.")
     except ValueError:
         logger.warning("'{crs}' does not define a projected coordinate system. "
@@ -353,10 +380,11 @@ def compute_bbox_with_margins(margin, x, y):
     return tuple(xy1), tuple(xy2)
 
 
-def projected_area_factor(ax, original_crs):
+def projected_area_factor(ax, original_crs=4326):
     """
     Helper function to get the area scale of the current projection in
-    reference to the default projection.
+    reference to the default projection. The default 'original crs' is assumed
+    to be 4326, which translates to the cartopy default cartopy.crs.PlateCarree()
     """
     if not hasattr(ax, 'projection'):
         return 1
@@ -400,7 +428,6 @@ def draw_map_basemap(network, x, y, ax, boundaries=None, margin=0.05,
                     grid=1.25, ax=ax, zorder=1)
 
     # no transformation -> use the default
-    axis_transformation = ax.transData
     basemap_projection = gmap
 
     # disable gmap transformation due to arbitrary conversion
@@ -419,7 +446,6 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
-    gmap = ax.projection
     axis_transformation = get_projection_from_crs(network.srid)
     ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
 
@@ -438,6 +464,86 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
     ax.add_feature(border, linewidth=0.3)
 
     return axis_transformation
+
+
+def _flow_ds_from_arg(flow, n, branch_components):
+    if isinstance(flow, pd.Series):
+        return flow
+    if flow in n.snapshots:
+        return (pd.concat([n.pnl(c).p0.loc[flow]
+                for c in branch_components],
+                keys=branch_components, sort=True))
+    elif isinstance(flow, str) or callable(flow):
+        return (pd.concat([n.pnl(c).p0 for c in branch_components],
+                axis=1, keys=branch_components, sort=True)
+                .agg(flow, axis=0))
+
+
+def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
+                  branch_colors='darkgreen', branch_comps=['Line', 'Link'],
+                  cmap=None):
+    """
+    Helper function to generate arrows from flow data.
+    """
+    # this funtion is used for diplaying arrows representing the network flow
+    from matplotlib.patches import FancyArrow
+    if ax is None:
+        ax = plt.gca()
+    x = n.buses.x if x is None else x
+    y = n.buses.y if y is None else y
+
+    #set the scale of the arrowsizes
+    fdata = pd.concat([pd.DataFrame(
+                      {'x1': n.df(l).bus0.map(x),
+                       'y1': n.df(l).bus0.map(y),
+                       'x2': n.df(l).bus1.map(x),
+                       'y2': n.df(l).bus1.map(y)})
+                      for l in branch_comps], keys=branch_comps,
+                    names=['component', 'name'])
+    fdata['arrowsize'] = flow.abs().pipe(np.sqrt).clip(lower=1e-8)
+    if geomap:
+        fdata['arrowsize']= fdata['arrowsize'].mul(projected_area_factor(ax, n.srid))
+    fdata['direction'] = np.sign(flow)
+    fdata['linelength'] = (np.sqrt((fdata.x1 - fdata.x2)**2. +
+                           (fdata.y1 - fdata.y2)**2))
+    fdata['arrowtolarge'] = (1.5 * fdata.arrowsize >
+                             fdata.loc[:, 'linelength'])
+    # swap coords for negativ directions
+    fdata.loc[fdata.direction == -1., ['x1', 'x2', 'y1', 'y2']] = \
+        fdata.loc[fdata.direction == -1., ['x2', 'x1', 'y2', 'y1']].values
+    if ((fdata.linelength > 0.) & (~fdata.arrowtolarge)).any():
+        fdata['arrows'] = (
+                fdata[(fdata.linelength > 0.) & (~fdata.arrowtolarge)]
+                .apply(lambda ds:
+                       FancyArrow(ds.x1, ds.y1,
+                                  0.6*(ds.x2 - ds.x1) - ds.arrowsize
+                                  * 0.75 * (ds.x2 - ds.x1) / ds.linelength,
+                                  0.6 * (ds.y2 - ds.y1) - ds.arrowsize
+                                  * 0.75 * (ds.y2 - ds.y1)/ds.linelength,
+                                  head_width=ds.arrowsize), axis=1))
+    fdata.loc[(fdata.linelength > 0.) & (fdata.arrowtolarge), 'arrows'] = \
+        (fdata[(fdata.linelength > 0.) & (fdata.arrowtolarge)]
+         .apply(lambda ds:
+                FancyArrow(ds.x1, ds.y1,
+                           0.001*(ds.x2 - ds.x1),
+                           0.001*(ds.y2 - ds.y1),
+                           head_width=ds.arrowsize), axis=1))
+    if isinstance(branch_colors.index, (pd.MultiIndex, str)):
+        # Catch the case that only multiindex with 'Line' in first level is passed
+        fdata = fdata.assign(color=branch_colors.reindex_like(fdata)
+                                                .fillna('darkgreen'))
+    else:
+        fdata = fdata.join(branch_colors.rename('color'))
+    fdata = fdata.dropna(subset=['arrows'])
+    arrowcol = PatchCollection(fdata.arrows,
+                               color=fdata.color,
+                               edgecolors='k',
+                               linewidths=0.,
+                               zorder=3, alpha=1)
+    ax.add_collection(arrowcol)
+    return arrowcol
+
+
 
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
