@@ -297,11 +297,11 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                                       bus1=network.links.bus1.map(busmap))
                         .dropna(subset=['bus0', 'bus1'])
                         .loc[lambda df: df.bus0 != df.bus1])
-    coords = network.buses[['x', 'y']].apply(list, axis=1)
+    coords = buses[['x', 'y']].apply(list, axis=1)
     new_links['length'] = (line_length_factor * new_links[['bus0', 'bus1']]
                          .apply(lambda s: _haversine(list(s.map(coords))), axis=1))
     if scale_link_capital_costs:
-        new_links['capital_costs'] *= (new_links.length/network.links.length).fillna(1)
+        new_links['capital_cost'] *= (new_links.length/network.links.length).fillna(1)
     io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
