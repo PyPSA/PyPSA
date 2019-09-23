@@ -8,24 +8,20 @@ logger = logging.getLogger(__name__)
 
 import os
 import numpy as np
-import scipy as sp
-from scipy.sparse.csgraph import connected_components
-import xarray as xr
 import geopandas as gpd
 import shapely
-import networkx as nx
-from shutil import copyfile
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-from six import iteritems
 from six.moves import reduce
 
 import pyomo.environ as po
 
 import pypsa
-from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
-from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
-                                     _make_consense, get_clustering_from_busmap,
-                                     aggregategenerators, aggregateoneport)
+from pypsa.networkclustering import (busmap_by_kmeans, busmap_by_louvain,
+                                     busmap_by_spectral_clustering,
+                                     _make_consense, get_clustering_from_busmap)
+
 def normed(x):
     return (x/x.sum()).fillna(0.)
 
@@ -156,6 +152,12 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
         generator_strategies={'p_nom_max': p_nom_max_strategy}
     )
 
+    nc = clustering.network
+    nc.links['underwater_fraction'] = (n.links.eval('underwater_fraction * length')
+                                       .div(nc.links.length).dropna())
+#    nc.links['capital_cost'] += (costs.at['HVDC overhead', 'capital_cost'] *
+#                                 (nc.links.length - n.links.length)
+#                                 .dropna().clip(lower=0))
     return clustering
 
 def save_to_geojson(s, fn):
