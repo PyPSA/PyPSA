@@ -58,10 +58,28 @@ def _make_consense(component, attr):
         return v
     return consense
 
-def _haversine(coords):
-    lon, lat = np.deg2rad(np.asarray(coords)).T
-    a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
-    return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
+def _haversine(a, b):
+    """
+    Determine crow-flies distance between points in a and b
+
+    ie. distance[i] = crow-fly-distance between a[i] and b[i]
+
+    Parameters
+    ----------
+    a, b : N x 2 array of dtype float
+        Geographical coordinates in longitude, latitude ordering
+
+    Returns
+    -------
+    c : N array of dtype float
+        Distance in km
+    """
+
+    lon0, lat0 = np.deg2rad(np.asarray(a)).T
+    lon1, lat1 = np.deg2rad(np.asarray(b)).T
+
+    c = np.sin((lat1-lat0)/2.)**2 + np.cos(lat0) * np.cos(lat1) * np.sin((lon0 - lon1)/2.)**2
+    return 6371.000 * 2 * np.arctan2( np.sqrt(c), np.sqrt(1-c) )
 
 def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_strategies=dict()):
     if carriers is None:
@@ -177,7 +195,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     def aggregatelinegroup(l):
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
-        length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
+        length_s = _haversine(buses.loc[l.name[0], ['x', 'y']],
+                              buses.loc[l.name[1], ['x', 'y']]) * line_length_factor
         v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
@@ -293,11 +312,17 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                                       bus1=network.links.bus1.map(busmap))
                         .dropna(subset=['bus0', 'bus1'])
                         .loc[lambda df: df.bus0 != df.bus1])
-    coords = buses[['x', 'y']].apply(list, axis=1)
-    new_links['length'] = (line_length_factor * new_links[['bus0', 'bus1']]
-                         .apply(lambda s: _haversine(list(s.map(coords))), axis=1))
+
+    new_links['length'] = np.where(
+        new_links.length.notnull() & (new_links.length > 0),
+        line_length_factor *
+        _haversine(buses.loc[new_links['bus0'], ['x', 'y']],
+                   buses.loc[new_links['bus1'], ['x', 'y']]),
+        0
+    )
     if scale_link_capital_costs:
         new_links['capital_cost'] *= (new_links.length/network.links.length).fillna(1)
+
     io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
