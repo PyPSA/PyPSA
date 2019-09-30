@@ -27,7 +27,6 @@ __author__ = "Tom Brown (FIAS)"
 __copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 
 import numpy as np
-import pandas as pd
 
 import logging
 logger = logging.getLogger(__name__)
@@ -53,10 +52,11 @@ def haversine_pts(a, b):
     haversine : Matrix of distances between all pairs in a and b
     """
 
-    lon0, lat0 = np.deg2rad(np.asarray(a)).T
-    lon1, lat1 = np.deg2rad(np.asarray(b)).T
+    lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
+    lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
 
-    c = np.sin((lat1-lat0)/2.)**2 + np.cos(lat0) * np.cos(lat1) * np.sin((lon0 - lon1)/2.)**2
+    c = (np.sin((lat1-lat0)/2.)**2 + np.cos(lat0) * np.cos(lat1) *
+         np.sin((lon0 - lon1)/2.)**2)
     return 6371.000 * 2 * np.arctan2( np.sqrt(c), np.sqrt(1-c) )
 
 def haversine(a, b):
@@ -108,7 +108,8 @@ def haversine(a, b):
 
 def area_from_lon_lat_poly(geometry):
     """
-    Compute the area in km^2 of a shapely geometry, whose points are in longitude and latitude.
+    Compute the area in km^2 of a shapely geometry, whose points are in
+    longitude and latitude.
 
     Parameters
     ----------
