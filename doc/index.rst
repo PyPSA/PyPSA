@@ -58,6 +58,7 @@ Documentation
 
 * :doc:`wildcards`
 * :doc:`configuration`
+* :doc:`costs`
 
 .. toctree::
    :hidden:
@@ -66,6 +67,7 @@ Documentation
 
    wildcards
    configuration
+   costs
 
 **Rules Overview**
 
