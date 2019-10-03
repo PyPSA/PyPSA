@@ -184,8 +184,9 @@ def init_globals(bounds_xXyY, n_dx, n_dy, n_config, n_paths):
     config = n_config
     paths = n_paths
 
-    gebco = gk.raster.loadRaster(paths["gebco"])
-    gebco.SetProjection(gk.srs.loadSRS(4326).ExportToWkt())
+    if "max_depth" in config:
+        gebco = gk.raster.loadRaster(paths["gebco"])
+        gebco.SetProjection(gk.srs.loadSRS(4326).ExportToWkt())
 
     clc = gk.raster.loadRaster(paths["corine"])
     clc.SetProjection(gk.srs.loadSRS(3035).ExportToWkt())
