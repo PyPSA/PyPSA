@@ -37,10 +37,10 @@ dependencies:
   - conda-forge::shapely
   - conda-forge::libgdal
 
-  # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
     - vresutils>=0.2.5
-    - git+https://github.com/FRESNA/atlite.git#egg=atlite
-    - git+https://github.com/PyPSA/glaes.git#egg=glaes
+    - cdsapi
+    - powerplantmatching
+    - git+https://github.com/PyPSA/atlite.git#egg=atlite
+    - git+https://github.com/FZJ-IEK3-VSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    #- git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
