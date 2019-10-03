@@ -72,12 +72,18 @@ For example, we may want to use the ERA-5 dataset for solar and not the default 
    :language: yaml
    :lines: 48,91-92
 
-Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solver Ipopt and does not rely
+Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
    :lines: 156-157
+
+.. note::
+
+    To run the tutorial, either install CBC and Ipopt (see instructions for :ref:`installation`).
+
+    Alternatively, choose another installed solver in the ``config.yaml`` at ``solving: solver:``.
 
 Note, that we only note major changes to the provided default configuration that is comprehensibly documented in :ref:`config`.
 There are many more configuration options beyond what is adapted for the tutorial!
@@ -252,6 +258,9 @@ the wildcards given in ``scenario`` in the configuration file ``config.yaml`` ar
 
 In this example we would not only solve a 6-node model of Germany but also a 2-node model.
 
+How to analyse solved networks?
+===============================
+
 The solved networks can be analysed just like any other PyPSA network (e.g. in Jupyter Notebooks).
 
 .. code:: python
@@ -263,3 +272,9 @@ The solved networks can be analysed just like any other PyPSA network (e.g. in J
     ...
 
 For inspiration, read the `examples section in the PyPSA documentation <https://pypsa.readthedocs.io/en/latest/examples.html>`_.
+
+.. note::
+
+    There are rules for summaries and plotting available in the repository of PyPSA-Eur.
+    
+    They are currently under revision and therefore not yet documented. 
