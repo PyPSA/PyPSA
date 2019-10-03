@@ -136,13 +136,10 @@ Before first use, create a ``config.yaml`` by copying the example.
 Users are advised to regularly check their own ``config.yaml`` against changes in the ``config.default.yaml``
 when pulling a new version from the remote repository.
 
-Using PyPSA-Eur with Docker Images
-==================================
+.. Using PyPSA-Eur with Docker Images
+.. ==================================
 
-If docker. Optional.
-
-To run on cloud computing.
-
-Gurobi license - floating token server - license must not be tied to a particular machine
-
-Provide ``Dockerfile``.
+.. If docker. Optional.
+.. To run on cloud computing.
+.. Gurobi license - floating token server - license must not be tied to a particular machine
+.. Provide ``Dockerfile``.
