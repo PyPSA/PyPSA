@@ -4,14 +4,14 @@
 Configuration
 ##########################################
 
-PyPSA-Eur has several configuration options which are documented in this section and are collected in a ``config.yaml`` file located in the root directory. Users can amend their own modifications and assumptions by changing the default configuration provided in the configuration file (``config.yaml``).
+PyPSA-Eur has several configuration options which are documented in this section and are collected in a ``config.yaml`` file located in the root directory. Users should copy the provided default configuration (``config.default.yaml``) and amend their own modifications and assumptions in the user-specific configuration file (``config.yaml``); confer installation instructions at :ref:`defaultconfig`.
 
 .. _toplevel_cf:
 
 Top-level configuration
 =======================
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 1-5,13
 
@@ -43,7 +43,7 @@ An exemplary dependency graph (starting from the simplification rules) then look
 
 .. image:: img/scenarios.png
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 6-11
 
@@ -59,7 +59,7 @@ An exemplary dependency graph (starting from the simplification rules) then look
 
 Specifies the temporal range to build an energy system model for as arguments to `pandas.date_range <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.date_range.html>`_
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 15-18
 
@@ -73,7 +73,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``electricity``
 ===============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 24-36
 
@@ -90,7 +90,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``atlite``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 38-51
 
@@ -107,7 +107,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``onwind``
 ----------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 53-70
 
@@ -119,7 +119,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``offwind-ac``
 --------------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 53,71-83
 
@@ -131,7 +131,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``offwind-dc``
 ---------------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 53,84-97
 
@@ -143,7 +143,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``solar``
 ---------------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 53,98-117
 
@@ -155,7 +155,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``hydro``
 ---------------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 53,118-124
 
@@ -169,7 +169,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``lines``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 126-133
 
@@ -183,7 +183,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``links``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 135-138
 
@@ -197,7 +197,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``transformers``
 ================
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 140-143
 
@@ -211,7 +211,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``load``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 145-146
 
@@ -225,7 +225,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``costs``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 148-160
 
@@ -247,7 +247,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``options``
 -----------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 162-170
 
@@ -259,7 +259,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``solver``
 ----------
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 162,171-187
 
@@ -273,7 +273,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``plotting``
 =============
 
-.. literalinclude:: ../config.yaml
+.. literalinclude:: ../config.default.yaml
    :language: yaml
    :lines: 189-323
 

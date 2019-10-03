@@ -61,10 +61,10 @@ extracting them manually in the locations outlined below.
     The :ref:`tutorial` uses smaller data bundles than required for the full model.
     To start with the tutorial, substitute with the links below using the following alternatives:
     
-    - **Data Bundle:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?dl=1&p=/pypsa-eur-data-bundle.tar.xz``
-    - **Cutouts:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz``
+    - **Data Bundle:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?dl=1&p=/pypsa-eur-data-bundle.tar.xz`` (197 MB)
+    - **Cutouts:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz`` (19 MB)
 
-1. **Data Bundle:** `pypsa-eur-data-bundle.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz>`_ contains common GIS datasets like NUTS3 shapes, EEZ shapes, CORINE Landcover, Natura 2000 and also electricity specific summary statistics like historic per country yearly totals of hydro generation, GDP and POP on NUTS3 levels and per-country load time-series. It should be extracted in the ``data`` sub-directory, such that all files of the bundle are stored in the ``data/bundle`` subdirectory)
+1. **Data Bundle:** `pypsa-eur-data-bundle.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz>`_ (1.3 GB) contains common GIS datasets like NUTS3 shapes, EEZ shapes, CORINE Landcover, Natura 2000 and also electricity specific summary statistics like historic per country yearly totals of hydro generation, GDP and POP on NUTS3 levels and per-country load time-series. It should be extracted in the ``data`` sub-directory, such that all files of the bundle are stored in the ``data/bundle`` subdirectory)
 
 .. code:: bash
 
@@ -73,7 +73,7 @@ extracting them manually in the locations outlined below.
     .../pypsa-eur/data % tar xJf pypsa-eur-data-bundle.tar.xz
 
 
-2. **Cutouts:** `pypsa-eur-cutouts.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz>`_ are spatiotemporal subsets of the European weather data from the `ECMWF ERA5 <https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation>`_ reanalysis dataset and the `CMSAF SARAH-2 <https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002>`_ solar surface radiation dataset for the year 2013. They have been prepared by and are for use with the `atlite <https://github.com/PyPSA/atlite>`_ tool. You can either generate them yourself using the ``build_cutouts`` rule or extract them directly into the ``pypsa-eur`` directory. To download cutouts yourself you need to `set up the CDS API <https://cds.climate.copernicus.eu/api-how-to>`_. For more details read the `atlite documentation <https://atlite.readthedocs.io>`_. For beginners, extracting the bundle is recommended:
+2. **Cutouts:** `pypsa-eur-cutouts.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz>`_ (3.9 GB) are spatiotemporal subsets of the European weather data from the `ECMWF ERA5 <https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation>`_ reanalysis dataset and the `CMSAF SARAH-2 <https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002>`_ solar surface radiation dataset for the year 2013. They have been prepared by and are for use with the `atlite <https://github.com/PyPSA/atlite>`_ tool. You can either generate them yourself using the ``build_cutouts`` rule or extract them directly into the ``pypsa-eur`` directory. To download cutouts yourself you need to `set up the CDS API <https://cds.climate.copernicus.eu/api-how-to>`_. For more details read the `atlite documentation <https://atlite.readthedocs.io>`_. For beginners, extracting the bundle is recommended:
 
 .. code:: bash
 
@@ -100,6 +100,7 @@ Install a Solver
 PyPSA passes the PyPSA-Eur network model to an external solver for performing a total annual system cost minimization with optimal power flow.
 PyPSA is known to work with the free software
 
+- `Ipopt <https://coin-or.github.io/Ipopt/INSTALL.html>`_
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
 - `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
 
@@ -134,3 +135,14 @@ Before first use, create a ``config.yaml`` by copying the example.
 
 Users are advised to regularly check their own ``config.yaml`` against changes in the ``config.default.yaml``
 when pulling a new version from the remote repository.
+
+Using PyPSA-Eur with Docker Images
+==================================
+
+If docker. Optional.
+
+To run on cloud computing.
+
+Gurobi license - floating token server - license must not be tied to a particular machine
+
+Provide ``Dockerfile``.

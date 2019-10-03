@@ -43,7 +43,7 @@ Documentation
 
 * :doc:`introduction`
 * :doc:`installation`
-* :doc:`example`
+* :doc:`tutorial`
 
 .. toctree::
    :hidden:
@@ -52,7 +52,7 @@ Documentation
 
    introduction
    installation
-   example
+   tutorial
 
 **Configuration**
 

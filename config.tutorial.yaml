@@ -33,7 +33,7 @@ electricity:
     battery: 6
     H2: 168
 
-  conventional_carriers: [] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [coal, CCGT] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
   nprocesses: 4
@@ -72,7 +72,6 @@ renewable:
     # correction_factor: 0.93
     corine: [44, 255]
     natura: true
-    #max_depth: 50
     max_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
@@ -86,7 +85,6 @@ renewable:
     # correction_factor: 0.93
     corine: [44, 255]
     natura: true
-    #max_depth: 50
     min_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
@@ -156,7 +154,7 @@ solving:
     clip_p_max_pu: 0.01
     #nhours: 10
   solver:
-    name: cbc
+    name: ipopt
   # solver:
     # name: gurobi
     # threads: 4
