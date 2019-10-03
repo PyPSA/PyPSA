@@ -28,7 +28,7 @@ To run the tutorial, use this as your configuration file ``config.yaml``.
 
 .. code:: bash
 
-    .../pypsa-eur % cp config.default.yaml config.yaml
+    .../pypsa-eur % cp config.tutorial.yaml config.yaml
 
 How to customise PyPSA-Eur?
 ===========================
