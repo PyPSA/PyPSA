@@ -15,3 +15,5 @@ gurobi.log
 /cutouts
 
 doc/_build
+
+config.yaml

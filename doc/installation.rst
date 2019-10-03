@@ -56,6 +56,14 @@ Instead we provide separate data bundles which can be obtained
 using the described shell commands or by downloading and
 extracting them manually in the locations outlined below.
 
+.. note::
+
+    The :ref:`tutorial` uses smaller data bundles than required for the full model.
+    To start with the tutorial, substitute with the links below using the following alternatives:
+    
+    - **Data Bundle:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?dl=1&p=/pypsa-eur-data-bundle.tar.xz``
+    - **Cutouts:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz``
+
 1. **Data Bundle:** `pypsa-eur-data-bundle.tar.xz <https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-data-bundle.tar.xz>`_ contains common GIS datasets like NUTS3 shapes, EEZ shapes, CORINE Landcover, Natura 2000 and also electricity specific summary statistics like historic per country yearly totals of hydro generation, GDP and POP on NUTS3 levels and per-country load time-series. It should be extracted in the ``data`` sub-directory, such that all files of the bundle are stored in the ``data/bundle`` subdirectory)
 
 .. code:: bash
@@ -108,3 +116,21 @@ and any other solver that works with the underlying modelling framework `Pyomo <
 .. note::
     Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
     It might be the case that you can only retrieve solutions by using a commercial solver.
+
+.. _defaultconfig:
+
+Set Up the Default Configuration
+================================
+
+PyPSA-Eur has several configuration options that must be specified in a ``config.yaml`` file located in the root directory.
+An example configuration ``config.default.yaml`` is maintained in the repository. 
+More details on the configuration options are in :ref:`config`.
+
+Before first use, create a ``config.yaml`` by copying the example.
+
+.. code:: bash
+
+    .../pypsa-eur % cp config.default.yaml config.yaml
+
+Users are advised to regularly check their own ``config.yaml`` against changes in the ``config.default.yaml``
+when pulling a new version from the remote repository.

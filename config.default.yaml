@@ -78,7 +78,7 @@ renewable:
     corine: [44, 255]
     natura: true
     max_depth: 50
-    max_shore_distance: 80000
+    max_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-dc:
@@ -92,7 +92,7 @@ renewable:
     corine: [44, 255]
     natura: true
     max_depth: 50
-    min_shore_distance: 80000
+    min_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   solar:

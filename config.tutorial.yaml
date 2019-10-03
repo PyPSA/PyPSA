@@ -1,0 +1,313 @@
+version: 0.1
+logging_level: INFO
+
+summary_dir: results
+
+scenario:
+  sectors: [E]
+  simpl: ['']
+  ll: ['copt']
+  clusters: [2,6]
+  opts: [Co2L-24H]
+
+countries: ['DE'] 
+
+snapshots:
+  start: "2013-03-01"
+  end: "2014-04-01"
+  closed: 'left' # end is not inclusive
+
+enable:
+  powerplantmatching: false
+  prepare_links_p_nom: false
+
+electricity:
+  voltages: [220., 300., 380.]
+  co2limit: 100.e+6
+
+  extendable_carriers:
+    Generator: [OCGT]
+    StorageUnit: [battery, H2]
+
+  max_hours:
+    battery: 6
+    H2: 168
+
+  conventional_carriers: [] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+
+atlite:
+  nprocesses: 4
+  cutouts:
+    europe-2013-era5:
+      module: era5
+      xs: [4., 15.]
+      ys: [56., 46.]
+      months: [3, 3]
+      years: [2013, 2013]
+
+renewable:
+  onwind:
+    cutout: europe-2013-era5
+    resource:
+      method: wind
+      turbine: Vestas_V112_3MW
+    capacity_per_sqkm: 3 # ScholzPhd Tab 4.3.1: 10MW/km^2
+    # correction_factor: 0.93
+    corine:
+      # Scholz, Y. (2012). Renewable energy based electricity supply at low costs:
+      #  development of the REMix model and application for Europe. ( p.42 / p.28)
+      grid_codes: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                   24, 25, 26, 27, 28, 29, 31, 32]
+      distance: 1000
+      distance_grid_codes: [1, 2, 3, 4, 5, 6]
+    natura: true
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+  offwind-ac:
+    cutout: europe-2013-era5
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    capacity_per_sqkm: 3
+    # correction_factor: 0.93
+    corine: [44, 255]
+    natura: true
+    #max_depth: 50
+    max_shore_distance: 30000
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+  offwind-dc:
+    cutout: europe-2013-era5
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    # ScholzPhd Tab 4.3.1: 10MW/km^2
+    capacity_per_sqkm: 3
+    # correction_factor: 0.93
+    corine: [44, 255]
+    natura: true
+    #max_depth: 50
+    min_shore_distance: 30000
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+  solar:
+    cutout: europe-2013-era5
+    resource:
+      method: pv
+      panel: CSi
+      orientation:
+        slope: 35.
+        azimuth: 180.
+    capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
+    # Determined by comparing uncorrected area-weighted full-load hours to those
+    # published in Supplementary Data to
+    # Pietzcker, Robert Carl, et al. "Using the sun to decarbonize the power
+    # sector: The economic potential of photovoltaics and concentrating solar
+    # power." Applied Energy 135 (2014): 704-720.
+    correction_factor: 0.854337
+    corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+             14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
+    natura: true
+    potential: simple # or conservative
+    clip_p_max_pu: 1.e-2
+
+lines:
+  types:
+    220.: "Al/St 240/40 2-bundle 220.0"
+    300.: "Al/St 240/40 3-bundle 300.0"
+    380.: "Al/St 240/40 4-bundle 380.0"
+  s_max_pu: 0.7
+  length_factor: 1.25
+  under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
+
+links:
+  p_max_pu: 1.0
+  include_tyndp: true
+  under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
+
+transformers:
+  x: 0.1
+  s_nom: 2000.
+  type: ''
+
+load:
+  scaling_factor: 1.0
+
+costs:
+  year: 2030
+  discountrate: 0.07 # From a Lion Hirth paper, also reflects average of Noothout et al 2016
+  USD2013_to_EUR2013: 0.7532 # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html
+  marginal_cost:
+    solar: 0.01
+    onwind: 0.015
+    offwind: 0.015
+    H2: 0.
+    battery: 0.
+  emission_prices: # only used with the option Ep
+    co2: 0.
+
+solving:
+  options:
+    formulation: kirchhoff
+    load_shedding: false
+    noisy_costs: true
+    min_iterations: 1
+    max_iterations: 1
+    clip_p_max_pu: 0.01
+    #nhours: 10
+  solver:
+    name: cbc
+  # solver:
+    # name: gurobi
+    # threads: 4
+    # method: 2 # barrier
+    # crossover: 0
+    # BarConvTol: 1.e-5
+    # FeasibilityTol: 1.e-6
+    # AggFill: 0
+    # PreDual: 0
+    # GURO_PAR_BARDENSETHRESH: 200
+  # solver:
+  #   name: cplex
+  #   threads: 4
+  #   lpmethod: 4 # barrier
+  #   solutiontype: 2 # non basic solution, ie no crossover
+  #   barrier_convergetol: 1.e-5
+  #   feasopt_tolerance: 1.e-6
+
+plotting:
+  map:
+    figsize: [7, 7]
+    boundaries: [-10.2, 29, 35,  72]
+    p_nom:
+      bus_size_factor: 5.e+4
+      linewidth_factor: 3.e+3
+
+  costs_max: 800
+  costs_threshold: 1
+
+  energy_max: 15000.
+  energy_min: -10000.
+  energy_threshold: 50.
+
+  vre_techs: ["onwind", "offwind-ac", "offwind-dc", "solar", "ror"]
+  conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
+  storage_techs: ["hydro+PHS", "battery", "H2"]
+  load_carriers: ["AC load"]
+  AC_carriers: ["AC line", "AC transformer"]
+  link_carriers: ["DC line", "Converter AC-DC"] 
+  tech_colors:
+    "onwind" : "#235ebc"
+    "onshore wind" : "#235ebc"
+    'offwind' : "#6895dd"
+    'offwind-ac' : "#6895dd"
+    'offshore wind' : "#6895dd"
+    'offshore wind ac' : "#6895dd"
+    'offwind-dc' : "#74c6f2"
+    'offshore wind dc' : "#74c6f2"
+    "hydro" : "#08ad97"
+    "hydro+PHS" : "#08ad97"
+    "PHS" : "#08ad97"
+    "hydro reservoir" : "#08ad97"
+    'hydroelectricity' : '#08ad97'
+    "ror" : "#4adbc8"
+    "run of river" : "#4adbc8"
+    'solar' : "#f9d002"
+    'solar PV' : "#f9d002"
+    'solar thermal' : '#ffef60'
+    'biomass' : '#0c6013'
+    'solid biomass' : '#06540d'
+    'biogas' : '#23932d'
+    'waste' : '#68896b'
+    'geothermal' : '#ba91b1'
+    "OCGT" : "#d35050"
+    "OCGT marginal" : "#d35050"
+    "OCGT-heat" : "#d35050"
+    "gas boiler" : "#d35050"
+    "gas boilers" : "#d35050"
+    "gas boiler marginal" : "#d35050"
+    "gas-to-power/heat" : "#d35050"
+    "gas" : "#d35050"
+    "natural gas" : "#d35050"
+    "CCGT" : "#b20101"
+    "CCGT marginal" : "#b20101"
+    "Nuclear" : "#ff9000"
+    "Nuclear marginal" : "#ff9000"
+    "nuclear" : "#ff9000"
+    "coal" : "#707070"
+    "Coal" : "#707070"
+    "Coal marginal" : "#707070"
+    "lignite" : "#9e5a01"
+    "Lignite" : "#9e5a01"
+    "Lignite marginal" : "#9e5a01"
+    "Oil" : "#262626"
+    "oil" : "#262626"
+    "H2" : "#ea048a"
+    "hydrogen storage" : "#ea048a"
+    "Sabatier" : "#a31597"
+    "methanation" : "#a31597"
+    "helmeth" : "#a31597"
+    "DAC" : "#d284ff"
+    "co2 stored" : "#e5e5e5"
+    "CO2 sequestration" : "#e5e5e5" 
+    "battery" : "#b8ea04"
+    "battery storage" : "#b8ea04"
+    "Li ion" : "#b8ea04"
+    "BEV charger" : "#e2ff7c"
+    "V2G" : "#7a9618"
+    "transport fuel cell" : "#e884be"
+    "retrofitting" : "#e0d6a8"
+    "building retrofitting" : "#e0d6a8"
+    "heat pumps" : "#ff9768" 
+    "heat pump" : "#ff9768"
+    "air heat pump" : "#ffbea0"
+    "ground heat pump" : "#ff7a3d"
+    "power-to-heat" : "#a59e7c"
+    "power-to-gas" : "#db8585"
+    "power-to-liquid" : "#a9acd1"
+    "Fischer-Tropsch" : "#a9acd1"
+    "resistive heater" : "#aa4925"
+    "water tanks" : "#401f75"
+    "hot water storage" : "#401f75"
+    "hot water charging" : "#351c5e"
+    "hot water discharging" : "#683ab2"
+    "CHP" : "#d80a56"
+    "CHP heat" : "#d80a56"
+    "CHP electric" : "#d80a56"
+    "district heating" : "#93864b"
+    "Ambient" : "#262626"
+    "Electric load" : "#f9d002"
+    "electricity" : "#f9d002"
+    "Heat load" : "#d35050"
+    "heat" : "#d35050"
+    "Transport load" : "#235ebc"
+    "transport" : "#235ebc"
+    "lines" : "#70af1d"
+    "transmission lines" : "#70af1d"
+    "AC-AC" : "#70af1d"
+    "AC line" : "#70af1d"
+    "links" : "#8a1caf"
+    "HVDC links" : "#8a1caf"
+    "DC-DC" : "#8a1caf"
+    "DC link" : "#8a1caf"
+  nice_names:
+    OCGT: "Open-Cycle Gas"
+    CCGT: "Combined-Cycle Gas"
+    offwind-ac: "Offshore Wind (AC)"
+    offwind-dc: "Offshore Wind (DC)"
+    onwind: "Onshore Wind"
+    battery: "Battery Storage"
+    H2: "Hydrogen Storage"
+    lines: "Transmission lines"
+    ror: "Run of river"
+  nice_names_n:
+    OCGT: "Open-Cycle\nGas"
+    CCGT: "Combined-Cycle\nGas"
+    offwind-ac: "Offshore\nWind (AC)"
+    offwind-dc: "Offshore\nWind (DC)"
+    onwind: "Onshore\nWind"
+    battery: "Battery\nStorage"
+    H2: "Hydrogen\nStorage"
+    lines: "Transmission\nlines"
+    ror: "Run of\nriver"
+    
