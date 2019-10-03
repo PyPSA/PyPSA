@@ -1,21 +1,28 @@
+![Version](https://img.shields.io/github/tag-date/pypsa/pypsa-eur)
+[![Documentation](https://pypsa-eur.readthedocs.io/en/latest/?badge=latest)](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)
+![GitHub](https://img.shields.io/github/license/pypsa/pypsa-eur)
+![Size](https://img.shields.io/github/repo-size/pypsa/pypsa-eur)
+[![Zenodo](https://doi.org/10.5281/zenodo.1246852)](https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg)
+[![Gitter](https://badges.gitter.im/PyPSA/community.svg)](https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 # PyPSA-Eur: An Open Optimisation Model of the European Transmission System
+
 
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
+The model is suitable both for operational studies and generation and transmission expansion planning studies.
+The continental scope and highly resolved spatial scale enables a proper description of the long-range
+smoothing effects for renewable power generation and their varying resource availability.
 
-![PyPSA-Eur Grid Model](doc/img/pypsa-eur-grid.png)
-
-
-The model is described and partially validated in the paper
+The model is described in the [documentation](https://pypsa-eur.readthedocs.io)
+and in the paper
 [PyPSA-Eur: An Open Optimisation Model of the European Transmission
 System](https://arxiv.org/abs/1806.01613), 2018,
 [arXiv:1806.01613](https://arxiv.org/abs/1806.01613).
 
-This repository contains the scripts and some of the data required to
-automatically build the dataset from openly-available sources.
+![PyPSA-Eur Grid Model](doc/img/base.png)
 
-Already-built versions of the model can be found in the accompanying [Zenodo
-repository](https://zenodo.org/record/1246851).
+![PyPSA-Eur Grid Model Simplified](doc/img/elec_s_X.png)
 
 The model is designed to be imported into the open toolbox
 [PyPSA](https://github.com/PyPSA/PyPSA) for operational studies as
@@ -33,4 +40,7 @@ The dataset consists of:
 - Electrical demand time series from the
   [OPSD project](https://open-power-system-data.org/).
 - Renewable time series based on ERA5 and SARAH, assembled using the [atlite tool](https://github.com/FRESNA/atlite).
-- Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils).
+- Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils) and the [glaes library](https://github.com/FZJ-IEK3-VSA/glaes).
+
+Already-built versions of the model can be found in the accompanying [Zenodo
+repository](https://zenodo.org/record/1246851).
