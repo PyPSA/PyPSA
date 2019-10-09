@@ -7,7 +7,6 @@ dependencies:
   - pip
 
   - pypsa>=0.14
-  - atlite
 
   # Dependencies of the workflow itself
   - xlrd
@@ -40,7 +39,8 @@ dependencies:
 
   - pip:
     - vresutils>=0.2.5
-    - cdsapi
-    - powerplantmatching
+    - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
+    #- cdsapi
+    #- powerplantmatching
