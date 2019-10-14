@@ -30,7 +30,7 @@ dependencies:
   # GIS dependencies have to come all from conda-forge
   - conda-forge::cartopy
   - conda-forge::fiona
-  - conda-forge::pyproj
+  - conda-forge::pyproj=1.9.5.1
   - conda-forge::pyshp
   - conda-forge::geopandas
   - conda-forge::rasterio
