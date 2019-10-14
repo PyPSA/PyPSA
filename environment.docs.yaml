@@ -14,6 +14,7 @@ dependencies:
   - seaborn
   #- snakemake-minimal
   - memory_profiler
+  - yaml
 
   # Second order dependencies which should really be deps of atlite
   - xarray
@@ -42,7 +43,7 @@ dependencies:
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    #- cdsapi
-    #- powerplantmatching
+    - cdsapi
+    - powerplantmatching
     - sphinx
     - sphinx_rtd_theme
