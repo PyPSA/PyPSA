@@ -57,8 +57,9 @@ from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_series_from_dataframe, import_from_pandapower_net)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
-                 sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
-                 calculate_PTDF, calculate_B_H, calculate_dependent_values)
+                 sub_network_pf, find_bus_controls, find_slack_bus, find_cycles,
+                 calculate_Y, calculate_PTDF, calculate_B_H,
+                 calculate_dependent_values)
 
 from .contingency import (calculate_BODF, network_lpf_contingency,
                           network_sclopf)
@@ -830,6 +831,9 @@ class Network(Basic):
 
         for c in self.iterate_components(self.passive_branch_components):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+
+        for sub in self.sub_networks.obj:
+            find_cycles(sub)
 
     def iterate_components(self, components=None, skip_empty=True):
         if components is None:
