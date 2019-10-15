@@ -29,6 +29,7 @@ setup(
         'pyomo>=5.3',
         'matplotlib',
         'networkx>=1.10',
+        'gurobipy'
     ],
     extras_require = {
         "cartopy": ['cartopy>=0.16'],
