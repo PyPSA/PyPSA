@@ -67,13 +67,11 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
+from .opf_lm import network_lopf as network_lopf_lm
+
 from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
-
-import inspect
-
-import sys
 
 import logging
 logger = logging.getLogger(__name__)
@@ -198,7 +196,7 @@ class Network(Basic):
 
     pf = network_pf
 
-    lopf = network_lopf
+#    lopf = network_lopf
 
     opf = network_opf
 
@@ -406,6 +404,90 @@ class Network(Basic):
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
 
         #NB: No need to rebind pnl to self, since haven't changed it
+
+    def lopf(self, snapshots=None, solver_name="glpk", extra_functionality=None,
+             solver_logfile=None, solver_options={}, keep_files=False,
+             formulation="kirchhoff", extra_postprocessing=None, pyomo=True,
+             **kwargs):
+        """
+        Linear optimal power flow for a group of snapshots.
+
+        Parameters
+        ----------
+        snapshots : list or index slice
+            A list of snapshots to optimise, must be a subset of
+            network.snapshots, defaults to network.snapshots
+        solver_name : string
+            Must be a solver name that pyomo recognises and that is
+            installed, e.g. "glpk", "gurobi"
+        pyomo : bool, default True
+            Whether to use pyomo for building and solving the model, setting
+            this to False saves a lot of memory and time.
+        solver_logfile : None|string
+            If not None, sets the logfile option of the solver.
+        solver_options : dictionary
+            A dictionary with additional options that get passed to the solver.
+            (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+        keep_files : bool, default False
+            Keep the files that pyomo constructs from OPF problem
+            construction, e.g. .lp file - useful for debugging
+        formulation : string
+            Formulation of the linear power flow equations to use; must be
+            one of ["angles","cycles","kirchhoff","ptdf"]
+        extra_functionality : callable function
+            This function must take two arguments
+            `extra_functionality(network,snapshots)` and is called after
+            the model building is complete, but before it is sent to the
+            solver. It allows the user to
+            add/change constraints and add/change the objective function.
+        extra_postprocessing : callable function
+            This function must take three arguments
+            `extra_postprocessing(network,snapshots,duals)` and is called after
+            the model has solved and the results are extracted. It allows the user to
+            extract further information about the solution, such as additional shadow prices.
+
+
+        These arguments can be used if pyomo is set to False:
+        -----------------------------------------------------
+        warmstart : bool or string, default False
+            Use this to warmstart the optimization. Pass a string which gives
+            the path to the basis file. If set to True, a path to
+            a basis file must be given in network.basis_fn.
+        store_basis : bool, default True
+            Whether to store the basis of the optimization results. If True,
+            the path to the basis file is saved in network.basis_fn. Note that
+            a basis can only be stored if simplex, dual-simplex, or barrier
+            *with* crossover is used for solving.
+
+
+        These arguments can be used if pyomo is set to True:
+        ----------------------------------------------------
+        ptdf_tolerance : float
+            Value below which PTDF entries are ignored
+        free_memory : set, default {'pyomo'}
+            Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+            data away while the solver runs (as a pickle to disk) and/or free
+            `pyomo` data after the solution has been extracted.
+        solver_io : string, default None
+            Solver Input-Output option, e.g. "python" to use "gurobipy" for
+            solver_name="gurobi"
+        skip_pre : bool, default False
+            Skip the preliminary steps of computing topology, calculating
+            dependent values and finding bus controls.
+
+        Returns
+        -------
+        None
+        """
+        args = {'snapshots': snapshots, 'keep_files': keep_files,
+                'solver_options': solver_options, 'formulation': formulation,
+                'extra_functionality': extra_functionality,
+                'extra_postprocessing': extra_postprocessing,
+                'solver_name': solver_name, 'solver_logfile': solver_logfile}
+        if pyomo:
+            return network_lopf(self, **args, **kwargs)
+        else:
+            return network_lopf_lm(self, **args, **kwargs)
 
 
 
