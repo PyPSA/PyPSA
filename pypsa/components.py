@@ -484,10 +484,11 @@ class Network(Basic):
                 'extra_functionality': extra_functionality,
                 'extra_postprocessing': extra_postprocessing,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
+        args.update(kwargs)
         if pyomo:
-            return network_lopf(self, **args, **kwargs)
+            return network_lopf(self, **args)
         else:
-            return network_lopf_lm(self, **args, **kwargs)
+            return network_lopf_lm(self, **args)
 
 
 
