@@ -26,7 +26,7 @@ Grid calculation library.
 from __future__ import absolute_import
 
 from . import components, descriptors
-from . import pf, opf, plot, networkclustering, io, contingency, geo, opf_lm, opt_lm
+from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo, solve)
 
 from .components import Network, SubNetwork
 

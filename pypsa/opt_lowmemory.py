@@ -13,9 +13,8 @@ from .descriptors import get_switchable_as_dense as get_as_dense
 from pandas import IndexSlice as idx
 
 
-lookup = pd.read_csv(os.path.dirname(__file__) + '/variables.csv',
-                        index_col=['component', 'variable'])
-#prefix = lookup.droplevel(1).prefix[lambda ds: ~ds.index.duplicated()]
+lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
+                     index_col=['component', 'variable'])
 nominals = lookup.query('nominal').reset_index(level='variable').variable
 
 # =============================================================================
@@ -493,94 +492,176 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
             constraints_dual, objective)
 
 
-#From https://github.com/bodono/scs-python
-def run_and_read_scs(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, keep_files, warmstart=None,
-                        store_basis=True):
-    # Follow https://stackoverflow.com/questions/38647230/get-constraints\
-    # -in-matrix-format-from-gurobipy
-    import scipy as sc
-    from scipy.sparse import csc_matrix as csc
-    import scs
-
-    m = gurobipy.read(problem_fn)
-
-    dvars = pd.Series(m.getVars())
-    obj_coeffs = np.array(m.getAttr('Obj', dvars))
-
-    constrs = pd.DataFrame({'Con': m.getConstrs()})
-    constrs['sense'] = constrs.Con.apply(lambda c: c.Sense).astype('category')\
-                              .cat.set_categories(['=', '>', '<'])
-    constrs = constrs.sort_values('sense').reset_index(drop=True)
-    constrs['sign'] = constrs.sense.replace({'=':1, '>':-1, '<':1})
-    constrs['rhs'] = constrs.Con.apply(lambda c: c.RHS) * constrs.sign
-
-    var_indices = {v: i for i, v in enumerate(dvars)}
-    def get_expr_coos(expr):
-        for i in range(expr.size()):
-            dvar = expr.getVar(i)
-            yield expr.getCoeff(i), var_indices[dvar]
-
-    def get_matrix_coo(m):
-        for row_idx, (con, sign) in enumerate(constrs[['Con', 'sign']].values):
-            for coeff, col_idx in get_expr_coos(m.getRow(con)):
-                yield row_idx, col_idx, sign * coeff
-
-    condata = pd.DataFrame(get_matrix_coo(m), columns=['row', 'col', 'coeff'])
-    A = csc((condata.coeff, (condata.row, condata.col)))
-    #extend A and rhs by variable bound constraints
-    ub = dvars.apply(lambda v: v.UB)[lambda x: x!=1e100]
-    lb = dvars.apply(lambda v: v.LB)[lambda x: x!=-1e100]
-    A_ub  = csc((np.ones(len(ub)), (range(len(ub)), ub.index)))
-    A_lb  = csc((-np.ones(len(lb)), (range(len(lb)), lb.index)))
-
-    A = sc.sparse.vstack((A, A_ub, A_lb))
-    b = np.hstack((constrs.rhs, ub, -lb))
-
-    # initialize and solve
-    data = {'A': A, 'b': b, 'c': obj_coeffs}
-    N_eq_con = int((constrs.sense == '=').sum())
-    N_in_con = len(b) - N_eq_con
-    K = {'f': N_eq_con, 'l': N_in_con}
-    sol = scs.solve(data, K, **solver_options)
-
-    varnames = dvars.apply(lambda v: v.VarName)
-    connames = constrs.Con.apply(lambda c: c.ConstrName)
-    variables_sol = pd.Series(sol['x'], varnames)
-    constraints_dual = - pd.Series(sol['y'][:len(constrs)], connames)
-    objective = sol['info']['pobj']
-    status = sol['info']['statusVal']
-#    import pdb; pdb.set_trace()
-    termination_condition = 'optimal' if status <= 3 else 'non-optimal'
-    del m
-
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+# =============================================================================
+# test/double-check constraints
+# =============================================================================
 
 
+def describe_storage_unit_contraints(n):
+    """
+    Checks whether all storage units are balanced over time. This function
+    requires the network to contain the separate variables p_store and
+    p_dispatch, since they cannot be reconstructed from p. The latter results
+    from times tau where p_store(tau) > 0 **and** p_dispatch(tau) > 0, which
+    is allowed (even though not economic). Therefor p_store is necessarily
+    equal to negative entries of p, vice versa for p_dispatch.
+    """
+    sus = n.storage_units
+    sus_i = sus.index
+    if sus_i.empty: return
+    sns = n.snapshots
+    c = 'StorageUnit'
+    pnl = n.pnl(c)
 
-#%%
-#    if warmstart:
-#        if network is None:
-#            ValueError('Network must be given to set a warmstart')
-#        n = network
-#        for (c, attr), pnl in n.variables.pnl.items():
-#            if pnl:
-#                attr_name = 'p0' if c in n.branch_components else attr
-#                start = n.pnl(c)[attr_name].stack()
-#            else:
-#                if (attr + '_opt') not in n.df(c):
-#                    continue
-#                start = n.df(c)[attr + '_opt'].dropna()
-#            var = get_var(n, c, attr)
-#            var = var.stack().dropna() if pnl else var.dropna()
-#            var, start = var.align(start, join='inner')
-#            for v, s in np.column_stack((var.values, start.values)):
-#                m.getVarByName(v).PStart = s
-#        for (c, attr), pnl in n.constraints.pnl.items():
-#            start = n.pnl(c)[attr].stack() if pnl else n.df(c)[attr].dropna()
-#            con = get_con(n, c, attr)
-#            con = con.stack().dropna() if pnl else con.dropna()
-#            con, start = con.align(start, join='inner')
-#            for cc, s in np.column_stack((con.values, start.values)):
-#                m.getConstrByName(cc).DStart = s
+    description = {}
+
+    eh = expand_series(n.snapshot_weightings, sus_i)
+    stand_eff = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
+    dispatch_eff = expand_series(n.df(c).efficiency_dispatch, sns).T
+    store_eff = expand_series(n.df(c).efficiency_store, sns).T
+    inflow = get_as_dense(n, c, 'inflow') * eh
+    spill = eh[pnl.spill.columns] * pnl.spill
+
+    description['Spillage Limit'] = pd.Series({'min':
+                                (inflow[spill.columns] - spill).min().min()})
+
+    if 'p_store' in pnl:
+        soc = pnl.state_of_charge
+
+        store = store_eff * eh * pnl.p_store#.clip(upper=0)
+        dispatch = 1/dispatch_eff * eh * pnl.p_dispatch#(lower=0)
+        start = soc.iloc[-1].where(sus.cyclic_state_of_charge,
+                                   sus.state_of_charge_initial)
+        previous_soc = stand_eff * soc.shift().fillna(start)
+
+
+        reconstructed = (previous_soc.add(store, fill_value=0)
+                        .add(inflow, fill_value=0)
+                        .add(-dispatch, fill_value=0)
+                        .add(-spill, fill_value=0))
+        description['SOC Balance StorageUnit'] = ((reconstructed - soc)
+                                                  .unstack().describe())
+    else:
+        logging.info('Storage Unit SOC balance not reconstructable as no '
+                     'p_store and p_dispatch in n.storage_units_t.')
+    return pd.concat(description, axis=1, sort=False)
+
+
+def describe_nodal_balance_constraint(n):
+    """
+    Helper function to double check whether network flow is balanced
+    """
+    network_injection = pd.concat(
+            [n.pnl(c)[f'p{inout}'].rename(columns=n.df(c)[f'bus{inout}'])
+            for inout in (0, 1) for c in ('Line', 'Transformer')], axis=1)\
+            .groupby(level=0, axis=1).sum()
+    return (n.buses_t.p - network_injection).unstack().describe()\
+            .to_frame('Nodal Balance Constr.')
+
+def describe_upper_dispatch_constraints(n):
+    '''
+    Recalculates the minimum gap between operational status and nominal capacity
+    '''
+    description = {}
+    key = ' Upper Limit'
+    for c, attr in nominals.items():
+        dispatch_attr = 'p0' if c in ['Line', 'Transformer', 'Link'] else attr[0]
+        description[c + key] = pd.Series({'min':
+                               (n.df(c)[attr + '_opt'] *
+                               get_as_dense(n, c, attr[0] + '_max_pu') -
+                               n.pnl(c)[dispatch_attr]).min().min()})
+    return pd.concat(description, axis=1)
+
+
+def describe_lower_dispatch_constraints(n):
+    description = {}
+    key = ' Lower Limit'
+    for c, attr in nominals.items():
+        if c in ['Line', 'Transformer', 'Link']:
+            dispatch_attr = 'p0'
+            description[c] = pd.Series({'min':
+                              (n.df(c)[attr + '_opt'] *
+                              get_as_dense(n, c, attr[0] + '_max_pu') +
+                              n.pnl(c)[dispatch_attr]).min().min()})
+        else:
+            dispatch_attr = attr[0]
+            description[c + key] = pd.Series({'min':
+                                   (-n.df(c)[attr + '_opt'] *
+                                   get_as_dense(n, c, attr[0] + '_min_pu') +
+                                   n.pnl(c)[dispatch_attr]).min().min()})
+    return pd.concat(description, axis=1)
+
+
+def describe_store_contraints(n):
+    """
+    Checks whether all stores are balanced over time.
+    """
+    stores = n.stores
+    stores_i = stores.index
+    if stores_i.empty: return
+    sns = n.snapshots
+    c = 'Store'
+    pnl = n.pnl(c)
+
+    eh = expand_series(n.snapshot_weightings, stores_i)
+    stand_eff = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
+
+    start = pnl.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
+    previous_e = stand_eff * pnl.e.shift().fillna(start)
+
+    return (previous_e - pnl.p - pnl.e).unstack().describe()\
+            .to_frame('SOC Balance Store')
+
+
+def describe_cycle_constraints(n):
+    weightings = n.lines.x_pu_eff.where(n.lines.carrier == 'AC', n.lines.r_pu_eff)
+
+    def cycle_flow(sub):
+        C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
+        if C.empty:
+            return None
+        C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
+        return C_weighted.apply(lambda ds: ds @ n.lines_t.p0[ds.index].T)
+
+    return pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)\
+             .unstack().describe().to_frame('Cycle Constr.')
+
+
+
+def constraint_stats(n, round_digit=1e-30):
+    """
+    Post-optimization function to recalculate gap statistics of different
+    constraints. For inequality constraints only the minimum of lhs - rhs, with
+    lhs >= rhs is returned.
+    """
+    return pd.concat([describe_cycle_constraints(n),
+                      describe_store_contraints(n),
+                      describe_storage_unit_contraints(n),
+                      describe_nodal_balance_constraint(n),
+                      describe_lower_dispatch_constraints(n),
+                      describe_upper_dispatch_constraints(n)],
+                   axis=1, sort=False)
+
+def check_constraints(n, tol=1e-3):
+    """
+    Post-optimization test function to double-check most of the lopf
+    constraints. For relevant equaility constraints, it test whether the
+    deviation between lhs and rhs is below the given tolerance. For inequality
+    constraints, it test whether the inequality is violated with a higher
+    value then the tolerance.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    tol : float
+        Gap tolerance
+
+    Returns AssertionError if tolerance is exceeded.
+
+    """
+    stats = constraint_stats(n).rename(index=str.title)
+    condition = stats.T[['Min', 'Max']].query('Min < -@tol | Max > @tol').T
+    assert condition.empty, (f'The following constraint(s) are exceeding the '
+                             f'given tolerance of {tol}: \n{condition}')
+
+

@@ -67,7 +67,7 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
-from .opf_lm import network_lopf as network_lopf_lm
+from .solve import network_lopf as network_lopf_lowmem
 
 from .plot import plot, iplot
 
@@ -488,7 +488,7 @@ class Network(Basic):
         if pyomo:
             return network_lopf(self, **args)
         else:
-            return network_lopf_lm(self, **args)
+            return network_lopf_lowmem(self, **args)
 
 
 
@@ -917,6 +917,8 @@ class Network(Basic):
 
         for sub in self.sub_networks.obj:
             find_cycles(sub)
+            sub.find_bus_controls()
+
 
     def iterate_components(self, components=None, skip_empty=True):
         if components is None:
