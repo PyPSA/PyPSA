@@ -557,7 +557,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
     #disable logging because multiple slack bus calculations, keep output clean
-    logging.disable()
+    logging.disable(50)
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
     n.determine_network_topology()
