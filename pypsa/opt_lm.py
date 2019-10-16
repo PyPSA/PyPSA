@@ -7,10 +7,11 @@ Created on Sat Sep  7 17:38:10 2019
 """
 
 import pandas as pd
-import os, gurobipy, logging, re, io, subprocess
+import os, logging, re, io, subprocess
 import numpy as np
 from .descriptors import get_switchable_as_dense as get_as_dense
 from pandas import IndexSlice as idx
+
 
 lookup = pd.read_csv(os.path.dirname(__file__) + '/variables.csv',
                         index_col=['component', 'variable'])
@@ -447,6 +448,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, keep_files, warmstart=None,
                         store_basis=True):
+    import gurobipy
     # for solver options see
     # https://www.gurobi.com/documentation/8.1/refman/parameter_descriptions.html
     if (solver_logfile is not None) and (solver_options is not None):

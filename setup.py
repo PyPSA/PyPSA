@@ -28,12 +28,12 @@ setup(
         'pandas>=0.19.0',
         'pyomo>=5.3',
         'matplotlib',
-        'networkx>=1.10',
-        'gurobipy'
+        'networkx>=1.10'
     ],
     extras_require = {
         "cartopy": ['cartopy>=0.16'],
-        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"]
+        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"],
+        'gurobipy':['gurobipy']
     },
     classifiers=[
         'Development Status :: 3 - Alpha',
