@@ -453,16 +453,15 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     # https://www.gurobi.com/documentation/8.1/refman/parameter_descriptions.html
     if (solver_logfile is not None) and (solver_options is not None):
         solver_options["logfile"] = solver_logfile
-    logging.disable()
-    m = gurobipy.read(problem_fn)
 
+    # disable logging for this part, as gurobi output is doubled otherwise
+    logging.disable(50)
+    m = gurobipy.read(problem_fn)
     if solver_options is not None:
         for key, value in solver_options.items():
             m.setParam(key, value)
-
     if warmstart:
         m.read(warmstart)
-
     m.optimize()
     logging.disable(1)
 
