@@ -3,59 +3,34 @@ from __future__ import absolute_import
 
 import pypsa
 
-import datetime
 import pandas as pd
 
-import networkx as nx
-
-import numpy as np
-
-from itertools import chain
+from itertools import product
 
 import os
 
-
-from distutils.spawn import find_executable
-
+from numpy.testing import assert_array_almost_equal as equal
 
 
-def test_opf():
 
+def test_opf(pyomo=True):
 
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/opf-storage-hvdc/opf-storage-data")
+    csv_folder_name = os.path.join(os.path.dirname(__file__),
+                                   "../examples/opf-storage-hvdc/opf-storage-data")
 
-    network = pypsa.Network(csv_folder_name)
+    n = pypsa.Network(csv_folder_name)
+
+    target_path = os.path.join(csv_folder_name,"results","generators-p.csv")
+
+    target_gen_p = pd.read_csv(target_path, index_col=0)
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
+    for solver_name, pyomo in product(["cbc", "glpk"], [True, False]):
+        solver_name = "glpk"
 
-    snapshots = network.snapshots
+        n.lopf(solver_name=solver_name, pyomo=pyomo)
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name)
-
-
-    results_folder_name = "results"
-
-
-    network.export_to_csv_folder(results_folder_name)
-
-    good_results_filename =  os.path.join(csv_folder_name,"results","generators-p.csv")
-
-    good_arr = pd.read_csv(good_results_filename,index_col=0).values
-
-    print(good_arr)
-
-    results_filename = os.path.join(results_folder_name,"generators-p.csv")
-
-
-    arr = pd.read_csv(results_filename,index_col=0).values
-
-
-    print(arr)
-
-
-    np.testing.assert_array_almost_equal(arr,good_arr)
-
+        equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
 if __name__ == "__main__":

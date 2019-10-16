@@ -3,20 +3,10 @@ from __future__ import absolute_import
 
 import pypsa
 
-import datetime
-import pandas as pd
-
-import networkx as nx
-
-import numpy as np
-
-from itertools import chain, product
+from itertools import product
 
 import os
 
-
-
-from distutils.spawn import find_executable
 from numpy.testing import assert_array_almost_equal as equal
 
 
