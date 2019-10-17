@@ -61,11 +61,14 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
-from .linopf import network_lopf as network_lopf_lowmem
-
 from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
+
+import sys
+
+if sys.version_info.major >= 3:
+    from .linopf import network_lopf as network_lopf_lowmem
 
 import logging
 logger = logging.getLogger(__name__)
