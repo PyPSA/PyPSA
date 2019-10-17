@@ -39,7 +39,7 @@ dependencies:
 
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    - vresutils>=0.2.5
+    - vresutils>=0.3
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
