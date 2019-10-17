@@ -5,7 +5,7 @@ import pypsa
 
 import pandas as pd
 
-from itertools import product
+import sys
 
 import os
 
@@ -25,12 +25,20 @@ def test_opf(pyomo=True):
     target_gen_p = pd.read_csv(target_path, index_col=0)
 
     #test results were generated with GLPK and other solvers may differ
-    for solver_name, pyomo in product(["cbc", "glpk"], [True, False]):
-        solver_name = "glpk"
+    for solver_name in ["cbc", "glpk"]:
 
-        n.lopf(solver_name=solver_name, pyomo=pyomo)
+        n.lopf(solver_name=solver_name, pyomo=True)
 
         equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+
+    if sys.version_info.major >= 3:
+
+        for solver_name in ["cbc", "glpk"]:
+
+            n.lopf(solver_name=solver_name, pyomo=False)
+
+            equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
+                  decimal=2)
 
 
 if __name__ == "__main__":

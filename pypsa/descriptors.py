@@ -22,19 +22,15 @@
 # make the code as Python 3 compatible as possible
 from __future__ import division
 from __future__ import absolute_import
-from six import iteritems, string_types
+from six import iteritems
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
-
-
-
 #weak references are necessary to make sure the key-value pair are
 #destroyed if the key object goes out of scope
-from weakref import WeakKeyDictionary
 
 from collections import OrderedDict
 from itertools import repeat
@@ -303,3 +299,73 @@ def zsum(s, *args, **kwargs):
     Meant to be set as pd.Series.zsum = zsum.
     """
     return 0 if s.empty else s.sum(*args, **kwargs)
+
+#Perhaps this should rather go into components.py
+nominal_attrs = {'Generator': 'p_nom',
+                 'Line': 's_nom',
+                 'Transformer': 's_nom',
+                 'Link': 'p_nom',
+                 'Store': 'e_nom',
+                 'StorageUnit': 'p_nom'}
+
+def expand_series(ser, columns):
+    """
+    Helper function to fastly expand a series to a dataframe with according
+    column axis and every single column being the equal to the given series.
+    """
+    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+
+
+def get_extendable_i(n, c):
+    """
+    Getter function. Get the index of extendable elements of a given component.
+    """
+    return n.df(c)[lambda ds:
+        ds[nominal_attrs[c] + '_extendable']].index
+
+def get_non_extendable_i(n, c):
+    """
+    Getter function. Get the index of non-extendable elements of a given
+    component.
+    """
+    return n.df(c)[lambda ds:
+            ~ds[nominal_attrs[c] + '_extendable']].index
+
+def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
+    """
+    Getter function to retrieve the per unit bounds of a given compoent for
+    given snapshots and possible subset of elements (e.g. non-extendables).
+    Depending on the attr you can further specify the bounds of the variable
+    you are looking at, e.g. p_store for storage units.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : string
+        Component name, e.g. "Generator", "Line".
+    sns : pandas.Index/pandas.DateTimeIndex
+        set of snapshots for the bounds
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) bounds of all
+        elements are returned.
+    attr : string, default None
+        attribute name for the bounds, e.g. "p", "s", "p_store"
+
+    """
+    min_pu_str = nominal_attrs[c].replace('nom', 'min_pu')
+    max_pu_str = nominal_attrs[c].replace('nom', 'max_pu')
+
+    max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
+    if c in n.passive_branch_components:
+        min_pu = - max_pu
+    elif c == 'StorageUnit':
+        min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
+        if attr == 'p_store':
+            max_pu = - get_switchable_as_dense(n, c, min_pu_str, sns)
+        if attr == 'state_of_charge':
+            max_pu = expand_series(n.df(c).max_hours, sns).T
+            min_pu = pd.DataFrame(0, *max_pu.axes)
+    else:
+        min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
+    return min_pu[index], max_pu[index]
+

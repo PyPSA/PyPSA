@@ -21,24 +21,18 @@
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
-import six
 from six import iteritems, itervalues, iterkeys
-from six.moves import map
 from weakref import ref
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
-import networkx as nx
 
 import numpy as np
 import pandas as pd
-import scipy as sp, scipy.sparse
 from scipy.sparse import csgraph
-from itertools import chain
 from collections import namedtuple
-from operator import itemgetter
 import os
 
 
@@ -67,7 +61,7 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
-from .solve import network_lopf as network_lopf_lowmem
+from .linopf import network_lopf as network_lopf_lowmem
 
 from .plot import plot, iplot
 

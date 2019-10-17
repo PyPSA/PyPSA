@@ -9,6 +9,7 @@ import os
 
 from numpy.testing import assert_array_almost_equal as equal
 
+import sys
 
 def test_lopf():
 
@@ -41,14 +42,15 @@ def test_lopf():
         equal(n.links_t.p0.loc[:,n.links.index],
               n_r.links_t.p0.loc[:,n.links.index],decimal=4)
 
-    n.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=False)
+    if sys.version_info.major >= 3:
+        n.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=False)
 
-    equal(n.generators_t.p.loc[:,n.generators.index],
-          n_r.generators_t.p.loc[:,n.generators.index],decimal=4)
-    equal(n.lines_t.p0.loc[:,n.lines.index],
-          n_r.lines_t.p0.loc[:,n.lines.index],decimal=4)
-    equal(n.links_t.p0.loc[:,n.links.index],
-          n_r.links_t.p0.loc[:,n.links.index],decimal=4)
+        equal(n.generators_t.p.loc[:,n.generators.index],
+              n_r.generators_t.p.loc[:,n.generators.index],decimal=4)
+        equal(n.lines_t.p0.loc[:,n.lines.index],
+              n_r.lines_t.p0.loc[:,n.lines.index],decimal=4)
+        equal(n.links_t.p0.loc[:,n.links.index],
+              n_r.links_t.p0.loc[:,n.links.index],decimal=4)
 
 
 

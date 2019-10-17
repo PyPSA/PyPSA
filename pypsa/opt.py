@@ -52,6 +52,10 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
+# =============================================================================
+# Tools for solving with pyomo
+# =============================================================================
+
 class LExpression(object):
     """Affine expression of optimisation variables.
 
@@ -382,3 +386,11 @@ def patch_optsolver_record_memusage_before_solving(opt, network):
     except ImportError:
         logger.debug("Unable to measure memory usage, since the resource library is missing")
         return False
+
+
+# =============================================================================
+# Helpers for opf_lowmemory
+# =============================================================================
+
+
+
