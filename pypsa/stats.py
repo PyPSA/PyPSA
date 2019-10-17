@@ -11,8 +11,39 @@ from .descriptors import (expand_series, get_switchable_as_dense as get_as_dense
 import pandas as pd
 import logging
 
+idx = pd.IndexSlice
 
-#Place summerize function of pypsa-eur here
+
+# =============================================================================
+# Network summary
+# =============================================================================
+
+opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
+
+def calculate_costs(n):
+    raise NotImplementedError
+    mc = {}
+    for c in n.iterate_comonents():
+        if 'marginal_cost' in c.df:
+
+            mc[c] = c.df @ c.pnl['p']
+
+
+def calculate_curtailment(n):
+    max_pu = n.generators_t.p_max_pu
+    avail = (max_pu.multiply(n.generators.p_nom_opt.loc[max_pu.columns]).sum()
+             .groupby(n.generators.carrier).sum())
+    used = (n.generators_t.p[max_pu.columns].sum()
+            .groupby(n.generators.carrier).sum())
+    return (((avail - used)/avail)*100).round(3)
+
+
+# and others from pypsa-eur
+
+
+# =============================================================================
+# gap analysis
+# =============================================================================
 
 
 def describe_storage_unit_contraints(n):

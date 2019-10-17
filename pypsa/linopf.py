@@ -58,7 +58,7 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     fix_i = get_non_extendable_i(n, c)
     if fix_i.empty: return
-    nominal_fix = n.df(c)[nominal_attrs.at[c]][fix_i]
+    nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
@@ -71,7 +71,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
     if ext_i.empty: return
     min_pu, max_pu = get_bounds_pu(n, c, sns, ext_i, attr)
     operational_ext_v = get_var(n, c, attr)[ext_i]
-    nominal_v = get_var(n, c, nominal_attrs.at[c])[ext_i]
+    nominal_v = get_var(n, c, nominal_attrs[c])[ext_i]
     rhs = 0
 
     lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v),
