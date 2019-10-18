@@ -288,6 +288,13 @@ def get_con(n, c, attr, pop=False):
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, keep_files, warmstart=None,
                      store_basis=True):
+    """
+    Solving function. Reads the linear problem file and passes it to the cbc
+    solver. If the solution is sucessful it returns variable solutions and
+    constraint dual values.
+
+    For more information on the solver options, run 'cbc' in your shell
+    """
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
@@ -338,7 +345,14 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
 def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, keep_files, warmstart=None,
                      store_basis=True):
-    # for solver_options lookup https://kam.mff.cuni.cz/~elias/glpk.pdf
+    """
+    Solving function. Reads the linear problem file and passes it to the glpk
+    solver. If the solution is sucessful it returns variable solutions and
+    constraint dual values.
+
+    For more information on the glpk solver options:
+    https://kam.mff.cuni.cz/~elias/glpk.pdf
+    """
     command = (f"glpsol --lp {problem_fn} --output {solution_fn}")
     if solver_logfile is not None:
         command += f' --log {solver_logfile}'
@@ -386,9 +400,15 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, keep_files, warmstart=None,
                         store_basis=True):
+    """
+    Solving function. Reads the linear problem file and passes it to the gurobi
+    solver. If the solution is sucessful it returns variable solutions and
+    constraint dual values. Gurobipy must be installed for using this function
+
+    For more information on solver options:
+    https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
+    """
     import gurobipy
-    # for solver options see
-    # https://www.gurobi.com/documentation/8.1/refman/parameter_descriptions.html
     if (solver_logfile is not None) and (solver_options is not None):
         solver_options["logfile"] = solver_logfile
 
