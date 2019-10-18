@@ -40,6 +40,18 @@ lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
 
 def define_nominal_for_extendable_variables(n, c, attr):
+    """
+    Initializes variables for nominal capacities for a given component and a
+    given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        network component of which the nominal capacity should be defined
+    attr : str
+        name of the variable, e.g. 'p_nom'
+    """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
     lower = n.df(c)[attr+'_min'][ext_i]
@@ -49,6 +61,18 @@ def define_nominal_for_extendable_variables(n, c, attr):
 
 
 def define_dispatch_for_extendable_variables(n, sns, c, attr):
+    """
+    Initializes variables for power dispatch for a given component and a
+    given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the attribute, e.g. 'p'
+    """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
     variables = write_bound(n, -np.inf, np.inf, axes=[sns, ext_i])
@@ -56,6 +80,18 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
 
 
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
+    """
+    Initializes variables for power dispatch for a given component and a
+    given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the attribute, e.g. 'p'
+    """
     fix_i = get_non_extendable_i(n, c)
     if fix_i.empty: return
     nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
@@ -67,6 +103,18 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
+    """
+    Sets power dispatch constraints for extendable devices for a given
+    component and a given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the attribute, e.g. 'p'
+    """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
     min_pu, max_pu = get_bounds_pu(n, c, sns, ext_i, attr)
@@ -86,6 +134,22 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
 
 
 def define_fixed_variariable_constraints(n, sns, c, attr, pnl=True):
+    """
+    Sets constraints for fixing variables of a given component and attribute
+    to the corresponding values in n.df(c)[attr + '_set'] if pnl is True, or
+    n.pnl(c)[attr + '_set']
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the attribute, e.g. 'p'
+    pnl : bool, default True
+        Whether variable which should be fixed is time-dependent
+    """
+
     if pnl:
         if attr + '_set' not in n.pnl(c): return
         fix = n.pnl(c)[attr + '_set'].unstack().dropna()
@@ -102,6 +166,9 @@ def define_fixed_variariable_constraints(n, sns, c, attr, pnl=True):
 
 
 def define_ramp_limit_constraints(n, sns):
+    """
+    Defines ramp limits for generators wiht valid ramplimit
+    """
     c = 'Generator'
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
@@ -146,6 +213,9 @@ def define_ramp_limit_constraints(n, sns):
 
 
 def define_nodal_balance_constraints(n, sns):
+    """
+    Defines nodal balance constraint.
+    """
 
     def bus_injection(c, attr, groupcol='bus', sign=1):
         #additional sign only necessary for branches in reverse direction
@@ -175,6 +245,9 @@ def define_nodal_balance_constraints(n, sns):
 
 
 def define_kirchhoff_constraints(n):
+    """
+    Defines Kirchhoff voltage constraints
+    """
     weightings = n.lines.x_pu_eff.where(n.lines.carrier == 'AC', n.lines.r_pu_eff)
 
     def cycle_flow(ds):
@@ -195,6 +268,12 @@ def define_kirchhoff_constraints(n):
 
 
 def define_storage_unit_constraints(n, sns):
+    """
+    Defines state of charge (soc) constraints for storage units. In principal
+    the constraints states:
+
+        previous_soc + p_store - p_dispatch + inflow - spill == soc
+    """
     sus_i = n.storage_units.index
     if sus_i.empty: return
     c = 'StorageUnit'
@@ -203,7 +282,6 @@ def define_storage_unit_constraints(n, sns):
     spill = write_bound(n, 0, upper)
     set_varref(n, spill, 'StorageUnit', 'spill')
 
-    #soc constraint previous_soc + p_store - p_dispatch + inflow - spill == soc
     eh = expand_series(n.snapshot_weightings, sus_i) #elapsed hours
 
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
@@ -237,13 +315,17 @@ def define_storage_unit_constraints(n, sns):
 
 
 def define_store_constraints(n, sns):
+    """
+    Defines energy balance constraints for stores. In principal this states:
+
+        previous_e - p == e
+    """
     stores_i = n.stores.index
     if stores_i.empty: return
     c = 'Store'
     variables = write_bound(n, -np.inf, np.inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
-    #previous_e - p == e
     eh = expand_series(n.snapshot_weightings, stores_i)  #elapsed hours
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
 
@@ -272,6 +354,19 @@ def define_store_constraints(n, sns):
 
 
 def define_global_constraints(n, sns):
+    """
+    Defines global constraints for the optimization. Possible types are
+
+        1. primary_energy
+            Use this to constraint the byproducts of primary energy sources as
+            CO2
+        2. transmission_volume_expansion_limit
+            Use this to set a limit for line volume expansion. Possible carriers
+            are 'AC' and 'DC'
+        3. transmission_expansion_cost_limit
+            Use this to set a limit for line expansion costs. Possible carriers
+            are 'AC' and 'DC'
+    """
     glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
         carattr = glc.carrier_attribute
@@ -348,6 +443,9 @@ def define_global_constraints(n, sns):
 
 
 def define_objective(n):
+    """
+    Defines and writes out the objective function
+    """
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost')
                 .loc[:, lambda ds: (ds != 0).all()]
@@ -368,6 +466,10 @@ def define_objective(n):
 
 def prepare_lopf(n, snapshots=None, keep_files=False,
                  extra_functionality=None):
+    """
+    Sets up the linear problem and writes it out to a lp file, stored at
+    n.problem_fn
+    """
     reset_counter()
 
     #used in kirchhoff and globals
@@ -439,6 +541,10 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
 def assign_solution(n, sns, variables_sol, constraints_dual,
                     extra_postprocessing, keep_references=False):
+    """
+    Helper function. Assigns the solution of a succesful optimization to the
+    network.
+    """
     pop = not keep_references
     #solutions
     def map_solution(c, attr, pnl):
@@ -481,7 +587,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     #load
     n.loads_t.p = n.loads_t.p_set
 
-    #injection, why does it include injection in hvdc 'network'
+    #injection, why does it 'exclude' injection in hvdc 'network'?
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),
           ('Load', 'p', 'bus'), ('StorageUnit', 'p', 'bus'),
           ('Link', 'p0', 'bus0'), ('Link', 'p1', 'bus1')]
@@ -663,7 +769,6 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
 
         s_nom_prev = n.lines.s_nom_opt if iteration else n.lines.s_nom
         kwargs['warmstart'] = bool(iteration and ('basis_fn' in n.__dir__()))
-#        import pdb; pdb.set_trace()
         network_lopf(n, snapshots, **kwargs)
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
