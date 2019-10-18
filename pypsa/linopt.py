@@ -18,6 +18,7 @@ import os, logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
 
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # writing functions
@@ -428,7 +429,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
         try:
             m.write(n.basis_fn)
         except gurobipy.GurobiError:
-            logging.info('No model basis stored')
+            logger.info('No model basis stored')
             del n.basis_fn
 
     if not keep_files:

@@ -407,16 +407,14 @@ def define_global_constraints(n, sns):
                                       '"transmission_volume_expansion_limit"')
     substr = lambda s: re.sub('[\[\]\(\)]', '', s)
     for name, glc in glcs.iterrows():
-        carattr = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
-        lines_ext_i = n.lines.query(f'carrier in @carattr '
-                                    'and s_nom_extendable').index
-        links_ext_i = n.links.query(f'carrier in @carattr '
-                                    'and p_nom_extendable').index
-        linevars = linexpr((n.lines.length[lines_ext_i],
-                          get_var(n, 'Line', 's_nom')[lines_ext_i]))
-        linkvars = linexpr((n.links.length[links_ext_i],
-                          get_var(n, 'Link', 'p_nom')[links_ext_i]))
-        lhs = join_exprs(linevars) + '\n' + join_exprs(linkvars)
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
+        lhs = ''
+        for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
+            ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
+            if ext_i.empty: continue
+            v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]))
+            lhs += join_exprs(v) + '\n'
+        if lhs == '': continue
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
@@ -426,16 +424,14 @@ def define_global_constraints(n, sns):
     glcs = n.global_constraints.query('type == '
                                       '"transmission_expansion_cost_limit"')
     for name, glc in glcs.iterrows():
-        carattr = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
-        lines_ext_i = n.lines.query(f'carrier in @carattr '
-                                    'and s_nom_extendable').index
-        links_ext_i = n.links.query(f'carrier in @carattr '
-                                    'and p_nom_extendable').index
-        linevars = linexpr((n.lines.capital_cost[lines_ext_i],
-                        get_var(n, 'Line', 's_nom')[lines_ext_i]))
-        linkvars = linexpr((n.links.capital_cost[links_ext_i],
-                        get_var(n, 'Link', 'p_nom')[links_ext_i]))
-        lhs = join_exprs(linevars) + '\n' + join_exprs(linkvars)
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
+        lhs = ''
+        for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
+            ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
+            if ext_i.empty: continue
+            v = linexpr((n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]))
+            lhs += join_exprs(v) + '\n'
+        if lhs == '': continue
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
@@ -773,4 +769,13 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
+    logger.info('Running last lopf with fixed branches, overwrite p_nom '
+                'for links and s_nom for lines')
+    ext_links_i = get_extendable_i(n, 'Link')
+    n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
+    n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
+    network_lopf(n, snapshots, **kwargs)
+    n.lines.loc[ext_i, 's_nom_extendable'] = True
+    n.links.loc[ext_links_i, 'p_nom_extendable'] = True
+
 
