@@ -535,7 +535,7 @@ def busmap_by_stubs(network, matching_attrs=None):
 
     while True:
         stubs = []
-        for u in G.node:
+        for u in G.nodes:
             neighbours = list(G.adj[u].keys())
             if len(neighbours) == 1:
                 v, = neighbours
