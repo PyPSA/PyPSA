@@ -599,7 +599,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         if len(sub.buses_i()) == 1: return
         Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
         Z -= Z[sub.slack_bus]
-        return n.buses_t.p[buses_i] @ Z
+        return n.buses_t.p.reindex(columns=buses_i) @ Z
     n.buses_t.v_ang = (pd.concat(
                        [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1)
                       .reindex(columns=n.buses.index, fill_value=0))
