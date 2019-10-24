@@ -24,7 +24,12 @@ efficiency_dispatch,float,per unit,1.,Efficiency of storage on the way out of th
 standing_loss,float,per unit,0.,Losses per hour to state of charge.,Input (optional)
 inflow,static or series,MW,0.,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir.",Input (optional)
 p,series,MW,0.,active power at bus (positive if net generation),Output
+p_dispatch,series,MW,0.,active power dispatch at bus,Output
+p_store,series,MW,0.,active power charging at bus,Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 state_of_charge,series,MWh,NaN,State of charge as calculated by the OPF.,Output
 spill,series,MW,0.,Spillage for each snapshot.,Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output
+mu_upper,series,currency/MWh,0.,Shadow price of upper p_nom limit,Output
+mu_lower,series,currency/MWh,0.,Shadow price of lower p_nom limit,Output
+mu_state_of_charge_set,series,currency/MWh,0.,Shadow price of fixed state of charge state_of_charge_set,Output

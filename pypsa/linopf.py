@@ -255,16 +255,19 @@ def define_kirchhoff_constraints(n):
         vals = linexpr((ds, get_var(n, 'Line', 's')[ds.index])) + '\n'
         return vals.sum(1)
 
+    sns = get_var(n, 'Line', 's').index
     constraints = []
     for sub in n.sub_networks.obj:
         C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
         if C.empty:
             continue
         C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
-        con = write_constraint(n, C_weighted.apply(cycle_flow), '=', 0)
+        cycle_sum = C_weighted.apply(cycle_flow)
+        cycle_sum.index = sns
+        con = write_constraint(n, cycle_sum, '=', 0)
         constraints.append(con)
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
-    set_conref(n, constraints, 'Line', 'kirchhoff_voltage')
+    set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
 
 def define_storage_unit_constraints(n, sns):
@@ -311,7 +314,7 @@ def define_storage_unit_constraints(n, sns):
     rhs.loc[sns[0], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
 
     constraints = write_constraint(n, lhs, '==', rhs)
-    set_conref(n, constraints, c, 'soc')
+    set_conref(n, constraints, c, 'mu_state_of_charge')
 
 
 def define_store_constraints(n, sns):
@@ -350,7 +353,7 @@ def define_store_constraints(n, sns):
     rhs.loc[sns[0], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
 
     constraints = write_constraint(n, lhs, '==', rhs)
-    set_conref(n, constraints, c, 'soc')
+    set_conref(n, constraints, c, 'mu_state_of_charge')
 
 
 def define_global_constraints(n, sns):
@@ -573,12 +576,14 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     def map_dual(c, attr, pnl):
         if pnl:
             n.pnl(c)[attr] = (get_con(n, c, attr, pop=pop).stack()
-                                      .map(-constraints_dual).unstack())
+                              .map(-constraints_dual).unstack())
         else:
             n.df(c)[attr] = get_con(n, c, attr, pop=pop).map(-constraints_dual)
 
     for (c, attr), pnl in n.constraints.pnl.items():
         map_dual(c, attr, pnl)
+        if attr == 'mu_state_of_charge':
+            n.pnl(c).pop(attr)
 
     #load
     n.loads_t.p = n.loads_t.p_set
@@ -603,8 +608,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     n.buses_t.v_ang = (pd.concat(
                        [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1)
                       .reindex(columns=n.buses.index, fill_value=0))
-
-
+    n.buses_t['marginal_price'] = n.buses_t.pop('nodal_balance')
 
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
