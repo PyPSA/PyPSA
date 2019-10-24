@@ -1,0 +1,4 @@
+,Unit,Values,Description
+start,--,"str or datetime-like; e.g. YYYY-MM-DD","Left bound of date range"
+end,--,"str or datetime-like; e.g. YYYY-MM-DD","Right bound of date range"
+closed,--,"One of {None, ‘left’, ‘right’}","Make the time interval closed to the ``left``, ``right``, or both sides ``None``."

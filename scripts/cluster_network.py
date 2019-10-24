@@ -1,4 +1,93 @@
 # coding: utf-8
+"""
+Creates networks clustered to ``{cluster}`` number of zones with aggregated buses, generators and transmission corridors.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    renewable: (keys)
+        {technology}:
+            potential:
+
+    solving:
+        solver:
+            name:
+
+    lines:
+        length_factor:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`renewable_cf`, :ref:`solving_cf`, :ref:`lines_cf`
+
+Inputs
+------
+
+- ``resources/regions_onshore_{network}_s{simpl}.geojson``: confer :ref:`simplify`
+- ``resources/regions_offshore_{network}_s{simpl}.geojson``: confer :ref:`simplify`
+- ``resources/clustermaps_{network}_s{simpl}.h5``: confer :ref:`simplify`
+- ``networks/{network}_s{simpl}.nc``: confer :ref:`simplify`
+
+Outputs
+-------
+
+- ``resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson``:
+
+    .. image:: ../img/regions_onshore_elec_s_X.png
+        :scale: 33 %
+
+- ``resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson``:
+
+    .. image:: ../img/regions_offshore_elec_s_X.png
+        :scale: 33 %
+
+- ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``: Mapping of buses and lines from ``networks/elec_s{simpl}.nc`` to ``networks/elec_s{simpl}_{clusters}.nc``; has keys ['/busmap', '/busmap_s', '/linemap', '/linemap_negative', '/linemap_positive']
+- ``networks/{network}_s{simpl}_{clusters}.nc``: 
+
+    .. image:: ../img/elec_s_X.png
+        :scale: 40  %
+
+Description
+-----------
+
+.. note::
+
+    **Why is clustering used both in** ``simplify_network`` **and** ``cluster_network`` **?**
+    
+        Consider for example a network ``networks/elec_s100_50.nc`` in which
+        ``simplify_network`` clusters the network to 100 buses and in a second
+        step ``cluster_network``` reduces it down to 50 buses.
+
+        In preliminary tests, it turns out, that the principal effect of
+        changing spatial resolution is actually only partially due to the
+        transmission network. It is more important to differentiate between
+        wind generators with higher capacity factors from those with lower
+        capacity factors, i.e. to have a higher spatial resolution in the
+        renewable generation than in the number of buses.
+
+        The two-step clustering allows to study this effect by looking at
+        networks like ``networks/elec_s100_50m.nc``. Note the additional
+        ``m`` in the ``{cluster}`` wildcard. So in the example network
+        there are still up to 100 different wind generators.
+
+        In combination these two features allow you to study the spatial
+        resolution of the transmission network separately from the
+        spatial resolution of renewable generators.
+
+    **Is it possible to run the model without the** ``simplify_network`` **rule?**
+
+        No, the network clustering methods in the PyPSA module
+        `pypsa.networkclustering <https://github.com/PyPSA/PyPSA/blob/master/pypsa/networkclustering.py>`_
+        do not work reliably with multiple voltage levels and transformers.
+
+.. tip::
+    The rule :mod:`cluster_all_networks` runs
+    for all ``scenario`` s in the configuration file 
+    the rule :mod:`cluster_network`.
+
+"""
 
 import pandas as pd
 idx = pd.IndexSlice
@@ -62,7 +151,7 @@ def plot_weighting(n, country, country_shape=None):
 
 def distribute_clusters(n, n_clusters, solver_name=None):
     if solver_name is None:
-        solver_name = snakemake.config['solver']['solver']['name']
+        solver_name = snakemake.config['solving']['solver']['name']
 
     L = (n.loads_t.p_set.mean()
          .groupby(n.loads.bus).sum()
@@ -243,5 +332,3 @@ if __name__ == "__main__":
             store.put(attr, getattr(clustering, attr), format="table", index=False)
 
     cluster_regions((clustering.busmap,))
-
-

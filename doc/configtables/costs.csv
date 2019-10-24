@@ -1,0 +1,8 @@
+,Unit,Values,Description
+year,--,"YYYY; e.g. '2030'","Year for which to retrieve cost assumptions of ``data/costs.csv``."
+discountrate,--,float,"Default discount rate if not specified for a technology in ``data/costs.csv``."
+USD2013_to_EUR2013,--,float,"Exchange rate from USD :math:`_{2013}` to EUR :math:`_{2013}` from `ECB <https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html>`_"
+capital_cost,EUR/MW,"Keys should be in the 'technology' column of ``data/costs.csv``. Values can be any float.","For the given technologies, assumptions about their capital investment costs are set to the corresponding value. Optional; overwrites cost assumptions from ``data/costs.csv``."
+marginal_cost,EUR/MWh,"Keys should be in the 'technology' column of ``data/costs.csv``. Values can be any float.","For the given technologies, assumptions about their marginal operating costs are set to the corresponding value. Optional; overwrites cost assumptions from ``data/costs.csv``."
+emission_prices,,,
+-- co2,EUR/t,float,"Exogenous price of carbon-dioxide added to the marginal costs of fossil-fuelled generators according to their carbon intensity."

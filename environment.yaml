@@ -15,6 +15,7 @@ dependencies:
   - seaborn
   - snakemake-minimal
   - memory_profiler
+  - yaml
 
   # Second order dependencies which should really be deps of atlite
   - xarray
@@ -37,10 +38,10 @@ dependencies:
   - conda-forge::shapely
   - conda-forge::libgdal
 
-  # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
     - vresutils>=0.3
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    #- git+https://github.com/FRESNA/powerplantmatching.git#egg=powerplantmatching
+    - cdsapi
+    - powerplantmatching

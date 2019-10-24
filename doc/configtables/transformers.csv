@@ -1,0 +1,4 @@
+,Unit,Values,Description
+x,p.u.,float,"Series reactance (per unit, using ``s_nom`` as base power of the transformer. Overwritten if ``type`` is specified."
+s_nom,MVA,float,"Limit of apparent power which can pass through branch. Overwritten if ``type`` is specified."
+type,--,"A `transformer type in PyPSA <https://pypsa.readthedocs.io/en/latest/components.html#transformer-types>`_.","Specifies transformer types to assume for the transformers of the ENTSO-E grid extraction."

@@ -1,3 +1,68 @@
+"""
+Creates GIS shape files of the countries, exclusive economic zones and `NUTS3 <https://en.wikipedia.org/wiki/Nomenclature_of_Territorial_Units_for_Statistics>`_ areas.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    countries:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`
+
+Inputs
+------
+
+- ``data/bundle/naturalearth/ne_10m_admin_0_countries.shp``: World country shapes
+
+    .. image:: ../img/countries.png
+        :scale: 33 %
+
+- ``data/bundle/eez/World_EEZ_v8_2014.shp``: World `exclusive economic zones <https://en.wikipedia.org/wiki/Exclusive_economic_zone>`_ (EEZ)
+
+    .. image:: ../img/eez.png
+        :scale: 33 %
+
+- ``data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp``: Europe NUTS3 regions
+
+    .. image:: ../img/nuts3.png
+        :scale: 33 %
+
+- ``data/bundle/nama_10r_3popgdp.tsv.gz``: Average annual population by NUTS3 region (`eurostat <http://appsso.eurostat.ec.europa.eu/nui/show.do?dataset=nama_10r_3popgdp&lang=en>`_)
+- ``data/bundle/nama_10r_3gdp.tsv.gz``: Gross domestic product (GDP) by NUTS 3 regions (`eurostat <http://appsso.eurostat.ec.europa.eu/nui/show.do?dataset=nama_10r_3gdp&lang=en>`_)
+- ``data/bundle/ch_cantons.csv``: Mapping between Swiss Cantons and NUTS3 regions
+- ``data/bundle/je-e-21.03.02.xls``: Population and GDP data per Canton (`BFS - Swiss Federal Statistical Office <https://www.bfs.admin.ch/bfs/en/home/news/whats-new.assetdetail.7786557.html>`_ )
+
+Outputs
+-------
+
+- ``resources/country_shapes.geojson``: country shapes out of country selection
+
+    .. image:: ../img/country_shapes.png
+        :scale: 33 %
+
+- ``resources/offshore_shapes.geojson``: EEZ shapes out of country selection
+
+    .. image:: ../img/offshore_shapes.png
+        :scale: 33 %
+
+- ``resources/europe_shape.geojson``: Shape of Europe including countries and EEZ
+
+    .. image:: ../img/europe_shape.png
+        :scale: 33 %
+        
+- ``resources/nuts3_shapes.geojson``: NUTS3 shapes out of country selection including population and GDP data.
+        
+    .. image:: ../img/nuts3_shapes.png
+        :scale: 33 %
+
+Description
+-----------
+
+"""
+
 import os
 import numpy as np
 from operator import attrgetter

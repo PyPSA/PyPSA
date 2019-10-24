@@ -1,0 +1,15 @@
+,Unit,Values,Description
+map,,,
+-- figsize,--,"[width, height]; e.g. [7,7]","Figure size in inches."
+-- boundaries,°,"[x1,x2,y1,y2]","Boundaries of the map plots in degrees latitude (y) and longitude (x)"
+-- p_nom,,,
+-- -- bus_size_factor,--,float,"Factor by which values determining bus sizes are scaled to fit well in the plot."
+-- -- linewidth_factor,--,float,"Factor by which values determining bus sizes are scaled to fit well in the plot."
+costs_max,bn Euro,float,"Upper y-axis limit in cost bar plots."
+costs_threshold,bn Euro,float,"Threshold below which technologies will not be shown in cost bar plots."
+energy_max,TWh,float,"Upper y-axis limit in energy bar plots."
+energy_min,TWh,float,"Lower y-axis limit in energy bar plots."
+energy_threshold,TWh,float,"Threshold below which technologies will not be shown in energy bar plots."
+tech_colors,--,"carrier -> HEX colour code","Mapping from network ``carrier`` to a colour (`HEX colour code <https://en.wikipedia.org/wiki/Web_colors#Hex_triplet>`_)."
+nice_names,--,"str -> str","Mapping from network ``carrier`` to a more readable name."
+nice_names_n,--,"str -> str","Same as nice_names, but with linebreaks."

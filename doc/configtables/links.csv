@@ -1,0 +1,4 @@
+,Unit,Values,Description
+p_max_pu,--,"Value in [0.,1.]","Correction factor for link capacities ``p_nom``."
+include_tyndp,bool,"{'true', 'false'}","Specifies whether to add HVDC link projects from the `TYNDP 2018 <https://tyndp.entsoe.eu/tyndp2018/projects/>`_ which are at least in permitting."
+under_construction,--,"One of {'zero': set capacity to zero, 'remove': remove completely, 'keep': keep with full capacity}","Specifies how to handle lines which are currently under construction."

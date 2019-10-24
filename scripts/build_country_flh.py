@@ -1,4 +1,61 @@
 #!/usr/bin/env python
+"""
+Create ``.csv`` files and plots for comparing per country full load hours of renewable time series.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    snapshots:
+
+    renewable:
+        {technology}:
+            cutout:
+            resource:
+            correction_factor:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`snapshots_cf`, :ref:`renewable_cf`
+
+Inputs
+------
+
+- ``data/bundle/corine/g250_clc06_V18_5.tif``: `CORINE Land Cover (CLC) <https://land.copernicus.eu/pan-european/corine-land-cover>`_ inventory on `44 classes <https://wiki.openstreetmap.org/wiki/Corine_Land_Cover#Tagging>`_ of land use (e.g. forests, arable land, industrial, urban areas).
+
+    .. image:: img/corine.png
+        :scale: 33 %
+
+- ``data/bundle/GEBCO_2014_2D.nc``:  A `bathymetric <https://en.wikipedia.org/wiki/Bathymetry>`_ data set with a global terrain model for ocean and land at 15 arc-second intervals by the `General Bathymetric Chart of the Oceans (GEBCO) <https://www.gebco.net/data_and_products/gridded_bathymetry_data/>`_.
+
+    .. image:: img/gebco_2019_grid_image.jpg
+        :scale: 50 %
+
+    **Source:** `GEBCO <https://www.gebco.net/data_and_products/images/gebco_2019_grid_image.jpg>`_
+
+- ``data/pietzker2014.xlsx``: `Supplementary material 2 <https://ars.els-cdn.com/content/image/1-s2.0-S0306261914008149-mmc2.xlsx>`_ from `Pietzcker et al. <https://doi.org/10.1016/j.apenergy.2014.08.011>`_; not part of the data bundle; download and place here yourself.
+- ``resources/natura.tiff``: confer :ref:`natura`
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``resources/regions_onshore.geojson``: (if not offshore wind), confer :ref:`busregions`
+- ``resources/regions_offshore.geojson``: (if offshore wind), :ref:`busregions`
+- ``"cutouts/" + config["renewable"][{technology}]['cutout']``: :ref:`cutout`
+- ``networks/base.nc``: :ref:`base`
+
+Outputs
+-------
+
+- ``resources/country_flh_area_{technology}.csv``:
+- ``resources/country_flh_aggregated_{technology}.csv``:
+- ``resources/country_flh_uncorrected_{technology}.csv``:
+- ``resources/country_flh_{technology}.pdf``:
+- ``resources/country_exclusion_{technology}``:
+
+Description
+-----------
+
+"""
 
 import os
 import atlite

@@ -1,4 +1,62 @@
 # coding: utf-8
+"""
+Creates the network topology from the ENTSO-E map extracts as a PyPSA network.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    snapshots:
+
+    countries:
+
+    electricity:
+        voltages:
+
+    lines:
+        types:
+        s_max_pu:
+        under_construction:
+        
+    links:
+        p_max_pu:
+        under_construction:
+        include_tyndp:
+        
+    transformers:
+        x:
+        s_nom:
+        type:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`snapshots_cf`, :ref:`toplevel_cf`, :ref:`electricity_cf`, :ref:`load_cf`,
+    :ref:`lines_cf`, :ref:`links_cf`, :ref:`transformers_cf`
+        
+Inputs
+------
+
+- ``data/entsoegridkit``:  Extract from the geographical vector data of the online `ENTSO-E Interactive Map <https://www.entsoe.eu/data/map/>`_ by the `GridKit <https://github.com/pypsa/gridkit>`_ toolkit. 
+- ``data/parameter_corrections.yaml``: Corrections for ``data/entsoegridkit``
+- ``data/links_p_nom.csv``: confer :ref:`links`
+- ``data/links_tyndp.csv``: List of projects in the `TYNDP 2018 <https://tyndp.entsoe.eu/tyndp2018/>`_ that are at least *in permitting* with fields for start- and endpoint (names and coordinates), length, capacity, construction status, and project reference ID.
+- ``resources/country_shapes.geojson``: confer :ref:`shapes`
+- ``resources/offshore_shapes.geojson``: confer :ref:`shapes`
+- ``resources/europe_shape.geojson``: confer :ref:`shapes`
+
+Outputs
+-------
+
+- ``networks/base.nc``
+
+    .. image:: ../img/base.png
+        :scale: 33 %
+
+Description
+-----------
+
+"""
 
 import yaml
 import pandas as pd

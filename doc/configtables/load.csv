@@ -1,0 +1,2 @@
+,Unit,Values,Description
+scaling_factor,--,float,"Global correction factor for the load time series."

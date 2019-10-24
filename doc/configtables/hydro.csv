@@ -1,0 +1,6 @@
+,Unit,Values,Description
+cutout,--,"Must be 'europe-2013-era5'","Specifies the directory where the relevant weather data ist stored."
+carriers,--,"Any subset of {'ror', 'PHS', 'hydro'}","Specifies the types of hydro power plants to build per-unit availability time series for. 'ror' stands for run-of-river plants, 'PHS' represents pumped-hydro storage, and 'hydro' stands for hydroelectric dams."
+PHS_max_hours,h,float,"Maximum state of charge capacity of the pumped-hydro storage (PHS) in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_."
+hydro_max_hours,h,"Any of {float, 'energy_capacity_totals_by_country', 'estimate_by_large_installations'}","Maximum state of charge capacity of the pumped-hydro storage (PHS) in terms of hours at full output capacity ``p_nom`` or heuristically determined. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_."
+clip_min_inflow,MW,float,"To avoid too small values in the inflow time series, values below this threshold are set to zero."

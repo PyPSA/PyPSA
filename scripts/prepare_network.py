@@ -1,4 +1,54 @@
 # coding: utf-8
+"""
+Prepare PyPSA network for solving according to :ref:`opts` and :ref:`ll`, such as
+
+- adding an annual **limit** of carbon-dioxide emissions,
+- adding an exogenous **price** of carbon-dioxide emissions,
+- setting an **N-1 security margin** factor for transmission line capacities,
+- specifying a limit on the **cost** of transmission expansion,
+- specifying a limit on the **volume** of transmission expansion, and
+- reducing the **temporal** resolution by averaging over multiple hours.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    costs:
+        emission_prices:
+        USD2013_to_EUR2013:
+        discountrate:
+        marginal_cost:
+        capital_cost:
+
+    electricity:
+        co2limit:
+        max_hours:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`costs_cf`, :ref:`electricity_cf`
+
+Inputs
+------
+
+- ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
+- ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
+
+Outputs
+-------
+
+- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Complete PyPSA network that will be handed to the ``solve_network`` rule.
+
+Description
+-----------
+
+.. tip::
+    The rule :mod:`prepare_all_networks` runs
+    for all ``scenario`` s in the configuration file
+    the rule :mod:`prepare_network`.
+
+"""
 
 import logging
 logger = logging.getLogger(__name__)

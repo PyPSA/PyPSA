@@ -1,4 +1,38 @@
 # coding: utf-8
+"""
+Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file.
+
+Relevant Settings
+-----------------
+
+.. code:: yaml
+
+    enable:
+        powerplantmatching:
+
+.. seealso:: 
+    Documentation of the configuration file ``config.yaml`` at
+    :ref:`toplevel_cf`
+
+Inputs
+------
+
+- ``networks/base.nc``: confer :ref:`base`.
+
+Outputs
+-------
+
+- ``resource/powerplants.csv``: A list of conventional power plants (i.e. neither wind nor solar) with fields for name, fuel type, technology, country, capacity in MW, duration, commissioning year, retrofit year, latitude, longitude, and dam information as documented in the `powerplantmatching README <https://github.com/FRESNA/powerplantmatching/blob/master/README.md>`_; additionally it includes information on the closest substation/bus in ``networks/base.nc``.
+
+    .. image:: ../img/powerplantmatching.png
+        :scale: 30 %
+
+    **Source:** `powerplantmatching on GitHub <https://github.com/FRESNA/powerplantmatching>`_
+
+Description
+-----------
+
+"""
 
 import logging
 import numpy as np

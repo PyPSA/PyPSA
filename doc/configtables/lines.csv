@@ -1,0 +1,5 @@
+,Unit,Values,Description
+types,--,"Values should specify a `line type in PyPSA <https://pypsa.readthedocs.io/en/latest/components.html#line-types>`_. Keys should specify the corresponding voltage level (e.g. 220., 300. and 380. kV)","Specifies line types to assume for the different voltage levels of the ENTSO-E grid extraction. Should normally handle voltage levels 220, 300, and 380 kV"
+s_max_pu,--,"Value in [0.,1.]","Correction factor for line capacities (``s_nom``) to approximate :math:`N-1` security and reserve capacity for reactive power flows"
+length_factor,--,float,"Correction factor to account for the fact that buses are *not* connected by lines through air-line distance."
+under_construction,--,"One of {'zero': set capacity to zero, 'remove': remove completely, 'keep': keep with full capacity}","Specifies how to handle lines which are currently under construction."

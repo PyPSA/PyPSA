@@ -1,3 +1,20 @@
+"""
+Plots energy and cost summaries for solved networks.
+
+Relevant Settings
+-----------------
+
+Inputs
+------
+
+Outputs
+-------
+
+Description
+-----------
+
+"""
+
 import os
 import pandas as pd
 import matplotlib.pyplot as plt

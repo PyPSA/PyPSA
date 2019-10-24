@@ -4,20 +4,17 @@ logging_level: INFO
 summary_dir: results
 
 scenario:
-  sectors: [E] # ,E+EV,E+BEV,E+BEV+V2G] # [ E+EV, E+BEV, E+BEV+V2G ]
+  sectors: [E]
   simpl: ['']
-  #ll: ['v1.0', 'v1.09', 'v1.125', 'v1.18', 'v1.25', 'v1.35', 'v1.5', 'v1.7', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
-  ll: ['vopt', 'copt'] #['v1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
-  #ll: ['c1.0', 'v1.125', 'v1.25', 'v1.5', 'v2.0', 'vopt'] # line limit a 'v' prefix means volume
-  clusters: [37, 45, 64, 90, 128, 181, 256, 362, 512] # (2**np.r_[5.5:9:.5]).astype(int)
-  opts: [Co2L-3H] #, LC-FL, LC-T, Ep-T, Co2L-T]
+  ll: ['copt']
+  clusters: [2,6]
+  opts: [Co2L-24H]
 
-countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'] 
+countries: ['DE'] 
 
 snapshots:
-  # arguments to pd.date_range
-  start: "2013-01-01"
-  end: "2014-01-01"
+  start: "2013-03-01"
+  end: "2014-04-01"
   closed: 'left' # end is not inclusive
 
 enable:
@@ -26,37 +23,26 @@ enable:
 
 electricity:
   voltages: [220., 300., 380.]
-  co2limit: 7.75e+7 # 0.05 * 3.1e9*0.5
-  agg_p_nom_limits: data/agg_p_nom_minmax.csv
+  co2limit: 100.e+6
 
   extendable_carriers:
     Generator: [OCGT]
-    StorageUnit: [battery, H2] # [CAES]
+    StorageUnit: [battery, H2]
 
   max_hours:
     battery: 6
     H2: 168
 
-  # estimate_renewable_capacities_from_capacity_stats:
-  #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
-  #   Wind: [onwind, offwind-ac, offwind-dc]
-  #   Solar: [solar]
-
-  conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [coal, CCGT] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
   nprocesses: 4
   cutouts:
     europe-2013-era5:
       module: era5
-      xs: [-12., 35.]
-      ys: [72., 33.]
-      years: [2013, 2013]
-    europe-2013-sarah:
-      module: sarah
-      resolution: 0.2
-      xs: [-12., 42.]
-      ys: [65., 33.]
+      xs: [4., 15.]
+      ys: [56., 46.]
+      months: [3, 3]
       years: [2013, 2013]
 
 renewable:
@@ -65,15 +51,11 @@ renewable:
     resource:
       method: wind
       turbine: Vestas_V112_3MW
-    # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqkm: 3
+    capacity_per_sqkm: 3 # ScholzPhd Tab 4.3.1: 10MW/km^2
     # correction_factor: 0.93
     corine:
-      #The selection of CORINE Land Cover [1] types that are allowed for wind and solar are based on [2] p.42 / p.28
-      #
-      #[1] https://www.eea.europa.eu/ds_resolveuid/C9RK15EA06
-      #
-      #[2] Scholz, Y. (2012). Renewable energy based electricity supply at low costs: development of the REMix model and application for Europe.
+      # Scholz, Y. (2012). Renewable energy based electricity supply at low costs:
+      #  development of the REMix model and application for Europe. ( p.42 / p.28)
       grid_codes: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
                    24, 25, 26, 27, 28, 29, 31, 32]
       distance: 1000
@@ -90,8 +72,7 @@ renewable:
     # correction_factor: 0.93
     corine: [44, 255]
     natura: true
-    max_depth: 50
-    max_shore_distance: 80000
+    max_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-dc:
@@ -104,46 +85,35 @@ renewable:
     # correction_factor: 0.93
     corine: [44, 255]
     natura: true
-    max_depth: 50
-    min_shore_distance: 80000
+    min_shore_distance: 30000
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   solar:
-    cutout: europe-2013-sarah
+    cutout: europe-2013-era5
     resource:
       method: pv
       panel: CSi
       orientation:
         slope: 35.
         azimuth: 180.
-    # ScholzPhd Tab 4.3.1: 170 MW/km^2
-    capacity_per_sqkm: 1.7
-    correction_factor: 0.854337
+    capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
     # Determined by comparing uncorrected area-weighted full-load hours to those
     # published in Supplementary Data to
     # Pietzcker, Robert Carl, et al. "Using the sun to decarbonize the power
     # sector: The economic potential of photovoltaics and concentrating solar
     # power." Applied Energy 135 (2014): 704-720.
-    # Comparison is shown in resources/country_flh_aggregated_solar.csv
-
+    correction_factor: 0.854337
     corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
              14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
     natura: true
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
-  hydro:
-    cutout: europe-2013-era5
-    carriers: [ror, PHS, hydro]
-    PHS_max_hours: 6
-    hydro_max_hours: "energy_capacity_totals_by_country" # one of energy_capacity_totals_by_country,
-                                                         # estimate_by_large_installations or a float
-    clip_min_inflow: 1.0
+
 lines:
   types:
     220.: "Al/St 240/40 2-bundle 220.0"
     300.: "Al/St 240/40 3-bundle 300.0"
     380.: "Al/St 240/40 4-bundle 380.0"
-
   s_max_pu: 0.7
   length_factor: 1.25
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
@@ -163,45 +133,38 @@ load:
 
 costs:
   year: 2030
-
-  # From a Lion Hirth paper, also reflects average of Noothout et al 2016
-  discountrate: 0.07
-  # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html # noqa: E501
-  USD2013_to_EUR2013: 0.7532
-
-  # Marginal and capital costs can be overwritten
-  # capital_cost:
-  #   Wind: Bla
-  marginal_cost: # 
+  discountrate: 0.07 # From a Lion Hirth paper, also reflects average of Noothout et al 2016
+  USD2013_to_EUR2013: 0.7532 # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html
+  marginal_cost:
     solar: 0.01
     onwind: 0.015
     offwind: 0.015
-    hydro: 0.
     H2: 0.
     battery: 0.
-
-  emission_prices: # only used with the option Ep (emission prices)
+  emission_prices: # only used with the option Ep
     co2: 0.
 
 solving:
   options:
     formulation: kirchhoff
-    #load_shedding: true
+    load_shedding: false
     noisy_costs: true
-    min_iterations: 3
-    max_iterations: 5
-    #nhours: 10
+    min_iterations: 1
+    max_iterations: 1
     clip_p_max_pu: 0.01
+    #nhours: 10
   solver:
-    name: gurobi
-    threads: 4
-    method: 2 # barrier
-    crossover: 0
-    BarConvTol: 1.e-5
-    FeasibilityTol: 1.e-6
-    AggFill: 0
-    PreDual: 0
-    GURO_PAR_BARDENSETHRESH: 200
+    name: ipopt
+  # solver:
+    # name: gurobi
+    # threads: 4
+    # method: 2 # barrier
+    # crossover: 0
+    # BarConvTol: 1.e-5
+    # FeasibilityTol: 1.e-6
+    # AggFill: 0
+    # PreDual: 0
+    # GURO_PAR_BARDENSETHRESH: 200
   # solver:
   #   name: cplex
   #   threads: 4
@@ -216,28 +179,21 @@ plotting:
     boundaries: [-10.2, 29, 35,  72]
     p_nom:
       bus_size_factor: 5.e+4
-      linewidth_factor: 3.e+3 # 1.e+3  #3.e+3
+      linewidth_factor: 3.e+3
 
   costs_max: 800
   costs_threshold: 1
-
 
   energy_max: 15000.
   energy_min: -10000.
   energy_threshold: 50.
 
-
   vre_techs: ["onwind", "offwind-ac", "offwind-dc", "solar", "ror"]
   conv_techs: ["OCGT", "CCGT", "Nuclear", "Coal"]
   storage_techs: ["hydro+PHS", "battery", "H2"]
-  # store_techs: ["Li ion", "water tanks"]
-  load_carriers: ["AC load"] #, "heat load", "Li ion load"]
+  load_carriers: ["AC load"]
   AC_carriers: ["AC line", "AC transformer"]
   link_carriers: ["DC line", "Converter AC-DC"] 
-  heat_links: ["heat pump", "resistive heater", "CHP heat", "CHP electric",
-               "gas boiler", "central heat pump", "central resistive heater", "central CHP heat",
-               "central CHP electric", "central gas boiler"]
-  heat_generators: ["gas boiler", "central gas boiler", "solar thermal collector", "central solar thermal collector"]
   tech_colors:
     "onwind" : "#235ebc"
     "onshore wind" : "#235ebc"
@@ -332,22 +288,24 @@ plotting:
     "HVDC links" : "#8a1caf"
     "DC-DC" : "#8a1caf"
     "DC link" : "#8a1caf"
-    # _helpers.load_network requirements
   nice_names:
-    # OCGT: "Gas"
-    # OCGT marginal: "Gas (marginal)"
-    offwind: "offshore wind"
-    onwind: "onshore wind"
-    battery: "Battery storage"
+    OCGT: "Open-Cycle Gas"
+    CCGT: "Combined-Cycle Gas"
+    offwind-ac: "Offshore Wind (AC)"
+    offwind-dc: "Offshore Wind (DC)"
+    onwind: "Onshore Wind"
+    battery: "Battery Storage"
+    H2: "Hydrogen Storage"
     lines: "Transmission lines"
-    AC line: "AC lines"
-    AC-AC: "DC lines"
     ror: "Run of river"
   nice_names_n:
-    offwind: "offshore\nwind"
-    onwind: "onshore\nwind"
-    # OCGT: "Gas"
-    H2: "Hydrogen\nstorage"
-    # OCGT marginal: "Gas (marginal)"
-    lines: "transmission\nlines"
-    ror: "run of river"
+    OCGT: "Open-Cycle\nGas"
+    CCGT: "Combined-Cycle\nGas"
+    offwind-ac: "Offshore\nWind (AC)"
+    offwind-dc: "Offshore\nWind (DC)"
+    onwind: "Onshore\nWind"
+    battery: "Battery\nStorage"
+    H2: "Hydrogen\nStorage"
+    lines: "Transmission\nlines"
+    ror: "Run of\nriver"
+    

@@ -1,0 +1,8 @@
+,Unit,Values,Description
+formulation,--,"Any of {'angles', 'kirchhoff', 'cycles', 'ptdf'}","Specifies which variant of linearized power flow formulations to use in the optimisation problem. Recommended is 'kirchhoff'. Explained in `this article <https://arxiv.org/abs/1704.01881>`_."
+load_shedding,bool,"{'true','false'}","Add generators with a prohibitively high marginal cost to simulate load shedding and avoid problem infeasibilities."
+noisy_costs,bool,"{'true','false'}","Add random noise to marginal cost of generators by :math:`\mathcal{U}(0.009,0,011)` and capital cost of lines and links by :math:`\mathcal{U}(0.09,0,11)`."
+min_iterations,--,int,"Minimum number of solving iterations in between which resistance and reactence (``x/r``) are updated for branches according to ``s_nom_opt`` of the previous run."
+max_iterations,--,int,"Maximum number of solving iterations in between which resistance and reactence (``x/r``) are updated for branches according to ``s_nom_opt`` of the previous run."
+nhours,--,int,"Specifies the :math:`n` first snapshots to take into account. Must be less than the total number of snapshots. Rather recommended only for debugging."
+clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."
