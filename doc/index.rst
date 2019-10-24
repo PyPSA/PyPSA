@@ -135,8 +135,6 @@ Please use the following BibTeX: ::
     }
 
 
-.. todo:: Add versions to zenodo
-
 If you want to cite a specific PyPSA-Eur version, each release of PyPSA-Eur is stored on Zenodo with a release-specific DOI.
 This can be found linked from the overall PyPSA-Eur Zenodo DOI:
 
@@ -150,3 +148,14 @@ Licence
 The code in PyPSA-Eur is released as free software under the `GPLv3
 <http://www.gnu.org/licenses/gpl-3.0.en.html>`_, see
 `LICENSE <https://github.com/PyPSA/pypsa-eur/blob/master/LICENSE.txt>`_.
+However, different licenses and terms of use apply to the various input data, which are summarised below.
+More details are included in 
+`the description of the data bundles on zenodo <https://zenodo.org/record/3517935#.XbGeXvzRZGo>`_.
+
+.. csv-table::
+   :header-rows: 1
+   :file: configtables/licenses.csv
+
+* *BY: Attribute Source*
+* *NC: Non-Commercial Use Only*
+* *SA: Share Alike*

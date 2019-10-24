@@ -19,9 +19,17 @@ The tutorial will cover examples on how to
 
 If not yet completed, follow the :ref:`installation` steps but
 substitute the links for the **data bundle** and the **cutouts** with the following lightweight alternatives:
+
+    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3517921.svg
+      :target: https://doi.org/10.5281/zenodo.3517921
+
+    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3518020.svg
+      :target: https://doi.org/10.5281/zenodo.3518020
     
-    - **Data Bundle:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?dl=1&p=/pypsa-eur-data-bundle.tar.xz`` (197 MB)
-    - **Cutouts:** ``https://vfs.fias.science/d/0a0ca1e2fb/files/?p=/pypsa-eur-cutouts.tar.xz`` (19 MB)
+    - **Data Bundle:** ``https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz`` (197 MB)
+
+
+    - **Cutouts:** ``https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz`` (19 MB)
 
 The configuration of the tutorial is included in the ``config.tutorial.yaml``.
 To run the tutorial, use this as your configuration file ``config.yaml``.

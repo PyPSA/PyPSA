@@ -1,0 +1,14 @@
+"Files","BY","NC","SA","Mark Changes",Detail
+"corine/*","x",,,"x",https://land.copernicus.eu/pan-european/corine-land-cover/clc-2012?tab=metadata
+"eez/*","x","x","x",,http://www.marineregions.org/disclaimer.php
+"natura/*","x",,,,https://www.eea.europa.eu/data-and-maps/data/natura-10#tab-metadata
+"naturalearth/*",,,,,http://www.naturalearthdata.com/about/terms-of-use/
+"NUTS_2013 _60M_SH/*","x","x",,"x",https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units
+"cantons.csv","x",,"x",,https://en.wikipedia.org/wiki/Data_codes_for_Switzerland
+"EIA_hydro_generation _2000_2014.csv","x",,,,https://www.eia.gov/about/copyrights_reuse.php
+"GEBCO_2014_2D.nc","x",,,,https://www.gebco.net/data_and_products/gridded_bathymetry_data/documents/gebco_2014_historic.pdf
+"hydro_capacities.csv","x",,,,
+"je-e-21.03.02.xls","x","x",,,https://www.bfs.admin.ch/bfs/en/home/fso/swiss-federal-statistical-office/terms-of-use.html
+"nama_10r_3 gdp.tsv.gz","x",,,"x",https://ec.europa.eu/eurostat/about/policies/copyright
+"nama_10r_3 popgdp.tsv.gz","x",,,"x",https://ec.europa.eu/eurostat/about/policies/copyright
+"time_series_60min _singleindex_filtered.csv","x",,,,https://data.open-power-system-data.org/time_series/2019-06-05/README.md
