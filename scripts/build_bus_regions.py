@@ -67,16 +67,18 @@ if __name__ == "__main__":
         onshore_shape = country_shapes[country]
         onshore_locs = n.buses.loc[c_b & n.buses.substation_lv, ["x", "y"]]
         onshore_regions.append(gpd.GeoDataFrame({
+                'name': onshore_locs.index,
                 'x': onshore_locs['x'],
                 'y': onshore_locs['y'],
                 'geometry': voronoi_partition_pts(onshore_locs.values, onshore_shape),
                 'country': country
-            }, index=onshore_locs.index))
+            }))
 
         if country not in offshore_shapes.index: continue
         offshore_shape = offshore_shapes[country]
         offshore_locs = n.buses.loc[c_b & n.buses.substation_off, ["x", "y"]]
         offshore_regions_c = gpd.GeoDataFrame({
+                'name': offshore_locs.index,
                 'x': offshore_locs['x'],
                 'y': offshore_locs['y'],
                 'geometry': voronoi_partition_pts(offshore_locs.values, offshore_shape),
@@ -88,9 +90,8 @@ if __name__ == "__main__":
     def save_to_geojson(s, fn):
         if os.path.exists(fn):
             os.unlink(fn)
-        df = s.reset_index()
-        schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
-        df.to_file(fn, driver='GeoJSON', schema=schema)
+        schema = {**gpd.io.file.infer_schema(s), 'geometry': 'Unknown'}
+        s.to_file(fn, driver='GeoJSON', schema=schema)
 
     save_to_geojson(pd.concat(onshore_regions), snakemake.output.regions_onshore)
 

@@ -31,7 +31,7 @@ dependencies:
   # GIS dependencies have to come all from conda-forge
   - conda-forge::cartopy
   - conda-forge::fiona
-  - conda-forge::pyproj=1.9.5.1
+  - conda-forge::pyproj
   - conda-forge::pyshp
   - conda-forge::geopandas
   - conda-forge::rasterio
@@ -39,7 +39,7 @@ dependencies:
   - conda-forge::libgdal
 
   - pip:
-    - vresutils>=0.2.5
+    - vresutils>=0.3
     - git+https://github.com/FRESNA/atlite.git#egg=atlite
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit

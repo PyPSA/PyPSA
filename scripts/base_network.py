@@ -469,15 +469,19 @@ def _replace_b2b_converter_at_country_border_by_link(n):
 
 def _set_links_underwater_fraction(n):
     if n.links.empty: return
-
-    offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
-    links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
-    n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
+    
+    if not hasattr(n.links, 'geometry'):
+        n.links['underwater_fraction'] = 0.
+    else:
+        offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
+        links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
+        n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 
 def _adjust_capacities_of_under_construction_branches(n):
     lines_mode = snakemake.config['lines'].get('under_construction', 'undef')
     if lines_mode == 'zero':
         n.lines.loc[n.lines.under_construction, 'num_parallel'] = 0.
+        n.lines.loc[n.lines.under_construction, 's_nom'] = 0.
     elif lines_mode == 'remove':
         n.mremove("Line", n.lines.index[n.lines.under_construction])
     elif lines_mode != 'keep':
@@ -518,6 +522,7 @@ def base_network():
     n.name = 'PyPSA-Eur'
 
     n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
+    n.snapshot_weightings[:] *= 8760./n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")
