@@ -38,7 +38,11 @@ def calculate_costs(n,label,costs):
         capital_costs = c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]
         capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
 
-        costs = costs.reindex(costs.index|pd.MultiIndex.from_product([[c.list_name],["capital"],capital_costs_grouped.index]))
+        new_index = costs.index|pd.MultiIndex.from_product([[c.list_name],["capital"],capital_costs_grouped.index])
+        if isinstance(new_index, pd.Index):
+            new_index = pd.MultiIndex.from_tuples(new_index)
+            
+        costs = costs.reindex(new_index)
 
         costs.loc[idx[c.list_name,"capital",list(capital_costs_grouped.index)],label] = capital_costs_grouped.values
 
