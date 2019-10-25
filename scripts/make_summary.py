@@ -11,6 +11,13 @@ idx = pd.IndexSlice
 
 opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
 
+def _add_indexed_rows(df, raw_index):
+    new_index = df.index|pd.MultiIndex.from_product(raw_index)
+    if isinstance(new_index, pd.Index):
+        new_index = pd.MultiIndex.from_tuples(new_index)
+
+    return df.reindex(new_index)
+
 def assign_carriers(n):
 
     if "carrier" not in n.loads:
@@ -31,20 +38,17 @@ def assign_carriers(n):
     if "EU gas store" in n.stores.index and n.stores.loc["EU gas Store","carrier"] == "":
         n.stores.loc["EU gas Store","carrier"] = "gas Store"
 
-
 def calculate_costs(n,label,costs):
 
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
         capital_costs = c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]
         capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
         
-        new_index = costs.index|pd.MultiIndex.from_product([[c.list_name],["capital"],capital_costs_grouped.index])
-        if isinstance(new_index, pd.Index):
-            new_index = pd.MultiIndex.from_tuples(new_index)
-            
-        costs = costs.reindex(new_index)
+        # Index tuple(s) indicating the newly to-be-added row(s)
+        raw_index = tuple([[c.list_name],["capital"],list(capital_costs_grouped.index)])
+        costs = _add_indexed_rows(costs, raw_index)
 
-        costs.loc[idx[c.list_name, "capital", list(capital_costs_grouped.index)], label] = capital_costs_grouped.values
+        costs.loc[idx[raw_index],label] = capital_costs_grouped.values
 
         if c.name == "Link":
             p = c.pnl.p0.multiply(n.snapshot_weightings,axis=0).sum()
@@ -91,12 +95,11 @@ def calculate_energy(n,label,energy):
 
 def include_in_summary(summary, multiindexprefix, label, item):
 
-    new_index = summary.index | pd.MultiIndex.from_product([[p] for p in multiindexprefix] + [item.index])
-    if isinstance(new_index, pd.Index):
-        new_index = pd.MultiIndex.from_tuples(new_index)
-    summary = summary.reindex(new_index)
+    # Index tuple(s) indicating the newly to-be-added row(s)
+    raw_index = tuple([multiindexprefix,list(item.index)])
+    summary = _add_indexed_rows(summary, raw_index)
     
-    summary.loc[idx[tuple(multiindexprefix + [list(item.index)])], label] = item.values
+    summary.loc[idx[raw_index], label] = item.values
     return summary
 
 def calculate_capacity(n,label,capacity):
@@ -137,13 +140,12 @@ def calculate_supply(n,label,supply):
                 continue
 
             s = c.pnl.p[items].max().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
-
-            new_index = supply.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index])
-            if isinstance(new_index, pd.Index):
-                new_index = pd.MultiIndex.from_tuples(new_index)
-            supply = supply.reindex(new_index)
             
-            supply.loc[idx[i,c.list_name,list(s.index)],label] = s.values
+            # Index tuple(s) indicating the newly to-be-added row(s)
+            raw_index = tuple([[i],[c.list_name],list(s.index)])
+            supply = _add_indexed_rows(supply, raw_index)
+            
+            supply.loc[idx[raw_index],label] = s.values
 
 
         for c in n.iterate_components(n.branch_components):
@@ -184,13 +186,12 @@ def calculate_supply_energy(n,label,supply_energy):
                 continue
 
             s = c.pnl.p[items].sum().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
-
-            new_index = supply_energy.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index])
-            if isinstance(new_index, pd.Index):
-                new_index = pd.MultiIndex.from_tuples(new_index)
-            supply_energy = supply_energy.reindex(new_index) 
+          
+            # Index tuple(s) indicating the newly to-be-added row(s)
+            raw_index = tuple([[i],[c.list_name],list(s.index)])
+            supply_energy = _add_indexed_rows(supply_energy, raw_index)
             
-            supply_energy.loc[idx[i,c.list_name,list(s.index)],label] = s.values
+            supply_energy.loc[idx[raw_index],label] = s.values
 
 
         for c in n.iterate_components(n.branch_components):
