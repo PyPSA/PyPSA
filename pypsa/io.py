@@ -19,7 +19,7 @@
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
 from six import iteritems, iterkeys, string_types
-from six.moves import range
+from six.moves import filter, range
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -32,6 +32,7 @@ from textwrap import dedent
 from glob import glob
 
 import pandas as pd
+import pypsa
 import numpy as np
 import math
 
@@ -314,7 +315,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_snapshots(snapshots)
 
     exported_components = []
-    for component in network.all_components:
+    for component in network.all_components - {"SubNetwork"}:
 
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
@@ -334,7 +335,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         col_export = []
         for col in df.columns:
             # do not export derived attributes
-            if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu", "obj"]:
+            if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
                 continue
             if col in attrs.index and pd.isnull(attrs.at[col, "default"]) and pd.isnull(df[col]).all():
                 continue
@@ -591,7 +592,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     imported_components = []
 
     # now read in other components; make sure buses and carriers come first
-    for component in ["Bus", "Carrier"] + sorted(network.all_components - {"Bus", "Carrier"}):
+    for component in ["Bus", "Carrier"] + sorted(network.all_components - {"Bus", "Carrier", "SubNetwork"}):
         list_name = network.components[component]["list_name"]
 
         df = importer.get_static(list_name)
@@ -731,7 +732,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     >>> import numpy as np
     >>> network.set_snapshots(range(10))
     >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10,4),
+            pd.DataFrame(np.random.rand(10,4), 
                 columns=network.generators.index,
 			    index=range(10)),
 			"Generator",
@@ -933,7 +934,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     Importing from pandapower is still in beta;
     not all pandapower data is supported.
-
+    
     Unsupported features include:
     - three-winding transformers
     - switches
