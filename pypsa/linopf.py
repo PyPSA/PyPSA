@@ -241,7 +241,7 @@ def define_nodal_balance_constraints(n, sns):
            .groupby(n.loads.bus, axis=1).sum()
            .reindex(columns=n.buses.index, fill_value=0))
     constraints = write_constraint(n, lhs, sense, rhs)
-    set_conref(n, constraints, 'Bus', 'nodal_balance')
+    set_conref(n, constraints, 'Bus', 'marginal_price')
 
 
 def define_kirchhoff_constraints(n):
@@ -539,7 +539,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
 
 def assign_solution(n, sns, variables_sol, constraints_dual,
-                    extra_postprocessing, keep_references=False):
+                    keep_references=False, keep_shadowprices=None):
     """
     Helper function. Assigns the solution of a succesful optimization to the
     network.
@@ -574,21 +574,31 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     #duals
     def map_dual(c, attr, pnl):
+        sign = 1 if 'upper' in attr else -1
         if pnl:
             n.pnl(c)[attr] = (get_con(n, c, attr, pop=pop).stack()
-                              .map(-constraints_dual).unstack())
+                              .map(sign * constraints_dual).unstack())
         else:
-            n.df(c)[attr] = get_con(n, c, attr, pop=pop).map(-constraints_dual)
+            n.df(c)[attr] = get_con(n, c, attr, pop=pop).map(sign* constraints_dual)
+
+
+    if keep_shadowprices == False:
+        keep_shadowprices = []
+    elif keep_shadowprices is None:
+        keep_shadowprices = ['Bus', 'Line', 'GlobalConstraint']
 
     for (c, attr), pnl in n.constraints.pnl.items():
-        map_dual(c, attr, pnl)
-        if attr == 'mu_state_of_charge':
-            n.pnl(c).pop(attr)
+        if keep_shadowprices == True:
+            map_dual(c, attr, pnl)
+        elif c in keep_shadowprices:
+            map_dual(c, attr, pnl)
+        else:
+            get_con(n, c, attr, pop=True)
 
     #load
     n.loads_t.p = n.loads_t.p_set
 
-    #injection, why does it 'exclude' injection in hvdc 'network'?
+    # recalculate injection
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),
           ('Load', 'p', 'bus'), ('StorageUnit', 'p', 'bus'),
           ('Link', 'p0', 'bus0'), ('Link', 'p1', 'bus1')]
@@ -608,13 +618,13 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     n.buses_t.v_ang = (pd.concat(
                        [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1)
                       .reindex(columns=n.buses.index, fill_value=0))
-    n.buses_t['marginal_price'] = n.buses_t.pop('nodal_balance')
 
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None,
          extra_postprocessing=None, formulation="kirchhoff",
-         keep_references=False, keep_files=False, solver_options={},
+         keep_references=False, keep_files=False,
+         keep_shadowprices=None, solver_options={},
          warmstart=False, store_basis=True):
     """
     Linear optimal power flow for a group of snapshots.
@@ -627,15 +637,9 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
-    skip_pre : bool, default False
-        Skip the preliminary steps of computing topology, calculating
-        dependent values and finding bus controls.
-    extra_functionality : callable function
-        This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
-        the model building is complete, but before it is sent to the
-        solver. It allows the user to
-        add/change constraints and add/change the objective function.
+    pyomo : bool, default True
+        Whether to use pyomo for building and solving the model, setting
+        this to False saves a lot of memory and time.
     solver_logfile : None|string
         If not None, sets the logfile option of the solver.
     solver_options : dictionary
@@ -645,14 +649,40 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         Keep the files that pyomo constructs from OPF problem
         construction, e.g. .lp file - useful for debugging
     formulation : string
-        Formulation of the linear power flow equations to use; only "kirchhoff"
-        is currently supported
+        Formulation of the linear power flow equations to use; must be
+        one of ["angles","cycles","kirchhoff","ptdf"]
+    extra_functionality : callable function
+        This function must take two arguments
+        `extra_functionality(network,snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to
+        add/change constraints and add/change the objective function.
     extra_postprocessing : callable function
         This function must take three arguments
         `extra_postprocessing(network,snapshots,duals)` and is called after
-        the model has solved and the results are extracted. It allows the user to
-        extract further information about the solution, such as additional
+        the model has solved and the results are extracted. It allows the user
+        to extract further information about the solution, such as additional
         shadow prices.
+    warmstart : bool or string, default False
+        Use this to warmstart the optimization. Pass a string which gives
+        the path to the basis file. If set to True, a path to
+        a basis file must be given in network.basis_fn.
+    store_basis : bool, default True
+        Whether to store the basis of the optimization results. If True,
+        the path to the basis file is saved in network.basis_fn. Note that
+        a basis can only be stored if simplex, dual-simplex, or barrier
+        *with* crossover is used for solving.
+    keep_references : bool, default False
+        Keep the references of variable and constraint names withing the
+        network, e.g. n.generators_t.p_varref - useful for constructing
+        extra_functionality or debugging
+    keep_shadowprices : bool or list of component names, default None
+        Keep shadow prices for all constraints, if set to True.
+        These are stored at e.g. n.generators_t.mu_upper for upper limit
+        of p_nom. If a list of component names is passed, shadow
+        prices of variables attached to those are extracted. If set to None,
+        components default to ['Bus', 'Line', 'GlobalConstraint']
+
 
     Returns
     -------
@@ -700,7 +730,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     n.objective = obj
     gc.collect()
     assign_solution(n, snapshots, variables_sol, constraints_dual,
-                    extra_postprocessing, keep_references=keep_references)
+                    keep_references=keep_references,
+                    keep_shadowprices=keep_shadowprices)
     gc.collect()
 
     return status,termination_condition

@@ -437,12 +437,6 @@ class Network(Basic):
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
-        extra_postprocessing : callable function
-            This function must take three arguments
-            `extra_postprocessing(network,snapshots,duals)` and is called after
-            the model has solved and the results are extracted. It allows the user to
-            extract further information about the solution, such as additional shadow prices.
-
 
         These arguments can be used if pyomo is set to False:
         -----------------------------------------------------
@@ -455,6 +449,16 @@ class Network(Basic):
             the path to the basis file is saved in network.basis_fn. Note that
             a basis can only be stored if simplex, dual-simplex, or barrier
             *with* crossover is used for solving.
+        keep_references : bool, default False
+            Keep the references of variable and constraint names withing the
+            network, e.g. n.generators_t.p_varref - useful for constructing
+            extra_functionality or debugging
+        keep_shadowprices : bool or list of component names, default None
+            Keep shadow prices for all constraints, if set to True.
+            These are stored at e.g. n.generators_t.mu_upper for upper limit
+            of p_nom. If a list of component names is passed, shadow
+            prices of variables attached to those are extracted. If set to None,
+            components default to ['Bus', 'Line', 'GlobalConstraint']
 
 
         These arguments can be used if pyomo is set to True:
@@ -471,6 +475,13 @@ class Network(Basic):
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating
             dependent values and finding bus controls.
+        extra_postprocessing : callable function
+            This function must take three arguments
+            `extra_postprocessing(network,snapshots,duals)` and is called after
+            the model has solved and the results are extracted. It allows the user
+            to extract further information about the solution, such as additional
+            shadow prices.
+
 
         Returns
         -------
@@ -479,7 +490,6 @@ class Network(Basic):
         args = {'snapshots': snapshots, 'keep_files': keep_files,
                 'solver_options': solver_options, 'formulation': formulation,
                 'extra_functionality': extra_functionality,
-                'extra_postprocessing': extra_postprocessing,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
         args.update(kwargs)
         if pyomo:
