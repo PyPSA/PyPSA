@@ -8,6 +8,7 @@ dependencies:
   - pyomo
   - scipy
   - pandas>=0.24.0
+  - pytables
   - matplotlib
   - networkx>=1.10
   - pyomo
