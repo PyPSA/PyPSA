@@ -25,7 +25,8 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, reset_counter, join_exprs,
-                     run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk)
+                     run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
+                     broadcasted_axes)
 
 
 import pandas as pd
@@ -51,6 +52,7 @@ def define_nominal_for_extendable_variables(n, c, attr):
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable, e.g. 'p_nom'
+
     """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
@@ -72,6 +74,7 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
@@ -91,6 +94,7 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     fix_i = get_non_extendable_i(n, c)
     if fix_i.empty: return
@@ -114,6 +118,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
@@ -148,6 +153,7 @@ def define_fixed_variariable_constraints(n, sns, c, attr, pnl=True):
         name of the attribute, e.g. 'p'
     pnl : bool, default True
         Whether variable which should be fixed is time-dependent
+
     """
 
     if pnl:
@@ -168,6 +174,7 @@ def define_fixed_variariable_constraints(n, sns, c, attr, pnl=True):
 def define_ramp_limit_constraints(n, sns):
     """
     Defines ramp limits for generators wiht valid ramplimit
+
     """
     c = 'Generator'
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
@@ -179,8 +186,7 @@ def define_ramp_limit_constraints(n, sns):
 
     #fix up
     gens_i = rup_i & get_non_extendable_i(n, c)
-    lhs = pd.DataFrame(*linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                                return_axes=True))
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
     rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
     constraints = write_constraint(n, lhs, '<=', rhs)
     set_conref(n, constraints, c, 'mu_ramp_limit_up', spec='nonextendables')
@@ -189,15 +195,14 @@ def define_ramp_limit_constraints(n, sns):
     gens_i = rup_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_up'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = pd.DataFrame(*linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                                (-limit_pu, p_nom), return_axes=True))
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom),
+                  as_pandas=True)
     constraints = write_constraint(n, lhs, '<=', 0)
     set_conref(n, constraints, c, 'mu_ramp_limit_up', spec='extendables')
 
     #fix down
     gens_i = rdown_i & get_non_extendable_i(n, c)
-    lhs = pd.DataFrame(*linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                                return_axes=True))
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
     rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
     constraints = write_constraint(n, lhs, '>=', rhs)
     set_conref(n, constraints, c, 'mu_ramp_limit_down', spec='nonextendables')
@@ -206,8 +211,8 @@ def define_ramp_limit_constraints(n, sns):
     gens_i = rdown_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_down'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = pd.DataFrame(*linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                                (limit_pu, p_nom), return_axes=True))
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom),
+                  as_pandas=True)
     constraints = write_constraint(n, lhs, '>=', 0)
     set_conref(n, constraints, c, 'mu_ramp_limit_down', spec='extendables')
 
@@ -215,14 +220,15 @@ def define_ramp_limit_constraints(n, sns):
 def define_nodal_balance_constraints(n, sns):
     """
     Defines nodal balance constraint.
+
     """
 
     def bus_injection(c, attr, groupcol='bus', sign=1):
         #additional sign only necessary for branches in reverse direction
         if 'sign' in n.df(c):
             sign = sign * n.df(c).sign
-        vals = linexpr((sign, get_var(n, c, attr)), return_axes=True)
-        return pd.DataFrame(*vals).rename(columns=n.df(c)[groupcol])
+        return linexpr((sign, get_var(n, c, attr)), as_pandas=True)\
+                       .rename(columns=n.df(c)[groupcol])
 
     # one might reduce this a bit by using n.branches and lookup
     args = [['Generator', 'p'], ['Store', 'p'], ['StorageUnit', 'p_dispatch'],
@@ -247,6 +253,7 @@ def define_nodal_balance_constraints(n, sns):
 def define_kirchhoff_constraints(n):
     """
     Defines Kirchhoff voltage constraints
+
     """
     weightings = n.lines.x_pu_eff.where(n.lines.carrier == 'AC', n.lines.r_pu_eff)
 
@@ -276,6 +283,7 @@ def define_storage_unit_constraints(n, sns):
     the constraints states:
 
         previous_soc + p_store - p_dispatch + inflow - spill == soc
+
     """
     sus_i = n.storage_units.index
     if sus_i.empty: return
@@ -300,11 +308,12 @@ def define_storage_unit_constraints(n, sns):
     coeff_var = [(-1, soc),
                  (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
                  (eff_store * eh, get_var(n, c, 'p_store'))]
+
     lhs, *axes = linexpr(*coeff_var, return_axes=True)
 
     def masked_term(coeff, var, cols):
-        return pd.DataFrame(*linexpr((coeff[cols], var[cols]), return_axes=True))\
-                 .reindex(index=axes[0], columns=axes[1], fill_value='').values
+        return linexpr((coeff[cols], var[cols]), as_pandas=True)\
+               .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
     lhs += masked_term(-eh, get_var(n, c, 'spill'), spill.columns)
     lhs += masked_term(eff_stand, prev_soc_cyclic, cyclic_i)
@@ -322,6 +331,7 @@ def define_store_constraints(n, sns):
     Defines energy balance constraints for stores. In principal this states:
 
         previous_e - p == e
+
     """
     stores_i = n.stores.index
     if stores_i.empty: return
@@ -343,8 +353,8 @@ def define_store_constraints(n, sns):
     lhs, *axes = linexpr(*coeff_var, return_axes=True)
 
     def masked_term(coeff, var, cols):
-        return pd.DataFrame(*linexpr((coeff[cols], var[cols]), return_axes=True))\
-                 .reindex(index=axes[0], columns=axes[1], fill_value='').values
+        return linexpr((coeff[cols], var[cols]), as_pandas=True)\
+               .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
     lhs += masked_term(eff_stand, previous_e_cyclic, cyclic_i)
     lhs += masked_term(eff_stand.loc[sns[1:]], e.shift().loc[sns[1:]], noncyclic_i)
@@ -369,6 +379,7 @@ def define_global_constraints(n, sns):
         3. transmission_expansion_cost_limit
             Use this to set a limit for line expansion costs. Possible carriers
             are 'AC' and 'DC'
+
     """
     glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
@@ -444,6 +455,7 @@ def define_global_constraints(n, sns):
 def define_objective(n):
     """
     Defines and writes out the objective function
+
     """
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost')
@@ -468,6 +480,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     """
     Sets up the linear problem and writes it out to a lp file, stored at
     n.problem_fn
+
     """
     reset_counter()
 
@@ -543,6 +556,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     """
     Helper function. Assigns the solution of a succesful optimization to the
     network.
+
     """
     pop = not keep_references
     #solutions
@@ -683,10 +697,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         prices of variables attached to those are extracted. If set to None,
         components default to ['Bus', 'Line', 'GlobalConstraint']
 
-
-    Returns
-    -------
-    None
     """
     supported_solvers = ["cbc", "gurobi", 'glpk', 'scs']
     if solver_name not in supported_solvers:

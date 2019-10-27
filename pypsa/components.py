@@ -438,43 +438,23 @@ class Network(Basic):
             solver. It allows the user to
             add/change constraints and add/change the objective function.
 
-        Returns
-        -------
-        None
-
         Other Parameters
         ----------------
 
-        warmstart : bool or string, default False
-            Use this to warmstart the optimization. Pass a string which gives
-            the path to the basis file. If set to True, a path to
-            a basis file must be given in network.basis_fn.
-        store_basis : bool, default True
-            Whether to store the basis of the optimization results. If True,
-            the path to the basis file is saved in network.basis_fn. Note that
-            a basis can only be stored if simplex, dual-simplex, or barrier
-            *with* crossover is used for solving.
-        keep_references : bool, default False
-            Keep the references of variable and constraint names withing the
-            network, e.g. n.generators_t.p_varref - useful for constructing
-            extra_functionality or debugging
-        keep_shadowprices : bool or list of component names, default None
-            Keep shadow prices for all constraints, if set to True.
-            These are stored at e.g. n.generators_t.mu_upper for upper limit
-            of p_nom. If a list of component names is passed, shadow
-            prices of variables attached to those are extracted. If set to None,
-            components default to ['Bus', 'Line', 'GlobalConstraint']
-
         ptdf_tolerance : float
+            Only when pyomo is True.
             Value below which PTDF entries are ignored
         free_memory : set, default {'pyomo'}
+            Only when pyomo is True.
             Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
             data away while the solver runs (as a pickle to disk) and/or free
             `pyomo` data after the solution has been extracted.
         solver_io : string, default None
+            Only when pyomo is True.
             Solver Input-Output option, e.g. "python" to use "gurobipy" for
             solver_name="gurobi"
         skip_pre : bool, default False
+            Only when pyomo is True.
             Skip the preliminary steps of computing topology, calculating
             dependent values and finding bus controls.
         extra_postprocessing : callable function
@@ -483,7 +463,29 @@ class Network(Basic):
             the model has solved and the results are extracted. It allows the user
             to extract further information about the solution, such as additional
             shadow prices.
-
+        warmstart : bool or string, default False
+            Only when pyomo is False.
+            Use this to warmstart the optimization. Pass a string which gives
+            the path to the basis file. If set to True, a path to
+            a basis file must be given in network.basis_fn.
+        store_basis : bool, default True
+            Only when pyomo is False.
+            Whether to store the basis of the optimization results. If True,
+            the path to the basis file is saved in network.basis_fn. Note that
+            a basis can only be stored if simplex, dual-simplex, or barrier
+            *with* crossover is used for solving.
+        keep_references : bool, default False
+            Only when pyomo is False.
+            Keep the references of variable and constraint names withing the
+            network, e.g. n.generators_t.p_varref - useful for constructing
+            extra_functionality or debugging
+        keep_shadowprices : bool or list of component names, default None
+            Only when pyomo is False.
+            Keep shadow prices for all constraints, if set to True.
+            These are stored at e.g. n.generators_t.mu_upper for upper limit
+            of p_nom. If a list of component names is passed, shadow
+            prices of variables attached to those are extracted. If set to None,
+            components default to ['Bus', 'Line', 'GlobalConstraint']
 
         """
         args = {'snapshots': snapshots, 'keep_files': keep_files,

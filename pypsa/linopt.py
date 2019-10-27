@@ -37,6 +37,7 @@ def write_bound(n, lower, upper, axes=None):
     upper are floats it demands to give pass axes, a tuple of (index, columns)
     or (index), for creating the variable of same upper and lower bounds.
     Return a series or frame with variable references.
+
     """
     axes = [axes] if isinstance(axes, pd.Index) else axes
     if axes is None:
@@ -60,6 +61,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
+
     """
     axes = [axes] if isinstance(axes, pd.Index) else axes
     if axes is None:
@@ -95,9 +97,14 @@ def broadcasted_axes(*dfs):
     series and frames, repespectively, are aligned. Using this function allows
     to subsequently use pure numpy operations and keep the axes in the
     background.
+
     """
     axes = []
     shape = ()
+
+    if set(map(type, dfs)) == {tuple}:
+        dfs = sum(dfs, ())
+
     for df in dfs:
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
@@ -108,7 +115,7 @@ def broadcasted_axes(*dfs):
     return axes, shape
 
 
-def linexpr(*tuples, return_axes=False):
+def linexpr(*tuples, as_pandas=False, return_axes=False):
     """
     Elementwise concatenation of tuples in the form (coefficient, variables).
     Coefficient and variables can be arrays, series or frames. Returns
@@ -122,6 +129,9 @@ def linexpr(*tuples, return_axes=False):
         Each tuple must of the form (coeff, var), where
             * coeff is a numerical  value, or a numeical array, series, frame
             * var is a str or a array, series, frame of variable strings
+    as_pandas : bool, default False
+        Whether to return to resulting array as a series, if 1-dimensional, or
+        a frame, if 2-dimensional. Supersedes return_axes argument.
     return_axes: Boolean, default False
         Whether to return index and column (if existent)
 
@@ -133,25 +143,27 @@ def linexpr(*tuples, return_axes=False):
     >>> var2 = pd.Series(['b1', 'b2', 'b3'])
 
     >>> linexpr((coeff1, var1), (coeff2, var2))
-    array(['+1.0 a1\n-0.5 b1\n', '+1.0 a2\n-0.3 b2\n', '+1.0 a3\n-1.0 b3\n'],
-      dtype=object)
-
+    array(['+1.0 a1 -0.5 b1', '+1.0 a2 -0.3 b2', '+1.0 a3 -1.0 b3'], dtype=object)
 
     For turning the result into a series or frame again:
-    >>> pd.Series(*linexpr((coeff1, var1), (coeff2, var2), return_axes=True))
-    0    +1.0 a1\n-0.5 b1\n
-    1    +1.0 a2\n-0.3 b2\n
-    2    +1.0 a3\n-1.0 b3\n
+    >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=True)
+    0    +1.0 a1 -0.5 b1
+    1    +1.0 a2 -0.3 b2
+    2    +1.0 a3 -1.0 b3
     dtype: object
 
-    This can also be applied to DataFrames, using
-    pd.DataFrame(*linexpr(..., return_axes=True)).
+    For a further step the resulting frame can be used as the lhs of
+    :func:`pypsa.linopt.write_contraint`
+
     """
-    axes, shape = broadcasted_axes(*sum(tuples, ()))
+    axes, shape = broadcasted_axes(*tuples)
     expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
             expr += _str_array(coeff) + _str_array(var) + '\n'
+    if as_pandas:
+        twodims = len(shape) > 1
+        return pd.DataFrame(expr, *axes) if twodims else pd.Series(expr, *axes)
     if return_axes:
         return (expr, *axes)
     return expr
@@ -174,6 +186,7 @@ def _str_array(array):
 def join_exprs(df):
     """
     Helper function to join arrays, series or frames of stings together.
+
     """
     return ''.join(np.asarray(df).flatten())
 
@@ -181,6 +194,7 @@ def join_exprs(df):
 # =============================================================================
 #  references to vars and cons, rewrite this part to not store every reference
 # =============================================================================
+
 def _add_reference(n, df, c, attr, suffix, pnl=True):
     attr_name = attr + suffix
     if pnl:
@@ -242,7 +256,7 @@ def get_var(n, c, attr, pop=False):
 
     Example
     -------
-    get_var(n, 'Generator', 'p')
+    >>> get_var(n, 'Generator', 'p')
 
     '''
     if n.variables.at[idx[c, attr], 'pnl']:
