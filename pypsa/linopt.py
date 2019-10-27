@@ -137,15 +137,20 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
 
     Example
     -------
+    Initialize coefficients and variables
+
     >>> coeff1 = 1
     >>> var1 = pd.Series(['a1', 'a2', 'a3'])
     >>> coeff2 = pd.Series([-0.5, -0.3, -1])
     >>> var2 = pd.Series(['b1', 'b2', 'b3'])
 
+    Create the linear expression strings
+
     >>> linexpr((coeff1, var1), (coeff2, var2))
     array(['+1.0 a1 -0.5 b1', '+1.0 a2 -0.3 b2', '+1.0 a3 -1.0 b3'], dtype=object)
 
     For turning the result into a series or frame again:
+
     >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=True)
     0    +1.0 a1 -0.5 b1
     1    +1.0 a2 -0.3 b2
