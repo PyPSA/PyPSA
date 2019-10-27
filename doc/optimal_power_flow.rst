@@ -1,10 +1,12 @@
-###########################
- Linear Optimal Power Flow
-###########################
+######################
+ Optimal Power Flow
+######################
 
 
 See the module ``pypsa.opf`` and ``pypsa.linopf``. Optimisation with the linearised power flow equations for (mixed) AC
-and DC networks is fully supported.
+and DC networks is fully supported. Note that optimisation with the full non-linear power flow equations is not yet supported.
+
+
 
 All constraints and variables are listed below.
 
