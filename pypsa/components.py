@@ -438,8 +438,13 @@ class Network(Basic):
             solver. It allows the user to
             add/change constraints and add/change the objective function.
 
-        These arguments can be used if pyomo is set to False:
-        -----------------------------------------------------
+        Returns
+        -------
+        None
+
+        Other Parameters
+        ----------------
+
         warmstart : bool or string, default False
             Use this to warmstart the optimization. Pass a string which gives
             the path to the basis file. If set to True, a path to
@@ -460,9 +465,6 @@ class Network(Basic):
             prices of variables attached to those are extracted. If set to None,
             components default to ['Bus', 'Line', 'GlobalConstraint']
 
-
-        These arguments can be used if pyomo is set to True:
-        ----------------------------------------------------
         ptdf_tolerance : float
             Value below which PTDF entries are ignored
         free_memory : set, default {'pyomo'}
@@ -483,9 +485,6 @@ class Network(Basic):
             shadow prices.
 
 
-        Returns
-        -------
-        None
         """
         args = {'snapshots': snapshots, 'keep_files': keep_files,
                 'solver_options': solver_options, 'formulation': formulation,
