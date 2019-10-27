@@ -59,7 +59,7 @@ for more details).
 .. important:: Since version v0.15, PyPSA enables the optimisation without the use of `pyomo <http://www.pyomo.org/>`_. This make the lopf function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo. 
   Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax.  
 
-.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however pypsa.linopf.ilopf covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
+.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
 Optimising dispatch only: a market model
