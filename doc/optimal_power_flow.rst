@@ -62,8 +62,8 @@ for more details).
 .. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
-Optimising dispatch only: a market model
-----------------------------------------
+Optimising dispatch only - a market model
+-----------------------------------------
 
 Capacity optimisation can be turned off so that only the dispatch is
 optimised, like a short-run electricity market model.
@@ -205,8 +205,9 @@ installable nominal power may also be introduced, e.g.
 Generator unit commitment constraints
 -------------------------------------
 
-
 These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
+
+.. important:: Unit commitment constraints will only be build if pyomo is set to True
 
 The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
 Joshua Adam Taylor (CUP, 2015).
@@ -250,7 +251,6 @@ so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the gen
 
 Generator ramping constraints
 -----------------------------
-
 
 These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
@@ -597,6 +597,19 @@ The are funcitons defined as such:
 .. automethod:: pypsa.linopt.set_conref
 
 The function ``extra_postprocessing`` is not necessary when pyomo deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to ``keep_shadowprices``. 
+
+Fixing variables
+----------------
+
+This feature is only valid if pyomo is disabled during the lopf (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a dataframe or a column with the same name as the variable but with suffix '_set'. For all not NaN values additional constraints will be build to fix the variables.
+
+For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
+
+  >>> network.generators_t['p_set'] = pd.DataFrame(200, index=network.snapshots, columns=['gas1'])
+
+The lopf will now build extra constraints to fix the ``p`` variables of generator 'gas1' to 200. In the same manner, we can fix the variables only for some specific snapshots. This is applicable to all variables, also ``state_of_charge`` for storage units or ``p`` for links. Static investment variables can be fixed via adding additional columns, e.g. a ``s_nom_set`` column to ``network.lines``. 
+
+
 
 Inputs
 ------
