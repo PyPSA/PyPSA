@@ -596,7 +596,7 @@ The are functions defined as such:
 .. automethod:: pypsa.linopt.write_constraint
 .. automethod:: pypsa.linopt.set_conref
 
-The function ``extra_postprocessing`` is not necessary when pyomo deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to ``keep_shadowprices``. 
+The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function. 
 
 Fixing variables
 ----------------
