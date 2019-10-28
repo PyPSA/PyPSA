@@ -56,7 +56,7 @@ for more details).
 
 
 
-.. important:: Since version v0.15, PyPSA enables the optimisation without the use of `pyomo <http://www.pyomo.org/>`_. This make the lopf function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo. 
+.. important:: Since version v0.15, PyPSA enables the optimisation without the use of `pyomo <http://www.pyomo.org/>`_. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo. 
   Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax.  
 
 .. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
@@ -545,7 +545,7 @@ Custom constraints and other functionality
 
 
 Since PyPSA v0.15, the lopf function is provided by two different modules. The ordinary implementation based on the ``pypsa.opf`` module uses 
-`pyomo <http://www.pyomo.org/>`_ to set up the linear problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the lp file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depend on whether pyomo activated or not.  
+`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the ``.lp`` file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depend on whether pyomo is activated or not.  
 
 In general for a custom constraint, pass the function ``network.lopf`` a
 function ``extra_functionality`` as an argument.  This function must
@@ -586,22 +586,22 @@ An additional constraint can easily be implemented by using the funtions
 
 * ``pypsa.linopt.get_var`` for getting the variables which should be included in the constraint
 * ``pypsa.linopt.linexpr`` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-*  ``pypsa.linopt.write_constraint`` for writing out the constraint to the lp file
+*  ``pypsa.linopt.write_constraint`` for writing out the constraint to the ``.lp`` file
 *  ``pypsa.linopt.set_conref`` for attaching the constraint to the network itself, this only necessary if a shadow price should be extracted after solving 
 
-The are funcitons defined as such: 
+The are functions defined as such: 
 
 .. automethod:: pypsa.linopt.get_var
 .. automethod:: pypsa.linopt.linexpr
 .. automethod:: pypsa.linopt.write_constraint
 .. automethod:: pypsa.linopt.set_conref
 
-The function ``extra_postprocessing`` is not necessary when pyomo deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to ``keep_shadowprices``. 
+The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function. 
 
 Fixing variables
 ----------------
 
-This feature is only valid if pyomo is disabled during the lopf (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a dataframe or a column with the same name as the variable but with suffix '_set'. For all not NaN values additional constraints will be build to fix the variables.
+This feature is only valid if pyomo is disabled in the lopf function (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a pandas DataFrame or a column with the same name as the variable but with suffix '_set'. For all not ``NaN`` values additional constraints will be build to fix the variables.
 
 For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
 
@@ -619,7 +619,7 @@ For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-* network{snapshot_weightings}
+* network.{snapshot_weightings}
 
 * bus.{v_nom, carrier}
 

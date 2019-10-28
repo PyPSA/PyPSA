@@ -310,7 +310,7 @@ nominal_attrs = {'Generator': 'p_nom',
 
 def expand_series(ser, columns):
     """
-    Helper function to fastly expand a series to a dataframe with according
+    Helper function to quickly expand a series to a dataframe with according
     column axis and every single column being the equal to the given series.
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)

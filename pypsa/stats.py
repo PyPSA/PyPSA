@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Post-solving statistics of network. This module contains functions to anaylise
+Post-solving statistics of network. This module contains functions to anaylize
 an optimized network. Basic information of network can be summarized as well as
 constraint gaps can be double-checked.
 """
