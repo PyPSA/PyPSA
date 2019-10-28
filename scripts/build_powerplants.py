@@ -65,6 +65,8 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.base_network)
 
+    ppm.powerplants(from_url=True)
+
     ppl = (ppm.collection.matched_data()
         [lambda df : ~df.Fueltype.isin(('Solar', 'Wind'))]
         .pipe(ppm.cleaning.clean_technology)
