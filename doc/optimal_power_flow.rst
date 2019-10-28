@@ -589,7 +589,7 @@ An additional constraint can easily be implemented by using the funtions
 *  ``pypsa.linopt.write_constraint`` for writing out the constraint to the ``.lp`` file
 *  ``pypsa.linopt.set_conref`` for attaching the constraint to the network itself, this only necessary if a shadow price should be extracted after solving 
 
-The are funcitons defined as such: 
+The are functions defined as such: 
 
 .. automethod:: pypsa.linopt.get_var
 .. automethod:: pypsa.linopt.linexpr
