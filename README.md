@@ -1,4 +1,5 @@
 ![Version](https://img.shields.io/github/tag-date/pypsa/pypsa-eur)
+[![Build Status](https://travis-ci.org/PyPSA/pypsa-eur.svg?branch=master)](https://travis-ci.org/PyPSA/pypsa-eur)
 [![Documentation](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)](https://pypsa-eur.readthedocs.io/en/latest/?badge=latest)
 ![GitHub](https://img.shields.io/github/license/pypsa/pypsa-eur)
 ![Size](https://img.shields.io/github/repo-size/pypsa/pypsa-eur)
