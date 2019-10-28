@@ -190,7 +190,7 @@ def _str_array(array):
 
 def join_exprs(df):
     """
-    Helper function to join arrays, series or frames of stings together.
+    Helper function to join arrays, series or frames of strings together.
 
     """
     return ''.join(np.asarray(df).flatten())
