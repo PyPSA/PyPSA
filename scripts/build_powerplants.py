@@ -77,6 +77,7 @@ if __name__ == "__main__":
     # ppl.loc[(ppl.Fueltype == 'Other') & ppl.Technology.str.contains('Steam Turbine'), 'Fueltype'] = 'CCGT'
 
     ppl = ppl.loc[ppl.lon.notnull() & ppl.lat.notnull()]
+    ppl = ppl.replace({"Country": {"Macedonia, Republic of": "North Macedonia"}}) 
 
     ppl_country = ppl.Country.map(country_alpha_2)
     countries = n.buses.country.unique()
