@@ -127,7 +127,7 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
     ----------
     tulples: tuple of tuples
         Each tuple must of the form (coeff, var), where
-            * coeff is a numerical  value, or a numeical array, series, frame
+            * coeff is a numerical  value, or a numerical array, series, frame
             * var is a str or a array, series, frame of variable strings
     as_pandas : bool, default False
         Whether to return to resulting array as a series, if 1-dimensional, or
