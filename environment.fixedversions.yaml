@@ -15,7 +15,7 @@ dependencies:
   - backcall=0.1.0
   - blosc=1.17.0
   - bokeh=1.3.4
-  - boost-cpp=1.68.0
+  - boost-cpp=1.70.0
   - bottleneck=1.2.1
   - bzip2=1.0.8
   - ca-certificates=2019.9.11
@@ -24,6 +24,7 @@ dependencies:
   - certifi=2019.9.11
   - cffi=1.13.1
   - cfitsio=3.470
+  - cftime=1.0.4.2
   - chardet=3.0.4
   - click=7.0
   - click-plugins=1.1.1
@@ -37,26 +38,29 @@ dependencies:
   - dask=2.6.0
   - dask-core=2.6.0
   - datrie=0.8
+  - dbus=1.13.6
   - decorator=4.4.1
   - distributed=2.6.0
   - docutils=0.15.2
   - expat=2.2.5
-  - fiona=1.8.9.post2
+  - fiona=1.8.6
   - fontconfig=2.13.1
   - freetype=2.10.0
   - freexl=1.0.5
   - fsspec=0.5.2
-  - gdal=2.4.2
+  - gdal=2.4.1
   - geopandas=0.6.1
   - geos=3.7.2
-  - geotiff=1.5.1
+  - geotiff=1.4.3
   - gettext=0.19.8.1
   - giflib=5.1.7
   - gitdb2=2.0.6
   - gitpython=3.0.4
   - glib=2.58.3
+  - gst-plugins-base=1.14.5
+  - gstreamer=1.14.5
   - hdf4=4.2.13
-  - hdf5=1.10.4
+  - hdf5=1.10.5
   - heapdict=1.0.1
   - icu=58.2
   - idna=2.8
@@ -79,7 +83,7 @@ dependencies:
   - libedit=3.1.20170329
   - libffi=3.2.1
   - libgcc-ng=9.1.0
-  - libgdal=2.4.2
+  - libgdal=2.4.1
   - libgfortran-ng=7.3.0
   - libiconv=1.15
   - libkml=1.3.0
@@ -100,6 +104,7 @@ dependencies:
   - lz4-c=1.8.3
   - lzo=2.10
   - markupsafe=1.1.1
+  - matplotlib=3.1.1
   - matplotlib-base=3.1.1
   - memory_profiler=0.55.0
   - mock=3.0.5
@@ -107,6 +112,7 @@ dependencies:
   - msgpack-python=0.6.2
   - munch=2.3.2
   - ncurses=6.1
+  - netcdf4=1.5.1.2
   - numexpr=2.7.0
   - numpy=1.17.3
   - olefile=0.46
@@ -129,7 +135,7 @@ dependencies:
   - poppler-data=0.4.9
   - postgresql=11.5
   - progressbar2=3.47.0
-  - proj4=6.1.1
+  - proj4=5.2.0
   - prompt_toolkit=2.0.10
   - psutil=5.6.3
   - pthread-stubs=0.4
@@ -142,19 +148,21 @@ dependencies:
   - pykdtree=1.3.1
   - pyopenssl=19.0.0
   - pyparsing=2.4.2
-  - pyproj=2.2.2
+  - pyproj=1.9.6
+  - pyqt=5.9.2
   - pyrsistent=0.15.4
   - pyshp=2.1.0
   - pysocks=1.7.1
-  - pytables=3.5.2
-  - pytest=5.0.1
+  - pytables=3.6.0
+  - pytest=5.2.2
   - pytest-runner=5.1
   - python=3.7.3
   - python-dateutil=2.8.0
   - python-utils=2.3.0
   - pytz=2019.3
   - pyyaml=5.1.2
-  - rasterio=1.0.28
+  - qt=5.9.7
+  - rasterio=1.0.25
   - ratelimiter=1.2.0
   - readline=8.0
   - requests=2.22.0
@@ -164,6 +172,7 @@ dependencies:
   - seaborn=0.9.0
   - setuptools=41.4.0
   - shapely=1.6.4
+  - sip=4.19.8
   - six=1.12.0
   - smmap2=2.0.5
   - snakemake-minimal=5.7.4
@@ -171,9 +180,7 @@ dependencies:
   - sortedcontainers=2.1.0
   - sqlite=3.30.1
   - statsmodels=0.10.1
-  - tbb=2018.0.5
   - tblib=1.4.0
-  - tiledb=1.6.2
   - tk=8.6.9
   - toolz=0.10.0
   - tornado=6.0.3
@@ -202,7 +209,7 @@ dependencies:
   - zict=1.0.0
   - zipp=0.6.0
   - zlib=1.2.11
-  - zstd=1.4.0
+  - zstd=1.4.3
   - pip:
     - beautifulsoup4==4.8.1
     - cdsapi==0.2.3

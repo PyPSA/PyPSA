@@ -21,6 +21,7 @@ dependencies:
 
   # Second order dependencies which should really be deps of atlite
   - xarray
+  - netcdf4
   - bottleneck
   - toolz
   - dask
@@ -33,7 +34,7 @@ dependencies:
   # GIS dependencies have to come all from conda-forge
   - conda-forge::cartopy
   - conda-forge::fiona
-  - conda-forge::pyproj<=2.2.2
+  - conda-forge::pyproj<=1.9.6 # until cartopy release with proj>=6.2
   - conda-forge::pyshp
   - conda-forge::geopandas
   - conda-forge::rasterio
