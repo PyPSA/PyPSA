@@ -26,7 +26,7 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, reset_counter, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
-                     broadcasted_axes)
+                     clear_references)
 
 
 import pandas as pd
@@ -243,7 +243,7 @@ def define_nodal_balance_constraints(n, sns):
            .agg(lambda x: ''.join(x.values))
            .reindex(columns=n.buses.index))
     sense = '='
-    rhs = ((- n.loads_t.p_set * n.loads.sign)
+    rhs = ((- n.loads_t.p_set.loc[sns] * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
            .reindex(columns=n.buses.index, fill_value=0))
     constraints = write_constraint(n, lhs, sense, rhs)
@@ -255,20 +255,24 @@ def define_kirchhoff_constraints(n):
     Defines Kirchhoff voltage constraints
 
     """
-    weightings = n.lines.x_pu_eff.where(n.lines.carrier == 'AC', n.lines.r_pu_eff)
+    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
     def cycle_flow(ds):
         ds = ds[lambda ds: ds!=0.].dropna()
-        vals = linexpr((ds, get_var(n, 'Line', 's')[ds.index])) + '\n'
+        vals = linexpr((ds, branch_vars[ds.index])) + '\n'
         return vals.sum(1)
 
     sns = get_var(n, 'Line', 's').index
     constraints = []
     for sub in n.sub_networks.obj:
-        C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
+        branches = sub.branches()
+        C = pd.DataFrame(sub.C.todense(), index=branches.index)
         if C.empty:
             continue
-        C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
+        carrier = n.sub_networks.carrier[sub.name]
+        weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
+        C_weighted = 1e5 * C.mul(weightings, axis=0)
         cycle_sum = C_weighted.apply(cycle_flow)
         cycle_sum.index = sns
         con = write_constraint(n, cycle_sum, '=', 0)
@@ -289,11 +293,11 @@ def define_storage_unit_constraints(n, sns):
     if sus_i.empty: return
     c = 'StorageUnit'
     #spillage
-    upper = get_as_dense(n, c, 'inflow').loc[:, lambda df: df.max() > 0]
+    upper = get_as_dense(n, c, 'inflow', sns).loc[:, lambda df: df.max() > 0]
     spill = write_bound(n, 0, upper)
     set_varref(n, spill, 'StorageUnit', 'spill')
 
-    eh = expand_series(n.snapshot_weightings, sus_i) #elapsed hours
+    eh = expand_series(n.snapshot_weightings[sns], sus_i) #elapsed hours
 
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
     eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns).T
@@ -315,11 +319,12 @@ def define_storage_unit_constraints(n, sns):
         return linexpr((coeff[cols], var[cols]), as_pandas=True)\
                .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
-    lhs += masked_term(-eh, get_var(n, c, 'spill'), spill.columns)
+    if ('StorageUnit', 'spill') in n.variables.index:
+        lhs += masked_term(-eh, get_var(n, c, 'spill'), spill.columns)
     lhs += masked_term(eff_stand, prev_soc_cyclic, cyclic_i)
     lhs += masked_term(eff_stand.loc[sns[1:]], soc.shift().loc[sns[1:]], noncyclic_i)
 
-    rhs = -get_as_dense(n, c, 'inflow').mul(eh)
+    rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
     rhs.loc[sns[0], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
 
     constraints = write_constraint(n, lhs, '==', rhs)
@@ -339,7 +344,7 @@ def define_store_constraints(n, sns):
     variables = write_bound(n, -np.inf, np.inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
-    eh = expand_series(n.snapshot_weightings, stores_i)  #elapsed hours
+    eh = expand_series(n.snapshot_weightings[sns], stores_i)  #elapsed hours
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
 
     e = get_var(n, c, 'e')
@@ -416,6 +421,9 @@ def define_global_constraints(n, sns):
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', False, name)
 
+    # for the next two to we need a line carrier
+    if len(n.global_constraints) > len(glcs):
+        n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
     #expansion limits
     glcs = n.global_constraints.query('type == '
                                       '"transmission_volume_expansion_limit"')
@@ -452,17 +460,17 @@ def define_global_constraints(n, sns):
         set_conref(n, con, 'GlobalConstraint', 'mu', False, name)
 
 
-def define_objective(n):
+def define_objective(n, sns):
     """
     Defines and writes out the objective function
 
     """
     for c, attr in lookup.query('marginal_cost').index:
-        cost = (get_as_dense(n, c, 'marginal_cost')
+        cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
-                .mul(n.snapshot_weightings, axis=0))
+                .mul(n.snapshot_weightings[sns], axis=0))
         if cost.empty: continue
-        terms = linexpr((cost, get_var(n, c, attr)[cost.columns]))
+        terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         for t in terms.flatten():
             n.objective_f.write(t)
     #investment
@@ -483,9 +491,6 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     """
     reset_counter()
-
-    #used in kirchhoff and globals
-    n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
 
     cols = ['component', 'name', 'pnl', 'specification']
     n.variables = pd.DataFrame(columns=cols).set_index(cols[:2])
@@ -527,7 +532,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     define_kirchhoff_constraints(n)
     define_nodal_balance_constraints(n, snapshots)
     define_global_constraints(n, snapshots)
-    define_objective(n)
+    define_objective(n, snapshots)
 
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
@@ -558,29 +563,36 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     network.
 
     """
-    pop = not keep_references
-    #solutions
-    def map_solution(c, attr, pnl):
-        if pnl:
-            variables = get_var(n, c, attr, pop=pop)
-            if variables.empty: return
-            values = variables.stack().map(variables_sol).unstack()
-            if c in n.passive_branch_components:
-                n.pnl(c)['p0'] = values
-                n.pnl(c)['p1'] = - values
-            elif c == 'Link':
-                n.pnl(c)['p0'] = values
-                n.pnl(c)['p1'] = - values * n.df(c).efficiency
-            else:
-                n.pnl(c)[attr] = values
-        elif not get_extendable_i(n, c).empty:
-            n.df(c)[attr+'_opt'] = get_var(n, c, attr, pop=pop)\
-                                    .map(variables_sol).fillna(n.df(c)[attr])
+    def set_from_frame(c, attr, df):
+        if n.pnl(c)[attr].empty:
+            n.pnl(c)[attr] = df.reindex(n.snapshots)
         else:
+            n.pnl(c)[attr].loc[sns, :] = df.reindex(columns=n.pnl(c)[attr].columns)
+
+    pop = not keep_references
+    #solutions, if nominal capcity was no variable set optimal value to nominal
+    def map_solution(c, attr):
+        if (c, attr) in n.variables.index:
+            variables = get_var(n, c, attr, pop=pop)
+            pnl = isinstance(variables, pd.DataFrame)
+            if pnl:
+                values = variables.stack().map(variables_sol).unstack()
+                if c in n.passive_branch_components:
+                    set_from_frame(c, 'p0', values)
+                    set_from_frame(c, 'p1', - values)
+                elif c == 'Link':
+                    set_from_frame(c, 'p0', values)
+                    set_from_frame(c, 'p1', - values * n.df(c).efficiency)
+                else:
+                    set_from_frame(c, attr, values)
+            else:
+                n.df(c)[attr+'_opt'] = variables.map(variables_sol)\
+                                        .fillna(n.df(c)[attr])
+        elif lookup.at[(c, attr), 'nominal']:
             n.df(c)[attr+'_opt'] = n.df(c)[attr]
 
-    for (c, attr), pnl in n.variables.pnl.items():
-        map_solution(c, attr, pnl)
+    for c, attr in lookup.index:
+        map_solution(c, attr)
 
     if not n.df('StorageUnit').empty:
         c = 'StorageUnit'
@@ -590,11 +602,10 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     def map_dual(c, attr, pnl):
         sign = 1 if 'upper' in attr else -1
         if pnl:
-            n.pnl(c)[attr] = (get_con(n, c, attr, pop=pop).stack()
-                              .map(sign * constraints_dual).unstack())
+            set_from_frame(c, attr, get_con(n, c, attr, pop=pop).stack()
+                            .map(sign * constraints_dual).unstack())
         else:
             n.df(c)[attr] = get_con(n, c, attr, pop=pop).map(sign* constraints_dual)
-
 
     if keep_shadowprices == False:
         keep_shadowprices = []
@@ -619,7 +630,8 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     sign = lambda c: n.df(c).sign if 'sign' in n.df(c) else -1 #sign for 'Link'
     n.buses_t.p = pd.concat(
             [n.pnl(c)[attr].mul(sign(c)).rename(columns=n.df(c)[group])
-             for c, attr, group in ca], axis=1).groupby(level=0, axis=1).sum()
+             for c, attr, group in ca], axis=1).groupby(level=0, axis=1).sum()\
+            .reindex(columns=n.buses.index, fill_value=0)
 
     def v_ang_for_(sub):
         buses_i = sub.buses_o
@@ -710,14 +722,15 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
     n.determine_network_topology()
+    clear_references(n)
 
-    if solver_logfile is None:
-        solver_logfile = "test.log"
 
     logger.info("Prepare linear problem")
     prepare_lopf(n, snapshots, keep_files, extra_functionality)
     gc.collect()
-    solution_fn = "/tmp/test-{}.sol".format(n.identifier)
+    solution_fn = f"/tmp/pypsa-solve-{n.identifier}.sol"
+    if solver_logfile is None:
+        solver_logfile = "pypsa-solve-{n.identifier}.log"
 
     if warmstart == True:
         warmstart = n.basis_fn

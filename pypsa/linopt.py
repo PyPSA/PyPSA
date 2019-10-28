@@ -301,6 +301,18 @@ def get_con(n, c, attr, pop=False):
         return n.df(c)[attr + con_ref_suffix]
 
 
+def clear_references(n):
+    for c in n.iterate_components():
+        keys = list(c.pnl.keys())
+        for k in keys:
+            if (con_ref_suffix in k) or - (var_ref_suffix in k):
+                c.pnl.pop(k)
+    if 'variables' in n.__dir__():
+        del n.variables
+    if 'constraints' in n.__dir__():
+        del n.constraints
+
+
 # =============================================================================
 # solvers
 # =============================================================================
@@ -373,6 +385,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     For more information on the glpk solver options:
     https://kam.mff.cuni.cz/~elias/glpk.pdf
     """
+    # TODO use --nopresol argument for non-optimal solution output
     command = (f"glpsol --lp {problem_fn} --output {solution_fn}")
     if solver_logfile is not None:
         command += f' --log {solver_logfile}'
