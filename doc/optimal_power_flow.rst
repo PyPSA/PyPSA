@@ -601,7 +601,7 @@ The function ``extra_postprocessing`` is not necessary when pyomo is deactivated
 Fixing variables
 ----------------
 
-This feature is only valid if pyomo is disabled during the lopf (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a dataframe or a column with the same name as the variable but with suffix '_set'. For all not NaN values additional constraints will be build to fix the variables.
+This feature is only valid if pyomo is disabled in the lopf function (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a pandas DataFrame or a column with the same name as the variable but with suffix '_set'. For all not ``NaN`` values additional constraints will be build to fix the variables.
 
 For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
 
