@@ -110,7 +110,7 @@ clustered down to 6 buses and every 24 hours aggregated to one snapshot. The com
 
 .. code:: bash
 
-    .../pypsa-eur % snakemake results/networks/elec_s_6_lcopt_Co2L-24H.
+    .../pypsa-eur % snakemake results/networks/elec_s_6_lcopt_Co2L-24H.nc
 
 orders ``snakemake`` to run the script ``solve_network`` that produces the solved network and stores it in ``.../pypsa-eur/results/networks`` with the name ``elec_s_6_lcopt_Co2L-24H.nc``:
 
