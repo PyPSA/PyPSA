@@ -545,7 +545,7 @@ Custom constraints and other functionality
 
 
 Since PyPSA v0.15, the lopf function is provided by two different modules. The ordinary implementation based on the ``pypsa.opf`` module uses 
-`pyomo <http://www.pyomo.org/>`_ to set up the linear problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the lp file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depend on whether pyomo activated or not.  
+`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the ``.lp`` file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depend on whether pyomo is activated or not.  
 
 In general for a custom constraint, pass the function ``network.lopf`` a
 function ``extra_functionality`` as an argument.  This function must
