@@ -187,7 +187,7 @@ availability is a constant.
 
 
 If the generator's nominal power :math:`\bar{g}_{n,s}` is also the
-subject of optimisation (``generator.p_nom_extendable -- True``) then
+subject of optimisation (``generator.p_nom_extendable == True``) then
 limits ``generator.p_nom_min`` and ``generator.p_nom_max`` on the
 installable nominal power may also be introduced, e.g.
 
