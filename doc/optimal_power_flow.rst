@@ -586,7 +586,7 @@ An additional constraint can easily be implemented by using the funtions
 
 * ``pypsa.linopt.get_var`` for getting the variables which should be included in the constraint
 * ``pypsa.linopt.linexpr`` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-*  ``pypsa.linopt.write_constraint`` for writing out the constraint to the lp file
+*  ``pypsa.linopt.write_constraint`` for writing out the constraint to the ``.lp`` file
 *  ``pypsa.linopt.set_conref`` for attaching the constraint to the network itself, this only necessary if a shadow price should be extracted after solving 
 
 The are funcitons defined as such: 
