@@ -3,6 +3,9 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 
 .. image:: https://img.shields.io/github/tag-date/pypsa/pypsa-eur
     :alt: GitHub tag
+    
+.. image:: https://travis-ci.org/PyPSA/pypsa-eur.svg?branch=master
+    :target: https://travis-ci.org/PyPSA/pypsa-eur
 
 .. image:: https://readthedocs.org/projects/pypsa-eur/badge/?version=latest
     :target: https://pypsa-eur.readthedocs.io/en/latest/?badge=latest
