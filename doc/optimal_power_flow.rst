@@ -619,7 +619,7 @@ For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-* network{snapshot_weightings}
+* network.{snapshot_weightings}
 
 * bus.{v_nom, carrier}
 
