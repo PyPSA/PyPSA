@@ -7,8 +7,9 @@ Relevant Settings
 
 .. code:: yaml
 
-    enable:
-        powerplantmatching:
+    electricity:
+      powerplants_filter: 
+      custom_powerplants: 
 
 .. seealso::
     Documentation of the configuration file ``config.yaml`` at
