@@ -34,7 +34,14 @@ electricity:
     battery: 6
     H2: 168
 
-  conventional_carriers: [] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  # estimate_renewable_capacities_from_capacity_stats:
+  #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
+  #   Wind: [onwind, offwind-ac, offwind-dc]
+  #   Solar: [solar]
+
+  conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  custom_powerplants: replace #replace or add
+  restrict_buildyear: 2015 #delete generators built after 2015
 
 atlite:
   nprocesses: 4
