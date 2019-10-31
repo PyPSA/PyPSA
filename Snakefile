@@ -32,14 +32,13 @@ if config['enable']['prepare_links_p_nom']:
         # group: 'nonfeedin_preparation'
         script: 'scripts/prepare_links_p_nom.py'
 
-if config['enable']['powerplantmatching']:
-    rule build_powerplants:
-        input: base_network="networks/base.nc"
-        output: "resources/powerplants.csv"
-        threads: 1
-        resources: mem=500
-        # group: 'nonfeedin_preparation'
-        script: "scripts/build_powerplants.py"
+rule build_powerplants:
+    input: base_network="networks/base.nc"
+    output: "resources/powerplants.csv"
+    threads: 1
+    resources: mem=500
+    # group: 'nonfeedin_preparation'
+    script: "scripts/build_powerplants.py"
 
 rule base_network:
     input:

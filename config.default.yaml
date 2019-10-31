@@ -18,7 +18,6 @@ snapshots:
   closed: 'left' # end is not inclusive
 
 enable:
-  powerplantmatching: false
   prepare_links_p_nom: false
 
 electricity:
