@@ -35,7 +35,6 @@ electricity:
 
   powerplants_filter: false
   custom_powerplants: false #replace or add
-  restrict_buildyear: false #delete generators built after 2015
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
   # estimate_renewable_capacities_from_capacity_stats:
