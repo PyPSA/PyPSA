@@ -291,7 +291,7 @@ def attach_wind_and_solar(n, costs):
                                 costs.at[tech + '-station', 'capital_cost'] +
                                 connection_cost)
                 logger.info("Added connection cost of {:0.0f}-{:0.0f} Eur/MW/a to {}"
-                            .format(connection_cost.min(), connection_cost.mafx(), tech))
+                            .format(connection_cost.min(), connection_cost.max(), tech))
             elif suptech == 'onwind':
                 capital_cost = (costs.at['onwind', 'capital_cost'] +
                                 costs.at['onwind-landcosts', 'capital_cost'])
