@@ -11,7 +11,7 @@ install:
   # download and extract data dependencies
   - curl -L "https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz" -o "./bundle.tar.xz"
   - curl -L "https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz" -o "./cutouts.tar.xz"
-  - curl -L "https://zenodo.org/record/3518215/files/natura.tiff" -o "./resources/natura.tiff"
+  - curl -L -N -s "https://zenodo.org/record/3518215/files/natura.tiff" -o "./resources/natura.tiff"
   - tar xJf ./bundle.tar.xz -C ./data 
   - tar xJf ./cutouts.tar.xz -C .
   
