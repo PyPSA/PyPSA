@@ -157,9 +157,10 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
     nc = clustering.network
     nc.links['underwater_fraction'] = (n.links.eval('underwater_fraction * length')
                                        .div(nc.links.length).dropna())
-    nc.links['capital_cost'] += (nc.links.length.sub(n.links.length).dropna()
-                                 .clip(lower=0)
-                                 .mul(extended_link_costs * line_length_factor))
+    nc.links['capital_cost'] = (nc.links['capital_cost']
+                                .add((nc.links.length - n.links.length)
+                                      .clip(lower=0).mul(extended_link_costs),
+                                      fill_value=0))
     return clustering
 
 def save_to_geojson(s, fn):
@@ -226,11 +227,11 @@ if __name__ == "__main__":
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
         line_length_factor = snakemake.config['lines']['length_factor']
-        overhead_cost = (load_costs(n.snapshot_weightings.sum()/8760,
+        hvac_overhead_cost = (load_costs(n.snapshot_weightings.sum()/8760,
                                    tech_costs=snakemake.input.tech_costs,
                                    config=snakemake.config['costs'],
                                    elec_config=snakemake.config['electricity'])
-                         .at['HVAC overhead', 'capital_cost'])
+                              .at['HVAC overhead', 'capital_cost'])
 
         def consense(x):
             v = x.iat[0]
@@ -244,7 +245,7 @@ if __name__ == "__main__":
                                                line_length_factor=line_length_factor,
                                                potential_mode=potential_mode,
                                                solver_name=snakemake.config['solving']['solver']['name'],
-                                               extended_link_costs=overhead_cost)
+                                               extended_link_costs=hvac_overhead_cost)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
