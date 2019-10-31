@@ -178,7 +178,8 @@ rule cluster_network:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        clustermaps=ancient('resources/clustermaps_{network}_s{simpl}.h5')
+        clustermaps=ancient('resources/clustermaps_{network}_s{simpl}.h5'),
+        tech_costs=COSTS
     output:
         network='networks/{network}_s{simpl}_{clusters}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
