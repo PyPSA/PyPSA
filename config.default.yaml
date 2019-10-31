@@ -39,9 +39,10 @@ electricity:
   #   Wind: [onwind, offwind-ac, offwind-dc]
   #   Solar: [solar]
 
+  powerplants_filter: false
+  custom_powerplants: false #replace or add
+  restrict_buildyear: false #delete generators built after 2015
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
-  custom_powerplants: replace #replace or add
-  restrict_buildyear: 2015 #delete generators built after 2015
 
 atlite:
   nprocesses: 4

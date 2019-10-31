@@ -34,7 +34,7 @@ Description
 
 """
 
-import logging, os
+import logging
 from scipy.spatial import cKDTree as KDTree
 
 import pypsa
@@ -44,36 +44,23 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-
-def add_custom_carriers(ppl):
-    switch = snakemake.config['electricity']['custom_powerplants']
-    if switch not in ('replace', 'add'):
-        logger.warning('custom_carriers is invalid keyword, try '
-                       '"replace" or "add"]. powerplants remain unchanged.')
+def add_custom_powerplants(ppl):
+    custom_ppl_query = snakemake.config['electricity']['custom_powerplants']
+    if not custom_ppl_query:
         return ppl
-    dirname = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
-    add_ppls = pd.read_csv(dirname + "/data/custom_powerplants.csv", index_col=0)
-    if switch == 'replace':
-        countries = add_ppls.Country.unique().tolist()
-        carriers = add_ppls.Fueltype.unique().tolist()
-        logger.info('replacing ' + str(carriers) + ' in ' + str(countries) + '...')
-        ppl.query('Fueltype != @carriers or Country != @countries',inplace=True)
-    logger.info('adding custom carriers...')
-    return ppl.append(add_ppls, sort='False')
+    add_ppls = pd.read_csv(snakemake.input.custom_powerplants, index_col=0)
+    if isinstance(custom_ppl_query, str):
+        add_ppls.query(add_ppls, inplace=True)
+    return ppl.append(add_ppls, sort=False)
 
-def restrict_buildyear(ppl):
-    year = snakemake.config['electricity']['restrict_buildyear']
-    logger.info('restricting build year of generators to ' + str(year) + '...')
-    ppl.YearCommissioned = ppl.YearCommissioned.fillna(0).astype(int) #in case of bad arrangement
-    ppl.YearCommissioned = ppl.YearCommissioned.astype(int)
-    ppl.query('YearCommissioned <= @year',inplace=True)
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
 
         snakemake = MockSnakemake(
-            input=Dict(base_network='networks/base.nc'),
+            input=Dict(base_network='networks/base.nc',
+                       custom_powerplants='data/custom_powerplants.csv'),
             output=['resources/powerplants.csv']
         )
 
@@ -92,9 +79,11 @@ if __name__ == "__main__":
                              df.Technology.replace('Steam Turbine',
                                                    'OCGT').fillna('OCGT')))))
 
-    ppl = add_custom_carriers(ppl) # add carriers from own powerplant files
-    restrict_buildyear(ppl)
+    ppl_query = snakemake.config['electricity']['powerplant_filter']
+    if isinstance(ppl_query, str):
+        ppl.query(ppl_query, inplace=True)
 
+    ppl = add_custom_powerplants(ppl) # add carriers from own powerplant files
 
     cntries_without_ppl = [c for c in countries if c not in ppl.Country.unique()]
 
