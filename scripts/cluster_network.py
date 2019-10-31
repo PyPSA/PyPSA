@@ -97,24 +97,21 @@ logger = logging.getLogger(__name__)
 
 import os
 import numpy as np
-import scipy as sp
-from scipy.sparse.csgraph import connected_components
-import xarray as xr
 import geopandas as gpd
 import shapely
-import networkx as nx
-from shutil import copyfile
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-from six import iteritems
 from six.moves import reduce
 
 import pyomo.environ as po
 
 import pypsa
-from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
-from pypsa.networkclustering import (busmap_by_stubs, busmap_by_kmeans,
-                                     _make_consense, get_clustering_from_busmap,
-                                     aggregategenerators, aggregateoneport)
+from pypsa.networkclustering import (busmap_by_kmeans, busmap_by_spectral_clustering,
+                                     _make_consense, get_clustering_from_busmap)
+
+from add_electricity import load_costs
+
 def normed(x):
     return (x/x.sum()).fillna(0.)
 
@@ -225,7 +222,8 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
 
 def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
                               line_length_factor=1.25, potential_mode='simple',
-                              solver_name="cbc", algorithm="kmeans"):
+                              solver_name="cbc", algorithm="kmeans",
+                              extended_link_costs=0):
 
     if potential_mode == 'simple':
         p_nom_max_strategy = np.sum
@@ -242,9 +240,16 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
         aggregate_generators_carriers=aggregate_carriers,
         aggregate_one_ports=["Load", "StorageUnit"],
         line_length_factor=line_length_factor,
-        generator_strategies={'p_nom_max': p_nom_max_strategy}
-    )
+        generator_strategies={'p_nom_max': p_nom_max_strategy},
+        scale_link_capital_costs=False)
 
+    nc = clustering.network
+    nc.links['underwater_fraction'] = (n.links.eval('underwater_fraction * length')
+                                       .div(nc.links.length).dropna())
+    nc.links['capital_cost'] = (nc.links['capital_cost']
+                                .add((nc.links.length - n.links.length)
+                                      .clip(lower=0).mul(extended_link_costs),
+                                      fill_value=0))
     return clustering
 
 def save_to_geojson(s, fn):
@@ -277,7 +282,9 @@ if __name__ == "__main__":
                 network='networks/{network}_s{simpl}.nc',
                 regions_onshore='resources/regions_onshore_{network}_s{simpl}.geojson',
                 regions_offshore='resources/regions_offshore_{network}_s{simpl}.geojson',
-                clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
+                clustermaps='resources/clustermaps_{network}_s{simpl}.h5',
+                tech_costs='data/costs.csv',
+
             ),
             output=Dict(
                 network='networks/{network}_s{simpl}_{clusters}.nc',
@@ -309,6 +316,11 @@ if __name__ == "__main__":
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
         line_length_factor = snakemake.config['lines']['length_factor']
+        hvac_overhead_cost = (load_costs(n.snapshot_weightings.sum()/8760,
+                                   tech_costs=snakemake.input.tech_costs,
+                                   config=snakemake.config['costs'],
+                                   elec_config=snakemake.config['electricity'])
+                              .at['HVAC overhead', 'capital_cost'])
 
         def consense(x):
             v = x.iat[0]
@@ -321,7 +333,8 @@ if __name__ == "__main__":
         clustering = clustering_for_n_clusters(n, n_clusters, aggregate_carriers,
                                                line_length_factor=line_length_factor,
                                                potential_mode=potential_mode,
-                                               solver_name=snakemake.config['solving']['solver']['name'])
+                                               solver_name=snakemake.config['solving']['solver']['name'],
+                                               extended_link_costs=hvac_overhead_cost)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
