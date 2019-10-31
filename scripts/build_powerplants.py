@@ -79,7 +79,7 @@ if __name__ == "__main__":
                              df.Technology.replace('Steam Turbine',
                                                    'OCGT').fillna('OCGT')))))
 
-    ppl_query = snakemake.config['electricity']['powerplant_filter']
+    ppl_query = snakemake.config['electricity']['powerplants_filter']
     if isinstance(ppl_query, str):
         ppl.query(ppl_query, inplace=True)
 
