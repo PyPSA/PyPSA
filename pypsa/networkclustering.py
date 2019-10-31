@@ -67,7 +67,8 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     attrs = network.components["Generator"]["attrs"]
     generators = (network.generators.loc[gens_agg_b]
                   .assign(bus=lambda df: df.bus.map(busmap)))
-    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
+    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) |
+               {'weight'}) & set(generators.columns) - {'control'}
     grouper = [generators.bus, generators.carrier]
 
     def normed_or_uniform(x):
@@ -535,7 +536,7 @@ def busmap_by_stubs(network, matching_attrs=None):
 
     while True:
         stubs = []
-        for u in G.node:
+        for u in G.nodes:
             neighbours = list(G.adj[u].keys())
             if len(neighbours) == 1:
                 v, = neighbours
