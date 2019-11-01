@@ -8,8 +8,8 @@ Relevant Settings
 .. code:: yaml
 
     electricity:
-      powerplants_filter: 
-      custom_powerplants: 
+      powerplants_filter:
+      custom_powerplants:
 
 .. seealso::
     Documentation of the configuration file ``config.yaml`` at
@@ -88,10 +88,13 @@ if __name__ == "__main__":
 
     cntries_without_ppl = [c for c in countries if c not in ppl.Country.unique()]
 
-    substation_i = n.buses.query('substation_lv').index
-    kdtree = KDTree(n.buses.loc[substation_i, ['x','y']].values)
+    for c in countries:
+        substation_i = n.buses.query('substation_lv and country == @c').index
+        kdtree = KDTree(n.buses.loc[substation_i, ['x','y']].values)
+        ppl_i = ppl.query('Country == @c').index
 
-    ppl['bus'] = substation_i[kdtree.query(ppl[['lon','lat']].values)[1]]
+        ppl.loc[ppl_i, 'bus'] = substation_i[kdtree.query(ppl.loc[ppl_i,
+                                                          ['lon','lat']].values)[1]]
 
     if cntries_without_ppl:
         logging.warning(f"No powerplants known in: {', '.join(cntries_without_ppl)}")
