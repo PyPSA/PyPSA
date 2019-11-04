@@ -730,7 +730,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     gc.collect()
     solution_fn = f"/tmp/pypsa-solve-{n.identifier}.sol"
     if solver_logfile is None:
-        solver_logfile = "pypsa-solve-{n.identifier}.log"
+        solver_logfile = f"pypsa-solve-{n.identifier}.log"
 
     if warmstart == True:
         warmstart = n.basis_fn
