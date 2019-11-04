@@ -33,8 +33,8 @@ electricity:
     battery: 6
     H2: 168
 
-  powerplants_filter: false
-  custom_powerplants: false #replace or add
+  powerplants_filter: false # use pandas query strings here, e.g. Country not in ['Germany']
+  custom_powerplants: false # use pandas query strings here, e.g. Country in ['Germany']
   conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
   # estimate_renewable_capacities_from_capacity_stats:
