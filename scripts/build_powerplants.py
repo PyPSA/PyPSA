@@ -7,10 +7,11 @@ Relevant Settings
 
 .. code:: yaml
 
-    enable:
-        powerplantmatching:
+    electricity:
+      powerplants_filter:
+      custom_powerplants:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`toplevel_cf`
 
@@ -35,71 +36,71 @@ Description
 """
 
 import logging
-import numpy as np
-import pandas as pd
 from scipy.spatial import cKDTree as KDTree
-import pycountry as pyc
 
 import pypsa
-import powerplantmatching as ppm
+import powerplantmatching as pm
+import pandas as pd
 
-def country_alpha_2(name):
-    try:
-        cntry = pyc.countries.get(name=name)
-    except KeyError:
-        cntry = None
-    if cntry is None:
-        cntry = pyc.countries.get(official_name=name)
-    return cntry.alpha_2
+logger = logging.getLogger(__name__)
+
+
+def add_custom_powerplants(ppl):
+    custom_ppl_query = snakemake.config['electricity']['custom_powerplants']
+    if not custom_ppl_query:
+        return ppl
+    add_ppls = pd.read_csv(snakemake.input.custom_powerplants, index_col=0)
+    if isinstance(custom_ppl_query, str):
+        add_ppls.query(add_ppls, inplace=True)
+    return ppl.append(add_ppls, sort=False)
+
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils.snakemake import MockSnakemake, Dict
 
         snakemake = MockSnakemake(
-            input=Dict(base_network='networks/base.nc'),
+            input=Dict(base_network='networks/base.nc',
+                       custom_powerplants='data/custom_powerplants.csv'),
             output=['resources/powerplants.csv']
         )
 
     logging.basicConfig(level=snakemake.config['logging_level'])
 
     n = pypsa.Network(snakemake.input.base_network)
-
-    ppm.powerplants(from_url=True)
-
-    ppl = (ppm.collection.matched_data()
-        [lambda df : ~df.Fueltype.isin(('Solar', 'Wind'))]
-        .pipe(ppm.cleaning.clean_technology)
-        .assign(Fueltype=lambda df: (
-            df.Fueltype.where(df.Fueltype != 'Natural Gas',
-                                df.Technology.replace('Steam Turbine', 'OCGT').fillna('OCGT'))))
-        .pipe(ppm.utils.fill_geoposition))
-
-    # ppl.loc[(ppl.Fueltype == 'Other') & ppl.Technology.str.contains('CCGT'), 'Fueltype'] = 'CCGT'
-    # ppl.loc[(ppl.Fueltype == 'Other') & ppl.Technology.str.contains('Steam Turbine'), 'Fueltype'] = 'CCGT'
-
-    ppl = ppl.loc[ppl.lon.notnull() & ppl.lat.notnull()]
-    ppl = ppl.replace({"Country": {"Macedonia, Republic of": "North Macedonia"}}) 
-
-    ppl_country = ppl.Country.map(country_alpha_2)
     countries = n.buses.country.unique()
-    cntries_without_ppl = []
 
-    for cntry in countries:
-        substation_lv_i = n.buses.index[n.buses['substation_lv'] & (n.buses.country == cntry)]
-        ppl_b = ppl_country == cntry
-        if not ppl_b.any():
-            cntries_without_ppl.append(cntry)
-            continue
+    ppl = (pm.powerplants(from_url=True)
+           .powerplant.convert_country_to_alpha2()
+           .query('Fueltype not in ["Solar", "Wind"] and Country in @countries')
+           .replace({'Technology': {'Steam Turbine': 'OCGT'}})
+            .assign(Fueltype=lambda df: (
+                    df.Fueltype
+                      .where(df.Fueltype != 'Natural Gas',
+                             df.Technology.replace('Steam Turbine',
+                                                   'OCGT').fillna('OCGT')))))
 
-        kdtree = KDTree(n.buses.loc[substation_lv_i, ['x','y']].values)
-        ppl.loc[ppl_b, 'bus'] = substation_lv_i[kdtree.query(ppl.loc[ppl_b, ['lon','lat']].values)[1]]
+    ppl_query = snakemake.config['electricity']['powerplants_filter']
+    if isinstance(ppl_query, str):
+        ppl.query(ppl_query, inplace=True)
+
+    ppl = add_custom_powerplants(ppl) # add carriers from own powerplant files
+
+    cntries_without_ppl = [c for c in countries if c not in ppl.Country.unique()]
+
+    for c in countries:
+        substation_i = n.buses.query('substation_lv and country == @c').index
+        kdtree = KDTree(n.buses.loc[substation_i, ['x','y']].values)
+        ppl_i = ppl.query('Country == @c').index
+
+        ppl.loc[ppl_i, 'bus'] = substation_i[kdtree.query(ppl.loc[ppl_i,
+                                                          ['lon','lat']].values)[1]]
 
     if cntries_without_ppl:
-        logging.warning("No powerplants known in: {}".format(", ".join(cntries_without_ppl)))
+        logging.warning(f"No powerplants known in: {', '.join(cntries_without_ppl)}")
 
     bus_null_b = ppl["bus"].isnull()
     if bus_null_b.any():
-        logging.warning("Couldn't find close bus for {} powerplants".format(bus_null_b.sum()))
+        logging.warning(f"Couldn't find close bus for {bus_null_b.sum()} powerplants")
 
     ppl.to_csv(snakemake.output[0])

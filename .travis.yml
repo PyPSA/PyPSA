@@ -9,6 +9,7 @@ install:
   - sudo apt-get install -yq --no-install-recommends curl bzip2 xz-utils git ca-certificates coinor-cbc
   
   # download and extract data dependencies
+  - mkdir ./resources
   - curl -L "https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz" -o "./bundle.tar.xz"
   - curl -L "https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz" -o "./cutouts.tar.xz"
   - curl -L "https://zenodo.org/record/3518215/files/natura.tiff" -o "./resources/natura.tiff"

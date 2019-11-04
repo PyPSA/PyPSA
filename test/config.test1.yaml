@@ -18,7 +18,6 @@ snapshots:
   closed: 'left' # end is not inclusive
 
 enable:
-  powerplantmatching: false
   prepare_links_p_nom: false
 
 electricity:
@@ -33,6 +32,8 @@ electricity:
     battery: 6
     H2: 168
 
+  powerplants_filter: false
+  custom_powerplants: false #replace or add
   conventional_carriers: [coal, CCGT] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
 atlite:
