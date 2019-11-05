@@ -18,7 +18,7 @@ from add_electricity import load_costs, update_transmission_costs
 
 def add_co2limit(n, Nyears=1., factor=None):
 
-    if factor:
+    if factor is not None:
         annual_emissions = factor*snakemake.config['electricity']['co2base']
     else:
         annual_emissions = snakemake.config['electricity']['co2limit']
