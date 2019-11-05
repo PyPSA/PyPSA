@@ -1,4 +1,4 @@
-configfile: "config.yaml"
+configfile: "config.tutorial.yaml"
 
 COSTS="data/costs.csv"
 
@@ -31,6 +31,30 @@ if config['enable']['prepare_links_p_nom']:
         resources: mem=500
         # group: 'nonfeedin_preparation'
         script: 'scripts/prepare_links_p_nom.py'
+
+
+datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls', 
+            'eez/World_EEZ_v8_2014.shp', 'EIA_hydro_generation_2000_2014.csv', 
+            'hydro_capacities.csv', 'naturalearth/ne_10m_admin_0_countries.shp', 
+            'NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp', 'nama_10r_3popgdp.tsv.gz', 
+            'nama_10r_3gdp.tsv.gz', 'time_series_60min_singleindex_filtered.csv', 
+            'corine/g250_clc06_V18_5.tif']
+if not config['tutorial']:
+    datafiles.append(["data/bundle/natura/Natura2000_end2015.shp", "data/bundle/GEBCO_2014_2D.nc"])
+
+rule retrieve_databundle:
+    output:  expand('data/bundle/{file}', file=datafiles)
+        # ch_cantons='data/bundle/ch_cantons.csv',
+        # ch_popgdp='data/bundle/je-e-21.03.02.xls',
+        # eez='data/bundle/eez/World_EEZ_v8_2014.shp',
+        # eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
+        # hydro_capacities='data/bundle/hydro_capacities.csv',
+        # naturalearth='data/bundle/naturalearth/ne_10m_admin_0_countries.shp',
+        # nuts3='data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
+        # nuts3pop='data/bundle/nama_10r_3popgdp.tsv.gz',
+        # nuts3gdp='data/bundle/nama_10r_3gdp.tsv.gz',
+        # opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv'
+    script: 'scripts/retrieve_databundle.py'
 
 rule build_powerplants:
     input: base_network="networks/base.nc"
@@ -91,18 +115,29 @@ rule build_bus_regions:
     # group: 'nonfeedin_preparation'
     script: "scripts/build_bus_regions.py"
 
-rule build_cutout:
-    output: directory("cutouts/{cutout}")
-    resources: mem=config['atlite'].get('nprocesses', 4) * 1000
-    threads: config['atlite'].get('nprocesses', 4)
-    benchmark: "benchmarks/build_cutout_{cutout}"
-    # group: 'feedin_preparation'
-    script: "scripts/build_cutout.py"
+if config['enable']['build_cutout']:        
+    rule build_cutout:
+        output: directory("cutouts/{cutout}")
+        resources: mem=config['atlite'].get('nprocesses', 4) * 1000
+        threads: config['atlite'].get('nprocesses', 4)
+        benchmark: "benchmarks/build_cutout_{cutout}"
+        # group: 'feedin_preparation'
+        script: "scripts/build_cutout.py"
+else:
+    rule retrieve_cutout:
+        output: directory("cutouts/{cutout}")
+        script: 'scripts/retrieve_cutout.py'
 
-rule build_natura_raster:
-    input: "data/bundle/natura/Natura2000_end2015.shp"
-    output: "resources/natura.tiff"
-    script: "scripts/build_natura_raster.py"
+
+if config['enable']['build_natura_raster']:        
+    rule build_natura_raster:
+        input: "data/bundle/natura/Natura2000_end2015.shp"
+        output: "resources/natura.tiff"
+        script: "scripts/build_natura_raster.py"
+else:
+    rule retrieve_natura_raster:
+        output: "resources/natura.tiff"
+        script: 'scripts/retrieve_natura_raster.py'
 
 rule build_renewable_profiles:
     input:
@@ -110,7 +145,7 @@ rule build_renewable_profiles:
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="resources/natura.tiff",
         gebco=lambda wildcards: ("data/bundle/GEBCO_2014_2D.nc"
-                                 if "max_depth" in config["renewable"][wildcards.technology].keys()
+                                 if "max_depth" in config["renewable"][wildcards.technology].keys() 
                                  else []),
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
