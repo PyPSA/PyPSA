@@ -44,16 +44,6 @@ if not config['tutorial']:
 
 rule retrieve_databundle:
     output:  expand('data/bundle/{file}', file=datafiles)
-        # ch_cantons='data/bundle/ch_cantons.csv',
-        # ch_popgdp='data/bundle/je-e-21.03.02.xls',
-        # eez='data/bundle/eez/World_EEZ_v8_2014.shp',
-        # eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
-        # hydro_capacities='data/bundle/hydro_capacities.csv',
-        # naturalearth='data/bundle/naturalearth/ne_10m_admin_0_countries.shp',
-        # nuts3='data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
-        # nuts3pop='data/bundle/nama_10r_3popgdp.tsv.gz',
-        # nuts3gdp='data/bundle/nama_10r_3gdp.tsv.gz',
-        # opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv'
     script: 'scripts/retrieve_databundle.py'
 
 rule build_powerplants:
