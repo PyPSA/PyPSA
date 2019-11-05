@@ -1,4 +1,4 @@
-configfile: "config.tutorial.yaml"
+configfile: "config.yaml"
 
 COSTS="data/costs.csv"
 

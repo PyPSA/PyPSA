@@ -18,26 +18,26 @@ Relevant Settings
         types:
         s_max_pu:
         under_construction:
-        
+
     links:
         p_max_pu:
         under_construction:
         include_tyndp:
-        
+
     transformers:
         x:
         s_nom:
         type:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`snapshots_cf`, :ref:`toplevel_cf`, :ref:`electricity_cf`, :ref:`load_cf`,
     :ref:`lines_cf`, :ref:`links_cf`, :ref:`transformers_cf`
-        
+
 Inputs
 ------
 
-- ``data/entsoegridkit``:  Extract from the geographical vector data of the online `ENTSO-E Interactive Map <https://www.entsoe.eu/data/map/>`_ by the `GridKit <https://github.com/pypsa/gridkit>`_ toolkit. 
+- ``data/entsoegridkit``:  Extract from the geographical vector data of the online `ENTSO-E Interactive Map <https://www.entsoe.eu/data/map/>`_ by the `GridKit <https://github.com/pypsa/gridkit>`_ toolkit.
 - ``data/parameter_corrections.yaml``: Corrections for ``data/entsoegridkit``
 - ``data/links_p_nom.csv``: confer :ref:`links`
 - ``data/links_tyndp.csv``: List of projects in the `TYNDP 2018 <https://tyndp.entsoe.eu/tyndp2018/>`_ that are at least *in permitting* with fields for start- and endpoint (names and coordinates), length, capacity, construction status, and project reference ID.
@@ -236,7 +236,7 @@ def _add_links_from_tyndp(buses, links):
 
     links_tyndp.index = "T" + links_tyndp.index.astype(str)
 
-    return buses, links.append(links_tyndp)
+    return buses, links.append(links_tyndp, sort=True)
 
 def _load_lines_from_eg(buses):
     lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values='t', false_values='f',
@@ -469,7 +469,7 @@ def _replace_b2b_converter_at_country_border_by_link(n):
 
 def _set_links_underwater_fraction(n):
     if n.links.empty: return
-    
+
     if not hasattr(n.links, 'geometry'):
         n.links['underwater_fraction'] = 0.
     else:
