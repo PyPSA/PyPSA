@@ -12,24 +12,12 @@ which allows the user to explore most of its functionalities on a local machine.
 It takes approximately five minutes to complete and
 requires 3 GB of memory along with 1 GB free disk space.
 
+If not yet completed, follow the :ref:`installation` steps first.
+
 The tutorial will cover examples on how to
 
 - configure and customise the PyPSA-Eur model and
 - run the ``snakemake`` workflow step by step from network creation to the solved network.
-
-If not yet completed, follow the :ref:`installation` steps but
-substitute the links for the **data bundle** and the **cutouts** with the following lightweight alternatives:
-
-    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3517921.svg
-      :target: https://doi.org/10.5281/zenodo.3517921
-
-    .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3518020.svg
-      :target: https://doi.org/10.5281/zenodo.3518020
-    
-    - **Data Bundle:** ``https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz`` (197 MB)
-
-
-    - **Cutouts:** ``https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz`` (19 MB)
 
 The configuration of the tutorial is included in the ``config.tutorial.yaml``.
 To run the tutorial, use this as your configuration file ``config.yaml``.
@@ -37,6 +25,11 @@ To run the tutorial, use this as your configuration file ``config.yaml``.
 .. code:: bash
 
     .../pypsa-eur % cp config.tutorial.yaml config.yaml
+
+This configuration is set to download a reduced data set via the rules :mod:`retrieve_databundle`,
+:mod:`retrieve_natura_raster`, :mod:`retrieve_cutout` totalling at less than 250 MB.
+The full set of data dependencies would consume 5.3 GB.
+For more information on the data dependencies of PyPSA-Eur, continue reading :ref:`data`.
 
 How to customise PyPSA-Eur?
 ===========================
