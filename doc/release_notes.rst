@@ -11,8 +11,10 @@ This is the first release of PyPSA-Eur:
 
 * The ``conda`` environment files were updated and extended (`#81 <https://github.com/PyPSA/pypsa-eur/pull/81>`_).
 
-* The power plant database was updated (`#83 <https://github.com/PyPSA/pypsa-eur/pull/83>`_).
+* The power plant database was updated (`#84 <https://github.com/PyPSA/pypsa-eur/pull/84>`_).
 
 * Continuous integration testing with `Travis CI <https://travis-ci.org>`_ is now included (`#82 <https://github.com/PyPSA/pypsa-eur/pull/82>`_).
 
 * Data dependencies were moved to `zenodo <https://zenodo.org/>`_ (`#60 <https://github.com/PyPSA/pypsa-eur/issues/60>`_).
+
+* Data dependencies are now retrieved from withing the snakemake workflow (`#86 <https://github.com/PyPSA/pypsa-eur/issues/60>`_).
