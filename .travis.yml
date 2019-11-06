@@ -36,5 +36,6 @@ install:
 script:
   - cp ./test/config.test1.yaml ./config.yaml
   - snakemake
+  - snakemake results/networks/elec_s_6_lcopt_Co2L-24H.nc
   - rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results
   # could repeat for more configurations in future
