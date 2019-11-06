@@ -40,7 +40,7 @@ datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls',
             'nama_10r_3gdp.tsv.gz', 'time_series_60min_singleindex_filtered.csv', 
             'corine/g250_clc06_V18_5.tif']
 if not config['tutorial']:
-    datafiles.append(["data/bundle/natura/Natura2000_end2015.shp", "data/bundle/GEBCO_2014_2D.nc"])
+    datafiles.extend(["natura/Natura2000_end2015.shp", "GEBCO_2014_2D.nc"])
 
 rule retrieve_databundle:
     output:  expand('data/bundle/{file}', file=datafiles)
