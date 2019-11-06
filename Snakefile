@@ -33,7 +33,9 @@ if config['enable']['prepare_links_p_nom']:
         script: 'scripts/prepare_links_p_nom.py'
 
 rule build_powerplants:
-    input: base_network="networks/base.nc"
+    input:
+        base_network="networks/base.nc",
+        custom_powerplants="data/custom_powerplants.csv"
     output: "resources/powerplants.csv"
     threads: 1
     resources: mem=500

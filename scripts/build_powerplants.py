@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file.
+Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file. It is possible to amend the powerplant database with custom entries provided in ``data/custom_powerplants.csv``. 
 
 Relevant Settings
 -----------------
@@ -13,12 +13,13 @@ Relevant Settings
 
 .. seealso::
     Documentation of the configuration file ``config.yaml`` at
-    :ref:`toplevel_cf`
+    :ref:`electricity`
 
 Inputs
 ------
 
 - ``networks/base.nc``: confer :ref:`base`.
+- ``data/custom_powerplants.csv``: custom powerplants in the same format as `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_ provides
 
 Outputs
 -------
@@ -32,6 +33,37 @@ Outputs
 
 Description
 -----------
+
+The configuration options ``electricity: powerplants_filter`` and ``electricity: custom_powerplants`` can be used to control whether data should be retrieved from the original powerplants database or from custom amendmends. These specify `pandas.query <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html>`_ commands.
+
+1. Adding all powerplants from custom:
+
+    .. code:: yaml
+
+        powerplants_filter: false
+        custom_powerplants: true
+
+2. Replacing powerplants in e.g. Germany by custom data:
+
+    .. code:: yaml
+
+        powerplants_filter: Country not in ['Germany']
+        custom_powerplants: true
+
+    or 
+
+    .. code:: yaml
+
+        powerplants_filter: Country not in ['Germany']
+        custom_powerplants: Country in ['Germany']
+
+
+3. Adding additional built year constraints:
+
+    .. code:: yaml
+
+        powerplants_filter: Country not in ['Germany'] and YearCommissioned <= 2015
+        custom_powerplants: YearCommissioned <= 2015
 
 """
 
