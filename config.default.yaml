@@ -1,4 +1,5 @@
 version: 0.1
+tutorial: false
 logging_level: INFO
 
 summary_dir: results
@@ -19,6 +20,8 @@ snapshots:
 
 enable:
   prepare_links_p_nom: false
+  build_cutout: false
+  build_natura_raster: false
 
 electricity:
   voltages: [220., 300., 380.]

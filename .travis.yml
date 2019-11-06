@@ -8,14 +8,6 @@ install:
   - sudo apt-get update --fix-missing
   - sudo apt-get install -yq --no-install-recommends curl bzip2 xz-utils git ca-certificates coinor-cbc
   
-  # download and extract data dependencies
-  - mkdir ./resources
-  - curl -L "https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz" -o "./bundle.tar.xz"
-  - curl -L "https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz" -o "./cutouts.tar.xz"
-  - curl -L "https://zenodo.org/record/3518215/files/natura.tiff" -o "./resources/natura.tiff"
-  - tar xJf ./bundle.tar.xz -C ./data 
-  - tar xJf ./cutouts.tar.xz -C .
-  
   # install conda
   # https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/use-conda-with-travis-ci.html
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
