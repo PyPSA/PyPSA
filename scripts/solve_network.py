@@ -190,7 +190,7 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None,
             add_lc_constraint(n)
 
         if extra_functionality is not None:
-            extra_functionality(n, *extra_functionality_args)
+            extra_functionality(n, n.snapshots, *extra_functionality_args)
 
         pypsa.opf.network_lopf_prepare_solver(n, solver_name=solver_name)
 
