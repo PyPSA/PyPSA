@@ -2,6 +2,14 @@
 Release Notes
 #######################
 
+
+PyPSA 0.15.0 (7th November 2019)
+================================
+
+
+Replace initial_status with down_time_before and up_time_before file:///home/tom/fias/lib/pypsa/doc/_build/html/optimal_power_flow.html#generator-unit-commitment-constraints
+
+
 PyPSA 0.14.1 (27th May 2019)
 ================================
 

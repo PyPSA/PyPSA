@@ -73,7 +73,7 @@ and is not very comprehensive."""
                   committable=True,
                   marginal_cost=70,
                   p_min_pu=0.1,
-                  initial_status=0,
+                  up_time_before=0,
                   min_up_time=3,
                   p_nom=1000)
 
@@ -111,13 +111,13 @@ and is not very comprehensive."""
            p_min_pu=0.3,
            marginal_cost=20,
            min_down_time=2,
+           down_time_before=1,
            p_nom=10000)
 
     nu.add("Generator","gas",bus="bus",
            committable=True,
            marginal_cost=70,
            p_min_pu=0.1,
-           initial_status=0,
            p_nom=4000)
 
     nu.add("Load","load",bus="bus",p_set=[3000,800,3000,8000])
@@ -127,11 +127,11 @@ and is not very comprehensive."""
 
     nu.lopf(nu.snapshots,solver_name=solver_name)
 
-    expected_status = np.array([[1,0,0,1],[0,1,1,0]],dtype=float).T
+    expected_status = np.array([[0,0,1,1],[1,1,0,0]],dtype=float).T
 
     np.testing.assert_array_almost_equal(nu.generators_t.status.values,expected_status)
 
-    expected_dispatch = np.array([[3000,0,0,8000],[0,800,3000,0]],dtype=float).T
+    expected_dispatch = np.array([[0,0,3000,8000],[3000,800,0,0]],dtype=float).T
 
     np.testing.assert_array_almost_equal(nu.generators_t.p.values,expected_dispatch)
 
