@@ -7,6 +7,8 @@ Relevant Settings
 
 .. code:: yaml
 
+    focus_weights:
+
     renewable: (keys)
         {technology}:
             potential:
@@ -20,7 +22,7 @@ Relevant Settings
 
 .. seealso:: 
     Documentation of the configuration file ``config.yaml`` at
-    :ref:`renewable_cf`, :ref:`solving_cf`, :ref:`lines_cf`
+    :ref:`toplevel_cf`, :ref:`renewable_cf`, :ref:`solving_cf`, :ref:`lines_cf`
 
 Inputs
 ------
@@ -146,7 +148,7 @@ def plot_weighting(n, country, country_shape=None):
 
 # # Determining the number of clusters per country
 
-def distribute_clusters(n, n_clusters, solver_name=None):
+def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
     if solver_name is None:
         solver_name = snakemake.config['solving']['solver']['name']
 
@@ -159,6 +161,22 @@ def distribute_clusters(n, n_clusters, solver_name=None):
 
     assert n_clusters >= len(N) and n_clusters <= N.sum(), \
         "Number of clusters must be {} <= n_clusters <= {} for this selection of countries.".format(len(N), N.sum())
+
+    if focus_weights is not None:
+
+        total_focus = sum(list(focus_weights.values()))
+
+        assert total_focus <= 1.0, "The sum of focus weights must be less than or equal to 1."
+        
+        for country, weight in focus_weights.items():
+            L[country] = weight
+
+        remainder = [c not in focus_weights.keys() for c in L.index.get_level_values('country')]
+        L[remainder] = L.loc[remainder].pipe(normed) * (1 - total_focus)
+
+        logger.warning('Using custom focus weights for determining number of clusters.')
+
+    assert L.sum() == 1.0, "Country weights L must sum up to 1.0 when distributing clusters."
 
     m = po.ConcreteModel()
     def n_bounds(model, *n_id):
@@ -178,7 +196,7 @@ def distribute_clusters(n, n_clusters, solver_name=None):
 
     return pd.Series(m.n.get_values(), index=L.index).astype(int)
 
-def busmap_for_n_clusters(n, n_clusters, solver_name, algorithm="kmeans", **algorithm_kwds):
+def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algorithm="kmeans", **algorithm_kwds):
     if algorithm == "kmeans":
         algorithm_kwds.setdefault('n_init', 1000)
         algorithm_kwds.setdefault('max_iter', 30000)
@@ -186,7 +204,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, algorithm="kmeans", **algo
 
     n.determine_network_topology()
 
-    n_clusters = distribute_clusters(n, n_clusters, solver_name=solver_name)
+    n_clusters = distribute_clusters(n, n_clusters, focus_weights=focus_weights, solver_name=solver_name)
 
     def reduce_network(n, buses):
         nr = pypsa.Network()
@@ -223,7 +241,7 @@ def plot_busmap_for_n_clusters(n, n_clusters=50):
 def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
                               line_length_factor=1.25, potential_mode='simple',
                               solver_name="cbc", algorithm="kmeans",
-                              extended_link_costs=0):
+                              extended_link_costs=0, focus_weights=None):
 
     if potential_mode == 'simple':
         p_nom_max_strategy = np.sum
@@ -234,7 +252,7 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
                              "but is '{}'".format(potential_mode))
 
     clustering = get_clustering_from_busmap(
-        n, busmap_for_n_clusters(n, n_clusters, solver_name, algorithm),
+        n, busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights, algorithm),
         bus_strategies=dict(country=_make_consense("Bus", "country")),
         aggregate_generators_weighted=True,
         aggregate_generators_carriers=aggregate_carriers,
@@ -298,6 +316,8 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
 
+    focus_weights = snakemake.config.get('focus_weights', None)
+
     renewable_carriers = pd.Index([tech
                                    for tech in n.generators.carrier.unique()
                                    if tech.split('-', 2)[0] in snakemake.config['renewable']])
@@ -334,7 +354,8 @@ if __name__ == "__main__":
                                                line_length_factor=line_length_factor,
                                                potential_mode=potential_mode,
                                                solver_name=snakemake.config['solving']['solver']['name'],
-                                               extended_link_costs=hvac_overhead_cost)
+                                               extended_link_costs=hvac_overhead_cost,
+                                               focus_weights=focus_weights)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
     with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
