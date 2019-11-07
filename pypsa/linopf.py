@@ -138,7 +138,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
     set_conref(n, constraints, c, 'mu_lower', pnl=True, spec=attr)
 
 
-def define_fixed_variariable_constraints(n, sns, c, attr, pnl=True):
+def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     """
     Sets constraints for fixing variables of a given component and attribute
     to the corresponding values in n.df(c)[attr + '_set'] if pnl is True, or
@@ -250,7 +250,7 @@ def define_nodal_balance_constraints(n, sns):
     set_conref(n, constraints, 'Bus', 'marginal_price')
 
 
-def define_kirchhoff_constraints(n):
+def define_kirchhoff_constraints(n, sns):
     """
     Defines Kirchhoff voltage constraints
 
@@ -263,7 +263,6 @@ def define_kirchhoff_constraints(n):
         vals = linexpr((ds, branch_vars[ds.index])) + '\n'
         return vals.sum(1)
 
-    sns = get_var(n, 'Line', 's').index
     constraints = []
     for sub in n.sub_networks.obj:
         branches = sub.branches()
@@ -519,17 +518,20 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     for c, attr in lookup.query('nominal and not handle_separately').index:
         define_nominal_for_extendable_variables(n, c, attr)
-        define_fixed_variariable_constraints(n, snapshots, c, attr, pnl=False)
+        # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
         define_dispatch_for_extendable_variables(n, snapshots, c, attr)
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
-        define_fixed_variariable_constraints(n, snapshots, c, attr)
+        # define_fixed_variable_constraints(n, snapshots, c, attr)
+
+    # consider only state_of_charge_set for the moment
+    define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
 
     define_ramp_limit_constraints(n, snapshots)
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
-    define_kirchhoff_constraints(n)
+    define_kirchhoff_constraints(n, snapshots)
     define_nodal_balance_constraints(n, snapshots)
     define_global_constraints(n, snapshots)
     define_objective(n, snapshots)
