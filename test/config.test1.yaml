@@ -9,7 +9,7 @@ scenario:
   simpl: ['']
   ll: ['copt']
   clusters: [5]
-  opts: [Co2L-24H, 24H]
+  opts: [Co2L-24H]
 
 countries: ['DE'] 
 
@@ -158,7 +158,7 @@ solving:
     clip_p_max_pu: 0.01
     #nhours: 10
   solver:
-    name: cbc
+    name: glpk
   # solver:
     # name: gurobi
     # threads: 4
