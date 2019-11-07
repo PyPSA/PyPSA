@@ -169,7 +169,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
         assert total_focus <= 1.0, "The sum of focus weights must be less than or equal to 1."
         
         for country, weight in focus_weights.items():
-            L[country] = weight
+            L[country] = weight / len(L[country])
 
         remainder = [c not in focus_weights.keys() for c in L.index.get_level_values('country')]
         L[remainder] = L.loc[remainder].pipe(normed) * (1 - total_focus)
