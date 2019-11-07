@@ -63,7 +63,7 @@ import logging
 
 
 if __name__ == "__main__":
-    logger.basicConfig(level=snakemake.config['logging_level'])
+    logging.basicConfig(level=snakemake.config['logging_level'])
 
     config = snakemake.config['renewable']['hydro']
     cutout = atlite.Cutout(config['cutout'],
