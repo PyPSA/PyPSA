@@ -19,7 +19,6 @@ before_install:
 
 script:
   - cp ./test/config.test1.yaml ./config.yaml
-  - snakemake
-  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then snakemake solve_all_elec_networks; fi
+  - snakemake solve_all_elec_networks
   - rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results
   # could repeat for more configurations in future
