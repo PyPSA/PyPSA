@@ -411,10 +411,10 @@ def define_global_constraints(n, sns):
         n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
-            vals = linexpr((-stores.carrier.map(n.emissions),
+            vals = linexpr((-stores.carrier.map(emissions),
                         get_var(n, 'Store', 'e').loc[sns[-1], stores.index]))
             lhs = lhs + '\n' + join_exprs(vals)
-            rhs -= stores.carrier.map(emissions) @ stores.state_of_charge_initial
+            rhs -= stores.carrier.map(emissions) @ stores.e_initial
 
 
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
@@ -842,5 +842,3 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     network_lopf(n, snapshots, **kwargs)
     n.lines.loc[ext_i, 's_nom_extendable'] = True
     n.links.loc[ext_links_i, 'p_nom_extendable'] = True
-
-

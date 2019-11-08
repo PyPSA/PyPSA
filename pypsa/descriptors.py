@@ -368,4 +368,3 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
     return min_pu[index], max_pu[index]
-
