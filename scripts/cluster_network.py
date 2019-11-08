@@ -188,7 +188,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
 
     opt = po.SolverFactory(solver_name)
     if not opt.has_capability('quadratic_objective'):
-        logger.warn(f'The configured solver `{solver_name}` does not support quadratic objectives. Falling back to `ipopt`.')
+        logger.warning(f'The configured solver `{solver_name}` does not support quadratic objectives. Falling back to `ipopt`.')
         opt = po.SolverFactory('ipopt')
 
     results = opt.solve(m)

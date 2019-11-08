@@ -216,7 +216,7 @@ def _add_links_from_tyndp(buses, links):
 
     links_tyndp_located_b = links_tyndp["bus0"].notnull() & links_tyndp["bus1"].notnull()
     if not links_tyndp_located_b.all():
-        logger.warn("Did not find connected buses for TYNDP links (skipping): " + ", ".join(links_tyndp.loc[~links_tyndp_located_b, "Name"]))
+        logger.warning("Did not find connected buses for TYNDP links (skipping): " + ", ".join(links_tyndp.loc[~links_tyndp_located_b, "Name"]))
         links_tyndp = links_tyndp.loc[links_tyndp_located_b]
 
     logger.info("Adding the following TYNDP links: " + ", ".join(links_tyndp["Name"]))
@@ -451,7 +451,7 @@ def _replace_b2b_converter_at_country_border_by_link(n):
         if busattr is not None:
             comp, line = next(iter(G[b0][b1]))
             if comp != "Line":
-                logger.warn("Unable to replace B2B `{}` expected a Line, but found a {}"
+                logger.warning("Unable to replace B2B `{}` expected a Line, but found a {}"
                             .format(i, comp))
                 continue
 
@@ -485,7 +485,7 @@ def _adjust_capacities_of_under_construction_branches(n):
     elif lines_mode == 'remove':
         n.mremove("Line", n.lines.index[n.lines.under_construction])
     elif lines_mode != 'keep':
-        logger.warn("Unrecognized configuration for `lines: under_construction` = `{}`. Keeping under construction lines.")
+        logger.warning("Unrecognized configuration for `lines: under_construction` = `{}`. Keeping under construction lines.")
 
     links_mode = snakemake.config['links'].get('under_construction', 'undef')
     if links_mode == 'zero':
@@ -493,7 +493,7 @@ def _adjust_capacities_of_under_construction_branches(n):
     elif links_mode == 'remove':
         n.mremove("Link", n.links.index[n.links.under_construction])
     elif links_mode != 'keep':
-        logger.warn("Unrecognized configuration for `links: under_construction` = `{}`. Keeping under construction links.")
+        logger.warning("Unrecognized configuration for `links: under_construction` = `{}`. Keeping under construction links.")
 
     if lines_mode == 'remove' or links_mode == 'remove':
         # We might need to remove further unconnected components
