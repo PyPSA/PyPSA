@@ -235,8 +235,14 @@ def define_nodal_balance_constraints(n, sns):
             ['StorageUnit', 'p_store', 'bus', -1], ['Line', 's', 'bus0', -1],
             ['Line', 's', 'bus1', 1], ['Transformer', 's', 'bus0', -1],
             ['Transformer', 's', 'bus1', 1], ['Link', 'p', 'bus0', -1],
-            ['Link', 'p', 'bus1', n.links.efficiency]]
+            ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
+
+    add_linkports = [i[3:] for i in n.links.columns if i.startswith('bus')
+                     and i not in ['bus0', 'bus1']]
+    for i in add_linkports:
+        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
+        args.append(['Link', 'p', f'bus{i}', eff])
 
     lhs = (pd.concat([bus_injection(*args) for args in args], axis=1)
            .groupby(axis=1, level=0)
@@ -256,6 +262,7 @@ def define_kirchhoff_constraints(n, sns):
 
     """
     comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    if len(comps) == 0: return
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
     def cycle_flow(ds):
@@ -387,15 +394,18 @@ def define_global_constraints(n, sns):
     """
     glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
+        rhs = 0
+        lhs = ''
         carattr = glc.carrier_attribute
         emissions = n.carriers.query(f'{carattr} != 0')[carattr]
         if emissions.empty: continue
         gens = n.generators.query('carrier in @emissions.index')
-        em_pu = gens.carrier.map(emissions)/gens.efficiency
-        em_pu = n.snapshot_weightings.to_frame() @ em_pu.to_frame('weightings').T
-        vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]))
-        lhs = join_exprs(vals)
-        rhs = glc.constant
+        if not gens.empty:
+            em_pu = gens.carrier.map(emissions)/gens.efficiency
+            em_pu = n.snapshot_weightings.to_frame() @ em_pu.to_frame('weightings').T
+            vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]))
+            lhs += join_exprs(vals)
+            rhs += glc.constant
 
         #storage units
         sus = n.storage_units.query('carrier in @emissions.index and '
