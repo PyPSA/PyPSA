@@ -241,7 +241,7 @@ def define_nodal_balance_constraints(n, sns):
     lhs = (pd.concat([bus_injection(*args) for args in args], axis=1)
            .groupby(axis=1, level=0)
            .agg(lambda x: ''.join(x.values))
-           .reindex(columns=n.buses.index))
+           .reindex(columns=n.buses.index, fill_value=''))
     sense = '='
     rhs = ((- n.loads_t.p_set.loc[sns] * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
