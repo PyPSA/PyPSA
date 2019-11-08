@@ -643,8 +643,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     #load
     if len(n.loads):
-        load_p_set = get_as_dense(n, 'Load', 'p_set', sns)
-        n.loads_t["p"].loc[sns] = load_p_set
+        set_from_frame('Load', 'p', get_as_dense(n, 'Load', 'p_set', sns))
 
     # recalculate injection
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),
