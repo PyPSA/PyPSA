@@ -574,7 +574,7 @@ def find_slack_bus(sub_network):
     #also put it into the dataframe
     sub_network.network.sub_networks.at[sub_network.name,"slack_bus"] = sub_network.slack_bus
 
-#    logger.info("Slack bus for sub-network {} is {}".format(sub_network.name, sub_network.slack_bus))
+    logger.debug("Slack bus for sub-network {} is {}".format(sub_network.name, sub_network.slack_bus))
 
 
 def find_bus_controls(sub_network):
@@ -833,7 +833,7 @@ def find_tree(sub_network, weight='x_pu'):
 
     #find bus with highest degree to use as slack
     tree_slack_bus, slack_degree = max(degree(sub_network.tree), key=itemgetter(1))
-#    logger.info("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
+    logger.debug("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     #determine which buses are supplied in tree through branch from slack
 

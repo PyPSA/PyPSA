@@ -720,6 +720,11 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     if formulation != "kirchhoff":
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
+    if n.generators.committable.any():
+        logger.warn("Unit commitment is not yet implemented for optimsation "
+           "without using pyomo. The following generators will be treated as "
+          f"non-commitables:\n{list(n.generators.query('committable').index)}")
+
     #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
