@@ -408,7 +408,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
         info += line
     info = pd.read_csv(io.StringIO(info), sep=':',  index_col=0, header=None)[1]
     status = info.Status.lower().strip()
-    objective = float(re.sub('[^0-9]+', '', info.Objective))
+    objective = float(re.sub('[^0-9\.]+', '', info.Objective))
     termination_condition = status
 
     if termination_condition != "optimal":

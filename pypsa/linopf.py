@@ -21,7 +21,7 @@ Originally retrieved from nomopyomo ( -> 'no more Pyomo').
 
 from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
 from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
-                          expand_series, nominal_attrs)
+                          expand_series, nominal_attrs, additional_linkports)
 
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, reset_counter, join_exprs,
@@ -227,8 +227,12 @@ def define_nodal_balance_constraints(n, sns):
         #additional sign only necessary for branches in reverse direction
         if 'sign' in n.df(c):
             sign = sign * n.df(c).sign
-        return linexpr((sign, get_var(n, c, attr)), as_pandas=True)\
+        expr = linexpr((sign, get_var(n, c, attr)), as_pandas=True)\
                        .rename(columns=n.df(c)[groupcol])
+        # drop empty bus2, bus3 if multiline link
+        if c == 'Link':
+            expr.drop(columns='', errors='ignore', inplace=True)
+        return expr
 
     # one might reduce this a bit by using n.branches and lookup
     args = [['Generator', 'p'], ['Store', 'p'], ['StorageUnit', 'p_dispatch'],
@@ -238,18 +242,16 @@ def define_nodal_balance_constraints(n, sns):
             ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
-    add_linkports = [i[3:] for i in n.links.columns if i.startswith('bus')
-                     and i not in ['bus0', 'bus1']]
-    for i in add_linkports:
+    for i in additional_linkports(n):
         eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
         args.append(['Link', 'p', f'bus{i}', eff])
 
-    lhs = (pd.concat([bus_injection(*args) for args in args], axis=1)
+    lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
            .agg(lambda x: ''.join(x.values))
            .reindex(columns=n.buses.index, fill_value=''))
     sense = '='
-    rhs = ((- n.loads_t.p_set.loc[sns] * n.loads.sign)
+    rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
            .reindex(columns=n.buses.index, fill_value=0))
     constraints = write_constraint(n, lhs, sense, rhs)
@@ -394,18 +396,20 @@ def define_global_constraints(n, sns):
     """
     glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
-        rhs = 0
+        rhs = glc.constant
         lhs = ''
         carattr = glc.carrier_attribute
         emissions = n.carriers.query(f'{carattr} != 0')[carattr]
+
         if emissions.empty: continue
+
+        #generators
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
             em_pu = n.snapshot_weightings.to_frame() @ em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]))
             lhs += join_exprs(vals)
-            rhs += glc.constant
 
         #storage units
         sus = n.storage_units.query('carrier in @emissions.index and '
@@ -515,7 +519,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     objective_fn = f"/tmp/objective-{n.identifier}.txt"
     constraints_fn = f"/tmp/constraints-{n.identifier}.txt"
     bounds_fn = f"/tmp/bounds-{n.identifier}.txt"
-    n.problem_fn = f"/tmp/test-{n.identifier}.lp"
+    n.problem_fn = f"/tmp/pypsa-problem-{n.identifier}.lp"
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
@@ -537,6 +541,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
+    define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
     define_ramp_limit_constraints(n, snapshots)
     define_storage_unit_constraints(n, snapshots)
@@ -594,7 +599,11 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
                     set_from_frame(c, 'p1', - values)
                 elif c == 'Link':
                     set_from_frame(c, 'p0', values)
-                    set_from_frame(c, 'p1', - values * n.df(c).efficiency)
+                    for i in ['1'] + additional_linkports(n):
+                        i_eff = '' if i == '1' else i
+                        eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
+                        set_from_frame(c, f'p{i}', - values * eff)
+
                 else:
                     set_from_frame(c, attr, values)
             else:
@@ -633,12 +642,17 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
             get_con(n, c, attr, pop=True)
 
     #load
-    n.loads_t.p = n.loads_t.p_set
+    if len(n.loads):
+        load_p_set = get_as_dense(n, 'Load', 'p_set', sns)
+        n.loads_t["p"].loc[sns] = load_p_set
 
     # recalculate injection
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),
           ('Load', 'p', 'bus'), ('StorageUnit', 'p', 'bus'),
           ('Link', 'p0', 'bus0'), ('Link', 'p1', 'bus1')]
+    for i in additional_linkports(n):
+        ca.append(('Link', f'p{i}', f'bus{i}'))
+
     sign = lambda c: n.df(c).sign if 'sign' in n.df(c) else -1 #sign for 'Link'
     n.buses_t.p = pd.concat(
             [n.pnl(c)[attr].mul(sign(c)).rename(columns=n.df(c)[group])
@@ -647,14 +661,14 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     def v_ang_for_(sub):
         buses_i = sub.buses_o
-        if len(buses_i) == 1: return
+        if len(buses_i) == 1:
+            return pd.DataFrame(0, index=sns, columns=buses_i)
         sub.calculate_B_H(skip_pre=True)
-        if len(sub.buses_i()) == 1: return
         Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
         Z -= Z[sub.slack_bus]
         return n.buses_t.p.reindex(columns=buses_i) @ Z
-    n.buses_t.v_ang = (pd.concat(
-                       [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1)
+    n.buses_t.v_ang = (pd.concat([v_ang_for_(sub) for sub in n.sub_networks.obj],
+                                  axis=1)
                       .reindex(columns=n.buses.index, fill_value=0))
 
 
@@ -765,8 +779,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         return status,termination_condition
 
     #adjust objective value
-    for c, attr in nominal_attrs.items():
-        obj -= n.df(c)[attr] @ n.df(c).capital_cost
+#    for c, attr in nominal_attrs.items():
+#        obj -= n.df(c)[attr] @ n.df(c).capital_cost
     n.objective = obj
     gc.collect()
     assign_solution(n, snapshots, variables_sol, constraints_dual,

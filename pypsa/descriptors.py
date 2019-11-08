@@ -368,3 +368,10 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
     return min_pu[index], max_pu[index]
+
+def additional_linkports(n):
+    return [i[3:] for i in n.links.columns if i.startswith('bus')
+            and i not in ['bus0', 'bus1']]
+
+
+
