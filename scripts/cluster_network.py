@@ -176,7 +176,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
 
         logger.warning('Using custom focus weights for determining number of clusters.')
 
-    assert L.sum() == 1.0, "Country weights L must sum up to 1.0 when distributing clusters."
+    assert np.isclose(L.sum(), 1.0, rtol=1e-3), "Country weights L must sum up to 1.0 when distributing clusters. Is {}.".format(L.sum())
 
     m = po.ConcreteModel()
     def n_bounds(model, *n_id):
