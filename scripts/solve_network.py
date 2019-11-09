@@ -364,7 +364,6 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None,
         status, termination_condition = run_lopf(n, fix_ext_lines=True)
     else:
         status, termination_condition = run_lopf(n, fix_ext_lines=False)
-        update_line_parameters(n, zero_lines_below=100)
     if callback is not None: callback(n, iteration, status)
 
     return n
