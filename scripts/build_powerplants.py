@@ -1,6 +1,6 @@
 # coding: utf-8
 """
-Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file. It is possible to amend the powerplant database with custom entries provided in ``data/custom_powerplants.csv``. 
+Retrieves conventional powerplant capacities and locations from `powerplantmatching <https://github.com/FRESNA/powerplantmatching>`_, assigns these to buses and creates a ``.csv`` file. It is possible to amend the powerplant database with custom entries provided in ``data/custom_powerplants.csv``.
 
 Relevant Settings
 -----------------
@@ -50,7 +50,7 @@ The configuration options ``electricity: powerplants_filter`` and ``electricity:
         powerplants_filter: Country not in ['Germany']
         custom_powerplants: true
 
-    or 
+    or
 
     .. code:: yaml
 
@@ -103,6 +103,7 @@ if __name__ == "__main__":
     countries = n.buses.country.unique()
 
     ppl = (pm.powerplants(from_url=True)
+           .powerplant.fill_missing_decommyears()
            .powerplant.convert_country_to_alpha2()
            .query('Fueltype not in ["Solar", "Wind"] and Country in @countries')
            .replace({'Technology': {'Steam Turbine': 'OCGT'}})

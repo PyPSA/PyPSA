@@ -46,4 +46,4 @@ dependencies:
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     - cdsapi
-    - powerplantmatching
+    - powerplantmatching>=0.4.2

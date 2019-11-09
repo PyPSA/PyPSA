@@ -577,6 +577,11 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
     n.generators['marginal_cost'] += n.generators.carrier.map(ep)
     n.storage_units['marginal_cost'] += n.storage_units.carrier.map(ep)
 
+def add_nice_carrier_names(n):
+    nice_names = pd.Series(snakemake.config['plotting']['nice_names'])
+    n.carriers['nice_names'] = nice_names[n.carriers.index]
+
+
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
@@ -615,5 +620,6 @@ if __name__ == "__main__":
     attach_storage(n, costs)
 
     estimate_renewable_capacities(n)
+    add_nice_carrier_names(n)
 
     n.export_to_netcdf(snakemake.output[0])
