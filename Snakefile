@@ -117,9 +117,7 @@ if config['enable']['build_cutout']:
         script: "scripts/build_cutout.py"
 else:
     rule retrieve_cutout:
-        output: 
-            directory("cutouts/europe-2013-era5"),
-            directory("cutouts/europe-2013-sarah")            
+        output: directory(expand("cutouts/{cutouts}", **config['atlite'])),
         script: 'scripts/retrieve_cutout.py'
 
 
