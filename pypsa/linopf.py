@@ -24,15 +24,16 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
                           expand_series, nominal_attrs, additional_linkports)
 
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
-                     set_varref, get_con, get_var, reset_counter, join_exprs,
-                     run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
+                     set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
+                     run_and_read_gurobi, run_and_read_glpk,
                      clear_references)
 
 
 import pandas as pd
 import numpy as np
 
-import gc, string, random, time, os, re
+import gc, string, random, time, os, re, shutil
+from tempfile import mkstemp
 
 import logging
 logger = logging.getLogger(__name__)
@@ -503,7 +504,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     n.problem_fn
 
     """
-    reset_counter()
+    n._xCounter, n._cCounter = 0, 0
 
     cols = ['component', 'name', 'pnl', 'specification']
     n.variables = pd.DataFrame(columns=cols).set_index(cols[:2])
@@ -511,15 +512,11 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     snapshots = n.snapshots if snapshots is None else snapshots
     start = time.time()
-    def time_info(message):
-        logger.info(f'{message} {round(time.time()-start, 2)}s')
 
-    n.identifier = ''.join(random.choice(string.ascii_lowercase)
-                        for i in range(8))
-    objective_fn = f"/tmp/objective-{n.identifier}.txt"
-    constraints_fn = f"/tmp/constraints-{n.identifier}.txt"
-    bounds_fn = f"/tmp/bounds-{n.identifier}.txt"
-    n.problem_fn = f"/tmp/pypsa-problem-{n.identifier}.lp"
+    objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)[1]
+    constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)[1]
+    bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)[1]
+    n.problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)[1]
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
@@ -554,23 +551,20 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
 
-    n.objective_f.close()
-    n.constraints_f.close()
     n.bounds_f.write("end\n")
-    n.bounds_f.close()
 
-    del n.objective_f
-    del n.constraints_f
-    del n.bounds_f
+    n.bounds_f.close(); del n.bounds_f
+    n.objective_f.close(); del n.objective_f
+    n.constraints_f.close(); del n.constraints_f
 
-    os.system(f"cat {objective_fn} {constraints_fn} {bounds_fn} "
-              f"> {n.problem_fn}")
+    with open(n.problem_fn, 'wb') as wfd:
+        for f in [objective_fn, constraints_fn, bounds_fn]:
+            with open(f,'rb') as fd:
+                shutil.copyfileobj(fd, wfd)
+            if not keep_files:
+                os.remove(f)
 
-    time_info('Total preparation time:')
-
-    if not keep_files:
-        for fn in [objective_fn, constraints_fn, bounds_fn]:
-            os.system("rm "+ fn)
+    logger.info(f'Total preparation time: {round(time.time()-start, 2)}s')
 
 
 def assign_solution(n, sns, variables_sol, constraints_dual,
@@ -675,7 +669,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None,
          extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
-         keep_shadowprices=None, solver_options={},
+         keep_shadowprices=None, solver_options=None,
          warmstart=False, store_basis=True):
     """
     Linear optimal power flow for a group of snapshots.
@@ -758,9 +752,9 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     logger.info("Prepare linear problem")
     prepare_lopf(n, snapshots, keep_files, extra_functionality)
     gc.collect()
-    solution_fn = f"/tmp/pypsa-solve-{n.identifier}.sol"
+    solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol')[1]
     if solver_logfile is None:
-        solver_logfile = f"pypsa-solve-{n.identifier}.log"
+        solver_logfile = mkstemp(prefix='pypsa-solve', suffix='.log')[1]
 
     if warmstart == True:
         warmstart = n.basis_fn

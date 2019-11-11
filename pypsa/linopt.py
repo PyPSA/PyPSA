@@ -24,13 +24,6 @@ logger = logging.getLogger(__name__)
 # writing functions
 # =============================================================================
 
-xCounter = 0
-cCounter = 0
-def reset_counter():
-    global xCounter, cCounter
-    xCounter, cCounter = 0, 0
-
-
 def write_bound(n, lower, upper, axes=None):
     """
     Writer function for writing out mutliple variables at a time. If lower and
@@ -46,13 +39,13 @@ def write_bound(n, lower, upper, axes=None):
         shape = tuple(map(len, axes))
     ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
     length = np.prod(shape)
-    global xCounter
-    xCounter += length
-    variables = np.array([f'x{x}' for x in range(xCounter - length, xCounter)],
+    n._xCounter += length
+    variables = np.array([f'x{x}' for x in range(n._xCounter - length, n._xCounter)],
                           dtype=object).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-    for s in (lower + ' <= '+ variables + ' <= '+ upper + '\n').flatten():
-        n.bounds_f.write(s)
+#    for s in (lower + ' <= '+ variables + ' <= '+ upper + '\n').flatten():
+#        n.bounds_f.write(s)
+    n.bounds_f.write(join_exprs(lower + ' <= '+ variables + ' <= '+ upper + '\n'))
     return ser_or_frame(variables, *axes)
 
 def write_constraint(n, lhs, sense, rhs, axes=None):
@@ -70,15 +63,15 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
         shape = tuple(map(len, axes))
     ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
     length = np.prod(shape)
-    global cCounter
-    cCounter += length
-    cons = np.array([f'c{x}' for x in range(cCounter - length, cCounter)],
+    n._cCounter += length
+    cons = np.array([f'c{x}' for x in range(n._cCounter - length, n._cCounter)],
                             dtype=object).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    for c in (cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n').flatten():
-        n.constraints_f.write(c)
+#    for c in (cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n').flatten():
+#        n.constraints_f.write(c)
+    n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n'))
     return ser_or_frame(cons, *axes)
 
 
@@ -442,15 +435,16 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
     import gurobipy
-    if (solver_logfile is not None) and (solver_options is not None):
-        solver_options["logfile"] = solver_logfile
-
     # disable logging for this part, as gurobi output is doubled otherwise
     logging.disable(50)
+
     m = gurobipy.read(problem_fn)
     if solver_options is not None:
         for key, value in solver_options.items():
             m.setParam(key, value)
+    if solver_logfile is not None:
+        m.setParam("logfile", solver_logfile)
+
     if warmstart:
         m.read(warmstart)
     m.optimize()
