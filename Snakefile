@@ -117,13 +117,17 @@ if config['enable']['build_cutout']:
         script: "scripts/build_cutout.py"
 else:
     rule retrieve_cutout:
-        output: directory("cutouts/{cutout}")
+        output: 
+            directory("cutouts/europe-2013-era5"),
+            directory("cutouts/europe-2013-sarah")            
         script: 'scripts/retrieve_cutout.py'
 
 
 if config['enable']['build_natura_raster']:        
     rule build_natura_raster:
-        input: "data/bundle/natura/Natura2000_end2015.shp"
+        input: 
+            natura="data/bundle/natura/Natura2000_end2015.shp",
+            cutouts=expand("cutouts/{cutouts}", **config['atlite'])
         output: "resources/natura.tiff"
         script: "scripts/build_natura_raster.py"
 else:

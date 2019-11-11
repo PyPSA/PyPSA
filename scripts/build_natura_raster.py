@@ -52,6 +52,6 @@ if __name__ == "__main__":
     xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutout_names))
     xXyY = min(xs), max(Xs), min(ys), max(Ys)
 
-    natura = gk.vector.loadVector(snakemake.input[0])
+    natura = gk.vector.loadVector(snakemake.input.natura)
     extent = gk.Extent.from_xXyY(xXyY).castTo(3035).fit(100)
     extent.rasterize(natura, pixelWidth=100, pixelHeight=100, output=snakemake.output[0])
