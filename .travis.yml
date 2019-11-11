@@ -1,7 +1,7 @@
 # Modified from
 # https://github.com/calliope-project/calliope/blob/master/.travis.yml
 
-language: python
+language: bash
 sudo: false # Use container-based infrastructure
 
 os:
