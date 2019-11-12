@@ -29,6 +29,7 @@ install:
   - conda create -n pypsa python pip
   - conda env update -n pypsa --file=environment.yaml
   - conda env update -n pypsa --file=environment_dev.yaml
+  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then conda update -n pypsa coincbc ; fi
   - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
@@ -43,3 +44,4 @@ script:
 
 # after_success:
 #   - coveralls
+
