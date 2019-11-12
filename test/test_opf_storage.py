@@ -15,8 +15,8 @@ from numpy.testing import assert_array_almost_equal as equal
 
 def test_opf(pyomo=True):
 
-    csv_folder_name = os.path.join(os.path.dirname(__file__),
-                                   "../examples/opf-storage-hvdc/opf-storage-data")
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "..", "examples",
+                                   "opf-storage-hvdc","opf-storage-data")
 
     n = pypsa.Network(csv_folder_name)
 
@@ -33,7 +33,7 @@ def test_opf(pyomo=True):
 
     if sys.version_info.major >= 3:
 
-        for solver_name in ["cbc", "glpk"]:
+        for solver_name in ["glpk"]:
 
             n.lopf(solver_name=solver_name, pyomo=False)
 

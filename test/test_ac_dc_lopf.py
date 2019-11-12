@@ -13,7 +13,7 @@ import sys
 
 def test_lopf():
 
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/ac-dc-meshed/ac-dc-data")
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data")
 
     n = pypsa.Network(csv_folder_name)
     n.links_t.p_set.drop(columns=n.links.index, inplace=True)

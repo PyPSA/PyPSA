@@ -21,7 +21,7 @@ from distutils.spawn import find_executable
 
 
 def test_lpf():
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/ac-dc-meshed/ac-dc-data")
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data")
 
     network = pypsa.Network(csv_folder_name)
 
