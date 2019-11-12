@@ -43,7 +43,7 @@ def test_lopf():
               n_r.links_t.p0.loc[:,n.links.index],decimal=4)
 
     if sys.version_info.major >= 3:
-        n.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=False)
+        n.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=False, keep_files=True)
 
         equal(n.generators_t.p.loc[:,n.generators.index],
               n_r.generators_t.p.loc[:,n.generators.index],decimal=2)

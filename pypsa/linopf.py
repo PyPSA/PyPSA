@@ -501,7 +501,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
                  extra_functionality=None):
     """
     Sets up the linear problem and writes it out to a lp file, stored at
-    n.problem_fn
+    problem_fn
 
     """
     n._xCounter, n._cCounter = 0, 0
@@ -516,7 +516,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)[1]
     constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)[1]
     bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)[1]
-    n.problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)[1]
+    problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)[1]
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
@@ -557,14 +557,15 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     n.objective_f.close(); del n.objective_f
     n.constraints_f.close(); del n.constraints_f
 
-    with open(n.problem_fn, 'w') as wfd:
+    with open(problem_fn, 'wb') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn]:
-            with open(f,'r') as fd:
+            with open(f,'rb') as fd:
                 shutil.copyfileobj(fd, wfd)
             if not keep_files:
                 os.remove(f)
 
     logger.info(f'Total preparation time: {round(time.time()-start, 2)}s')
+    return problem_fn
 
 
 def assign_solution(n, sns, variables_sol, constraints_dual,
@@ -748,13 +749,11 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     n.determine_network_topology()
     clear_references(n)
 
-
     logger.info("Prepare linear problem")
-    prepare_lopf(n, snapshots, keep_files, extra_functionality)
-    gc.collect()
+    problem_fn = prepare_lopf(n, snapshots, keep_files, extra_functionality)
     solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol')[1]
     if solver_logfile is None:
-        solver_logfile = mkstemp(prefix='pypsa-solve', suffix='.log')[1]
+        fdl, solver_logfile = mkstemp(prefix='pypsa-solve', suffix='.log')
 
     if warmstart == True:
         warmstart = n.basis_fn
@@ -763,19 +762,20 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         logger.info("Solve linear problem")
 
     solve = eval(f'run_and_read_{solver_name}')
-    res = solve(n, n.problem_fn, solution_fn, solver_logfile,
+    res = solve(n, problem_fn, solution_fn, solver_logfile,
                 solver_options, keep_files, warmstart, store_basis)
     status, termination_condition, variables_sol, constraints_dual, obj = res
-    del n.problem_fn
 
     if termination_condition != "optimal":
         return status,termination_condition
 
+    if not keep_files:
+        os.remove(problem_fn); os.remove(solution_fn)
+
     #adjust objective value
-#    for c, attr in nominal_attrs.items():
-#        obj -= n.df(c)[attr] @ n.df(c).capital_cost
+    for c, attr in nominal_attrs.items():
+        obj -= n.df(c)[attr] @ n.df(c).capital_cost
     n.objective = obj
-    gc.collect()
     assign_solution(n, snapshots, variables_sol, constraints_dual,
                     keep_references=keep_references,
                     keep_shadowprices=keep_shadowprices)

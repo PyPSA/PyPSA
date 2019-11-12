@@ -359,10 +359,6 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     variables_sol = sol[variables_b][2]
     constraints_dual = sol[~variables_b][3]
 
-    if not keep_files:
-       os.system("rm "+ problem_fn)
-       os.system("rm "+ solution_fn)
-
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
 
@@ -415,10 +411,6 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     constraints_dual = (pd.to_numeric(sol[constraints_b]['Marginal'], 'coerce')
                         .fillna(0))
 
-    if not keep_files:
-       os.system("rm "+ problem_fn)
-       os.system("rm "+ solution_fn)
-
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
 
@@ -457,9 +449,6 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
         except gurobipy.GurobiError:
             logger.info('No model basis stored')
             del n.basis_fn
-
-    if not keep_files:
-        os.system("rm "+ problem_fn)
 
     Status = gurobipy.GRB.Status
     statusmap = {getattr(Status, s) : s.lower() for s in Status.__dir__()
