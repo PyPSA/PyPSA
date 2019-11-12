@@ -4,24 +4,24 @@
 language: bash
 sudo: false # Use container-based infrastructure
 
-os:
-  - windows
-  - linux
 
 matrix:
   include:
+    - os:
+      - windows
+      - linux
     - env:
       - PYTHON_VERSION="3.6"
-    - env:
       - PYTHON_VERSION="3.7"
 
 before_install:
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
   - source conda4travis.sh
+  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then echo "  - coincbc" >> environment.yaml; fi;
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml --file=environment_non_win.yaml; else conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml; fi;
+  - conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml
   - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .

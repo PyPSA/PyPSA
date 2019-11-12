@@ -1,7 +1,0 @@
-name: pypsa
-
-channels:
-  - conda-forge
-
-dependencies:
-  - coincbc
