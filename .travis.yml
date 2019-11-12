@@ -21,7 +21,8 @@ before_install:
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml
+  - conda env create -n pypsa --file=environment.yaml
+  - conda env update -n pypsa --file=environment_dev.yaml
   - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
