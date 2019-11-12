@@ -16,21 +16,14 @@ matrix:
       - PYTHON_VERSION="3.7"
 
 before_install:
-  # install conda
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
   - source conda4travis.sh
-  # - conda update -q conda
-  # Useful for debugging any issues with conda
-#  - conda info -a
-#  - source $HOME/miniconda/etc/profile.d/conda.sh
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - conda create -n pypsa python pip
-  - conda env update -n pypsa --file=environment.yaml
-  - conda env update -n pypsa --file=environment_dev.yaml
-  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then conda update -n pypsa coincbc ; fi
+  - conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml
   - conda activate pypsa
+  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then conda install coincbc ; fi
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
 
