@@ -557,14 +557,12 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     n.objective_f.close(); del n.objective_f
     n.constraints_f.close(); del n.constraints_f
 
-    with open(n.problem_fn, 'wb') as wfd:
+    with open(n.problem_fn, 'w') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn]:
-            with open(f,'rb') as fd:
+            with open(f,'r') as fd:
                 shutil.copyfileobj(fd, wfd)
-                fd.close()
-    if not keep_files:
-        for f in [objective_fn, constraints_fn, bounds_fn]:
-            os.remove(f)
+            if not keep_files:
+                os.remove(f)
 
     logger.info(f'Total preparation time: {round(time.time()-start, 2)}s')
 
