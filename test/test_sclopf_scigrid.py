@@ -11,7 +11,7 @@ def test_sclopf():
     network = pypsa.Network(csv_folder_name)
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "cbc"
+    solver_name = "glpk"
 
     #There are some infeasibilities without line extensions
     for line_name in ["316","527","602"]:
