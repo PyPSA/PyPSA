@@ -25,7 +25,7 @@ def test_opf(pyomo=True):
     target_gen_p = pd.read_csv(target_path, index_col=0)
 
     #test results were generated with GLPK and other solvers may differ
-    for solver_name in ["cbc", "glpk"]:
+    for solver_name in ["glpk"]:
 
         n.lopf(solver_name=solver_name, pyomo=True)
 
