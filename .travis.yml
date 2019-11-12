@@ -21,8 +21,8 @@ before_install:
   - source conda4travis.sh
   # - conda update -q conda
   # Useful for debugging any issues with conda
-  - conda info -a
-  - source $HOME/miniconda/etc/profile.d/conda.sh
+#  - conda info -a
+#  - source $HOME/miniconda/etc/profile.d/conda.sh
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
