@@ -21,9 +21,13 @@ before_install:
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml
+  - if [ "$TRAVIS_OS_NAME" != "windows" ]
+    then
+      conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml --file=environment_non_win.yaml
+    else
+      conda env create -n pypsa --file=environment.yaml --file=environment_dev.yaml
+    fi
   - conda activate pypsa
-  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then conda install -c conda-forge coincbc ; fi
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
 
