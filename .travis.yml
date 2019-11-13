@@ -4,11 +4,11 @@
 language: bash
 sudo: false # Use container-based infrastructure
 
-- os:
+os:
   - windows
   - linux
   - osx
-- env:
+env:
   - PYTHON_VERSION="3.6"
   - PYTHON_VERSION="3.7"
 
