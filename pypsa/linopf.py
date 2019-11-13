@@ -621,7 +621,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     #duals
     def map_dual(c, attr, pnl):
-        sign = 1 if 'upper' in attr else -1
+        sign = 1 if ('upper' in attr or attr == 'marginal_price') else -1
         if pnl:
             set_from_frame(c, attr, get_con(n, c, attr, pop=pop).stack()
                             .map(sign * constraints_dual).unstack())
