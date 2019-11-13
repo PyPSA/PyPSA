@@ -388,11 +388,11 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 
     os.system(command)
 
-    data = open(solution_fn)
+    f = open(solution_fn)
     info = ''
     linebreak = False
     while not linebreak:
-        line = data.readline()
+        line = f.readline()
         linebreak = line == '\n'
         info += line
     info = pd.read_csv(io.StringIO(info), sep=':',  index_col=0, header=None)[1]
@@ -403,13 +403,14 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    sol = pd.read_fwf(data).set_index('Row name')
+    sol = pd.read_fwf(f).set_index('Row name')
     variables_b = sol.index.str[0] == 'x'
     variables_sol = sol[variables_b]['Activity'].astype(float)
     sol = sol[~variables_b]
     constraints_b = sol.index.str[0] == 'c'
     constraints_dual = (pd.to_numeric(sol[constraints_b]['Marginal'], 'coerce')
                         .fillna(0))
+    f.close()
 
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)

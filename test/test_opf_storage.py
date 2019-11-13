@@ -30,7 +30,7 @@ def test_opf(pyomo=True):
 
         for solver_name in solvers:
 
-            n.lopf(solver_name=solver_name, pyomo=False, keep_files=True)
+            n.lopf(solver_name=solver_name, pyomo=False)
 
             equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
                   decimal=2)

@@ -500,8 +500,12 @@ def define_objective(n, sns):
 def prepare_lopf(n, snapshots=None, keep_files=False,
                  extra_functionality=None):
     """
-    Sets up the linear problem and writes it out to a lp file, stored at
-    problem_fn
+    Sets up the linear problem and writes it out to a lp file
+
+    Returns
+    -------
+    Tuple (fdp, problem_fn) indicating the file descriptor and the file name of
+    the lp file
 
     """
     n._xCounter, n._cCounter = 0, 0
@@ -513,10 +517,10 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     snapshots = n.snapshots if snapshots is None else snapshots
     start = time.time()
 
-    objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)[1]
-    constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)[1]
-    bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)[1]
-    problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)[1]
+    fdo, objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)
+    fdc, constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)
+    fdb, bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)
+    fdp, problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
@@ -553,10 +557,11 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     n.bounds_f.write("end\n")
 
-    n.bounds_f.close(); del n.bounds_f
-    n.objective_f.close(); del n.objective_f
-    n.constraints_f.close(); del n.constraints_f
+    # explicit closing with file descriptor is necessary for windows machines
+    for f, fd in (('bounds_f', fdb), ('constraints_f', fdc), ('objective_f', fdo)):
+        getattr(n, f).close(); delattr(n, f); os.close(fd)
 
+    #concate files
     with open(problem_fn, 'wb') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn]:
             with open(f,'rb') as fd:
@@ -565,7 +570,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
                 os.remove(f)
 
     logger.info(f'Total preparation time: {round(time.time()-start, 2)}s')
-    return problem_fn
+    return fdp, problem_fn
 
 
 def assign_solution(n, sns, variables_sol, constraints_dual,
@@ -750,8 +755,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     clear_references(n)
 
     logger.info("Prepare linear problem")
-    problem_fn = prepare_lopf(n, snapshots, keep_files, extra_functionality)
-    solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol')[1]
+    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, extra_functionality)
+    fds, solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol')
     if solver_logfile is None:
         fdl, solver_logfile = mkstemp(prefix='pypsa-solve', suffix='.log')
 
@@ -770,7 +775,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         return status,termination_condition
 
     if not keep_files:
-        os.remove(problem_fn); os.remove(solution_fn)
+        os.close(fdp); os.remove(problem_fn)
+        os.close(fds); os.remove(solution_fn)
 
     #adjust objective value
     for c, attr in nominal_attrs.items():
