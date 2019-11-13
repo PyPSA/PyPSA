@@ -402,10 +402,9 @@ class Network(Basic):
 
         #NB: No need to rebind pnl to self, since haven't changed it
 
-    def lopf(self, snapshots=None, solver_name="glpk", extra_functionality=None,
-             solver_logfile=None, solver_options={}, keep_files=False,
-             formulation="kirchhoff", extra_postprocessing=None, pyomo=True,
-             **kwargs):
+    def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
+             solver_options={}, solver_logfile=None, formulation="kirchhoff",
+             keep_files=False, extra_functionality=None,  **kwargs):
         """
         Linear optimal power flow for a group of snapshots.
 
@@ -414,17 +413,17 @@ class Network(Basic):
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             network.snapshots, defaults to network.snapshots
-        solver_name : string
-            Must be a solver name that pyomo recognises and that is
-            installed, e.g. "glpk", "gurobi"
         pyomo : bool, default True
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
-        solver_logfile : None|string
-            If not None, sets the logfile option of the solver.
+        solver_name : string
+            Must be a solver name that pyomo recognises and that is
+            installed, e.g. "glpk", "gurobi"
         solver_options : dictionary
             A dictionary with additional options that get passed to the solver.
             (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+        solver_logfile : None|string
+            If not None, sets the logfile option of the solver.
         keep_files : bool, default False
             Keep the files that pyomo constructs from OPF problem
             construction, e.g. .lp file - useful for debugging

@@ -581,7 +581,9 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     """
     def set_from_frame(c, attr, df):
-        if n.pnl(c)[attr].empty:
+        if attr not in n.pnl(c): #use this for subnetworks_t
+            n.pnl(c)[attr] = df.reindex(n.snapshots)
+        elif n.pnl(c)[attr].empty:
             n.pnl(c)[attr] = df.reindex(n.snapshots)
         else:
             n.pnl(c)[attr].loc[sns, :] = df.reindex(columns=n.pnl(c)[attr].columns)
@@ -621,7 +623,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     #duals
     def map_dual(c, attr, pnl):
-        sign = 1 if ('upper' in attr or attr == 'marginal_price') else -1
+        sign = -1 if 'lower' in attr else 1
         if pnl:
             set_from_frame(c, attr, get_con(n, c, attr, pop=pop).stack()
                             .map(sign * constraints_dual).unstack())
