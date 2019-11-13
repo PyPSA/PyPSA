@@ -4,16 +4,13 @@
 language: bash
 sudo: false # Use container-based infrastructure
 
-
-matrix:
-  include:
-    - os:
-      - windows
-      - linux
-      - osx
-    - env:
-      - PYTHON_VERSION="3.6"
-      - PYTHON_VERSION="3.7"
+- os:
+  - windows
+  - linux
+  - osx
+- env:
+  - PYTHON_VERSION="3.6"
+  - PYTHON_VERSION="3.7"
 
 before_install:
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
