@@ -3,7 +3,7 @@ import numpy as np
 import pypsa
 import sys
 
-solver_name = 'cbc' if sys.platform == 'win32' else 'glpk'
+solver_name = 'glpk' if sys.platform == 'win32' else 'cbc'
 
 
 def test_sclopf():

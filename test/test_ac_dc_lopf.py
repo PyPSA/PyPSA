@@ -4,7 +4,7 @@ import os
 from numpy.testing import assert_array_almost_equal as equal
 import sys
 
-solver_name = 'cbc' if sys.platform == 'win32' else 'glpk'
+solver_name = 'glpk' if sys.platform == 'win32' else 'cbc'
 
 
 def test_lopf():
