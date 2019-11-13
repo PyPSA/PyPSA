@@ -84,6 +84,7 @@ class ImporterCSV(Importer):
 
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
+        if not os.path.isfile(fn): return None
         return pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
 
     def get_static(self, list_name):

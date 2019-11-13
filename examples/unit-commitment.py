@@ -1,6 +1,8 @@
 ## Demonstrate PyPSA unit commitment with a one-bus two-generator example
 #
 #
+#This tutorial runs through examples of unit commitment for generators at a single bus. Examples of minimum part-load, minimum up time, minimum down time, start up costs, shut down costs and ramp rate restrictions are shown.
+#
 #To enable unit commitment on a generator, set its attribute committable = True.
 #
 #
@@ -60,7 +62,7 @@ nu.add("Generator","gas",bus="bus",
        committable=True,
        marginal_cost=70,
        p_min_pu=0.1,
-       initial_status=0,
+       up_time_before=0,
        min_up_time=3,
        p_nom=1000)
 
@@ -88,13 +90,13 @@ nu.add("Generator","coal",bus="bus",
        p_min_pu=0.3,
        marginal_cost=20,
        min_down_time=2,
+       down_time_before=1,
        p_nom=10000)
 
 nu.add("Generator","gas",bus="bus",
        committable=True,
        marginal_cost=70,
        p_min_pu=0.1,
-       initial_status=0,
        p_nom=4000)
 
 nu.add("Load","load",bus="bus",p_set=[3000,800,3000,8000])
@@ -132,7 +134,6 @@ nu.add("Generator","gas",bus="bus",
        committable=True,
        marginal_cost=70,
        p_min_pu=0.1,
-       initial_status=0,
        shut_down_cost=25,
        p_nom=4000)
 
@@ -236,6 +237,55 @@ nu.generators_t.p
 
 nu.generators_t.status
 
-nu.generators.initial_status
-
 nu.generators.loc["coal"]
+
+## Rolling horizon example
+#
+#This example solves sequentially in batches
+
+sets_of_snapshots = 6
+p_set = [4000,5000,700,800,4000]
+
+nu = pypsa.Network()
+
+nu.set_snapshots(range(len(p_set)*sets_of_snapshots))
+
+nu.add("Bus","bus")
+
+
+nu.add("Generator","coal",bus="bus",
+       committable=True,
+       p_min_pu=0.3,
+       marginal_cost=20,
+       min_down_time=2,
+       min_up_time=3,
+       up_time_before=1,
+       ramp_limit_up=1,
+       ramp_limit_down=1,
+       ramp_limit_start_up=1,
+       ramp_limit_shut_down=1,
+       shut_down_cost=150,
+       start_up_cost=200,
+       p_nom=10000)
+
+nu.add("Generator","gas",bus="bus",
+       committable=True,
+       marginal_cost=70,
+       p_min_pu=0.1,
+       up_time_before=2,
+       min_up_time=3,
+       shut_down_cost=20,
+       start_up_cost=50,
+       p_nom=1000)
+
+nu.add("Load","load",bus="bus",p_set=p_set*sets_of_snapshots)
+
+overlap = 2
+for i in range(sets_of_snapshots):
+    nu.lopf(nu.snapshots[i*len(p_set):(i+1)*len(p_set)+overlap])
+
+nu.generators_t.status
+
+nu.generators_t.p
+
+

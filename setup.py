@@ -11,9 +11,9 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.14.1',
-    author='Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)',
-    author_email='brown@fias.uni-frankfurt.de',
+    version='0.15.0',
+    author='Tom Brown (FIAS, KIT), Jonas Hoersch (FIAS, KIT), David Schlachtberger (FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT)',
+    author_email='tom.brown@kit.edu',
     description='Python for Power Systems Analysis',
     long_description=long_description,
     long_description_content_type='text/x-rst',

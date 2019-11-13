@@ -2,6 +2,46 @@
 Release Notes
 #######################
 
+
+PyPSA 0.15.0 (8th November 2019)
+================================
+
+This release contains new improvements and bug fixes.
+
+* The unit commitment (UC) has been revamped to take account of
+  constraints at the beginning and end of the simulated ``snapshots``
+  better. This is particularly useful for rolling horizon UC. UC now
+  accounts for up-time and down-time in the periods before the
+  ``snapshots``. The generator attribute ``initial_status`` has been
+  replaced with two attributes ``up_time_before`` and
+  ``down_time_before`` to give information about the status before
+  ``network.snapshots``. At the end of the simulated ``snapshots``, minimum
+  up-times and down-times are also enforced. Ramping constraints also
+  look before the simulation at previous results, if there are
+  any. See the `unit commitment documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#generator-unit-commitment-constraints>`_
+  for full details. The `UC example
+  <https://pypsa.org/examples/unit-commitment.html>`_ has been updated
+  with a rolling horizon example at the end.
+* Documentation is now available on `readthedocs
+  <https://pypsa.readthedocs.io/>`_, with information about functions
+  pulled from the docstrings.
+* The dependency on cartopy is now an optional extra.
+* PyPSA now works with pandas 0.25 and above, and networkx above 2.3.
+* A bug was fixed that broke the Security-Constrained Linear Optimal
+  Power Flow (SCLOPF) constraints with extendable lines.
+* Network plotting can now plot arrows to indicate the direction of flow by passing ``network.plot`` an ``flow`` argument.
+* The objective sense (``minimize`` or ``maximize``) can now be set (default
+  remains ``minimize``).
+* The ``network.snapshot_weightings`` is now carried over when the network
+  is clustered.
+* Various other minor fixes.
+
+We thank colleagues at TERI for assisting with testing the new unit
+commitment code, Clara Büttner for finding the SCLOPF bug, and all
+others who contributed issues and pull requests.
+
+
 PyPSA 0.14.1 (27th May 2019)
 ================================
 

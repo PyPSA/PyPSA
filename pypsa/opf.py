@@ -79,6 +79,12 @@ def define_generator_variables_constraints(network,snapshots):
     if (network.generators.p_nom_extendable & network.generators.committable).any():
         logger.warning("The following generators have both investment optimisation and unit commitment:\n{}\nCurrently PyPSA cannot do both these functions, so PyPSA is choosing investment optimisation for these generators.".format(network.generators.index[network.generators.p_nom_extendable & network.generators.committable]))
 
+    bad_uc_gens = network.generators.index[network.generators.committable & (network.generators.min_up_time > 0) & (network.generators.min_down_time > 0) & (network.generators.up_time_before > 0) & (network.generators.down_time_before > 0)]
+    if not bad_uc_gens.empty:
+        logger.warning("The following committable generators were both up and down before the simulation: {}. This will cause an infeasibility.".format(bad_uc_gens))
+
+    start_i = network.snapshots.get_loc(snapshots[0])
+
     p_min_pu = get_switchable_as_dense(network, 'Generator', 'p_min_pu', snapshots)
     p_max_pu = get_switchable_as_dense(network, 'Generator', 'p_max_pu', snapshots)
 
@@ -161,26 +167,41 @@ def define_generator_variables_constraints(network,snapshots):
 
     for gen_i, gen in enumerate(up_time_gens):
 
-        min_up_time = network.generators.loc[gen,"min_up_time"]
-        initial_status = network.generators.loc[gen,"initial_status"]
+        min_up_time = network.generators.at[gen,"min_up_time"]
 
-        blocks = max(1,len(snapshots)-min_up_time+1)
-
-        gen_up_time = {}
-
-        for i in range(blocks):
-            lhs = LExpression([(1,network.model.generator_status[gen,snapshots[j]]) for j in range(i,i+min_up_time)])
-
-            if i == 0:
-                rhs = LExpression([(min_up_time,network.model.generator_status[gen,snapshots[i]])],-min_up_time*initial_status)
+        #find out how long the generator has been up before snapshots
+        up_time_before = 0
+        for i in range(1,min(min_up_time,start_i)+1):
+            if network.generators_t.status.at[network.snapshots[start_i-i],gen] == 0:
+                break
             else:
-                rhs = LExpression([(min_up_time,network.model.generator_status[gen,snapshots[i]]),(-min_up_time,network.model.generator_status[gen,snapshots[i-1]])])
+                up_time_before += 1
 
-            gen_up_time[i] = LConstraint(lhs,">=",rhs)
+        if up_time_before == start_i:
+            up_time_before = min(min_up_time,start_i+network.generators.at[gen,"up_time_before"])
 
-        l_constraint(network.model, "gen_up_time_{}".format(gen_i), gen_up_time,
-                     range(blocks))
+        if up_time_before == 0:
+            initial_status = 0
+            must_stay_up = 0
+        else:
+            initial_status = 1
+            must_stay_up = min_up_time - up_time_before
 
+
+        def force_up(model,i):
+            return model.generator_status[gen,snapshots[i]] == 1
+        network.model.add_component("gen_up_time_force_{}".format(gen_i),Constraint(range(must_stay_up),rule=force_up))
+
+        blocks = range(must_stay_up,len(snapshots)-1)
+        def gen_rule(model,i):
+            period = min(min_up_time,len(snapshots)-i)
+            lhs = sum(network.model.generator_status[gen,snapshots[j]] for j in range(i,i+period))
+            if i == 0:
+                rhs = period*network.model.generator_status[gen,snapshots[i]] - period*initial_status
+            else:
+                rhs = period*network.model.generator_status[gen,snapshots[i]] - period*network.model.generator_status[gen,snapshots[i-1]]
+            return lhs >= rhs
+        network.model.add_component("gen_up_time_{}".format(gen_i),Constraint(blocks,rule=gen_rule))
 
 
     ## Deal with minimum down time ##
@@ -189,26 +210,42 @@ def define_generator_variables_constraints(network,snapshots):
 
     for gen_i, gen in enumerate(down_time_gens):
 
-        min_down_time = network.generators.loc[gen,"min_down_time"]
-        initial_status = network.generators.loc[gen,"initial_status"]
+        min_down_time = network.generators.at[gen,"min_down_time"]
 
-        blocks = max(1,len(snapshots)-min_down_time+1)
-
-        gen_down_time = {}
-
-        for i in range(blocks):
-            #sum of 1-status
-            lhs = LExpression([(-1,network.model.generator_status[gen,snapshots[j]]) for j in range(i,i+min_down_time)],min_down_time)
-
-            if i == 0:
-                rhs = LExpression([(-min_down_time,network.model.generator_status[gen,snapshots[i]])],min_down_time*initial_status)
+        #find out how long the generator has been down before snapshots
+        down_time_before = 0
+        for i in range(1,min(min_down_time,start_i)+1):
+            if network.generators_t.status.at[network.snapshots[start_i-i],gen] == 1:
+                break
             else:
-                rhs = LExpression([(-min_down_time,network.model.generator_status[gen,snapshots[i]]),(min_down_time,network.model.generator_status[gen,snapshots[i-1]])])
+                down_time_before += 1
 
-            gen_down_time[i] = LConstraint(lhs,">=",rhs)
+        if down_time_before == start_i:
+            down_time_before = min(min_down_time,start_i+network.generators.at[gen,"down_time_before"])
 
-        l_constraint(network.model, "gen_down_time_{}".format(gen_i), gen_down_time,
-                     range(blocks))
+        if down_time_before == 0:
+            initial_status = 1
+            must_stay_down = 0
+        else:
+            initial_status = 0
+            must_stay_down = min_down_time - down_time_before
+
+
+        def force_down(model,i):
+            return model.generator_status[gen,snapshots[i]] == 0
+        network.model.add_component("gen_down_time_force_{}".format(gen_i),Constraint(range(must_stay_down),rule=force_down))
+
+        blocks = range(must_stay_down,len(snapshots)-1)
+        def gen_rule(model,i):
+            period = min(min_down_time,len(snapshots)-i)
+            lhs = period - sum(network.model.generator_status[gen,snapshots[j]] for j in range(i,i+period))
+            if i == 0:
+                rhs = -period*network.model.generator_status[gen,snapshots[i]] + period*initial_status
+            else:
+                rhs = -period*network.model.generator_status[gen,snapshots[i]] + period*network.model.generator_status[gen,snapshots[i-1]]
+            return lhs >= rhs
+        network.model.add_component("gen_down_time_{}".format(gen_i),Constraint(blocks,rule=gen_rule))
+
 
     ## Deal with start up costs ##
 
@@ -220,8 +257,15 @@ def define_generator_variables_constraints(network,snapshots):
     sucs = {}
 
     for gen in suc_gens:
-        suc = network.generators.loc[gen,"start_up_cost"]
-        initial_status = network.generators.loc[gen,"initial_status"]
+        suc = network.generators.at[gen,"start_up_cost"]
+
+        if start_i == 0:
+            if network.generators.at[gen,"up_time_before"] > 0:
+                initial_status = 1
+            else:
+                initial_status = 0
+        else:
+            initial_status = network.generators_t.status.at[network.snapshots[start_i-1],gen]
 
         for i,sn in enumerate(snapshots):
 
@@ -249,7 +293,14 @@ def define_generator_variables_constraints(network,snapshots):
 
     for gen in sdc_gens:
         sdc = network.generators.loc[gen,"shut_down_cost"]
-        initial_status = network.generators.loc[gen,"initial_status"]
+
+        if start_i == 0:
+            if network.generators.at[gen,"down_time_before"] > 0:
+                initial_status = 0
+            else:
+                initial_status = 1
+        else:
+            initial_status = network.generators_t.status.at[network.snapshots[start_i-1],gen]
 
         for i,sn in enumerate(snapshots):
 
@@ -295,6 +346,29 @@ def define_generator_variables_constraints(network,snapshots):
 
     l_constraint(network.model, "ramp_up", ru, list(ru_gens), snapshots[1:])
 
+    #case of ramping if not at start of network.snapshots
+    if start_i > 0:
+        ru_start = {}
+        sn = snapshots[0]
+        for gen in ru_gens:
+            p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
+            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
+            if network.generators.at[gen, "p_nom_extendable"]:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn]),
+                                   (-network.generators.at[gen, "ramp_limit_up"],
+                                    network.model.generator_p_nom[gen])],
+                                  -p_prev)
+            elif not network.generators.at[gen, "committable"]:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn])],
+                                  -network.generators.at[gen, "ramp_limit_up"]*network.generators.at[gen, "p_nom"]-p_prev)
+            else:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn]),
+                                   (-network.generators.at[gen, "ramp_limit_start_up"]*network.generators.at[gen, "p_nom"],
+                                    network.model.generator_status[gen,sn])],
+                                  -p_prev + status_prev*(network.generators.at[gen, "ramp_limit_start_up"] - network.generators.at[gen, "ramp_limit_up"])*network.generators.at[gen, "p_nom"])
+            ru_start[gen] = LConstraint(lhs,"<=")
+
+        l_constraint(network.model, "ramp_up_start", ru_start, list(ru_gens))
 
 
     rd_gens = network.generators.index[network.generators.ramp_limit_down.notnull()]
@@ -325,6 +399,31 @@ def define_generator_variables_constraints(network,snapshots):
 
     l_constraint(network.model, "ramp_down", rd, list(rd_gens), snapshots[1:])
 
+
+    #case of ramping if not at start of network.snapshots
+    if start_i > 0:
+        rd_start = {}
+        sn = snapshots[0]
+        for gen in rd_gens:
+            p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
+            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
+            if network.generators.at[gen, "p_nom_extendable"]:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn]),
+                                   (network.generators.at[gen, "ramp_limit_down"],
+                                    network.model.generator_p_nom[gen])],
+                                  -p_prev)
+            elif not network.generators.at[gen, "committable"]:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn])],
+                                  network.generators.loc[gen, "ramp_limit_down"]*network.generators.at[gen, "p_nom"]-p_prev)
+            else:
+                lhs = LExpression([(1, network.model.generator_p[gen,sn]),
+                                   ((network.generators.at[gen, "ramp_limit_down"] - network.generators.at[gen, "ramp_limit_shut_down"])*network.generators.at[gen, "p_nom"],
+                                    network.model.generator_status[gen,sn])],
+                                  -p_prev + status_prev*network.generators.at[gen, "ramp_limit_shut_down"]*network.generators.at[gen, "p_nom"])
+
+            rd_start[gen] = LConstraint(lhs,">=")
+
+        l_constraint(network.model, "ramp_down_start", rd_start, list(rd_gens))
 
 
 
