@@ -38,7 +38,7 @@ def write_bound(n, lower, upper, axes=None):
     else:
         shape = tuple(map(len, axes))
     ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
-    length = np.prod(shape)
+    length = int(np.prod(shape))
     n._xCounter += length
     variables = np.array([f'x{x}' for x in range(n._xCounter - length, n._xCounter)],
                           dtype=object).reshape(shape)
@@ -62,7 +62,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     else:
         shape = tuple(map(len, axes))
     ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
-    length = np.prod(shape)
+    length = int(np.prod(shape))
     n._cCounter += length
     cons = np.array([f'c{x}' for x in range(n._cCounter - length, n._cCounter)],
                             dtype=object).reshape(shape)
