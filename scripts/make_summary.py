@@ -15,7 +15,7 @@ Relevant Settings
     electricity:
         max_hours:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`costs_cf`, :ref:`electricity_cf`
 
@@ -51,7 +51,6 @@ Replacing '/summaries/' with '/plots/' creates nice colored maps of the results.
 
 import os
 from six import iteritems
-from itertools import product
 import pandas as pd
 
 import pypsa
@@ -94,7 +93,7 @@ def calculate_costs(n,label,costs):
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
         capital_costs = c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]
         capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
-        
+
         # Index tuple(s) indicating the newly to-be-added row(s)
         raw_index = tuple([[c.list_name],["capital"],list(capital_costs_grouped.index)])
         costs = _add_indexed_rows(costs, raw_index)
@@ -149,7 +148,7 @@ def include_in_summary(summary, multiindexprefix, label, item):
     # Index tuple(s) indicating the newly to-be-added row(s)
     raw_index = tuple([multiindexprefix,list(item.index)])
     summary = _add_indexed_rows(summary, raw_index)
-    
+
     summary.loc[idx[raw_index], label] = item.values
     return summary
 
@@ -191,11 +190,11 @@ def calculate_supply(n,label,supply):
                 continue
 
             s = c.pnl.p[items].max().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
-            
+
             # Index tuple(s) indicating the newly to-be-added row(s)
             raw_index = tuple([[i],[c.list_name],list(s.index)])
             supply = _add_indexed_rows(supply, raw_index)
-            
+
             supply.loc[idx[raw_index],label] = s.values
 
 
@@ -237,11 +236,11 @@ def calculate_supply_energy(n,label,supply_energy):
                 continue
 
             s = c.pnl.p[items].sum().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
-          
+
             # Index tuple(s) indicating the newly to-be-added row(s)
             raw_index = tuple([[i],[c.list_name],list(s.index)])
             supply_energy = _add_indexed_rows(supply_energy, raw_index)
-            
+
             supply_energy.loc[idx[raw_index],label] = s.values
 
 
@@ -491,7 +490,7 @@ if __name__ == "__main__":
                      for opts in expand_from_wildcard("opts")}
 
     print(networks_dict)
-    
+
     dfs = make_summaries(networks_dict, country=snakemake.wildcards.country)
 
     to_csv(dfs)

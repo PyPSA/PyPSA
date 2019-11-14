@@ -14,7 +14,7 @@ Relevant Settings
             cutout:
             clip_min_inflow:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`toplevel_cf`, :ref:`renewable_cf`
 
@@ -43,7 +43,7 @@ Outputs
 
     .. image:: ../img/inflow-ts.png
         :scale: 33 %
-    
+
     .. image:: ../img/inflow-box.png
         :scale: 33 %
 
@@ -56,7 +56,6 @@ Description
 
 import os
 import atlite
-import pandas as pd
 import geopandas as gpd
 from vresutils import hydro as vhydro
 import logging

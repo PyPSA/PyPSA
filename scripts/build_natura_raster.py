@@ -10,7 +10,7 @@ Relevant Settings
         {technology}:
             cutout:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`renewable_cf`
 
@@ -37,7 +37,6 @@ Description
 
 import numpy as np
 import atlite
-from osgeo import gdal
 import geokit as gk
 
 def determine_cutout_xXyY(cutout_name):

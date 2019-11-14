@@ -15,20 +15,11 @@ Description
 
 """
 
-import pypsa
-
 from _helpers import load_network, aggregate_p, aggregate_costs
-from vresutils import plot as vplot
 
-import os
-import pypsa
 import pandas as pd
-import geopandas as gpd
 import numpy as np
-from itertools import product, chain
-from six.moves import map, zip
-from six import itervalues, iterkeys
-from collections import OrderedDict as odict
+from six.moves import zip
 import logging
 
 import cartopy.crs as ccrs
@@ -36,7 +27,6 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.legend_handler import HandlerPatch
-import seaborn as sns
 to_rgba = mpl.colors.colorConverter.to_rgba
 
 def make_handler_map_to_scale_circles_as_in(ax, dont_resize_actively=False):
@@ -92,7 +82,7 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
         line_widths_exp = dict(Line=n.lines.s_nom_opt, Link=n.links.p_nom_opt)
         line_widths_cur = dict(Line=n.lines.s_nom_min, Link=n.links.p_nom_min)
     else:
-        raise 'plotting of {} has not been implemented yet'.format(plot)
+        raise 'plotting of {} has not been implemented yet'.format(attribute)
 
 
     line_colors_with_alpha = \
@@ -140,11 +130,11 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
         handles.append(plt.Line2D([0],[0],color=line_colors['exp'],
                                 linewidth=s*1e3/linewidth_factor))
         labels.append("{} GW".format(s))
-    l1 = l1_1 = ax.legend(handles, labels,
-                loc="upper left", bbox_to_anchor=(0.24, 1.01),
-                frameon=False,
-                labelspacing=0.8, handletextpad=1.5,
-                title='Transmission Exist./Exp.             ')
+    l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.24, 1.01),
+                     frameon=False,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='Transmission Exist./Exp.             ')
     ax.add_artist(l1_1)
 
     handles = []

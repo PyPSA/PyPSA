@@ -10,7 +10,7 @@ Relevant Settings
     enable:
         prepare_links_p_nom:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`toplevel_cf`
 
@@ -32,7 +32,6 @@ Description
 """
 
 import pandas as pd
-import numpy as np
 
 if __name__ == "__main__":
     links_p_nom = pd.read_html('https://en.wikipedia.org/wiki/List_of_HVDC_projects', header=0, match="SwePol")[0]

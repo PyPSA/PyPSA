@@ -27,7 +27,7 @@ Relevant Settings
     (plotting:)
         (conv_techs:)
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`electricity_cf`, :ref:`solving_cf`, :ref:`plotting_cf`
 
@@ -72,7 +72,7 @@ Details (and errors made through this heuristic) are discussed in the paper
 
 .. tip::
     The rule :mod:`solve_all_networks` runs
-    for all ``scenario`` s in the configuration file 
+    for all ``scenario`` s in the configuration file
     the rule :mod:`solve_network`.
 
 """
@@ -82,7 +82,6 @@ import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
 import gc
-import os
 
 import pypsa
 from pypsa.descriptors import free_output_series_dataframes
@@ -172,20 +171,20 @@ def add_opts_constraints(n, opts=None):
         def agg_p_nom_min_rule(model, country, carrier):
             min = agg_p_nom_minmax.at[(country, carrier), 'min']
             return ((sum(model.generator_p_nom[gen]
-                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
-                    >= min) 
+                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)])
+                    >= min)
                     if np.isfinite(min) else pypsa.opt.Constraint.Skip)
 
         def agg_p_nom_max_rule(model, country, carrier):
             max = agg_p_nom_minmax.at[(country, carrier), 'max']
             return ((sum(model.generator_p_nom[gen]
-                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)]) 
-                    <= max) 
+                         for gen in n.generators.index[(gen_country == country) & (n.generators.carrier == carrier)])
+                    <= max)
                     if np.isfinite(max) else pypsa.opt.Constraint.Skip)
 
         n.model.agg_p_nom_min = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_min_rule)
         n.model.agg_p_nom_max = pypsa.opt.Constraint(list(agg_p_nom_minmax.index), rule=agg_p_nom_max_rule)
-    
+
 def add_lv_constraint(n):
     line_volume = getattr(n, 'line_volume_limit', None)
     if line_volume is not None and not np.isinf(line_volume):
@@ -261,9 +260,9 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None,
         free_output_series_dataframes(n)
 
         pypsa.opf.network_lopf_build_model(n, formulation=solve_opts['formulation'])
-        
+
         add_opts_constraints(n, opts)
-        
+
         if not fix_ext_lines:
             add_lv_constraint(n)
             add_lc_constraint(n)

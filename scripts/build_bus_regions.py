@@ -8,7 +8,7 @@ Relevant Settings
 
     countries:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`toplevel_cf`
 
@@ -36,14 +36,13 @@ Description
 -----------
 
 """
+from vresutils.graph import voronoi_partition_pts
 
 import os
-from operator import attrgetter
 
 import pandas as pd
 import geopandas as gpd
 
-from vresutils.graph import voronoi_partition_pts
 
 import pypsa
 import logging

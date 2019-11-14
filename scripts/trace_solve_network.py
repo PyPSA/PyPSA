@@ -21,7 +21,7 @@ Relevant Settings
             name:
             (solveroptions):
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`solving_cf`
 
@@ -40,20 +40,17 @@ Description
 
 """
 
-import numpy as np
-import pandas as pd
-import logging
-logger = logging.getLogger(__name__)
-
 from solve_network import patch_pyomo_tmpdir, prepare_network, solve_network
 
+import logging
 import pypsa
 
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
+        from vresutils.snakemake import MockSnakemake
         snakemake = MockSnakemake(
             wildcards=dict(network='elec', simpl='', clusters='45', lv='1.25', opts='Co2L-3H'),
             input=["networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],

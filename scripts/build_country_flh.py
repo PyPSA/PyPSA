@@ -15,7 +15,7 @@ Relevant Settings
             resource:
             correction_factor:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`snapshots_cf`, :ref:`renewable_cf`
 
@@ -64,7 +64,6 @@ import xarray as xr
 import pandas as pd
 
 import geokit as gk
-from osgeo import gdal
 from scipy.sparse import vstack
 import pycountry as pyc
 import matplotlib.pyplot as plt

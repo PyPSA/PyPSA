@@ -32,7 +32,7 @@ Relevant Settings
         solver:
             name:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`costs_cf`, :ref:`electricity_cf`, :ref:`renewable_cf`,
     :ref:`lines_cf`, :ref:`links_cf`, :ref:`solving_cf`
@@ -78,21 +78,14 @@ The rule :mod:`simplify_network` does up to four things:
 4. Optionally, if an integer were provided for the wildcard ``{simpl}`` (e.g. ``networks/elec_s500.nc``), the network is clustered to this number of clusters with the routines from the ``cluster_network`` rule with the function ``cluster_network.cluster(...)``. This step is usually skipped!
 """
 
-import pandas as pd
-idx = pd.IndexSlice
+from cluster_network import clustering_for_n_clusters, cluster_regions
+from add_electricity import load_costs
 
 import logging
-logger = logging.getLogger(__name__)
-
-import os
-import re
+import pandas as pd
 import numpy as np
 import scipy as sp
 from scipy.sparse.csgraph import connected_components, dijkstra
-import xarray as xr
-import geopandas as gpd
-import shapely
-import networkx as nx
 
 from six import iteritems
 from six.moves import reduce
@@ -101,8 +94,9 @@ import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
 from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
 
-from cluster_network import clustering_for_n_clusters, cluster_regions
-from add_electricity import load_costs
+
+logger = logging.getLogger(__name__)
+idx = pd.IndexSlice
 
 def simplify_network_to_380(n):
     ## All goes to v_nom == 380

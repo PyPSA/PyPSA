@@ -88,23 +88,20 @@ It further adds extendable ``generators`` and ``storage_units`` with **zero** ca
 - additional open- and combined-cycle gas turbines (if ``OCGT`` and/or ``CCGT`` is listed in the config setting ``electricity: extendable_carriers``)
 """
 
-import logging
-logger = logging.getLogger(__name__)
-
-import pandas as pd
-idx = pd.IndexSlice
-
-import numpy as np
-import xarray as xr
-
-import geopandas as gpd
-
 from vresutils.costdata import annuity
 from vresutils.load import timeseries_opsd
 from vresutils import transfer as vtransfer
 
+import logging
+import pandas as pd
+import numpy as np
+import xarray as xr
+import geopandas as gpd
 import pypsa
 import powerplantmatching as ppm
+
+idx = pd.IndexSlice
+logger = logging.getLogger(__name__)
 
 
 def normed(s): return s/s.sum()
