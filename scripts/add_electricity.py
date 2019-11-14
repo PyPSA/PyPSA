@@ -564,19 +564,6 @@ def estimate_renewable_capacities(n, tech_map=None):
              .transform(lambda s: normed(s) * tech_capacities.at[s.name])
              .where(lambda s: s>0.1, 0.))  # only capacities above 100kW
 
-def add_co2limit(n, Nyears=1.):
-    n.add("GlobalConstraint", "CO2Limit",
-          carrier_attribute="co2_emissions", sense="<=",
-          constant=snakemake.config['electricity']['co2limit'] * Nyears)
-
-def add_emission_prices(n, emission_prices=None, exclude_co2=False):
-    if emission_prices is None:
-        emission_prices = snakemake.config['costs']['emission_prices']
-    if exclude_co2: emission_prices.pop('co2')
-    ep = (pd.Series(emission_prices).rename(lambda x: x+'_emissions') * n.carriers).sum(axis=1)
-    n.generators['marginal_cost'] += n.generators.carrier.map(ep)
-    n.storage_units['marginal_cost'] += n.storage_units.carrier.map(ep)
-
 def add_nice_carrier_names(n):
     nice_names = pd.Series(snakemake.config['plotting']['nice_names'])
     n.carriers['nice_names'] = nice_names[n.carriers.index]
