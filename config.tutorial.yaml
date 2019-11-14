@@ -158,7 +158,7 @@ solving:
     clip_p_max_pu: 0.01
     #nhours: 10
   solver:
-    name: glpk
+    name: cbc
   # solver:
     # name: gurobi
     # threads: 4
