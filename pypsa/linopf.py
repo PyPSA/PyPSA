@@ -479,6 +479,12 @@ def define_objective(n, sns):
     Defines and writes out the objective function
 
     """
+    # constant for already done investment
+    nom_attr = nominal_attrs.items()
+    constant = sum(n.df(c)[attr] @ n.df(c).capital_cost for c, attr in nom_attr)
+    object_const = write_bound(n, constant, constant)
+    n.objective_f.write(linexpr((1, object_const))[0])
+
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
@@ -774,15 +780,12 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
     if termination_condition != "optimal":
-        return status,termination_condition
+        return status, termination_condition
 
     if not keep_files:
         os.close(fdp); os.remove(problem_fn)
         os.close(fds); os.remove(solution_fn)
 
-    #adjust objective value
-    for c, attr in nominal_attrs.items():
-        obj -= n.df(c)[attr] @ n.df(c).capital_cost
     n.objective = obj
     assign_solution(n, snapshots, variables_sol, constraints_dual,
                     keep_references=keep_references,
