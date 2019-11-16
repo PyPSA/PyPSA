@@ -22,8 +22,32 @@ from pandas import IndexSlice as idx
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# Front end function
+# =============================================================================
+
+def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
+    var = write_bound(n, lower, upper, axes)
+    set_varref(n, var, name, attr, spec=spec)
+
+
+def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
+    con = write_constraint(n, lhs, sense, rhs, axes)
+    set_conref(n, con, name, attr, spec=spec)
+
+# =============================================================================
 # writing functions
 # =============================================================================
+
+def _get_handlers(axes, *maybearrays):
+    axes = [axes] if isinstance(axes, pd.Index) else axes
+    if axes is None:
+        axes, shape = broadcasted_axes(*maybearrays)
+    else:
+        shape = tuple(map(len, axes))
+    length = np.prod(shape)
+    ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
+    return axes, shape, length, ser_or_frame
+
 
 def write_bound(n, lower, upper, axes=None):
     """
@@ -33,19 +57,11 @@ def write_bound(n, lower, upper, axes=None):
     Return a series or frame with variable references.
 
     """
-    axes = [axes] if isinstance(axes, pd.Index) else axes
-    if axes is None:
-        axes, shape = broadcasted_axes(lower, upper)
-    else:
-        shape = tuple(map(len, axes))
-    ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
-    length = int(np.prod(shape))
+    axes, shape, length, ser_or_frame = _get_handlers(axes, lower, upper)
     n._xCounter += length
     variables = np.array([f'x{x}' for x in range(n._xCounter - length, n._xCounter)],
                           dtype=object).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-#    for s in (lower + ' <= '+ variables + ' <= '+ upper + '\n').flatten():
-#        n.bounds_f.write(s)
     n.bounds_f.write(join_exprs(lower + ' <= '+ variables + ' <= '+ upper + '\n'))
     return ser_or_frame(variables, *axes)
 
@@ -57,21 +73,13 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     Return a series or frame with constraint references.
 
     """
-    axes = [axes] if isinstance(axes, pd.Index) else axes
-    if axes is None:
-        axes, shape = broadcasted_axes(lhs, rhs)
-    else:
-        shape = tuple(map(len, axes))
-    ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
-    length = int(np.prod(shape))
+    axes, shape, length, ser_or_frame = _get_handlers(axes, lhs, sense, rhs)
     n._cCounter += length
     cons = np.array([f'c{x}' for x in range(n._cCounter - length, n._cCounter)],
                             dtype=object).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-#    for c in (cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n').flatten():
-#        n.constraints_f.write(c)
     n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n'))
     return ser_or_frame(cons, *axes)
 
@@ -94,7 +102,7 @@ def broadcasted_axes(*dfs):
 
     """
     axes = []
-    shape = ()
+    shape = (1,)
 
     if set(map(type, dfs)) == {tuple}:
         dfs = sum(dfs, ())
@@ -206,7 +214,7 @@ def _add_reference(ref_dict, df, attr, pnl=True):
         else:
             ref_dict.df.loc[df.index, attr] = df
 
-def set_varref(n, variables, c, attr, pnl=True, spec=''):
+def set_varref(n, variables, c, attr, spec=''):
     """
     Sets variable references to the network.
     If pnl is False it stores a series of variable names in the static
@@ -216,6 +224,7 @@ def set_varref(n, variables, c, attr, pnl=True, spec=''):
     dict of time-depending quantities, e.g. network.generators_t .
     """
     if not variables.empty:
+        pnl = variables.ndim == 2
         if c not in n.variables.index:
             n.vars[c] = Dict(df=pd.DataFrame(), pnl=Dict())
         if ((c, attr) in n.variables.index) and (spec != ''):
@@ -224,7 +233,7 @@ def set_varref(n, variables, c, attr, pnl=True, spec=''):
             n.variables.loc[idx[c, attr], :] = [pnl, spec]
         _add_reference(n.vars[c], variables, attr, pnl=pnl)
 
-def set_conref(n, constraints, c, attr, pnl=True, spec=''):
+def set_conref(n, constraints, c, attr, spec=''):
     """
     Sets constraint references to the network.
     If pnl is False it stores a series of constraints names in the static
@@ -234,6 +243,7 @@ def set_conref(n, constraints, c, attr, pnl=True, spec=''):
     dict of time-depending quantities, e.g. network.generators_t .
     """
     if not constraints.empty:
+        pnl = constraints.ndim == 2
         if c not in n.constraints.index:
             n.cons[c] = Dict(df=pd.DataFrame(), pnl=Dict())
         if ((c, attr) in n.constraints.index) and (spec != ''):

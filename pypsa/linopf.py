@@ -26,13 +26,13 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
                      run_and_read_gurobi, run_and_read_glpk,
-                     clear_references)
+                     clear_references, define_constraints, define_variables)
 
 
 import pandas as pd
 import numpy as np
 
-import gc, string, random, time, os, re, shutil
+import gc, time, os, re, shutil
 from tempfile import mkstemp
 
 import logging
@@ -60,7 +60,7 @@ def define_nominal_for_extendable_variables(n, c, attr):
     lower = n.df(c)[attr+'_min'][ext_i]
     upper = n.df(c)[attr+'_max'][ext_i]
     variables = write_bound(n, lower, upper)
-    set_varref(n, variables, c, attr, pnl=False)
+    set_varref(n, variables, c, attr)
 
 
 def define_dispatch_for_extendable_variables(n, sns, c, attr):
@@ -79,8 +79,8 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
-    variables = write_bound(n, -np.inf, np.inf, axes=[sns, ext_i])
-    set_varref(n, variables, c, attr, pnl=True, spec='extendables')
+    define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i],
+                     spec='extendables')
 
 
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
@@ -104,7 +104,7 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
     variables = write_bound(n, lower, upper)
-    set_varref(n, variables, c, attr, pnl=True, spec='nonextendables')
+    set_varref(n, variables, c, attr, spec='nonextendables')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -131,12 +131,12 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
     lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
     constraints = write_constraint(n, lhs, '>=', rhs, axes)
-    set_conref(n, constraints, c, 'mu_upper', pnl=True, spec=attr)
+    set_conref(n, constraints, c, 'mu_upper', spec=attr)
 
     lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
     constraints = write_constraint(n, lhs, '<=', rhs, axes)
-    set_conref(n, constraints, c, 'mu_lower', pnl=True, spec=attr)
+    set_conref(n, constraints, c, 'mu_lower', spec=attr)
 
 
 def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
@@ -169,7 +169,7 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
         if fix.empty: return
         lhs = linexpr((1, get_var(n, c, attr)[fix.index]))
         constraints = write_constraint(n, lhs, '=', fix)
-    set_conref(n, constraints, c, f'mu_{attr}_set', pnl)
+    set_conref(n, constraints, c, f'mu_{attr}_set')
 
 
 def define_ramp_limit_constraints(n, sns):
@@ -433,7 +433,7 @@ def define_global_constraints(n, sns):
 
 
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
-        set_conref(n, con, 'GlobalConstraint', 'mu', False, name)
+        set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
     # for the next two to we need a line carrier
     if len(n.global_constraints) > len(glcs):
@@ -454,7 +454,7 @@ def define_global_constraints(n, sns):
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
-        set_conref(n, con, 'GlobalConstraint', 'mu', False, name)
+        set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
     #expansion cost limits
     glcs = n.global_constraints.query('type == '
@@ -471,7 +471,7 @@ def define_global_constraints(n, sns):
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
-        set_conref(n, con, 'GlobalConstraint', 'mu', False, name)
+        set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
 
 def define_objective(n, sns):
@@ -683,6 +683,12 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     #load
     if len(n.loads):
         set_from_frame(n.pnl('Load'), 'p', get_as_dense(n, 'Load', 'p_set', sns))
+
+    #clean up vars and cons
+    for c in list(n.vars):
+        if n.vars[c].df.empty and n.vars[c].pnl == {}: n.vars.pop(c)
+    for c in list(n.cons):
+        if n.cons[c].df.empty and n.cons[c].pnl == {}: n.cons.pop(c)
 
     # recalculate injection
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),
