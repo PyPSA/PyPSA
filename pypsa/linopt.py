@@ -111,10 +111,23 @@ def broadcasted_axes(*dfs):
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
                 assert (axes[-1] == df.axes[-1]).all(), ('Series or DataFrames '
-                       'are not aligned')
+                       'are not aligned. Please make sure that all indexes and '
+                       'columns of Series and DataFrames going into the linear '
+                       'expression are equally sorted.')
             axes = df.axes if len(df.axes) > len(axes) else axes
             shape = tuple(map(len, axes))
     return axes, shape
+
+def align_with_static_component(n, c, attr):
+    """
+    Alignment of time-dependent variables with static components. If c is a
+    pypsa.component name, it will sort the columns of the variable according
+    to the statid component.
+    """
+    if c in n.all_components and (c, attr) in n.variables.index:
+        if not n.variables.pnl[c, attr]: return
+        if len(n.vars[c].pnl[attr].columns) != len(n.df(c).index): return
+        n.vars[c].pnl[attr] = n.vars[c].pnl[attr].reindex(columns=n.df(c).index)
 
 
 def linexpr(*tuples, as_pandas=False, return_axes=False):

@@ -26,7 +26,8 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
                      run_and_read_gurobi, run_and_read_glpk,
-                     clear_references, define_constraints, define_variables)
+                     clear_references, define_constraints, define_variables,
+                     align_with_static_component)
 
 
 import pandas as pd
@@ -532,6 +533,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
         define_dispatch_for_extendable_variables(n, snapshots, c, attr)
+        align_with_static_component(n, c, attr)
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
 
