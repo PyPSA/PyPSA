@@ -21,7 +21,7 @@ Originally retrieved from nomopyomo ( -> 'no more Pyomo').
 
 from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
 from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
-                          expand_series, nominal_attrs, additional_linkports)
+                          expand_series, nominal_attrs, additional_linkports, Dict)
 
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
@@ -515,6 +515,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
 
     """
     n._xCounter, n._cCounter = 0, 0
+    n.vars, n.cons = Dict(), Dict()
 
     cols = ['component', 'name', 'pnl', 'specification']
     n.variables = pd.DataFrame(columns=cols).set_index(cols[:2])
@@ -586,72 +587,102 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     network.
 
     """
-    def set_from_frame(c, attr, df):
-        if attr not in n.pnl(c): #use this for subnetworks_t
-            n.pnl(c)[attr] = df.reindex(n.snapshots)
-        elif n.pnl(c)[attr].empty:
-            n.pnl(c)[attr] = df.reindex(n.snapshots)
+
+    def set_from_frame(pnl, attr, df):
+        if attr not in pnl: #use this for subnetworks_t
+            pnl[attr] = df.reindex(n.snapshots)
+        elif pnl[attr].empty:
+            pnl[attr] = df.reindex(n.snapshots)
         else:
-            n.pnl(c)[attr].loc[sns, :] = df.reindex(columns=n.pnl(c)[attr].columns)
+            pnl[attr].loc[sns, :] = df.reindex(columns=pnl[attr].columns)
 
     pop = not keep_references
-    #solutions, if nominal capcity was no variable set optimal value to nominal
     def map_solution(c, attr):
-        if (c, attr) in n.variables.index:
-            variables = get_var(n, c, attr, pop=pop)
-            pnl = isinstance(variables, pd.DataFrame)
-            if pnl:
-                values = variables.stack().map(variables_sol).unstack()
-                if c in n.passive_branch_components:
-                    set_from_frame(c, 'p0', values)
-                    set_from_frame(c, 'p1', - values)
-                elif c == 'Link':
-                    set_from_frame(c, 'p0', values)
-                    for i in ['1'] + additional_linkports(n):
-                        i_eff = '' if i == '1' else i
-                        eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
-                        set_from_frame(c, f'p{i}', - values * eff)
+        variables = get_var(n, c, attr, pop=pop)
+        predefined = True
+        if (c, attr) not in lookup.index:
+            predefined = False
+            n.sols[c] = n.sols[c] if c in n.sols else Dict(df=pd.DataFrame(), pnl={})
 
-                else:
-                    set_from_frame(c, attr, values)
+        if isinstance(variables, pd.DataFrame):
+            # case that variables are timedependent
+            pnl = n.pnl(c) if predefined else n.sols[c].pnl
+            values = variables.stack().map(variables_sol).unstack()
+            if c in n.passive_branch_components:
+                set_from_frame(pnl, 'p0', values)
+                set_from_frame(pnl, 'p1', - values)
+            elif c == 'Link':
+                set_from_frame(pnl, 'p0', values)
+                for i in ['1'] + additional_linkports(n):
+                    i_eff = '' if i == '1' else i
+                    eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
+                    set_from_frame(pnl, f'p{i}', - values * eff)
             else:
-                n.df(c)[attr+'_opt'] = variables.map(variables_sol)\
-                                        .fillna(n.df(c)[attr])
-        elif lookup.at[(c, attr), 'nominal']:
-            n.df(c)[attr+'_opt'] = n.df(c)[attr]
+                set_from_frame(pnl, attr, values)
+        else:
+            # case that variables are static
+            if predefined:
+                n.df(c)[attr + 'opt'] = variables.map(variables_sol)\
+                                                 .fillna(n.df(c)[attr])
+            else:
+                n.sols[c].df[attr] = variables.map(variables_sol)
 
-    for c, attr in lookup.index:
+    n.sols = Dict()
+    for c, attr in n.variables.index.intersection(lookup.index):
         map_solution(c, attr)
 
+    # if nominal capcity was no variable set optimal value to nominal
+    for c, attr in lookup.query('nominal').index.difference(n.variables.index):
+        n.df(c)[attr+'_opt'] = n.df(c)[attr]
+
+    # recalculate storageunit net dispatch
     if not n.df('StorageUnit').empty:
         c = 'StorageUnit'
         n.pnl(c)['p'] = n.pnl(c)['p_dispatch'] - n.pnl(c)['p_store']
 
     #duals
-    def map_dual(c, attr, pnl):
-        sign = -1 if 'lower' in attr else 1
-        if pnl:
-            set_from_frame(c, attr, get_con(n, c, attr, pop=pop).stack()
-                            .map(sign * constraints_dual).unstack())
-        else:
-            n.df(c)[attr] = get_con(n, c, attr, pop=pop).map(sign* constraints_dual)
-
     if keep_shadowprices == False:
         keep_shadowprices = []
     elif keep_shadowprices is None:
         keep_shadowprices = ['Bus', 'Line', 'GlobalConstraint']
 
-    for (c, attr), pnl in n.constraints.pnl.items():
-        if keep_shadowprices == True:
-            map_dual(c, attr, pnl)
-        elif c in keep_shadowprices:
-            map_dual(c, attr, pnl)
+    sp = n.constraints.index
+    if isinstance(keep_shadowprices, list):
+        sp = sp[sp.isin(keep_shadowprices, level=0)]
+
+
+    def map_dual(c, attr, predefined=True):
+        constraints = get_con(n, c, attr, pop=pop)
+        predefined = True
+        if c not in n.all_components:
+            predefined = False
+            n.duals[c] = n.duals[c] if c in n.duals else Dict(df=pd.DataFrame(), pnl={})
+        sign = -1 if 'lower' in attr else 1
+        if isinstance(constraints, pd.DataFrame):
+            # case that variables are timedependent
+            pnl = n.pnl(c) if predefined else n.duals[c].pnl
+            set_from_frame(pnl, attr, constraints.stack().map(sign *
+                           constraints_dual).unstack())
         else:
-            get_con(n, c, attr, pop=True)
+            # case that variables are static
+            if predefined:
+                n.df(c)[attr] = constraints.map(constraints_dual).fillna(n.df(c)[attr])
+            else:
+                n.duals[c].df[attr] = constraints.map(constraints_dual)
+
+    n.duals = Dict()
+    # extract shadow prices attached to components
+    for c, attr in sp:
+        map_dual(c, attr)
+
+    # discard remaining if wanted
+    if not keep_references:
+        for c, attr in n.constraints.index.difference(sp):
+            get_con(n, c, attr, pop)
 
     #load
     if len(n.loads):
-        set_from_frame('Load', 'p', get_as_dense(n, 'Load', 'p_set', sns))
+        set_from_frame(n.pnl('Load'), 'p', get_as_dense(n, 'Load', 'p_set', sns))
 
     # recalculate injection
     ca = [('Generator', 'p', 'bus' ), ('Store', 'p', 'bus'),

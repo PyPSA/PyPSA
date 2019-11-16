@@ -13,6 +13,7 @@ This module supports the linear optimal power flow calculation whithout using
 pyomo (see module linopt.py)
 """
 
+from .descriptors import Dict
 import pandas as pd
 import os, logging, re, io, subprocess
 import numpy as np
@@ -193,17 +194,17 @@ def join_exprs(df):
 #  references to vars and cons, rewrite this part to not store every reference
 # =============================================================================
 
-def _add_reference(n, df, c, attr, suffix, pnl=True):
-    attr_name = attr + suffix
+def _add_reference(ref_dict, df, attr, pnl=True):
     if pnl:
-        if attr_name in n.pnl(c):
-            n.pnl(c)[attr_name][df.columns] = df
+        if attr in ref_dict.pnl:
+            ref_dict.pnl[attr][df.columns] = df
         else:
-            n.pnl(c)[attr_name] = df
-        if n.pnl(c)[attr_name].shape[1] == n.df(c).shape[0]:
-            n.pnl(c)[attr_name] = n.pnl(c)[attr_name].reindex(columns=n.df(c).index)
+            ref_dict.pnl[attr] = df
     else:
-        n.df(c).loc[df.index, attr_name] = df
+        if ref_dict.df.empty:
+            ref_dict.df[attr] = df
+        else:
+            ref_dict.df.loc[df.index, attr] = df
 
 def set_varref(n, variables, c, attr, pnl=True, spec=''):
     """
@@ -215,11 +216,13 @@ def set_varref(n, variables, c, attr, pnl=True, spec=''):
     dict of time-depending quantities, e.g. network.generators_t .
     """
     if not variables.empty:
+        if c not in n.variables.index:
+            n.vars[c] = Dict(df=pd.DataFrame(), pnl=Dict())
         if ((c, attr) in n.variables.index) and (spec != ''):
             n.variables.at[idx[c, attr], 'specification'] += ', ' + spec
         else:
             n.variables.loc[idx[c, attr], :] = [pnl, spec]
-        _add_reference(n, variables, c, attr, var_ref_suffix, pnl=pnl)
+        _add_reference(n.vars[c], variables, attr, pnl=pnl)
 
 def set_conref(n, constraints, c, attr, pnl=True, spec=''):
     """
@@ -231,12 +234,13 @@ def set_conref(n, constraints, c, attr, pnl=True, spec=''):
     dict of time-depending quantities, e.g. network.generators_t .
     """
     if not constraints.empty:
+        if c not in n.constraints.index:
+            n.cons[c] = Dict(df=pd.DataFrame(), pnl=Dict())
         if ((c, attr) in n.constraints.index) and (spec != ''):
             n.constraints.at[idx[c, attr], 'specification'] += ', ' + spec
         else:
             n.constraints.loc[idx[c, attr], :] = [pnl, spec]
-        _add_reference(n, constraints, c, attr, con_ref_suffix, pnl=pnl)
-
+        _add_reference(n.cons[c], constraints, attr, pnl=pnl)
 
 def get_var(n, c, attr, pop=False):
     '''
@@ -257,14 +261,8 @@ def get_var(n, c, attr, pop=False):
     >>> get_var(n, 'Generator', 'p')
 
     '''
-    if n.variables.at[idx[c, attr], 'pnl']:
-        if pop:
-            return n.pnl(c).pop(attr + var_ref_suffix)
-        return n.pnl(c)[attr + var_ref_suffix]
-    else:
-        if pop:
-            return n.df(c).pop(attr + var_ref_suffix)
-        return n.df(c)[attr + var_ref_suffix]
+    vvars = n.vars[c].pnl if n.variables.pnl[c, attr] else n.vars[c].df
+    return vvars.pop(attr) if pop else vvars[attr]
 
 
 def get_con(n, c, attr, pop=False):
@@ -284,14 +282,8 @@ def get_con(n, c, attr, pop=False):
     -------
     get_con(n, 'Generator', 'mu_upper')
     """
-    if n.constraints.at[idx[c, attr], 'pnl']:
-        if pop:
-            return n.pnl(c).pop(attr + con_ref_suffix)
-        return n.pnl(c)[attr + con_ref_suffix]
-    else:
-        if pop:
-            return n.df(c).pop(attr + con_ref_suffix)
-        return n.df(c)[attr + con_ref_suffix]
+    cons = n.cons[c].pnl if n.constraints.pnl[c, attr] else n.cons[c].df
+    return cons.pop(attr) if pop else cons[attr]
 
 
 def clear_references(n):
