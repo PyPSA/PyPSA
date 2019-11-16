@@ -59,8 +59,7 @@ def define_nominal_for_extendable_variables(n, c, attr):
     if ext_i.empty: return
     lower = n.df(c)[attr+'_min'][ext_i]
     upper = n.df(c)[attr+'_max'][ext_i]
-    variables = write_bound(n, lower, upper)
-    set_varref(n, variables, c, attr)
+    define_variables(n, lower, upper, c, attr)
 
 
 def define_dispatch_for_extendable_variables(n, sns, c, attr):
@@ -79,8 +78,7 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if ext_i.empty: return
-    define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i],
-                     spec='extendables')
+    define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i], spec='extendables')
 
 
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
@@ -103,8 +101,7 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
-    variables = write_bound(n, lower, upper)
-    set_varref(n, variables, c, attr, spec='nonextendables')
+    define_variables(n, lower, upper, c, attr, spec='nonextendables')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -135,8 +132,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
 
     lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
-    constraints = write_constraint(n, lhs, '<=', rhs, axes)
-    set_conref(n, constraints, c, 'mu_lower', spec=attr)
+    define_constraints(n, lhs, '<=', rhs, c, 'mu_lower', axes=axes, spec=attr)
 
 
 def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
@@ -189,8 +185,7 @@ def define_ramp_limit_constraints(n, sns):
     gens_i = rup_i & get_non_extendable_i(n, c)
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
     rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-    constraints = write_constraint(n, lhs, '<=', rhs)
-    set_conref(n, constraints, c, 'mu_ramp_limit_up', spec='nonextendables')
+    define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     #ext up
     gens_i = rup_i & get_extendable_i(n, c)
@@ -198,15 +193,13 @@ def define_ramp_limit_constraints(n, sns):
     p_nom = get_var(n, c, 'p_nom')[gens_i]
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom),
                   as_pandas=True)
-    constraints = write_constraint(n, lhs, '<=', 0)
-    set_conref(n, constraints, c, 'mu_ramp_limit_up', spec='extendables')
+    define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     #fix down
     gens_i = rdown_i & get_non_extendable_i(n, c)
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
     rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
-    constraints = write_constraint(n, lhs, '>=', rhs)
-    set_conref(n, constraints, c, 'mu_ramp_limit_down', spec='nonextendables')
+    define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     #ext down
     gens_i = rdown_i & get_extendable_i(n, c)
@@ -214,8 +207,7 @@ def define_ramp_limit_constraints(n, sns):
     p_nom = get_var(n, c, 'p_nom')[gens_i]
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom),
                   as_pandas=True)
-    constraints = write_constraint(n, lhs, '>=', 0)
-    set_conref(n, constraints, c, 'mu_ramp_limit_down', spec='extendables')
+    define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
 
 def define_nodal_balance_constraints(n, sns):
@@ -255,8 +247,7 @@ def define_nodal_balance_constraints(n, sns):
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
            .reindex(columns=n.buses.index, fill_value=0))
-    constraints = write_constraint(n, lhs, sense, rhs)
-    set_conref(n, constraints, 'Bus', 'marginal_price')
+    define_constraints(n, lhs, sense, rhs, 'Bus', 'marginal_price')
 
 
 def define_kirchhoff_constraints(n, sns):
@@ -336,8 +327,7 @@ def define_storage_unit_constraints(n, sns):
     rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
     rhs.loc[sns[0], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
 
-    constraints = write_constraint(n, lhs, '==', rhs)
-    set_conref(n, constraints, c, 'mu_state_of_charge')
+    define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
 
 def define_store_constraints(n, sns):
@@ -376,8 +366,7 @@ def define_store_constraints(n, sns):
     rhs = pd.DataFrame(0, sns, stores_i)
     rhs.loc[sns[0], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
 
-    constraints = write_constraint(n, lhs, '==', rhs)
-    set_conref(n, constraints, c, 'mu_state_of_charge')
+    define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
 
 def define_global_constraints(n, sns):
@@ -430,7 +419,6 @@ def define_global_constraints(n, sns):
                         get_var(n, 'Store', 'e').loc[sns[-1], stores.index]))
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= stores.carrier.map(emissions) @ stores.e_initial
-
 
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
