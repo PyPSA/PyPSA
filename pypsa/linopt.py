@@ -45,8 +45,7 @@ def _get_handlers(axes, *maybearrays):
     else:
         shape = tuple(map(len, axes))
     length = np.prod(shape)
-    ser_or_frame = pd.DataFrame if len(shape) > 1 else pd.Series
-    return axes, shape, length, ser_or_frame
+    return axes, shape, length
 
 
 def write_bound(n, lower, upper, axes=None):
@@ -57,13 +56,13 @@ def write_bound(n, lower, upper, axes=None):
     Return a series or frame with variable references.
 
     """
-    axes, shape, length, ser_or_frame = _get_handlers(axes, lower, upper)
+    axes, shape, length = _get_handlers(axes, lower, upper)
     n._xCounter += length
     variables = np.array([f'x{x}' for x in range(n._xCounter - length, n._xCounter)],
                           dtype=object).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
     n.bounds_f.write(join_exprs(lower + ' <= '+ variables + ' <= '+ upper + '\n'))
-    return ser_or_frame(variables, *axes)
+    return to_pandas(variables, *axes)
 
 def write_constraint(n, lhs, sense, rhs, axes=None):
     """
@@ -73,7 +72,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     Return a series or frame with constraint references.
 
     """
-    axes, shape, length, ser_or_frame = _get_handlers(axes, lhs, sense, rhs)
+    axes, shape, length = _get_handlers(axes, lhs, sense, rhs)
     n._cCounter += length
     cons = np.array([f'c{x}' for x in range(n._cCounter - length, n._cCounter)],
                             dtype=object).reshape(shape)
@@ -81,15 +80,12 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
     n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n'))
-    return ser_or_frame(cons, *axes)
+    return to_pandas(cons, *axes)
 
 
 # =============================================================================
 # helpers, helper functions
 # =============================================================================
-
-var_ref_suffix = '_varref' # after solving replace with '_opt'
-con_ref_suffix = '_conref' # after solving replace with ''
 
 def broadcasted_axes(*dfs):
     """
@@ -108,6 +104,7 @@ def broadcasted_axes(*dfs):
         dfs = sum(dfs, ())
 
     for df in dfs:
+        shape = max(shape, np.asarray(df).shape)
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
                 assert (axes[-1] == df.axes[-1]).all(), ('Series or DataFrames '
@@ -115,8 +112,8 @@ def broadcasted_axes(*dfs):
                        'columns of Series and DataFrames going into the linear '
                        'expression are equally sorted.')
             axes = df.axes if len(df.axes) > len(axes) else axes
-            shape = tuple(map(len, axes))
     return axes, shape
+
 
 def align_with_static_component(n, c, attr):
     """
@@ -180,13 +177,20 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
     expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
-            expr += _str_array(coeff) + _str_array(var) + '\n'
+            expr = expr + _str_array(coeff) + _str_array(var) + '\n'
     if as_pandas:
-        twodims = len(shape) > 1
-        return pd.DataFrame(expr, *axes) if twodims else pd.Series(expr, *axes)
+        return to_pandas(expr, *axes)
     if return_axes:
         return (expr, *axes)
     return expr
+
+
+def to_pandas(array, *axes):
+    """
+    Convert a numpy array to pandas.Series if 1-dimensional or to a
+    pandas.DataFrame if 2-dimensional. Provide index and columns if needed
+    """
+    return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
 
 def _str_array(array):
@@ -196,7 +200,7 @@ def _str_array(array):
         array = array.values
     if isinstance(array, np.ndarray):
         if not (array.dtype == object) and array.size:
-            signs = pd.Series(array) if array.ndim == 1 else pd.DataFrame(array)
+            signs = to_pandas(array)
             signs = (signs.pipe(np.sign)
                      .replace([0, 1, -1], ['+', '+', '-']).values)
             array = signs + abs(array).astype(str) + ' '
@@ -230,11 +234,13 @@ def _add_reference(ref_dict, df, attr, pnl=True):
 def set_varref(n, variables, c, attr, spec=''):
     """
     Sets variable references to the network.
-    If pnl is False it stores a series of variable names in the static
-    dataframe of the given component. The columns name is then given by the
-    attribute name attr and the globally define var_ref_suffix.
-    If pnl is True if stores the given frame of references in the component
-    dict of time-depending quantities, e.g. network.generators_t .
+    One-dimensional variable references will be collected at n.vars[c].df,
+    two-dimensional varaibles in n.vars[c].pnl
+    For example:
+    * nominal capacity variables for generators are stored in
+      `n.vars.Generator.df.p_nom`
+    * operational variables for generators are stored in
+      `n.vars.Generator.pnl.p`
     """
     if not variables.empty:
         pnl = variables.ndim == 2
@@ -248,12 +254,14 @@ def set_varref(n, variables, c, attr, spec=''):
 
 def set_conref(n, constraints, c, attr, spec=''):
     """
-    Sets constraint references to the network.
-    If pnl is False it stores a series of constraints names in the static
-    dataframe of the given component. The columns name is then given by the
-    attribute name attr and the globally define con_ref_suffix.
-    If pnl is True if stores the given frame of references in the component
-    dict of time-depending quantities, e.g. network.generators_t .
+    Sets variable references to the network.
+    One-dimensional constraint references will be collected at n.cons[c].df,
+    two-dimensional in n.cons[c].pnl
+    For example:
+    * constraints for nominal capacity variables for generators are stored in
+      `n.cons.Generator.df.mu_upper`
+    * operational capacity limits for generators are stored in
+      `n.cons.Generator.pnl.mu_upper`
     """
     if not constraints.empty:
         pnl = constraints.ndim == 2
@@ -307,18 +315,6 @@ def get_con(n, c, attr, pop=False):
     """
     cons = n.cons[c].pnl if n.constraints.pnl[c, attr] else n.cons[c].df
     return cons.pop(attr) if pop else cons[attr]
-
-
-def clear_references(n):
-    for c in n.iterate_components():
-        keys = list(c.pnl.keys())
-        for k in keys:
-            if (con_ref_suffix in k) or - (var_ref_suffix in k):
-                c.pnl.pop(k)
-    if 'variables' in n.__dir__():
-        del n.variables
-    if 'constraints' in n.__dir__():
-        del n.constraints
 
 
 # =============================================================================

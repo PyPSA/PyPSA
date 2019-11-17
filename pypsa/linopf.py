@@ -25,9 +25,8 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
-                     run_and_read_gurobi, run_and_read_glpk,
-                     clear_references, define_constraints, define_variables,
-                     align_with_static_component)
+                     run_and_read_gurobi, run_and_read_glpk, define_constraints,
+                     define_variables, align_with_static_component)
 
 
 import pandas as pd
@@ -787,7 +786,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
     n.determine_network_topology()
-    clear_references(n)
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, extra_functionality)
