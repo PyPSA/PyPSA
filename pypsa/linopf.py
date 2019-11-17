@@ -157,13 +157,13 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
         if attr + '_set' not in n.pnl(c): return
         fix = n.pnl(c)[attr + '_set'].unstack().dropna()
         if fix.empty: return
-        lhs = linexpr((1, get_var(n, c, attr).unstack()[fix.index]))
+        lhs = linexpr((1, get_var(n, c, attr).unstack()[fix.index]), as_pandas=False)
         constraints = write_constraint(n, lhs, '=', fix).unstack().T
     else:
         if attr + '_set' not in n.df(c): return
         fix = n.df(c)[attr + '_set'].dropna()
         if fix.empty: return
-        lhs = linexpr((1, get_var(n, c, attr)[fix.index]))
+        lhs = linexpr((1, get_var(n, c, attr)[fix.index]), as_pandas=False)
         constraints = write_constraint(n, lhs, '=', fix)
     set_conref(n, constraints, c, f'mu_{attr}_set')
 
@@ -183,7 +183,7 @@ def define_ramp_limit_constraints(n, sns):
 
     #fix up
     gens_i = rup_i & get_non_extendable_i(n, c)
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
     define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
@@ -191,13 +191,12 @@ def define_ramp_limit_constraints(n, sns):
     gens_i = rup_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_up'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom),
-                  as_pandas=True)
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
     define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     #fix down
     gens_i = rdown_i & get_non_extendable_i(n, c)
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), as_pandas=True)
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
     define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
@@ -205,8 +204,7 @@ def define_ramp_limit_constraints(n, sns):
     gens_i = rdown_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_down'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom),
-                  as_pandas=True)
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
     define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
 
@@ -220,8 +218,7 @@ def define_nodal_balance_constraints(n, sns):
         #additional sign only necessary for branches in reverse direction
         if 'sign' in n.df(c):
             sign = sign * n.df(c).sign
-        expr = linexpr((sign, get_var(n, c, attr)), as_pandas=True)\
-                       .rename(columns=n.df(c)[groupcol])
+        expr = linexpr((sign, get_var(n, c, attr))).rename(columns=n.df(c)[groupcol])
         # drop empty bus2, bus3 if multiline link
         if c == 'Link':
             expr.drop(columns='', errors='ignore', inplace=True)
@@ -261,7 +258,7 @@ def define_kirchhoff_constraints(n, sns):
 
     def cycle_flow(ds):
         ds = ds[lambda ds: ds!=0.].dropna()
-        vals = linexpr((ds, branch_vars[ds.index])) + '\n'
+        vals = linexpr((ds, branch_vars[ds.index]), as_pandas=False) + '\n'
         return vals.sum(1)
 
     constraints = []
@@ -316,7 +313,7 @@ def define_storage_unit_constraints(n, sns):
     lhs, *axes = linexpr(*coeff_var, return_axes=True)
 
     def masked_term(coeff, var, cols):
-        return linexpr((coeff[cols], var[cols]), as_pandas=True)\
+        return linexpr((coeff[cols], var[cols]))\
                .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
     if ('StorageUnit', 'spill') in n.variables.index:
@@ -357,7 +354,7 @@ def define_store_constraints(n, sns):
     lhs, *axes = linexpr(*coeff_var, return_axes=True)
 
     def masked_term(coeff, var, cols):
-        return linexpr((coeff[cols], var[cols]), as_pandas=True)\
+        return linexpr((coeff[cols], var[cols]))\
                .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
     lhs += masked_term(eff_stand, previous_e_cyclic, cyclic_i)
@@ -398,7 +395,8 @@ def define_global_constraints(n, sns):
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
             em_pu = n.snapshot_weightings.to_frame() @ em_pu.to_frame('weightings').T
-            vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]))
+            vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
+                           as_pandas=False)
             lhs += join_exprs(vals)
 
         #storage units
@@ -406,8 +404,9 @@ def define_global_constraints(n, sns):
                                     'not cyclic_state_of_charge')
         sus_i = sus.index
         if not sus.empty:
-            vals = linexpr((-sus.carrier.map(emissions),
-                get_var(n, 'StorageUnit', 'state_of_charge').loc[sns[-1], sus_i]))
+            coeff_val = (-sus.carrier.map(emissions), get_var(n, 'StorageUnit',
+                         'state_of_charge').loc[sns[-1], sus_i])
+            vals = linexpr(coeff_val, as_pandas=False)
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
 
@@ -415,8 +414,9 @@ def define_global_constraints(n, sns):
         n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
-            vals = linexpr((-stores.carrier.map(emissions),
-                        get_var(n, 'Store', 'e').loc[sns[-1], stores.index]))
+            coeff_val = (-stores.carrier.map(emissions), get_var(n, 'Store', 'e')
+                         .loc[sns[-1], stores.index])
+            vals = linexpr(coeff_val, as_pandas=False)
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= stores.carrier.map(emissions) @ stores.e_initial
 
@@ -436,7 +436,8 @@ def define_global_constraints(n, sns):
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
-            v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]))
+            v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]),
+                        as_pandas=False)
             lhs += join_exprs(v) + '\n'
         if lhs == '': continue
         sense = glc.sense
@@ -453,7 +454,8 @@ def define_global_constraints(n, sns):
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
-            v = linexpr((n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]))
+            v = linexpr((n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]),
+                        as_pandas=False)
             lhs += join_exprs(v) + '\n'
         if lhs == '': continue
         sense = glc.sense
@@ -471,7 +473,7 @@ def define_objective(n, sns):
     nom_attr = nominal_attrs.items()
     constant = sum(n.df(c)[attr] @ n.df(c).capital_cost for c, attr in nom_attr)
     object_const = write_bound(n, constant, constant)
-    n.objective_f.write(linexpr((1, object_const))[0])
+    n.objective_f.write(linexpr((1, object_const), as_pandas=False)[0])
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
@@ -479,16 +481,13 @@ def define_objective(n, sns):
                 .mul(n.snapshot_weightings[sns], axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
-        for t in terms.flatten():
-            n.objective_f.write(t)
+        n.objective_f.write(join_exprs(terms))
     #investment
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr)[cost.index])) + '\n'
-        for t in terms.flatten():
-            n.objective_f.write(t)
-
+        n.objective_f.write(join_exprs(terms))
 
 
 def prepare_lopf(n, snapshots=None, keep_files=False,

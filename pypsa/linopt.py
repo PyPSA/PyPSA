@@ -127,13 +127,13 @@ def align_with_static_component(n, c, attr):
         n.vars[c].pnl[attr] = n.vars[c].pnl[attr].reindex(columns=n.df(c).index)
 
 
-def linexpr(*tuples, as_pandas=False, return_axes=False):
+def linexpr(*tuples, as_pandas=True, return_axes=False):
     """
     Elementwise concatenation of tuples in the form (coefficient, variables).
-    Coefficient and variables can be arrays, series or frames. Returns
-    a np.ndarray of strings. If return_axes is set to True and a pd.Series or
-    pd.DataFrame was past, the corresponding index (and column if existent) is
-    returned additionaly.
+    Coefficient and variables can be arrays, series or frames. Per default
+    returns a pandas.Series or pandas.DataFrame of strings. If return_axes
+    is set to True the return value is split into values and axes, where values
+    are the numpy.array and axes a tuple containing index and column if present.
 
     Parameters
     ----------
@@ -141,7 +141,7 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
         Each tuple must of the form (coeff, var), where
             * coeff is a numerical  value, or a numerical array, series, frame
             * var is a str or a array, series, frame of variable strings
-    as_pandas : bool, default False
+    as_pandas : bool, default True
         Whether to return to resulting array as a series, if 1-dimensional, or
         a frame, if 2-dimensional. Supersedes return_axes argument.
     return_axes: Boolean, default False
@@ -158,11 +158,6 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
 
     Create the linear expression strings
 
-    >>> linexpr((coeff1, var1), (coeff2, var2))
-    array(['+1.0 a1 -0.5 b1', '+1.0 a2 -0.3 b2', '+1.0 a3 -1.0 b3'], dtype=object)
-
-    For turning the result into a series or frame again:
-
     >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=True)
     0    +1.0 a1 -0.5 b1
     1    +1.0 a2 -0.3 b2
@@ -170,7 +165,12 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
     dtype: object
 
     For a further step the resulting frame can be used as the lhs of
-    :func:`pypsa.linopt.write_contraint`
+    :func:`pypsa.linopt.define_constraints`
+
+    For retrieving only the values:
+
+    >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=False)
+    array(['+1.0 a1 -0.5 b1', '+1.0 a2 -0.3 b2', '+1.0 a3 -1.0 b3'], dtype=object)
 
     """
     axes, shape = broadcasted_axes(*tuples)
@@ -178,10 +178,10 @@ def linexpr(*tuples, as_pandas=False, return_axes=False):
     if np.prod(shape):
         for coeff, var in tuples:
             expr = expr + _str_array(coeff) + _str_array(var) + '\n'
-    if as_pandas:
-        return to_pandas(expr, *axes)
     if return_axes:
         return (expr, *axes)
+    if as_pandas:
+        return to_pandas(expr, *axes)
     return expr
 
 
