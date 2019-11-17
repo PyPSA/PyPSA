@@ -640,24 +640,29 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         sp = sp[sp.isin(keep_shadowprices, level=0)]
 
 
-    def map_dual(c, attr, predefined=True):
-        constraints = get_con(n, c, attr, pop=pop)
-        predefined = True
-        if c not in n.all_components:
-            predefined = False
-            n.duals[c] = n.duals[c] if c in n.duals else Dict(df=pd.DataFrame(), pnl={})
+    def map_dual(c, attr):
+        # If c is a pypsa component name the dual is store at n.pnl(c)
+        # or n.df(c). For the second case the index of the constraints have to
+        # be a subset of n.df(c).index otherwise the dual is stored at
+        # n.duals[c].df
         sign = -1 if 'lower' in attr else 1
-        if isinstance(constraints, pd.DataFrame):
-            # case that variables are timedependent
-            pnl = n.pnl(c) if predefined else n.duals[c].pnl
-            set_from_frame(pnl, attr, constraints.stack().map(sign *
-                           constraints_dual).unstack())
+        constraints = get_con(n, c, attr, pop=pop)
+        is_pnl = isinstance(constraints, pd.DataFrame)
+        to_component = c in n.all_components
+        if is_pnl:
+            duals = constraints.stack().map(sign * constraints_dual).unstack()
+            if c not in n.duals and not to_component:
+                n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
+            pnl = n.pnl(c) if to_component else n.duals[c].pnl
+            set_from_frame(pnl, attr, duals)
         else:
-            # case that variables are static
-            if predefined:
-                n.df(c)[attr] = constraints.map(constraints_dual).fillna(n.df(c)[attr])
-            else:
-                n.duals[c].df[attr] = constraints.map(constraints_dual)
+            duals = constraints.map(constraints_dual)
+            if to_component:
+                to_component = (duals.index.isin(n.df(c).index).all())
+            if c not in n.duals and not to_component:
+                n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
+            df = n.df(c) if to_component else n.duals[c].df
+            df[attr] = duals
 
     n.duals = Dict()
     # extract shadow prices attached to components
