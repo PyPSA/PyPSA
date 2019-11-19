@@ -119,7 +119,7 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
 
 .. warning::
     On Windows the previous command may currently cause a ``MissingRuleException`` due to problems with output files in subfolders.
-    This is an `open issue < https://github.com/snakemake/snakemake/issues/46>`_ at `snakemake <https://snakemake.readthedocs.io/>`_.
+    This is an `open issue <https://github.com/snakemake/snakemake/issues/46>`_ at `snakemake <https://snakemake.readthedocs.io/>`_.
     Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake solve_all_elec_networks``.
 
 This triggers a workflow of multiple preceding jobs that depend on each rule's inputs and outputs:
