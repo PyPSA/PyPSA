@@ -4,7 +4,7 @@ co2limit,:math:`t_{CO_2-eq}/a`,float,"Cap on total annual system carbon dioxide 
 co2base,:math:`t_{CO_2-eq}/a`,float,"Reference value of total annual system carbon dioxide emissions if relative emission reduction target is specified in ``{opts}`` wildcard."
 agg_p_nom_limits,--,file path,"Reference to ``.csv`` file specifying per carrier generator nominal capacity constraints for individual countries if ``'CCL'`` is in ``{opts}`` wildcard. Defaults to ``data/agg_p_nom_minmax.csv``."
 extendable_carriers,,,
--- Generator,--,"Any subset  of {'OCGT','CCGT'}","Places extendable conventional power plants (OCGT and/or CCGT) where gas power plants are located today without capacity limits."
+-- Generator,--,"Any subset  of {'OCGT','CCGT', 'nuclear'}","Places extendable conventional power plants (OCGT, CCGT and/or nuclear) where such power plants are located today without capacity limits."
 -- StorageUnit,--,"Any subset of {'battery','H2'}","Places extendable storage units (battery and/or hydrogen) at every node/bus without capacity limits."
 max_hours,,,
 -- battery,h,float,"Maximum state of charge capacity of the battery in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_."

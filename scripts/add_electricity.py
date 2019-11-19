@@ -460,10 +460,23 @@ def attach_extendable_generators(n, costs, ppl):
                    capital_cost=costs.at['CCGT', 'capital_cost'],
                    marginal_cost=costs.at['CCGT', 'marginal_cost'],
                    efficiency=costs.at['CCGT', 'efficiency'])
+
+        elif suptech == 'nuclear':
+            nuclear = ppl.query("carrier == 'nuclear'").groupby('bus', as_index=False).first()
+            n.madd('Generator', nuclear.index,
+                suffix=' nuclear',
+                bus=nuclear['bus'],
+                carrier=tech,
+                p_nom_extendable=True,
+                p_nom=0.,
+                capital_cost=costs.at['nuclear', 'capital_cost'],
+                marginal_cost=costs.at['nuclear', 'marginal_cost'],
+                efficiency=costs.at['nuclear', 'efficiency'])
+
         else:
             raise NotImplementedError(f"Adding extendable generators for carrier "
                                       "'{tech}' is not implemented, yet. "
-                                      "Only OCGT and CCGT are allowed at the moment.")
+                                      "Only OCGT, CCGT and nuclear are allowed at the moment.")
 
 
 def attach_storage(n, costs):
