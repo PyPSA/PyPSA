@@ -22,15 +22,122 @@ from pandas import IndexSlice as idx
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Front end function
+# Front end functions
 # =============================================================================
 
 def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
+    """
+    Defines variable(s) for pypsa-network with given lower bound(s) and upper
+    bound(s). The variables are stored in the network object under n.vars with
+    key of the variable name. If multiple variables are defined at ones, at
+    least one of lower and upper has to be an array (including pandas) of
+    shape > (1,) or axes have to define the dimensions of the variables.
+
+    Parameter
+    ---------
+    n : pypsa.Network
+    lower : pd.Series/pd.DataFrame/np.array/str/float
+        lower bound(s) for the variable(s)
+    upper : pd.Series/pd.DataFrame/np.array/str/float
+        upper bound(s) for the variable(s)
+    name : str
+        general name of the variable (or component which the variable is
+        referring to). The variable will then be stored under:
+            * n.vars[name].pnl if the variable is two-dimensional
+            * n.vars[name].df if the variable is one-dimensional
+    attr : str default ''
+        Specifying name of the variable, defines under which name the variable(s)
+        are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
+        if one-dimensional
+    axes : pd.Index or tuple of pd.Index objects, default None
+        Specifies the axes and therefore the shape of the variables if bounds
+        are single strings or floats. This is helpful when mutliple variables
+        have the same upper and lower bound.
+
+
+    Example
+    --------
+
+    Let's say we want to define a demand-side-managed load at each bus of
+    network n, which has a minimum of 0 and a maximum of 10. We then define
+    lower bound (lb) and upper bound (ub) and pass it to define_variables
+
+    >>> from pypsa.linopt import define_variables, get_var
+    >>> lb = pd.DataFrame(0, index=n.snapshots, columns=n.buses.index)
+    >>> ub = pd.DataFrame(10, index=n.snapshots, columns=n.buses.index)
+    >>> define_variables(n, lb, ub, 'DSM', 'variableload')
+
+    Now the variables can be accessed by :func:`pypsa.linopt.get_var` using
+
+    >>> variables = get_var(n, 'DSM', 'variableload')
+
+    Note that this is usefull for the `extra_functionality` argument.
+    """
     var = write_bound(n, lower, upper, axes)
     set_varref(n, var, name, attr, spec=spec)
 
 
 def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
+    """
+    Defines constraint(s) for pypsa-network with given left hand side (lhs),
+    sense and right hand side (rhs). The constraints are stored in the network
+    object under n.cons with key of the constraint name. If multiple constraints
+    are defined at ones only using np.arrays then the axes argument can be used
+    for defining the axes for the constraints (this is espececially recommended
+    for time-dependent constraints). If one of lhs, sense and rhs is a
+    pd.Series/pd.DataFrame the axes argument is not necessary.
+
+    Parameters
+    ----------
+    n: pypsa.Network
+    lhs: pd.Series/pd.DataFrame/np.array/str/float
+        left hand side of the constraint(s), created with
+        :func:`pypsa.linot.linexpr`.
+    sense: pd.Series/pd.DataFrame/np.array/str/float
+        sense(s) of the constraint(s)
+    rhs: pd.Series/pd.DataFrame/np.array/str/float
+        right hand side of the constraint(s), must only contain pure constants,
+        no variables
+    name: str
+        general name of the constraint (or component which the constraint is
+        referring to). The constraint will then be stored under:
+
+            * n.cons[name].pnl if the constraint is two-dimensional
+            * n.cons[name].df if the constraint is one-dimensional
+    attr: str default ''
+        Specifying name of the constraint, defines under which name the
+        constraint(s) are stored in n.cons[name].pnl if two-dimensional or in
+        n.cons[name].df if one-dimensional
+    axes: pd.Index or tuple of pd.Index objects, default None
+        Specifies the axes if all of lhs, sense and rhs are np.arrays or single
+        strings or floats.
+
+
+    Example
+    --------
+
+    Let's say we want to constraint all gas generators to a maximum of 100 MWh
+    during the first 10 snapshots. We then firstly get all operational variables
+    for this subset and constraint there sum to less equal 100.
+
+    >>> from pypsa.linopt import get_var, linexpr, defin_constraints
+    >>> gas_i = n.generators.query('carrier == "Natural Gas"').index
+    >>> gas_vars = get_var(n, 'Generator', 'p').loc[n.snapshots[:10], gas_i]
+    >>> lhs = linexpr((1, gas_vars)).sum().sum()
+    >>> define_(n, lhs, '<=', 100, 'Generator', 'gas_power_limit')
+
+    Now the constraint references can be accessed by
+    :func:`pypsa.linopt.get_con` using
+
+    >>> cons = get_var(n, 'Generator', 'gas_power_limit')
+
+    Under the hook they are stored in n.cons.Generator.pnl.gas_power_limit.
+    For retrieving their shadow prices add the general name of the constraint
+    to the keep_shadowprices argument.
+
+    Note that this is usefull for the `extra_functionality` argument.
+
+    """
     con = write_constraint(n, lhs, sense, rhs, axes)
     set_conref(n, con, name, attr, spec=spec)
 
@@ -54,7 +161,6 @@ def write_bound(n, lower, upper, axes=None):
     upper are floats it demands to give pass axes, a tuple of (index, columns)
     or (index), for creating the variable of same upper and lower bounds.
     Return a series or frame with variable references.
-
     """
     axes, shape, length = _get_handlers(axes, lower, upper)
     n._xCounter += length
@@ -70,7 +176,6 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
-
     """
     axes, shape, length = _get_handlers(axes, lhs, sense, rhs)
     n._cCounter += length
@@ -137,10 +242,11 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
 
     Parameters
     ----------
-    tulples: tuple of tuples
+    tuples: tuple of tuples
         Each tuple must of the form (coeff, var), where
-            * coeff is a numerical  value, or a numerical array, series, frame
-            * var is a str or a array, series, frame of variable strings
+
+        * coeff is a numerical  value, or a numerical array, series, frame
+        * var is a str or a array, series, frame of variable strings
     as_pandas : bool, default True
         Whether to return to resulting array as a series, if 1-dimensional, or
         a frame, if 2-dimensional. Supersedes return_axes argument.
@@ -158,7 +264,7 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
 
     Create the linear expression strings
 
-    >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=True)
+    >>> linexpr((coeff1, var1), (coeff2, var2))
     0    +1.0 a1 -0.5 b1
     1    +1.0 a2 -0.3 b2
     2    +1.0 a3 -1.0 b3

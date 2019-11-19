@@ -597,28 +597,26 @@ An additional constraint can easily be implemented by using the funtions
 
 * ``pypsa.linopt.get_var`` for getting the variables which should be included in the constraint
 * ``pypsa.linopt.linexpr`` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-*  ``pypsa.linopt.write_constraint`` for writing out the constraint to the ``.lp`` file
-*  ``pypsa.linopt.set_conref`` for attaching the constraint to the network itself, this only necessary if a shadow price should be extracted after solving 
+* ``pypsa.linopt.define_constraints`` for defining a network constraint.
 
 The are functions defined as such: 
 
 .. automethod:: pypsa.linopt.get_var
 .. automethod:: pypsa.linopt.linexpr
-.. automethod:: pypsa.linopt.write_constraint
-.. automethod:: pypsa.linopt.set_conref
+.. automethod:: pypsa.linopt.define_constraints
 
-The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the component name, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function. 
+The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function. 
 
-Fixing variables
-----------------
+.. Fixing variables
+.. ----------------
 
-This feature is only valid if pyomo is disabled in the lopf function (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a pandas DataFrame or a column with the same name as the variable but with suffix '_set'. For all not ``NaN`` values additional constraints will be build to fix the variables.
+.. This feature is only valid if pyomo is disabled in the lopf function (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a pandas DataFrame or a column with the same name as the variable but with suffix '_set'. For all not ``NaN`` values additional constraints will be build to fix the variables.
 
-For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
+.. For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
 
-  >>> network.generators_t['p_set'] = pd.DataFrame(200, index=network.snapshots, columns=['gas1'])
+..   >>> network.generators_t['p_set'] = pd.DataFrame(200, index=network.snapshots, columns=['gas1'])
 
-The lopf will now build extra constraints to fix the ``p`` variables of generator 'gas1' to 200. In the same manner, we can fix the variables only for some specific snapshots. This is applicable to all variables, also ``state_of_charge`` for storage units or ``p`` for links. Static investment variables can be fixed via adding additional columns, e.g. a ``s_nom_set`` column to ``network.lines``. 
+.. The lopf will now build extra constraints to fix the ``p`` variables of generator 'gas1' to 200. In the same manner, we can fix the variables only for some specific snapshots. This is applicable to all variables, also ``state_of_charge`` for storage units or ``p`` for links. Static investment variables can be fixed via adding additional columns, e.g. a ``s_nom_set`` column to ``network.lines``. 
 
 
 
