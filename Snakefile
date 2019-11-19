@@ -24,7 +24,7 @@ rule solve_all_elec_networks:
         expand("results/networks/elec_s{simpl}_{clusters}_l{ll}_{opts}.nc",
                **config['scenario'])
 
-if config['enable']['prepare_links_p_nom']:
+if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
         output: 'data/links_p_nom.csv'
         threads: 1
@@ -39,12 +39,14 @@ datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls',
             'NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp', 'nama_10r_3popgdp.tsv.gz', 
             'nama_10r_3gdp.tsv.gz', 'time_series_60min_singleindex_filtered.csv', 
             'corine/g250_clc06_V18_5.tif']
-if not config['tutorial']:
+
+if not config.get('tutorial', False):
     datafiles.extend(["natura/Natura2000_end2015.shp", "GEBCO_2014_2D.nc"])
 
-rule retrieve_databundle:
-    output:  expand('data/bundle/{file}', file=datafiles)
-    script: 'scripts/retrieve_databundle.py'
+if config['enable'].get('retrieve_databundle', True):
+    rule retrieve_databundle:
+        output:  expand('data/bundle/{file}', file=datafiles)
+        script: 'scripts/retrieve_databundle.py'
 
 rule build_powerplants:
     input:
@@ -107,7 +109,7 @@ rule build_bus_regions:
     # group: 'nonfeedin_preparation'
     script: "scripts/build_bus_regions.py"
 
-if config['enable']['build_cutout']:        
+if config['enable'].get('build_cutout', False):        
     rule build_cutout:
         output: directory("cutouts/{cutout}")
         resources: mem=config['atlite'].get('nprocesses', 4) * 1000
@@ -121,7 +123,7 @@ else:
         script: 'scripts/retrieve_cutout.py'
 
 
-if config['enable']['build_natura_raster']:        
+if config['enable'].get('build_natura_raster', False):        
     rule build_natura_raster:
         input: 
             natura="data/bundle/natura/Natura2000_end2015.shp",
