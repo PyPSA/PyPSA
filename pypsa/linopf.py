@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
 
+
 def define_nominal_for_extendable_variables(n, c, attr):
     """
     Initializes variables for nominal capacities for a given component and a
@@ -181,26 +182,26 @@ def define_ramp_limit_constraints(n, sns):
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
 
-    #fix up
+    # fix up
     gens_i = rup_i & get_non_extendable_i(n, c)
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
     define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
-    #ext up
+    # ext up
     gens_i = rup_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_up'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
     define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
-    #fix down
+    # fix down
     gens_i = rdown_i & get_non_extendable_i(n, c)
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
     define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
-    #ext down
+    # ext down
     gens_i = rdown_i & get_extendable_i(n, c)
     limit_pu = n.df(c)['ramp_limit_down'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -215,7 +216,7 @@ def define_nodal_balance_constraints(n, sns):
     """
 
     def bus_injection(c, attr, groupcol='bus', sign=1):
-        #additional sign only necessary for branches in reverse direction
+        # additional sign only necessary for branches in reverse direction
         if 'sign' in n.df(c):
             sign = sign * n.df(c).sign
         expr = linexpr((sign, get_var(n, c, attr))).rename(columns=n.df(c)[groupcol])
@@ -289,7 +290,7 @@ def define_storage_unit_constraints(n, sns):
     sus_i = n.storage_units.index
     if sus_i.empty: return
     c = 'StorageUnit'
-    #spillage
+    # spillage
     upper = get_as_dense(n, c, 'inflow', sns).loc[:, lambda df: df.max() > 0]
     spill = write_bound(n, 0, upper)
     set_varref(n, spill, 'StorageUnit', 'spill')
@@ -390,7 +391,7 @@ def define_global_constraints(n, sns):
 
         if emissions.empty: continue
 
-        #generators
+        # generators
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
@@ -399,7 +400,7 @@ def define_global_constraints(n, sns):
                            as_pandas=False)
             lhs += join_exprs(vals)
 
-        #storage units
+        # storage units
         sus = n.storage_units.query('carrier in @emissions.index and '
                                     'not cyclic_state_of_charge')
         sus_i = sus.index
@@ -410,7 +411,7 @@ def define_global_constraints(n, sns):
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
 
-        #stores
+        # stores
         n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
@@ -426,7 +427,7 @@ def define_global_constraints(n, sns):
     # for the next two to we need a line carrier
     if len(n.global_constraints) > len(glcs):
         n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
-    #expansion limits
+    # expansion limits
     glcs = n.global_constraints.query('type == '
                                       '"transmission_volume_expansion_limit"')
     substr = lambda s: re.sub('[\[\]\(\)]', '', s)
@@ -445,7 +446,7 @@ def define_global_constraints(n, sns):
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
-    #expansion cost limits
+    # expansion cost limits
     glcs = n.global_constraints.query('type == '
                                       '"transmission_expansion_cost_limit"')
     for name, glc in glcs.iterrows():
@@ -482,7 +483,7 @@ def define_objective(n, sns):
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         n.objective_f.write(join_exprs(terms))
-    #investment
+    # investment
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
         if cost.empty: continue
@@ -556,7 +557,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     for f, fd in (('bounds_f', fdb), ('constraints_f', fdc), ('objective_f', fdo)):
         getattr(n, f).close(); delattr(n, f); os.close(fd)
 
-    #concate files
+    # concate files
     with open(problem_fn, 'wb') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn]:
             with open(f,'rb') as fd:
@@ -591,9 +592,10 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         if (c, attr) not in lookup.index:
             predefined = False
             n.sols[c] = n.sols[c] if c in n.sols else Dict(df=pd.DataFrame(), pnl={})
-
+        n.solutions.at[(c, attr), 'in_comp'] = predefined
         if isinstance(variables, pd.DataFrame):
             # case that variables are timedependent
+            n.solutions.at[(c, attr), 'pnl'] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             values = variables.stack().map(variables_sol).unstack()
             if c in n.passive_branch_components:
@@ -609,13 +611,16 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
                 set_from_frame(pnl, attr, values)
         else:
             # case that variables are static
+            n.solutions.at[(c, attr), 'pnl'] = False
+            sol = variables.map(variables_sol)
             if predefined:
-                n.df(c)[attr + 'opt'] = variables.map(variables_sol)\
-                                                 .fillna(n.df(c)[attr])
+                non_ext = n.df(c)[attr]
+                n.df(c)[attr + '_opt'] = sol.reindex(non_ext.index).fillna(non_ext)
             else:
-                n.sols[c].df[attr] = variables.map(variables_sol)
+                n.sols[c].df[attr] = sol
 
     n.sols = Dict()
+    n.solutions = pd.DataFrame(index=n.variables.index, columns=['in_comp', 'pnl'])
     for c, attr in n.variables.index.intersection(lookup.index):
         map_solution(c, attr)
 
@@ -628,16 +633,16 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         c = 'StorageUnit'
         n.pnl(c)['p'] = n.pnl(c)['p_dispatch'] - n.pnl(c)['p_store']
 
-    #duals
+    # duals
     if keep_shadowprices == False:
         keep_shadowprices = []
-    elif keep_shadowprices is None:
-        keep_shadowprices = ['Bus', 'Line', 'GlobalConstraint']
+#    # TODO move to argdefault
+#    elif keep_shadowprices is None:
+#        keep_shadowprices = ['Bus', 'Line', 'GlobalConstraint']
 
     sp = n.constraints.index
     if isinstance(keep_shadowprices, list):
         sp = sp[sp.isin(keep_shadowprices, level=0)]
-
 
     def map_dual(c, attr):
         # If c is a pypsa component name the dual is store at n.pnl(c)
@@ -647,23 +652,28 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         sign = -1 if 'lower' in attr else 1
         constraints = get_con(n, c, attr, pop=pop)
         is_pnl = isinstance(constraints, pd.DataFrame)
+        n.dualities.at[(c, attr), 'pnl'] = is_pnl
         to_component = c in n.all_components
         if is_pnl:
+            n.dualities.at[(c, attr), 'in_comp'] = to_component
             duals = constraints.stack().map(sign * constraints_dual).unstack()
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
             pnl = n.pnl(c) if to_component else n.duals[c].pnl
             set_from_frame(pnl, attr, duals)
         else:
+            # here to_component can change
             duals = constraints.map(constraints_dual)
             if to_component:
                 to_component = (duals.index.isin(n.df(c).index).all())
+            n.dualities.at[(c, attr), 'in_comp'] = to_component
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
             df = n.df(c) if to_component else n.duals[c].df
             df[attr] = duals
 
     n.duals = Dict()
+    n.dualities = pd.DataFrame(index=sp, columns=['in_comp', 'pnl'])
     # extract shadow prices attached to components
     for c, attr in sp:
         map_dual(c, attr)
@@ -713,8 +723,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None,
          extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
-         keep_shadowprices=None, solver_options=None,
-         warmstart=False, store_basis=True):
+         keep_shadowprices=['Bus', 'Line', 'GlobalConstraint'],
+         solver_options=None, warmstart=False, store_basis=True):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -763,14 +773,13 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         *with* crossover is used for solving.
     keep_references : bool, default False
         Keep the references of variable and constraint names withing the
-        network, e.g. n.generators_t.p_varref - useful for constructing
-        extra_functionality or debugging
-    keep_shadowprices : bool or list of component names, default None
-        Keep shadow prices for all constraints, if set to True.
-        These are stored at e.g. n.generators_t.mu_upper for upper limit
-        of p_nom. If a list of component names is passed, shadow
-        prices of variables attached to those are extracted. If set to None,
-        components default to ['Bus', 'Line', 'GlobalConstraint']
+        network. These can be looked up in `n.vars` and `n.cons` after solving.
+    keep_shadowprices : bool or list of component names
+        Keep shadow prices for all constraints, if set to True. If a list
+        is passed the shadow prices will only be parsed for those constraint
+        names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
+        After solving, the shadow prices can be retrieved using
+        :func:`pypsa.linopt.get_dual` with corresponding name
 
     """
     supported_solvers = ["cbc", "gurobi", 'glpk', 'scs']
