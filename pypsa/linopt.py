@@ -423,32 +423,6 @@ def get_con(n, c, attr, pop=False):
     return cons.pop(attr) if pop else cons[attr]
 
 
-def get_dual(n, name, attr=''):
-    """
-    Retrieves shadow price for a given constraint. Note that for retrieving
-    shadow prices of a custom constraint, its name has to be passed to
-    `keep_references` in the lopf, or `keep_references` has to be set to True.
-    Note that a lookup of all stored shadow prices is given in n.dualities.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    c : str
-        constraint name to which the constraint belongs
-    attr: str
-        attribute name of the constraints
-
-    Example
-    -------
-    get_dual(n, 'Generator', 'mu_upper')
-    """
-    pnl = n.dualities.at[(name, attr), 'pnl']
-    if n.dualities.at[(name, attr), 'in_comp']:
-        return n.pnl(name)[attr] if pnl else n.df(name)[attr + '_opt']
-    else:
-        return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
-
-
 def get_sol(n, name, attr=''):
     """
     Retrieves solution for a given variable. Note that a lookup of all stored
@@ -473,6 +447,32 @@ def get_sol(n, name, attr=''):
         return n.pnl(name)[attr] if pnl else n.df(name)[attr + '_opt']
     else:
         return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
+
+
+def get_dual(n, name, attr=''):
+    """
+    Retrieves shadow price for a given constraint. Note that for retrieving
+    shadow prices of a custom constraint, its name has to be passed to
+    `keep_references` in the lopf, or `keep_references` has to be set to True.
+    Note that a lookup of all stored shadow prices is given in n.dualvalues.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        constraint name to which the constraint belongs
+    attr: str
+        attribute name of the constraints
+
+    Example
+    -------
+    get_dual(n, 'Generator', 'mu_upper')
+    """
+    pnl = n.dualvalues.at[(name, attr), 'pnl']
+    if n.dualvalues.at[(name, attr), 'in_comp']:
+        return n.pnl(name)[attr] if pnl else n.df(name)[attr]
+    else:
+        return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
 
 
 # =============================================================================

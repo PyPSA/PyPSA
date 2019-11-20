@@ -128,8 +128,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
 
     lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
-    constraints = write_constraint(n, lhs, '>=', rhs, axes)
-    set_conref(n, constraints, c, 'mu_upper', spec=attr)
+    define_constraints(n, lhs, '>=', rhs, c, 'mu_upper', axes=axes, spec=attr)
 
     lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
@@ -636,9 +635,6 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     # duals
     if keep_shadowprices == False:
         keep_shadowprices = []
-#    # TODO move to argdefault
-#    elif keep_shadowprices is None:
-#        keep_shadowprices = ['Bus', 'Line', 'GlobalConstraint']
 
     sp = n.constraints.index
     if isinstance(keep_shadowprices, list):
@@ -649,13 +645,13 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         # or n.df(c). For the second case the index of the constraints have to
         # be a subset of n.df(c).index otherwise the dual is stored at
         # n.duals[c].df
-        sign = -1 if 'lower' in attr else 1
+        sign = 1 if 'upper' in attr else -1
         constraints = get_con(n, c, attr, pop=pop)
         is_pnl = isinstance(constraints, pd.DataFrame)
-        n.dualities.at[(c, attr), 'pnl'] = is_pnl
+        n.dualvalues.at[(c, attr), 'pnl'] = is_pnl
         to_component = c in n.all_components
         if is_pnl:
-            n.dualities.at[(c, attr), 'in_comp'] = to_component
+            n.dualvalues.at[(c, attr), 'in_comp'] = to_component
             duals = constraints.stack().map(sign * constraints_dual).unstack()
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
@@ -663,17 +659,17 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
             set_from_frame(pnl, attr, duals)
         else:
             # here to_component can change
-            duals = constraints.map(constraints_dual)
+            duals = constraints.map(sign * constraints_dual)
             if to_component:
                 to_component = (duals.index.isin(n.df(c).index).all())
-            n.dualities.at[(c, attr), 'in_comp'] = to_component
+            n.dualvalues.at[(c, attr), 'in_comp'] = to_component
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
             df = n.df(c) if to_component else n.duals[c].df
             df[attr] = duals
 
     n.duals = Dict()
-    n.dualities = pd.DataFrame(index=sp, columns=['in_comp', 'pnl'])
+    n.dualvalues = pd.DataFrame(index=sp, columns=['in_comp', 'pnl'])
     # extract shadow prices attached to components
     for c, attr in sp:
         map_dual(c, attr)
@@ -818,7 +814,10 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
     if termination_condition != "optimal":
+        logger.warning('Problem was not solved to optimality')
         return status, termination_condition
+    else:
+        logger.info('Optimization successful. Objective value: {:.2e}'.format(obj))
 
     if not keep_files:
         os.close(fdp); os.remove(problem_fn)
