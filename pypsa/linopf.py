@@ -473,7 +473,7 @@ def define_objective(n, sns):
     nom_attr = nominal_attrs.items()
     constant = sum(n.df(c)[attr] @ n.df(c).capital_cost for c, attr in nom_attr)
     object_const = write_bound(n, constant, constant)
-    n.objective_f.write(linexpr((1, object_const), as_pandas=False)[0])
+    n.objective_f.write(linexpr((-1, object_const), as_pandas=False)[0])
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
