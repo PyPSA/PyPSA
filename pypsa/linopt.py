@@ -298,20 +298,17 @@ def to_pandas(array, *axes):
     """
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
+_to_float_str = lambda f: '%+f '%f
+_v_to_float_str = np.vectorize(_to_float_str)
 
 def _str_array(array):
     if isinstance(array, (float, int)):
-        array = f'+{float(array)} ' if array >= 0 else f'{float(array)} '
-    elif isinstance(array, (pd.Series, pd.DataFrame)):
-        array = array.values
-    if isinstance(array, np.ndarray):
-        if not (array.dtype == object) and array.size:
-            signs = to_pandas(array)
-            signs = (signs.pipe(np.sign)
-                     .replace([0, 1, -1], ['+', '+', '-']).values)
-            array = signs + abs(array).astype(str) + ' '
-    return array
-
+        return _to_float_str(array)
+    array = np.asarray(array)
+    if array.dtype < str and array.size:
+        return _v_to_float_str(np.asarray(array)).astype(object)
+    else:
+        return array
 
 def join_exprs(df):
     """
@@ -319,7 +316,6 @@ def join_exprs(df):
 
     """
     return ''.join(np.asarray(df).flatten())
-
 
 # =============================================================================
 #  references to vars and cons, rewrite this part to not store every reference
