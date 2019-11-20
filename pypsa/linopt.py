@@ -299,14 +299,14 @@ def to_pandas(array, *axes):
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
 _to_float_str = lambda f: '%+f '%f
-_v_to_float_str = np.vectorize(_to_float_str)
+_v_to_float_str = np.vectorize(_to_float_str, otypes=[object])
 
 def _str_array(array):
     if isinstance(array, (float, int)):
         return _to_float_str(array)
     array = np.asarray(array)
     if array.dtype < str and array.size:
-        return _v_to_float_str(np.asarray(array)).astype(object)
+        return _v_to_float_str(np.asarray(array))
     else:
         return array
 
