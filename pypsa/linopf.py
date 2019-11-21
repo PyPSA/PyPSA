@@ -236,13 +236,14 @@ def define_ramp_limit_constraints(n, sns):
 
     # com up
     gens_i = rup_i & com_i
-    limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
-    limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-    status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-    status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                  (limit_start - limit_up, status_prev), (- limit_start, status))
-    define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
+    if not gens_i.empty:
+        limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
+        limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                      (limit_start - limit_up, status_prev), (- limit_start, status))
+        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
 
     # fix down
     gens_i = rdown_i & fix_i
@@ -259,13 +260,14 @@ def define_ramp_limit_constraints(n, sns):
 
     # com down
     gens_i = rdown_i & com_i
-    limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
-    limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
-    status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-    status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                  (limit_down - limit_shut, status), (limit_shut, status_prev))
-    define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
+    if not gens_i.empty:
+        limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
+        limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
+        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                      (limit_down - limit_shut, status), (limit_shut, status_prev))
+        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
 
 def define_nodal_balance_constraints(n, sns):
     """
