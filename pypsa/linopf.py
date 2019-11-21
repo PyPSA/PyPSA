@@ -26,7 +26,7 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, set_conref,
                      set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
                      run_and_read_gurobi, run_and_read_glpk, define_constraints,
-                     define_variables, align_with_static_component)
+                     define_variables, align_with_static_component, define_binaries)
 
 
 import pandas as pd
@@ -63,7 +63,7 @@ def define_nominal_for_extendable_variables(n, c, attr):
     define_variables(n, lower, upper, c, attr)
 
 
-def define_dispatch_for_extendable_variables(n, sns, c, attr):
+def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     Initializes variables for power dispatch for a given component and a
     given attribute.
@@ -78,6 +78,8 @@ def define_dispatch_for_extendable_variables(n, sns, c, attr):
 
     """
     ext_i = get_extendable_i(n, c)
+    if c == 'Generator':
+        ext_i = ext_i | n.generators.query('committable').index
     if ext_i.empty: return
     define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i], spec='extendables')
 
@@ -97,6 +99,8 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
 
     """
     fix_i = get_non_extendable_i(n, c)
+    if c == 'Generator':
+        fix_i = fix_i.difference(n.generators.query('committable').index)
     if fix_i.empty: return
     nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
@@ -168,6 +172,39 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     set_conref(n, constraints, c, f'mu_{attr}_set')
 
 
+def define_generator_status_variables(n, snapshots):
+    com_i = n.generators.query('committable').index
+    ext_i = get_extendable_i(n, 'Generator')
+    if not (ext_i & com_i).empty:
+        logger.warning("The following generators have both investment optimisation"
+        f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
+        "do both these functions, so PyPSA is choosing investment optimisation "
+        "for these generators.")
+        com_i = com_i.difference(ext_i)
+    if com_i.empty: return
+    define_binaries(n, (snapshots, com_i), 'Generator', 'status')
+
+
+def define_committable_generator_constraints(n, snapshots):
+    c, attr = 'Generator', 'status'
+    com_i = n.df(c).query('committable and not p_nom_extendable').index
+    if com_i.empty: return
+    nominal = n.df(c)[nominal_attrs[c]][com_i]
+    min_pu, max_pu = get_bounds_pu(n, c, snapshots, com_i, 'p')
+    lower = min_pu.mul(nominal)
+    upper = max_pu.mul(nominal)
+
+    status = get_var(n, c, attr)
+    p = get_var(n, c, 'p')[com_i]
+
+    lhs = linexpr((lower, status), (-1, p))
+    define_constraints(n, lhs, '<=', 0, 'Generators', 'committable_lb')
+
+    lhs = linexpr((upper, status), (-1, p))
+    define_constraints(n, lhs, '>=', 0, 'Generators', 'committable_ub')
+
+
+
 def define_ramp_limit_constraints(n, sns):
     """
     Defines ramp limits for generators wiht valid ramplimit
@@ -178,35 +215,57 @@ def define_ramp_limit_constraints(n, sns):
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
     if rup_i.empty & rdown_i.empty:
         return
+    fix_i = get_non_extendable_i(n, c)
+    ext_i = get_extendable_i(n, c)
+    com_i = n.df(c).query('committable').index.difference(ext_i)
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
 
     # fix up
-    gens_i = rup_i & get_non_extendable_i(n, c)
+    gens_i = rup_i & fix_i
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
     define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
-    gens_i = rup_i & get_extendable_i(n, c)
+    gens_i = rup_i & ext_i
     limit_pu = n.df(c)['ramp_limit_up'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
     define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
+    # com up
+    gens_i = rup_i & com_i
+    limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
+    limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+    status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+    status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                  (limit_start - limit_up, status_prev), (- limit_start, status))
+    define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
+
     # fix down
-    gens_i = rdown_i & get_non_extendable_i(n, c)
+    gens_i = rdown_i & fix_i
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
     rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
     define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
-    gens_i = rdown_i & get_extendable_i(n, c)
+    gens_i = rdown_i & ext_i
     limit_pu = n.df(c)['ramp_limit_down'][gens_i]
     p_nom = get_var(n, c, 'p_nom')[gens_i]
     lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
     define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
+    # com down
+    gens_i = rdown_i & com_i
+    limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
+    limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
+    status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+    status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                  (limit_down - limit_shut, status), (limit_shut, status_prev))
+    define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
 
 def define_nodal_balance_constraints(n, sns):
     """
@@ -501,7 +560,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     the lp file
 
     """
-    n._xCounter, n._cCounter = 0, 0
+    n._xCounter, n._cCounter = 1, 1
     n.vars, n.cons = Dict(), Dict()
 
     cols = ['component', 'name', 'pnl', 'specification']
@@ -514,31 +573,35 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     fdo, objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)
     fdc, constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)
     fdb, bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)
+    fdi, binaries_fn = mkstemp(prefix='pypsa-binaries-', suffix='.txt', text=True)
     fdp, problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
     n.bounds_f = open(bounds_fn, mode='w')
+    n.binaries_f = open(binaries_fn, mode='w')
 
     n.objective_f.write('\* LOPF *\n\nmin\nobj:\n')
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
-
+    n.binaries_f.write("\nbinary\n")
 
     for c, attr in lookup.query('nominal and not handle_separately').index:
         define_nominal_for_extendable_variables(n, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
-        define_dispatch_for_extendable_variables(n, snapshots, c, attr)
+        define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
         align_with_static_component(n, c, attr)
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
+    define_generator_status_variables(n, snapshots)
 
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
     define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
+    define_committable_generator_constraints(n, snapshots)
     define_ramp_limit_constraints(n, snapshots)
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
@@ -550,15 +613,16 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
 
-    n.bounds_f.write("end\n")
+    n.binaries_f.write("end\n")
 
     # explicit closing with file descriptor is necessary for windows machines
-    for f, fd in (('bounds_f', fdb), ('constraints_f', fdc), ('objective_f', fdo)):
+    for f, fd in (('bounds_f', fdb), ('constraints_f', fdc),
+                  ('objective_f', fdo), ('binaries_f', fdi)):
         getattr(n, f).close(); delattr(n, f); os.close(fd)
 
     # concate files
     with open(problem_fn, 'wb') as wfd:
-        for f in [objective_fn, constraints_fn, bounds_fn]:
+        for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
             with open(f,'rb') as fd:
                 shutil.copyfileobj(fd, wfd)
             if not keep_files:
@@ -620,7 +684,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
     n.sols = Dict()
     n.solutions = pd.DataFrame(index=n.variables.index, columns=['in_comp', 'pnl'])
-    for c, attr in n.variables.index.intersection(lookup.index):
+    for c, attr in n.variables.index:
         map_solution(c, attr)
 
     # if nominal capcity was no variable set optimal value to nominal
@@ -787,9 +851,11 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
     if n.generators.committable.any():
-        logger.warn("Unit commitment is not yet implemented for optimisation "
-           "without using pyomo. The following generators will be treated as "
-          f"non-committables:\n{list(n.generators.query('committable').index)}")
+        logger.warn("Unit commitment is not yet completely implemented for "
+                    "optimisation without using pyomo. Thus minimum up time, "
+                    "minimum down time, start up costs, shut down costs and "
+                    "case of ramping if not at start of network.snapshots"
+                    "will be ignored.")
 
     #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)

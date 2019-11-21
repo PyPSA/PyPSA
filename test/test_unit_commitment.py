@@ -8,7 +8,7 @@ import numpy as np
 
 
 
-def test_part_load():
+def test_part_load(pyomo=True):
     """This test is based on
 https://pypsa.org/examples/unit-commitment.html
 and is not very comprehensive."""
@@ -38,7 +38,7 @@ and is not very comprehensive."""
 
     solver_name = "glpk"
 
-    nu.lopf(nu.snapshots,solver_name=solver_name)
+    nu.lopf(nu.snapshots,solver_name=solver_name, pyomo=pyomo)
 
     expected_status = np.array([[1,1,1,0],[0,0,0,1]],dtype=float).T
 
@@ -138,4 +138,5 @@ and is not very comprehensive."""
 if __name__ == "__main__":
     test_minimum_down_time()
     test_minimum_up_time()
-    test_part_load()
+    test_part_load(pyomo=True)
+    test_part_load(pyomo=False)

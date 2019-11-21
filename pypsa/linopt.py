@@ -77,6 +77,37 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     set_varref(n, var, name, attr, spec=spec)
 
 
+def define_binaries(n, axes, name, attr='',  spec=''):
+    """
+    Defines binary-variable(s) for pypsa-network. The variables are stored
+    in the network object under n.vars with key of the variable name.
+    For each entry for the pd.Series of pd.DataFrame spanned by the axes
+    argument the function defines a binary.
+
+    Parameter
+    ---------
+    n : pypsa.Network
+    axes : pd.Index or tuple of pd.Index objects
+        Specifies the axes and therefore the shape of the variables.
+    name : str
+        general name of the variable (or component which the variable is
+        referring to). The variable will then be stored under:
+            * n.vars[name].pnl if the variable is two-dimensional
+            * n.vars[name].df if the variable is one-dimensional
+    attr : str default ''
+        Specifying name of the variable, defines under which name the variable(s)
+        are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
+        if one-dimensional
+
+    See also
+    ---------
+    define_variables
+
+    """
+    var = write_binary(n, axes)
+    set_varref(n, var, name, attr, spec=spec)
+
+
 def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     """
     Defines constraint(s) for pypsa-network with given left hand side (lhs),
@@ -184,9 +215,22 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + '\n' + rhs + '\n\n'))
+    n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + ' ' + rhs + '\n\n'))
     return to_pandas(cons, *axes)
 
+def write_binary(n, axes):
+    """
+    Writer function for writing out mutliple binary-variables at a time.
+    According to the axes it writes out binaries for each entry the pd.Series
+    or pd.DataFrame spanned by axes. Returns a series or frame with variable
+    references.
+    """
+    axes, shape, length = _get_handlers(axes)
+    n._xCounter += length
+    variables = np.array([f'x{x}' for x in range(n._xCounter - length,
+                          n._xCounter)], dtype=object).reshape(shape)
+    n.binaries_f.write(join_exprs(variables + '\n'))
+    return to_pandas(variables, *axes)
 
 # =============================================================================
 # helpers, helper functions
@@ -512,8 +556,10 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
         objective = float(data[len("Optimal - objective value "):])
     elif "Infeasible" in data:
         termination_condition = "infeasible"
+        status = 'infeasible'
     else:
         termination_condition = "other"
+        status = 'other'
 
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
@@ -625,7 +671,11 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
         return status, termination_condition, None, None, None
 
     variables_sol = pd.Series({v.VarName: v.x for v in m.getVars()})
-    constraints_dual = pd.Series({c.ConstrName: c.Pi for c in m.getConstrs()})
+    try:
+        constraints_dual = pd.Series({c.ConstrName: c.Pi for c in m.getConstrs()})
+    except AttributeError:
+        logger.warning("Shadow prices of MILP couldn't be parsed")
+        constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
     termination_condition = status
     objective = m.ObjVal
     del m

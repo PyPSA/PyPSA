@@ -320,16 +320,14 @@ def get_extendable_i(n, c):
     """
     Getter function. Get the index of extendable elements of a given component.
     """
-    return n.df(c)[lambda ds:
-        ds[nominal_attrs[c] + '_extendable']].index
+    return n.df(c)[lambda ds: ds[nominal_attrs[c] + '_extendable']].index
 
 def get_non_extendable_i(n, c):
     """
     Getter function. Get the index of non-extendable elements of a given
     component.
     """
-    return n.df(c)[lambda ds:
-            ~ds[nominal_attrs[c] + '_extendable']].index
+    return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     """

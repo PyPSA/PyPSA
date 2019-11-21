@@ -208,6 +208,7 @@ def check_constraints(n, tol=1e-3):
     Returns AssertionError if tolerance is exceeded.
 
     """
+    n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
     stats = constraint_stats(n).rename(index=str.title)
     condition = stats.T[['Min', 'Max']].query('Min < -@tol | Max > @tol').T
     assert condition.empty, (f'The following constraint(s) are exceeding the '
