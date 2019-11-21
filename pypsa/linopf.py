@@ -852,10 +852,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
 
     if n.generators.committable.any():
         logger.warn("Unit commitment is not yet completely implemented for "
-                    "optimisation without using pyomo. Thus minimum up time, "
-                    "minimum down time, start up costs, shut down costs and "
-                    "case of ramping if not at start of network.snapshots"
-                    "will be ignored.")
+        "optimising without pyomo. Thus minimum up time, minimum down time, "
+        "start up costs, shut down costs will be ignored.")
 
     #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
