@@ -1,3 +1,5 @@
+from os.path import normpath
+
 configfile: "config.yaml"
 
 COSTS="data/costs.csv"
@@ -234,16 +236,6 @@ rule add_extra_components:
     script: "scripts/add_extra_components.py"
 
 
-# rule add_sectors:
-#     input:
-#         network="networks/elec_{cost}_{resarea}_{opts}.nc",
-#         emobility="data/emobility"
-#     output: "networks/sector_{cost}_{resarea}_{sectors}_{opts}.nc"
-#     benchmark: "benchmarks/add_sectors/sector_{resarea}_{sectors}_{opts}"
-#     threads: 1
-#     resources: mem=1000
-#     script: "scripts/add_sectors.py"
-
 rule prepare_network:
     input: 'networks/{network}_s{simpl}_{clusters}_ec.nc', tech_costs=COSTS
     output: 'networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
@@ -270,7 +262,7 @@ rule solve_network:
     output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
     shadow: "shallow"
     log:
-        solver="logs/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log",
+        solver=normpath("logs/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"),
         python="logs/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
         memory="logs/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
@@ -295,7 +287,7 @@ rule solve_operations_network:
     output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
     shadow: "shallow"
     log:
-        solver="logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log",
+        solver=normpath("logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log"),
         python="logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
         memory="logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
     benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
