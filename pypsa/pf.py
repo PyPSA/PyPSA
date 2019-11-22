@@ -574,10 +574,10 @@ def apply_transformer_t_model(network):
 
     za,zb,zc = wye_to_delta(z_series.loc[ts_b]/2,z_series.loc[ts_b]/2,1/y_shunt.loc[ts_b])
 
-    network.transformers.loc[ts_b,"r_pu"] = zc.real
-    network.transformers.loc[ts_b,"x_pu"] = zc.imag
-    network.transformers.loc[ts_b,"g_pu"] = (2/za).real
-    network.transformers.loc[ts_b,"b_pu"] = (2/za).imag
+    network.transformers.loc[ts_b,"r_pu"] = real(zc)
+    network.transformers.loc[ts_b,"x_pu"] = imag(zc)
+    network.transformers.loc[ts_b,"g_pu"] = real(2/za)
+    network.transformers.loc[ts_b,"b_pu"] = imag(2/za)
 
 
 def calculate_dependent_values(network):
