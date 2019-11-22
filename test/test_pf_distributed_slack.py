@@ -9,6 +9,7 @@ def test_pf_distributed_slack():
                       "examples", "scigrid-de", "scigrid-with-load-gen-trafos")
 
     network = pypsa.Network(csv_folder_name)
+    network.set_snapshots(network.snapshots[:2])
 
     #There are some infeasibilities without line extensions
     network.lines.s_max_pu = 0.7
@@ -37,4 +38,4 @@ def test_pf_distributed_slack():
 
 
 if __name__ == "__main__":
-    pf_distributed_slack()
+    test_pf_distributed_slack()
