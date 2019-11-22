@@ -147,7 +147,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     use_seed : bool, default False
         Use a seed for the initial guess for the Newton-Raphson algorithm.
     distribute_slack : bool, default False
-        Distribute the slack power proportional to generator dispatch.
+        Distribute the slack power across generators proportional to generator dispatch.
 
     Returns
     -------
@@ -269,9 +269,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     def f(guess, distribute_slack=False, slack_weights=None):
 
-        network.buses_t.v_ang.loc[now,sub_network.pvpqs] = guess[:len(sub_network.pvpqs)]
-
         last_pq = -1 if distribute_slack else None
+        network.buses_t.v_ang.loc[now,sub_network.pvpqs] = guess[:len(sub_network.pvpqs)]
         network.buses_t.v_mag_pu.loc[now,sub_network.pqs] = guess[len(sub_network.pvpqs):last_pq]
 
         v_mag_pu = network.buses_t.v_mag_pu.loc[now,buses_o]
@@ -385,11 +384,13 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
 
     #now set everything
-    last_pq = -1 if distribute_slack else None
+    if distribute_slack:
+        last_pq = -1 
+        slack_power = roots[:,-1]
+    else:
+        last_pq = None
     network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = roots[:,:len(sub_network.pvpqs)]
     network.buses_t.v_mag_pu.loc[snapshots,sub_network.pqs] = roots[:,len(sub_network.pvpqs):last_pq]
-
-    if distribute_slack: slack_power = roots[:,-1]
 
     v_mag_pu = network.buses_t.v_mag_pu.loc[snapshots,buses_o].values
     v_ang = network.buses_t.v_ang.loc[snapshots,buses_o].values
@@ -442,7 +443,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     #let slack generator take up the slack
     if distribute_slack:
-        distributed_slack_power = (network.buses_t.p.loc[snapshots,sn_buses] - ss[:,buses_indexer(sn_buses)].real)
+        distributed_slack_power = network.buses_t.p.loc[snapshots,sn_buses] - ss[:,buses_indexer(sn_buses)].real
         for bus, group in network.generators.groupby('bus'):
             bus_generator_shares = network.generators_t.p.loc[snapshots,group.index].apply(normed, axis=1).fillna(0)
             network.generators_t.p.loc[snapshots,group.index] += bus_generator_shares.multiply(distributed_slack_power.loc[snapshots,bus], axis=0)
