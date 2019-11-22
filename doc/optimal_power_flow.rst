@@ -56,7 +56,7 @@ for more details).
 
 
 
-.. important:: Since version v0.15, PyPSA enables the optimisation without the use of `pyomo <http://www.pyomo.org/>`_. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo. 
+.. important:: Since version v0.15.1, PyPSA enables the optimisation without the use of `pyomo <http://www.pyomo.org/>`_. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo. 
   Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax.  
 
 .. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
@@ -207,7 +207,7 @@ Generator unit commitment constraints
 
 These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
-.. important:: Unit commitment constraints will only be build if pyomo is set to True
+.. important:: Unit commitment constraints will only be build fully if pyomo is set to True. If pyomo is set to False a simplified version of the unit commitment is calculated by ignoring the parameters `min_up_time`, `min_down_time`, `start_up_cost`, `shut_down_cost`, `up_time_before` and `down_time_before`.
 
 The implementation is a complete implementation of the unit commitment constraints defined in Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by Joshua Adam Taylor (CUP, 2015).
 
