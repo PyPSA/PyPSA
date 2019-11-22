@@ -55,7 +55,7 @@ def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
     if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (collections.abc.Sequence, pd.Index))):
+        not isinstance(snapshots, (collections.Sequence, pd.Index))):
         return pd.Index([snapshots])
     else:
         return pd.Index(snapshots)
