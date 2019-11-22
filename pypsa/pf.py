@@ -47,6 +47,8 @@ from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Di
 
 pd.Series.zsum = zsum
 
+def normed(s): return s/s.sum()
+
 def real(X): return np.real(X.to_numpy())
 
 def imag(X): return np.imag(X.to_numpy())
@@ -158,7 +160,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     """
 
     return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol,
-                                       use_seed=use_seed, distribute_slack=False)
+                                       use_seed=use_seed, distribute_slack=distribute_slack)
 
 
 def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100, distribute_slack=False, slack_weights=None):
@@ -320,7 +322,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
             J00 = dS_dVa[:,1:].real
             J01 = dS_dVm[:,1+len(sub_network.pvs):].real
             J02 = csr_matrix(slack_weights,(1,1+len(sub_network.pvpqs))).T
-            J12 = csr_matrix(0,(1,len(sub_network.pqs))).T
+            J12 = csr_matrix((1,len(sub_network.pqs))).T
             J_P_blocks = [J00, J01, J02]
             J_Q_blocks = [J10, J11, J12]
         else:
