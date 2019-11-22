@@ -17,10 +17,7 @@ def test_pf_distributed_slack():
     network.lopf(network.snapshots, solver_name='cbc', formulation='kirchhoff')
 
     #For the PF, set the P to the optimised P
-    network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
     network.generators_t.p_set = network.generators_t.p
-
-    network.storage_units_t.p_set = network.storage_units_t.p_set.reindex(columns=network.storage_units.index)
     network.storage_units_t.p_set = network.storage_units_t.p
 
     #set all buses to PV, since we don't know what Q set points are
