@@ -29,18 +29,16 @@ logger = logging.getLogger(__name__)
 
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack, dok_matrix
 
-from numpy import r_, ones, zeros, newaxis
+from numpy import r_, ones
 from scipy.sparse.linalg import spsolve
 from numpy.linalg import norm
 
 import numpy as np
 import pandas as pd
-import scipy as sp, scipy.sparse
 import networkx as nx
 
 import collections, six
 from operator import itemgetter
-from itertools import chain
 import time
 
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
@@ -107,7 +105,6 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, **kw
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
         for i in [int(col[3:]) for col in network.links.columns if col[:3] == "bus" and col != "bus0"]:
             eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
-            p_name = "p{}".format(i)
             efficiency = get_switchable_as_dense(network, 'Link', eff_name, snapshots)
             links = network.links.index[network.links["bus{}".format(i)] != ""]
             network.links_t['p{}'.format(i)].loc[snapshots, links] = -network.links_t.p0.loc[snapshots, links]*efficiency.loc[snapshots, links]
@@ -283,7 +280,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         else:
             mismatch = V*np.conj(sub_network.Y*V) - s
 
-        if distribute_slack:   
+        if distribute_slack:
             F = r_[real(mismatch)[:],imag(mismatch)[1+len(sub_network.pvs):]]
         else:
             F = r_[real(mismatch)[1:],imag(mismatch)[1+len(sub_network.pvs):]]
@@ -368,7 +365,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
         guess = r_[network.buses_t.v_ang.loc[now,sub_network.pvpqs],network.buses_t.v_mag_pu.loc[now,sub_network.pqs]]
 
-        if distribute_slack: 
+        if distribute_slack:
             guess = np.append(guess, [0]) # for total slack power
 
         if distribute_slack and slack_weights is None:
@@ -385,7 +382,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     #now set everything
     if distribute_slack:
-        last_pq = -1 
+        last_pq = -1
         slack_power = roots[:,-1]
     else:
         last_pq = None
