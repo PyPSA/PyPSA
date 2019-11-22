@@ -45,6 +45,7 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
         referring to). The variable will then be stored under:
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
+        but can easily be accessed with :func:`get_var(n, name, attr)`
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
@@ -113,7 +114,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     Defines constraint(s) for pypsa-network with given left hand side (lhs),
     sense and right hand side (rhs). The constraints are stored in the network
     object under n.cons with key of the constraint name. If multiple constraints
-    are defined at ones only using np.arrays then the axes argument can be used
+    are defined at ones, only using np.arrays, then the axes argument can be used
     for defining the axes for the constraints (this is espececially recommended
     for time-dependent constraints). If one of lhs, sense and rhs is a
     pd.Series/pd.DataFrame the axes argument is not necessary.

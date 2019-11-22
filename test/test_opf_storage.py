@@ -8,7 +8,7 @@ from numpy.testing import assert_array_almost_equal as equal
 solvers = ['glpk'] if sys.platform == 'win32' else ['cbc', 'glpk']
 
 
-def test_opf(pyomo=True):
+def test_opf():
 
     csv_folder_name = os.path.join(os.path.dirname(__file__), "..", "examples",
                                    "opf-storage-hvdc","opf-storage-data")
