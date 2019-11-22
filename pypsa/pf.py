@@ -372,7 +372,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         if distribute_slack: 
             guess = np.append(guess, [0]) # for total slack power
 
-        if distribute_slack and slack_weights is None
+        if distribute_slack and slack_weights is None:
             slack_args["slack_weights"] = slack_weights_t.loc[now]
 
         #Now try and solve
