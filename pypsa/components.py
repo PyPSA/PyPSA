@@ -485,6 +485,10 @@ class Network(Basic):
             names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
             After solving, the shadow prices can be retrieved using
             :func:`pypsa.linopt.get_dual` with corresponding name
+        solver_dir : str, default None
+            Only taking effect when pyomo is False.
+            Path to directory where necessary files are written, default None leads
+            to the default temporary directory used by tempfile.mkstemp().
 
         """
         args = {'snapshots': snapshots, 'keep_files': keep_files,

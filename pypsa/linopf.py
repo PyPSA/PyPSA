@@ -532,7 +532,10 @@ def define_objective(n, sns):
     """
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = sum(n.df(c)[attr] @ n.df(c).capital_cost for c, attr in nom_attr)
+    constant = 0
+    for c, attr in nom_attr:
+        ext_i = get_extendable_i(n, c)
+        constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
     object_const = write_bound(n, constant, constant)
     n.objective_f.write(linexpr((-1, object_const), as_pandas=False)[0])
 
@@ -552,7 +555,7 @@ def define_objective(n, sns):
 
 
 def prepare_lopf(n, snapshots=None, keep_files=False,
-                 extra_functionality=None):
+                 extra_functionality=None, solver_dir=None):
     """
     Sets up the linear problem and writes it out to a lp file
 
@@ -572,11 +575,13 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     snapshots = n.snapshots if snapshots is None else snapshots
     start = time.time()
 
-    fdo, objective_fn = mkstemp(prefix='pypsa-objectve-', suffix='.txt', text=True)
-    fdc, constraints_fn = mkstemp(prefix='pypsa-constraints-', suffix='.txt', text=True)
-    fdb, bounds_fn = mkstemp(prefix='pypsa-bounds-', suffix='.txt', text=True)
-    fdi, binaries_fn = mkstemp(prefix='pypsa-binaries-', suffix='.txt', text=True)
-    fdp, problem_fn = mkstemp(prefix='pypsa-problem-', suffix='.lp', text=True)
+    tmpkwargs = dict(text=True, dir=solver_dir)
+    # mkstemp(suffix, prefix, **tmpkwargs)
+    fdo, objective_fn = mkstemp('.txt', 'pypsa-objectve-', **tmpkwargs)
+    fdc, constraints_fn = mkstemp('.txt', 'pypsa-constraints-', **tmpkwargs)
+    fdb, bounds_fn = mkstemp('.txt', 'pypsa-bounds-', **tmpkwargs)
+    fdi, binaries_fn = mkstemp('.txt', 'pypsa-binaries-', **tmpkwargs)
+    fdp, problem_fn = mkstemp('.lp', 'pypsa-problem-', **tmpkwargs)
 
     n.objective_f = open(objective_fn, mode='w')
     n.constraints_f = open(constraints_fn, mode='w')
@@ -786,7 +791,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
          extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'GlobalConstraint'],
-         solver_options=None, warmstart=False, store_basis=True):
+         solver_options=None, warmstart=False, store_basis=False,
+         solver_dir=None):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -806,6 +812,9 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+    solver_dir : str, default None
+        Path to directory where necessary files are written, default None leads
+        to the default temporary directory used by tempfile.mkstemp().
     keep_files : bool, default False
         Keep the files that pyomo constructs from OPF problem
         construction, e.g. .lp file - useful for debugging
@@ -828,7 +837,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         Use this to warmstart the optimization. Pass a string which gives
         the path to the basis file. If set to True, a path to
         a basis file must be given in network.basis_fn.
-    store_basis : bool, default True
+    store_basis : bool, default False
         Whether to store the basis of the optimization results. If True,
         the path to the basis file is saved in network.basis_fn. Note that
         a basis can only be stored if simplex, dual-simplex, or barrier
@@ -863,31 +872,30 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     n.determine_network_topology()
 
     logger.info("Prepare linear problem")
-    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, extra_functionality)
-    fds, solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol')
-    if solver_logfile is None:
-        fdl, solver_logfile = mkstemp(prefix='pypsa-solve', suffix='.log')
+    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files,
+                                   extra_functionality, solver_dir)
+    fds, solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol', dir=solver_dir)
 
     if warmstart == True:
         warmstart = n.basis_fn
         logger.info("Solve linear problem using warmstart")
     else:
-        logger.info("Solve linear problem")
+        logger.info(f"Solve linear problem using {solver_name.title()} solver")
 
     solve = eval(f'run_and_read_{solver_name}')
     res = solve(n, problem_fn, solution_fn, solver_logfile,
                 solver_options, keep_files, warmstart, store_basis)
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
-    if termination_condition != "optimal":
+    if not keep_files:
+        os.close(fdp); os.remove(problem_fn)
+        os.close(fds); os.remove(solution_fn)
+
+    if "optimal" not in termination_condition:
         logger.warning('Problem was not solved to optimality')
         return status, termination_condition
     else:
         logger.info('Optimization successful. Objective value: {:.2e}'.format(obj))
-
-    if not keep_files:
-        os.close(fdp); os.remove(problem_fn)
-        os.close(fds); os.remove(solution_fn)
 
     n.objective = obj
     assign_solution(n, snapshots, variables_sol, constraints_dual,
@@ -952,6 +960,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         return lines_err
 
     iteration = 0
+    kwargs['store_basis'] = True
     diff = msq_threshold
     while diff >= msq_threshold or iteration < min_iterations:
         if iteration >= max_iterations:

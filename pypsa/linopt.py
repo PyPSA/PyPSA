@@ -541,10 +541,8 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
         n.basis_fn = solution_fn.replace('.sol', '.bas')
         command += f'-basisO {n.basis_fn} '
 
-    if solver_logfile is None:
-        os.system(command)
-    else:
-        result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    if solver_logfile is not None:
         print(result.stdout.decode('utf-8'), file=open(solver_logfile, 'w'))
 
     f = open(solution_fn,"r")
@@ -598,7 +596,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
 
-    os.system(command)
+    subprocess.run(command.split(' '), stdout=subprocess.PIPE)
 
     f = open(solution_fn)
     info = ''
@@ -612,7 +610,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     objective = float(re.sub('[^0-9\.\+\-]+', '', info.Objective))
     termination_condition = status
 
-    if termination_condition != "optimal":
+    if 'optimal' not in termination_condition:
         return status, termination_condition, None, None, None
 
     sol = pd.read_fwf(f).set_index('Row name')
@@ -620,8 +618,13 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     variables_sol = sol[variables_b]['Activity'].astype(float)
     sol = sol[~variables_b]
     constraints_b = sol.index.str[0] == 'c'
-    constraints_dual = (pd.to_numeric(sol[constraints_b]['Marginal'], 'coerce')
-                        .fillna(0))
+    try:
+        constraints_dual = pd.to_numeric(sol[constraints_b]['Marginal'],
+                                         'coerce').fillna(0)
+    except KeyError:
+        logger.warning("Shadow prices of MILP couldn't be parsed")
+        constraints_dual = pd.Series(index=sol.index[constraints_b])
+
     f.close()
 
     return (status, termination_condition, variables_sol,
