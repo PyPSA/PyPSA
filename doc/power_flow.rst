@@ -69,6 +69,25 @@ These equations :math:`f(x) = 0` are solved using the `Newton-Raphson method <ht
 
 and the initial "flat" guess of :math:`\theta_i = 0` and :math:`|V_i| = 1` for unknown quantities.
 
+Non-linear power flow for AC networks with distributed slack
+------------------------------------------------------------
+
+If the slack is to be distributed to all generators in proportion
+to their dispatch (``distribute_slack=True``), instead of being
+allocated fully to the slack bus, the active power balance is altered to
+
+.. math::
+   \textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i - P_{slack}\gamma_i & = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ \cup slack
+
+where :math:`P_{slack}` is the total slack power and :math:`\gamma_{i}`
+is the share of bus :math:`i` of the total generation that is used to
+distribute the slack power. Note that also an additional active power
+balance is included for the slack bus since it is now part of the
+distribution scheme.
+
+This adds an additional **row** to the Jacobian for the derivatives
+of the slack bus active power balance and an additional **column**
+for the partial derivatives with respect to :math:`\gamma_i`.
 
 
 .. _line-model:
