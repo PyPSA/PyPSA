@@ -20,6 +20,8 @@
 from __future__ import division, absolute_import
 from six.moves import range
 from six import iterkeys
+from six.moves.collections_abc import Sequence
+
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -37,7 +39,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-import collections, six
+import six
 from operator import itemgetter
 import time
 
@@ -55,7 +57,7 @@ def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
     if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (collections.Sequence, pd.Index))):
+        not isinstance(snapshots, (Sequence, pd.Index))):
         return pd.Index([snapshots])
     else:
         return pd.Index(snapshots)
