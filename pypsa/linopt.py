@@ -196,10 +196,10 @@ def write_bound(n, lower, upper, axes=None):
     """
     axes, shape, length = _get_handlers(axes, lower, upper)
     n._xCounter += length
-    variables = np.array([f'x{x}' for x in range(n._xCounter - length, n._xCounter)],
-                          dtype=object).reshape(shape)
+    variables = np.arange(n._xCounter - length, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-    n.bounds_f.write(join_exprs(lower + ' <= '+ variables + ' <= '+ upper + '\n'))
+    n.bounds_f.write(join_exprs(lower + ' <= x' + _str_array(variables, True)
+                                + ' <= '+ upper + '\n'))
     return to_pandas(variables, *axes)
 
 def write_constraint(n, lhs, sense, rhs, axes=None):
@@ -211,12 +211,12 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     """
     axes, shape, length = _get_handlers(axes, lhs, sense, rhs)
     n._cCounter += length
-    cons = np.array([f'c{x}' for x in range(n._cCounter - length, n._cCounter)],
-                            dtype=object).reshape(shape)
+    cons = np.arange(n._cCounter - length, n._cCounter).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    n.constraints_f.write(join_exprs(cons + ':\n' + lhs + sense + ' ' + rhs + '\n\n'))
+    n.constraints_f.write(join_exprs('c' + _str_array(cons, True) + ':\n' +
+                                     lhs + sense + ' ' + rhs + '\n\n'))
     return to_pandas(cons, *axes)
 
 def write_binary(n, axes):
@@ -328,7 +328,7 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
-            expr = expr + _str_array(coeff) + _str_array(var) + '\n'
+            expr = expr + _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
     if return_axes:
         return (expr, *axes)
     if as_pandas:
@@ -343,14 +343,21 @@ def to_pandas(array, *axes):
     """
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
-_to_float_str = lambda f: '%+f '%f
+_to_float_str = lambda f: '%+f'%f
 _v_to_float_str = np.vectorize(_to_float_str, otypes=[object])
 
-def _str_array(array):
+_to_int_str = lambda d: '%d'%d
+_v_to_int_str = np.vectorize(_to_int_str, otypes=[object])
+
+def _str_array(array, integer_string=False):
     if isinstance(array, (float, int)):
+        if integer_string:
+            return _to_int_str(array)
         return _to_float_str(array)
     array = np.asarray(array)
     if array.dtype < str and array.size:
+        if integer_string:
+            return _v_to_int_str(np.asarray(array))
         return _v_to_float_str(np.asarray(array))
     else:
         return array
@@ -520,6 +527,10 @@ def get_dual(n, name, attr=''):
 # solvers
 # =============================================================================
 
+def set_int_index(ser):
+    ser.index = ser.index.str[1:].astype(int)
+    return ser
+
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, keep_files, warmstart=None,
                      store_basis=True):
@@ -566,8 +577,8 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     sol = pd.read_csv(solution_fn, header=None, skiprows=[0],
                       sep=r'\s+', usecols=[1,2,3], index_col=0)
     variables_b = sol.index.str[0] == 'x'
-    variables_sol = sol[variables_b][2]
-    constraints_dual = sol[~variables_b][3]
+    variables_sol = sol[variables_b][2].pipe(set_int_index)
+    constraints_dual = sol[~variables_b][3].pipe(set_int_index)
 
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
@@ -615,12 +626,12 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 
     sol = pd.read_fwf(f).set_index('Row name')
     variables_b = sol.index.str[0] == 'x'
-    variables_sol = sol[variables_b]['Activity'].astype(float)
+    variables_sol = sol[variables_b]['Activity'].astype(float).pipe(set_int_index)
     sol = sol[~variables_b]
     constraints_b = sol.index.str[0] == 'c'
     try:
         constraints_dual = pd.to_numeric(sol[constraints_b]['Marginal'],
-                                         'coerce').fillna(0)
+                                         'coerce').fillna(0).pipe(set_int_index)
     except KeyError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=sol.index[constraints_b])
@@ -674,9 +685,11 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    variables_sol = pd.Series({v.VarName: v.x for v in m.getVars()})
+    variables_sol = pd.Series({v.VarName: v.x for v
+                               in m.getVars()}).pipe(set_int_index)
     try:
-        constraints_dual = pd.Series({c.ConstrName: c.Pi for c in m.getConstrs()})
+        constraints_dual = pd.Series({c.ConstrName: c.Pi for c in
+                                      m.getConstrs()}).pipe(set_int_index)
     except AttributeError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
