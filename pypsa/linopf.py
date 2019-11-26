@@ -716,9 +716,10 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         # or n.df(c). For the second case the index of the constraints have to
         # be a subset of n.df(c).index otherwise the dual is stored at
         # n.duals[c].df
-        sign = 1 if 'upper' in attr else -1
         constraints = get_con(n, c, attr, pop=pop)
         is_pnl = isinstance(constraints, pd.DataFrame)
+        # TODO: setting the sign is not very clear
+        sign = 1 if 'upper' in attr or attr == 'marginal_price' else -1
         n.dualvalues.at[(c, attr), 'pnl'] = is_pnl
         to_component = c in n.all_components
         if is_pnl:
