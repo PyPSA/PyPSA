@@ -319,7 +319,7 @@ def define_kirchhoff_constraints(n, sns):
 
     def cycle_flow(ds):
         ds = ds[lambda ds: ds!=0.].dropna()
-        vals = linexpr((ds, branch_vars[ds.index]), as_pandas=False) + '\n'
+        vals = linexpr((ds, branch_vars[ds.index]), as_pandas=False)
         return vals.sum(1)
 
     constraints = []
@@ -499,7 +499,7 @@ def define_global_constraints(n, sns):
             if ext_i.empty: continue
             v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]),
                         as_pandas=False)
-            lhs += join_exprs(v) + '\n'
+            lhs += '\n' + join_exprs(v)
         if lhs == '': continue
         sense = glc.sense
         rhs = glc.constant
@@ -517,7 +517,7 @@ def define_global_constraints(n, sns):
             if ext_i.empty: continue
             v = linexpr((n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]),
                         as_pandas=False)
-            lhs += join_exprs(v) + '\n'
+            lhs += '\n' + join_exprs(v)
         if lhs == '': continue
         sense = glc.sense
         rhs = glc.constant
@@ -550,7 +550,7 @@ def define_objective(n, sns):
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
         if cost.empty: continue
-        terms = linexpr((cost, get_var(n, c, attr)[cost.index])) + '\n'
+        terms = linexpr((cost, get_var(n, c, attr)[cost.index]))
         n.objective_f.write(join_exprs(terms))
 
 
