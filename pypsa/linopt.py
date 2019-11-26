@@ -195,6 +195,7 @@ def write_bound(n, lower, upper, axes=None):
     Return a series or frame with variable references.
     """
     axes, shape, length = _get_handlers(axes, lower, upper)
+    if not length: return pd.Series()
     n._xCounter += length
     variables = np.arange(n._xCounter - length, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
@@ -210,6 +211,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     Return a series or frame with constraint references.
     """
     axes, shape, length = _get_handlers(axes, lhs, sense, rhs)
+    if not length: return pd.Series()
     n._cCounter += length
     cons = np.arange(n._cCounter - length, n._cCounter).reshape(shape)
     if isinstance(sense, str):
@@ -228,9 +230,8 @@ def write_binary(n, axes):
     """
     axes, shape, length = _get_handlers(axes)
     n._xCounter += length
-    variables = np.array([f'x{x}' for x in range(n._xCounter - length,
-                          n._xCounter)], dtype=object).reshape(shape)
-    n.binaries_f.write(join_exprs(variables + '\n'))
+    variables = np.arange(n._xCounter - length, n._xCounter).reshape(shape)
+    n.binaries_f.write(join_exprs('x' + _str_array(variables, True) + '\n'))
     return to_pandas(variables, *axes)
 
 # =============================================================================
@@ -610,13 +611,15 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     subprocess.run(command.split(' '), stdout=subprocess.PIPE)
 
     f = open(solution_fn)
-    info = ''
-    linebreak = False
-    while not linebreak:
-        line = f.readline()
-        linebreak = line == '\n'
-        info += line
-    info = pd.read_csv(io.StringIO(info), sep=':',  index_col=0, header=None)[1]
+    def read_until_break(f):
+        linebreak = False
+        while not linebreak:
+            line = f.readline()
+            linebreak = line == '\n'
+            yield line
+
+    info = io.StringIO(''.join(read_until_break(f))[:-2])
+    info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
     status = info.Status.lower().strip()
     objective = float(re.sub('[^0-9\.\+\-]+', '', info.Objective))
     termination_condition = status
@@ -624,18 +627,18 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     if 'optimal' not in termination_condition:
         return status, termination_condition, None, None, None
 
-    sol = pd.read_fwf(f).set_index('Row name')
-    variables_b = sol.index.str[0] == 'x'
-    variables_sol = sol[variables_b]['Activity'].astype(float).pipe(set_int_index)
-    sol = sol[~variables_b]
-    constraints_b = sol.index.str[0] == 'c'
-    try:
-        constraints_dual = pd.to_numeric(sol[constraints_b]['Marginal'],
-                                         'coerce').fillna(0).pipe(set_int_index)
-    except KeyError:
+    duals = io.StringIO(''.join(read_until_break(f))[:-2])
+    duals = pd.read_fwf(duals)[1:].set_index('Row name')
+    if 'Marginal' in duals:
+        constraints_dual = pd.to_numeric(duals['Marginal'], 'coerce')\
+                              .fillna(0).pipe(set_int_index)
+    else:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=sol.index[constraints_b])
+        constraints_dual = pd.Series(index=duals.index)
 
+    sol = io.StringIO(''.join(read_until_break(f))[:-2])
+    variables_sol = (pd.read_fwf(sol)[1:].set_index('Column name')
+                     ['Activity'].astype(float).pipe(set_int_index))
     f.close()
 
     return (status, termination_condition, variables_sol,
