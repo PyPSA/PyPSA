@@ -16,7 +16,7 @@ def test_pf_distributed_slack():
     network.lines.loc[["316","527","602"],"s_nom"] = 1715
     network.storage_units.state_of_charge_initial = 0.
 
-    network.lopf(network.snapshots, solver_name='cbc', formulation='kirchhoff')
+    network.lopf(network.snapshots, solver_name='glpk', formulation='kirchhoff')
 
     #For the PF, set the P to the optimised P
     network.generators_t.p_set = network.generators_t.p
