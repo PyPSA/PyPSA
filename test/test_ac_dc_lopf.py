@@ -13,7 +13,6 @@ def test_lopf():
                                    "ac-dc-meshed", "ac-dc-data")
 
     n = pypsa.Network(csv_folder_name)
-    n.links_t.p_set.drop(columns=n.links.index, inplace=True)
 
     results_folder_name = os.path.join(csv_folder_name,"results-lopf")
 
@@ -37,8 +36,9 @@ def test_lopf():
               n_r.links_t.p0.loc[:,n.links.index],decimal=4)
 
     if sys.version_info.major >= 3:
-        n.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=False)
-
+        status, cond = n.lopf(snapshots=snapshots, solver_name=solver_name,
+                              pyomo=False)
+        assert status == 'optimal'
         equal(n.generators_t.p.loc[:,n.generators.index],
               n_r.generators_t.p.loc[:,n.generators.index],decimal=2)
         equal(n.lines_t.p0.loc[:,n.lines.index],
