@@ -29,12 +29,21 @@ def test_pf_distributed_slack():
     f = network.generators[network.generators.bus == "492"]
     network.generators.loc[f.index,"control"] = "PQ"
 
-    network.pf(distribute_slack=True)
+    network.pf(distribute_slack=True, slack_weights='dispatch')
 
     np.testing.assert_array_almost_equal(
         network.generators_t.p_set.apply(normed, axis=1),
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
     )
+
+    network.pf(distribute_slack=True, slack_weights='capacity')
+
+    np.testing.assert_array_almost_equal(
+        network.generators.p_nom.pipe(normed).fillna(0),
+        (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
+    )
+
+    # TODO to test completely custom weights reproduce capacity slack_weights and compare
 
 
 if __name__ == "__main__":
