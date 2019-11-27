@@ -153,8 +153,11 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False,
         if not linear:
             # escape for single-bus sub-network
             if len(sub_network.buses()) <= 1:
-                sub_network_pf_singlebus(sub_network, snapshots=snapshots, skip_pre=True,
-                                         distribute_slack=distribute_slack, slack_weights=sn_slack_weights)
+                itdf[sub_network.name],\
+                difdf[sub_network.name],\
+                cnvdf[sub_network.name] = sub_network_pf_singlebus(sub_network, snapshots=snapshots, skip_pre=True,
+                                                                   distribute_slack=distribute_slack,
+                                                                   slack_weights=sn_slack_weights)
             else:
                 itdf[sub_network.name],\
                 difdf[sub_network.name],\
@@ -295,6 +298,8 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
     
     network.buses_t.p.loc[snapshots,sub_network.slack_bus] = 0.
     network.buses_t.q.loc[snapshots,sub_network.slack_bus] = 0.
+
+    return 0, 0., True # dummy substitute for newton raphson output
 
 
 def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False,
