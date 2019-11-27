@@ -150,15 +150,17 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False,
         else:
             sn_slack_weights = slack_weights
 
-        # escape for single-bus sub-network
-        sn_buses = sub_network.buses()
-        if not len(sn_buses) > 1:
-            sub_network_pf_singlebus(sub_network, snapshots=snapshots, skip_pre=True, linear=linear,
-                                     distribute_slack=distribute_slack, slack_weights=sn_slack_weights)
-        elif not linear:
-            itdf[sub_network.name], difdf[sub_network.name], cnvdf[sub_network.name] = sub_network_pf_fun(sub_network, snapshots=snapshots,
-                                                                                                          skip_pre=True, distribute_slack=distribute_slack,
-                                                                                                          slack_weights=sn_slack_weights, **kwargs)
+        if not linear:
+            # escape for single-bus sub-network
+            if len(sub_network.buses()) <= 1:
+                sub_network_pf_singlebus(sub_network, snapshots=snapshots, skip_pre=True,
+                                         distribute_slack=distribute_slack, slack_weights=sn_slack_weights)
+            else:
+                itdf[sub_network.name],\
+                difdf[sub_network.name],\
+                cnvdf[sub_network.name] = sub_network_pf_fun(sub_network, snapshots=snapshots,
+                                                             skip_pre=True, distribute_slack=distribute_slack,
+                                                             slack_weights=sn_slack_weights, **kwargs)
         else:
             sub_network_pf_fun(sub_network, snapshots=snapshots, skip_pre=True, **kwargs)
 
@@ -260,8 +262,6 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
         ('dispatch'). Another option is to distribute proportional to nominal capacity ('capacity'). 
         Custom weights can be provided via a pandas.Series that must sum up to 1 and
         that has the buses of the sub_network as index.
-    linear : bool, default False
-        Indicator whether running within linear or non-linear power flow.
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
@@ -270,7 +270,7 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
 
     if not skip_pre:
         find_bus_controls(sub_network)
-        _allocate_pf_outputs(network, linear=linear)
+        _allocate_pf_outputs(network, linear=False)
 
     buses_o = sub_network.buses_o
     sn_buses = sub_network.buses().index
