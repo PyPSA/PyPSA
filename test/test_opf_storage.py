@@ -31,7 +31,7 @@ def test_opf():
         for solver_name in solvers:
 
             status, cond = n.lopf(solver_name=solver_name, pyomo=False)
-            assert status == 'optimal'
+            assert status == 'ok'
             equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
                   decimal=2)
 

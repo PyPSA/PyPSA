@@ -562,7 +562,7 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     f.close()
 
     if data.startswith("Optimal - objective value"):
-        status = "optimal"
+        status = "ok"
         termination_condition = status
         objective = float(data[len("Optimal - objective value "):])
     elif "Infeasible" in data:
@@ -626,6 +626,8 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 
     if 'optimal' not in termination_condition:
         return status, termination_condition, None, None, None
+    else:
+        status = 'ok'
 
     duals = io.StringIO(''.join(read_until_break(f))[:-2])
     duals = pd.read_fwf(duals)[1:].set_index('Row name')
@@ -687,6 +689,8 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     termination_condition = status
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
+    else:
+        status = 'ok'
 
     variables_sol = pd.Series({v.VarName: v.x for v
                                in m.getVars()}).pipe(set_int_index)

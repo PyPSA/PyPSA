@@ -38,7 +38,7 @@ def test_lopf():
     if sys.version_info.major >= 3:
         status, cond = n.lopf(snapshots=snapshots, solver_name=solver_name,
                               pyomo=False)
-        assert status == 'optimal'
+        assert status == 'ok'
         equal(n.generators_t.p.loc[:,n.generators.index],
               n_r.generators_t.p.loc[:,n.generators.index],decimal=2)
         equal(n.lines_t.p0.loc[:,n.lines.index],
