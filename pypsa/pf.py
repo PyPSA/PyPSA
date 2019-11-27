@@ -532,7 +532,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
     #let slack generator take up the slack
     if distribute_slack:
-        distributed_slack_power = network.buses_t.p_set.loc[snapshots,sn_buses] - ss[:,buses_indexer(sn_buses)].real
+        distributed_slack_power = network.buses_t.p.loc[snapshots,sn_buses] - ss[:,buses_indexer(sn_buses)].real
         for bus, group in sub_network.generators().groupby('bus'):
             if slack_weights != 'dispatch':
                 bus_generator_shares = network.generators.p_nom.loc[group.index].pipe(normed).fillna(0)
