@@ -1,7 +1,9 @@
 ,Unit,Values,Description
 version,--,0.1,"Version of PyPSA-Eur"
 tutorial,bool,"{true, false}","Switch to retrieve the tutorial data set instead of the full data set."
-logging_level,--,"Any of {'INFO', 'WARNING', 'ERROR'}","Restrict console outputs to all infos, warning or errors only"
+logging,,,
+-- level,--,"Any of {'INFO', 'WARNING', 'ERROR'}","Restrict console outputs to all infos, warning or errors only"
+-- format,--,"e.g. ``%(levelname)s:%(name)s:%(message)s``","Custom format for log messages. See `LogRecord <https://docs.python.org/3/library/logging.html#logging.LogRecord`_ attributes."
 summary_dir,--,"e.g. 'results'","Directory into which results are written."
 countries,--,"Subset of {'AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'}","European countries defined by their `Two-letter country codes (ISO 3166-1) <https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2>`_ which should be included in the energy system model."
 focus_weights,--,"Keys should be two-digit country codes (e.g. DE) and values should range between 0 and 1","Ratio of total clusters for particular countries. the remaining weight is distributed according to mean load. An example: ``focus_weights: DE: 0.6 FR: 0.2``."

@@ -54,16 +54,18 @@ Description
     :mod:`build_renewable_profiles`
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 import os
 import atlite
 import geopandas as gpd
 from vresutils import hydro as vhydro
-import logging
-
 
 if __name__ == "__main__":
-    logging.basicConfig(level=snakemake.config['logging_level'])
-
+    configure_logging(snakemake)
+    
     config = snakemake.config['renewable']['hydro']
     cutout = atlite.Cutout(config['cutout'],
                         cutout_dir=os.path.dirname(snakemake.input.cutout))

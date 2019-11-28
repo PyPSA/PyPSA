@@ -91,11 +91,12 @@ Description
 
 """
 
-import pandas as pd
-idx = pd.IndexSlice
-
 import logging
 logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
+import pandas as pd
+idx = pd.IndexSlice
 
 import os
 import numpy as np
@@ -311,8 +312,8 @@ if __name__ == "__main__":
                 clustermaps='resources/clustermaps_{network}_s{simpl}_{clusters}.h5'
             )
         )
-
-    logging.basicConfig(level=snakemake.config['logging_level'])
+ 
+    configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
 

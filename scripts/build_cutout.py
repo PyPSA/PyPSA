@@ -86,13 +86,16 @@ Description
 -----------
 
 """
-import os
-import atlite
+
 import logging
 logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
+import os
+import atlite
 
 if __name__ == "__main__":
-    logging.basicConfig(level=snakemake.config['logging_level'])
+    configure_logging(snakemake)
 
     cutout_params = snakemake.config['atlite']['cutouts'][snakemake.wildcards.cutout]
     for p in ('xs', 'ys', 'years', 'months'):

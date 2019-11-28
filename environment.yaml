@@ -18,7 +18,7 @@ dependencies:
   - memory_profiler
   - yaml
   - pytables
-  - powerplantmatching>=0.4.2
+  - powerplantmatching>=0.4.3
 
   # Second order dependencies which should really be deps of atlite
   - xarray

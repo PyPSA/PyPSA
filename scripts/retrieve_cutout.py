@@ -37,22 +37,31 @@ The :ref:`tutorial` uses smaller `cutouts <https://zenodo.org/record/3518020/fil
 
 """
 
-import logging, os, tarfile
-from _helpers import progress_retrieve
-
+import logging
 logger = logging.getLogger(__name__)
 
+from pathlib import Path
+import tarfile
+from _helpers import progress_retrieve, configure_logging
+
 if __name__ == "__main__":
+
+    configure_logging(snakemake) # TODO Make logging compatible with progressbar (see PR #102)
 
     if snakemake.config['tutorial']:
         url = "https://zenodo.org/record/3518020/files/pypsa-eur-tutorial-cutouts.tar.xz"
     else:
         url = "https://zenodo.org/record/3517949/files/pypsa-eur-cutouts.tar.xz"
 
-    tarball_fn = "./cutouts.tar.xz"
+    # Save location
+    tarball_fn = Path("./cutouts.tar.xz")
 
+    logger.info(f"Downloading cutouts from '{url}'.")
     progress_retrieve(url, tarball_fn)
 
+    logger.info(f"Extracting cutouts.")
     tarfile.open(tarball_fn).extractall()
 
-    os.remove(tarball_fn)
+    tarball_fn.unlink()
+
+    logger.info(f"Cutouts available in '{Path(tarball_fn.stem).stem}'.")

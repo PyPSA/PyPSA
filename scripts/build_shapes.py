@@ -63,6 +63,10 @@ Description
 
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 import os
 import numpy as np
 from operator import attrgetter
@@ -220,6 +224,8 @@ if __name__ == "__main__":
                 nuts3_shapes='resources/nuts3_shapes.geojson'
             )
         )
+
+    configure_logging(snakemake)
 
     country_shapes = countries()
     save_to_geojson(country_shapes, snakemake.output.country_shapes)

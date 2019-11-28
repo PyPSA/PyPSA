@@ -78,10 +78,13 @@ The rule :mod:`simplify_network` does up to four things:
 4. Optionally, if an integer were provided for the wildcard ``{simpl}`` (e.g. ``networks/elec_s500.nc``), the network is clustered to this number of clusters with the routines from the ``cluster_network`` rule with the function ``cluster_network.cluster(...)``. This step is usually skipped!
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
 
-import logging
 import pandas as pd
 import numpy as np
 import scipy as sp
@@ -94,8 +97,6 @@ import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
 from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
 
-
-logger = logging.getLogger(__name__)
 idx = pd.IndexSlice
 
 def simplify_network_to_380(n):
@@ -349,8 +350,8 @@ if __name__ == "__main__":
                 clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
             )
         )
-
-    logging.basicConfig(level=snakemake.config['logging_level'])
+    
+    configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
 

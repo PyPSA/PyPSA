@@ -29,23 +29,25 @@ Inputs
 ------
 
 - ``networks/{network}_s{simpl}_{clusters}.nc``: confer :ref:`cluster`
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`solve`
+- ``results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: confer :ref:`solve`
 
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_op.nc``: Solved PyPSA network for optimal dispatch including optimisation results
+- ``results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc``: Solved PyPSA network for optimal dispatch including optimisation results
 
 Description
 -----------
 
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 import pypsa
 import numpy as np
 import re
-import logging
-logger = logging.getLogger(__name__)
 
 from vresutils.benchmark import memory_logger
 from solve_network import patch_pyomo_tmpdir, solve_network, prepare_network
@@ -93,8 +95,7 @@ if __name__ == "__main__":
     if tmpdir is not None:
         patch_pyomo_tmpdir(tmpdir)
 
-    logging.basicConfig(filename=snakemake.log.python,
-                        level=snakemake.config['logging_level'])
+    configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.unprepared)
 

@@ -91,6 +91,9 @@ from vresutils.load import timeseries_opsd
 from vresutils import transfer as vtransfer
 
 import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 import pandas as pd
 import numpy as np
 import xarray as xr
@@ -99,7 +102,6 @@ import pypsa
 import powerplantmatching as ppm
 
 idx = pd.IndexSlice
-logger = logging.getLogger(__name__)
 
 
 def normed(s): return s/s.sum()
@@ -522,7 +524,7 @@ if __name__ == "__main__":
                     for t in snakemake.config['renewable']})
         )
 
-    logging.basicConfig(level=snakemake.config['logging_level'])
+    configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)
     Nyears = n.snapshot_weightings.sum()/8760.

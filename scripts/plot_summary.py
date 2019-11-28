@@ -16,6 +16,9 @@ Description
 """
 
 import os
+import logging
+logger = logging.getLogger(__name__)
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -178,6 +181,9 @@ def plot_energy(infn, fn=None):
 
 
 if __name__ == "__main__":
+
+    configure_logging(snakemake)
+
     summary = snakemake.wildcards.summary
     try:
         func = globals()[f"plot_{summary}"]

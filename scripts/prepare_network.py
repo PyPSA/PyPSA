@@ -38,7 +38,7 @@ Inputs
 Outputs
 -------
 
-- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Complete PyPSA network that will be handed to the ``solve_network`` rule.
+- ``networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: Complete PyPSA network that will be handed to the ``solve_network`` rule.
 
 Description
 -----------
@@ -50,6 +50,10 @@ Description
 
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 from add_electricity import load_costs, update_transmission_costs
 from six import iteritems
 
@@ -57,10 +61,8 @@ import numpy as np
 import re
 import pypsa
 import pandas as pd
-import logging
 
 idx = pd.IndexSlice
-logger = logging.getLogger(__name__)
 
 def add_co2limit(n, Nyears=1., factor=None):
 
@@ -182,10 +184,10 @@ if __name__ == "__main__":
         snakemake = MockSnakemake(
             wildcards=dict(network='elec', simpl='', clusters='37', ll='v2', opts='Co2L-3H'),
             input=['networks/{network}_s{simpl}_{clusters}.nc'],
-            output=['networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc']
+            output=['networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc']
         )
 
-    logging.basicConfig(level=snakemake.config['logging_level'])
+    configure_logging(snakemake)
 
     opts = snakemake.wildcards.opts.split('-')
 

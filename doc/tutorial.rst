@@ -38,47 +38,47 @@ The model can be adapted to only include selected countries (e.g. Germany) inste
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 14
+   :lines: 15
    
 Likewise, the example's temporal scope can be restricted (e.g. to a single month).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 16-19
+   :lines: 17-20
 
 It is also possible to allow less or more carbon-dioxide emissions. Here, we limit the emissions of Germany 100 Megatonnes per year.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 28
+   :lines: 30
 
 PyPSA-Eur also includes a database of existing conventional powerplants.
 We can select which types of powerplants we like to be included with fixed capacities:
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 40
+   :lines: 43
 
 To accurately model the temporal and spatial availability of renewables such as wind and solar energy, we rely on historical weather data.
 It is advisable to adapt the required range of coordinates to the selection of countries.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 42-50
+   :lines: 45-53
 
 We can also decide which weather data source should be used to calculate potentials and capacity factor time-series for each carrier.
 For example, we may want to use the ERA-5 dataset for solar and not the default SARAH-2 dataset.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 52,95-96
+   :lines: 55,98-99
 
 Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 151,160-161
+   :lines: 154,163-164
 
 .. note::
 
@@ -110,8 +110,8 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
 .. code::
 
     rule solve_network:
-        input: "networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc"
-        output: "results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc"
+        input: "networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+        output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
         [...]
         script: "scripts/solve_network.py"
 

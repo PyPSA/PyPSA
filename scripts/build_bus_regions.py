@@ -36,6 +36,11 @@ Description
 -----------
 
 """
+
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 from vresutils.graph import voronoi_partition_pts
 
 import os
@@ -43,12 +48,10 @@ import os
 import pandas as pd
 import geopandas as gpd
 
-
 import pypsa
-import logging
 
 if __name__ == "__main__":
-    logging.basicConfig(level=snakemake.config["logging_level"])
+    configure_logging(snakemake)
 
     countries = snakemake.config['countries']
 

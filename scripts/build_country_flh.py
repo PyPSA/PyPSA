@@ -57,6 +57,10 @@ Description
 
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 import os
 import atlite
 import numpy as np
@@ -72,8 +76,6 @@ from vresutils import landuse as vlanduse
 from vresutils.array import spdiag
 
 import progressbar as pgb
-import logging
-logger = logging.getLogger(__name__)
 
 from build_renewable_profiles import init_globals, calculate_potential
 
@@ -175,7 +177,8 @@ if __name__ == '__main__':
                                                  snakemake.config["renewable"][snakemake.wildcards.technology]['cutout'])
 
     pgb.streams.wrap_stderr()
-    logging.basicConfig(level=snakemake.config['logging_level'])
+
+    configure_logging(snakemake)
 
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
 

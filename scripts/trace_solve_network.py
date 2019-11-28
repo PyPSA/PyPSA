@@ -28,24 +28,25 @@ Relevant Settings
 Inputs
 ------
 
-- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+- ``networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: confer :ref:`prepare`
 
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}_trace.nc``: Solved PyPSA network including optimisation results (with trace)
+- ``results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_trace.nc``: Solved PyPSA network including optimisation results (with trace)
 
 Description
 -----------
 
 """
 
+import logging
+logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
 from solve_network import patch_pyomo_tmpdir, prepare_network, solve_network
 
-import logging
 import pypsa
-
-logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     # Detect running outside of snakemake and mock snakemake for testing
@@ -62,8 +63,7 @@ if __name__ == "__main__":
     if tmpdir is not None:
         patch_pyomo_tmpdir(tmpdir)
 
-    logging.basicConfig(filename=snakemake.log.python,
-                        level=snakemake.config['logging_level'])
+    configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input[0])
 

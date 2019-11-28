@@ -34,12 +34,12 @@ Relevant Settings
 Inputs
 ------
 
-- ``networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: confer :ref:`prepare`
+- ``networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: confer :ref:`prepare`
 
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
+- ``results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
 
     .. image:: ../img/results.png
         :scale: 40 %
@@ -77,10 +77,12 @@ Details (and errors made through this heuristic) are discussed in the paper
 
 """
 
-import numpy as np
-import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
+from _helpers import configure_logging
+
+import numpy as np
+import pandas as pd
 import gc
 
 import pypsa
@@ -379,12 +381,11 @@ if __name__ == "__main__":
                      python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
         )
 
+    configure_logging(snakemake)
+
     tmpdir = snakemake.config['solving'].get('tmpdir')
     if tmpdir is not None:
         patch_pyomo_tmpdir(tmpdir)
-
-    logging.basicConfig(filename=snakemake.log.python,
-                        level=snakemake.config['logging_level'])
 
     with memory_logger(filename=getattr(snakemake.log, 'memory', None), interval=30.) as mem:
         n = pypsa.Network(snakemake.input[0])

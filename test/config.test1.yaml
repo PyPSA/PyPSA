@@ -1,6 +1,8 @@
 version: 0.1
 tutorial: true
-logging_level: INFO
+logging:
+  level: INFO
+  format: '%(levelname)s:%(name)s:%(message)s'
 
 summary_dir: results
 
