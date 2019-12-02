@@ -32,8 +32,9 @@ electricity:
 
   extendable_carriers:
     Generator: [OCGT]
-    StorageUnit: [battery, H2]
-    Store: [] #battery, H2
+    StorageUnit: [battery]
+    Store: [H2]
+    Link: [H2 pipeline]
 
   max_hours:
     battery: 6

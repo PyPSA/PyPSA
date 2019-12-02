@@ -37,6 +37,7 @@ electricity:
     Generator: [OCGT]
     StorageUnit: [battery, H2]
     Store: [] # battery, H2
+    Link: []
 
   max_hours:
     battery: 6
