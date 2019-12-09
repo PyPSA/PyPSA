@@ -13,7 +13,7 @@ scenario:
   clusters: [5]
   opts: [Co2L-24H]
 
-countries: ['DE'] 
+countries: ['DE']
 
 snapshots:
   start: "2013-03-01"
@@ -25,7 +25,7 @@ enable:
   retrieve_databundle: true
   build_cutout: false
   build_natura_raster: false
-  
+
 electricity:
   voltages: [220., 300., 380.]
   co2limit: 100.e+6
@@ -202,7 +202,7 @@ plotting:
   storage_techs: ["hydro+PHS", "battery", "H2"]
   load_carriers: ["AC load"]
   AC_carriers: ["AC line", "AC transformer"]
-  link_carriers: ["DC line", "Converter AC-DC"] 
+  link_carriers: ["DC line", "Converter AC-DC"]
   tech_colors:
     "onwind" : "#235ebc"
     "onshore wind" : "#235ebc"
@@ -256,7 +256,7 @@ plotting:
     "helmeth" : "#a31597"
     "DAC" : "#d284ff"
     "co2 stored" : "#e5e5e5"
-    "CO2 sequestration" : "#e5e5e5" 
+    "CO2 sequestration" : "#e5e5e5"
     "battery" : "#b8ea04"
     "battery storage" : "#b8ea04"
     "Li ion" : "#b8ea04"
@@ -265,7 +265,7 @@ plotting:
     "transport fuel cell" : "#e884be"
     "retrofitting" : "#e0d6a8"
     "building retrofitting" : "#e0d6a8"
-    "heat pumps" : "#ff9768" 
+    "heat pumps" : "#ff9768"
     "heat pump" : "#ff9768"
     "air heat pump" : "#ffbea0"
     "ground heat pump" : "#ff7a3d"
@@ -317,4 +317,3 @@ plotting:
     H2: "Hydrogen\nStorage"
     lines: "Transmission\nlines"
     ror: "Run of\nriver"
-    

@@ -45,6 +45,12 @@ import tarfile
 from _helpers import progress_retrieve, configure_logging
 
 if __name__ == "__main__":
+    if 'snakemake' not in globals():
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('retrieve_cutout')
+        rootpath = '..'
+    else:
+        rootpath = '.'
 
     configure_logging(snakemake) # TODO Make logging compatible with progressbar (see PR #102)
 
@@ -54,13 +60,13 @@ if __name__ == "__main__":
         url = "https://zenodo.org/record/3517949/files/pypsa-eur-cutouts.tar.xz"
 
     # Save location
-    tarball_fn = Path("./cutouts.tar.xz")
+    tarball_fn = Path(f"{rootpath}/cutouts.tar.xz")
 
     logger.info(f"Downloading cutouts from '{url}'.")
     progress_retrieve(url, tarball_fn)
 
     logger.info(f"Extracting cutouts.")
-    tarfile.open(tarball_fn).extractall()
+    tarfile.open(tarball_fn).extractall(path=rootpath)
 
     tarball_fn.unlink()
 

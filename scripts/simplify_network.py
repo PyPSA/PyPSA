@@ -331,26 +331,9 @@ def cluster(n, n_clusters):
     return clustering.network, clustering.busmap
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            path='..',
-            wildcards=Dict(simpl='1024', network='elec'),
-            input=Dict(
-                network='networks/{network}.nc',
-                tech_costs="data/costs.csv",
-                regions_onshore="resources/regions_onshore.geojson",
-                regions_offshore="resources/regions_offshore.geojson"
-            ),
-            output=Dict(
-                network='networks/{network}_s{simpl}.nc',
-                regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
-                regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-                clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
-            )
-        )
-    
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('simplify_network', simpl='', network='elec')
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)

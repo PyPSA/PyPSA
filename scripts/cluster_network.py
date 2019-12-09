@@ -20,7 +20,7 @@ Relevant Settings
     lines:
         length_factor:
 
-.. seealso:: 
+.. seealso::
     Documentation of the configuration file ``config.yaml`` at
     :ref:`toplevel_cf`, :ref:`renewable_cf`, :ref:`solving_cf`, :ref:`lines_cf`
 
@@ -46,7 +46,7 @@ Outputs
         :scale: 33 %
 
 - ``resources/clustermaps_{network}_s{simpl}_{clusters}.h5``: Mapping of buses and lines from ``networks/elec_s{simpl}.nc`` to ``networks/elec_s{simpl}_{clusters}.nc``; has keys ['/busmap', '/busmap_s', '/linemap', '/linemap_negative', '/linemap_positive']
-- ``networks/{network}_s{simpl}_{clusters}.nc``: 
+- ``networks/{network}_s{simpl}_{clusters}.nc``:
 
     .. image:: ../img/elec_s_X.png
         :scale: 40  %
@@ -57,7 +57,7 @@ Description
 .. note::
 
     **Why is clustering used both in** ``simplify_network`` **and** ``cluster_network`` **?**
-    
+
         Consider for example a network ``networks/elec_s100_50.nc`` in which
         ``simplify_network`` clusters the network to 100 buses and in a second
         step ``cluster_network``` reduces it down to 50 buses.
@@ -86,7 +86,7 @@ Description
 
 .. tip::
     The rule :mod:`cluster_all_networks` runs
-    for all ``scenario`` s in the configuration file 
+    for all ``scenario`` s in the configuration file
     the rule :mod:`cluster_network`.
 
 """
@@ -168,7 +168,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
         total_focus = sum(list(focus_weights.values()))
 
         assert total_focus <= 1.0, "The sum of focus weights must be less than or equal to 1."
-        
+
         for country, weight in focus_weights.items():
             L[country] = weight / len(L[country])
 
@@ -292,27 +292,9 @@ def cluster_regions(busmaps, input=None, output=None):
         save_to_geojson(regions_c, getattr(output, which))
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            wildcards=Dict(network='elec', simpl='', clusters='45'),
-            input=Dict(
-                network='networks/{network}_s{simpl}.nc',
-                regions_onshore='resources/regions_onshore_{network}_s{simpl}.geojson',
-                regions_offshore='resources/regions_offshore_{network}_s{simpl}.geojson',
-                clustermaps='resources/clustermaps_{network}_s{simpl}.h5',
-                tech_costs='data/costs.csv',
-
-            ),
-            output=Dict(
-                network='networks/{network}_s{simpl}_{clusters}.nc',
-                regions_onshore='resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson',
-                regions_offshore='resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson',
-                clustermaps='resources/clustermaps_{network}_s{simpl}_{clusters}.h5'
-            )
-        )
- 
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('cluster_network', network='elec', simpl='', clusters='5')
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)

@@ -17,7 +17,8 @@ Description
 
 import logging
 logger = logging.getLogger(__name__)
-from _helpers import load_network, aggregate_p, aggregate_costs, configure_logging
+from _helpers import (load_network, aggregate_p, aggregate_costs,
+                      configure_logging)
 
 import pandas as pd
 import numpy as np
@@ -73,7 +74,7 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
 
     ## DATA
     line_colors = {'cur': "purple",
-                   'exp': to_rgba("red", 0.7)}
+                   'exp': mpl.colors.rgb2hex(to_rgba("red", 0.7), True)}
     tech_colors = opts['tech_colors']
 
     if attribute == 'p_nom':
@@ -188,7 +189,7 @@ def plot_total_energy_pie(n, ax=None):
         labels = e_primary.rename(opts['nice_names_n']).index,
         autopct='%.0f%%',
         shadow=False,
-            colors = [tech_colors[tech] for tech in e_primary.index])
+        colors = [opts['tech_colors'][tech] for tech in e_primary.index])
     for t1, t2, i in zip(texts, autotexts, e_primary.index):
         if e_primary.at[i] < 0.04 * e_primary.sum():
             t1.remove()
@@ -200,6 +201,7 @@ def plot_total_cost_bar(n, ax=None):
         ax = plt.gca()
 
     total_load = (n.snapshot_weightings * n.loads_t.p.sum(axis=1)).sum()
+    tech_colors = opts['tech_colors']
 
     def split_costs(n):
         costs = aggregate_costs(n).reset_index(level=0, drop=True)
@@ -210,13 +212,15 @@ def plot_total_cost_bar(n, ax=None):
     costs, costs_cap_ex, costs_cap_new, costs_marg = split_costs(n)
 
     costs_graph = pd.DataFrame(dict(a=costs.drop('load', errors='ignore')),
-                            index=['AC-AC', 'AC line', 'onwind', 'offwind-ac', 'offwind-dc', 'solar', 'OCGT','CCGT', 'battery', 'H2']).dropna()
+                            index=['AC-AC', 'AC line', 'onwind', 'offwind-ac',
+                                   'offwind-dc', 'solar', 'OCGT','CCGT', 'battery', 'H2']).dropna()
     bottom = np.array([0., 0.])
     texts = []
 
     for i,ind in enumerate(costs_graph.index):
         data = np.asarray(costs_graph.loc[ind])/total_load
-        ax.bar([0.5], data, bottom=bottom, color=tech_colors[ind], width=0.7, zorder=-1)
+        ax.bar([0.5], data, bottom=bottom, color=tech_colors[ind],
+               width=0.7, zorder=-1)
         bottom_sub = bottom
         bottom = bottom+data
 
@@ -236,8 +240,8 @@ def plot_total_cost_bar(n, ax=None):
         texts.append(text)
 
     ax.set_ylabel("Average system cost [Eur/MWh]")
-    ax.set_ylim([0,80]) # opts['costs_max']])
-    ax.set_xlim([0,1])
+    ax.set_ylim([0, 80]) # opts['costs_max']])
+    ax.set_xlim([0, 1])
     #ax.set_xticks([0.5])
     ax.set_xticklabels([]) #["w/o\nEp", "w/\nEp"])
     ax.grid(True, axis="y", color='k', linestyle='dotted')
@@ -245,21 +249,12 @@ def plot_total_cost_bar(n, ax=None):
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        from snakemake.rules import expand
-
-        snakemake = Dict()
-        snakemake = MockSnakemake(
-            path='..',
-            wildcards=dict(network='elec', simpl='', clusters='90', lv='1.25', opts='Co2L-3H', attr='p_nom', ext="pdf"),
-            input=dict(network="results/networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc",
-                    tech_costs="data/costs.csv"),
-            output=dict(only_map="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}.{ext}",
-                        ext="results/plots/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_{attr}_ext.{ext}")
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('plot_network', network='elec', simpl='',
+                                  clusters='5', ll='copt', opts='Co2L-24H',
+                                  attr='p_nom', ext="pdf")
     configure_logging(snakemake)
-    
+
     set_plot_style()
 
     opts = snakemake.config['plotting']
@@ -273,8 +268,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
     plot_map(n, ax, snakemake.wildcards.attr, opts)
 
-    fig.savefig(snakemake.output.only_map, dpi=150,
-                bbox_inches='tight', bbox_extra_artists=[l1,l2,l3])
+    fig.savefig(snakemake.output.only_map, dpi=150, bbox_inches='tight')
 
     ax1 = fig.add_axes([-0.115, 0.625, 0.2, 0.2])
     plot_total_energy_pie(n, ax1)
@@ -292,5 +286,4 @@ if __name__ == "__main__":
     fig.suptitle('Expansion to {amount} {label} at {clusters} clusters'
                 .format(amount=amnt, label=lbl, clusters=snakemake.wildcards.clusters))
 
-    fig.savefig(snakemake.output.ext, transparent=True,
-                bbox_inches='tight', bbox_extra_artists=[l1, l2, l3, ax1, ax2])
+    fig.savefig(snakemake.output.ext, transparent=True, bbox_inches='tight')

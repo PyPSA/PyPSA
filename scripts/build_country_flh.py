@@ -112,8 +112,8 @@ def plot_area_solar(area, p_area, countries):
         d.plot.bar(ax=ax, legend=False, align='edge', width=1.)
         # ax.set_ylabel(f"Potential {c} / GW")
         ax.set_title(c)
-    ax.legend()
-    ax.set_xlabel("Full-load hours")
+        ax.legend()
+        ax.set_xlabel("Full-load hours")
 
     fig.savefig(snakemake.output.plot, transparent=True, bbox_inches='tight')
 
@@ -147,38 +147,13 @@ def build_aggregate(flh, countries, areamatrix, breaks, p_area, fn):
     agg.to_csv(fn)
 
 if __name__ == '__main__':
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            wildcards=Dict(technology='solar'),
-            input=Dict(
-                base_network="networks/base.nc",
-                corine="data/bundle/corine/g250_clc06_V18_5.tif",
-                natura="resources/natura.tiff",
-                gebco="data/bundle/GEBCO_2014_2D.nc",
-                country_shapes='resources/country_shapes.geojson',
-                offshore_shapes='resources/offshore_shapes.geojson',
-                pietzker="data/pietzker2014.xlsx"
-            ),
-            output=Dict(
-                area="resources/country_flh_area_{technology}.csv",
-                aggregated="resources/country_flh_aggregated_{technology}.csv",
-                uncorrected="resources/country_flh_uncorrected_{technology}.csv",
-                plot="resources/country_flh_{technology}.pdf",
-                exclusion="resources/country_exclusion_{technology}"
-            )
-        )
-        snakemake.input['regions'] = os.path.join(snakemake.path, "resources",
-                                                  "country_shapes.geojson"
-                                                  if snakemake.wildcards.technology in ('onwind', 'solar')
-                                                  else "offshore_shapes.geojson")
-        snakemake.input['cutout'] = os.path.join(snakemake.path, "cutouts",
-                                                 snakemake.config["renewable"][snakemake.wildcards.technology]['cutout'])
+       from _helpers import mock_snakemake
+       snakemake = mock_snakemake('build_country_flh', technology='solar')
+    configure_logging(snakemake)
 
     pgb.streams.wrap_stderr()
 
-    configure_logging(snakemake)
 
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
 
@@ -198,7 +173,7 @@ if __name__ == '__main__':
     # Use GLAES to compute available potentials and the transition matrix
     paths = dict(snakemake.input)
 
-    init_globals(bounds, dx, dy, config, paths)
+    init_globals(bounds.xXyY, dx, dy, config, paths)
     regions = gk.vector.extractFeatures(paths["regions"], onlyAttr=True)
     countries = pd.Index(regions["name"], name="country")
 

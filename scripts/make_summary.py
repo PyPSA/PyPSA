@@ -191,7 +191,7 @@ def calculate_supply(n,label,supply):
 
             items = c.df.index[c.df.bus.map(bus_map)]
 
-            if len(items) == 0:
+            if len(items) == 0 or c.pnl.p.empty:
                 continue
 
             s = c.pnl.p[items].max().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
@@ -209,7 +209,7 @@ def calculate_supply(n,label,supply):
 
                 items = c.df.index[c.df["bus" + end].map(bus_map)]
 
-                if len(items) == 0:
+                if len(items) == 0 or c.pnl["p"+end].empty:
                     continue
 
                 #lots of sign compensation for direction and to do maximums
@@ -237,7 +237,7 @@ def calculate_supply_energy(n,label,supply_energy):
 
             items = c.df.index[c.df.bus.map(bus_map)]
 
-            if len(items) == 0:
+            if len(items) == 0 or c.pnl.p.empty:
                 continue
 
             s = c.pnl.p[items].sum().multiply(c.df.loc[items,'sign']).groupby(c.df.loc[items,'carrier']).sum()
@@ -255,7 +255,7 @@ def calculate_supply_energy(n,label,supply_energy):
 
                 items = c.df.index[c.df["bus" + end].map(bus_map)]
 
-                if len(items) == 0:
+                if len(items) == 0  or c.pnl['p' + end].empty:
                     continue
 
                 s = (-1)*c.pnl["p"+end][items].sum().groupby(c.df.loc[items,'carrier']).sum()
@@ -471,7 +471,16 @@ def to_csv(dfs):
 
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
+    if 'snakemake' not in globals():
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('make_summary', network='elec', simpl='',
+                           clusters='5', ll='copt', opts='Co2L-24H', country='all')
+        network_dir = os.path.join('..', 'results', 'networks')
+    else:
+        network_dir = os.path.join('results', 'networks')
+    configure_logging(snakemake)
+
+
     def expand_from_wildcard(key):
         w = getattr(snakemake.wildcards, key)
         return snakemake.config["scenario"][key] if w == "all" else [w]
@@ -483,14 +492,9 @@ if __name__ == "__main__":
     else:
         ll = [snakemake.wildcards.ll]
 
-    configure_logging(snakemake)
-
-    networks_dict = {(simpl,clusters,l,opts) : ('results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
-                                                 .format(network=snakemake.wildcards.network,
-                                                         simpl=simpl,
-                                                         clusters=clusters,
-                                                         opts=opts,
-                                                         ll=l))
+    networks_dict = {(simpl,clusters,l,opts) :
+        os.path.join(network_dir, f'{snakemake.wildcards.network}_s{simpl}_'
+                                  f'{clusters}_ec_l{l}_{opts}.nc')
                      for simpl in expand_from_wildcard("simpl")
                      for clusters in expand_from_wildcard("clusters")
                      for l in ll

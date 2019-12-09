@@ -14,7 +14,7 @@ scenario:
   clusters: [37, 100]
   opts: [Co2L-3H]
 
-countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'] 
+countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
 
 snapshots:
   start: "2013-01-01"
@@ -224,7 +224,7 @@ plotting:
   storage_techs: ["hydro+PHS", "battery", "H2"]
   load_carriers: ["AC load"]
   AC_carriers: ["AC line", "AC transformer"]
-  link_carriers: ["DC line", "Converter AC-DC"] 
+  link_carriers: ["DC line", "Converter AC-DC"]
   tech_colors:
     "onwind" : "#235ebc"
     "onshore wind" : "#235ebc"
@@ -278,7 +278,7 @@ plotting:
     "helmeth" : "#a31597"
     "DAC" : "#d284ff"
     "co2 stored" : "#e5e5e5"
-    "CO2 sequestration" : "#e5e5e5" 
+    "CO2 sequestration" : "#e5e5e5"
     "battery" : "#b8ea04"
     "battery storage" : "#b8ea04"
     "Li ion" : "#b8ea04"
@@ -287,7 +287,7 @@ plotting:
     "transport fuel cell" : "#e884be"
     "retrofitting" : "#e0d6a8"
     "building retrofitting" : "#e0d6a8"
-    "heat pumps" : "#ff9768" 
+    "heat pumps" : "#ff9768"
     "heat pump" : "#ff9768"
     "air heat pump" : "#ffbea0"
     "ground heat pump" : "#ff7a3d"

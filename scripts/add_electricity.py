@@ -507,23 +507,9 @@ def add_nice_carrier_names(n, config=None):
 
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-
-        snakemake = MockSnakemake(output=['networks/elec.nc'])
-        snakemake.input = snakemake.expand(
-            Dict(base_network='networks/base.nc',
-                 tech_costs='data/costs.csv',
-                 regions="resources/regions_onshore.geojson",
-                 powerplants="resources/powerplants.csv",
-                 hydro_capacities='data/bundle/hydro_capacities.csv',
-                 opsd_load='data/bundle/time_series_60min_singleindex_filtered.csv',
-                 nuts3_shapes='resources/nuts3_shapes.geojson',
-                 **{'profile_' + t: "resources/profile_" + t + ".nc"
-                    for t in snakemake.config['renewable']})
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('add_electricity')
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)

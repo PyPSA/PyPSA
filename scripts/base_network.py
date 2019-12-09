@@ -548,28 +548,9 @@ def base_network():
     return n
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            path='..',
-            wildcards={},
-            input=Dict(
-                eg_buses='data/entsoegridkit/buses.csv',
-                eg_lines='data/entsoegridkit/lines.csv',
-                eg_links='data/entsoegridkit/links.csv',
-                eg_converters='data/entsoegridkit/converters.csv',
-                eg_transformers='data/entsoegridkit/transformers.csv',
-                parameter_corrections='data/parameter_corrections.yaml',
-                links_p_nom='data/links_p_nom.csv',
-                links_tyndp='data/links_tyndp.csv',
-                country_shapes='resources/country_shapes.geojson',
-                offshore_shapes='resources/offshore_shapes.geojson',
-                europe_shape='resources/europe_shape.geojson'
-            ),
-            output = ['networks/base.nc']
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('base_network')
     configure_logging(snakemake)
 
     n = base_network()

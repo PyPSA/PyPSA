@@ -36,24 +36,29 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
-
-import numpy as np
 import atlite
 import geokit as gk
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 def determine_cutout_xXyY(cutout_name):
-    cutout = atlite.Cutout(cutout_name, cutout_dir="cutouts")
+    cutout = atlite.Cutout(cutout_name, cutout_dir=cutout_dir)
     x, X, y, Y = cutout.extent
     dx = (X - x) / (cutout.shape[1] - 1)
     dy = (Y - y) / (cutout.shape[0] - 1)
     return [x - dx/2., X + dx/2., y - dy/2., Y + dy/2.]
 
+
 if __name__ == "__main__":
+    if 'snakemake' not in globals():
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_natura_raster') #has to be enabled
     configure_logging(snakemake)
 
-    cutout_names = np.unique([res['cutout'] for res in snakemake.config['renewable'].values()])
+    cutout_dir = Path(snakemake.input.cutouts[0]).parent.resolve()
+    cutout_names = {res['cutout'] for res in snakemake.config['renewable'].values()}
     xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutout_names))
     xXyY = min(xs), max(Xs), min(ys), max(Ys)
 

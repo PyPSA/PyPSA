@@ -64,7 +64,6 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import os
@@ -77,8 +76,10 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import cascaded_union
-
 import pycountry as pyc
+
+logger = logging.getLogger(__name__)
+
 
 def _get_country(target, **keys):
     assert len(keys) == 1
@@ -202,29 +203,9 @@ def save_to_geojson(df, fn):
     df.to_file(fn, driver='GeoJSON', schema=schema)
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            path='..',
-            wildcards={},
-            input=Dict(
-                naturalearth='data/bundle/naturalearth/ne_10m_admin_0_countries.shp',
-                eez='data/bundle/eez/World_EEZ_v8_2014.shp',
-                nuts3='data/bundle/NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp',
-                nuts3pop='data/bundle/nama_10r_3popgdp.tsv.gz',
-                nuts3gdp='data/bundle/nama_10r_3gdp.tsv.gz',
-                ch_cantons='data/bundle/ch_cantons.csv',
-                ch_popgdp='data/bundle/je-e-21.03.02.xls'
-            ),
-            output=Dict(
-                country_shapes='resources/country_shapes.geojson',
-                offshore_shapes='resource/offshore_shapes.geojson',
-                europe_shape='resources/europe_shape.geojson',
-                nuts3_shapes='resources/nuts3_shapes.geojson'
-            )
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_shapes')
     configure_logging(snakemake)
 
     country_shapes = countries()

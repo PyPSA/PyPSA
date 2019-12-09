@@ -91,14 +91,8 @@ def add_custom_powerplants(ppl):
 if __name__ == "__main__":
 
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-
-        snakemake = MockSnakemake(
-            input=Dict(base_network='networks/base.nc',
-                       custom_powerplants='data/custom_powerplants.csv'),
-            output=['resources/powerplants.csv']
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_powerplants')
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)

@@ -124,7 +124,7 @@ rule build_bus_regions:
 if config['enable'].get('build_cutout', False):        
     rule build_cutout:
         output: directory("cutouts/{cutout}")
-        log: "logs/build_cutout.log"
+        log: "logs/build_cutout/{cutout}.log"
         resources: mem=config['atlite'].get('nprocesses', 4) * 1000
         threads: config['atlite'].get('nprocesses', 4)
         benchmark: "benchmarks/build_cutout_{cutout}"
@@ -357,11 +357,11 @@ rule plot_summary:
 def input_plot_p_nom_max(wildcards):
     return [('networks/{network}_s{simpl}{maybe_cluster}.nc'
              .format(maybe_cluster=('' if c == 'full' else ('_' + c)), **wildcards))
-            for c in wildcards.clusters.split(",")]
+            for c in wildcards.clusts.split(",")]
 rule plot_p_nom_max:
     input: input_plot_p_nom_max
-    output: "results/plots/{network}_s{simpl}_cum_p_nom_max_{clusters}_{technology}_{country}.{ext}"
-    log: "logs/plot_p_nom_max/{network}_s{simpl}_{clusters}_{technology}_{country}_{ext}.log"
+    output: "results/plots/{network}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
+    log: "logs/plot_p_nom_max/{network}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
     script: "scripts/plot_p_nom_max.py"
 
 rule build_country_flh:

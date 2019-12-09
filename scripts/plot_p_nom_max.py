@@ -22,6 +22,7 @@ import pypsa
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import logging
 
 def cum_p_nom_max(net, tech, country=None):
     carrier_b = net.generators.carrier == tech
@@ -42,31 +43,17 @@ def cum_p_nom_max(net, tech, country=None):
 
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            path='..',
-            wildcards={'clusters': '45,90,181,full',
-                       'country': 'all'},
-            params=dict(techs=['onwind', 'offwind-ac', 'offwind-dc', 'solar']),
-            input=Dict(
-                **{
-                    'full': 'networks/elec_s.nc',
-                    '45': 'networks/elec_s_45.nc',
-                    '90': 'networks/elec_s_90.nc',
-                    '181': 'networks/elec_s_181.nc',
-                }
-            ),
-            output=['results/plots/cum_p_nom_max_{clusters}_{country}.pdf']
-        )
-    
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('plot_p_nom_max', network='elec', simpl='',
+                                  techs='solar,onwind,offwind-dc', ext='png',
+                                  clusts= '5,full', country= 'all')
     configure_logging(snakemake)
 
     plot_kwds = dict(drawstyle="steps-post")
 
-    clusters = snakemake.wildcards.clusters.split(',')
-    techs = snakemake.params.techs
+    clusters = snakemake.wildcards.clusts.split(',')
+    techs = snakemake.wildcards.techs.split(',')
     country = snakemake.wildcards.country
     if country == 'all':
         country = None
@@ -75,14 +62,15 @@ if __name__ == "__main__":
 
     fig, axes = plt.subplots(1, len(techs))
 
-    for cluster in clusters:
-        net = pypsa.Network(getattr(snakemake.input, cluster))
+    for j, cluster in enumerate(clusters):
+        net = pypsa.Network(snakemake.input[j])
 
         for i, tech in enumerate(techs):
-            cum_p_nom_max(net, tech, country).plot(x="p_max_pu", y="c_p_nom_max", label=cluster, ax=axes[0][i], **plot_kwds)
+            cum_p_nom_max(net, tech, country).plot(x="p_max_pu", y="cum_p_nom_max",
+                         label=cluster, ax=axes[i], **plot_kwds)
 
     for i, tech in enumerate(techs):
-        ax = axes[0][i]
+        ax = axes[i]
         ax.set_xlabel(f"Capacity factor of {tech}")
         ax.set_ylabel("Cumulative installable capacity / TW")
 

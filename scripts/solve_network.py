@@ -370,17 +370,10 @@ def solve_network(n, config=None, solver_log=None, opts=None, callback=None,
     return n
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-        snakemake = MockSnakemake(
-            wildcards=dict(network='elec', simpl='', clusters='45', lv='1.0', opts='Co2L-3H'),
-            input=["networks/{network}_s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
-            output=["results/networks/s{simpl}_{clusters}_lv{lv}_{opts}.nc"],
-            log=dict(solver="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_solver.log",
-                     python="logs/{network}_s{simpl}_{clusters}_lv{lv}_{opts}_python.log")
-        )
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('solve_network', network='elec', simpl='',
+                                  clusters='5', ll='copt', opts='Co2L-24H')
     configure_logging(snakemake)
 
     tmpdir = snakemake.config['solving'].get('tmpdir')

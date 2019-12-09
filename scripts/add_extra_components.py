@@ -173,15 +173,10 @@ def attach_hydrogen_pipelines(n, costs):
            carrier="H2 pipeline")
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils.snakemake import MockSnakemake, Dict
-
-        snakemake = MockSnakemake(output=['networks/elec_s_5_ec.nc'])
-        snakemake.input = snakemake.expand(
-            Dict(network='networks/elec_s_5.nc',
-                 tech_costs='data/costs.csv'))
-
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('add_extra_components', network='elec',
+                                  simpl='', clusters=5)
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)

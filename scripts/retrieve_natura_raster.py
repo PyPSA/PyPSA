@@ -22,7 +22,7 @@ This rule, as a substitute for :mod:`build_natura_raster`, downloads an already 
 - ``resources/natura.tiff``: Rasterized version of `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas to reduce computation times.
 
 .. seealso::
-    For details see :mod:`build_natura_raster`. 
+    For details see :mod:`build_natura_raster`.
 
 """
 
@@ -33,16 +33,14 @@ from pathlib import Path
 from _helpers import progress_retrieve, configure_logging
 
 if __name__ == "__main__":
-
+    if 'snakemake' not in globals():
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('retrieve_natura_raster')
     configure_logging(snakemake) # TODO Make logging compatible with progressbar (see PR #102)
-
-    # Save location, ensure folder existence
-    to_fn = Path("resources/natura.tiff")
-    to_fn.parent.mkdir(parents=True, exist_ok=True)
 
     url = "https://zenodo.org/record/3518215/files/natura.tiff"
 
     logger.info(f"Downloading natura raster from '{url}'.")
-    progress_retrieve(url, to_fn)
-    
-    logger.info(f"Natura raster available as '{to_fn}'.")
+    progress_retrieve(url, snakemake.output[0])
+
+    logger.info(f"Natura raster available as '{snakemake.output[0]}'.")
