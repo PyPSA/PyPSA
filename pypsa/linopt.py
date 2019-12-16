@@ -384,9 +384,7 @@ def _add_reference(ref_dict, df, attr, pnl=True):
         if ref_dict.df.empty:
             ref_dict.df[attr] = df
         else:
-            ref_dict.df.loc[df.index, :] = df.to_frame(attr)\
-                                          .reindex(columns=ref_dict.df.columns)
-#            ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
+            ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
 
 def set_varref(n, variables, c, attr, spec=''):
     """
