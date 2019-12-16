@@ -937,6 +937,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
 
     '''
 
+    n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
     ext_i = get_extendable_i(n, 'Line')
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
