@@ -23,8 +23,8 @@ from six import iterkeys
 from six.moves.collections_abc import Sequence
 
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -150,6 +150,9 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False,
         else:
             sn_slack_weights = slack_weights
 
+        if type(sn_slack_weights) == dict:
+            sn_slack_weights = pd.Series(sn_slack_weights)
+
         if not linear:
             # escape for single-bus sub-network
             if len(sub_network.buses()) <= 1:
@@ -187,15 +190,18 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
     use_seed : bool, default False
         Use a seed for the initial guess for the Newton-Raphson algorithm.
     distribute_slack : bool, default False
-        Distribute the slack power across generators proportional to generator dispatch by default
+        If ``True``, distribute the slack power across generators proportional to generator dispatch by default
         or according to the distribution scheme provided in ``slack_weights``.
+        If ``False`` only the slack generator takes up the slack.
     slack_weights : dict|str, default 'dispatch'
         Distribution scheme describing how to determine the fraction of the total slack power
         (of each sub network individually) a bus of the subnetwork takes up.
         Default is to distribute proportional to generator dispatch ('dispatch').
         Another option is to distribute proportional to nominal capacity ('capacity'). 
-        Custom weights can be specified via a dictionary that has a key for each subnetwork index (``network.sub_networks.index``)
-        and a pandas.Series as values that sums up to 1 and has the buses of the corresponding subnetwork as index.
+        Custom weights can be specified via a dictionary that has a key for each
+        subnetwork index (``network.sub_networks.index``) and a
+        pandas.Series/dict with values that sum up to 1 and buses or
+        generators of the corresponding subnetwork as index/keys.
 
     Returns
     -------
@@ -257,14 +263,15 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     distribute_slack : bool, default False
-        Distribute the slack power across generators proportional to generator dispatch by default
+        If ``True``, distribute the slack power across generators proportional to generator dispatch by default
         or according to the distribution scheme provided in ``slack_weights``.
+        If ``False`` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'dispatch'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
         ('dispatch'). Another option is to distribute proportional to nominal capacity ('capacity'). 
-        Custom weights can be provided via a pandas.Series that must sum up to 1 and
-        that has the buses of the sub_network as index.
+        Custom weights can be provided via a pandas.Series/dict
+        that has the generators of the single bus as index/keys.
     """
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
@@ -274,6 +281,9 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
     if not skip_pre:
         find_bus_controls(sub_network)
         _allocate_pf_outputs(network, linear=False)
+
+    if type(slack_weights) == dict:
+        slack_weights = pd.Series(slack_weights)
 
     buses_o = sub_network.buses_o
     sn_buses = sub_network.buses().index
@@ -286,10 +296,12 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
 
     if distribute_slack:
         for bus, group in sub_network.generators().groupby('bus'):
-            if slack_weights != 'dispatch':
+            if slack_weights == 'capacity':
                 bus_generator_shares = network.generators.p_nom.loc[group.index].pipe(normed).fillna(0)
-            else:
+            elif slack_weights == 'dispatch':
                 bus_generator_shares = network.generators_t.p.loc[snapshots,group.index].apply(normed, axis=1).fillna(0)
+            else:
+                bus_generator_shares = slack_weights.pipe(normed).fillna(0)
             network.generators_t.p.loc[snapshots,group.index] += bus_generator_shares.multiply(-network.buses_t.p.loc[snapshots,bus], axis=0)
     else:
         network.generators_t.p.loc[snapshots,sub_network.slack_generator] -= network.buses_t.p.loc[snapshots,sub_network.slack_bus]
@@ -319,14 +331,15 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     use_seed : bool, default False
         Use a seed for the initial guess for the Newton-Raphson algorithm.
     distribute_slack : bool, default False
-        Distribute the slack power across generators proportional to generator dispatch by default
+        If ``True``, distribute the slack power across generators proportional to generator dispatch by default
         or according to the distribution scheme provided in ``slack_weights``.
+        If ``False`` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'dispatch'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
         ('dispatch'). Another option is to distribute proportional to nominal capacity ('capacity'). 
-        Custom weights can be provided via a pandas.Series that must sum up to 1 and
-        that has the buses of the sub_network as index.
+        Custom weights can be provided via a pandas.Series/dict
+        that has the buses or the generators of the subnetwork as index/keys.
 
 
     Returns
@@ -334,6 +347,13 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     Tuple of three pandas.Series indicating number of iterations,
     remaining error, and convergence status for each snapshot
     """
+
+    assert type(slack_weights) in [str, pd.Series, dict], f"Type of 'slack_weights' must be string, pd.Series or dict. Is {type(slack_weights)}."
+
+    if type(slack_weights) == dict:
+        slack_weights = pd.Series(slack_weights)
+    elif type(slack_weights) == str:
+        assert slack_weights in ['capacity', 'dispatch'], f"String value for 'slack_weights' must be 'dispatch' or 'capacity'. Is {slack_weights}."
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info("Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(sub_network.network.sub_networks.at[sub_network.name,"carrier"], sub_network, snapshots))
@@ -351,6 +371,18 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     branches_i = sub_network.branches_i()
     buses_o = sub_network.buses_o
     sn_buses = sub_network.buses().index
+    sn_generators = sub_network.generators().index
+
+    generator_slack_weights_b = False
+    bus_slack_weights_b = False
+    if type(slack_weights) == pd.Series:
+        if all(i in sn_generators for i in slack_weights.index):
+            generator_slack_weights_b = True
+        elif all(i in sn_buses for i in slack_weights.index):
+            bus_slack_weights_b = True
+        else:
+            raise AssertionError("Custom slack weights pd.Series/dict must only have the",
+                                 "generators or buses of the subnetwork as index/keys.")
 
     if not skip_pre and len(branches_i) > 0:
         calculate_Y(sub_network, skip_pre=True)
@@ -437,15 +469,25 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         network.buses_t.v_mag_pu.loc[snapshots,sub_network.pqs] = 1.
         network.buses_t.v_ang.loc[snapshots,sub_network.pvpqs] = 0.
 
-    slack_args = {'distribute_slack': distribute_slack,
-                  'slack_weights': slack_weights}
+    slack_args = {'distribute_slack': distribute_slack}
     slack_variable_b = 1 if distribute_slack else 0
 
-    if distribute_slack and slack_weights == 'dispatch':
-        bus_generation = network.generators_t.p_set.rename(columns=network.generators.bus)
-        slack_weights_calc = pd.DataFrame(bus_generation.groupby(bus_generation.columns, axis=1).sum(), columns=buses_o).apply(normed, axis=1).fillna(0)
-    elif distribute_slack and slack_weights == 'capacity':
-        slack_weights_calc = network.generators.groupby('bus').sum().p_nom.reindex(buses_o).pipe(normed).fillna(0)
+    if distribute_slack:
+
+        if type(slack_weights) == str and slack_weights == 'dispatch':
+            bus_generation = network.generators_t.p_set.rename(columns=network.generators.bus)
+            slack_weights_calc = pd.DataFrame(bus_generation.groupby(bus_generation.columns, axis=1).sum(), columns=buses_o).apply(normed, axis=1).fillna(0)
+        
+        elif type(slack_weights) == str and slack_weights == 'capacity':
+            slack_weights_calc = network.generators.groupby('bus').sum().p_nom.reindex(buses_o).pipe(normed).fillna(0)
+        
+        elif generator_slack_weights_b:
+            # convert generator-based slack weights to bus-based slack weights
+            slack_weights_calc = slack_weights.rename(network.generators.bus).groupby(slack_weights.index.name).sum().reindex(buses_o).pipe(normed).fillna(0)
+
+        elif bus_slack_weights_b:
+            # take bus-based slack weights
+            slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)
 
     ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs) + slack_variable_b))
@@ -462,11 +504,11 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
 
         if distribute_slack:
             guess = np.append(guess, [0]) # for total slack power
-
-        if distribute_slack and slack_weights == 'dispatch':
-            slack_args["slack_weights"] = slack_weights_calc.loc[now]
-        elif distribute_slack and slack_weights == 'capacity':
-            slack_args["slack_weights"] = slack_weights_calc
+            if type(slack_weights) is str and slack_weights == 'dispatch':
+                # snapshot-dependent slack weights
+                slack_args["slack_weights"] = slack_weights_calc.loc[now]
+            else:
+                slack_args["slack_weights"] = slack_weights_calc
 
         #Now try and solve
         start = time.time()
@@ -539,11 +581,15 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     if distribute_slack:
         distributed_slack_power = network.buses_t.p.loc[snapshots,sn_buses] - ss[:,buses_indexer(sn_buses)].real
         for bus, group in sub_network.generators().groupby('bus'):
-            if slack_weights != 'dispatch':
-                bus_generator_shares = network.generators.p_nom.loc[group.index].pipe(normed).fillna(0)
-            else:
+            if type(slack_weights) == str and slack_weights == 'dispatch':
                 bus_generator_shares = network.generators_t.p.loc[snapshots,group.index].apply(normed, axis=1).fillna(0)
-            network.generators_t.p.loc[snapshots,group.index] += bus_generator_shares.multiply(distributed_slack_power.loc[snapshots,bus], axis=0)
+                network.generators_t.p.loc[snapshots,group.index] += bus_generator_shares.multiply(distributed_slack_power.loc[snapshots,bus], axis=0)
+            else:
+                if generator_slack_weights_b:
+                    bus_generator_shares = slack_weights.loc[group.index].pipe(normed).fillna(0)
+                else:
+                    bus_generator_shares = network.generators.p_nom.loc[group.index].pipe(normed).fillna(0)
+                network.generators_t.p.loc[snapshots,group.index] += distributed_slack_power.loc[snapshots,bus].apply(lambda row: row*bus_generator_shares)
     else:
         network.generators_t.p.loc[snapshots,sub_network.slack_generator] += network.buses_t.p.loc[snapshots,sub_network.slack_bus] - ss[:,slack_index].real
 
