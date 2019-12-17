@@ -200,8 +200,8 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
         Another option is to distribute proportional to nominal capacity ('capacity'). 
         Custom weights can be specified via a dictionary that has a key for each
         subnetwork index (``network.sub_networks.index``) and a
-        pandas.Series/dict with values that sum up to 1 and buses or
-        generators of the corresponding subnetwork as index/keys.
+        pandas.Series/dict with buses or generators of the
+        corresponding subnetwork as index/keys.
 
     Returns
     -------
