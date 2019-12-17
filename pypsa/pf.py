@@ -348,12 +348,12 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     remaining error, and convergence status for each snapshot
     """
 
-    assert type(slack_weights) in [str, pd.Series, dict], f"Type of 'slack_weights' must be string, pd.Series or dict. Is {type(slack_weights)}."
+    assert type(slack_weights) in [str, pd.Series, dict], "Type of 'slack_weights' must be string, pd.Series or dict. Is {}.".format(type(slack_weights))
 
     if type(slack_weights) == dict:
         slack_weights = pd.Series(slack_weights)
     elif type(slack_weights) == str:
-        assert slack_weights in ['capacity', 'dispatch'], f"String value for 'slack_weights' must be 'dispatch' or 'capacity'. Is {slack_weights}."
+        assert slack_weights in ['capacity', 'dispatch'], "String value for 'slack_weights' must be 'dispatch' or 'capacity'. Is {}.".format(slack_weights)
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info("Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(sub_network.network.sub_networks.at[sub_network.name,"carrier"], sub_network, snapshots))
