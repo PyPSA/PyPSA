@@ -784,16 +784,16 @@ class Network(Basic):
     #presence of links without s_nom_extendable
     def branches(self):
         return pd.concat((self.df(c) for c in self.branch_components),
-                         keys=self.branch_components, sort=False,
+                         keys=self.branch_components, sort=True,
                          names=['component', 'name'])
 
     def passive_branches(self):
         return pd.concat((self.df(c) for c in self.passive_branch_components),
-                         keys=self.passive_branch_components, sort=False)
+                         keys=self.passive_branch_components, sort=True)
 
     def controllable_branches(self):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
-                         keys=self.controllable_branch_components, sort=False)
+                         keys=self.controllable_branch_components, sort=True)
 
     def determine_network_topology(self):
         """
