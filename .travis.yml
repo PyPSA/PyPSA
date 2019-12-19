@@ -1,34 +1,22 @@
 # Modified from
 # https://github.com/calliope-project/calliope/blob/master/.travis.yml
 
-language: python
+language: bash
 sudo: false # Use container-based infrastructure
 
-matrix:
-  include:
-    - env:
-      - PYTHON_VERSION="2.7"
-    - env:
-      - PYTHON_VERSION="3.6"
-    - env:
-      - PYTHON_VERSION="3.7"
-    - env:
-      - PYTHON_VERSION="3.8"
+os:
+  - windows
+  - linux
+  - osx
+env:
+  - PYTHON_VERSION="3.6"
+  - PYTHON_VERSION="3.7"
+  - PYTHON_VERSION="3.8"
 
 before_install:
-  - if [[ "$PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
-  - source $HOME/miniconda/etc/profile.d/conda.sh
+  - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
+  - source conda4travis.sh
+  - if [ "$TRAVIS_OS_NAME" != "windows" ]; then echo "  - coincbc" >> environment.yaml; fi;
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
@@ -44,7 +32,9 @@ install:
 #   - "sh -e /etc/init.d/xvfb start"
 #   - sleep 3  # give xvfb some time to start
 
-script: "make test"
+script:
+    - py.test
 
 # after_success:
 #   - coveralls
+

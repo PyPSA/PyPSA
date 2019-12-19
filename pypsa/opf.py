@@ -31,17 +31,14 @@ __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Dav
 import numpy as np
 import pandas as pd
 from scipy.sparse.linalg import spsolve
-from pyomo.environ import (ConcreteModel, Var, Objective,
-                           NonNegativeReals, Constraint, Reals,
-                           Suffix, Expression, Binary, SolverFactory)
+from pyomo.environ import (ConcreteModel, Var, NonNegativeReals, Constraint,
+                           Reals, Suffix, Binary, SolverFactory)
 
 try:
     from pyomo.solvers.plugins.solvers.persistent_solver import PersistentSolver
 except ImportError:
     # Only used in conjunction with isinstance, so we mock it to be backwards compatible
     class PersistentSolver(): pass
-
-from itertools import chain
 
 import logging
 logger = logging.getLogger(__name__)
@@ -57,7 +54,6 @@ from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
                  find_cycles, _as_snapshots)
 from .opt import (l_constraint, l_objective, LExpression, LConstraint,
-                  patch_optsolver_free_model_before_solving,
                   patch_optsolver_record_memusage_before_solving,
                   empty_network, free_pyomo_initializers)
 from .descriptors import (get_switchable_as_dense, get_switchable_as_iter,

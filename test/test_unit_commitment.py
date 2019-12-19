@@ -49,6 +49,47 @@ and is not very comprehensive."""
     np.testing.assert_array_almost_equal(nu.generators_t.p.values,expected_dispatch)
 
 
+def test_part_load_without_pyomo():
+    """This test is based on
+https://pypsa.org/examples/unit-commitment.html
+and is not very comprehensive."""
+
+    nu = pypsa.Network()
+
+    snapshots = range(4)
+
+    nu.set_snapshots(snapshots)
+
+    nu.add("Bus","bus")
+
+
+    nu.add("Generator","coal",bus="bus",
+           committable=True,
+           p_min_pu=0.3,
+           marginal_cost=20,
+           p_nom=10000)
+
+    nu.add("Generator","gas",bus="bus",
+                  committable=True,
+                  marginal_cost=70,
+                  p_min_pu=0.1,
+                  p_nom=1000)
+
+    nu.add("Load","load",bus="bus",p_set=[4000,6000,5000,800])
+
+    solver_name = "glpk"
+
+    nu.lopf(nu.snapshots,solver_name=solver_name, pyomo=False)
+
+    expected_status = np.array([[1,1,1,0],[0,0,0,1]],dtype=float).T
+
+    np.testing.assert_array_almost_equal(nu.generators_t.status.values,expected_status)
+
+    expected_dispatch = np.array([[4000,6000,5000,0],[0,0,0,800]],dtype=float).T
+
+    np.testing.assert_array_almost_equal(nu.generators_t.p.values,expected_dispatch)
+
+
 def test_minimum_up_time():
     """This test is based on
 https://pypsa.org/examples/unit-commitment.html
@@ -139,3 +180,4 @@ if __name__ == "__main__":
     test_minimum_down_time()
     test_minimum_up_time()
     test_part_load()
+    test_part_load_without_pyomo()

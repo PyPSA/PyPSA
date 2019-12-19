@@ -13,5 +13,6 @@ dependencies:
   - networkx>=1.10
   - pyomo
   - cartopy>=0.16
-  - coincbc
+#  - coincbc
   - glpk
+  - gurobi::gurobi
