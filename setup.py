@@ -22,10 +22,10 @@ setup(
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
     install_requires=[
-        'six',
+        'six >= 1.13.0',
         'numpy',
         'scipy',
-        'pandas>=0.19.0',
+        'pandas>=0.24.0',
         'tables',
         'pyomo>=5.3',
         'matplotlib',

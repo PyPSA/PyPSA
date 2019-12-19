@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python
-  - six
+  - six >= 1.13.0
   - numpy
   - pyomo
   - scipy

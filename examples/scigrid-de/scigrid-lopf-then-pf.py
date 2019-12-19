@@ -139,11 +139,10 @@ for i,tech in enumerate(techs):
 
 contingency_factor = 0.7
 
-network.lines.s_nom = contingency_factor*network.lines.s_nom
+network.lines.s_max_pu = contingency_factor
 
 #There are some infeasibilities without small extensions                                                                                 
-for line_name in ["316","527","602"]:
-    network.lines.loc[line_name,"s_nom"] = 1200
+network.lines.loc[["316","527","602"],"s_nom"] = 1715
 
 
 #the lines to extend to resolve infeasibilities can
@@ -173,10 +172,10 @@ for i in range(int(24/group_size)):
     network.lopf(network.snapshots[group_size*i:group_size*i+group_size],
                  solver_name=solver_name,
                  keep_files=True)
-    network.lines.s_nom = network.lines.s_nom_opt
+    #network.lines.s_nom = network.lines.s_nom_opt
 
 #if lines are extended, look at which ones are bigger
-#network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - contingency_factor*network.lines.s_nom_original) > 1]
+#network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - network.lines.s_nom_original) > 1]
 
 p_by_carrier = network.generators_t.p.groupby(network.generators.carrier, axis=1).sum()
 
@@ -318,6 +317,9 @@ for bus in network.buses.index:
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
 network.generators_t.p_set = network.generators_t.p
 
+network.storage_units_t.p_set = network.storage_units_t.p_set.reindex(columns=network.storage_units.index)
+network.storage_units_t.p_set = network.storage_units_t.p
+
 
 #set all buses to PV, since we don't know what Q set points are
 network.generators.control = "PV"
@@ -339,7 +341,7 @@ info = network.pf()
 (~info.converged).any().any()
 
 print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
-print((network.lines_t.p0.loc[now]/network.lines.s_nom*contingency_factor).describe())
+print((network.lines_t.p0.loc[now]/network.lines.s_nom).describe())
 
 #Get voltage angle differences
 
@@ -374,5 +376,4 @@ fig.tight_layout()
 network.generators_t.q.loc[now].sum()
 
 network.buses_t.q.loc[now].sum()
-
 
