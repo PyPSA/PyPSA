@@ -390,7 +390,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
 
     Examples
     ----------
-    >>> network.import_from_csv(csv_folder_name)
+    >>> network.import_from_csv_folder(csv_folder_name)
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -426,7 +426,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
     Examples
     --------
-    >>> network.export_to_csv(csv_folder_name)
+    >>> network.export_to_csv_folder(csv_folder_name)
     """
 
     basename = os.path.basename(csv_folder_name)

@@ -77,7 +77,7 @@ to their dispatch (``distribute_slack=True``), instead of being
 allocated fully to the slack bus, the active power balance is altered to
 
 .. math::
-   \textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i - P_{slack}\gamma_i & = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ \cup slack
+   \textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i - P_{slack}\gamma_i = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ \cup slack
 
 where :math:`P_{slack}` is the total slack power and :math:`\gamma_{i}`
 is the share of bus :math:`i` of the total generation that is used to
