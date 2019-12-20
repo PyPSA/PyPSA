@@ -7,7 +7,7 @@ dependencies:
   - python
   - pip
   - pytest
-  - pytest-cov
+  # - pytest-cov
   - twine
   - pip:
     - pypower
