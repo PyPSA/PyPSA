@@ -4,10 +4,10 @@ channels:
   - conda-forge
 
 dependencies:
-  - python
+  #- python
   - pip
   - pytest
-  # - pytest-cov
+  - pytest-cov
   - twine
   - pip:
     - pypower
