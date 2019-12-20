@@ -30,7 +30,7 @@ def test_pf_distributed_slack():
     network.generators.loc[f.index,"control"] = "PQ"
 
     # by dispatch
-    network.pf(distribute_slack=True, slack_weights='dispatch')
+    network.pf(distribute_slack=True, slack_weights='p_set')
 
     np.testing.assert_array_almost_equal(
         network.generators_t.p_set.apply(normed, axis=1),
@@ -38,7 +38,7 @@ def test_pf_distributed_slack():
     )
 
     # by capacity
-    network.pf(distribute_slack=True, slack_weights='capacity')
+    network.pf(distribute_slack=True, slack_weights='p_nom')
 
     slack_shares_by_capacity = (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
 
