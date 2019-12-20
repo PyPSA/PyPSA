@@ -11,7 +11,7 @@ os:
 env:
   - PYTHON_VERSION="3.6"
   - PYTHON_VERSION="3.7"
-  - PYTHON_VERSION="3.8"
+  # - PYTHON_VERSION="3.8" # until gurobi in conda https://anaconda.org/Gurobi/gurobi/files?version=9.0.0
 
 before_install:
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
