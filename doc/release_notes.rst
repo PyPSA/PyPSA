@@ -26,3 +26,9 @@ This is the first release of PyPSA-Eur:
 * Focus weights can now be specified for particular countries for the network clustering, which allows to set a proportion of the total number of clusters for particular countries (`#87 <https://github.com/PyPSA/pypsa-eur/pull/87>`_).
 
 * A new rule :mod:`add_extra_components` allows to add additional components to the network only after clustering. It is thereby possible to model storage units (e.g. battery and hydrogen) in more detail via a combination of ``Store``, ``Link`` and ``Bus`` elements (`#97 <https://github.com/PyPSA/pypsa-eur/pull/97>`_).
+
+* Hydrogen pipelines (including cost assumptions) can now be added alongside clustered network connections in the rule :mod:`add_extra_components` . Set ``electricity: extendable_carriers: Link: [H2 pipeline]`` and ensure hydrogen storage is modelled as a ``Store``. This is a first simplified stage (`#108 <https://github.com/PyPSA/pypsa-eur/pull/108>`_).
+
+* Logfiles for all rules of the ``snakemake`` workflow are now written in the folder ``log/`` (`#102 <https://github.com/PyPSA/pypsa-eur/pull/102>`_). 
+
+* The new function ``_helpers.mock_snakemake`` creates a ``snakemake`` object which mimics the actual ``snakemake`` object produced by workflow by parsing the ``Snakefile`` and setting all paths for inputs, outputs, and logs. This allows running all scripts within a (I)python terminal (or just by calling ``python <script-name>``) and thereby facilitates developing and debugging scripts significantly (`#107 <https://github.com/PyPSA/pypsa-eur/pull/107>`_).
