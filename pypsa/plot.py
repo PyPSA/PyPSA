@@ -32,8 +32,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT)"
+__copyright__ = "Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019 Fabian Hofmann (FIAS), Fabian Neumann (KIT), GNU GPL 3"
 
 
 plt_present = True
@@ -70,11 +70,11 @@ except ImportError:
 def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
          bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=10,
          line_widths={'Line':2, 'Link':2},
-         flow=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
+         flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
          basemap=None, basemap_parameters=None, color_geomap=None):
     """
-    Plot the network buses and lines using matplotlib and Basemap.
+    Plot the network buses and lines using matplotlib and cartopy/basemap.
 
     Parameters
     ----------
@@ -113,6 +113,11 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         Series with MultiIndex including all necessary branch components.
         Use the line_widths argument to additionally adjust the size of the
         flow arrows.
+    layouter : networkx.drawing.layout function, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_ which
+        overrules coordinates given in ``network.buses[['x','y']]``. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options.
     title : string
         Graph title
     line_cmap : plt.cm.ColorMap/str|dict
@@ -195,7 +200,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     elif ax is None:
         ax = plt.gca()
 
-    x, y = network.buses["x"],  network.buses["y"]
+    x, y = _get_coordinates(network, layouter=layouter)
 
     axis_transform = ax.transData
 
@@ -543,6 +548,61 @@ def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
     return arrowcol
 
 
+def autogenerate_coordinates(network, assign=False, layouter=None):
+    """
+    Automatically generate bus coordinates for the network graph
+    according to a layouting function from `networkx <https://networkx.github.io/>`_.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    assign : bool, default False
+        Assign generated coordinates to the network bus coordinates
+        at ``network.buses[['x','y']]``.
+    layouter : networkx.drawing.layout function, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options. By default coordinates are determined for a
+        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_ 
+        if the network graph is planar, otherwise for a 
+        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_. 
+
+    Returns
+    -------
+    coordinates : pd.DataFrame
+        DataFrame containing the generated coordinates with
+        buses as index and ['x', 'y'] as columns.
+
+    Examples
+    --------
+    >>> autogenerate_coordinates(network)
+    >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+    """
+
+    G = network.graph()
+    
+    if layouter is None:
+        is_planar = nx.check_planarity(G)[0]
+        if is_planar:
+            layouter = nx.planar_layout
+        else:
+            layouter = nx.kamada_kawai_layout
+            
+    coordinates = pd.DataFrame(layouter(G)).T.rename({0: 'x', 1: 'y'}, axis=1)
+    
+    if assign:
+        network.buses[['x', 'y']] = coordinates
+    
+    return coordinates
+
+
+def _get_coordinates(network, layouter=None):
+    if layouter is not None or network.buses[['x', 'y']].isin([0]).all().all():
+        coordinates = autogenerate_coordinates(network, layouter=layouter)
+        return coordinates["x"], coordinates["y"]
+    else:
+        return network.buses["x"], network.buses["y"]
+
 
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
@@ -555,7 +615,7 @@ def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
 
 def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
-          line_colors='green', line_widths=2, line_text=None, title="",
+          line_colors='green', line_widths=2, line_text=None, layouter=None, title="",
           branch_components=['Line', 'Link'], iplot=True, jitter=None):
     """
     Plot the network buses and lines interactively using plotly.
@@ -586,6 +646,11 @@ def iplot(network, fig=None, bus_colors='blue',
         Text for lines, defaults to line names. Text for branches other
         than Lines can be specified using a pandas Series with a
         MultiIndex.
+    layouter : networkx.drawing.layout function, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_ which
+        overrules coordinates given in ``network.buses[['x','y']]``. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options.
     title : string
         Graph title
     branch_components : list of str
@@ -613,8 +678,7 @@ def iplot(network, fig=None, bus_colors='blue',
     if bus_text is None:
         bus_text = 'Bus ' + network.buses.index
 
-    x = network.buses.x
-    y = network.buses.y
+    x, y = _get_coordinates(network, layouter=layouter)
 
     if jitter is not None:
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
