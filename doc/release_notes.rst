@@ -2,6 +2,9 @@
 Release Notes
 #######################
 
+PyPSA upcoming release
+======================
+
 PyPSA 0.16.0 (20th December 2019)
 =================================
 
