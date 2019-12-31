@@ -563,14 +563,14 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
 
     if data.startswith("Optimal - objective value"):
         status = "ok"
-        termination_condition = status
+        termination_condition = "optimal"
         objective = float(data[len("Optimal - objective value "):])
     elif "Infeasible" in data:
+        status = "warning"
         termination_condition = "infeasible"
-        status = 'infeasible'
     else:
+        status = 'warning'
         termination_condition = "other"
-        status = 'other'
 
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
@@ -620,14 +620,19 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
 
     info = io.StringIO(''.join(read_until_break(f))[:-2])
     info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
-    status = info.Status.lower().strip()
+    termination_condition = info.Status.lower().strip()
     objective = float(re.sub('[^0-9\.\+\-]+', '', info.Objective))
-    termination_condition = status
 
-    if 'optimal' not in termination_condition:
-        return status, termination_condition, None, None, None
+    if termination_condition == "optimal":
+        status = "ok"
+    elif termination_condition == "undefined":
+        status = "warning"
+        termination_condition = "infeasible"
     else:
-        status = 'ok'
+        status = "warning"
+
+    if termination_condition != 'optimal':
+        return status, termination_condition, None, None, None
 
     duals = io.StringIO(''.join(read_until_break(f))[:-2])
     duals = pd.read_fwf(duals)[1:].set_index('Row name')
@@ -685,12 +690,22 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     Status = gurobipy.GRB.Status
     statusmap = {getattr(Status, s) : s.lower() for s in Status.__dir__()
                                                 if not s.startswith('_')}
-    status = statusmap[m.status]
-    termination_condition = status
-    if termination_condition != "optimal":
-        return status, termination_condition, None, None, None
-    else:
+    termination_condition = statusmap[m.status]
+
+    if termination_condition == "optimal":
         status = 'ok'
+    elif termination_condition == 'suboptimal':
+        status = 'warning'
+    elif termination_condition == "infeasible":
+        status = 'warning'
+    elif termination_condition == "inf_or_unbd":
+        status = 'warning'
+        termination_condition = "infeasible or unbounded"
+    else:
+        status = "warning"
+
+    if termination_condition not in ["optimal","suboptimal"]:
+        return status, termination_condition, None, None, None
 
     variables_sol = pd.Series({v.VarName: v.x for v
                                in m.getVars()}).pipe(set_int_index)
