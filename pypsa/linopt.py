@@ -623,8 +623,9 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     termination_condition = info.Status.lower().strip()
     objective = float(re.sub('[^0-9\.\+\-]+', '', info.Objective))
 
-    if termination_condition == "optimal":
+    if termination_condition in ["optimal","integer optimal"]:
         status = "ok"
+        termination_condition = "optimal"
     elif termination_condition == "undefined":
         status = "warning"
         termination_condition = "infeasible"
