@@ -598,7 +598,7 @@ def autogenerate_coordinates(network, assign=False, layouter=None):
 
 
 def _get_coordinates(network, layouter=None):
-    if layouter is not None or network.buses[['x', 'y']].isin([0]).all().all():
+    if layouter is not None or network.buses[['x', 'y']].isin([np.nan, 0]).all().all():
         coordinates = autogenerate_coordinates(network, layouter=layouter)
         return coordinates["x"], coordinates["y"]
     else:
