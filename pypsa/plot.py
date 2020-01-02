@@ -611,7 +611,7 @@ def _get_coordinates(network, layouter=None):
 #https://forum.openmod-initiative.org/t/breakout-group-on-visualising-networks-with-plotly/384/7
 
 #We thank Bryn Pickering for holding the tutorial on plotly which
-#inspired the breakout group and for contributing ideas to thelayouter=None,  iplot
+#inspired the breakout group and for contributing ideas to the iplot
 #function below.
 
 def iplot(network, fig=None, bus_colors='blue',
