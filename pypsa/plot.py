@@ -605,6 +605,12 @@ def _get_coordinates(network, layouter=None):
         return network.buses["x"], network.buses["y"]
 
 
+_token_required_mb_styles = ['basic', 'streets', 'outdoors', 'light', 'dark',
+                    'satellite', 'satellite-streets']
+
+_open__mb_styles = ['open-street-map', 'white-bg', 'carto-positron',
+                 'carto-darkmatter', 'stamen-terrain', 'stamen-toner', 'stamen-watercolor']
+
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
 #working example of plotly for networks, see:
@@ -618,7 +624,8 @@ def iplot(network, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
           line_colors='green', line_widths=2, line_text=None, layouter=None, title="", size=None,
           branch_components=['Line', 'Link'], iplot=True, jitter=None,
-          mapbox=False, mapbox_token="", mapbox_parameters={}):
+          mapbox=False, mapbox_style='open-street-map', mapbox_token="",
+          mapbox_parameters={}):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -666,6 +673,18 @@ def iplot(network, fig=None, bus_colors='blue',
         overlapping buses
     mapbox : bool, default False
         Switch to use Mapbox.
+    mapbox_style : str, defaul 'open-street-map'
+        Define the mapbox layout style of the interactive plot. If this is set
+        to a mapbox layout, the argument mapbox_token must be a valid Mapbox
+        API access token.
+
+        Valid open layouts are:
+            open-street-map, white-bg, carto-positron, carto-darkmatter,
+            stamen-terrain, stamen-toner, stamen-watercolor
+
+        Valid mapbox layouts are:
+            basic, streets, outdoors, light, dark, satellite, satellite-streets
+
     mapbox_token : string
         Mapbox API access token. Obtain from https://www.mapbox.com.
         Can also be included in mapbox_parameters as `accesstoken=mapbox_token`.
@@ -742,7 +761,6 @@ def iplot(network, fig=None, bus_colors='blue',
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
         l_colors = line_colors.get(c.name, l_defaults['color'])
-        l_nums = None
 
         if line_text is None:
             l_text = c.name + ' ' + c.df.index
@@ -751,7 +769,6 @@ def iplot(network, fig=None, bus_colors='blue',
 
         if isinstance(l_colors, pd.Series):
             if issubclass(l_colors.dtype.type, np.number):
-                l_nums = l_colors
                 l_colors = None
             else:
                 l_colors.fillna(l_defaults['color'], inplace=True)
@@ -789,14 +806,14 @@ def iplot(network, fig=None, bus_colors='blue',
             st['lat'] = st.pop('y')
             shape_traces_latlon.append(go.Scattermapbox(st))
         shape_traces = shape_traces_latlon
-        
+
         shapes_mapbox = []
         for s in shapes:
             s['lon'] = [s.pop('x0'), s.pop('x1')]
             s['lat'] = [s.pop('y0'), s.pop('y1')]
             shapes_mapbox.append(go.Scattermapbox(s, mode='lines'))
         shapes = shapes_mapbox
-        
+
         bus_trace['lon'] = bus_trace.pop('x')
         bus_trace['lat'] = bus_trace.pop('y')
         bus_trace = go.Scattermapbox(bus_trace)
@@ -808,27 +825,32 @@ def iplot(network, fig=None, bus_colors='blue',
     fig['layout'].update(dict(title=title,
                               hovermode='closest',
                               showlegend=False))
-    
+
     if size is not None:
         assert len(size) == 2, "Parameter size must specify a tuple (width, height)."
         fig['layout'].update(dict(width=size[0],
                                   height=size[1]))
-        
+
     if mapbox:
         if mapbox_token != "":
             mapbox_parameters['accesstoken'] = mapbox_token
-        
-        assert 'accesstoken' in mapbox_parameters.keys(),\
-                "Using Mapbox requires a valid access token from https://www.mapbox.com/"
-        
+
+        mapbox_parameters.setdefault('style', mapbox_style)
+
+        if mapbox_parameters['style'] in _token_required_mb_styles:
+            assert 'accesstoken' in mapbox_parameters.keys(), ("Using Mapbox "
+           "layout styles requires a valid access token from https://www.mapbox.com/, "
+           f"style which do not require a token are:\n{', '.join(_open__mb_styles)}.")
+
+
         if 'center' not in mapbox_parameters.keys():
             lon=(network.buses.x.min() + network.buses.x.max()) / 2
             lat=(network.buses.y.min() + network.buses.y.max()) / 2
             mapbox_parameters['center'] = dict(lat=lat, lon=lon)
-            
+
         if 'zoom' not in mapbox_parameters.keys():
             mapbox_parameters['zoom'] = 2
-        
+
         fig['layout']['mapbox'] = mapbox_parameters
     else:
         fig['layout']['shapes'] = shapes
