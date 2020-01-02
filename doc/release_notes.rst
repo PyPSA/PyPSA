@@ -2,6 +2,54 @@
 Release Notes
 #######################
 
+PyPSA upcoming release
+======================
+
+PyPSA 0.16.0 (20th December 2019)
+=================================
+
+This release contains major new features. It is also the first release
+to drop support for Python 2.7. Only Python 3.6 and 3.7 are supported
+going forward. Python 3.8 will be supported as soon as the gurobipy
+package in conda is updated.
+
+* A new version of the linear optimal power flow (LOPF) has been
+  introduced that uses a custom optimization framework rather than
+  Pyomo. The new framework, based on `nomoypomo
+  <https://github.com/PyPSA/nomopyomo>`_, uses barely any memory and
+  is much faster than Pyomo. As a result the total memory usage of
+  PyPSA processing and gurobi is less than a third what it is with
+  Pyomo for large problems with millions of variables that take
+  several gigabytes of memory (see this `graphical comparison
+  <https://github.com/PyPSA/PyPSA/pull/99#issuecomment-560490397>`_
+  for a large network optimization). The new framework is not enabled
+  by default. To enable it, use ``network.lopf(pyomo=False)``. Almost
+  all features of the regular ``network.lopf`` are implemented with
+  the exception of minimum down/up time and start up/shut down costs
+  for unit commitment. If you use the ``extra_functionality`` argument
+  for ``network.lopf`` you will need to update your code for the new
+  syntax. There is `documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pyomo-is-set-to-false>`_
+  for the new syntax as well as a `Jupyter notebook of examples
+  <https://github.com/PyPSA/PyPSA/blob/master/examples/lopf_with_pyomo_False.ipynb>`_.
+
+* Distributed active power slack is now implemented for the full
+  non-linear power flow. If you pass ``network.pf()`` the argument
+  ``distribute_slack=True``, it will distribute the slack power across
+  generators proportional to generator dispatch by default, or
+  according to the distribution scheme provided in the argument
+  ``slack_weights``. If ``distribute_slack=False`` only the slack
+  generator takes up the slack. There is further `documentation
+  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`_.
+
+* Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
+
+* NB: You may need to update your version of the package ``six``.
+
+Special thanks for this release to Fabian Hofmann for implementing the
+nomopyomo framework in PyPSA and Fabian Neumann for providing the
+customizable distributed slack.
+
 
 PyPSA 0.15.0 (8th November 2019)
 ================================
@@ -774,3 +822,21 @@ In this release the pandas.Panel interface for time-dependent
 variables was introduced. This replaced the manual attachment of
 pandas.DataFrames per time-dependent variable as attributes of the
 main component pandas.DataFrame.
+
+
+Release process
+===============
+
+* Update ``release_notes.rst``
+* Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
+* ``git commit`` and put release notes in commit message
+* ``git tag v0.x.0``
+* ``git push`` and  ``git push --tags``
+* To upload to `PyPI <https://pypi.org/>`_, run ``python setup.py
+  sdist``, then ``twine check dist/pypsa-0.x.0.tar.gz`` and ``twine
+  upload dist/pypsa-0.x.0.tar.gz``
+* To update to conda-forge, check the pull request generated at the `feedstock repository
+  <https://github.com/conda-forge/pypsa-feedstock>`_.
+* Upload a zip to `zenodo <https://zenodo.org/>`_ (this should also be
+  possible automatically via a github hook).
+* Inform the PyPSA mailing list.

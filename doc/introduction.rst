@@ -99,8 +99,8 @@ example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested to be compatible with Python 3.6, 3.7 and
-3.8. The last release supporting Python 2.7 was PyPSA 0.15.0.
+PyPSA is written and tested to be compatible with Python 3.6 and
+3.7. The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 
 It leans heavily on the following Python packages:

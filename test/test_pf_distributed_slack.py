@@ -29,13 +29,49 @@ def test_pf_distributed_slack():
     f = network.generators[network.generators.bus == "492"]
     network.generators.loc[f.index,"control"] = "PQ"
 
-    network.pf(distribute_slack=True)
+    # by dispatch
+    network.pf(distribute_slack=True, slack_weights='p_set')
 
     np.testing.assert_array_almost_equal(
         network.generators_t.p_set.apply(normed, axis=1),
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
     )
 
+    # by capacity
+    network.pf(distribute_slack=True, slack_weights='p_nom')
+
+    slack_shares_by_capacity = (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
+
+    for index, row in slack_shares_by_capacity.iterrows():
+        np.testing.assert_array_almost_equal(
+            network.generators.p_nom.pipe(normed).fillna(0),
+            row
+        )
+
+    # by custom weights (mirror 'capacity' via custom slack weights by bus)
+    custom_weights = {}
+    for sub_network in network.sub_networks.obj:
+        buses_o = sub_network.buses_o
+        custom_weights[sub_network.name] = sub_network.generators().groupby('bus').sum().p_nom.reindex(buses_o).pipe(normed).fillna(0)
+
+    network.pf(distribute_slack=True, slack_weights=custom_weights)
+
+    np.testing.assert_array_almost_equal(
+        slack_shares_by_capacity,
+        (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
+    )
+
+    # by custom weights (mirror 'capacity' via custom slack weights by generators)
+    custom_weights = {}
+    for sub_network in network.sub_networks.obj:
+        custom_weights[sub_network.name] = sub_network.generators().p_nom # weights do not sum up to 1
+
+    network.pf(distribute_slack=True, slack_weights=custom_weights)
+
+    np.testing.assert_array_almost_equal(
+        slack_shares_by_capacity,
+        (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
+    )
 
 if __name__ == "__main__":
     test_pf_distributed_slack()
