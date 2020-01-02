@@ -90,7 +90,7 @@ Screenshots
 All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
 <https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
-example <https://www.pypsa.org/animations/pypsa-eur-30/>`_. 
+example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
 
 
 
@@ -99,7 +99,9 @@ example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested to be compatible with Python 2.7, 3.6 and 3.7.
+PyPSA is written and tested to be compatible with Python 3.6 and
+3.7. The last release supporting Python 2.7 was PyPSA 0.15.0.
+
 
 It leans heavily on the following Python packages:
 
@@ -148,4 +150,3 @@ contrast to PYPOWER, PyPSA has an easier-to-use data model (pandas
 DataFrames instead of numpy arrays), support for time-varying data
 inputs and support for multiply-connected networks using both AC
 and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
-

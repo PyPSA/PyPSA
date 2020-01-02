@@ -3,14 +3,6 @@
 #######
 
 
-Python 2 and Python 3 compatible
-================================
-
-PyPSA is written and tested to be compatible with both Python 2.7 and
-Python 3.5.
-
-
-
 Network object is the overall container
 =======================================
 

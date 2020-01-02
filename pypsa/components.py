@@ -21,24 +21,18 @@
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
-import six
 from six import iteritems, itervalues, iterkeys
-from six.moves import map
 from weakref import ref
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
-import networkx as nx
 
 import numpy as np
 import pandas as pd
-import scipy as sp, scipy.sparse
 from scipy.sparse import csgraph
-from itertools import chain
 from collections import namedtuple
-from operator import itemgetter
 import os
 
 
@@ -57,8 +51,9 @@ from .io import (export_to_csv_folder, import_from_csv_folder,
                  import_series_from_dataframe, import_from_pandapower_net)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
-                 sub_network_pf, find_bus_controls, find_slack_bus, calculate_Y,
-                 calculate_PTDF, calculate_B_H, calculate_dependent_values)
+                 sub_network_pf, find_bus_controls, find_slack_bus, find_cycles,
+                 calculate_Y, calculate_PTDF, calculate_B_H,
+                 calculate_dependent_values)
 
 from .contingency import (calculate_BODF, network_lpf_contingency,
                           network_sclopf)
@@ -70,9 +65,10 @@ from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
 
-import inspect
-
 import sys
+
+if sys.version_info.major >= 3:
+    from .linopf import network_lopf as network_lopf_lowmem
 
 import logging
 logger = logging.getLogger(__name__)
@@ -197,7 +193,7 @@ class Network(Basic):
 
     pf = network_pf
 
-    lopf = network_lopf
+#    lopf = network_lopf
 
     opf = network_opf
 
@@ -405,6 +401,105 @@ class Network(Basic):
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
 
         #NB: No need to rebind pnl to self, since haven't changed it
+
+    def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
+             solver_options={}, solver_logfile=None, formulation="kirchhoff",
+             keep_files=False, extra_functionality=None,  **kwargs):
+        """
+        Linear optimal power flow for a group of snapshots.
+
+        Parameters
+        ----------
+        snapshots : list or index slice
+            A list of snapshots to optimise, must be a subset of
+            network.snapshots, defaults to network.snapshots
+        pyomo : bool, default True
+            Whether to use pyomo for building and solving the model, setting
+            this to False saves a lot of memory and time.
+        solver_name : string
+            Must be a solver name that pyomo recognises and that is
+            installed, e.g. "glpk", "gurobi"
+        solver_options : dictionary
+            A dictionary with additional options that get passed to the solver.
+            (e.g. {'threads':2} tells gurobi to use only 2 cpus)
+        solver_logfile : None|string
+            If not None, sets the logfile option of the solver.
+        keep_files : bool, default False
+            Keep the files that pyomo constructs from OPF problem
+            construction, e.g. .lp file - useful for debugging
+        formulation : string
+            Formulation of the linear power flow equations to use; must be
+            one of ["angles","cycles","kirchhoff","ptdf"]
+        extra_functionality : callable function
+            This function must take two arguments
+            `extra_functionality(network,snapshots)` and is called after
+            the model building is complete, but before it is sent to the
+            solver. It allows the user to
+            add/change constraints and add/change the objective function.
+
+        Other Parameters
+        ----------------
+
+        ptdf_tolerance : float
+            Only taking effect when pyomo is True.
+            Value below which PTDF entries are ignored
+        free_memory : set, default {'pyomo'}
+            Only taking effect when pyomo is True.
+            Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+            data away while the solver runs (as a pickle to disk) and/or free
+            `pyomo` data after the solution has been extracted.
+        solver_io : string, default None
+            Only taking effect when pyomo is True.
+            Solver Input-Output option, e.g. "python" to use "gurobipy" for
+            solver_name="gurobi"
+        skip_pre : bool, default False
+            Only taking effect when pyomo is True.
+            Skip the preliminary steps of computing topology, calculating
+            dependent values and finding bus controls.
+        extra_postprocessing : callable function
+            Only taking effect when pyomo is True.
+            This function must take three arguments
+            `extra_postprocessing(network,snapshots,duals)` and is called after
+            the model has solved and the results are extracted. It allows the user
+            to extract further information about the solution, such as additional
+            shadow prices.
+        warmstart : bool or string, default False
+            Only taking effect when pyomo is False.
+            Use this to warmstart the optimization. Pass a string which gives
+            the path to the basis file. If set to True, a path to
+            a basis file must be given in network.basis_fn.
+        store_basis : bool, default True
+            Only taking effect when pyomo is False.
+            Whether to store the basis of the optimization results. If True,
+            the path to the basis file is saved in network.basis_fn. Note that
+            a basis can only be stored if simplex, dual-simplex, or barrier
+            *with* crossover is used for solving.
+        keep_references : bool, default False
+            Only taking effect when pyomo is False.
+            Keep the references of variable and constraint names withing the
+            network. These can be looked up in `n.vars` and `n.cons` after solving.
+        keep_shadowprices : bool or list of component names
+            Only taking effect when pyomo is False.
+            Keep shadow prices for all constraints, if set to True. If a list
+            is passed the shadow prices will only be parsed for those constraint
+            names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
+            After solving, the shadow prices can be retrieved using
+            :func:`pypsa.linopt.get_dual` with corresponding name
+        solver_dir : str, default None
+            Only taking effect when pyomo is False.
+            Path to directory where necessary files are written, default None leads
+            to the default temporary directory used by tempfile.mkstemp().
+
+        """
+        args = {'snapshots': snapshots, 'keep_files': keep_files,
+                'solver_options': solver_options, 'formulation': formulation,
+                'extra_functionality': extra_functionality,
+                'solver_name': solver_name, 'solver_logfile': solver_logfile}
+        args.update(kwargs)
+        if pyomo:
+            return network_lopf(self, **args)
+        else:
+            return network_lopf_lowmem(self, **args)
 
 
 
@@ -783,16 +878,16 @@ class Network(Basic):
     #presence of links without s_nom_extendable
     def branches(self):
         return pd.concat((self.df(c) for c in self.branch_components),
-                         keys=self.branch_components, sort=False,
+                         keys=self.branch_components, sort=True,
                          names=['component', 'name'])
 
     def passive_branches(self):
         return pd.concat((self.df(c) for c in self.passive_branch_components),
-                         keys=self.passive_branch_components, sort=False)
+                         keys=self.passive_branch_components, sort=True)
 
     def controllable_branches(self):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
-                         keys=self.controllable_branch_components, sort=False)
+                         keys=self.controllable_branch_components, sort=True)
 
     def determine_network_topology(self):
         """
@@ -830,6 +925,11 @@ class Network(Basic):
 
         for c in self.iterate_components(self.passive_branch_components):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+
+        for sub in self.sub_networks.obj:
+            find_cycles(sub)
+            sub.find_bus_controls()
+
 
     def iterate_components(self, components=None, skip_empty=True):
         if components is None:
@@ -873,15 +973,24 @@ class Network(Basic):
                     logger.warning("The following %s have %s which are not defined:\n%s",
                                    c.list_name, attr, missing)
 
+        def bad_by_type(branch, attr):
+            if branch.type not in self.line_types.index:
+                return True
+            elif self.line_types.loc[branch.type, attr+'_per_length'] * branch.length == 0.:
+                return True
+            else:
+                return False
 
         for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x","r"]:
-                bad = c.df.index[c.df[attr] == 0.]
+                bad = c.df.index[(c.df[attr] == 0.) & c.df.apply(bad_by_type, args=(attr,), axis=1)]
                 if len(bad) > 0:
                     logger.warning("The following %s have zero %s, which could break the linear load flow:\n%s",
                                    c.list_name, attr, bad)
 
-            bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.)]
+            bad = c.df.index[(c.df["x"] == 0.) & (c.df["r"] == 0.) &
+                             c.df.apply(bad_by_type, args=('x',), axis=1) &
+                             c.df.apply(bad_by_type, args=('r',), axis=1)]
             if len(bad) > 0:
                 logger.warning("The following %s have zero series impedance, which will break the load flow:\n%s",
                                c.list_name, bad)

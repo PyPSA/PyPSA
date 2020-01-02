@@ -1,5 +1,13 @@
 ## Script to add load, generators, missing lines and transformers to SciGRID
 #
+#
+## WARNING: This script is no longer supported, since the libraries and data no longer exist in their former versions
+#
+## It is kept here for interest's sake
+#
+## See https://github.com/PyPSA/pypsa-eur for a newer model that covers all of Europe
+#
+#
 #This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>  and can be viewed as an HTML page at: http://pypsa.org/examples/add_load_gen_trafos_to_scigrid.html.
 #
 #This script does some post-processing on the original SciGRID dataset version 0.2 and then adds load, generation, transformers and missing lines to the SciGRID dataset.

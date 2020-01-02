@@ -149,14 +149,15 @@ Screenshots
 All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
 <https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
-example <https://www.pypsa.org/animations/pypsa-eur-30/>`_. 
+example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
 
 
 
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested to be compatible with Python 2.7, 3.6 and 3.7.
+PyPSA is written and tested to be compatible with Python 3.6 and
+3.7. The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:
 
@@ -277,7 +278,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |badge_conda| image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg
     :target: https://anaconda.org/conda-forge/pypsa
     :alt: Conda version
-    
+
 .. |gitter| image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter

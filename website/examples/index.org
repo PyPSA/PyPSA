@@ -15,6 +15,8 @@ repository]].
   a linear optimal power flow for a three-node network.
 - [[./transformer_example.html][*Transformer example*]] - Minimal example of transformer with
   non-trivial phase shift and tap ratio.
+- [[https://pypsa-eur.readthedocs.io/en/latest/tutorial.html][*PyPSA-Eur tutorial*]] - Builds a month worth of data for the European
+  electricity model [[https://github.com/PyPSA/pypsa-eur][PyPSA-Eur]].
 - *SciGrid German network*
    - [[./scigrid-lopf-then-pf.html][*Linear OPF then non-linear PF on the SciGRID German network*]] -
      This script performs a linear optimal power flow on the [[http://scigrid.de/][SciGRID]]
@@ -28,12 +30,15 @@ repository]].
     on the [[http://scigrid.de/][SciGRID]] network for Germany, taking into account several
     possible branch outages.
   - [[./add_load_gen_trafos_to_scigrid.html][*Attaching load, generation, transformers and missing lines to the
-    SciGRID German network*]] - This script attaches load, conventional
-    generation data and wind and solar data, transformers and missing
-    lines to the [[http://scigrid.de/][SciGRID]] network for Germany. It then exports the
-    resulting network for use in the script above.  Only a single
-    day's worth of data is in the [[https://github.com/PyPSA/PyPSA][PyPSA github repository]]; a full year
-    (2011) of load and wind/solar data can be downloaded [[./scigrid-with-load-gen-trafos-2011.zip][here]].
+    SciGRID German network*]] - WARNING: this script, and the referenced
+    data and libraries, are no longer supported; see [[https://github.com/PyPSA/pypsa-eur][PyPSA-Eur]] for a
+    newer model that covers the whole of Europe. This script attaches
+    load, conventional generation data and wind and solar data,
+    transformers and missing lines to the [[http://scigrid.de/][SciGRID]] network for
+    Germany. It then exports the resulting network for use in the
+    script above.  Only a single day's worth of data is in the [[https://github.com/PyPSA/PyPSA][PyPSA
+    github repository]]; a full year (2011) of load and wind/solar data
+    can be downloaded [[./scigrid-with-load-gen-trafos-2011.zip][here]].
 - [[./ac-dc-lopf.html][*Meshed AC-DC network*]] - This example demonstrates multiply-connected
   AC-DC meshed networks with an example of 3 separate synchronous AC
   areas connected by a 3-node DC network.

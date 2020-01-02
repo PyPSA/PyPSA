@@ -2,6 +2,94 @@
 Release Notes
 #######################
 
+PyPSA upcoming release
+======================
+
+PyPSA 0.16.0 (20th December 2019)
+=================================
+
+This release contains major new features. It is also the first release
+to drop support for Python 2.7. Only Python 3.6 and 3.7 are supported
+going forward. Python 3.8 will be supported as soon as the gurobipy
+package in conda is updated.
+
+* A new version of the linear optimal power flow (LOPF) has been
+  introduced that uses a custom optimization framework rather than
+  Pyomo. The new framework, based on `nomoypomo
+  <https://github.com/PyPSA/nomopyomo>`_, uses barely any memory and
+  is much faster than Pyomo. As a result the total memory usage of
+  PyPSA processing and gurobi is less than a third what it is with
+  Pyomo for large problems with millions of variables that take
+  several gigabytes of memory (see this `graphical comparison
+  <https://github.com/PyPSA/PyPSA/pull/99#issuecomment-560490397>`_
+  for a large network optimization). The new framework is not enabled
+  by default. To enable it, use ``network.lopf(pyomo=False)``. Almost
+  all features of the regular ``network.lopf`` are implemented with
+  the exception of minimum down/up time and start up/shut down costs
+  for unit commitment. If you use the ``extra_functionality`` argument
+  for ``network.lopf`` you will need to update your code for the new
+  syntax. There is `documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pyomo-is-set-to-false>`_
+  for the new syntax as well as a `Jupyter notebook of examples
+  <https://github.com/PyPSA/PyPSA/blob/master/examples/lopf_with_pyomo_False.ipynb>`_.
+
+* Distributed active power slack is now implemented for the full
+  non-linear power flow. If you pass ``network.pf()`` the argument
+  ``distribute_slack=True``, it will distribute the slack power across
+  generators proportional to generator dispatch by default, or
+  according to the distribution scheme provided in the argument
+  ``slack_weights``. If ``distribute_slack=False`` only the slack
+  generator takes up the slack. There is further `documentation
+  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`_.
+
+* Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
+
+* NB: You may need to update your version of the package ``six``.
+
+Special thanks for this release to Fabian Hofmann for implementing the
+nomopyomo framework in PyPSA and Fabian Neumann for providing the
+customizable distributed slack.
+
+
+PyPSA 0.15.0 (8th November 2019)
+================================
+
+This release contains new improvements and bug fixes.
+
+* The unit commitment (UC) has been revamped to take account of
+  constraints at the beginning and end of the simulated ``snapshots``
+  better. This is particularly useful for rolling horizon UC. UC now
+  accounts for up-time and down-time in the periods before the
+  ``snapshots``. The generator attribute ``initial_status`` has been
+  replaced with two attributes ``up_time_before`` and
+  ``down_time_before`` to give information about the status before
+  ``network.snapshots``. At the end of the simulated ``snapshots``, minimum
+  up-times and down-times are also enforced. Ramping constraints also
+  look before the simulation at previous results, if there are
+  any. See the `unit commitment documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#generator-unit-commitment-constraints>`_
+  for full details. The `UC example
+  <https://pypsa.org/examples/unit-commitment.html>`_ has been updated
+  with a rolling horizon example at the end.
+* Documentation is now available on `readthedocs
+  <https://pypsa.readthedocs.io/>`_, with information about functions
+  pulled from the docstrings.
+* The dependency on cartopy is now an optional extra.
+* PyPSA now works with pandas 0.25 and above, and networkx above 2.3.
+* A bug was fixed that broke the Security-Constrained Linear Optimal
+  Power Flow (SCLOPF) constraints with extendable lines.
+* Network plotting can now plot arrows to indicate the direction of flow by passing ``network.plot`` an ``flow`` argument.
+* The objective sense (``minimize`` or ``maximize``) can now be set (default
+  remains ``minimize``).
+* The ``network.snapshot_weightings`` is now carried over when the network
+  is clustered.
+* Various other minor fixes.
+
+We thank colleagues at TERI for assisting with testing the new unit
+commitment code, Clara Büttner for finding the SCLOPF bug, and all
+others who contributed issues and pull requests.
+
+
 PyPSA 0.14.1 (27th May 2019)
 ================================
 
@@ -734,3 +822,21 @@ In this release the pandas.Panel interface for time-dependent
 variables was introduced. This replaced the manual attachment of
 pandas.DataFrames per time-dependent variable as attributes of the
 main component pandas.DataFrame.
+
+
+Release process
+===============
+
+* Update ``release_notes.rst``
+* Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
+* ``git commit`` and put release notes in commit message
+* ``git tag v0.x.0``
+* ``git push`` and  ``git push --tags``
+* To upload to `PyPI <https://pypi.org/>`_, run ``python setup.py
+  sdist``, then ``twine check dist/pypsa-0.x.0.tar.gz`` and ``twine
+  upload dist/pypsa-0.x.0.tar.gz``
+* To update to conda-forge, check the pull request generated at the `feedstock repository
+  <https://github.com/conda-forge/pypsa-feedstock>`_.
+* Upload a zip to `zenodo <https://zenodo.org/>`_ (this should also be
+  possible automatically via a github hook).
+* Inform the PyPSA mailing list.

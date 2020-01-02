@@ -33,8 +33,6 @@ You can also see/download the code directly from
 
 [[./doc/index.html][Documentation as a website]]
 
-[[./doc/PyPSA.pdf][Documentation as a PDF]]
-
 [[./doc/quick_start.html][Quick start]]
 
 [[./examples/index.html][Examples]]

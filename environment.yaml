@@ -3,14 +3,16 @@ channels:
   - conda-forge
 dependencies:
   - python
-  - six
+  - six >= 1.13.0
   - numpy
   - pyomo
   - scipy
   - pandas>=0.24.0
+  - pytables
   - matplotlib
   - networkx>=1.10
   - pyomo
   - cartopy>=0.16
-  - coincbc
+#  - coincbc
   - glpk
+  - gurobi::gurobi

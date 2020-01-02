@@ -84,6 +84,7 @@ class ImporterCSV(Importer):
 
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
+        if not os.path.isfile(fn): return None
         return pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
 
     def get_static(self, list_name):
@@ -389,7 +390,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
 
     Examples
     ----------
-    >>> network.import_from_csv(csv_folder_name)
+    >>> network.import_from_csv_folder(csv_folder_name)
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -425,7 +426,7 @@ def export_to_csv_folder(network, csv_folder_name, encoding=None, export_standar
 
     Examples
     --------
-    >>> network.export_to_csv(csv_folder_name)
+    >>> network.export_to_csv_folder(csv_folder_name)
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -1073,9 +1074,9 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     for i in to_replace.index:
         network.remove("Bus",i)
 
-        for c in network.iterate_components({"Load","Generator"}):
-            c.df.bus.replace(to_replace,inplace=True)
+    for c in network.iterate_components({"Load","Generator"}):
+        c.df.bus.replace(to_replace,inplace=True)
 
-        for c in network.iterate_components({"Line","Transformer"}):
-            c.df.bus0.replace(to_replace,inplace=True)
-            c.df.bus1.replace(to_replace,inplace=True)
+    for c in network.iterate_components({"Line","Transformer"}):
+        c.df.bus0.replace(to_replace,inplace=True)
+        c.df.bus1.replace(to_replace,inplace=True)

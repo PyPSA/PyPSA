@@ -26,10 +26,18 @@ Grid calculation library.
 from __future__ import absolute_import
 
 from . import components, descriptors
-from . import pf, opf, plot, networkclustering, io, contingency, geo
+from . import pf, opf, opt, plot, networkclustering, io, contingency, geo, stats
+
+import sys
+
+#do this as long as python 2.7 should be supported
+if sys.version_info.major >= 3:
+    from . import linopf, linopt
+
+
 
 from .components import Network, SubNetwork
 
-__version__ = "0.14.1"
-__author__ = "Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__version__ = "0.16.0"
+__author__ = "Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)"
+__copyright__ = "Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS), GNU GPL 3"

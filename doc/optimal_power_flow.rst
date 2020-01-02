@@ -3,28 +3,34 @@
 ######################
 
 
-See the module ``pypsa.opf``.
+See the module ``pypsa.opf`` and ``pypsa.linopf``. Optimisation with the linearised power flow equations for (mixed) AC
+and DC networks is fully supported. Note that optimisation with the full non-linear power flow equations is not yet supported.
 
 
-Non-Linear Optimal Power Flow
-==============================
-
-Optimisation with the full non-linear power flow equations is not yet
-supported.
-
-
-
-Linear Optimal Power Flow
-=========================
-
-Optimisation with the linearised power flow equations for (mixed) AC
-and DC networks is fully supported.
 
 All constraints and variables are listed below.
 
 
 Overview
 --------
+* The linear OPF module can optimise the dispatch of generation and storage and the capacities of generation, storage and transmission infrastructure.
+
+* It is assumed that the load is inelastic and must be met in every snapshot (this will be relaxed in future versions).
+
+* The optimisation currently uses continuous variables for most functionality; unit commitment with binary variables is also implemented for generators.
+
+
+* The objective function is the total system cost for the snapshots optimised.
+
+* Each snapshot can be given a weighting :math:`w_t` to represent e.g. multiple hours.
+
+* This set-up can also be used for stochastic optimisation, if you interpret the weighting as a probability.
+
+* Each transmission asset has a capital cost.
+
+* Each generation and storage asset has a capital cost and a marginal cost.
+
+
 
 Execute:
 
@@ -48,35 +54,16 @@ for more details).
 
 .. automethod:: pypsa.Network.lopf
 
-The linear OPF module can optimise the dispatch of generation and storage
-and the capacities of generation, storage and transmission infrastructure.
-
-It is assumed that the load is inelastic and must be met in every
-snapshot (this will be relaxed in future versions).
-
-The optimisation currently uses continuous variables for most
-functionality; unit commitment with binary variables is also
-implemented for generators.
-
-The objective function is the total system cost for the snapshots
-optimised.
-
-Each snapshot can be given a weighting :math:`w_t` to represent
-e.g. multiple hours.
-
-This set-up can also be used for stochastic optimisation, if you
-interpret the weighting as a probability.
-
-Each transmission asset has a capital cost.
-
-Each generation and storage asset has a capital cost and a marginal cost.
 
 
-.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the LOPF, so the network equations may no longer be valid. Note also that all the expansion is continuous.
+.. important:: Since version v0.16.0, PyPSA enables optimisation without the use of `pyomo <http://www.pyomo.org/>`_ by setting ``pyomo=False``. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo.
+  Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
+
+.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
-Optimising dispatch only: a market model
-----------------------------------------
+Optimising dispatch only - a market model
+-----------------------------------------
 
 Capacity optimisation can be turned off so that only the dispatch is
 optimised, like a short-run electricity market model.
@@ -89,7 +76,7 @@ point-to-point HVDC link).
 
 
 Optimising total annual system costs
-------------------------------------
+----------------------------------------
 
 To minimise long-run annual system costs for meeting an inelastic electrical
 load, capital costs for transmission and generation should be set to
@@ -117,41 +104,28 @@ functionality is planned.
 Variables and notation summary
 ------------------------------
 
-:math:`n \in N = \{0,\dots |N|-1\}` label the buses
+.. csv-table::
+  :widths: 20 50
+  :delim: ;
 
-:math:`t \in T = \{0,\dots |T|-1\}` label the snapshots
-
-:math:`l \in L = \{0,\dots |L|-1\}` label the branches
-
-:math:`s \in S = \{0,\dots |S|-1\}` label the different generator/storage types at each bus
-
-:math:`w_t` weighting of time :math:`t` in the objective function
-
-:math:`g_{n,s,t}` dispatch of generator :math:`s` at bus :math:`n` at time :math:`t`
-
-:math:`\bar{g}_{n,s}` nominal power of generator :math:`s` at bus :math:`n`
-
-:math:`\bar{g}_{n,s,t}` availability of  generator :math:`s` at bus :math:`n` at time :math:`t` per unit of nominal power
-
-:math:`u_{n,s,t}` binary status variable for generator with unit commitment
-
-:math:`suc_{n,s,t}` start-up cost if generator with unit commitment is started at time :math:`t`
-
-:math:`sdc_{n,s,t}` shut-down cost if generator with unit commitment is shut down at time :math:`t`
-
-:math:`c_{n,s}` capital cost of extending generator nominal power by one MW
-
-:math:`o_{n,s}` marginal cost of dispatch generator for one MWh
-
-:math:`f_{l,t}` flow of power in branch :math:`l` at time :math:`t`
-
-:math:`F_{l}` capacity of branch :math:`l`
-
-:math:`\eta_{n,s}` efficiency of generator :math:`s` at bus :math:`n`
-
-:math:`\eta_{l}` efficiency of controllable link :math:`l`
-
-:math:`e_s` CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s`
+  :math:`n \in N = \{0,\dots |N|-1\}`; label the buses
+  :math:`t \in T = \{0,\dots |T|-1\}`; label the snapshots
+  :math:`l \in L = \{0,\dots |L|-1\}`; label the branches
+  :math:`s \in S = \{0,\dots |S|-1\}`; label the different generator/storage types at each bus
+  :math:`w_t`; weighting of time :math:`t` in the objective function
+  :math:`g_{n,s,t}`; dispatch of generator :math:`s` at bus :math:`n` at time :math:`t`
+  :math:`\bar{g}_{n,s}`; nominal power of generator :math:`s` at bus :math:`n`
+  :math:`\bar{g}_{n,s,t}`; availability of  generator :math:`s` at bus :math:`n` at time :math:`t` per unit of nominal power
+  :math:`u_{n,s,t}`; binary status variable for generator with unit commitment
+  :math:`suc_{n,s,t}`; start-up cost if generator with unit commitment is started at time :math:`t`
+  :math:`sdc_{n,s,t}`; shut-down cost if generator with unit commitment is shut down at time :math:`t`
+  :math:`c_{n,s}`; capital cost of extending generator nominal power by one MW
+  :math:`o_{n,s}`; marginal cost of dispatch generator for one MWh
+  :math:`f_{l,t}`; flow of power in branch :math:`l` at time :math:`t`
+  :math:`F_{l}`; capacity of branch :math:`l`
+  :math:`\eta_{n,s}`; efficiency of generator :math:`s` at bus :math:`n`
+  :math:`\eta_{l}`; efficiency of controllable link :math:`l`
+  :math:`e_s`; CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s`
 
 
 Further definitions are given below.
@@ -172,7 +146,7 @@ The objective function is composed of capital costs :math:`c` for each component
     + \sum_{t} \left[suc_{n,s,t} + sdc_{n,s,t} \right]
     \end{gather*}
 
-   
+
 
 
 Additional variables which do not appear in the objective function are
@@ -233,12 +207,13 @@ Generator unit commitment constraints
 
 These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
-The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
-Joshua Adam Taylor (CUP, 2015).
+.. important:: Unit commitment constraints will only be build fully if pyomo is set to True. If pyomo is set to False a simplified version of the unit commitment is calculated by ignoring the parameters `min_up_time`, `min_down_time`, `start_up_cost`, `shut_down_cost`, `up_time_before` and `down_time_before`.
+
+The implementation is a complete implementation of the unit commitment constraints defined in Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by Joshua Adam Taylor (CUP, 2015).
 
 
 Unit commitment can be turned on for any generator by setting ``committable`` to be ``True``. This introduces a
-times series of new binary status variables :math:`u_{n,s,t} \in \{0,1\}`,
+times series of new binary status variables :math:`u_{n,s,t} \in \{0,1\}`, saved in ``network.generators_t.status``,
 which indicates whether the generator is running (1) or not (0) in
 period :math:`t`. The restrictions on generator output now become:
 
@@ -247,16 +222,28 @@ period :math:`t`. The restrictions on generator output now become:
 
 so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
 
-If :math:`T_{\textrm{min_up}}` is the minimum up time then we have
+Note that a generator cannot be both extendable (``generator.p_nom_extendable == True``) and committable (``generator.committable == True``) because of the coupling of the variables :math:`u_{n,s,t}`
+and :math:`\bar{g}_{n,s}` here.
+
+If the minimum up time :math:`T_{\textrm{min_up}}` (``generator.min_up_time``) is set then we have for generic times
 
 .. math::
    \sum_{t'=t}^{t+T_\textrm{min_up}} u_{n,s,t'}\geq T_\textrm{min_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
 
-(i.e. if the generator has just started up (:math:`u_{n,s,t} - u_{n,s,t-1} = 1`) then it has to run for at least :math:`T_{\textrm{min_up}}` periods). Similarly for a minimum down time of :math:`T_{\textrm{min_down}}`
+i.e. if the generator has just started up at time :math:`t` then :math:`u_{n,s,t-1} = 0`, :math:`u_{n,s,t} = 1` and :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, so that it has to run for at least :math:`T_{\textrm{min_up}}` periods.
+
+The generator may have been up for some periods before the ``snapshots`` simulation period. If the up-time before ``snapshots`` starts is less than the minimum up-time, then the generator is forced to be up for the difference at the start of ``snapshots``. If the start of ``snapshots`` is the start of ``network.snapshots``, then the up-time before the simulation is read from the input variable ``generator.up_time_before``.  If ``snapshots`` falls in the middle of ``network.snapshots``, then PyPSA assumes the statuses for hours before ``snapshots`` have been set by previous simulations, and reads back the previous up-time by examining the previous statuses. If the start of ``snapshots`` is very close to the start of ``network.snapshots``, it will also take account of ``generator.up_time_before`` as well as the statuses in between.
+
+
+At the end of ``snapshots`` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than :math:`T_{\textrm{min_up}}`.
+
+
+Similarly if the minimum down time :math:`T_{\textrm{min_down}}` (``generator.min_up_time``) is set then we have
 
 .. math::
    \sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{n,s,t'})\geq T_\textrm{min_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
 
+You can also defined ``generator.down_time_before`` for periods before ``network.snapshots``, analagous to the up time.
 
 For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
 
@@ -304,7 +291,7 @@ at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
   \end{gather*}
 
 Storage Unit constraints
-------------------------
+-------------------------
 
 These are defined in ``pypsa.opf.define_storage_variables_constraints(network,snapshots)``.
 
@@ -363,7 +350,7 @@ storage unit where the state of charge must empty every day.)
 
 
 Store constraints
-------------------------
+------------------
 
 These are defined in ``pypsa.opf.define_store_variables_constraints(network,snapshots)``.
 
@@ -403,7 +390,8 @@ optimisation assumes :math:`e_{n,s,t=-1} = e_{n,s,t=|T|-1}`.
 
 
 Passive branch flows: lines and transformers
---------------------------------------------
+---------------------------------------------
+
 
 See ``pypsa.opf.define_passive_branch_flows(network,snapshots)`` and
 ``pypsa.opf.define_passive_branch_constraints(network,snapshots)`` and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
@@ -430,26 +418,25 @@ This flow is the limited by the capacity :math:``F_l`` of the line
 .. math::
    |f_{l,t}| \leq F_l
 
-Note that if :math:`F_l` is also subject to optimisation
-(``branch.s_nom_extendable == True``), then the impedance :math:`x` of
-the line is NOT automatically changed with the capacity (to represent
-e.g. parallel lines being added).
+.. note::
+  If :math:`F_l` is also subject to optimisation
+  (``branch.s_nom_extendable -- True``), then the impedance :math:`x` of
+  the line is NOT automatically changed with the capacity (to represent
+  e.g. parallel lines being added).
 
-There are two choices here:
+  There are two choices here:
 
-Iterate the LOPF again with the updated impedances (see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_).
+  1. Iterate the LOPF again with the updated impedances, see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_, like done by ``pypsa.linopf.ilopf``
 
-João Gorenstein Dedecca has also implemented a MILP version of the
-transmission expansion, see
-`<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes
-account of the impedance with a disjunctive relaxation. This will be
-pulled into the main PyPSA code base soon.
+  2. João Gorenstein Dedecca has also implemented a MILP version of the transmission expansion, see `<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes account of the impedance with a disjunctive relaxation. This will be pulled into the main PyPSA code base soon.
 
 
 .. _formulations:
 
 Passive branch flow formulations
 --------------------------------
+
+
 
 PyPSA implements four formulations of the linear power flow equations
 that are mathematically equivalent, but may have different
@@ -459,7 +446,7 @@ Cycle Flows <https://arxiv.org/abs/1704.01881>`_.
 
 You can choose the formulation by passing ``network.lopf`` the
 argument ``formulation``, which must be in
-``["angles","cycles","kirchhoff","ptdf"]``. 
+``["angles","cycles","kirchhoff","ptdf"]``.
 
 * ``angles`` is the standard formulations based on voltage angles described above, used for the linear power flow and found in textbooks.
 
@@ -478,7 +465,9 @@ generators at most nodes.
 .. _opf-links:
 
 Controllable branch flows: links
----------------------------------
+--------------------------------
+
+
 
 See ``pypsa.opf.define_controllable_branch_flows(network,snapshots)``
 and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
@@ -506,6 +495,7 @@ efficiencies ``efficiencyi``, i.e. :math:`\eta_{i,l}`, then at
 Nodal power balances
 --------------------
 
+
 See ``pypsa.opf.define_nodal_balances(network,snapshots)``.
 
 This is the most important equation, which guarantees that the power
@@ -528,6 +518,7 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
 Global constraints
 ------------------
+
 
 See ``pypsa.opf.define_global_constraints(network,snapshots)``.
 
@@ -563,15 +554,23 @@ optimisation stored in ``network.global_constraints.mu``.
 Custom constraints and other functionality
 ------------------------------------------
 
-PyPSA uses the Python optimisation language `pyomo
-<http://www.pyomo.org/>`_ to construct the OPF problem. You can easily
-extend the optimisation problem constructed by PyPSA using the usual
-pyomo syntax. To do this, pass the function ``network.lopf`` a
+
+Since PyPSA v0.16.0, the lopf function is provided by two different modules. The ordinary implementation based on the ``pypsa.opf`` module uses
+`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the ``.lp`` file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depends on whether pyomo is activated or not.
+
+In general for a custom constraint, pass the function ``network.lopf`` a
 function ``extra_functionality`` as an argument.  This function must
 take two arguments ``extra_functionality(network,snapshots)`` and is
 called after the model building is complete, but before it is sent to
 the solver. It allows the user to add, change or remove constraints
 and alter the objective function.
+
+1. pyomo is set to True
+=======================
+
+You can easily
+extend the optimisation problem constructed by PyPSA using the usual
+pyomo syntax.
 
 The `CHP example
 <https://pypsa.org/examples/power-to-gas-boiler-chp.html>`_ and the
@@ -587,55 +586,90 @@ arguments `extra_postprocessing(network,snapshots,duals)`. It allows
 the user to extract further information about the solution, such as
 additional shadow prices for constraints.
 
+2. pyomo is set to False
+========================
+
+In general when pyomo is disabled, all variable and constraint references are stored in the network object itself. Thus every variable and constraint is attached to a component, e.g. the dispatch variable of network.generators.p is attached to the component 'Generator' and can be easily accessed by
+
+  >>> get_var(n, 'Generator', 'p')
+
+An additional constraint can easily be implemented by using the functions
+
+* ``pypsa.linopt.get_var`` for getting the variables which should be included in the constraint
+* ``pypsa.linopt.linexpr`` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
+* ``pypsa.linopt.define_constraints`` for defining a network constraint.
+
+The are functions defined as such:
+
+.. automethod:: pypsa.linopt.get_var
+.. automethod:: pypsa.linopt.linexpr
+.. automethod:: pypsa.linopt.define_constraints
+
+The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
+
+.. Fixing variables
+.. ----------------
+
+.. This feature is only valid if pyomo is disabled in the lopf function (i.e. ``pyomo=False``). It is possible to fix all variables to specific values. Create a pandas DataFrame or a column with the same name as the variable but with suffix '_set'. For all not ``NaN`` values additional constraints will be build to fix the variables.
+
+.. For example let's say, we want to fix the output of a single generator 'gas1' to 200 MW for all snapshots. Then we can add a dataframe ``p_set`` to network.generators_t with the according value and index.
+
+..   >>> network.generators_t['p_set'] = pd.DataFrame(200, index=network.snapshots, columns=['gas1'])
+
+.. The lopf will now build extra constraints to fix the ``p`` variables of generator 'gas1' to 200. In the same manner, we can fix the variables only for some specific snapshots. This is applicable to all variables, also ``state_of_charge`` for storage units or ``p`` for links. Static investment variables can be fixed via adding additional columns, e.g. a ``s_nom_set`` column to ``network.lines``.
+
+
 
 Inputs
 ------
+
 
 For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-network{snapshot_weightings}
+* network.{snapshot_weightings}
 
-bus.{v_nom, carrier}
+* bus.{v_nom, carrier}
 
-load.{p_set}
+* load.{p_set}
 
-generator.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency, carrier}
+* generator.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency, carrier}
 
-storage_unit.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
+* storage_unit.{p_nom, p_nom_extendable, p_nom_min, p_nom_max, p_min_pu, p_max_pu, marginal_cost, capital_cost, efficiency*, standing_loss, inflow, state_of_charge_set, max_hours, state_of_charge_initial, cyclic_state_of_charge}
 
-store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu, e_max_pu, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss}
+* store.{e_nom, e_nom_extendable, e_nom_min, e_nom_max, e_min_pu, e_max_pu, e_cyclic, e_initial, capital_cost, marginal_cost, standing_loss}
 
-line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+* line.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
-transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
+* transformer.{x, s_nom, s_nom_extendable, s_nom_min, s_nom_max, capital_cost}
 
-link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
+* link.{p_min_pu, p_max_pu, p_nom, p_nom_extendable, p_nom_min, p_nom_max, capital_cost}
 
-carrier.{carrier_attribute}
+* carrier.{carrier_attribute}
 
-global_constraint.{type, carrier_attribute, sense, constant}
+* global_constraint.{type, carrier_attribute, sense, constant}
 
 .. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
 
-bus.{v_mag_pu, v_ang, p, marginal_price}
 
-load.{p}
+* bus.{v_mag_pu, v_ang, p, marginal_price}
 
-generator.{p, p_nom_opt}
+* load.{p}
 
-storage_unit.{p, p_nom_opt, state_of_charge, spill}
+* generator.{p, p_nom_opt}
 
-store.{p, e_nom_opt, e}
+* storage_unit.{p, p_nom_opt, state_of_charge, spill}
 
-line.{p0, p1, s_nom_opt, mu_lower, mu_upper}
+* store.{p, e_nom_opt, e}
 
-transformer.{p0, p1, s_nom_opt, mu_lower, mu_upper}
+* line.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
+* transformer.{p0, p1, s_nom_opt, mu_lower, mu_upper}
 
-global_constraint.{mu}
+* link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
+
+* global_constraint.{mu}
