@@ -746,6 +746,9 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
+    #correct prices for snapshot weightings
+    n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(n.snapshot_weightings.loc[sns],axis=0)
+
     # discard remaining if wanted
     if not keep_references:
         for c, attr in n.constraints.index.difference(sp):
