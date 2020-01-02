@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019 Fabian Hofmann (FIAS), Fabian Neumann (KIT), GNU GPL 3"
+__copyright__ = "Copyright 2015-2020 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019-2020 Fabian Hofmann (FIAS), Fabian Neumann (KIT), GNU GPL 3"
 
 
 plt_present = True
