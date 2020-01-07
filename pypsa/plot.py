@@ -564,9 +564,9 @@ def autogenerate_coordinates(network, assign=False, layouter=None):
         Layouting function from `networkx <https://networkx.github.io/>`_. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
         of available options. By default coordinates are determined for a
-        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_ 
-        if the network graph is planar, otherwise for a 
-        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_. 
+        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
+        if the network graph is planar, otherwise for a
+        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
 
     Returns
     -------
@@ -581,19 +581,19 @@ def autogenerate_coordinates(network, assign=False, layouter=None):
     """
 
     G = network.graph()
-    
+
     if layouter is None:
         is_planar = nx.check_planarity(G)[0]
         if is_planar:
             layouter = nx.planar_layout
         else:
             layouter = nx.kamada_kawai_layout
-            
+
     coordinates = pd.DataFrame(layouter(G)).T.rename({0: 'x', 1: 'y'}, axis=1)
-    
+
     if assign:
         network.buses[['x', 'y']] = coordinates
-    
+
     return coordinates
 
 
@@ -606,10 +606,11 @@ def _get_coordinates(network, layouter=None):
 
 
 _token_required_mb_styles = ['basic', 'streets', 'outdoors', 'light', 'dark',
-                    'satellite', 'satellite-streets']
+                             'satellite', 'satellite-streets']
 
 _open__mb_styles = ['open-street-map', 'white-bg', 'carto-positron',
-                 'carto-darkmatter', 'stamen-terrain', 'stamen-toner', 'stamen-watercolor']
+                    'carto-darkmatter', 'stamen-terrain', 'stamen-toner',
+                    'stamen-watercolor']
 
 #This function was borne out of a breakout group at the October 2017
 #Munich Open Energy Modelling Initiative Workshop to hack together a
