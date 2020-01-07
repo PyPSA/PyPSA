@@ -674,9 +674,9 @@ def iplot(network, fig=None, bus_colors='blue',
         overlapping buses
     mapbox : bool, default False
         Switch to use Mapbox.
-    mapbox_style : str, defaul 'open-street-map'
+    mapbox_style : str, default 'open-street-map'
         Define the mapbox layout style of the interactive plot. If this is set
-        to a mapbox layout, the argument mapbox_token must be a valid Mapbox
+        to a mapbox layout, the argument ``mapbox_token`` must be a valid Mapbox
         API access token.
 
         Valid open layouts are:
