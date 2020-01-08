@@ -1442,7 +1442,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             set_from_series(network.buses_t.v_ang,
                             get_values(model.voltage_angles))
         elif formulation in ["ptdf","cycles","kirchhoff"]:
-            if candidates: network.determine_network_topology(line_selector='used')
+            if candidates:
+                network.determine_network_topology(line_selector='used')
             for sn in network.sub_networks.obj:
                 if candidates:
                     find_slack_bus(sn)

@@ -904,7 +904,7 @@ class Network(Basic):
         pandas.DataFrame 
         """
 
-        def sel_b(c, sel):
+        def _ind_select(c, sel):
 
             s = slice(None)
 
@@ -922,7 +922,7 @@ class Network(Basic):
 
             return s
 
-        return pd.concat((self.df(c)[sel_b(c, sel)]
+        return pd.concat((self.df(c)[_ind_select(c, sel)]
                          for c in self.passive_branch_components),
                          keys=self.passive_branch_components, sort=True)
 

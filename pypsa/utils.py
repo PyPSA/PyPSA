@@ -27,8 +27,8 @@ from six.moves import map, range, reduce
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
 __copyright__ = "Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT), GNU GPL 3"
 
-
 import numpy as np
+
 
 def _normed(s):
     tot = s.sum()
@@ -37,10 +37,12 @@ def _normed(s):
     else:
         return s/tot
 
+
 def _flatten_multiindex(m, join=' '):
     if m.nlevels <= 1: return m
     levels = map(m.get_level_values, range(m.nlevels))
     return reduce(lambda x, y: x+join+y, levels, next(levels))
+
 
 def _make_consense(component, attr):
     def consense(x):
