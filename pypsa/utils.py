@@ -1,5 +1,5 @@
 
-## Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)
+## Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS), 2019-2020 Fabian Neumann (KIT)
 
 ## This program is free software; you can redistribute it and/or
 ## modify it under the terms of the GNU General Public License as
@@ -25,7 +25,7 @@ from six.moves import map, range, reduce
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT), GNU GPL 3"
+__copyright__ = "Copyright 2015-2019 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019-2020 Fabian Neumann (KIT); GNU GPL 3"
 
 import numpy as np
 
@@ -60,11 +60,9 @@ def _haversine(coords):
     a = np.sin((lat[1]-lat[0])/2.)**2 + np.cos(lat[0]) * np.cos(lat[1]) * np.sin((lon[0] - lon[1])/2.)**2
     return 6371.000 * 2 * np.arctan2( np.sqrt(a), np.sqrt(1-a) )
 
-
-def ind_select(c, sel=None):
+def branch_select_b(lines, cname, sel):
     """
-    Returns intersection of `c.ind` and indices of a selection of lines
-    for passive branch components based on the choice of the parameter `sel`.
+    Returns boolean pd.Series of lines based on the choice of the parameter `sel`.
 
     Parameters
     ----------
@@ -75,36 +73,60 @@ def ind_select(c, sel=None):
         If `"inoperative"` it includes only inoperative lines.
         If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
         If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
-        If `"used"` it includes operative and built candidate lines.
-        Can only be called after successful optimisation.
+        If `"used"` it includes operative and built candidate lines; can only be called after successful optimisation.
+
+    Returns
+    -------
+    pd.Series
+    """
+    
+    if cname != 'Line':
+        return slice(None)
+
+    if sel == 'operative':	
+        return lines.operative == True	
+    elif sel == 'inoperative':	
+        return lines.operative == False	
+    elif sel == 'potential':	
+        return (lines.operative == True) | (lines.s_nom_extendable == True)	
+    elif sel == 'candidate':	
+        return (lines.operative == False) & (lines.s_nom_extendable == True)	
+    elif sel == 'used':	
+        return (lines.s_nom_opt > 0.0)
+    else:
+        return slice(None)
+
+
+def branch_select_i(c, sel=None):
+    """
+    Returns intersection of `c.ind` and indices of a selection of lines
+    for passive branch components based on the choice of the parameter `sel`.
+    No effect for links.
+
+    Parameters
+    ----------
+    sel : string
+        Specifies selection of passive branches.
+        If `None` (default) it includes both operative and inoperative lines.
+        If `"operative"` it includes only operative lines.
+        If `"inoperative"` it includes only inoperative lines.
+        If `"potential"` it includes operative or candidate lines (i.e. not operative but extendable).
+        If `"candidate"` it includes candidate lines; i.e. not operative but extendable lines.
+        If `"used"` it includes operative and built candidate lines; can only be called after successful optimisation.
 
     Returns
     -------
     pandas.Index
     """
 
-    if c.name == 'Line' and sel is not None:
-
-        if sel == 'operative':
-            selection_b = c.df.operative == True
-        elif sel == 'inoperative':
-            selection_b = c.df.operative == False
-        elif sel == 'potential':
-            selection_b = (c.df.operative == True) | (c.df.s_nom_extendable == True)
-        elif sel == 'candidate':
-            selection_b = (c.df.operative == False) & (c.df.s_nom_extendable == True)
-        elif sel == 'used':
-            selection_b = (c.df.s_nom_opt > 0.0)
-
+    if c.name == 'Line':
+        selection_b = branch_select_b(c.df, c.name, sel)
         selection_i = c.df[selection_b].index
-
         if c.ind is None:
             s = selection_i
         else:
             s = c.ind.intersection(selection_i)
-
     else:
-
         if c.ind is None:
             s = slice(None)
         else:

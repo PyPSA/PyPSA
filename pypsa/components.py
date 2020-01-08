@@ -44,7 +44,7 @@ except ValueError:
 
 from .descriptors import Dict, get_switchable_as_dense
 
-from .utils import ind_select
+from .utils import branch_select_b, branch_select_i
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -904,25 +904,7 @@ class Network(Basic):
         pandas.DataFrame 
         """
 
-        def _ind_select(c, sel):
-
-            s = slice(None)
-
-            if c == 'Line' and sel is not None:
-                if sel == 'operative':
-                    s = self.df(c).operative == True
-                elif sel == 'inoperative':
-                    s = self.df(c).operative == False
-                elif sel == 'potential':
-                    s = (self.df(c).operative == True) | (self.df(c).s_nom_extendable == True)
-                elif sel == 'candidate':
-                    s = (self.df(c).operative == False) & (self.df(c).s_nom_extendable == True)
-                elif sel == 'used':
-                    s = self.df(c).s_nom_opt > 0.
-
-            return s
-
-        return pd.concat((self.df(c)[_ind_select(c, sel)]
+        return pd.concat((self.df(c)[branch_select_b(selv.df(c), c, sel)]
                          for c in self.passive_branch_components),
                          keys=self.passive_branch_components, sort=True)
 
@@ -1179,7 +1161,7 @@ class SubNetwork(Common):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            sel = ind_select(c, sel=line_selector)
+            sel = branch_select_i(c, sel=line_selector)
             types += len(sel) * [c.name]
             names += list(sel)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))

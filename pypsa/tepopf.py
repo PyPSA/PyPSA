@@ -16,14 +16,12 @@
 """Optimal Power Flow functions with Integer Transmission Expansion Planning.
 """
 
-# TODO: teplopf variant with one flow variable per candidate line
-
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
 from six import iteritems, itervalues, string_types
 
 __author__ = "Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
+__copyright__ = "Copyright 2019-2020 Fabian Neumann (KIT), GNU GPL 3"
 
 import pandas as pd
 import numpy as np
@@ -60,9 +58,11 @@ from .opf import (define_generator_variables_constraints,
                   network_lopf_prepare_solver,
                   network_lopf_solve)
 
-from .pf import (_as_snapshots, calculate_dependent_values, find_slack_bus, find_cycles)
+from .pf import (_as_snapshots, calculate_dependent_values,
+                 find_slack_bus, find_cycles)
 
-from .opt import (free_pyomo_initializers, l_constraint, LExpression, LConstraint)
+from .opt import (free_pyomo_initializers, l_constraint,
+                  LExpression, LConstraint)
 
 from .descriptors import (get_switchable_as_dense, get_switchable_as_iter)
 

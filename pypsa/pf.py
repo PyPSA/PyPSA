@@ -548,8 +548,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     buses_indexer = buses_o.get_indexer
     branch_bus0 = []; branch_bus1 = []
     for c in sub_network.iterate_components(network.passive_branch_components):
-        branch_bus0 += list(c.df.loc[ind_select(c, sel='operative'), 'bus0'])
-        branch_bus1 += list(c.df.loc[ind_select(c, sel='operative'), 'bus1'])
+        branch_bus0 += list(c.df.loc[branch_select_i(c, sel='operative'), 'bus0'])
+        branch_bus1 += list(c.df.loc[branch_select_i(c, sel='operative'), 'bus1'])
     v0 = V[:,buses_indexer(branch_bus0)]
     v1 = V[:,buses_indexer(branch_bus1)]
 
@@ -855,7 +855,7 @@ def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
     #following leans heavily on pypower.makeBdc
 
     #susceptances
-    b = 1./np.concatenate([(c.df.loc[ind_select(c, sel=line_selector), attribute]).values \
+    b = 1./np.concatenate([(c.df.loc[branch_select_i(c, sel=line_selector), attribute]).values \
                            for c in sub_network.iterate_components(network.passive_branch_components)])
 
 
@@ -872,8 +872,8 @@ def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
     sub_network.B = sub_network.K * sub_network.H
 
 
-    sub_network.p_branch_shift = -b*np.concatenate([(c.df.loc[ind_select(c, sel=line_selector), "phase_shift"]).values*np.pi/180. if c.name == "Transformer"
-                                                    else np.zeros((len(ind_select(c, sel=line_selector)),))
+    sub_network.p_branch_shift = -b*np.concatenate([(c.df.loc[branch_select_i(c, sel=line_selector), "phase_shift"]).values*np.pi/180. if c.name == "Transformer"
+                                                    else np.zeros((len(branch_select_i(c, sel=line_selector)),))
                                                     for c in sub_network.iterate_components(network.passive_branch_components)])
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
