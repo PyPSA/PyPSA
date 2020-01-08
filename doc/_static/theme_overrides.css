@@ -1,0 +1,19 @@
+/* override table width restrictions */
+@media screen and (min-width: 767px) {
+
+    .wy-table-responsive table td {
+       /* !important prevents the common CSS stylesheets from overriding
+          this as on RTD they are loaded after this stylesheet */
+       white-space: normal !important;
+       /* background: #eeeeee !important; */
+    }
+ 
+    .wy-table-responsive {
+       max-width: 100%;
+       overflow: visible !important;
+    }
+
+    .wy-nav-content {
+        max-width: 910px !important;
+    }
+ }

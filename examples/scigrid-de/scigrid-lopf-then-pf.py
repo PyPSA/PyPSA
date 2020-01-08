@@ -8,9 +8,6 @@
 #
 ### Data sources
 #
-#The data is generated in a separate notebook at <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>.
-#
-#
 #Grid: based on [SciGRID](http://scigrid.de/) Version 0.2 which is based on [OpenStreetMap](http://www.openstreetmap.org/).
 #
 #Load size and location: based on Landkreise (NUTS 3) GDP and population.
@@ -29,7 +26,9 @@
 #
 #Where SciGRID nodes have been split into 220kV and 380kV substations, all load and generation is attached to the 220kV substation.
 #
-### Warning
+### Warnings
+#
+#This script and the data behind it are no longer supported. See https://github.com/PyPSA/pypsa-eur for a newer model that covers the whole of Europe.
 #
 #This dataset is ONLY intended to demonstrate the capabilities of PyPSA and is NOT (yet) accurate enough to be used for research purposes.
 #
@@ -70,6 +69,8 @@ import os
 
 import matplotlib.pyplot as plt
 
+import cartopy.crs as ccrs
+
 #%matplotlib inline
 
 #You may have to adjust this path to where 
@@ -82,7 +83,7 @@ network = pypsa.Network(csv_folder_name=csv_folder_name)
 
 ### Plot the distribution of the load and of generating tech
 
-fig,ax = plt.subplots(1,1)
+fig,ax = plt.subplots(1,1,subplot_kw={"projection":ccrs.PlateCarree()})
 
 fig.set_size_inches(6,6)
 
@@ -109,7 +110,7 @@ else:
     n_rows = n_graphs // n_cols + 1
 
     
-fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols)
+fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, subplot_kw={"projection":ccrs.PlateCarree()})
 
 size = 4
 
@@ -138,11 +139,10 @@ for i,tech in enumerate(techs):
 
 contingency_factor = 0.7
 
-network.lines.s_nom = contingency_factor*network.lines.s_nom
+network.lines.s_max_pu = contingency_factor
 
 #There are some infeasibilities without small extensions                                                                                 
-for line_name in ["316","527","602"]:
-    network.lines.loc[line_name,"s_nom"] = 1200
+network.lines.loc[["316","527","602"],"s_nom"] = 1715
 
 
 #the lines to extend to resolve infeasibilities can
@@ -172,10 +172,10 @@ for i in range(int(24/group_size)):
     network.lopf(network.snapshots[group_size*i:group_size*i+group_size],
                  solver_name=solver_name,
                  keep_files=True)
-    network.lines.s_nom = network.lines.s_nom_opt
+    #network.lines.s_nom = network.lines.s_nom_opt
 
 #if lines are extended, look at which ones are bigger
-#network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - contingency_factor*network.lines.s_nom_original) > 1]
+#network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - network.lines.s_nom_original) > 1]
 
 p_by_carrier = network.generators_t.p.groupby(network.generators.carrier, axis=1).sum()
 
@@ -234,7 +234,7 @@ print("With the linear load flow, there is the following per unit loading:")
 loading = network.lines_t.p0.loc[now]/network.lines.s_nom
 print(loading.describe())
 
-fig,ax = plt.subplots(1,1)
+fig,ax = plt.subplots(1,1,subplot_kw={"projection":ccrs.PlateCarree()})
 fig.set_size_inches(6,6)
 
 network.plot(ax=ax,line_colors=abs(loading),line_cmap=plt.cm.jet,title="Line loading")
@@ -244,7 +244,7 @@ fig.tight_layout()
 
 network.buses_t.marginal_price.loc[now].describe()
 
-fig,ax = plt.subplots(1,1)
+fig,ax = plt.subplots(1,1,subplot_kw={"projection":ccrs.PlateCarree()})
 fig.set_size_inches(6,4)
 
 
@@ -317,6 +317,9 @@ for bus in network.buses.index:
 network.generators_t.p_set = network.generators_t.p_set.reindex(columns=network.generators.index)
 network.generators_t.p_set = network.generators_t.p
 
+network.storage_units_t.p_set = network.storage_units_t.p_set.reindex(columns=network.storage_units.index)
+network.storage_units_t.p_set = network.storage_units_t.p
+
 
 #set all buses to PV, since we don't know what Q set points are
 network.generators.control = "PV"
@@ -338,7 +341,7 @@ info = network.pf()
 (~info.converged).any().any()
 
 print("With the non-linear load flow, there is the following per unit loading\nof the full thermal rating:")
-print((network.lines_t.p0.loc[now]/network.lines.s_nom*contingency_factor).describe())
+print((network.lines_t.p0.loc[now]/network.lines.s_nom).describe())
 
 #Get voltage angle differences
 
@@ -355,7 +358,7 @@ print((s*180/np.pi).describe())
 
 #plot the reactive power
 
-fig,ax = plt.subplots(1,1)
+fig,ax = plt.subplots(1,1,subplot_kw={"projection":ccrs.PlateCarree()})
 
 fig.set_size_inches(6,6)
 

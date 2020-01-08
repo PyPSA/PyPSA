@@ -1,61 +1,39 @@
-from __future__ import print_function, division
-from __future__ import absolute_import
 
 import pypsa
-
-import datetime
 import pandas as pd
-
-import networkx as nx
-
-import numpy as np
-
-from itertools import chain
-
+import sys
 import os
+from numpy.testing import assert_array_almost_equal as equal
 
-
-from distutils.spawn import find_executable
-
+solvers = ['glpk'] if sys.platform == 'win32' else ['cbc', 'glpk']
 
 
 def test_opf():
 
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "..", "examples",
+                                   "opf-storage-hvdc","opf-storage-data")
 
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "../examples/opf-storage-hvdc/opf-storage-data")
+    n = pypsa.Network(csv_folder_name)
 
-    network = pypsa.Network(csv_folder_name)
+    target_path = os.path.join(csv_folder_name,"results","generators-p.csv")
+
+    target_gen_p = pd.read_csv(target_path, index_col=0)
 
     #test results were generated with GLPK and other solvers may differ
-    solver_name = "glpk"
+    for solver_name in solvers:
 
-    snapshots = network.snapshots
+        n.lopf(solver_name=solver_name, pyomo=True)
 
-    network.lopf(snapshots=snapshots,solver_name=solver_name)
+        equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
+    if sys.version_info.major >= 3:
 
-    results_folder_name = "results"
+        for solver_name in solvers:
 
-
-    network.export_to_csv_folder(results_folder_name)
-
-    good_results_filename =  os.path.join(csv_folder_name,"results","generators-p.csv")
-
-    good_arr = pd.read_csv(good_results_filename,index_col=0).values
-
-    print(good_arr)
-
-    results_filename = os.path.join(results_folder_name,"generators-p.csv")
-
-
-    arr = pd.read_csv(results_filename,index_col=0).values
-
-
-    print(arr)
-
-
-    np.testing.assert_array_almost_equal(arr,good_arr)
-
+            status, cond = n.lopf(solver_name=solver_name, pyomo=False)
+            assert status == 'ok'
+            equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
+                  decimal=2)
 
 
 if __name__ == "__main__":

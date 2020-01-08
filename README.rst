@@ -1,4 +1,4 @@
-|badge_travis| |badge_pypi| |badge_license|
+|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter|
 
 -----
 
@@ -42,8 +42,6 @@ Documentation
 =============
 
 `Documentation as a website <http://www.pypsa.org/doc/index.html>`_
-
-`Documentation as a PDF <http://www.pypsa.org/doc/PyPSA.pdf>`_
 
 `Quick start <http://www.pypsa.org/doc/quick_start.html>`_
 
@@ -120,42 +118,46 @@ available as Python scripts in `examples/ <examples/>`_.
 Screenshots
 ===========
 
-Results from a PyPSA simulation can be converted into an interactive
+
+* `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_ optimising capacities of generation, storage and transmission lines (9% line volume expansion allowed) for a 95% reduction in CO2 emissions in Europe compared to 1990 levels
+
+.. image:: doc/img/elec_s_256_lv1.09_Co2L-3H.png
+    :align: center
+    :width: 700px
+
+
+*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_
+
+.. image:: doc/img/stacked-gen_and_storage-scigrid.png
+    :align: center
+
+.. image:: doc/img/lmp_and_line-loading.png
+    :align: right
+
+
+.. image:: doc/img/reactive-power.png
+    :align: center
+    :width: 600px
+
+
+* Small meshed AC-DC toy model
+
+.. image:: doc/img/ac_dc_meshed.png
+    :align: center
+    :width: 400px
+
+All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
-<https://github.com/PyPSA/PyPSA-animation>`_, see the `PyPSA-Eur-30
+<https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
 example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
-
-Another showcase for PyPSA is the `SciGRID example
-<https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ which
-demonstrates interactive plots generated with the `plotly
-<https://plot.ly/python/>`_ library.
-
-.. image:: http://www.pypsa.org/img/line-loading.png
-
-.. image:: http://www.pypsa.org/img/lmp.png
-
-.. image:: http://www.pypsa.org/img/reactive-power.png
-
-.. image:: http://www.pypsa.org/img/stacked-gen.png
-
-.. image:: http://www.pypsa.org/img/storage-scigrid.png
-
-.. image:: http://www.pypsa.org/img/scigrid-curtailment.png
-
-.. image:: http://www.pypsa.org/img/meshed-ac-dc.png
-
-Optimised capacities of generation and storage for a 95% reduction in CO2 emissions in Europe compare to 1990 levels:
-
-.. image:: http://www.pypsa.org/img/euro-pie-pre-7-branch_limit-1-256.png
-.. image:: http://www.pypsa.org/img/legend-flat.png
 
 
 
 What PyPSA uses under the hood
 ===============================
 
-PyPSA is written and tested to be compatible with both Python 2.7 and
-Python 3.6.
+PyPSA is written and tested to be compatible with Python 3.6 and
+3.7. The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:
 
@@ -165,16 +167,20 @@ It leans heavily on the following Python packages:
 * `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
 * `plotly <https://plot.ly/python/>`_ for interactive plotting
 * `matplotlib <https://matplotlib.org/>`_ for static plotting
+* `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
 * `networkx <https://networkx.github.io/>`_ for some network calculations
 * `py.test <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 
+
 The optimisation uses pyomo so that it is independent of the preferred
-solver (you can use e.g. the free software GLPK or the commercial
-software Gurobi).
+solver. You can use e.g. one of the free solvers `GLPK <https://www.gnu.org/software/glpk/>`_
+and `CLP/CBC <https://github.com/coin-or/Cbc/>`_ or the commercial
+solver `Gurobi <http://www.gurobi.com/>`_
+for which free academic licenses are available.
 
 The time-expensive calculations, such as solving sparse linear
-equations, are carried out using the scipy.sparse libraries.
+equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/scipy/reference/sparse.html>`_ libraries.
 
 
 
@@ -183,6 +189,16 @@ Mailing list
 
 PyPSA has a Google Group `forum / mailing list
 <https://groups.google.com/group/pypsa>`_.
+
+Anyone can join and anyone can read the posts; only members of the
+group can post to the list.
+
+The intention is to have a place where announcements of new releases
+can be made and questions can be asked.
+
+To discuss issues and suggest/contribute features
+for future development we prefer ticketing through the `PyPSA Github Issues page
+<https://github.com/PyPSA/PyPSA/issues>`_.
 
 
 Citing PyPSA
@@ -249,8 +265,20 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     :alt: PyPI version
 
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: #license
+    :target: License
 
 .. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
     :target: https://travis-ci.org/PyPSA/PyPSA
     :alt: Build status on Linux
+
+.. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
+    :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. |badge_conda| image:: https://img.shields.io/conda/vn/conda-forge/pypsa.svg
+    :target: https://anaconda.org/conda-forge/pypsa
+    :alt: Conda version
+
+.. |gitter| image:: https://badges.gitter.im/PyPSA/community.svg
+    :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
+    :alt: Chat on Gitter

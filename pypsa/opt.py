@@ -38,7 +38,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pyomo.environ import Constraint, Objective, Var, ComponentUID
+from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize, maximize
 from weakref import ref as weakref_ref
 
 import pyomo
@@ -51,6 +51,10 @@ import gc, os, tempfile
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
+
+# =============================================================================
+# Tools for solving with pyomo
+# =============================================================================
 
 class LExpression(object):
     """Affine expression of optimisation variables.
@@ -248,7 +252,7 @@ def l_constraint(model,name,constraints,*args):
             v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant[1])
         else: raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
 
-def l_objective(model,objective=None):
+def l_objective(model,objective=None, sense=minimize):
     """
     A replacement for pyomo's Objective that quickly builds linear
     objectives.
@@ -259,7 +263,7 @@ def l_objective(model,objective=None):
 
     call instead
 
-    l_objective(model,objective)
+    l_objective(model,objective,sense)
 
     where objective is an LExpression.
 
@@ -271,6 +275,7 @@ def l_objective(model,objective=None):
     ----------
     model : pyomo.environ.ConcreteModel
     objective : LExpression
+    sense : minimize / maximize
 
     """
 
@@ -278,7 +283,7 @@ def l_objective(model,objective=None):
         objective = LExpression()
 
     #initialise with a dummy
-    model.objective = Objective(expr = 0.)
+    model.objective = Objective(expr = 0., sense=sense)
     model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
 
 def free_pyomo_initializers(obj):
@@ -311,15 +316,6 @@ def empty_model(model):
             bounds[obj.name] = obj._bounds_init_rule
             obj._bounds_init_rule = None
 
-    smap_id, symbol_map = (next(iteritems(model.solutions.symbol_map))
-               if model.solutions.symbol_map
-               else (None, None))
-    if smap_id is not None:
-        for m in ('bySymbol', 'aliases'):
-            setattr(symbol_map, m,
-                    {n: ComponentUID(obj())
-                     for n, obj in iteritems(getattr(symbol_map, m))})
-
     fd, fn = tempfile.mkstemp()
     with os.fdopen(fd, 'wb') as f:
         pickle.dump(model.__getstate__(), f, -1)
@@ -342,14 +338,6 @@ def empty_model(model):
     for n, bound in iteritems(bounds):
         getattr(model, n)._bounds_init_rule = bound
 
-    if smap_id is not None:
-        for m in ('bySymbol', 'aliases'):
-            setattr(symbol_map, m,
-                    {n: weakref_ref(cuid.find_component(model))
-                     for n, cuid in iteritems(getattr(symbol_map, m))})
-        symbol_map.byObject = {id(obj()): symb
-                               for symb, obj in iteritems(symbol_map.bySymbol)}
-        model.solutions.symbol_map[smap_id] = symbol_map
     logger.debug("Reloaded pyomo model")
 
 @contextmanager
@@ -398,3 +386,11 @@ def patch_optsolver_record_memusage_before_solving(opt, network):
     except ImportError:
         logger.debug("Unable to measure memory usage, since the resource library is missing")
         return False
+
+
+# =============================================================================
+# Helpers for opf_lowmemory
+# =============================================================================
+
+
+

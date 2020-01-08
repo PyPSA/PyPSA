@@ -11,9 +11,9 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.14.1',
-    author='Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)',
-    author_email='brown@fias.uni-frankfurt.de',
+    version='0.16.0',
+    author='Tom Brown (FIAS, KIT), Jonas Hoersch (FIAS, KIT), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)',
+    author_email='tom.brown@kit.edu',
     description='Python for Power Systems Analysis',
     long_description=long_description,
     long_description_content_type='text/x-rst',
@@ -22,15 +22,20 @@ setup(
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
     install_requires=[
-        'six',
+        'six >= 1.13.0',
         'numpy',
         'scipy',
-        'pandas>=0.19.0',
+        'pandas>=0.24.0',
+        'tables',
         'pyomo>=5.3',
         'matplotlib',
-        'cartopy>=0.16',
-        'networkx>=1.10',
+        'networkx>=1.10'
     ],
+    extras_require = {
+        "cartopy": ['cartopy>=0.16'],
+        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"],
+        'gurobipy':['gurobipy']
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

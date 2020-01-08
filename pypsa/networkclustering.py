@@ -25,19 +25,17 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
-from itertools import repeat
-from six.moves import map, zip, range, reduce
+from six.moves import map, range, reduce
 from six import itervalues, iteritems
-import six
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-from .descriptors import OrderedGraph
 from .components import Network
+from .geo import haversine_pts
 
-from . import components, io
+from . import io
 from .utils import _normed, _flatten_multiindex,_make_consense, _haversine
 
 
@@ -49,7 +47,8 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     attrs = network.components["Generator"]["attrs"]
     generators = (network.generators.loc[gens_agg_b]
                   .assign(bus=lambda df: df.bus.map(busmap)))
-    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) | {'weight'}) & set(generators.columns)
+    columns = (set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) |
+               {'weight'}) & set(generators.columns) - {'control'}
     grouper = [generators.bus, generators.carrier]
 
     def normed_or_uniform(x):
@@ -155,7 +154,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     def aggregatelinegroup(l):
 
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
-        length_s = _haversine(buses.loc[list(l.name),['x', 'y']])*line_length_factor
+        length_s = haversine_pts(buses.loc[l.name[0], ['x', 'y']],
+                                 buses.loc[l.name[1], ['x', 'y']]) * line_length_factor
         v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
@@ -214,6 +214,7 @@ Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
 def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
                                aggregate_generators_carriers=None,
+                               scale_link_capital_costs=True,
                                bus_strategies=dict(), one_port_strategies=dict(),
                                generator_strategies=dict()):
 
@@ -225,6 +226,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     if with_time:
+        network_c.snapshot_weightings = network.snapshot_weightings.copy()
         network_c.set_snapshots(network.snapshots)
 
     one_port_components = network.one_port_components.copy()
@@ -269,6 +271,17 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                                       bus1=network.links.bus1.map(busmap))
                         .dropna(subset=['bus0', 'bus1'])
                         .loc[lambda df: df.bus0 != df.bus1])
+
+    new_links['length'] = np.where(
+        new_links.length.notnull() & (new_links.length > 0),
+        line_length_factor *
+        haversine_pts(buses.loc[new_links['bus0'], ['x', 'y']],
+                      buses.loc[new_links['bus1'], ['x', 'y']]),
+        0
+    )
+    if scale_link_capital_costs:
+        new_links['capital_cost'] *= (new_links.length/network.links.length).fillna(1)
+
     io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
@@ -503,7 +516,7 @@ def busmap_by_stubs(network, matching_attrs=None):
 
     while True:
         stubs = []
-        for u in G.node:
+        for u in G.nodes:
             neighbours = list(G.adj[u].keys())
             if len(neighbours) == 1:
                 v, = neighbours
