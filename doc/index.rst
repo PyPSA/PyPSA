@@ -17,8 +17,8 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 .. image:: https://img.shields.io/github/repo-size/pypsa/pypsa-eur
     :alt: GitHub repo size
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg
-    :target: https://doi.org/10.5281/zenodo.1246852
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg
+    :target: https://doi.org/10.5281/zenodo.3520875
 
 .. image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
@@ -141,9 +141,25 @@ Please use the following BibTeX: ::
 If you want to cite a specific PyPSA-Eur version, each release of PyPSA-Eur is stored on Zenodo with a release-specific DOI.
 This can be found linked from the overall PyPSA-Eur Zenodo DOI:
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg
-   :target: https://doi.org/10.5281/zenodo.1246852
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg
+   :target: https://doi.org/10.5281/zenodo.3520875
 
+Pre-Built Networks as a Dataset
+===============================
+
+There are pre-built networks available as a dataset on Zenodo as well for every release of PyPSA-Eur.
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3601882.svg
+   :target: https://doi.org/10.5281/zenodo.3601882
+
+The included ``.nc`` files are PyPSA network files which can be imported with PyPSA via:
+
+.. code:: python
+    
+    import pypsa
+
+    filename = "elec_s_1024_ec.nc" # example
+    n = pypsa.Network(filename)
 
 Licence
 =======

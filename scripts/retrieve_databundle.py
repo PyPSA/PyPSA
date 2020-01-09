@@ -1,4 +1,4 @@
-## Copyright 2019 Fabian Hofmann (FIAS)
+## Copyright 2019-2020 Fabian Hofmann (FIAS)
 """
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3517935.svg
    :target: https://doi.org/10.5281/zenodo.3517935

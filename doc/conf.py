@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PyPSA-Eur'
-copyright = u'2017-2019 Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), David Schlachtberger (FIAS), Tom Brown (KIT, FIAS); 2019 Fabian Neumann (KIT)'
+copyright = u'2017-2020 Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), David Schlachtberger (FIAS), Tom Brown (KIT, FIAS); 2019-2020 Fabian Neumann (KIT)'
 author = u'Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), David Schlachtberger (FIAS), Tom Brown (KIT, FIAS), Fabian Neumann (KIT)'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -70,7 +70,7 @@ author = u'Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), David Schlachtberge
 # built documents.
 #
 # The short X.Y version.
-version = u'0.1.0'
+version = u'0.1'
 # The full version, including alpha/beta/rc tags.
 release = u'0.1.0'
 

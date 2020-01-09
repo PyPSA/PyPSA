@@ -1,4 +1,4 @@
-version: 0.1
+version: 0.1.0
 tutorial: false
 
 logging:
@@ -11,7 +11,7 @@ scenario:
   sectors: [E]
   simpl: ['']
   ll: ['copt']
-  clusters: [37, 100]
+  clusters: [37, 128, 256, 512, 1024]
   opts: [Co2L-3H]
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
@@ -22,7 +22,7 @@ snapshots:
   closed: 'left' # end is not inclusive
 
 enable:
-  prepare_links_p_nom: false
+  prepare_links_p_nom: true
   retrieve_databundle: true
   build_cutout: false
   build_natura_raster: false
@@ -34,7 +34,7 @@ electricity:
   agg_p_nom_limits: data/agg_p_nom_minmax.csv
 
   extendable_carriers:
-    Generator: [OCGT]
+    Generator: []
     StorageUnit: [battery, H2]
     Store: [] # battery, H2
     Link: []
@@ -45,13 +45,12 @@ electricity:
 
   powerplants_filter: false # use pandas query strings here, e.g. Country not in ['Germany']
   custom_powerplants: false # use pandas query strings here, e.g. Country in ['Germany']
-  conventional_carriers: [] # nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
   # estimate_renewable_capacities_from_capacity_stats:
   #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
   #   Wind: [onwind, offwind-ac, offwind-dc]
   #   Solar: [solar]
-
 
 atlite:
   nprocesses: 4

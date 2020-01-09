@@ -20,6 +20,11 @@ rule cluster_all_elec_networks:
         expand("networks/elec_s{simpl}_{clusters}.nc",
                **config['scenario'])
 
+rule extra_components_all_elec_networks:
+    input:
+        expand("networks/elec_s{simpl}_{clusters}_ec.nc",
+               **config['scenario'])
+
 rule prepare_all_elec_networks:
     input:
         expand("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",

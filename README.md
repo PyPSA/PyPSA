@@ -3,7 +3,7 @@
 [![Documentation](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)](https://pypsa-eur.readthedocs.io/en/latest/?badge=latest)
 ![GitHub](https://img.shields.io/github/license/pypsa/pypsa-eur)
 ![Size](https://img.shields.io/github/repo-size/pypsa/pypsa-eur)
-[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.1246852.svg)](https://doi.org/10.5281/zenodo.1246852)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg)](https://doi.org/10.5281/zenodo.3520875)
 [![Gitter](https://badges.gitter.im/PyPSA/community.svg)](https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # PyPSA-Eur: An Open Optimisation Model of the European Transmission System
@@ -44,4 +44,4 @@ The dataset consists of:
 - Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils) and the [glaes library](https://github.com/FZJ-IEK3-VSA/glaes).
 
 Already-built versions of the model can be found in the accompanying [Zenodo
-repository](https://zenodo.org/record/1246851).
+repository](https://doi.org/10.5281/zenodo.3601882).

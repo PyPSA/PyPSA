@@ -6,7 +6,7 @@ dependencies:
   - python
   - pip
 
-  - pypsa>=0.15
+  - pypsa>=0.16
   - atlite
 
   # Dependencies of the workflow itself
