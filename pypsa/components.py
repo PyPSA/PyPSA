@@ -439,7 +439,6 @@ class Network(Basic):
 
         Other Parameters
         ----------------
-
         ptdf_tolerance : float
             Only taking effect when pyomo is True.
             Value below which PTDF entries are ignored
@@ -489,6 +488,16 @@ class Network(Basic):
             Only taking effect when pyomo is False.
             Path to directory where necessary files are written, default None leads
             to the default temporary directory used by tempfile.mkstemp().
+
+        Returns
+        -------
+        status : str
+            Status of optimization.
+            Either "ok" if solution is optimal, or "warning" if not.
+        termination_condition : str
+            More information on how the solver terminated.
+            One of "optimal", "suboptimal" (in which case a solution is still
+            provided), "infeasible", "infeasible or unbounded", or "other".
 
         """
         args = {'snapshots': snapshots, 'keep_files': keep_files,
