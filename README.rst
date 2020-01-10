@@ -244,7 +244,7 @@ This can be found linked from the overall PyPSA Zenodo DOI:
 Licence
 =======
 
-Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
+Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
 David Schlachtberger (FIAS)
 
 This program is free software: you can redistribute it and/or

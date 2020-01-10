@@ -38,6 +38,6 @@ if sys.version_info.major >= 3:
 
 from .components import Network, SubNetwork
 
-__version__ = "0.16.0"
+__version__ = "0.16.1"
 __author__ = "Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS), GNU GPL 3"
+__copyright__ = "Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS), GNU GPL 3"

@@ -2,8 +2,44 @@
 Release Notes
 #######################
 
-PyPSA upcoming release
-======================
+PyPSA 0.16.1 (10th January 2020)
+================================
+
+This release contains a few minor bux fixes from the introduction of
+nomopyomo in the previous release, as well as a few minor features.
+
+* When using the ``nomopyomo`` formulation of the LOPF with
+  ``network.lopf(pyomo=False)``, PyPSA was not correcting the bus
+  marginal prices by dividing by the ``network.snapshot_weightings``, as is done
+  in the ``pyomo`` formulation. This correction is now applied in the
+  ``nomopyomo`` formulation to be consistent with the ``pyomo``
+  formulation. (The reason this correction is applied is so that the
+  prices have a clear currency/MWh definition regardless of the
+  snapshot weightings. It also makes them stay roughly the same when
+  snapshots are aggregated: e.g. if hourly simulations are sampled
+  every n-hours, and the snapshot weighting is n.)
+* The ``status, termination_condition`` that the ``network.lopf`` returns
+  is now consistent between the ``nomopyomo`` and ``pyomo``
+  formulations. The possible return values are documented in the LOPF
+  docstring, see also the `LOPF documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pypsa.Network.lopf>`_.
+  Furthermore in the ``nomopyomo`` formulation, the solution is still
+  returned when gurobi finds a suboptimal solution, since this
+  solution is usually close to optimal. In this case the LOPF returns
+  a ``status`` of ``warning`` and a ``termination_condition`` of
+  ``suboptimal``.
+* For plotting with ``network.plot()`` you can override the bus
+  coordinates by passing it a ``layouter`` function from ``networkx``. See
+  the docstring for more information. This is particularly useful for
+  networks with no defined coordinates.
+* For plotting with ``network.iplot()`` a background from `mapbox
+  <https://www.mapbox.com/>`_ can now be integrated.
+
+Please note that we are still aware of one implementation difference
+between ``nomopyomo`` and ``pyomo``, namely that ``nomopyomo`` doesn't read
+out shadow prices for non-extendable branches, see the `github issue
+<https://github.com/PyPSA/PyPSA/issues/119>`_.
+
 
 PyPSA 0.16.0 (20th December 2019)
 =================================
