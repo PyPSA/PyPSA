@@ -183,8 +183,8 @@ def _get_handlers(axes, *maybearrays):
         axes, shape = broadcasted_axes(*maybearrays)
     else:
         shape = tuple(map(len, axes))
-    length = np.prod(shape)
-    return axes, shape, length
+    size = np.prod(shape)
+    return axes, shape, size
 
 
 def write_bound(n, lower, upper, axes=None):
@@ -194,10 +194,10 @@ def write_bound(n, lower, upper, axes=None):
     or (index), for creating the variable of same upper and lower bounds.
     Return a series or frame with variable references.
     """
-    axes, shape, length = _get_handlers(axes, lower, upper)
-    if not length: return pd.Series()
-    n._xCounter += length
-    variables = np.arange(n._xCounter - length, n._xCounter).reshape(shape)
+    axes, shape, size = _get_handlers(axes, lower, upper)
+    if not size: return pd.Series()
+    n._xCounter += size
+    variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
     n.bounds_f.write(join_exprs(lower + ' <= x' + _str_array(variables, True)
                                 + ' <= '+ upper + '\n'))
@@ -210,10 +210,10 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
     """
-    axes, shape, length = _get_handlers(axes, lhs, sense, rhs)
-    if not length: return pd.Series()
-    n._cCounter += length
-    cons = np.arange(n._cCounter - length, n._cCounter).reshape(shape)
+    axes, shape, size = _get_handlers(axes, lhs, sense, rhs)
+    if not size: return pd.Series()
+    n._cCounter += size
+    cons = np.arange(n._cCounter - size, n._cCounter).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
@@ -228,9 +228,9 @@ def write_binary(n, axes):
     or pd.DataFrame spanned by axes. Returns a series or frame with variable
     references.
     """
-    axes, shape, length = _get_handlers(axes)
-    n._xCounter += length
-    variables = np.arange(n._xCounter - length, n._xCounter).reshape(shape)
+    axes, shape, size = _get_handlers(axes)
+    n._xCounter += size
+    variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     n.binaries_f.write(join_exprs('x' + _str_array(variables, True) + '\n'))
     return to_pandas(variables, *axes)
 
