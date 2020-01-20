@@ -464,7 +464,7 @@ class Network(Basic):
             shadow prices.
         skip_objective : bool, default False
             Only taking effect when pyomo is False.
-            Skip writing the default objective function. If False, an custom
+            Skip writing the default objective function. If False, a custom
             objective has to be defined via extra_functionality.
         warmstart : bool or string, default False
             Only taking effect when pyomo is False.

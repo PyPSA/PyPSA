@@ -837,7 +837,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         solver. It allows the user to
         add/change constraints and add/change the objective function.
     skip_objective : bool, default False
-        Skip writing the default objective function. If False, an custom
+        Skip writing the default objective function. If False, a custom
         objective has to be defined via extra_functionality.
     extra_postprocessing : callable function
         This function must take three arguments

@@ -5,7 +5,7 @@ Release Notes
 PyPSA 0.17.0
 =============
 
-* When using the ``nomopyomo`` formulation of the LOPF, it is now possible to alter the objective function. Terms can be added to the objective via ``extra_functionality`` using the function :func:`pypsa.linopt.write_objective`. When a pure custom objective function needs to be declared, one can set ``skip_objective`` to True. Then only terms defined through ``extra_functionality`` will be considered in the optimisation.  
+* When using the ``pyomo=False`` formulation of the LOPF, it is now possible to alter the objective function. Terms can be added to the objective via ``extra_functionality`` using the function :func:`pypsa.linopt.write_objective`. When a pure custom objective function needs to be declared, one can set ``skip_objective=True``. In this case, only terms defined through ``extra_functionality`` will be considered in the objective function.  
 
 
 PyPSA 0.16.1 (10th January 2020)

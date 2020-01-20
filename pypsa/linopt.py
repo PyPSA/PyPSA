@@ -237,7 +237,7 @@ def write_binary(n, axes):
 
 def write_objective(n, terms):
     """
-    Writer function for writing out one or mutliple objective terms.
+    Writer function for writing out one or multiple objective terms.
 
     Parameters
     ----------
