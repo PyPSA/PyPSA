@@ -234,6 +234,22 @@ def write_binary(n, axes):
     n.binaries_f.write(join_exprs('x' + _str_array(variables, True) + '\n'))
     return to_pandas(variables, *axes)
 
+
+def write_objective(n, terms):
+    """
+    Writer function for writing out one or mutliple objective terms.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    terms : str/numpy.array/pandas.Series/pandas.DataFrame
+        String or array of strings which represent new objective terms, built
+        with :func:`linexpr`
+
+    """
+    n.objective_f.write(join_exprs(terms))
+
+
 # =============================================================================
 # helpers, helper functions
 # =============================================================================
