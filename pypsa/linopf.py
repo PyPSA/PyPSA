@@ -23,10 +23,11 @@ from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
 from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
                           expand_series, nominal_attrs, additional_linkports, Dict)
 
-from .linopt import (linexpr, write_bound, write_constraint, set_conref,
-                     set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
-                     run_and_read_gurobi, run_and_read_glpk, define_constraints,
-                     define_variables, align_with_static_component, define_binaries)
+from .linopt import (linexpr, write_bound, write_constraint, write_objective,
+                     set_conref, set_varref, get_con, get_var, join_exprs,
+                     run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
+                     define_constraints, define_variables, define_binaries,
+                     align_with_static_component)
 
 
 import pandas as pd
@@ -539,7 +540,7 @@ def define_objective(n, sns):
         ext_i = get_extendable_i(n, c)
         constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
     object_const = write_bound(n, constant, constant)
-    n.objective_f.write(linexpr((-1, object_const), as_pandas=False)[0])
+    write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
@@ -547,19 +548,19 @@ def define_objective(n, sns):
                 .mul(n.snapshot_weightings[sns], axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
-        n.objective_f.write(join_exprs(terms))
+        write_objective(n, terms)
     # investment
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr)[cost.index]))
-        n.objective_f.write(join_exprs(terms))
+        write_objective(n, terms)
 
 
-def prepare_lopf(n, snapshots=None, keep_files=False,
+def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
                  extra_functionality=None, solver_dir=None):
     """
-    Sets up the linear problem and writes it out to a lp file
+    Sets up the linear problem and writes it out to a lp file.
 
     Returns
     -------
@@ -617,7 +618,11 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     define_kirchhoff_constraints(n, snapshots)
     define_nodal_balance_constraints(n, snapshots)
     define_global_constraints(n, snapshots)
-    define_objective(n, snapshots)
+    if skip_objective:
+        logger.info("The argument `skip_objective` is set to True. Expecting a "
+                    "custom objective to be build via `extra_functionality`.")
+    else:
+        define_objective(n, snapshots)
 
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
@@ -793,7 +798,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
-         solver_logfile=None, extra_functionality=None,
+         solver_logfile=None, extra_functionality=None, skip_objective=False,
          extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
@@ -833,6 +838,9 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    skip_objective : bool, default False
+        Skip writing the default objective function. If False, a custom
+        objective has to be defined via extra_functionality.
     extra_postprocessing : callable function
         This function must take three arguments
         `extra_postprocessing(network,snapshots,duals)` and is called after
@@ -878,7 +886,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     n.determine_network_topology()
 
     logger.info("Prepare linear problem")
-    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files,
+    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, skip_objective,
                                    extra_functionality, solver_dir)
     fds, solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol', dir=solver_dir)
 

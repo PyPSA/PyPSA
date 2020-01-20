@@ -462,6 +462,10 @@ class Network(Basic):
             the model has solved and the results are extracted. It allows the user
             to extract further information about the solution, such as additional
             shadow prices.
+        skip_objective : bool, default False
+            Only taking effect when pyomo is False.
+            Skip writing the default objective function. If False, a custom
+            objective has to be defined via extra_functionality.
         warmstart : bool or string, default False
             Only taking effect when pyomo is False.
             Use this to warmstart the optimization. Pass a string which gives
