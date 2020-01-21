@@ -44,7 +44,7 @@ from operator import itemgetter
 import time
 
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
-from .utils import ind_select
+from .utils import branch_select_i
 
 pd.Series.zsum = zsum
 

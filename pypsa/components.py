@@ -904,7 +904,7 @@ class Network(Basic):
         pandas.DataFrame 
         """
 
-        return pd.concat((self.df(c)[branch_select_b(selv.df(c), c, sel)]
+        return pd.concat((self.df(c)[branch_select_b(self.df(c), c, sel)]
                          for c in self.passive_branch_components),
                          keys=self.passive_branch_components, sort=True)
 

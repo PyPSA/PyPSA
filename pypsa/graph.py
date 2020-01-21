@@ -22,7 +22,7 @@ import scipy as sp, scipy.sparse
 import numpy as np
 
 from .descriptors import OrderedGraph
-from .utils import ind_select
+from .utils import branch_select_i
 
 def graph(network, branch_components=None, weight=None, inf_weight=False,
           line_selector='operative'):
