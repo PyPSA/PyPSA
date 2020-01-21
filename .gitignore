@@ -43,3 +43,15 @@ website/examples/*.py
 *.zip
 
 *.html
+
+.coverage
+
+*.nc
+
+network/
+
+results/
+
+.vscode
+
+*dconf
