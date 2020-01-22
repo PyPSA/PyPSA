@@ -70,7 +70,173 @@ from .utils import (_make_consense, _haversine, _normed)
 
 RESCALING = 1e5
 
-# TODO: all cycles cross sub_networks, look for inspiration in find_slack_dependencies
+
+def sub_networks_graph(network):
+    """
+    Creates a nx.MultiGraph() from the pypsa.Network
+    with sub_networks represented as nodes and
+    candidate lines that connect sub_networks as edges.
+    
+    Parameters
+    ----------
+    network : pypsa.Network
+    
+    Returns
+    -------
+    graph : networkx.MultiGraph
+    """
+    
+    graph = nx.MultiGraph()
+    
+    graph.add_nodes_from(network.sub_networks.index)
+    
+    def gen_sub_network_edges():
+        candidate_branches = network.passive_branches(sel='candidate')
+        data = {}
+        for cnd_i, cnd, in candidate_branches.iterrows():
+            sn0 = network.buses.loc[cnd.bus0].sub_network
+            sn1 = network.buses.loc[cnd.bus1].sub_network
+            if sn0 != sn1:
+                yield (sn0, sn1, cnd_i, data)
+                
+    graph.add_edges_from(gen_sub_network_edges())
+    
+    return graph
+
+
+def equivalent_cycle(c,d):
+    """
+    Checks whether two cycles are equivalent
+    when disregarding orientation and first vertex.
+    """
+    
+    dc, dd = (deque(c), deque(d))
+    dd_rev = dd.copy()
+    dd_rev.reverse()
+    for _ in range(len(dd)):
+        dd.rotate(1)
+        dd_rev.rotate(1)
+        if dd==dc or dd_rev==dc:
+            return True         
+    return False
+
+
+def add_cycle_b(cycle, cycles):
+    """
+    Checks whether an equivalent cycle of `cycle`
+    is already in `cycles`.
+    """
+    
+    for c in cycles:
+        if equivalent_cycle(c,cycle):
+            return False
+    return True
+
+
+def get_line_sub_networks(line_i, network):
+    """"""
+    
+    line = network.lines.loc[line_i[1]]
+    sn0 = network.buses.loc[line.bus0].sub_network
+    sn1 = network.buses.loc[line.bus1].sub_network
+    
+    return {sn0: ('bus0', line.bus0), sn1: ('bus1', line.bus1)}
+
+
+def common_sub_network_vertices(line0, line1, network):
+    """"""
+
+    sub_networks_line0 = get_line_sub_networks(line0, network)
+    sub_networks_line1 = get_line_sub_networks(line1, network)
+    
+    commons = list(set(sub_networks_line0.keys()).intersection(
+                  set(sub_networks_line1.keys())))
+
+    return [tuple(zip(*(sub_networks_line0[common], sub_networks_line1[common]))) for common in commons]
+
+
+def get_cycles_as_branches(graph, cycles_deduplicated):
+    """
+    Converts cycles based on vertices to cycles based
+    on candidate line indices.
+    
+    Parameters
+    ----------
+    graph : networkx.MultiGraph
+    cycles_deduplicated : list
+        For example [['0','1','2'], ['1','3','4']]
+    """
+    
+    ordered_graph = nx.OrderedGraph(graph)
+    
+    branches_in_corridors = []
+    for cycle in cycles_deduplicated:
+        l = len(cycle)
+        for i in range(l):
+            corridor_branches = list(graph[cycle[i]][cycle[(i+1)%l]])
+            branches_in_corridors.append(corridor_branches)
+
+    cycles_as_branches = list(product(*branches_in_corridors))
+    
+    # add 2-edge cycles
+    for u,v in ordered_graph.edges():
+        corridor_branches = tuple(graph[u][v])
+        if len(corridor_branches) > 1:
+            cycles_as_branches.append(corridor_branches)
+            
+    return cycles_as_branches
+
+
+def find_candidate_cycles_network(network):
+    """"""
+    
+    ngraph = network.graph()
+    g = sub_networks_graph(network)
+
+    g_ordered = nx.OrderedGraph(g)
+    g_di = g_ordered.to_directed()
+
+    cycles = list(nx.simple_cycles(g_di))
+    cycles_long = [c for c in cycles if len(c) > 2]
+
+    cycles_deduplicated = []
+    for cycle in cycles_long:
+        if add_cycle_b(cycle, cycles_deduplicated):
+            cycles_deduplicated.append(cycle)
+
+    cycles_branch = get_cycles_as_branches(g, cycles_deduplicated)
+
+    potential_branches = network.passive_branches(sel='potential')
+
+    branches_i = potential_branches.index
+    branches_bus0 = potential_branches.bus0
+
+    network.CC = dok_matrix((len(branches_i), len(cycles_branch)))
+
+    for j, cycle in enumerate(cycles_branch):
+        l = len(cycle)
+        for i in range(l):
+
+            line0 = cycle[i]
+            line1 = cycle[(i+1)%l]
+
+            csn_vertices = common_sub_network_vertices(line0, line1, network)
+            csn_i = 1 if (l<=2) & ((i+1)%l == 0) else 0 # switch to other orientation
+            orientation, from_to = csn_vertices[csn_i]
+
+            # add sync
+            branch_i = branches_i.get_loc(cycle[i])
+            sign = +1 if orientation[0] == 'bus1' else -1
+            network.CC[branch_i,j] = sign
+
+            # add route with sub_network
+            path = nx.dijkstra_path(ngraph, *from_to)
+            for k in range(len(path)-1):
+                corridor_branches = dict(ngraph[path[k]][path[k+1]])
+                branch_name = list(corridor_branches.keys())[0] # if multiple existing lines pick one
+                branch_i = branches_i.get_loc(branch_name)
+                sign = +1 if branches_bus0.iat[branch_i] == path[k] else -1
+                network.CC[branch_i, j] = sign
 
 
 def infer_candidates_from_existing(network):
@@ -286,7 +452,7 @@ def calaculate_big_m_for_kirchhoff(sub_network):
 
     # make sure sub_network has a candidate cycle matrix
     if not hasattr(sub_network, 'CC'):
-        find_candidate_cycles(sub_network)
+        find_candidate_cycles_sub(sub_network)
 
     branches = sub_network.branches(line_selector='potential')
     branches = branches.loc[_within_sub_network_b(sub_network, branches)]
@@ -310,7 +476,7 @@ def _within_sub_network_b(sub_network, lines):
     return [True if bus1 in sub_network.buses().index else False for bus1 in lines.bus1]
 
 
-def find_candidate_cycles(sub_network):
+def find_candidate_cycles_sub(sub_network):
     """
     Constructs an additional cycle matrix based cycles added by
     candidate lines (of the sub_network) and records them in sub_network.CC.
@@ -683,7 +849,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
     for sub_network in network.sub_networks.obj:
         find_cycles(sub_network)
-        find_candidate_cycles(sub_network)
+        find_candidate_cycles_sub(sub_network)
 
         # omitted bus_controls and B H calculation should be done ex-post given candidate investment decisions!
 
