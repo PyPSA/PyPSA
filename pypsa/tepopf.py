@@ -1,17 +1,17 @@
-## Copyright 2019-2020 Fabian Neumann (KIT)
+# Copyright 2019-2020 Fabian Neumann (KIT)
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 3 of the
+# License, or (at your option) any later version.
 
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Optimal Power Flow functions with Integer Transmission Expansion Planning.
 """
@@ -37,7 +37,7 @@ from pyomo.environ import (ConcreteModel, Var, Objective,
                            Suffix, Expression, Binary, SolverFactory)
 
 import logging
-logger = logging.getLogger(__name__)   
+logger = logging.getLogger(__name__)
 
 from .opf import (define_generator_variables_constraints,
                   define_branch_extension_variables,
@@ -75,20 +75,20 @@ def sub_networks_graph(network):
     Creates a networkx.MultiGraph() from the pypsa.Network
     with sub_networks represented as vertices and
     candidate lines that connect sub_networks as edges.
-    
+
     Parameters
     ----------
     network : pypsa.Network
-    
+
     Returns
     -------
     graph : networkx.MultiGraph
     """
-    
+
     graph = nx.MultiGraph()
-    
+
     graph.add_nodes_from(network.sub_networks.index)
-    
+
     def gen_sub_network_edges():
         candidate_branches = network.passive_branches(sel='candidate')
         data = {}
@@ -97,9 +97,9 @@ def sub_networks_graph(network):
             sn1 = network.buses.loc[cnd.bus1].sub_network
             if sn0 != sn1:
                 yield (sn0, sn1, cnd_i, data)
-                
+
     graph.add_edges_from(gen_sub_network_edges())
-    
+
     return graph
 
 
@@ -107,7 +107,7 @@ def _within_sub_network_b(sub_network, lines):
     return [True if bus1 in sub_network.buses().index else False for bus1 in lines.bus1]
 
 
-def equivalent_cycle(c,d):
+def equivalent_cycle(c, d):
     """
     Checks whether two cycles are equivalent
     when disregarding orientation and first vertex.
@@ -124,15 +124,15 @@ def equivalent_cycle(c,d):
     bool
         Cycles are equivalent.
     """
-    
+
     dc, dd = (deque(c), deque(d))
     dd_rev = dd.copy()
     dd_rev.reverse()
     for _ in range(len(dd)):
         dd.rotate(1)
         dd_rev.rotate(1)
-        if dd==dc or dd_rev==dc:
-            return True         
+        if dd == dc or dd_rev == dc:
+            return True
     return False
 
 
@@ -156,7 +156,7 @@ def add_cycle_b(cycle, cycles):
     """
 
     for c in cycles:
-        if equivalent_cycle(c,cycle):
+        if equivalent_cycle(c, cycle):
             return False
     return True
 
@@ -180,11 +180,11 @@ def get_line_sub_networks(line_i, network):
         with orientation and connecting bus as values, e.g.
         {'0': ('bus0': 'my_bus4'), '1': ('bus1', 'my_bus6')}
     """
-    
+
     line = network.lines.loc[line_i[1]]
     sn0 = network.buses.loc[line.bus0].sub_network
     sn1 = network.buses.loc[line.bus1].sub_network
-    
+
     return {sn0: ('bus0', line.bus0), sn1: ('bus1', line.bus1)}
 
 
@@ -193,7 +193,7 @@ def common_sub_network_vertices(line0, line1, network):
     Determines a list with an entry for each sub_network
     `line0` and `line1` commonly connect to. Containing
     information regarding their connection point and orientation.
-    
+
     Parameters
     ----------
     line0 : tuple
@@ -214,9 +214,9 @@ def common_sub_network_vertices(line0, line1, network):
 
     sub_networks_line0 = get_line_sub_networks(line0, network)
     sub_networks_line1 = get_line_sub_networks(line1, network)
-    
+
     commons = list(set(sub_networks_line0.keys()).intersection(
-                  set(sub_networks_line1.keys())))
+        set(sub_networks_line1.keys())))
 
     return [tuple(zip(*(sub_networks_line0[common], sub_networks_line1[common]))) for common in commons]
 
@@ -225,7 +225,7 @@ def get_cycles_as_branches(graph, cycles_deduplicated):
     """
     Converts cycles based on vertices to cycles based
     on candidate line indices.
-    
+
     Parameters
     ----------
     graph : networkx.MultiGraph
@@ -238,24 +238,24 @@ def get_cycles_as_branches(graph, cycles_deduplicated):
         For example [(('Line', 'l4'), ('Line', 'l6'), ('Line', 'l22')),
         (('Line', 'l4'), ('Line', 'l21'), ('Line', 'l22'))]
     """
-    
+
     ordered_graph = nx.OrderedGraph(graph)
-    
+
     branches_in_corridors = []
     for cycle in cycles_deduplicated:
         l = len(cycle)
         for i in range(l):
-            corridor_branches = list(graph[cycle[i]][cycle[(i+1)%l]])
+            corridor_branches = list(graph[cycle[i]][cycle[(i+1) % l]])
             branches_in_corridors.append(corridor_branches)
 
     cycles_as_branches = list(itertools.product(*branches_in_corridors))
-    
+
     # add 2-edge cycles
-    for u,v in ordered_graph.edges():
+    for u, v in ordered_graph.edges():
         corridor_branches = tuple(graph[u][v])
         if len(corridor_branches) > 1:
             cycles_as_branches.append(corridor_branches)
-    
+
     return cycles_as_branches
 
 
@@ -276,17 +276,18 @@ def find_candidate_cycles(network):
     else:
         find_candidate_cycles_network(network)
 
+
 def find_candidate_cycles_network(network):
     """
     Constructs an additional cycle matrix based on cycles added by
     candidate lines across sub_networks and records them in network.CC.
     """
-    
+
     potential_branches = network.passive_branches(sel='potential')
 
     # skip if network is just a single bus
     if len(potential_branches) == 0:
-        network.CC = dok_matrix((0,0))
+        network.CC = dok_matrix((0, 0))
         return
 
     ngraph = network.graph()
@@ -315,22 +316,24 @@ def find_candidate_cycles_network(network):
         for i in range(l):
 
             line0 = cycle[i]
-            line1 = cycle[(i+1)%l]
+            line1 = cycle[(i+1) % l]
 
             csn_vertices = common_sub_network_vertices(line0, line1, network)
-            csn_i = 1 if (l<=2) & ((i+1)%l == 0) else 0 # switch to other orientation
+            # switch to other orientation
+            csn_i = 1 if (l <= 2) & ((i+1) % l == 0) else 0
             orientation, from_to = csn_vertices[csn_i]
 
             # add sync
             branch_i = branches_i.get_loc(cycle[i])
             sign = +1 if orientation[0] == 'bus1' else -1
-            network.CC[branch_i,j] = sign
+            network.CC[branch_i, j] = sign
 
             # add route with sub_network
             path = nx.dijkstra_path(ngraph, *from_to)
             for k in range(len(path)-1):
                 corridor_branches = dict(ngraph[path[k]][path[k+1]])
-                branch_name = list(corridor_branches.keys())[0] # if multiple existing lines pick one
+                # if multiple existing lines pick one
+                branch_name = list(corridor_branches.keys())[0]
                 branch_i = branches_i.get_loc(branch_name)
                 sign = +1 if branches_bus0.iat[branch_i] == path[k] else -1
                 network.CC[branch_i, j] = sign
@@ -345,15 +348,18 @@ def find_candidate_cycles_sub_network(sub_network):
     potential_lines = sub_network.branches(sel='potential')
     candidate_lines = sub_network.branches(sel='candidate')
 
-    candidate_lines_sub = candidate_lines.loc[_within_sub_network_b(sub_network, candidate_lines)]
-    potential_lines_sub = potential_lines.loc[_within_sub_network_b(sub_network, potential_lines)]
+    candidate_lines_sub = candidate_lines.loc[_within_sub_network_b(
+        sub_network, candidate_lines)]
+    potential_lines_sub = potential_lines.loc[_within_sub_network_b(
+        sub_network, potential_lines)]
 
     # skip if sub_network is just a single bus
     if len(potential_lines_sub) == 0:
-        sub_network.CC = dok_matrix((0,0))
+        sub_network.CC = dok_matrix((0, 0))
         return
 
-    cnd_edges = candidate_lines_sub.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
+    cnd_edges = candidate_lines_sub.apply(
+        lambda x: (x.bus0, x.bus1, x.name), axis=1)
 
     mgraph = sub_network.graph(sel='operative')
 
@@ -370,14 +376,16 @@ def find_candidate_cycles_sub_network(sub_network):
     for j, (candidate, cycle) in enumerate(iteritems(cycles)):
         for i in range(len(cycle)-1):
             corridor_branches = dict(mgraph[cycle[i]][cycle[i+1]])
-            branch_name = list(corridor_branches.keys())[0] # if multiple existing lines pick one
+            # if multiple existing lines pick one
+            branch_name = list(corridor_branches.keys())[0]
             branch_i = branches_i.get_loc(branch_name)
             sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
-            sub_network.CC[branch_i,j] += sign
-        
+            sub_network.CC[branch_i, j] += sign
+
         # add candidate line
         branch_i = branches_i.get_loc(candidate[2])
-        sub_network.CC[branch_i,j] += -1
+        sub_network.CC[branch_i, j] += -1
+
 
 def infer_candidates_from_existing(network):
     """
@@ -419,15 +427,21 @@ def potential_num_parallels(network):
     pandas.Series
     """
 
-    ext_lines = network.lines[network.lines.s_nom_extendable & network.lines.operative]
+    ext_lines = network.lines[network.lines.s_nom_extendable &
+                              network.lines.operative]
 
-    assert (ext_lines.s_nom_max != np.inf).all(), "Calculating potential for additional circuits at `pypsa.tepopf.potential_num_parallels()` requires `s_nom_max` to be a finite number."
+    assert (ext_lines.s_nom_max != np.inf).all(
+    ), "Calculating potential for additional circuits at `pypsa.tepopf.potential_num_parallels()` requires `s_nom_max` to be a finite number."
 
-    ext_lines.s_nom_max = ext_lines.s_nom_max.apply(np.ceil)  # to avoid rounding errors
+    ext_lines.s_nom_max = ext_lines.s_nom_max.apply(
+        np.ceil)  # to avoid rounding errors
     investment_potential = ext_lines.s_nom_max - ext_lines.s_nom
-    unit_s_nom = np.sqrt(3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
-    unit_s_nom = unit_s_nom.fillna(ext_lines.s_nom/ext_lines.num_parallel) # fallback if no line type given
-    num_parallels = investment_potential.divide(unit_s_nom).map(np.floor).map(int)
+    unit_s_nom = np.sqrt(
+        3) * ext_lines.type.map(network.line_types.i_nom) * ext_lines.v_nom
+    # fallback if no line type given
+    unit_s_nom = unit_s_nom.fillna(ext_lines.s_nom/ext_lines.num_parallel)
+    num_parallels = investment_potential.divide(
+        unit_s_nom).map(np.floor).map(int)
 
     return num_parallels
 
@@ -446,7 +460,7 @@ def add_candidate_lines(network):
     """
 
     num_parallels = potential_num_parallels(network)
-    c_sets = num_parallels.apply(lambda num: np.arange(1,num+1))
+    c_sets = num_parallels.apply(lambda num: np.arange(1, num+1))
 
     candidates = pd.DataFrame(columns=network.lines.columns)
 
@@ -551,13 +565,15 @@ def calculate_big_m_for_angles(network, keep_weights=False):
 
     network.calculate_dependent_values()
 
-    network.lines['big_m_weight'] = network.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
+    network.lines['big_m_weight'] = network.lines.apply(
+        lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
-    candidates = network.lines[(network.lines.operative == False) & (network.lines.s_nom_extendable == True)]
+    candidates = network.lines[(network.lines.operative == False) & (
+        network.lines.s_nom_extendable == True)]
 
     n_graph = network.graph(sel='operative',
-                     branch_components=['Line'],
-                     weight='big_m_weight')
+                            branch_components=['Line'],
+                            weight='big_m_weight')
 
     big_m = {}
     for name, candidate in candidates.iterrows():
@@ -565,7 +581,7 @@ def calculate_big_m_for_angles(network, keep_weights=False):
         bus1 = candidate.bus1
         if nx.has_path(n_graph, bus0, bus1):
             path_length = nx.dijkstra_path_length(n_graph, bus0, bus1)
-            big_m[name] = path_length / candidate.x_pu_eff 
+            big_m[name] = path_length / candidate.x_pu_eff
         else:
             # fallback if no path exists
             big_m[name] = network.lines.s_nom.sum()
@@ -594,7 +610,6 @@ def calculate_big_m_for_kirchhoff(network):
     if not hasattr(network, 'CC'):
         find_candidate_cycles(network)
 
-
     if '_network' in network.__dict__:
         branches = network.branches(sel='potential')
         branches = branches.loc[_within_sub_network_b(network, branches)]
@@ -610,15 +625,18 @@ def calculate_big_m_for_kirchhoff(network):
         for cycle_i in cycle_is:
             b = branches.iloc[cycle_i]
             if b.operative:
-                big_m_cycle_i += branches.loc[b.name, ['x_pu_eff', 's_nom']].product()
+                big_m_cycle_i += branches.loc[b.name,
+                                              ['x_pu_eff', 's_nom']].product()
             else:
                 # take maximum x_pu_eff * s_nom of any one parallel candidate line
-                branch_idx = ( branches.operative == False ) & \
+                branch_idx = (branches.operative == False) & \
                              (
-                                 ( (branches.bus0 == b.bus0) & (branches.bus1 == b.bus1) ) |
-                                 ( (branches.bus0 == b.bus1) & (branches.bus1 == b.bus0) )
-                             )
-                big_m_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product(axis=1).max()
+                                 ((branches.bus0 == b.bus0) & (branches.bus1 == b.bus1)) |
+                                 ((branches.bus0 == b.bus1) &
+                                  (branches.bus1 == b.bus0))
+                )
+                big_m_cycle_i += branches.loc[branch_idx,
+                                              ['x_pu_eff', 's_nom']].product(axis=1).max()
         big_m[col_j] = RESCALING * big_m_cycle_i
 
     return big_m
@@ -630,11 +648,11 @@ def find_slack_dependencies(network):
     Allocates candidate lines connecting two sub_networks to the one with
     the lower order that defines the slack of which sub_network should be
     disregarded if that candidate line is built.
-    
+
     Parameters
     ----------
     network : pypsa.Network
-    
+
     Returns
     -------
     slack_dependencies : dict
@@ -650,16 +668,17 @@ def find_slack_dependencies(network):
     candidate_branches = network.passive_branches(sel='candidate')
 
     slack_dependencies = {sn_i: [] for sn_i in network.sub_networks.index}
-    
+
     for cnd_i, cnd in candidate_branches.iterrows():
         sn0 = network.buses.loc[cnd.bus0].sub_network
         sn1 = network.buses.loc[cnd.bus1].sub_network
         if sn0 != sn1:
-            order = lambda sn: len(network.sub_networks.loc[sn].obj.buses())
+            def order(sn): return len(network.sub_networks.loc[sn].obj.buses())
             allocated_sn = sn0 if order(sn0) <= order(sn1) else sn1
             slack_dependencies[allocated_sn].append(cnd_i)
 
     return slack_dependencies
+
 
 def define_candidate_cycle_constraints(network, snapshots,
                                        passive_branch_p, passive_branch_inv_p,
@@ -686,10 +705,11 @@ def define_candidate_cycle_constraints(network, snapshots,
 
     matrix = network.CC.tocsc()
 
-    for col_j in range( matrix.shape[1] ):
+    for col_j in range(matrix.shape[1]):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
 
-        if len(cycle_is) == 0: continue
+        if len(cycle_is) == 0:
+            continue
 
         cycle_index.append((network_name, col_j))
 
@@ -698,28 +718,31 @@ def define_candidate_cycle_constraints(network, snapshots,
 
         for cycle_i in cycle_is:
             branch_idx = branches.index[cycle_i]
-            attribute_value = RESCALING * branches.at[branch_idx, attribute] * network.CC[cycle_i, col_j]
-            if branches.at[branch_idx,'operative']:
+            attribute_value = RESCALING * \
+                branches.at[branch_idx, attribute] * network.CC[cycle_i, col_j]
+            if branches.at[branch_idx, 'operative']:
                 branch_idx_attributes.append((branch_idx, attribute_value))
             else:
                 branch_inv_idx_attributes.append((branch_idx, attribute_value))
 
         for snapshot in snapshots:
-            expression_list = [ (attribute_value,
-                                 passive_branch_p[branch_idx[0], branch_idx[1], snapshot])
-                                 for (branch_idx, attribute_value) in branch_idx_attributes]
+            expression_list = [(attribute_value,
+                                passive_branch_p[branch_idx[0], branch_idx[1], snapshot])
+                               for (branch_idx, attribute_value) in branch_idx_attributes]
 
-            expression_list += [ (attribute_value,
+            expression_list += [(attribute_value,
                                  passive_branch_inv_p[branch_idx[0], branch_idx[1], snapshot])
-                                 for (branch_idx, attribute_value) in branch_inv_idx_attributes]
+                                for (branch_idx, attribute_value) in branch_inv_idx_attributes]
 
             lhs = LExpression(expression_list)
 
-            rhs = LExpression(variables= [ (-big_m[col_j], passive_branch_inv[b]) for b, _ in branch_inv_idx_attributes],
-                              constant= len(branch_inv_idx_attributes) * big_m[col_j] )
+            rhs = LExpression(variables=[(-big_m[col_j], passive_branch_inv[b]) for b, _ in branch_inv_idx_attributes],
+                              constant=len(branch_inv_idx_attributes) * big_m[col_j])
 
-            cycle_constraints_upper[network_name, col_j, snapshot] = LConstraint(lhs,"<=",rhs)
-            cycle_constraints_lower[network_name, col_j, snapshot] = LConstraint(lhs,">=",-rhs)
+            cycle_constraints_upper[network_name, col_j,
+                                    snapshot] = LConstraint(lhs, "<=", rhs)
+            cycle_constraints_lower[network_name, col_j,
+                                    snapshot] = LConstraint(lhs, ">=", -rhs)
 
     return (cycle_index, cycle_constraints_upper, cycle_constraints_lower)
 
@@ -731,35 +754,36 @@ def define_integer_branch_extension_variables(network, snapshots):
 
     candidate_branches = network.passive_branches(sel='candidate')
 
-    network.model.passive_branch_inv = Var(list(candidate_branches.index), domain=Binary)
+    network.model.passive_branch_inv = Var(
+        list(candidate_branches.index), domain=Binary)
 
     free_pyomo_initializers(network.model.passive_branch_inv)
 
 
-def define_integer_passive_branch_constraints(network, snapshots): 
+def define_integer_passive_branch_constraints(network, snapshots):
     """
     Capacity constraints of flow variables linked to binary candidate line investment variables.
     """
 
     candidate_branches = network.passive_branches(sel='candidate')
 
-    s_max_pu = pd.concat({c : get_switchable_as_dense(network, c, 's_max_pu', snapshots)
+    s_max_pu = pd.concat({c: get_switchable_as_dense(network, c, 's_max_pu', snapshots)
                           for c in network.passive_branch_components}, axis=1, sort=False)
 
-    flow_upper = {(b[0],b[1],sn) : [[(1,network.model.passive_branch_inv_p[b[0],b[1],sn]),
-                                     (-s_max_pu.at[sn,b] * candidate_branches.at[b,"s_nom"],
-                                      network.model.passive_branch_inv[b[0],b[1]])],"<=",0]
+    flow_upper = {(b[0], b[1], sn): [[(1, network.model.passive_branch_inv_p[b[0], b[1], sn]),
+                                      (-s_max_pu.at[sn, b] * candidate_branches.at[b, "s_nom"],
+                                       network.model.passive_branch_inv[b[0], b[1]])], "<=", 0]
                   for b in candidate_branches.index
                   for sn in snapshots}
 
     l_constraint(network.model, "inv_flow_upper", flow_upper,
                  list(candidate_branches.index), snapshots)
 
-    flow_lower = {(b[0],b[1],sn): [[(1,network.model.passive_branch_inv_p[b[0],b[1],sn]),
-                                    (s_max_pu.at[sn,b] * candidate_branches.at[b,"s_nom"],
-                                     network.model.passive_branch_inv[b[0],b[1]])],">=",0]
-                   for b in candidate_branches.index
-                   for sn in snapshots}
+    flow_lower = {(b[0], b[1], sn): [[(1, network.model.passive_branch_inv_p[b[0], b[1], sn]),
+                                      (s_max_pu.at[sn, b] * candidate_branches.at[b, "s_nom"],
+                                       network.model.passive_branch_inv[b[0], b[1]])], ">=", 0]
+                  for b in candidate_branches.index
+                  for sn in snapshots}
 
     l_constraint(network.model, "inv_flow_lower", flow_lower,
                  list(candidate_branches.index), snapshots)
@@ -781,15 +805,19 @@ def define_rank_constraints(network, snapshots):
 
     corridors = _corridors(candidate_branches)
     for c in corridors:
-        corridor_candidates = cb.loc[(cb.bus0==c[1]) & (cb.bus1==c[2])]
-        for gn, group in corridor_candidates.groupby(['s_nom','x', 'capital_cost']):
+        corridor_candidates = cb.loc[(cb.bus0 == c[1]) & (cb.bus1 == c[2])]
+        for gn, group in corridor_candidates.groupby(['s_nom', 'x', 'capital_cost']):
             if len(group) > 1:
                 for i in range(len(group)-1):
-                    lhs = LExpression([(1,network.model.passive_branch_inv[group.iloc[i].name])])
-                    rhs = LExpression([(1,network.model.passive_branch_inv[group.iloc[i+1].name])])
-                    ranks[c[0],c[1],c[2],gn[0],gn[1],gn[2],i] = LConstraint(lhs,">=",rhs)
-                    
-    l_constraint(network.model, "corridor_rank_constraints", ranks, list(ranks.keys()))
+                    lhs = LExpression(
+                        [(1, network.model.passive_branch_inv[group.iloc[i].name])])
+                    rhs = LExpression(
+                        [(1, network.model.passive_branch_inv[group.iloc[i+1].name])])
+                    ranks[c[0], c[1], c[2], gn[0], gn[1],
+                          gn[2], i] = LConstraint(lhs, ">=", rhs)
+
+    l_constraint(network.model, "corridor_rank_constraints",
+                 ranks, list(ranks.keys()))
 
 
 def define_integer_passive_branch_flows(network, snapshots, formulation='angles'):
@@ -804,32 +832,34 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
     formulation : string
         Power flow formulation used; e.g. `"angles"` or `"kirchhoff"`.        
     """
-    
+
     if formulation == "angles":
         define_integer_passive_branch_flows_with_angles(network, snapshots)
     elif formulation == "kirchhoff":
         define_integer_passive_branch_flows_with_kirchhoff(network, snapshots)
 
 # TODO: review
+
+
 def big_m_slack(network, slack_dependencies=None, keep_weights=False):
     """
     Calculates a big-M parameter for each candidate line that relaxes 
     the lower order (sub_network with fewer buses) slack variable
     in the `angle` formulation.
-    
+
     The parameter is determined based on the maximum angle difference
     regardless of the investment of other candidate lines (that also 
     can connect to other sub_networks).
-    
+
     Recursive strategy if multiple sub_networks are synchronized; adds
     maximum big-M parameter of higher order sub_network
     to all big-M parameters of the lower order sub_network (where the
     slack is relaxed).
-    
+
     Not minimal values, but low computational effort to calculate
     and guarantee to make slack constraint non-binding with corresponding
     investments.
-    
+
     Parameters
     ----------
     network : pypsa.Network
@@ -841,60 +871,65 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
         {'0': [('Line', 'c1'),('Line', 'c2')], '1': [('Line','c3')], '2': []}
     keep_weights : bool
         Keep the weights used for calculating the Big-M parameters.
-        
-    
+
+
     Returns
     -------
     big_m : dict
         Keys are candidate lines that synchronize sub_networks.
     """
-    
+
     network.calculate_dependent_values()
-    
+
     if slack_dependencies is None:
         slack_dependencies = find_slack_dependencies(n)
-        
+
     if not len(network.sub_networks) > 0:
         network.determine_network_topology()
-      
+
     if any(network.sub_networks.slack_bus == ""):
         for sn in network.sub_networks.obj:
             find_slack_bus(sn)
-    
+
     def order(sn):
         return len(network.sub_networks.loc[sn].obj.buses())
-    
-    rank = pd.Series(
-                {sn: order(sn)
-                 for sn in slack_dependencies.keys()}).sort_values(ascending=False)
 
-    network.lines['big_m_weight'] = network.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
+    rank = pd.Series(
+        {sn: order(sn)
+         for sn in slack_dependencies.keys()}).sort_values(ascending=False)
+
+    network.lines['big_m_weight'] = network.lines.apply(
+        lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
     n_graph = network.graph(sel='operative',
-                branch_components=['Line'],
-                weight='big_m_weight')
+                            branch_components=['Line'],
+                            weight='big_m_weight')
 
     big_m = {}
-    for i in range(1,len(rank)):
+    for i in range(1, len(rank)):
         for cnd_i in slack_dependencies[rank.index[i]]:
             cnd = network.lines.loc[cnd_i[1]]
             sn0 = network.buses.loc[cnd.bus0].sub_network
             sn1 = network.buses.loc[cnd.bus1].sub_network
             slack0 = network.sub_networks.slack_bus[sn0]
             slack1 = network.sub_networks.slack_bus[sn1]
-            n_graph.add_edge(cnd.bus0, cnd.bus1, weight=cnd.x_pu_eff * cnd.s_nom)
+            n_graph.add_edge(cnd.bus0, cnd.bus1,
+                             weight=cnd.x_pu_eff * cnd.s_nom)
             path_length = nx.dijkstra_path_length(n_graph, slack0, slack1)
             big_m[cnd_i] = path_length
             if i > 1:
-                big_m[cnd_i] += max([big_m[prec] for prec in slack_dependencies[rank.index[i-1]]])
+                big_m[cnd_i] += max([big_m[prec]
+                                     for prec in slack_dependencies[rank.index[i-1]]])
             n_graph.remove_edge(cnd.bus0, cnd.bus1)
-    
+
     if not keep_weights:
         network.lines.drop("big_m_weight", axis=1)
-    
+
     return big_m
 
 # TODO: review
+
+
 def define_integer_slack_angle(network, snapshots):
 
     slack_dependencies = find_slack_dependencies(network)
@@ -904,14 +939,18 @@ def define_integer_slack_angle(network, snapshots):
     slack_lower = {}
     for sub, lines in slack_dependencies.items():
         for sn in snapshots:
-            lhs = LExpression([(1,network.model.voltage_angles[network.sub_networks.slack_bus[sub],sn])])
-            rhs = LExpression([(big_m[l], network.model.passive_branch_inv[l]) for l in lines])
-            slack_upper[sub,sn] = LConstraint(lhs,"<=",rhs)
-            slack_lower[sub,sn] = LConstraint(lhs,">=",-rhs)
+            lhs = LExpression(
+                [(1, network.model.voltage_angles[network.sub_networks.slack_bus[sub], sn])])
+            rhs = LExpression(
+                [(big_m[l], network.model.passive_branch_inv[l]) for l in lines])
+            slack_upper[sub, sn] = LConstraint(lhs, "<=", rhs)
+            slack_lower[sub, sn] = LConstraint(lhs, ">=", -rhs)
 
-    l_constraint(network.model,"slack_angle_upper",slack_upper,list(network.sub_networks.index), snapshots)
-    l_constraint(network.model,"slack_angle_lower",slack_lower,list(network.sub_networks.index), snapshots)
-    
+    l_constraint(network.model, "slack_angle_upper", slack_upper,
+                 list(network.sub_networks.index), snapshots)
+    l_constraint(network.model, "slack_angle_lower", slack_lower,
+                 list(network.sub_networks.index), snapshots)
+
 
 def define_integer_passive_branch_flows_with_angles(network, snapshots):
     """
@@ -920,7 +959,8 @@ def define_integer_passive_branch_flows_with_angles(network, snapshots):
 
     candidate_branches = network.passive_branches(sel='candidate')
 
-    network.model.passive_branch_inv_p = Var(list(candidate_branches.index), snapshots)
+    network.model.passive_branch_inv_p = Var(
+        list(candidate_branches.index), snapshots)
 
     big_m = calculate_big_m(network, "angles")
 
@@ -931,25 +971,26 @@ def define_integer_passive_branch_flows_with_angles(network, snapshots):
         bus1 = candidate_branches.at[branch, "bus1"]
         bt = branch[0]
         bn = branch[1]
-        sub = candidate_branches.at[branch,"sub_network"]
-        attribute = "r_pu_eff" if network.sub_networks.at[sub,"carrier"] == "DC" else "x_pu_eff"
-        y = 1/ candidate_branches.at[branch, attribute]
+        sub = candidate_branches.at[branch, "sub_network"]
+        attribute = "r_pu_eff" if network.sub_networks.at[sub,
+                                                          "carrier"] == "DC" else "x_pu_eff"
+        y = 1 / candidate_branches.at[branch, attribute]
         for sn in snapshots:
-            lhs = LExpression([(y,network.model.voltage_angles[bus0,sn]),
-                               (-y,network.model.voltage_angles[bus1,sn]),
-                               (-1,network.model.passive_branch_inv_p[bt,bn,sn])],
-                              -y*(candidate_branches.at[branch,"phase_shift"]*np.pi/180. if bt == "Transformer" else 0.))
-            rhs = LExpression(variables=[(-big_m[bn],network.model.passive_branch_inv[bt,bn])],
+            lhs = LExpression([(y, network.model.voltage_angles[bus0, sn]),
+                               (-y, network.model.voltage_angles[bus1, sn]),
+                               (-1, network.model.passive_branch_inv_p[bt, bn, sn])],
+                              -y*(candidate_branches.at[branch, "phase_shift"]*np.pi/180. if bt == "Transformer" else 0.))
+            rhs = LExpression(variables=[(-big_m[bn], network.model.passive_branch_inv[bt, bn])],
                               constant=big_m[bn])
-            flows_upper[bt,bn,sn] = LConstraint(lhs,"<=",rhs)
-            flows_lower[bt,bn,sn] = LConstraint(lhs,">=",-rhs)
-        
+            flows_upper[bt, bn, sn] = LConstraint(lhs, "<=", rhs)
+            flows_lower[bt, bn, sn] = LConstraint(lhs, ">=", -rhs)
 
     l_constraint(network.model, "passive_branch_inv_p_upper_def", flows_upper,
                  list(candidate_branches.index), snapshots)
 
     l_constraint(network.model, "passive_branch_inv_p_lower_def", flows_lower,
                  list(candidate_branches.index), snapshots)
+
 
 def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     """
@@ -965,7 +1006,8 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
     candidate_branches = network.passive_branches(sel='candidate')
 
-    network.model.passive_branch_inv_p = Var(list(candidate_branches.index), snapshots)
+    network.model.passive_branch_inv_p = Var(
+        list(candidate_branches.index), snapshots)
 
     pb_p = network.model.passive_branch_p
     pb_inv_p = network.model.passive_branch_inv_p
@@ -976,7 +1018,8 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     cycle_constraints_lower = {}
 
     n_cycle_index, n_cycle_constraints_upper, n_cycle_constraints_lower = \
-        define_candidate_cycle_constraints(network, snapshots, pb_p, pb_inv_p, pb_inv, 'x_pu_eff')
+        define_candidate_cycle_constraints(
+            network, snapshots, pb_p, pb_inv_p, pb_inv, 'x_pu_eff')
 
     cycle_index.extend(n_cycle_index)
     cycle_constraints_upper.update(n_cycle_constraints_upper)
@@ -984,10 +1027,12 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
     for sub_network in network.sub_networks.obj:
 
-        attribute = "r_pu_eff" if network.sub_networks.at[sub_network.name,"carrier"] == "DC" else "x_pu_eff"
+        attribute = "r_pu_eff" if network.sub_networks.at[sub_network.name,
+                                                          "carrier"] == "DC" else "x_pu_eff"
 
         subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower = \
-            define_candidate_cycle_constraints(sub_network, snapshots, pb_p, pb_inv_p, pb_inv, attribute)
+            define_candidate_cycle_constraints(
+                sub_network, snapshots, pb_p, pb_inv_p, pb_inv, attribute)
 
         cycle_index.extend(subn_cycle_index)
         cycle_constraints_upper.update(subn_cycle_constraints_upper)
@@ -1000,7 +1045,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
                  cycle_index, snapshots)
 
 
-def define_integer_nodal_balance_constraints(network,snapshots):
+def define_integer_nodal_balance_constraints(network, snapshots):
     """
     Identical to `pypsa.opf.define_nodal_balance_constraints` but including candidate line flow variables.
     """
@@ -1008,26 +1053,31 @@ def define_integer_nodal_balance_constraints(network,snapshots):
     passive_branches = network.passive_branches(sel='operative')
 
     for branch in passive_branches.index:
-        bus0 = passive_branches.at[branch,"bus0"]
-        bus1 = passive_branches.at[branch,"bus1"]
+        bus0 = passive_branches.at[branch, "bus0"]
+        bus1 = passive_branches.at[branch, "bus1"]
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:
-            network._p_balance[bus0,sn].variables.append((-1,network.model.passive_branch_p[bt,bn,sn]))
-            network._p_balance[bus1,sn].variables.append((1,network.model.passive_branch_p[bt,bn,sn]))
+            network._p_balance[bus0, sn].variables.append(
+                (-1, network.model.passive_branch_p[bt, bn, sn]))
+            network._p_balance[bus1, sn].variables.append(
+                (1, network.model.passive_branch_p[bt, bn, sn]))
 
     candidate_branches = network.passive_branches(sel='candidate')
 
     for branch in candidate_branches.index:
-        bus0 = candidate_branches.at[branch,"bus0"]
-        bus1 = candidate_branches.at[branch,"bus1"]
+        bus0 = candidate_branches.at[branch, "bus0"]
+        bus1 = candidate_branches.at[branch, "bus1"]
         bt = branch[0]
         bn = branch[1]
         for sn in snapshots:
-            network._p_balance[bus0,sn].variables.append((-1,network.model.passive_branch_inv_p[bt,bn,sn])) 
-            network._p_balance[bus1,sn].variables.append((1,network.model.passive_branch_inv_p[bt,bn,sn]))
+            network._p_balance[bus0, sn].variables.append(
+                (-1, network.model.passive_branch_inv_p[bt, bn, sn]))
+            network._p_balance[bus1, sn].variables.append(
+                (1, network.model.passive_branch_inv_p[bt, bn, sn]))
 
-    power_balance = {k: LConstraint(v,"==",LExpression()) for k,v in iteritems(network._p_balance)}
+    power_balance = {k: LConstraint(v, "==", LExpression())
+                     for k, v in iteritems(network._p_balance)}
 
     l_constraint(network.model, "power_balance", power_balance,
                  list(network.buses.index), snapshots)
@@ -1056,7 +1106,8 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     network.model : pyomo.core.base.PyomoModel.ConcreteModel
     """
 
-    assert len(network.passive_branches(sel='candidate')) > 0, "No candidate lines given. Run `network.lopf` instead!"
+    assert len(network.passive_branches(sel='candidate')
+               ) > 0, "No candidate lines given. Run `network.lopf` instead!"
 
     if not skip_pre:
         network.determine_network_topology()
@@ -1065,47 +1116,47 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
             find_slack_bus(sub_network)
         logger.info("Performed preliminary steps")
 
-
     snapshots = _as_snapshots(network, snapshots)
 
     logger.info("Building pyomo model using `%s` formulation", formulation)
-    network.model = ConcreteModel("Linear Optimal Power Flow for Transmission Expansion Planning")
+    network.model = ConcreteModel(
+        "Linear Optimal Power Flow for Transmission Expansion Planning")
 
-    define_generator_variables_constraints(network,snapshots)
+    define_generator_variables_constraints(network, snapshots)
 
-    define_storage_variables_constraints(network,snapshots)
+    define_storage_variables_constraints(network, snapshots)
 
-    define_store_variables_constraints(network,snapshots)
+    define_store_variables_constraints(network, snapshots)
 
-    define_branch_extension_variables(network,snapshots)
-    define_integer_branch_extension_variables(network,snapshots)
+    define_branch_extension_variables(network, snapshots)
+    define_integer_branch_extension_variables(network, snapshots)
 
     define_rank_constraints(network, snapshots)
 
-    define_link_flows(network,snapshots)
+    define_link_flows(network, snapshots)
 
-    define_nodal_balances(network,snapshots)
+    define_nodal_balances(network, snapshots)
 
-    define_passive_branch_flows(network,snapshots,formulation)
-    define_integer_passive_branch_flows(network,snapshots,formulation)
-    
+    define_passive_branch_flows(network, snapshots, formulation)
+    define_integer_passive_branch_flows(network, snapshots, formulation)
+
     if formulation == "angles":
-        define_integer_slack_angle(network,snapshots)
+        define_integer_slack_angle(network, snapshots)
 
-    define_passive_branch_constraints(network,snapshots)
-    define_integer_passive_branch_constraints(network,snapshots)
+    define_passive_branch_constraints(network, snapshots)
+    define_integer_passive_branch_constraints(network, snapshots)
 
     if formulation in ["angles", "kirchhoff"]:
-        define_integer_nodal_balance_constraints(network,snapshots)
+        define_integer_nodal_balance_constraints(network, snapshots)
 
-    define_global_constraints(network,snapshots)
+    define_global_constraints(network, snapshots)
 
     define_linear_objective(network, snapshots, candidate_lines=True)
 
-    #tidy up auxilliary expressions
+    # tidy up auxilliary expressions
     del network._p_balance
 
-    #force solver to also give us the dual prices
+    # force solver to also give us the dual prices
     network.model.dual = Suffix(direction=Suffix.IMPORT)
 
     return network.model
@@ -1177,18 +1228,19 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
 
     snapshots = _as_snapshots(network, snapshots)
 
-    network_teplopf_build_model(network, snapshots, skip_pre=False, formulation=formulation)
+    network_teplopf_build_model(
+        network, snapshots, skip_pre=False, formulation=formulation)
 
     if extra_functionality is not None:
         extra_functionality(network, snapshots)
 
     network_lopf_prepare_solver(network, solver_name=solver_name,
                                 solver_io=solver_io)
-    
+
     status, termination_condition = network_lopf_solve(network, snapshots, formulation=formulation,
-                              solver_logfile=solver_logfile, solver_options=solver_options,
-                              keep_files=keep_files, free_memory=free_memory,
-                              extra_postprocessing=extra_postprocessing,
-                              candidate_lines=True)
+                                                       solver_logfile=solver_logfile, solver_options=solver_options,
+                                                       keep_files=keep_files, free_memory=free_memory,
+                                                       extra_postprocessing=extra_postprocessing,
+                                                       candidate_lines=True)
 
     return status, termination_condition
