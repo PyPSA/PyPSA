@@ -13,6 +13,9 @@ from itertools import chain, product
 
 from distutils.spawn import find_executable
 
+import sys
+
+solver_name = 'glpk' if sys.platform == 'win32' else 'cbc'
 
 def create_lopf_version(n_teplopf):
     n_lopf = n_teplopf.copy()
@@ -27,8 +30,6 @@ def test_teplopf():
     csv_folder_name = os.path.join(os.path.dirname(__file__), "networks/tep")
 
     n_teplopf = pypsa.Network(csv_folder_name)
-
-    solver_name = "cbc"
 
     snapshots = n_teplopf.snapshots
 
