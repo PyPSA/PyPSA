@@ -642,11 +642,61 @@ def calculate_big_m_for_kirchhoff(network):
     return big_m
 
 
-# TODO: review
+def sub_networks_graph_is_forest(network):
+    graph = sub_networks_graph(network)
+    return nx.is_forest(nx.OrderedGraph(graph))
+
+
+def determine_sub_networks_hierarchy(network):
+    """
+    Allocates a distance to a central sub_network to each sub_network
+    representing the level of the sub_network tree it belongs to.
+    
+    The central sub_network is the sub_network for which the slack constraint
+    is kept if all candidate lines are chosen for investment.
+    
+    The graph of sub_networks must be a forest.
+    Otherwise allocating slack dependencies in the 'angles' formulation
+    requires considering interdependencies of investments.
+    
+    Parameters
+    ----------
+    network : pypsa.Network
+    
+    Returns
+    -------
+    hierarchy : dict
+        Keys are sub_network names, values are their
+        distance to the most central sub_network.
+    route : dict
+        Keys are sub_network names, values are their
+        route to the most central sub_network.
+    """
+
+    assert sub_networks_graph_is_forest(network), ("To allocate slack dependencies in the 'angles' formulation without interdependencies "
+                                                   "of investments the sub_networks graph must classify as forest (excluding parallel edges).")
+
+    graph = sub_networks_graph(network)
+    
+    hierarchy = {}
+    route = {}
+    for nodes in nx.connected_components(graph):
+        subgraph = graph.subgraph(nodes)
+        
+        centralities = nx.closeness_centrality(subgraph)
+        central_source = max(centralities, key=centralities.get)
+        
+        hierarchy.update(nx.single_source_shortest_path_length(subgraph, central_source))
+        route.update(nx.single_source_shortest_path(subgraph, central_source))
+
+    return hierarchy, route
+
+
 def find_slack_dependencies(network):
     """
-    Allocates candidate lines connecting two sub_networks to the one with
-    the lower order that defines the slack of which sub_network should be
+    Allocates candidate lines connecting two sub_networks to the downstream
+    sub_network according to `pypsa.tepopf.determine_sub_networks_hierarchy`
+    marking the slack of which sub_network should be
     disregarded if that candidate line is built.
 
     Parameters
@@ -667,14 +717,15 @@ def find_slack_dependencies(network):
 
     candidate_branches = network.passive_branches(sel='candidate')
 
+    hierarchy, _ = determine_sub_networks_hierarchy(network)
+
     slack_dependencies = {sn_i: [] for sn_i in network.sub_networks.index}
 
     for cnd_i, cnd in candidate_branches.iterrows():
         sn0 = network.buses.loc[cnd.bus0].sub_network
         sn1 = network.buses.loc[cnd.bus1].sub_network
         if sn0 != sn1:
-            def order(sn): return len(network.sub_networks.loc[sn].obj.buses())
-            allocated_sn = sn0 if order(sn0) <= order(sn1) else sn1
+            allocated_sn = sn0 if hierarchy[sn0] >= hierarchy[sn1] else sn1
             slack_dependencies[allocated_sn].append(cnd_i)
 
     return slack_dependencies
@@ -838,40 +889,30 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
     elif formulation == "kirchhoff":
         define_integer_passive_branch_flows_with_kirchhoff(network, snapshots)
 
-# TODO: review
-
 
 def big_m_slack(network, slack_dependencies=None, keep_weights=False):
     """
     Calculates a big-M parameter for each candidate line that relaxes 
-    the lower order (sub_network with fewer buses) slack variable
-    in the `angle` formulation.
+    the a slack constraint in the `angle` formulation.
 
     The parameter is determined based on the maximum angle difference
-    regardless of the investment of other candidate lines (that also 
-    can connect to other sub_networks).
+    regardless of the investment of other candidate lines.
 
-    Recursive strategy if multiple sub_networks are synchronized; adds
-    maximum big-M parameter of higher order sub_network
-    to all big-M parameters of the lower order sub_network (where the
-    slack is relaxed).
+    A recursive strategy if multiple sub_networks are synchronized; adds
+    maximum big-M parameter of upstream sub_network to all big-M parameters
+    of the downstream sub_network (where the slack is relaxed).
 
-    Not minimal values, but low computational effort to calculate
-    and guarantee to make slack constraint non-binding with corresponding
-    investments.
+    These are not minimal values (detour via slack bus of intermediate
+    sub_networks even if shorter path available), but low computational
+    effort to calculate and guarantee non-binding slack constraint.
 
     Parameters
     ----------
     network : pypsa.Network
     slack_dependencies : dict
-        Output of function pypsa.tepopf.find_slack_dependencies(network).
-        A dictionary where keys are sub_network names and
-        values are a list of tuples identifying the candidate lines
-        associated with this sub_network's slack constraint; e.g. 
-        {'0': [('Line', 'c1'),('Line', 'c2')], '1': [('Line','c3')], '2': []}
+        Output of function `pypsa.tepopf.find_slack_dependencies(network)`.
     keep_weights : bool
-        Keep the weights used for calculating the Big-M parameters.
-
+        Keep the weights used for calculating the Big-M parameters in `network.lines`.
 
     Returns
     -------
@@ -891,12 +932,8 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
         for sn in network.sub_networks.obj:
             find_slack_bus(sn)
 
-    def order(sn):
-        return len(network.sub_networks.loc[sn].obj.buses())
-
-    rank = pd.Series(
-        {sn: order(sn)
-         for sn in slack_dependencies.keys()}).sort_values(ascending=False)
+    hierarchy, route = determine_sub_networks_hierarchy(network)
+    hierarchy = pd.Series(hierarchy).sort_values()
 
     network.lines['big_m_weight'] = network.lines.apply(
         lambda l: l.s_nom * l.x_pu_eff, axis=1)
@@ -906,28 +943,31 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
                             weight='big_m_weight')
 
     big_m = {}
-    for i in range(1, len(rank)):
-        for cnd_i in slack_dependencies[rank.index[i]]:
+    for idx, rank in hierarchy.iteritems():
+        for cnd_i in slack_dependencies[idx]:
             cnd = network.lines.loc[cnd_i[1]]
             sn0 = network.buses.loc[cnd.bus0].sub_network
             sn1 = network.buses.loc[cnd.bus1].sub_network
             slack0 = network.sub_networks.slack_bus[sn0]
             slack1 = network.sub_networks.slack_bus[sn1]
+            
             n_graph.add_edge(cnd.bus0, cnd.bus1,
-                             weight=cnd.x_pu_eff * cnd.s_nom)
+                            weight=cnd.x_pu_eff * cnd.s_nom)
             path_length = nx.dijkstra_path_length(n_graph, slack0, slack1)
             big_m[cnd_i] = path_length
-            if i > 1:
-                big_m[cnd_i] += max([big_m[prec]
-                                     for prec in slack_dependencies[rank.index[i-1]]])
+            
+            inbetween_sub_networks = route[idx][1:-1]
+            if len(inbetween_sub_networks) > 0:
+                predecessor = inbetween_sub_networks[-1]
+                big_m[cnd_i] += max([big_m[line]
+                                    for line in slack_dependencies[predecessor]])
+            
             n_graph.remove_edge(cnd.bus0, cnd.bus1)
 
     if not keep_weights:
         network.lines.drop("big_m_weight", axis=1)
 
     return big_m
-
-# TODO: review
 
 
 def define_integer_slack_angle(network, snapshots):
@@ -1140,7 +1180,9 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     define_passive_branch_flows(network, snapshots, formulation)
     define_integer_passive_branch_flows(network, snapshots, formulation)
 
-    if formulation == "angles":
+    if formulation == "angles" and sub_networks_graph_is_forest(network):
+        # skip if complex synchronisation hierarchy present
+        # which introduces potentially thwarting rotational degeneracy!
         define_integer_slack_angle(network, snapshots)
 
     define_passive_branch_constraints(network, snapshots)
