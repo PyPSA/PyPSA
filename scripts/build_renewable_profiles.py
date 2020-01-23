@@ -163,9 +163,6 @@ import xarray as xr
 import pandas as pd
 import multiprocessing as mp
 
-import glaes as gl
-import geokit as gk
-from osgeo import gdal
 from scipy.sparse import csr_matrix, vstack
 
 from pypsa.geo import haversine
@@ -176,6 +173,12 @@ import progressbar as pgb
 
 bounds = dx = dy = config = paths = gebco = clc = natura = None
 def init_globals(bounds_xXyY, n_dx, n_dy, n_config, n_paths):
+    # Late import so that the GDAL Context is only created in the new processes
+    global gl, gk, gdal
+    import glaes as gl
+    import geokit as gk
+    from osgeo import gdal as gdal
+
     # global in each process of the multiprocessing.Pool
     global bounds, dx, dy, config, paths, gebco, clc, natura
 
@@ -267,6 +270,11 @@ if __name__ == '__main__':
     # mp.set_start_method('spawn')
     with mp.Pool(initializer=init_globals, initargs=(bounds_xXyY, dx, dy, config, paths),
                  maxtasksperchild=20, processes=snakemake.config['atlite'].get('nprocesses', 2)) as pool:
+
+        # The GDAL library creates a GDAL context on module import, which may not be shared over multiple
+        # processes or the PROJ4 library has a hickup, so we import only after forking.
+        import geokit as gk
+
         regions = gk.vector.extractFeatures(paths["regions"], onlyAttr=True)
         buses = pd.Index(regions['name'], name="bus")
         widgets = [
