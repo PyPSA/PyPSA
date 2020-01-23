@@ -1161,9 +1161,9 @@ class SubNetwork(Common):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            sel = branch_select_i(c, sel=sel)
-            types += len(sel) * [c.name]
-            names += list(sel)
+            selection = branch_select_i(c, sel=sel)
+            types += len(selection) * [c.name]
+            names += list(selection)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
     def branches(self, sel='operative'):

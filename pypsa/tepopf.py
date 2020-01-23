@@ -882,7 +882,7 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
     network.calculate_dependent_values()
 
     if slack_dependencies is None:
-        slack_dependencies = find_slack_dependencies(n)
+        slack_dependencies = find_slack_dependencies(network)
 
     if not len(network.sub_networks) > 0:
         network.determine_network_topology()

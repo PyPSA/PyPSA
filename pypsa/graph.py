@@ -147,13 +147,13 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     bus1_inds = []
     weight_vals = []
     for c in network.iterate_components(branch_components):
-        sel = branch_select_i(c, sel=sel)
-        no_branches = len(sel) if type(sel) != slice else len(c.df)
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+        selection = branch_select_i(c, sel=sel)
+        no_branches = len(selection) if type(selection) != slice else len(c.df)
+        bus0_inds.append(busorder.get_indexer(c.df.loc[selection, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.df.loc[selection, "bus1"]))
         weight_vals.append(np.ones(no_branches)
                            if weights is None
-                           else weights[c.name][sel].values)
+                           else weights[c.name][selection].values)
 
     if no_branches == 0:
         return sp.sparse.coo_matrix((no_buses, no_buses))
@@ -212,10 +212,10 @@ def incidence_matrix(network, branch_components=None, busorder=None,
     bus0_inds = []
     bus1_inds = []
     for c in network.iterate_components(branch_components):
-        sel = branch_select_i(c, sel=sel)
-        no_branches += len(sel) if type(sel) != slice else len(c.df)
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+        selection = branch_select_i(c, sel=sel)
+        no_branches += len(selection) if type(selection) != slice else len(c.df)
+        bus0_inds.append(busorder.get_indexer(c.df.loc[selection, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.df.loc[selection, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 
