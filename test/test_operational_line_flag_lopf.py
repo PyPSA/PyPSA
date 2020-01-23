@@ -14,9 +14,11 @@ from itertools import chain, product
 
 import os
 
-
-
 from distutils.spawn import find_executable
+
+import sys
+
+solver_name = 'glpk' if sys.platform == 'win32' else 'cbc'
 
 
 def test_operative_line_flag_lopf():
@@ -46,8 +48,6 @@ def test_operative_line_flag_lopf():
         s_nom_extendable=True,
         s_nom=10000,
         capital_cost = 0.01)
-
-    solver_name = "cbc"
 
     snapshots = network.snapshots
 
