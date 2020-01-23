@@ -25,7 +25,7 @@ from .descriptors import OrderedGraph
 from .utils import branch_select_i
 
 def graph(network, branch_components=None, weight=None, inf_weight=False,
-          line_selector='operative'):
+          sel='operative'):
     """
     Build NetworkX graph.
 
@@ -42,7 +42,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False,
         How to treat infinite weights (default: False). True keeps the infinite
         weight. False skips edges with infinite weight. If a float is given it
         is used instead.
-    line_selector : string|None
+    sel : string|None
         Specifies subset of lines.
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
@@ -78,7 +78,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False,
     # Multigraph uses the branch type and name as key
     def gen_edges():
         for c in network.iterate_components(branch_components):
-            for branch in c.df.loc[branch_select_i(c, sel=line_selector)].itertuples():
+            for branch in c.df.loc[branch_select_i(c, sel=sel)].itertuples():
                 if weight is None:
                     data = {}
                 else:
@@ -96,7 +96,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False,
     return graph
 
 def adjacency_matrix(network, branch_components=None, busorder=None, weights=None,
-                     line_selector='operative'):
+                     sel='operative'):
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -111,7 +111,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weights : pd.Series or None (default)
        If given must provide a weight for each branch, multi-indexed
        on branch_component name and branch name.
-    line_selector : string|None
+    sel : string|None
         Specifies subset of lines.
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
@@ -147,7 +147,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     bus1_inds = []
     weight_vals = []
     for c in network.iterate_components(branch_components):
-        sel = branch_select_i(c, sel=line_selector)
+        sel = branch_select_i(c, sel=sel)
         no_branches = len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
@@ -166,7 +166,7 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
                                 shape=(no_buses, no_buses))
 
 def incidence_matrix(network, branch_components=None, busorder=None,
-                     line_selector='operative'):
+                     sel='operative'):
     """
     Construct a sparse incidence matrix (directed)
 
@@ -178,7 +178,7 @@ def incidence_matrix(network, branch_components=None, busorder=None,
     busorder : pd.Index subset of network.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
-    line_selector : string|None
+    sel : string|None
         Specifies subset of lines.
         If `None` (default) it includes both operative and inoperative lines.
         If `"operative"` it includes only operative lines.
@@ -212,7 +212,7 @@ def incidence_matrix(network, branch_components=None, busorder=None,
     bus0_inds = []
     bus1_inds = []
     for c in network.iterate_components(branch_components):
-        sel = branch_select_i(c, sel=line_selector)
+        sel = branch_select_i(c, sel=sel)
         no_branches += len(sel) if type(sel) != slice else len(c.df)
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))

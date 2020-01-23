@@ -1413,13 +1413,13 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
                             get_values(model.voltage_angles))
         elif formulation in ["ptdf","cycles","kirchhoff"]:
             if candidate_lines:
-                network.determine_network_topology(line_selector='used')
+                network.determine_network_topology(sel='used')
             for sn in network.sub_networks.obj:
                 if candidate_lines:
                     find_slack_bus(sn)
                     find_bus_controls(sn)
                 if len(sn.branches_i()) > 0:
-                    calculate_B_H(sn, line_selector='used')
+                    calculate_B_H(sn, sel='used')
                 network.buses_t.v_ang.loc[snapshots,sn.slack_bus] = 0.
                 if len(sn.pvpqs) > 0:
                     network.buses_t.v_ang.loc[snapshots,sn.pvpqs] = spsolve(sn.B[1:, 1:], network.buses_t.p.loc[snapshots,sn.pvpqs].T).T

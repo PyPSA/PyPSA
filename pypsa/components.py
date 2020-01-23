@@ -912,12 +912,12 @@ class Network(Basic):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
                          keys=self.controllable_branch_components, sort=True)
 
-    def determine_network_topology(self, line_selector='operative'):
+    def determine_network_topology(self, sel='operative'):
         """
         Build sub_networks from topology.
         """
 
-        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components, line_selector=line_selector)
+        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components, sel=sel)
         n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
@@ -1157,17 +1157,17 @@ class SubNetwork(Common):
     def transformers_i(self):
         return self.network.transformers.index[self.network.transformers.sub_network == self.name]
 
-    def branches_i(self, line_selector='operative'):
+    def branches_i(self, sel='operative'):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            sel = branch_select_i(c, sel=line_selector)
+            sel = branch_select_i(c, sel=sel)
             types += len(sel) * [c.name]
             names += list(sel)
         return pd.MultiIndex.from_arrays([types, names], names=('type', 'name'))
 
-    def branches(self, line_selector='operative'):
-        branches = self.network.passive_branches(sel=line_selector)
+    def branches(self, sel='operative'):
+        branches = self.network.passive_branches(sel=sel)
         return branches[branches.sub_network == self.name]
 
     def generators_i(self):

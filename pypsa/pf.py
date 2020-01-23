@@ -838,7 +838,7 @@ def find_bus_controls(sub_network):
     sub_network.buses_o = sub_network.pvpqs.insert(0, sub_network.slack_bus)
 
 
-def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
+def calculate_B_H(sub_network,sel='operative',skip_pre=False):
     """Calculate B and H matrices for AC or DC sub-networks."""
 
     network = sub_network.network
@@ -855,7 +855,7 @@ def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
     #following leans heavily on pypower.makeBdc
 
     #susceptances
-    b = 1./np.concatenate([(c.df.loc[branch_select_i(c, sel=line_selector), attribute]).values \
+    b = 1./np.concatenate([(c.df.loc[branch_select_i(c, sel=sel), attribute]).values \
                            for c in sub_network.iterate_components(network.passive_branch_components)])
 
 
@@ -864,7 +864,7 @@ def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
     b_diag = csr_matrix((b, (r_[:len(b)], r_[:len(b)])))
 
     #incidence matrix
-    sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o, line_selector=line_selector)
+    sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o, sel=sel)
 
     sub_network.H = b_diag*sub_network.K.T
 
@@ -872,8 +872,8 @@ def calculate_B_H(sub_network,line_selector='operative',skip_pre=False):
     sub_network.B = sub_network.K * sub_network.H
 
 
-    sub_network.p_branch_shift = -b*np.concatenate([(c.df.loc[branch_select_i(c, sel=line_selector), "phase_shift"]).values*np.pi/180. if c.name == "Transformer"
-                                                    else np.zeros((len(branch_select_i(c, sel=line_selector)),))
+    sub_network.p_branch_shift = -b*np.concatenate([(c.df.loc[branch_select_i(c, sel=sel), "phase_shift"]).values*np.pi/180. if c.name == "Transformer"
+                                                    else np.zeros((len(branch_select_i(c, sel=sel)),))
                                                     for c in sub_network.iterate_components(network.passive_branch_components)])
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift

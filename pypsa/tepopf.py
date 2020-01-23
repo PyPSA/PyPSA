@@ -37,7 +37,7 @@ from pyomo.environ import (ConcreteModel, Var, Objective,
                            Suffix, Expression, Binary, SolverFactory)
 
 import logging
-logger = logging.getLogger(__name__)                           
+logger = logging.getLogger(__name__)   
 
 from .opf import (define_generator_variables_constraints,
                   define_branch_extension_variables,
@@ -50,7 +50,6 @@ from .opf import (define_generator_variables_constraints,
                   define_sub_network_cycle_constraints,
                   define_passive_branch_constraints,
                   define_nodal_balances,
-                  define_nodal_balance_constraints,
                   define_sub_network_balance_constraints,
                   define_global_constraints,
                   define_linear_objective,
@@ -73,8 +72,8 @@ RESCALING = 1e5
 
 def sub_networks_graph(network):
     """
-    Creates a nx.MultiGraph() from the pypsa.Network
-    with sub_networks represented as nodes and
+    Creates a networkx.MultiGraph() from the pypsa.Network
+    with sub_networks represented as vertices and
     candidate lines that connect sub_networks as edges.
     
     Parameters
@@ -104,10 +103,26 @@ def sub_networks_graph(network):
     return graph
 
 
+def _within_sub_network_b(sub_network, lines):
+    return [True if bus1 in sub_network.buses().index else False for bus1 in lines.bus1]
+
+
 def equivalent_cycle(c,d):
     """
     Checks whether two cycles are equivalent
     when disregarding orientation and first vertex.
+
+    Parameters
+    ----------
+    c : list
+        List of vertices representing the first cycle.
+    d : list
+        List of vertices representing the second cycle.
+
+    Returns
+    -------
+    bool
+        Cycles are equivalent.
     """
     
     dc, dd = (deque(c), deque(d))
@@ -125,8 +140,21 @@ def add_cycle_b(cycle, cycles):
     """
     Checks whether an equivalent cycle of `cycle`
     is already in `cycles`.
+
+    Parameters
+    ----------
+    cycle : list
+        List of vertices representing a cycle.
+    cycles : list
+        List of cycles, where elements are
+        lists of vertices representing a cycle.
+
+    Returns
+    -------
+    bool
+        `cycle` is already in `cycles`.
     """
-    
+
     for c in cycles:
         if equivalent_cycle(c,cycle):
             return False
@@ -134,7 +162,24 @@ def add_cycle_b(cycle, cycles):
 
 
 def get_line_sub_networks(line_i, network):
-    """"""
+    """
+    Determines which sub_networks a line connects to.
+    Notes sub_network index, orientation and buses.
+
+    Parameters
+    ----------
+    line_i : tuple
+        Line index from network.passive_branches(),
+        e.g. ('Line', 'my_line')
+    network : pypsa.Network
+
+    Returns
+    -------
+    dict
+        Dictionary with sub_networks as keys and a tuple
+        with orientation and connecting bus as values, e.g.
+        {'0': ('bus0': 'my_bus4'), '1': ('bus1', 'my_bus6')}
+    """
     
     line = network.lines.loc[line_i[1]]
     sn0 = network.buses.loc[line.bus0].sub_network
@@ -144,7 +189,28 @@ def get_line_sub_networks(line_i, network):
 
 
 def common_sub_network_vertices(line0, line1, network):
-    """"""
+    """
+    Determines a list with an entry for each sub_network
+    `line0` and `line1` commonly connect to. Containing
+    information regarding their connection point and orientation.
+    
+    Parameters
+    ----------
+    line0 : tuple
+        Line index from network.passive_branches(),
+        e.g. ('Line', 'my_line')
+    line1 : tuple
+        Line index from network.passive_branches(),
+        e.g. ('Line', 'my_line')
+    network : pypsa.Network
+
+    Returns
+    -------
+    list
+        For instance [(('bus0', 'bus1'), ('b1', 'b3'))] menas
+        `line0` connects at 'bus0' to 'b1' and `line1` connects
+        at 'bus1' to 'b3'.
+    """
 
     sub_networks_line0 = get_line_sub_networks(line0, network)
     sub_networks_line1 = get_line_sub_networks(line1, network)
@@ -165,6 +231,12 @@ def get_cycles_as_branches(graph, cycles_deduplicated):
     graph : networkx.MultiGraph
     cycles_deduplicated : list
         For example [['0','1','2'], ['1','3','4']]
+
+    Returns
+    -------
+    cycles_as_branches : list
+        For example [(('Line', 'l4'), ('Line', 'l6'), ('Line', 'l22')),
+        (('Line', 'l4'), ('Line', 'l21'), ('Line', 'l22'))]
     """
     
     ordered_graph = nx.OrderedGraph(graph)
@@ -176,20 +248,47 @@ def get_cycles_as_branches(graph, cycles_deduplicated):
             corridor_branches = list(graph[cycle[i]][cycle[(i+1)%l]])
             branches_in_corridors.append(corridor_branches)
 
-    cycles_as_branches = list(product(*branches_in_corridors))
+    cycles_as_branches = list(itertools.product(*branches_in_corridors))
     
     # add 2-edge cycles
     for u,v in ordered_graph.edges():
         corridor_branches = tuple(graph[u][v])
         if len(corridor_branches) > 1:
             cycles_as_branches.append(corridor_branches)
-            
+    
     return cycles_as_branches
 
 
+def find_candidate_cycles(network):
+    """
+    Constructs a cycle matrix based on cycles added by candidate lines.
+    Differentiates between cycles within sub_network and
+    cycles across sub_networks.
+
+    Parameters
+    ----------
+    network : pypsa.SubNetwork | pypsa.Network
+
+    """
+
+    if '_network' in network.__dict__:
+        find_candidate_cycles_sub_network(network)
+    else:
+        find_candidate_cycles_network(network)
+
 def find_candidate_cycles_network(network):
-    """"""
+    """
+    Constructs an additional cycle matrix based on cycles added by
+    candidate lines across sub_networks and records them in network.CC.
+    """
     
+    potential_branches = network.passive_branches(sel='potential')
+
+    # skip if network is just a single bus
+    if len(potential_branches) == 0:
+        network.CC = dok_matrix((0,0))
+        return
+
     ngraph = network.graph()
     g = sub_networks_graph(network)
 
@@ -205,8 +304,6 @@ def find_candidate_cycles_network(network):
             cycles_deduplicated.append(cycle)
 
     cycles_branch = get_cycles_as_branches(g, cycles_deduplicated)
-
-    potential_branches = network.passive_branches(sel='potential')
 
     branches_i = potential_branches.index
     branches_bus0 = potential_branches.bus0
@@ -238,6 +335,49 @@ def find_candidate_cycles_network(network):
                 sign = +1 if branches_bus0.iat[branch_i] == path[k] else -1
                 network.CC[branch_i, j] = sign
 
+
+def find_candidate_cycles_sub_network(sub_network):
+    """
+    Constructs an additional cycle matrix based on cycles added by
+    candidate lines within the sub_network and records them in sub_network.CC.
+    """
+
+    potential_lines = sub_network.branches(sel='potential')
+    candidate_lines = sub_network.branches(sel='candidate')
+
+    candidate_lines_sub = candidate_lines.loc[_within_sub_network_b(sub_network, candidate_lines)]
+    potential_lines_sub = potential_lines.loc[_within_sub_network_b(sub_network, potential_lines)]
+
+    # skip if sub_network is just a single bus
+    if len(potential_lines_sub) == 0:
+        sub_network.CC = dok_matrix((0,0))
+        return
+
+    cnd_edges = candidate_lines_sub.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
+
+    mgraph = sub_network.graph(sel='operative')
+
+    cycles = {}
+    for cnd_edge in cnd_edges:
+        cycle = nx.dijkstra_path(mgraph, cnd_edge[0], cnd_edge[1])
+        cycles[cnd_edge] = cycle
+
+    branches_bus0 = potential_lines_sub.bus0
+    branches_i = potential_lines_sub.index
+
+    sub_network.CC = dok_matrix((len(branches_i), len(cycles)))
+
+    for j, (candidate, cycle) in enumerate(iteritems(cycles)):
+        for i in range(len(cycle)-1):
+            corridor_branches = dict(mgraph[cycle[i]][cycle[i+1]])
+            branch_name = list(corridor_branches.keys())[0] # if multiple existing lines pick one
+            branch_i = branches_i.get_loc(branch_name)
+            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
+            sub_network.CC[branch_i,j] += sign
+        
+        # add candidate line
+        branch_i = branches_i.get_loc(candidate[2])
+        sub_network.CC[branch_i,j] += -1
 
 def infer_candidates_from_existing(network):
     """
@@ -374,17 +514,17 @@ def calculate_big_m(network, formulation):
     """
 
     if formulation == "angles":
-        big_m = calaculate_big_m_for_angles(network)
+        big_m = calculate_big_m_for_angles(network)
     elif formulation == "kirchhoff":
-        big_m = calaculate_big_m_for_kirchhoff(network)
+        big_m = calculate_big_m_for_kirchhoff(network)
     else:
-        raise NotImplementedError("Calculating Big-M for formulation `{}` not implemented.\
+        raise NotImplementedError(f"Calculating Big-M for formulation `{formulation}` not implemented.\
                                    Try `angles` or `kirchhoff`.")
 
     return big_m
 
 
-def calaculate_big_m_for_angles(network, keep_weights=False):
+def calculate_big_m_for_angles(network, keep_weights=False):
     """
     Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
 
@@ -415,7 +555,7 @@ def calaculate_big_m_for_angles(network, keep_weights=False):
 
     candidates = network.lines[(network.lines.operative == False) & (network.lines.s_nom_extendable == True)]
 
-    n_graph = network.graph(line_selector='operative',
+    n_graph = network.graph(sel='operative',
                      branch_components=['Line'],
                      weight='big_m_weight')
 
@@ -436,13 +576,13 @@ def calaculate_big_m_for_angles(network, keep_weights=False):
     return big_m
 
 
-def calaculate_big_m_for_kirchhoff(sub_network):
+def calculate_big_m_for_kirchhoff(network):
     """
     Determines the minimal Big-M parameters for the `kirchhoff` formulation.
 
     Parameters
     ----------
-    sub_network : pypsa.sub_network
+    network : pypsa.SubNetwork | pypsa.Network
 
     Returns
     -------
@@ -450,74 +590,38 @@ def calaculate_big_m_for_kirchhoff(sub_network):
         Keys are candidate cycles starting from 0.
     """
 
-    # make sure sub_network has a candidate cycle matrix
-    if not hasattr(sub_network, 'CC'):
-        find_candidate_cycles_sub(sub_network)
+    # make sure network has a candidate cycle matrix
+    if not hasattr(network, 'CC'):
+        find_candidate_cycles(network)
 
-    branches = sub_network.branches(line_selector='potential')
-    branches = branches.loc[_within_sub_network_b(sub_network, branches)]
 
-    matrix = sub_network.CC.tocsc()
+    if '_network' in network.__dict__:
+        branches = network.branches(sel='potential')
+        branches = branches.loc[_within_sub_network_b(network, branches)]
+    else:
+        branches = network.passive_branches(sel='potential')
+
+    matrix = network.CC.tocsc()
 
     big_m = {}
     for col_j in range(matrix.shape[1]):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
-
         big_m_cycle_i = 0
         for cycle_i in cycle_is:
             b = branches.iloc[cycle_i]
-            big_m_cycle_i += branches.loc[b.name, ['x_pu_eff', 's_nom']].product()
+            if b.operative:
+                big_m_cycle_i += branches.loc[b.name, ['x_pu_eff', 's_nom']].product()
+            else:
+                # take maximum x_pu_eff * s_nom of any one parallel candidate line
+                branch_idx = ( branches.operative == False ) & \
+                             (
+                                 ( (branches.bus0 == b.bus0) & (branches.bus1 == b.bus1) ) |
+                                 ( (branches.bus0 == b.bus1) & (branches.bus1 == b.bus0) )
+                             )
+                big_m_cycle_i += branches.loc[branch_idx, ['x_pu_eff', 's_nom']].product(axis=1).max()
         big_m[col_j] = RESCALING * big_m_cycle_i
 
     return big_m
-
-
-def _within_sub_network_b(sub_network, lines):
-    return [True if bus1 in sub_network.buses().index else False for bus1 in lines.bus1]
-
-
-def find_candidate_cycles_sub(sub_network):
-    """
-    Constructs an additional cycle matrix based cycles added by
-    candidate lines (of the sub_network) and records them in sub_network.CC.
-    """
-
-    potential_lines = sub_network.branches(line_selector='potential')
-    candidate_lines = sub_network.branches(line_selector='candidate')
-
-    candidate_lines_sub = candidate_lines.loc[_within_sub_network_b(sub_network, candidate_lines)]
-    potential_lines_sub = potential_lines.loc[_within_sub_network_b(sub_network, potential_lines)]
-
-    # skip if sub_network is just a single bus
-    if len(potential_lines_sub) == 0:
-        sub_network.CC = dok_matrix((0,0))
-        return
-
-    cnd_edges = candidate_lines_sub.apply(lambda x: (x.bus0, x.bus1, x.name), axis=1)
-
-    mgraph = sub_network.graph(line_selector='operative')
-
-    cycles = {}
-    for cnd_edge in cnd_edges:
-        cycle = nx.dijkstra_path(mgraph, cnd_edge[0], cnd_edge[1])
-        cycles[cnd_edge] = cycle
-
-    branches_bus0 = potential_lines_sub.bus0
-    branches_i = potential_lines_sub.index
-
-    sub_network.CC = dok_matrix((len(branches_i), len(cycles)))
-
-    for j, (candidate, cycle) in enumerate(iteritems(cycles)):
-        for i in range(len(cycle)-1):
-            corridor_branches = dict(mgraph[cycle[i]][cycle[i+1]])
-            branch_name = list(corridor_branches.keys())[0] # if multiple existing lines pick one
-            branch_i = branches_i.get_loc(branch_name)
-            sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
-            sub_network.CC[branch_i,j] += sign
-        
-        # add candidate line
-        branch_i = branches_i.get_loc(candidate[2])
-        sub_network.CC[branch_i,j] += -1
 
 
 # TODO: review
@@ -557,39 +661,44 @@ def find_slack_dependencies(network):
 
     return slack_dependencies
 
-def define_sub_network_candidate_cycle_constraints(sub_network, snapshots,
-                                                   passive_branch_p, passive_branch_inv_p,
-                                                   passive_branch_inv,
-                                                   attribute):
+def define_candidate_cycle_constraints(network, snapshots,
+                                       passive_branch_p, passive_branch_inv_p,
+                                       passive_branch_inv,
+                                       attribute):
     """
     Constructs cycle constraints for candidate cycles
-    of a particular sub_network.
+    both of a particular sub_network and across multiple sub_networks.
     """
 
-    big_m = calculate_big_m(sub_network, "kirchhoff")
+    big_m = calculate_big_m(network, "kirchhoff")
 
-    subn_cycle_index = []
-    subn_cycle_constraints_upper = {}
-    subn_cycle_constraints_lower = {}
+    cycle_index = []
+    cycle_constraints_upper = {}
+    cycle_constraints_lower = {}
 
-    branches = sub_network.branches(line_selector='potential')
-    branches = branches.loc[_within_sub_network_b(sub_network, branches)]
+    if '_network' in network.__dict__:
+        branches = network.branches(sel='potential')
+        branches = branches.loc[_within_sub_network_b(network, branches)]
+        network_name = network.name
+    else:
+        branches = network.passive_branches(sel='potential')
+        network_name = 'main'
 
-    matrix = sub_network.CC.tocsc()
+    matrix = network.CC.tocsc()
 
     for col_j in range( matrix.shape[1] ):
         cycle_is = matrix.getcol(col_j).nonzero()[0]
 
         if len(cycle_is) == 0: continue
 
-        subn_cycle_index.append((sub_network.name, col_j))
+        cycle_index.append((network_name, col_j))
 
         branch_idx_attributes = []
         branch_inv_idx_attributes = []
 
         for cycle_i in cycle_is:
             branch_idx = branches.index[cycle_i]
-            attribute_value = RESCALING * branches.at[branch_idx, attribute] * sub_network.CC[cycle_i, col_j]
+            attribute_value = RESCALING * branches.at[branch_idx, attribute] * network.CC[cycle_i, col_j]
             if branches.at[branch_idx,'operative']:
                 branch_idx_attributes.append((branch_idx, attribute_value))
             else:
@@ -609,10 +718,10 @@ def define_sub_network_candidate_cycle_constraints(sub_network, snapshots,
             rhs = LExpression(variables= [ (-big_m[col_j], passive_branch_inv[b]) for b, _ in branch_inv_idx_attributes],
                               constant= len(branch_inv_idx_attributes) * big_m[col_j] )
 
-            subn_cycle_constraints_upper[sub_network.name, col_j, snapshot] = LConstraint(lhs,"<=",rhs)
-            subn_cycle_constraints_lower[sub_network.name, col_j, snapshot] = LConstraint(lhs,">=",-rhs)
+            cycle_constraints_upper[network_name, col_j, snapshot] = LConstraint(lhs,"<=",rhs)
+            cycle_constraints_lower[network_name, col_j, snapshot] = LConstraint(lhs,">=",-rhs)
 
-    return (subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower)
+    return (cycle_index, cycle_constraints_upper, cycle_constraints_lower)
 
 
 def define_integer_branch_extension_variables(network, snapshots):
@@ -761,7 +870,7 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
 
     network.lines['big_m_weight'] = network.lines.apply(lambda l: l.s_nom * l.x_pu_eff, axis=1)
 
-    n_graph = network.graph(line_selector='operative',
+    n_graph = network.graph(sel='operative',
                 branch_components=['Line'],
                 weight='big_m_weight')
 
@@ -847,30 +956,38 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
     Enforce Kirchhoff's Second Law with angles formulation only if invested with Big-M reformulation.
     """
 
-    for sub_network in network.sub_networks.obj:
-        find_cycles(sub_network)
-        find_candidate_cycles_sub(sub_network)
+    find_candidate_cycles(network)
 
-        # omitted bus_controls and B H calculation should be done ex-post given candidate investment decisions!
+    for sub_network in network.sub_networks.obj:
+        # bus_controls and B H calculation to be done ex-post given optimised candidate investment decisions!
+        find_cycles(sub_network)
+        find_candidate_cycles(sub_network)
 
     candidate_branches = network.passive_branches(sel='candidate')
 
     network.model.passive_branch_inv_p = Var(list(candidate_branches.index), snapshots)
 
+    pb_p = network.model.passive_branch_p
+    pb_inv_p = network.model.passive_branch_inv_p
+    pb_inv = network.model.passive_branch_inv
+
     cycle_index = []
     cycle_constraints_upper = {}
     cycle_constraints_lower = {}
+
+    n_cycle_index, n_cycle_constraints_upper, n_cycle_constraints_lower = \
+        define_candidate_cycle_constraints(network, snapshots, pb_p, pb_inv_p, pb_inv, 'x_pu_eff')
+
+    cycle_index.extend(n_cycle_index)
+    cycle_constraints_upper.update(n_cycle_constraints_upper)
+    cycle_constraints_lower.update(n_cycle_constraints_lower)
 
     for sub_network in network.sub_networks.obj:
 
         attribute = "r_pu_eff" if network.sub_networks.at[sub_network.name,"carrier"] == "DC" else "x_pu_eff"
 
         subn_cycle_index, subn_cycle_constraints_upper, subn_cycle_constraints_lower = \
-            define_sub_network_candidate_cycle_constraints(sub_network, snapshots, 
-                                                network.model.passive_branch_p,
-                                                network.model.passive_branch_inv_p,
-                                                network.model.passive_branch_inv,
-                                                attribute)
+            define_candidate_cycle_constraints(sub_network, snapshots, pb_p, pb_inv_p, pb_inv, attribute)
 
         cycle_index.extend(subn_cycle_index)
         cycle_constraints_upper.update(subn_cycle_constraints_upper)

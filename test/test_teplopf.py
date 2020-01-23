@@ -28,8 +28,7 @@ def create_lopf_version(n_teplopf):
 
 def test_teplopf():
 
-    # csv_folder_name = os.path.join(os.path.dirname(__file__), "networks/tep")
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "networks/playground")
+    csv_folder_name = os.path.join(os.path.dirname(__file__), "networks/tep")
 
     n_teplopf = pypsa.Network(csv_folder_name)
 
