@@ -308,7 +308,7 @@ rule trace_solve_network:
 
 rule solve_operations_network:
     input:
-        unprepared="networks/{network}_s{simpl}_{clusters}.nc",
+        unprepared="networks/{network}_s{simpl}_{clusters}_ec.nc",
         optimized="results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
     output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
     shadow: "shallow"
