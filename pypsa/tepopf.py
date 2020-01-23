@@ -54,6 +54,7 @@ from .opf import (define_generator_variables_constraints,
                   define_global_constraints,
                   define_linear_objective,
                   extract_optimisation_results,
+                  network_lopf_build_model,
                   network_lopf_prepare_solver,
                   network_lopf_solve)
 
@@ -1146,8 +1147,9 @@ def network_teplopf_build_model(network, snapshots=None, skip_pre=False,
     network.model : pyomo.core.base.PyomoModel.ConcreteModel
     """
 
-    assert len(network.passive_branches(sel='candidate')
-               ) > 0, "No candidate lines given. Run `network.lopf` instead!"
+    if len(network.passive_branches(sel='candidate')) == 0:
+        logger.info("No candidate lines given. Building model with `pypsa.opf.network_lopf_build_model` instead!")
+        return network_lopf_build_model(network, snapshots, skip_pre, formulation)
 
     if not skip_pre:
         network.determine_network_topology()
