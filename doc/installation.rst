@@ -60,7 +60,8 @@ and the non-free, commercial software (for which free academic licenses are avai
 - `Gurobi <https://www.gurobi.com/documentation/8.1/remoteservices/installation.html>`_
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
 
-and any other solver that works with the underlying modelling framework `Pyomo <http://www.pyomo.org/>`_. For installation instructions of these solvers for your operating system, follow the links above.
+and any other solver that works with the underlying modelling framework `Pyomo <http://www.pyomo.org/>`_.
+For installation instructions of these solvers for your operating system, follow the links above.
 
 .. seealso::
     `Getting a solver in the PyPSA documentation <https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-linear-optimisation>`_
@@ -68,6 +69,22 @@ and any other solver that works with the underlying modelling framework `Pyomo <
 .. note::
     Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
     It might be the case that you can only retrieve solutions by using a commercial solver.
+
+.. note::
+    The rules :mod:`cluster_network` and :mod:`simplify_network` solve a quadratic optimisation problem for clustering.
+    The open-source solvers Cbc and GlPK cannot handle this. A fallback to Ipopt is implemented in this case, but requires
+    also Ipopt to be installed. For an open-source solver setup install in your `conda` environment on OSX/Linux
+
+    .. code:: bash
+
+        conda install -c conda-forge ipopt coincbc
+
+    and on Windows
+
+    .. code:: bash
+        
+        conda install -c conda-forge ipopt glpk
+        
 
 .. _defaultconfig:
 
