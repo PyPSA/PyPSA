@@ -164,10 +164,11 @@ def define_generator_variables_constraints(network,snapshots):
     ## Deal with minimum up time ##
 
     up_time_gens = fixed_committable_gens_i[network.generators.loc[fixed_committable_gens_i,"min_up_time"] > 0]
+    min_up_times = network.generators.min_up_time.clip(upper=len(snapshots))
 
     for gen_i, gen in enumerate(up_time_gens):
 
-        min_up_time = network.generators.at[gen,"min_up_time"]
+        min_up_time = min_up_times[gen]
 
         #find out how long the generator has been up before snapshots
         up_time_before = 0
