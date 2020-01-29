@@ -95,9 +95,14 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         installed. If None (default) is passed the projection for cartopy
         is set to cartopy.crs.PlateCarree
     bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "b"
+        Colors for the buses, defaults to "b". If bus_sizes is a pandas.Series
+        with a Multiindex, bus_colors defaults to the network.carriers['color']
+        column.
     bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 10
+        Sizes of bus points, defaults to 10. If a multiindexed Series is passed,
+        the function will draw pies for each bus (first index level) with
+        segments of different color (second index level). Such a Series is ob-
+        tained by e.g. network.generators.groupby(['bus', 'carrier']).p_nom.sum()
     line_colors : dict/pandas.Series
         Colors for the lines, defaults to "g" for Lines and "cyan" for
         Links. Colors for branches other than Lines can be
@@ -233,10 +238,15 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         # We are drawing pies to show all the different shares
         assert len(bus_sizes.index.levels[0].difference(network.buses.index)) == 0, \
             "The first MultiIndex level of bus_sizes must contain buses"
-        assert (isinstance(bus_colors, dict) and
-                set(bus_colors).issuperset(bus_sizes.index.levels[1])), \
-            "bus_colors must be a dictionary defining a color for each element " \
-            "in the second MultiIndex level of bus_sizes"
+        if isinstance(bus_colors, dict):
+            bus_colors = pd.Series(bus_colors)
+        # case bus_colors isn't a series or dict: look in n.carriers for existent colors
+        if not isinstance(bus_colors, pd.Series):
+            bus_colors = network.carriers.color.dropna()
+        assert bus_sizes.index.levels[1].isin(bus_colors.index).all(), (
+            "Colors not defined for all elements in the second MultiIndex "
+            "level of bus_sizes, please make sure that all the elements are "
+            "included in bus_colors or in network.carrier.color")
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
