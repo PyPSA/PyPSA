@@ -503,7 +503,7 @@ def estimate_renewable_capacities(n, tech_map=None):
 def add_nice_carrier_names(n, config=None):
     if config is None: config = snakemake.config
     nice_names = pd.Series(config['plotting']['nice_names'])
-    n.carriers['nice_names'] = nice_names[n.carriers.index]
+    n.carriers['nice_name'] = nice_names[n.carriers.index]
 
 
 if __name__ == "__main__":
