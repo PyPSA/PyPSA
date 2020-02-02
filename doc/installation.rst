@@ -77,12 +77,14 @@ For installation instructions of these solvers for your operating system, follow
 
     .. code:: bash
 
+        conda activate pypsa-eur
         conda install -c conda-forge ipopt coincbc
 
     and on Windows
 
     .. code:: bash
         
+        conda activate pypsa-eur
         conda install -c conda-forge ipopt glpk
         
 

@@ -103,9 +103,9 @@ clustered down to 6 buses and every 24 hours aggregated to one snapshot. The com
 
 .. code:: bash
 
-    .../pypsa-eur % snakemake results/networks/elec_s_6_lcopt_Co2L-24H.nc
+    .../pypsa-eur % snakemake results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc
 
-orders ``snakemake`` to run the script ``solve_network`` that produces the solved network and stores it in ``.../pypsa-eur/results/networks`` with the name ``elec_s_6_lcopt_Co2L-24H.nc``:
+orders ``snakemake`` to run the script ``solve_network`` that produces the solved network and stores it in ``.../pypsa-eur/results/networks`` with the name ``elec_s_6_ec_lcopt_Co2L-24H.nc``:
 
 .. code::
 
@@ -234,7 +234,7 @@ Once the whole worktree is finished, it should show state so in the terminal:
     Finished job 0.
     12 of 12 steps (100%) done
     Complete log: /home/XXXX/pypsa-eur/.snakemake/log/20XX-XX-XXTXX.snakemake.log
-    snakemake results/networks/elec_s_6_lcopt_Co2L-24H.nc  519,84s user 34,26s system 242% cpu 3:48,83 total
+    snakemake results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc  519,84s user 34,26s system 242% cpu 3:48,83 total
 
 You will notice that many intermediate stages are saved, namely the outputs of each individual ``snakemake`` rule.
 
@@ -250,7 +250,7 @@ For example, you can explore the evolution of the PyPSA networks by running
 #. ``.../pypsa-eur % snakemake networks/elec.nc``
 #. ``.../pypsa-eur % snakemake networks/elec_s.nc``
 #. ``.../pypsa-eur % snakemake networks/elec_s_6.nc``
-#. ``.../pypsa-eur % snakemake networks/elec_s_6_lcopt_Co2L-24H.nc``
+#. ``.../pypsa-eur % snakemake networks/elec_s_6_ec_lcopt_Co2L-24H.nc``
 
 There's a special rule: If you simply run
 
@@ -275,7 +275,7 @@ The solved networks can be analysed just like any other PyPSA network (e.g. in J
 
     import pypsa
 
-    network = pypsa.Network("results/networks/elec_s_6_lcopt_Co2L-24H.nc")
+    network = pypsa.Network("results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc")
 
     ...
 

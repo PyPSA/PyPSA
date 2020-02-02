@@ -1,6 +1,7 @@
 .snakemake*
 .ipynb_checkpoints
 __pycache__
+*dconf
 gurobi.log
 
 /bak
