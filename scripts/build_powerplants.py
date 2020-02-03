@@ -76,6 +76,7 @@ from scipy.spatial import cKDTree as KDTree
 import pypsa
 import powerplantmatching as pm
 import pandas as pd
+import numpy as np
 
 def add_custom_powerplants(ppl):
     custom_ppl_query = snakemake.config['electricity']['custom_powerplants']
@@ -122,8 +123,8 @@ if __name__ == "__main__":
         kdtree = KDTree(n.buses.loc[substation_i, ['x','y']].values)
         ppl_i = ppl.query('Country == @c').index
 
-        ppl.loc[ppl_i, 'bus'] = substation_i[kdtree.query(ppl.loc[ppl_i,
-                                                          ['lon','lat']].values)[1]]
+        tree_i = kdtree.query(ppl.loc[ppl_i, ['lon','lat']].values)[1]
+        ppl.loc[ppl_i, 'bus'] = substation_i.append(pd.Index([np.nan]))[tree_i]
 
     if cntries_without_ppl:
         logging.warning(f"No powerplants known in: {', '.join(cntries_without_ppl)}")
