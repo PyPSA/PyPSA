@@ -216,9 +216,10 @@ class Network(Basic):
 
     incidence_matrix = incidence_matrix
 
+    adjacency_matrix = adjacency_matrix
+
     # switching logic:
     init_switches = init_switches
-    adjacency_matrix = adjacency_matrix
     determine_logical_topology = determine_logical_topology
     find_only_logical_buses = find_only_logical_buses
     find_switches_connections = find_switches_connections

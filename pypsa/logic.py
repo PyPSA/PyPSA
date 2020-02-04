@@ -252,7 +252,7 @@ def open_switches(network, switches):
     """
 
 
-def switching(network, skip_check=False):
+def switching(network):
     """
     use switches.status to build the network topology
     """
