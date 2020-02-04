@@ -302,7 +302,7 @@ def define_nodal_balance_constraints(n, sns):
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
-           .agg(lambda x: ''.join(x.values))
+           .sum()
            .reindex(columns=n.buses.index, fill_value=''))
     sense = '='
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
@@ -876,7 +876,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
     if n.generators.committable.any():
-        logger.warn("Unit commitment is not yet completely implemented for "
+        logger.warning("Unit commitment is not yet completely implemented for "
         "optimising without pyomo. Thus minimum up time, minimum down time, "
         "start up costs, shut down costs will be ignored.")
 
