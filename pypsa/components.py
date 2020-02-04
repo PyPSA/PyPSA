@@ -54,6 +54,11 @@ from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, find_cycles,
                  calculate_Y, calculate_PTDF, calculate_B_H,
                  calculate_dependent_values)
+from .logic import (init_switches, determine_logical_topology,
+                    find_only_logical_buses,
+                    find_switches_connections,
+                    close_switches, open_switches,
+                    switching, add_switch)
 
 from .contingency import (calculate_BODF, network_lpf_contingency,
                           network_sclopf)
@@ -211,7 +216,17 @@ class Network(Basic):
 
     incidence_matrix = incidence_matrix
 
+    # switching logic:
+    init_switches = init_switches
     adjacency_matrix = adjacency_matrix
+    determine_logical_topology = determine_logical_topology
+    find_only_logical_buses = find_only_logical_buses
+    find_switches_connections = find_switches_connections
+    close_switches = close_switches
+    open_switches = open_switches
+    switching = switching
+    add_switch = add_switch
+
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
@@ -295,6 +310,8 @@ class Network(Basic):
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
+        
+        self.init_switches()
 
 
     def _build_dataframes(self):
