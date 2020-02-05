@@ -465,10 +465,8 @@ link to a single-to-multi link with an auxiliary bus in the middle.
 Switch
 ======
 
-Logical elements are switches (or potentially fuses) between a bus0
-to a bus1. They have a status that indicates if they are open (0) or
-closed (1).
-
+Switches are logical elements between a bus0 to a bus1. They have a
+status that indicates if they are open (0) or closed (1).
 Logical elements do not have impedances and thus are no part of the
 admittance matrix. So they are no part of powerflow calculations.
 But logical elements are part of the network and determine its
@@ -481,16 +479,25 @@ topology. The attributes of logical elements are:
 The absence of logical elements in the topology of the network requires
 a logic for adding buses to and removing buses from the network dependent
 on status of logical elements and at the same time changing the buses of
-elements that are attached to logical elements.
+elements that are attached to logical elements. The functions
+network.open_switches(switches) and network.close_switches(switches) can
+be used to change the status of the given switches and redetermine the
+network topology accordingly. The status of switches is an output of
+these functions, but you may also change the status manually and then
+call network.switching() to apply all status of logical elements and
+determine the resulting topology. Changing the status without calling
+network.switching() will have no effect.
 
-Users may add a logical element between two buses without restrictions
-(parallel logical elements should be forbidden). This implies two things:
+Users may add a logical element between two buses with only one rescriction -
+Parallel logical elements are forbidden. This implies two things:
+
 - Obviously it is allowed to connect multiple logical elements to the
 same bus. This can lead to networks of logical elements that are directly
 connected. These networks need to share one "connected_bus".
+
 - It is also allowed to connect logical elements to logical elements.
 This can lead to buses that are only connected to logical elements but
-not to electrical elements, which makes them logical_buses that are no
+not to electrical elements, which makes them logical buses that are no
 part of the admittance matrix.
 
 Because of the shared connected_bus, when a network is initiated and
