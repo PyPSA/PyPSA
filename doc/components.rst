@@ -487,17 +487,17 @@ Users may add a logical element between two buses without restrictions
 (parallel logical elements should be forbidden). This implies two things:
 - Obviously it is allowed to connect multiple logical elements to the
 same bus. This can lead to networks of logical elements that are directly
-connected. These networks need to share one “connected_bus”.
+connected. These networks need to share one "connected_bus".
 - It is also allowed to connect logical elements to logical elements.
 This can lead to buses that are only connected to logical elements but
 not to electrical elements, which makes them logical_buses that are no
 part of the admittance matrix.
 
-Because of the shared “connected_bus”, when a network is initiated and
+Because of the shared connected_bus, when a network is initiated and
 every time a logical element has been added the logical_topology is
 determined by the function network.determine_logical_topology().
 This function detects sub_networks of logical elements and assigns one
-shared “connected_bus” to each logical element in a sub_network, which
+shared connected_bus to each logical element in a sub_network, which
 is required to close logical elements with consistent naming.
 
 
