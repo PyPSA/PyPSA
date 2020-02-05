@@ -15,7 +15,7 @@ def init_switches(network):
     '''
     logger.info("Initiating switches. adding network.allowed_switching_combos.loc['initial']")
     for switch in network.switches.index:  # that's slow, and there probably is a networkx function that does the job. maybe use in consistency_check only
-        assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"])
+        assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"]), ("there is a switch that is parallel to another switch. that's prohibitted.")
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
