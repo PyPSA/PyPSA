@@ -733,7 +733,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     >>> import numpy as np
     >>> network.set_snapshots(range(10))
     >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10,4), 
+            pd.DataFrame(np.random.rand(10,4),
                 columns=network.generators.index,
 			    index=range(10)),
 			"Generator",
@@ -750,18 +750,25 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
-        logger.warning("Components {} for attribute {} of {} are not in main components dataframe {}".format(diff,attr,cls_name,list_name))
+        logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "
+                       f"are not in main components dataframe {list_name}")
+
+    if attr not in network.components[cls_name]['attrs'].index:
+        pnl[attr] = dataframe
+        return
 
     attr_series = network.components[cls_name]["attrs"].loc[attr]
+    default = attr_series.default
     columns = dataframe.columns
 
     diff = network.snapshots.difference(dataframe.index)
     if len(diff):
-        logger.warning("Snapshots {} are missing from {} of {}. Filling with default value '{}'".format(diff,attr,cls_name,attr_series["default"]))
-        dataframe = dataframe.reindex(network.snapshots, fill_value=attr_series["default"])
+        logger.warning(f"Snapshots {diff} are missing from {attr} of {cls_name}."
+                       f" Filling with default value '{default}'")
+        dataframe = dataframe.reindex(network.snapshots, fill_value=default)
 
     if not attr_series.static:
-        pnl[attr] = pnl[attr].reindex(columns=df.index|columns, fill_value=attr_series.default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index | columns, fill_value=default)
     else:
         pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
@@ -935,7 +942,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     Importing from pandapower is still in beta;
     not all pandapower data is supported.
-    
+
     Unsupported features include:
     - three-winding transformers
     - switches
