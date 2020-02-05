@@ -27,6 +27,7 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
     add switch to network. not trivial, we need to initiate switches again
     """
     assert ~(bus0 in network.buses.index) | ~(bus1 in network.buses.index), ("when adding a switch, make sure to add its buses to network.buses first")
+    
     switches_status_before = network.switches.status.copy()
     open_switches(network, network.switches.index)
     network.switches.loc[name] = {'i_max': i_max,
@@ -98,7 +99,7 @@ def determine_logical_topology(network):
 
 def find_only_logical_buses(network):
     """
-    create list of only logical buses and assign it to network.buses_only_logical. can
+    create dataframe of only logical buses and assign it to network.buses_only_logical. can
     be used to avoid sub_networks when opening switches
     """
     logger.info("find_only_logical_buses: creating network.buses_only_logical")
