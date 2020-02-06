@@ -157,7 +157,8 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     defaults_for_branches = pd.Series({
         'Link': dict(color="cyan", width=2),
         'Line': dict(color="b", width=2),
-        'Transformer': dict(color='green', width=2)
+        'Transformer': dict(color='green', width=2),
+        'Switch': dict(color='black', width=5)
     }).rename_axis('component')
 
     if not plt_present:

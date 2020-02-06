@@ -10,24 +10,23 @@ from scipy.sparse import csgraph
 
 def init_switches(network):
     '''
-    Initiate switches. Save the initial switching combination into
-    network.allowed_switching_combos.loc["initial"]
+    Initiate switches.
     '''
     logger.info("Initiating switches. adding network.allowed_switching_combos.loc['initial']")
     for switch in network.switches.index:  # that's slow, and there probably is a networkx function that does the job. maybe use in consistency_check only
-        assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"]), ("there is a switch that is parallel to another switch. that's prohibitted.")
+        assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"]), (
+               "there is a switch that is parallel to another switch. that's prohibitted.")
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
-    network.allowed_switching_combos = pd.DataFrame(columns=network.switches.index.tolist())
-    network.allowed_switching_combos.loc["initial"] = network.switches.status
     switching(network)
 
 
 def is_switch_connecting_buses(network, bus0, bus1):
     checked_buses = [bus0, bus1]
     for switch in network.switches.index:
-        if network.switches.loc[switch,'bus0'] in checked_buses and network.switches.loc[switch,'bus1'] in checked_buses:
+        if (network.switches.loc[switch, 'bus0'] in checked_buses and
+            network.switches.loc[switch, 'bus1'] in checked_buses):
             return True
     return False
 
@@ -36,11 +35,16 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
     """
     add switch to network. not trivial, we need to initiate switches again
     """
+    logger.info("adding switch %s" % name)
     assert name not in network.switches.index, ("name for new switch has to be unique")
-    assert (bus0 in network.buses.index) & (bus1 in network.buses.index), ("when adding a switch, make sure to add its buses to network.buses first")
-    assert not is_switch_connecting_buses(network, bus0, bus1), ("do not add a switch that is parallel to another switch")
-    switches_status_before = network.switches.status.copy()
-    open_switches(network, network.switches.index)
+    assert not bus0 == bus1, ("do not add a switch with same bus0 and bus1")
+    assert not is_switch_connecting_buses(network, bus0, bus1), (
+            "do not add a switch that is parallel to another switch")
+    if len(network.switches):  # we already have initiated switches
+        switches_status_before = network.switches.status.copy()
+        open_switches(network, network.switches.index)
+    assert (bus0 in network.buses.index) & (bus1 in network.buses.index), (
+           "when adding a switch, make sure to add its buses (%s and %s) to network.buses first:\n %s" % (bus0, bus1, network.buses))
     network.switches.loc[name] = {'i_max': i_max,
                                   'bus0': bus0, 'bus1': bus1,
                                   'status': status,
@@ -48,8 +52,9 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
-    switches_status_before.loc[name] = status
-    network.switches.status = switches_status_before
+    if len(network.switches) > 1:  # we already had initiated switches
+        switches_status_before.loc[name] = status
+        network.switches.status = switches_status_before
     switching(network)
 
 
@@ -62,11 +67,11 @@ def check_for_buses_only_logical_and_add_them_to_buses(network):
                         "network.buses here again.")
             new_df = pd.concat((network.buses, network.buses_only_logical), sort=False)
             if not new_df.index.is_unique:
-                raise Exception ("something is wrong. not all buses_only_logical have been in" + 
-                                 "network.buses, but adding them leads to duplicated indices")
+                raise Exception("something is wrong. not all buses_only_logical have been in" +
+                                "network.buses, but adding them leads to duplicated indices")
             setattr(network, network.components["Bus"]["list_name"], new_df)
             found_and_readded = True
-    except:
+    except AttributeError:
         logger.info("network.buses_only_logical has not been initiated yet")
     return found_and_readded
 
@@ -86,14 +91,18 @@ def determine_logical_topology(network):
     logger.info("determining logical topology")
     # in case of a second call of this function we might need to do this:
     check_for_buses_only_logical_and_add_them_to_buses(network)
-    buses_with_switches = network.buses.loc[network.switches.bus1].index.append(network.buses.loc[network.switches.bus0].index).drop_duplicates()
+    buses_with_switches = (network.buses.loc[network.switches.bus1].index
+                           .append(network.buses.loc[network.switches.bus0].index).drop_duplicates())
     adjacency_matrix = network.adjacency_matrix(["Switch"], buses_with_switches)  # TODO: for now only switches, but maybe use fuses or so also
     n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
     # add unique name for bus_connected to buses.
-    if network.buses.index.str.contains('bus_connected').any():
-        logger.warn("determine_logical_topology: trying to create unique" +
-                    "bus names with 'bus_connected' + index here." +
-                    "This string is already contained in buses index.")
+    try:  # raises AttributeError when initiating empty network because .str fails
+        if network.buses.index.str.contains('bus_connected').any():
+            logger.warn("determine_logical_topology: trying to create unique" +
+                        "bus names with 'bus_connected' + index here." +
+                        "This string is already contained in buses index.")
+    except AttributeError:
+        logger.info("determine_logical_topology: it seems there are no buses?")
     labels = ['bus_connected' + str(s) for s in labels]
     # add column bus_connected to buses and fill in the unique name for buses in each logical subnetwork
     network.buses.loc[buses_with_switches, "bus_connected"] = labels
@@ -101,7 +110,8 @@ def determine_logical_topology(network):
     buses_connected = network.buses.loc[buses_with_switches].drop_duplicates(subset="bus_connected")
     network.buses_connected = buses_connected.set_index("bus_connected")
     # network.import_components_from_dataframe(network.buses_connected, "Bus")
-    network.buses_disconnected = (network.buses.loc[network.buses.loc[network.switches.bus1].index.append(network.buses.loc[network.switches.bus0].index).drop_duplicates()])
+    network.buses_disconnected = (network.buses.loc[network.buses.loc[network.switches.bus1].index
+                                  .append(network.buses.loc[network.switches.bus0].index).drop_duplicates()])
     for c in network.iterate_components(["Switch"]):  # TODO: for now only switches, but maybe use fuses or so also
         c.df["bus_connected"] = c.df.bus0.map(network.buses["bus_connected"])
     # now we dont need the column bus_connected at buses anymore
@@ -130,7 +140,8 @@ def find_only_logical_buses(network):
     # all switches need to be open and in case buses_only_logical already have been dropped they need to be readded
     # in case of a second call of this function we might need to do this:
     check_for_buses_only_logical_and_add_them_to_buses(network)
-    buses_with_switches = network.buses.loc[network.switches.bus1].index.append(network.buses.loc[network.switches.bus0].index).drop_duplicates()
+    buses_with_switches = (network.buses.loc[network.switches.bus1].index
+                           .append(network.buses.loc[network.switches.bus0].index).drop_duplicates())
     electrical_buses = []
     for c in network.iterate_components(network.branch_components):
         electrical_in_c = buses_with_switches[buses_with_switches.isin(c.df.bus0) | buses_with_switches.isin(c.df.bus1)]
@@ -247,11 +258,14 @@ def open_switches(network, switches):
     # only electrical ones. they will never appear here.
     # only logical ones. they should never be added because they will cause subnetworks
     # dual-use buses. they should be added every time a switch is opened
-    buses_that_do_not_exist = network.switches.loc[switches].loc[~network.switches.loc[switches, "bus0"].isin(network.buses.index), "bus0"].tolist()
-    buses_that_do_not_exist += network.switches.loc[switches].loc[~network.switches.loc[switches, "bus1"].isin(network.buses.index), "bus1"].tolist()
+    buses_that_do_not_exist = (network.switches.loc[switches].loc[~network.switches.loc[switches, "bus0"]
+                               .isin(network.buses.index), "bus0"].tolist())
+    buses_that_do_not_exist += (network.switches.loc[switches].loc[~network.switches.loc[switches, "bus1"]
+                                .isin(network.buses.index), "bus1"].tolist())
     # remove only logical buses
     buses_that_do_not_exist = list(set(buses_that_do_not_exist) - set(network.buses_only_logical.index.tolist()))
-    logger.debug("Adding these buses, because they represent auxilary buses for switches that are open:\n%s" % buses_that_do_not_exist)
+    logger.debug("Adding these buses, because they represent auxilary " +
+                 "buses for switches that are open:\n%s" % buses_that_do_not_exist)
     network.import_components_from_dataframe(network.buses_disconnected.loc[buses_that_do_not_exist], "Bus")
     # remove buses:
     # connected_buses may only be removed when all switches, that share this bus are open
@@ -261,7 +275,7 @@ def open_switches(network, switches):
         n_closed = network.switches.loc[network.switches.bus_connected == bus, "status"].sum()
         if n_closed == 0:
             to_drop.append(bus)
-    to_drop=list(set(to_drop))
+    to_drop = list(set(to_drop))
     logger.debug("Removing these buses, because all switches that share those as connected_bus are open:\n%s" % to_drop)
     network.buses.drop(to_drop, errors='ignore', inplace=True)
     # TODO: consider removing other elements than buses. Note that the pypsa developpers are planning to add
@@ -287,5 +301,5 @@ def switching(network):
     use switches.status to build the network topology
     """
     logger.info("switching all switches")
-    network.close_switches(network.switches.loc[network.switches.status==1].index)
-    network.open_switches(network.switches.loc[network.switches.status==0].index)
+    network.close_switches(network.switches.loc[network.switches.status == 1].index)
+    network.open_switches(network.switches.loc[network.switches.status == 0].index)
