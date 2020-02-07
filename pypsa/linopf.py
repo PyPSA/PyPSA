@@ -949,9 +949,9 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         Maximal numbder of iterations to run regardless whether msq_threshold
         is already undercut
     track_iterations: bool, default False
-        If True, the intermediate branch capacity steps and values of the
+        If True, the intermediate branch capacities and values of the
         objective function are recorded for each iteration. The values of
-        iteration 0 stand for the starting point.
+        iteration 0 represent the initial state.
     **kwargs
         Keyword arguments of the lopf function which runs at each iteration
 
@@ -1004,8 +1004,8 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         s_nom_prev = n.lines.s_nom_opt if iteration else n.lines.s_nom
         kwargs['warmstart'] = bool(iteration and ('basis_fn' in n.__dir__()))
         status, termination_condition = network_lopf(n, snapshots, **kwargs)
-        assert status == 'ok', ('Optimization failed with status {status}'
-                                'and termination {termination_condition}')
+        assert status == 'ok', (f'Optimization failed with status {status}'
+                                f'and termination {termination_condition}')
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
         update_line_params(n, s_nom_prev)
