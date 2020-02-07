@@ -298,7 +298,12 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
     """
-
+    if len(network.switches):
+        logger.debug("exporting a network with switches requires opening all switches.")
+        switches_status = network.switches.status.copy()
+        network.open_switches(network.switches.index, skip_result_deletion=True)  # TODO: check if skipping cause problems
+        network.switches.status = switches_status
+        # TODO: add out of service buses
     #exportable component types
     #what about None???? - nan is float?
     allowed_types = (float,int,bool) + string_types + tuple(np.typeDict.values())
@@ -613,6 +618,8 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         logger.debug(getattr(network,list_name))
 
         imported_components.append(list_name)
+    if "switches" in imported_components:
+        network.init_switches()
 
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
 

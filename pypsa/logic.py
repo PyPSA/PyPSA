@@ -6,7 +6,9 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 from scipy.sparse import csgraph
+from six import iteritems
 
+from .descriptors import allocate_series_dataframes
 
 def init_switches(network):
     '''
@@ -116,6 +118,8 @@ def determine_logical_topology(network):
         c.df["bus_connected"] = c.df.bus0.map(network.buses["bus_connected"])
     # now we dont need the column bus_connected at buses anymore
     network.buses = network.buses.drop(columns="bus_connected")
+    # TODO: why is column bus_connected back in network.buses in the end?
+    # logger.info("network.buses.columns:\n%s" % network.buses.columns)
     # TODO: any need for this?
     # map this bus to all other elements
     """
@@ -196,7 +200,36 @@ def find_switches_connections(network):
     network.switches_connections = switches_connections
 
 
-def close_switches(network, switches):
+def delete_calculation_results(network):
+    """ delete all calculation results """
+    to_drop = {'Generator': ['p'],
+               'Load': ['p'],
+               'StorageUnit': ['p'],
+               'Store': ['p'],
+               'ShuntImpedance': ['p'],
+               'Bus': ['p', 'v_ang', 'v_mag_pu'],
+               'Line': ['p0', 'p1'],
+               'Transformer': ['p0', 'p1'],
+               'Link': ["p" + col[3:] for col in network.links.columns if col[:3] == "bus"]}
+    if len(network.buses_t.q):
+        for component, attrs in to_drop.items():
+            if "p" in attrs:
+                attrs.append("q")
+            if "p0" in attrs and component != 'Link':
+                attrs.extend(["q0", "q1"])
+
+    # reindex and set all values to default
+    for component, attributes in iteritems(to_drop):
+        df = network.df(component)
+        pnl = network.pnl(component)  # list of dfs
+        for attr in attributes:
+            fill_value=network.components[component]["attrs"].at[attr, "default"]
+            pnl[attr] = pnl[attr].reindex(columns=df.index, fill_value=fill_value)
+            for col in pnl[attr].columns:
+                pnl[attr][col].values[:] = fill_value
+
+
+def close_switches(network, switches, skip_result_deletion=False):
     """
     In order to close switches we:
         - let bus_disconnected disappear in one_port_components.bus and replace it with bus_connected
@@ -232,9 +265,10 @@ def close_switches(network, switches):
     # TODO: consider adding other elements than buses that have been out of service.
     # Note that the pypsa developpers are planning to add
     # a column "operational" for all assets. (https://github.com/PyPSA/PyPSA/pull/77)
+    if not skip_result_deletion:
+        delete_calculation_results(network)
 
-
-def open_switches(network, switches):
+def open_switches(network, switches, skip_result_deletion=False):
     """
     In order to open switches we:
         - let bus_connected disappear in one_port_components.bus and replace it with bus_disconnected
@@ -294,12 +328,13 @@ def open_switches(network, switches):
             network.os_lines.append(network.lines.loc[l], sort=True)[network.lines.columns.tolist()]
             network.remove("Line", l)
     """
-
+    if not skip_result_deletion:
+        delete_calculation_results(network)
 
 def switching(network):
     """
     use switches.status to build the network topology
     """
     logger.info("switching all switches")
-    network.close_switches(network.switches.loc[network.switches.status == 1].index)
+    network.close_switches(network.switches.loc[network.switches.status == 1].index, skip_result_deletion=True)
     network.open_switches(network.switches.loc[network.switches.status == 0].index)

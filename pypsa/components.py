@@ -311,8 +311,7 @@ class Network(Basic):
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
-        if len(self.switches):
-            self.init_switches()
+
 
 
     def _build_dataframes(self):
