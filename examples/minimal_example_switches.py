@@ -21,6 +21,7 @@ def plot_with_switches(network):
 
 
 network = pypsa.Network()
+network.set_snapshots(["test"])
 # add a bus and a generator
 network.add("Bus", "n1", v_nom=20., x=0, y=0)
 network.add("Generator", "gen", bus="n1", p_set=100, control="Slack")

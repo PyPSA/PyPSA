@@ -299,11 +299,24 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     if len(network.switches):
-        logger.debug("exporting a network with switches requires opening all switches.")
-        switches_status = network.switches.status.copy()
-        network.open_switches(network.switches.index, skip_result_deletion=True)  # TODO: check if skipping cause problems
-        network.switches.status = switches_status
-        # TODO: add out of service buses
+        for component in ["buses_connected", "buses_disconnected", "buses_only_logical"]:
+            df = getattr(network, component)
+            attrs = network.components["Bus"]["attrs"]
+            col_export = []
+            for col in df.columns:
+                # do not export derived attributes
+                if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
+                    continue
+                if col in attrs.index and pd.isnull(attrs.at[col, "default"]) and pd.isnull(df[col]).all():
+                    continue
+                if (col in attrs.index
+                    and df[col].dtype == attrs.at[col, 'dtype']
+                    and (df[col] == attrs.at[col, "default"]).all()):
+                    continue
+                col_export.append(col)
+            exporter.save_static(component, df[col_export])
+        exporter.save_static("switches_connections", network.switches_connections)
+
     #exportable component types
     #what about None???? - nan is float?
     allowed_types = (float,int,bool) + string_types + tuple(np.typeDict.values())
@@ -619,8 +632,12 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         imported_components.append(list_name)
     if "switches" in imported_components:
-        network.init_switches()
-
+        network.buses_connected = importer.get_static("buses_connected")
+        network.buses_disconnected = importer.get_static("buses_disconnected")
+        network.buses_only_logical = importer.get_static("buses_only_logical")
+        network.switches_connections = importer.get_static("switches_connections")
+        if network.buses_connected is None:
+            network.init_switches()
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
 
 def import_components_from_dataframe(network, dataframe, cls_name):
@@ -693,8 +710,14 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         if attr in dataframe.columns:
             missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
             if len(missing) > 0:
-                logger.warning("The following %s have buses which are not defined:\n%s",
-                               cls_name, missing)
+                if not cls_name == "Switch":
+                    logger.warning("The following %s have buses which are not defined:\n%s",
+                                   cls_name, missing)
+                else:
+                    logger.debug("The following %s have buses which are not defined."
+                                 " So network.init_switches() must have been called:\n%s",
+                                   cls_name, missing)
+
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
@@ -763,7 +786,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     columns = dataframe.columns
 
     diff = network.snapshots.difference(dataframe.index)
-    if len(diff):
+    if len(diff):  # TODO: with default-snapshot "now" a diff seems to exist?
         logger.warning("Snapshots {} are missing from {} of {}. Filling with default value '{}'".format(diff,attr,cls_name,attr_series["default"]))
         dataframe = dataframe.reindex(network.snapshots, fill_value=attr_series["default"])
 
