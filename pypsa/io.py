@@ -642,7 +642,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             network.init_switches()
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
 
-def import_components_from_dataframe(network, dataframe, cls_name):  # TODO: add init_switch
+def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
 

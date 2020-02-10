@@ -613,7 +613,7 @@ class Network(Basic):
             self.reinit_switches()
 
 
-    def remove(self, class_name, name):  # TODO: add init_switch
+    def remove(self, class_name, name):
         """
         Removes a single component from the network.
 
@@ -668,7 +668,7 @@ class Network(Basic):
 
 
 
-    def madd(self, class_name, names, suffix='', **kwargs):  # TODO: add init_switch
+    def madd(self, class_name, names, suffix='', **kwargs):
         """
         Add multiple components to the network, along with their attributes.
 
@@ -760,7 +760,7 @@ class Network(Basic):
         return new_names
 
 
-    def mremove(self, class_name, names):  # TODO: add init_switch
+    def mremove(self, class_name, names):
         """
         Removes multiple components from the network.
 
@@ -794,7 +794,7 @@ class Network(Basic):
                 if attr in cls_df.columns:
                     buses_with_switches = ((self.switches.bus1.
                                             append(self.switches.bus0)).drop_duplicates().tolist()
-                                            + (self.buses_connected.index.tolist()))
+                                           + (self.buses_connected.index.tolist()))
                     switch_related = cls_df[attr].isin(buses_with_switches)
                     if len(switch_related):
                         logger.debug("The %s we are removing has bus(es) which are connected to switches."
