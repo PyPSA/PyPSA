@@ -1,4 +1,4 @@
-os: 
+os:
   - windows
   - linux
   - osx
@@ -9,11 +9,11 @@ before_install:
   # install conda
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
   - source conda4travis.sh
-  
+
   # install conda environment
   - conda env create -f ./environment.yaml
   - conda activate pypsa-eur
-  
+
   # install open-source solver
   - conda install -c conda-forge ipopt glpk
 

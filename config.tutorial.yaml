@@ -161,6 +161,8 @@ solving:
     min_iterations: 1
     max_iterations: 1
     clip_p_max_pu: 0.01
+    skip_iterations: false
+    track_iterations: false
     #nhours: 10
   solver:
     name: cbc

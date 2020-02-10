@@ -297,15 +297,6 @@ rule solve_network:
     # group: "solve" # with group, threads is ignored https://bitbucket.org/snakemake/snakemake/issues/971/group-job-description-does-not-contain
     script: "scripts/solve_network.py"
 
-rule trace_solve_network:
-    input: "networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_trace.nc"
-    shadow: "shallow"
-    log: python="logs/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python_trace.log",
-    threads: 4
-    resources: mem=memory
-    script: "scripts/trace_solve_network.py"
-
 rule solve_operations_network:
     input:
         unprepared="networks/{network}_s{simpl}_{clusters}_ec.nc",

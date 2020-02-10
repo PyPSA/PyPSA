@@ -2,6 +2,12 @@
 Release Notes
 ##########################################
 
+PyPSA-Eur 0.2.0 (TBD)
+==================================
+
+* The optimization is now performed using the ``pyomo=False`` setting in the :func:`pypsa.lopf.network_lopf`. This speeds up the solving process significantly and consumes much less memory. The inclusion of additional constraints were adjusted to the new implementation. They are all passed to the :func:`network_lopf` function via the ``extra_functionality`` argument. The rule ``trace_solve_network`` was integrated into the rule :mod:`solve_network` and can be activated via configuration with ``solving: options: track_iterations: true``. The charging and discharging capacities of batteries modelled as store-link combination are now coupled (`#116 <https://github.com/PyPSA/pypsa-eur/pull/116>`_).
+
+
 PyPSA-Eur 0.1.0 (9th January 2020)
 ==================================
 

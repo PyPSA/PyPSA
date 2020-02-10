@@ -5,7 +5,7 @@ channels:
 dependencies:
   #- python
   - pip
-  - pypsa>=0.16
+  # - pypsa>=0.16 # until PyPSA/a3c0991 released 
   - atlite
 
   # Dependencies of the workflow itself
@@ -47,6 +47,7 @@ dependencies:
     - git+https://github.com/FRESNA/vresutils.git#egg=vresutils
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
+    - git+https://github.com/PyPSA/pypsa.git#egg=pypsa # until PyPSA/a3c0991 released 
     - cdsapi
     - sphinx
     - sphinx_rtd_theme

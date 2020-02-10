@@ -6,3 +6,5 @@ min_iterations,--,int,"Minimum number of solving iterations in between which res
 max_iterations,--,int,"Maximum number of solving iterations in between which resistance and reactence (``x/r``) are updated for branches according to ``s_nom_opt`` of the previous run."
 nhours,--,int,"Specifies the :math:`n` first snapshots to take into account. Must be less than the total number of snapshots. Rather recommended only for debugging."
 clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."
+skip_iterations,bool,"{'true','false'}","Skip iterating, do not update impedances of branches."
+track_iterations,bool,"{'true','false'}","Flag whether to store the intermediate branch capacities and objective function values are recorded for each iteration in ``network.lines['s_nom_opt_X']`` (where ``X`` labels the iteration)"
