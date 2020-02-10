@@ -14,10 +14,11 @@ def init_switches(network):
     '''
     Initiate switches.
     '''
-    logger.info("Initiating switches. adding network.allowed_switching_combos.loc['initial']")
+    logger.info("Initiating switches.")
     for switch in network.switches.index:  # that's slow, and there probably is a networkx function that does the job. maybe use in consistency_check only
         assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"]), (
                "there is a switch that is parallel to another switch. that's prohibitted.")
+        # maybe check for switches parallel to other branches?
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
@@ -33,6 +34,19 @@ def is_switch_connecting_buses(network, bus0, bus1):
     return False
 
 
+def reinit_switches(network, skip_switching=False):
+    logger.info("reinitializing switches")
+    if not skip_switching:  # when we call this when removing components, we must not switch
+        switches_status_before = network.switches.status.copy()
+        open_switches(network, network.switches.index)
+    determine_logical_topology(network)
+    find_only_logical_buses(network)
+    find_switches_connections(network)
+    if not skip_switching:
+        network.switches.status = switches_status_before
+        network.switching()
+
+
 def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
     """
     add switch to network. not trivial, we need to initiate switches again
@@ -44,7 +58,9 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
             "do not add a switch that is parallel to another switch")
     if len(network.switches):  # we already have initiated switches
         switches_status_before = network.switches.status.copy()
+        logger.info(network.buses)
         open_switches(network, network.switches.index)
+        logger.info(network.buses)
     assert (bus0 in network.buses.index) & (bus1 in network.buses.index), (
            "when adding a switch, make sure to add its buses (%s and %s) to network.buses first:\n %s" % (bus0, bus1, network.buses))
     network.switches.loc[name] = {'i_max': i_max,

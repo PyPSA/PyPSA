@@ -39,16 +39,6 @@ network.add("Load", "load2", bus="n3", p_set=50)
 network.add_switch("s1", "n2", "n4", 1)  # can (dis)connect line1 and (line3 + load1)
 network.add_switch("s2", "n3", "n5", 0)  # can (dis)connect line2 and line3
 
-# TODO: just realized that when adding any element, former buses_only_logical might become electrical...
-# we need to implement something like:
-"""
-def check_if_new_component_affects_buses_only_logical(network, components):
-    if component.bus in network.buses_only_logical:
-        network.buses.loc[bus] = network.buses_only_logical.loc[bus]
-        network.buses_only_logical.drop(bus, inplace=True)
-"""
-# TODO: also all switches should be opened before adding new components
-
 network.pf()
 print(network.buses_t.p)
 print(network.lines_t.p0)

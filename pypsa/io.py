@@ -36,6 +36,8 @@ import pypsa
 import numpy as np
 import math
 
+from .logic import reinit_switches
+
 try:
     import xarray as xr
     has_xarray = True
@@ -640,7 +642,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             network.init_switches()
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
 
-def import_components_from_dataframe(network, dataframe, cls_name):
+def import_components_from_dataframe(network, dataframe, cls_name):  # TODO: add init_switch
     """
     Import components from a pandas DataFrame.
 
@@ -705,19 +707,31 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
             dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
+    # check if we need to reinitialize switches
+    need_to_reinit = False
+    if len(network.switches):
+        for attr in ["bus", "bus0", "bus1"]:
+            if attr in dataframe.columns:
+                buses_with_switches = (network.switches.bus1.append(network.switches.bus0).drop_duplicates().tolist())
+                switch_related = dataframe.index[dataframe[attr].isin(buses_with_switches)]
+                if len(switch_related) > 0:
+                    logger.debug("The following %s have buses which are connected to switches."
+                                 "So we need to call network.reinit_switches():\n%s",
+                                 cls_name, switch_related)
+                    need_to_reinit = True
+
     #check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
         if attr in dataframe.columns:
             missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
             if len(missing) > 0:
-                if not cls_name == "Switch":
+                if not cls_name == "Switch" and not need_to_reinit:  # this might not catch all nonexistent buses
                     logger.warning("The following %s have buses which are not defined:\n%s",
                                    cls_name, missing)
                 else:
                     logger.debug("The following %s have buses which are not defined."
                                  " So network.init_switches() must have been called:\n%s",
                                    cls_name, missing)
-
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
@@ -730,6 +744,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     setattr(network, network.components[cls_name]["list_name"], new_df)
+    if need_to_reinit:  # the new component is connected to a switch, initialize again
+        reinit_switches(network)
 
     #now deal with time-dependent properties
 
@@ -742,6 +758,12 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         pnl[k].loc[:,dataframe.index] = dataframe.loc[:,k].values
 
     setattr(network,network.components[cls_name]["list_name"]+"_t",pnl)
+
+
+def check_if_components_affects_buses_only_logical(network, components):
+    if components.bus in network.buses_only_logical:
+        network.buses.loc[bus] = network.buses_only_logical.loc[bus]
+        network.buses_only_logical.drop(bus, inplace=True)
 
 
 def import_series_from_dataframe(network, dataframe, cls_name, attr):
