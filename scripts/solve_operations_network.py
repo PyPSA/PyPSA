@@ -100,13 +100,14 @@ if __name__ == "__main__":
     n = set_parameters_from_optimized(n, n_optim)
     del n_optim
 
+    config = snakemake.config
     opts = snakemake.wildcards.opts.split('-')
+    config['solving']['options']['skip_iterating'] = False
 
     with memory_logger(filename=getattr(snakemake.log, 'memory', None), interval=30.) as mem:
         n = prepare_network(n, solve_opts=snakemake.config['solving']['options'])
-        n = solve_network(n, config=snakemake.config, solver_dir=tmpdir,
-                          solver_log=snakemake.log.solver, opts=opts,
-                          skip_iterating=True)
+        n = solve_network(n, config, solver_dir=tmpdir,
+                          solver_log=snakemake.log.solver, opts=opts)
         n.export_to_netcdf(snakemake.output[0])
 
     logger.info("Maximum memory usage: {}".format(mem.mem_usage))
