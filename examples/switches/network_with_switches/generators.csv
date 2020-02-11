@@ -1,0 +1,4 @@
+name,bus,control,p_set
+gen1,n1,Slack,
+gen2,n6,PQ,0.01
+gen3,n12,Slack,

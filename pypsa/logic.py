@@ -15,10 +15,9 @@ def init_switches(network):
     Initiate switches.
     '''
     logger.info("Initiating switches.")
-    for switch in network.switches.index:  # that's slow, and there probably is a networkx function that does the job. maybe use in consistency_check only
+    for switch in network.switches.index:
         assert not is_switch_connecting_buses(network, network.switches.loc[switch, "bus0"], network.switches.loc[switch, "bus0"]), (
                "there is a switch that is parallel to another switch. that's prohibitted.")
-        # maybe check for switches parallel to other branches?
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
@@ -124,18 +123,15 @@ def determine_logical_topology(network):
     labels = ['bus_connected' + str(s) for s in labels]
     # add column bus_connected to buses and fill in the unique name for buses in each logical subnetwork
     network.buses.loc[buses_with_switches, "bus_connected"] = labels
-    # copy buses with bus_connected and import theam with bus_connected as index
+    # copy buses with bus_connected and import them with bus_connected as index
     buses_connected = network.buses.loc[buses_with_switches].drop_duplicates(subset="bus_connected")
     network.buses_connected = buses_connected.set_index("bus_connected")
-    # network.import_components_from_dataframe(network.buses_connected, "Bus")
-    network.buses_disconnected = (network.buses.loc[network.buses.loc[network.switches.bus1].index
-                                  .append(network.buses.loc[network.switches.bus0].index).drop_duplicates()])
     for c in network.iterate_components(["Switch"]):  # TODO: for now only switches, but maybe use fuses or so also
         c.df["bus_connected"] = c.df.bus0.map(network.buses["bus_connected"])
     # now we dont need the column bus_connected at buses anymore
     network.buses = network.buses.drop(columns="bus_connected")
-    # TODO: why is column bus_connected back in network.buses in the end?
-    # logger.info("network.buses.columns:\n%s" % network.buses.columns)
+    network.buses_disconnected = (network.buses.loc[network.buses.loc[network.switches.bus1].index
+                                  .append(network.buses.loc[network.switches.bus0].index).drop_duplicates()])
     # TODO: any need for this?
     # map this bus to all other elements
     """

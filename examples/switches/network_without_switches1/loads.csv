@@ -1,0 +1,3 @@
+name,bus,p_set,q_set
+load1,n6,0.4,0.1
+load2,n7,0.3,0.05

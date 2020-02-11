@@ -1,0 +1,4 @@
+name,bus,control,p_set,min_up_time,min_down_time,up_time_before,down_time_before
+gen1,n1,Slack,,0,0,1,0
+gen2,n6,PQ,0.01,0,0,1,0
+gen3,n12,Slack,,0,0,1,0

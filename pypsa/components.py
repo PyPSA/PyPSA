@@ -59,7 +59,8 @@ from .logic import (init_switches, reinit_switches,
                     find_only_logical_buses,
                     find_switches_connections,
                     close_switches, open_switches,
-                    switching, add_switch)
+                    switching, add_switch,
+                    is_switch_connecting_buses)
 
 from .contingency import (calculate_BODF, network_lpf_contingency,
                           network_sclopf)
@@ -229,7 +230,7 @@ class Network(Basic):
     open_switches = open_switches
     switching = switching
     add_switch = add_switch
-
+    is_switch_connecting_buses = is_switch_connecting_buses
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
@@ -1175,6 +1176,18 @@ class Network(Basic):
                                    unmatched.index[unmatched],
                                    c.pnl[attr].dtypes[unmatched],
                                    typ)
+        # check for branches that are parallel to switches:
+        if len(self.switches):
+            parallel_to_switch = []
+            for c in self.iterate_components(self.branch_components):
+                for element in c.df.index:
+                    if self.is_switch_connecting_buses(c.df.loc[element, "bus0"], c.df.loc[element, "bus1"]):
+                        parallel_to_switch += [element]
+                if len(parallel_to_switch):
+                    logger.warning("The following %s are parallel to a switch:\n%s"
+                                   "\nSwitches do not have impedance and when they are closed their bus0 and "
+                                   "bus1 are replaced by one bus_connected in all attached components." %
+                                   (c.list_name, parallel_to_switch))
 
 class SubNetwork(Common):
     """
