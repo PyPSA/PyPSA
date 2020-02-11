@@ -753,11 +753,13 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
         logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "
                        f"are not in main components dataframe {list_name}")
 
-    if attr not in network.components[cls_name]['attrs'].index:
+    attrs = network.components[cls_name]['attrs']
+    expected_attrs = attrs[lambda ds: ds.type.str.contains('series')].index
+    if attr not in expected_attrs:
         pnl[attr] = dataframe
         return
 
-    attr_series = network.components[cls_name]["attrs"].loc[attr]
+    attr_series = attrs.loc[attr]
     default = attr_series.default
     columns = dataframe.columns
 
