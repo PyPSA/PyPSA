@@ -458,7 +458,8 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = n.snapshot_weightings.to_frame('weightings') @ em_pu.to_frame('weightings').T
+            em_pu = n.snapshot_weightings[sns].to_frame('weightings') @\
+                    em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=False)
             lhs += join_exprs(vals)
@@ -498,6 +499,7 @@ def define_global_constraints(n, sns):
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
         lhs = ''
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
+            if n.df(c).empty: continue
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
             v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]),
