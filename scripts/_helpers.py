@@ -40,11 +40,57 @@ def configure_logging(snakemake, skip_handlers=False):
             })
     logging.basicConfig(**kwargs)
 
+def load_network(import_name=None, custom_components=None):
+    """
+    Helper for importing a pypsa.Network with additional custom components.
+
+    Parameters
+    ----------
+    import_name : str
+        As in pypsa.Network(import_name)
+    custom_components : dict
+        Dictionary listing custom components.
+        For using ``snakemake.config['override_components']``
+        in ``config.yaml`` define:
+
+        .. code:: yaml
+
+            override_components:
+                ShadowPrice:
+                    component: ["shadow_prices","Shadow price for a global constraint.",np.nan]
+                    attributes:
+                    name: ["string","n/a","n/a","Unique name","Input (required)"]
+                    value: ["float","n/a",0.,"shadow value","Output"]
+
+    Returns
+    -------
+    pypsa.Network
+    """
+
+    import pypsa
+    from pypsa.descriptors import Dict
+
+    override_components = None
+    override_component_attrs = None
+
+    if custom_components is not None:
+        override_components = pypsa.components.components.copy()
+        override_component_attrs = Dict({k : v.copy() for k,v in pypsa.components.component_attrs.items()})
+        for k, v in custom_components.items():
+            override_components.loc[k] = v['component']
+            override_component_attrs[k] = pd.DataFrame(columns = ["type","unit","default","description","status"])
+            for attr, val in v['attributes'].items():
+                override_component_attrs[k].loc[attr] = val
+
+    return pypsa.Network(import_name=import_name,
+                         override_components=override_components,
+                         override_component_attrs=override_component_attrs)
+
 def pdbcast(v, h):
     return pd.DataFrame(v.values.reshape((-1, 1)) * h.values,
                         index=v.index, columns=h.index)
 
-def load_network(fn, tech_costs, config, combine_hydro_ps=True):
+def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     import pypsa
     from add_electricity import update_transmission_costs, load_costs
 

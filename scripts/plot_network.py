@@ -172,7 +172,7 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
 
     return fig
 
-#n = load_network(snakemake.input.network, opts, combine_hydro_ps=False)
+#n = load_network_for_plots(snakemake.input.network, opts, combine_hydro_ps=False)
 
 
 def plot_total_energy_pie(n, ax=None):
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     map_figsize = opts['map']['figsize']
     map_boundaries = opts['map']['boundaries']
 
-    n = load_network(snakemake.input.network, snakemake.input.tech_costs, snakemake.config)
+    n = load_network_for_plots(snakemake.input.network, snakemake.input.tech_costs, snakemake.config)
 
     scenario_opts = snakemake.wildcards.opts.split('-')
 
