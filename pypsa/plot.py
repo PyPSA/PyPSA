@@ -38,9 +38,8 @@ __copyright__ = "Copyright 2015-2020 Tom Brown (FIAS), Jonas Hoersch (FIAS); Cop
 
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Wedge
+from matplotlib.patches import Wedge, Circle
 from matplotlib.collections import LineCollection, PatchCollection
-
 
 cartopy_present = True
 try:
@@ -60,7 +59,7 @@ except ImportError:
 
 
 def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=10,
+         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
          line_widths={'Line':2, 'Link':2},
          flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
@@ -87,7 +86,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         with a Multiindex, bus_colors defaults to the n.carriers['color']
         column.
     bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 10. If a multiindexed Series is passed,
+        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
         the function will draw pies for each bus (first index level) with
         segments of different color (second index level). Such a Series is ob-
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
@@ -209,8 +208,23 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=n.buses.index)
-        s = pd.Series(bus_sizes, index=n.buses.index, dtype="float").fillna(10)
-        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face')
+        s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
+        if geomap:
+            s *= projected_area_factor(ax, n.srid)**2
+
+        if bus_cmap is not None and c.dtype is np.dtype('float'):
+            if isinstance(bus_cmap, str):
+                bus_cmap = plt.cm.get_cmap(bus_cmap)
+            norm = plt.Normalize(vmin=c.min(), vmax=c.max())
+            c = c.apply(lambda cval: bus_cmap(norm(cval)))
+
+        patches = []
+        for b_i in s.index:
+            radius = s.at[b_i]**0.5
+            patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
+                                   facecolor=c.at[b_i]))
+        bus_collection = PatchCollection(patches, match_original=True)
+        ax.add_collection(bus_collection)
 
     def as_branch_series(ser):
         # ensure that this function always return a multiindexed series
@@ -301,6 +315,8 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
     if geomap:
         ax.outline_patch.set_visible(False)
         ax.axis('off')
+    else:
+        ax.set_aspect('equal')
 
     ax.set_title(title)
 
