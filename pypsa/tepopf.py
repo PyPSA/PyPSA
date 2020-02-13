@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Optimal Power Flow functions with Integer Transmission Expansion Planning.
+"""Optimal Power Flow with Discrete Transmission Expansion Planning.
 """
 
 # make the code as Python 3 compatible as possible
@@ -139,8 +139,8 @@ def equivalent_cycle(c, d):
 
 def add_cycle_b(cycle, cycles):
     """
-    Checks whether an equivalent cycle of `cycle`
-    is already in `cycles`.
+    Checks whether an equivalent cycle of ``cycle``
+    is already in ``cycles``.
 
     Parameters
     ----------
@@ -153,7 +153,7 @@ def add_cycle_b(cycle, cycles):
     Returns
     -------
     bool
-        `cycle` is already in `cycles`.
+        ``cycle`` is already in ``cycles``.
     """
 
     for c in cycles:
@@ -192,7 +192,7 @@ def get_line_sub_networks(line_i, network):
 def common_sub_network_vertices(line0, line1, network):
     """
     Determines a list with an entry for each sub_network
-    `line0` and `line1` commonly connect to. Containing
+    ``line0`` and ``line1`` commonly connect to. Containing
     information regarding their connection point and orientation.
 
     Parameters
@@ -209,7 +209,7 @@ def common_sub_network_vertices(line0, line1, network):
     -------
     list
         For instance [(('bus0', 'bus1'), ('b1', 'b3'))] menas
-        `line0` connects at 'bus0' to 'b1' and `line1` connects
+        ``line0`` connects at 'bus0' to 'b1' and ``line1`` connects
         at 'bus1' to 'b3'.
     """
 
@@ -414,10 +414,10 @@ def infer_candidates_from_existing(network):
 def potential_num_parallels(network):
     """
     Determine the number of allowable additional parallel circuits
-    per line based on `s_nom_extendable`, the difference between
-    `s_nom_max` and `s_nom`, and the `type` if specified.
+    per line based on ``s_nom_extendable``, the difference between
+    ``s_nom_max`` and ``s_nom``, and the ``type`` if specified.
     Otherwise, the line type and its electrical parameters 
-    will be inferred from `num_parallel`.
+    will be inferred from ``num_parallel``.
 
     Parameters
     ----------
@@ -499,12 +499,12 @@ def _corridors(lines):
     ----------
     lines : pandas.DataFrame
         For example a set of inoperative lines
-        `n.lines.loc[n.lines.operative==False]`.
+        ``n.lines.loc[n.lines.operative==False]``.
 
     Returns
     -------
     corridors : list
-        For example `[('Line', 'bus_name_0', 'bus_name_1')]
+        For example ``[('Line', 'bus_name_0', 'bus_name_1')]``
     """
 
     if len(lines) > 0:
@@ -521,7 +521,7 @@ def calculate_big_m(network, formulation):
     ----------
     network : pypsa.Network|pypsa.sub_network
     formulation : string
-        Power flow formulation used. E.g. `"angles"` or `"kirchhoff"`.
+        Power flow formulation used. E.g. ``angles`` or ``kirchhoff"``.
 
     Returns
     -------
@@ -541,7 +541,7 @@ def calculate_big_m(network, formulation):
 
 def calculate_big_m_for_angles(network, keep_weights=False):
     """
-    Determines the minimal Big-M parameters for the `angles` formulation following [1]_.
+    Determines the minimal Big-M parameters for the ``angles`` formulation following [1]_.
 
     Parameters
     ----------
@@ -595,7 +595,7 @@ def calculate_big_m_for_angles(network, keep_weights=False):
 
 def calculate_big_m_for_kirchhoff(network):
     """
-    Determines the minimal Big-M parameters for the `kirchhoff` formulation.
+    Determines the minimal Big-M parameters for the ``kirchhoff`` formulation.
 
     Parameters
     ----------
@@ -696,7 +696,7 @@ def determine_sub_networks_hierarchy(network):
 def find_slack_dependencies(network):
     """
     Allocates candidate lines connecting two sub_networks to the downstream
-    sub_network according to `pypsa.tepopf.determine_sub_networks_hierarchy`
+    sub_network according to ``pypsa.tepopf.determine_sub_networks_hierarchy``
     marking the slack of which sub_network should be
     disregarded if that candidate line is built.
 
@@ -848,7 +848,7 @@ def define_rank_constraints(network, snapshots):
 
     Notes
     -----
-    A duplicate is identified by the parameters `s_nom`, `x` and `capital_cost`.
+    A duplicate is identified by the parameters ``s_nom``, ``x`` and ``capital_cost``.
     """
 
     ranks = {}
@@ -882,7 +882,7 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
     network : pypsa.Network
     snapshots : network.snapshots
     formulation : string
-        Power flow formulation used; e.g. `"angles"` or `"kirchhoff"`.        
+        Power flow formulation used; e.g. ``angles`` or ``kirchhoff``.        
     """
 
     if formulation == "angles":
@@ -894,7 +894,7 @@ def define_integer_passive_branch_flows(network, snapshots, formulation='angles'
 def big_m_slack(network, slack_dependencies=None, keep_weights=False):
     """
     Calculates a big-M parameter for each candidate line that relaxes 
-    the a slack constraint in the `angle` formulation.
+    the a slack constraint in the ``angle`` formulation.
 
     The parameter is determined based on the maximum angle difference
     regardless of the investment of other candidate lines.
@@ -911,9 +911,9 @@ def big_m_slack(network, slack_dependencies=None, keep_weights=False):
     ----------
     network : pypsa.Network
     slack_dependencies : dict
-        Output of function `pypsa.tepopf.find_slack_dependencies(network)`.
+        Output of function ``pypsa.tepopf.find_slack_dependencies(network)``.
     keep_weights : bool
-        Keep the weights used for calculating the Big-M parameters in `network.lines`.
+        Keep the weights used for calculating the Big-M parameters in ``network.lines``.
 
     Returns
     -------
@@ -1088,7 +1088,7 @@ def define_integer_passive_branch_flows_with_kirchhoff(network, snapshots):
 
 def define_integer_nodal_balance_constraints(network, snapshots):
     """
-    Identical to `pypsa.opf.define_nodal_balance_constraints` but including candidate line flow variables.
+    Identical to ``pypsa.opf.define_nodal_balance_constraints`` but including candidate line flow variables.
     """
 
     passive_branches = network.passive_branches(sel='operative')
@@ -1230,7 +1230,7 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         dependent values and finding bus controls.
     extra_functionality : callable function
         This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
+        ``extra_functionality(network,snapshots)`` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -1244,22 +1244,22 @@ def network_teplopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchhoff","ptdf"]
+        one of ["angles","kirchhoff"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
     free_memory : set, default {'pyomo'}
-        Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
+        Any subset of {'pypsa', 'pyomo'}. Allows to stash ``pypsa`` time-series
         data away while the solver runs (as a pickle to disk) and/or free
-        `pyomo` data after the solution has been extracted.
+        ``pyomo`` data after the solution has been extracted.
     extra_postprocessing : callable function
         This function must take three arguments
-        `extra_postprocessing(network,snapshots,duals)` and is called after
+        ``extra_postprocessing(network,snapshots,duals)`` and is called after
         the model has solved and the results are extracted. It allows the user to
         extract further information about the solution, such as additional shadow prices.
     infer_candidates : bool
         Indicator whether candidate lines should be inferred
         based on potential and line type using
-        `pypsa.tepopf.infer_candidates_from_existing()`.
+        ``pypsa.tepopf.infer_candidates_from_existing()``.
 
     Returns
     -------

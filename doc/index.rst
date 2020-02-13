@@ -83,6 +83,7 @@ Documentation
 * :doc:`import_export`
 * :doc:`power_flow`
 * :doc:`optimal_power_flow`
+* :doc:`transmission_expansion`
 * :doc:`contingency_analysis`
 * :doc:`plotting`
 
@@ -96,6 +97,7 @@ Documentation
    import_export
    power_flow
    optimal_power_flow
+   transmission_expansion
    contingency_analysis
    plotting
    

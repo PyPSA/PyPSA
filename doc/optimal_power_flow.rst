@@ -19,7 +19,6 @@ Overview
 
 * The optimisation currently uses continuous variables for most functionality; unit commitment with binary variables is also implemented for generators.
 
-
 * The objective function is the total system cost for the snapshots optimised.
 
 * Each snapshot can be given a weighting :math:`w_t` to represent e.g. multiple hours.
@@ -39,7 +38,7 @@ Execute:
     network.lopf(snapshots, solver_name="glpk", solver_io=None,
                  extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles",
-                 extra_postprocessing=None)``
+                 extra_postprocessing=None)
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
 string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
@@ -59,7 +58,18 @@ for more details).
 .. important:: Since version v0.16.0, PyPSA enables optimisation without the use of `pyomo <http://www.pyomo.org/>`_ by setting ``pyomo=False``. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo.
   Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
 
-.. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
+.. warning:: 
+
+    If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed).
+    This is NOT reflected in the ordinary LOPF.
+
+    There are two choices:
+    
+    1.  ``pypsa.linopf.ilopf`` covers this through sequential linear programming by iteratively updating the line impedances as done in 
+        `<https://arxiv.org/abs/1907.10548>`_.
+
+    2.  Run ``network.teplopf`` which is a MILP version of ``network.lopf`` for transmission expansion planning and properly
+        takes account of the impedance with a disjunctive relaxation. See :doc:`transmission_expansion` for more information.
 
 
 Optimising dispatch only - a market model
@@ -412,23 +422,24 @@ angles :math:`\theta_{n,t}` at bus0 and :math:`\theta_{m,t}` at bus1 divided by 
 (For DC networks, replace the voltage angles by the difference in voltage magnitude :math:`\delta V_{n,t}` and the series reactance by the series resistance :math:`r_l`.)
 
 
-This flow is the limited by the capacity :math:``F_l`` of the line
+This flow is the limited by the capacity :math:`F_l` of the line
 
 
 .. math::
    |f_{l,t}| \leq F_l
 
 .. note::
-  If :math:`F_l` is also subject to optimisation
-  (``branch.s_nom_extendable -- True``), then the impedance :math:`x` of
+  If the transmission capacity :math:`F_l` is also subject to optimisation
+  (``branch.s_nom_extendable==True``), then the impedance :math:`x` of
   the line is NOT automatically changed with the capacity (to represent
   e.g. parallel lines being added).
 
   There are two choices here:
 
-  1. Iterate the LOPF again with the updated impedances, see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_, like done by ``pypsa.linopf.ilopf``
+  1. Iterate the LOPF again with the updated impedances, see e.g. `<https://arxiv.org/abs/1907.10548>`_, like done by ``pypsa.linopf.ilopf``
 
-  2. João Gorenstein Dedecca has also implemented a MILP version of the transmission expansion, see `<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes account of the impedance with a disjunctive relaxation. This will be pulled into the main PyPSA code base soon.
+  2. Run ``network.teplopf`` which is a MILP version of ``network.lopf`` for transmission expansion planning and properly
+     takes account of the impedance with a disjunctive relaxation. See :doc:`transmission_expansion` for more information.
 
 
 .. _formulations:
@@ -673,3 +684,8 @@ Outputs
 * link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
 
 * global_constraint.{mu}
+
+Utility Functions
+-----------------
+
+.. automodule:: pypsa.opf
