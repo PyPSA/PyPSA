@@ -3,6 +3,7 @@ channels:
   - defaults
   - conda-forge
   - bioconda
+  - http://conda.anaconda.org/gurobi
 dependencies:
   - python
   - pip
@@ -43,6 +44,9 @@ dependencies:
   - rasterio
   - shapely
   - libgdal
+
+  # Solvers
+  - gurobi:gurobi # until https://github.com/conda-forge/pypsa-feedstock/issues/4 closed
 
   - pip:
     - git+https://github.com/FRESNA/vresutils.git#egg=vresutils
