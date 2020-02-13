@@ -1046,10 +1046,10 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     # if it's not based on a standard-type - get the included values:
     else:
-        s_nom = net.trafo.sn_kva.values/1000.
+        s_nom = net.trafo.sn_mva.values/1000.
 
-        r = net.trafo.vscr_percent.values/100.
-        x = np.sqrt((net.trafo.vsc_percent.values/100.)**2 - r**2)
+        r = net.trafo.vkr_percent.values/100.
+        x = np.sqrt((net.trafo.vk_percent.values/100.)**2 - r**2)
         # NB: b and g are per unit of s_nom
         g = net.trafo.pfe_kw.values/(1000. * s_nom)
 
