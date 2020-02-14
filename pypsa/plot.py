@@ -59,7 +59,7 @@ except ImportError:
 
 
 def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
+         bus_colors='b', bus_alpha = 1, line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
          line_widths={'Line':2, 'Link':2},
          flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
@@ -202,7 +202,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
             for i, ratio in ratios.iteritems():
                 patches.append(Wedge((x.at[b_i], y.at[b_i]), radius,
                                      360*start, 360*(start+ratio),
-                                     facecolor=bus_colors[i]))
+                                     facecolor=bus_colors[i], alpha=bus_alpha))
                 start += ratio
         bus_collection = PatchCollection(patches, match_original=True)
         ax.add_collection(bus_collection)
@@ -222,7 +222,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         for b_i in s.index:
             radius = s.at[b_i]**0.5
             patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
-                                   facecolor=c.at[b_i]))
+                                   facecolor=c.at[b_i], alpha=bus_alpha))
         bus_collection = PatchCollection(patches, match_original=True)
         ax.add_collection(bus_collection)
 
