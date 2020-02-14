@@ -79,9 +79,9 @@ def check_for_buses_only_logical_and_add_them_to_buses(network):
     found_and_readded = False
     try:
         if not network.buses_only_logical.index.isin(network.buses.index).all():
-            logger.info("network.buses_only_logical has already been initiated and they" +
-                        "are not all contained in network.buses so we need to add them to" +
-                        "network.buses here again.")
+            logger.debug("network.buses_only_logical has already been initiated and they "
+                         "are not all contained in network.buses so we need to add them to "
+                         "network.buses here again.")
             new_df = pd.concat((network.buses, network.buses_only_logical), sort=False)
             if not new_df.index.is_unique:
                 raise Exception("something is wrong. not all buses_only_logical have been in" +
@@ -89,7 +89,7 @@ def check_for_buses_only_logical_and_add_them_to_buses(network):
             setattr(network, network.components["Bus"]["list_name"], new_df)
             found_and_readded = True
     except AttributeError:
-        logger.info("network.buses_only_logical has not been initiated yet")
+        logger.debug("network.buses_only_logical has not been initiated yet, or there are no switches")
     return found_and_readded
 
 

@@ -32,6 +32,7 @@ import warnings
 import logging
 logger = logging.getLogger(__name__)
 
+from .logic import check_for_buses_only_logical_and_add_them_to_buses
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT)"
 __copyright__ = "Copyright 2015-2020 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019-2020 Fabian Hofmann (FIAS), Fabian Neumann (KIT), GNU GPL 3"
@@ -208,6 +209,18 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     elif ax is None:
         ax = plt.gca()
 
+    # catch buses_only_logical:
+    drop_buses_only_logical = check_for_buses_only_logical_and_add_them_to_buses(network)
+    if drop_buses_only_logical:
+        # we need to reindex all given series (they should have buses as index)
+        if isinstance(bus_colors, pd.Series):
+            logger.debug("you passed a series for bus_colors, we added only_logical_buses"
+                         " and therefore need to reindex. filling with 'black'")
+            bus_colors = bus_colors.reindex(network.buses.index, fill_value="black")
+        if isinstance(bus_sizes, pd.Series):
+            logger.debug("you passed a series for bus_sizes, we added only_logical_buses"
+                         " and therefore need to reindex. filling with 0")
+            bus_sizes = bus_sizes.reindex(network.buses.index, fill_value=0)
     x, y = _get_coordinates(network, layouter=layouter)
 
     axis_transform = ax.transData
@@ -311,8 +324,8 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                cmap=line_cmap['Line'])
         branch_collections.append(arrows)
 
-
-    for c in network.iterate_components(branch_components):
+    # switches are no network.branch_components but are in branch_components:
+    for c in network.iterate_components(sorted(network.branch_components) + ["Switch"]):
         l_defaults = defaults_for_branches[c.name]
         l_widths = line_widths.get(c.name, l_defaults['width'])
         l_nums = None
@@ -346,6 +359,7 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                                       colors=l_colors,
                                       transOffset=ax.transData)
 
+
         if l_nums is not None:
             l_collection.set_array(np.asarray(l_nums))
             l_collection.set_cmap(line_cmap.get(c.name, None))
@@ -367,7 +381,8 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         ax.axis('off')
 
     ax.set_title(title)
-
+    if drop_buses_only_logical:  # we need to remove the added buses again
+        network.buses.drop(network.buses_only_logical.index, inplace=True)
     return (bus_collection,) + tuple(branch_collections)
 
 
