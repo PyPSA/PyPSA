@@ -7,6 +7,7 @@ PyPSA 0.17.0
 
 * In favour of ``cartopy``, plotting geographical features with ``basemap`` is not supported anymore.  
 * Importing time series from custom non-standard output fields in ``network.component`` is now supported.
+* Deep copies of networks can now be created with a subset of snapshots, e.g. ``network.copy(snapshots=network.snapshots[:2])``.
 * The argument ``bus_colors`` can a now also be a pandas.Series. 
 * The ``carrier`` component has two new columns 'color' and 'nice_name'. The color column is used by the plotting function if ``bus_sizes`` is a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined. 
 * When using the ``pyomo=False`` formulation of the LOPF: 
