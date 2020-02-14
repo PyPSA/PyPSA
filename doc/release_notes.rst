@@ -9,9 +9,14 @@ PyPSA 0.17.0
 * Importing time series from custom non-standard output fields in ``network.component`` is now supported.
 * The argument ``bus_colors`` can a now also be a pandas.Series. 
 * The ``carrier`` component has two new columns 'color' and 'nice_name'. The color column is used by the plotting function if ``bus_sizes`` is a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined. 
-* When using the ``pyomo=False`` formulation of the LOPF, it is now possible to alter the objective function. Terms can be added to the objective via ``extra_functionality`` using the function :func:`pypsa.linopt.write_objective`. When a pure custom objective function needs to be declared, one can set ``skip_objective=True``. In this case, only terms defined through ``extra_functionality`` will be considered in the objective function.  
+* When using the ``pyomo=False`` formulation of the LOPF: 
+
+    * It is now possible to alter the objective function. Terms can be added to the objective via ``extra_functionality`` using the function :func:`pypsa.linopt.write_objective`. When a pure custom objective function needs to be declared, one can set ``skip_objective=True``. In this case, only terms defined through ``extra_functionality`` will be considered in the objective function. 
+    * Shadow prices of capacity bounds for non-extendable passive branches are parsed (similar to the pyomo=True setting)
+
 * When plotting, ``bus_sizes`` are now consistent when they have a ``pandas.MultiIndex`` or a ``pandas.Index``. The default is changed to ``bus_sizes=0.01``. The bus sizes now relate to the axis values.
 * Fixed import from ``pandapower`` for transformers not based on standard types.
+
 
 PyPSA 0.16.1 (10th January 2020)
 ================================
