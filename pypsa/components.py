@@ -760,7 +760,7 @@ class Network(Basic):
         return override_components, override_component_attrs
 
 
-    def copy(self, with_time=True, ignore_standard_types=False):
+    def copy(self, with_time=True, snapshots=None, ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -773,6 +773,9 @@ class Network(Basic):
         ----------
         with_time : boolean, default True
             Copy snapshots and time-varying network.component_names_t data too.
+        snapshots : list or index slice
+            A list of snapshots to copy, must be a subset of
+            network.snapshots, defaults to network.snapshots
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
 
@@ -797,17 +800,19 @@ class Network(Basic):
             import_components_from_dataframe(network, df, component.name)
 
         if with_time:
-            network.set_snapshots(self.snapshots)
+            if snapshots is None:
+                snapshots = self.snapshots
+            network.set_snapshots(snapshots)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
-                    pnl[k] = component.pnl[k].copy()
+                    pnl[k] = component.pnl[k].loc[snapshots].copy()
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:
             setattr(network,attr,getattr(self,attr))
 
-        network.snapshot_weightings = self.snapshot_weightings.copy()
+        network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
 
         return network
 
