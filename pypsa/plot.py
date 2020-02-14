@@ -59,7 +59,7 @@ except ImportError:
 
 
 def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', bus_alpha = 1, line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
+         bus_colors='b', bus_alpha=1, line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
          line_widths={'Line':2, 'Link':2},
          flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
          geometry=False, branch_components=['Line', 'Link'], jitter=None,
