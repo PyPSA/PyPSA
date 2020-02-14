@@ -247,9 +247,10 @@ class Network(Basic):
         else:
             self.component_attrs = override_component_attrs
 
-        for c_type in set(self.components.type.unique()) - {np.nan}:
-            setattr(self, c_type + "_components",
-                    set(self.components.index[self.components.type == c_type]))
+        for c_type in set(self.components.type.unique()):
+            if not isinstance(c_type, float):
+                setattr(self, c_type + "_components",
+                        set(self.components.index[self.components.type == c_type]))
 
         self.one_port_components = self.passive_one_port_components|self.controllable_one_port_components
 
