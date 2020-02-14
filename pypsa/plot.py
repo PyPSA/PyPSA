@@ -90,6 +90,8 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         the function will draw pies for each bus (first index level) with
         segments of different color (second index level). Such a Series is ob-
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
+    bus_alpha : float
+        Adds alpha channel to buses, defaults to 1.
     line_colors : dict/pandas.Series
         Colors for the lines, defaults to "g" for Lines and "cyan" for
         Links. Colors for branches other than Lines can be
