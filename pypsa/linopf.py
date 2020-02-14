@@ -32,6 +32,7 @@ from .linopt import (linexpr, write_bound, write_constraint, write_objective,
 
 import pandas as pd
 import numpy as np
+from numpy import inf
 
 import gc, time, os, re, shutil
 from tempfile import mkstemp
@@ -82,7 +83,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     if c == 'Generator':
         ext_i = ext_i | n.generators.query('committable').index
     if ext_i.empty: return
-    define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i], spec='extendables')
+    define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
 
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
@@ -107,7 +108,14 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
-    define_variables(n, lower, upper, c, attr, spec='nonextendables')
+    if c in n.passive_branch_components:
+        axes = [sns, fix_i]
+        flow = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
+        flow = linexpr((1, flow))
+        define_constraints(n, flow, '>=', lower, c, 'mu_lower', spec='non_ext')
+        define_constraints(n, flow, '<=', upper, c, 'mu_upper', spec='non_ext')
+    else:
+        define_variables(n, lower, upper, c, attr, spec='non_ext')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -401,7 +409,7 @@ def define_store_constraints(n, sns):
     stores_i = n.stores.index
     if stores_i.empty: return
     c = 'Store'
-    variables = write_bound(n, -np.inf, np.inf, axes=[sns, stores_i])
+    variables = write_bound(n, -inf, inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
     eh = expand_series(n.snapshot_weightings[sns], stores_i)  #elapsed hours

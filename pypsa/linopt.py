@@ -76,6 +76,7 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     """
     var = write_bound(n, lower, upper, axes)
     set_varref(n, var, name, attr, spec=spec)
+    return var
 
 
 def define_binaries(n, axes, name, attr='',  spec=''):
@@ -107,6 +108,7 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     """
     var = write_binary(n, axes)
     set_varref(n, var, name, attr, spec=spec)
+    return var
 
 
 def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
@@ -172,6 +174,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     """
     con = write_constraint(n, lhs, sense, rhs, axes)
     set_conref(n, con, name, attr, spec=spec)
+    return con
 
 # =============================================================================
 # writing functions
