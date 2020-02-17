@@ -739,3 +739,73 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     del m
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
+
+
+def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
+                        solver_options, keep_files, warmstart=None,
+                        store_basis=True):
+    """
+    Solving function. Reads the linear problem file and passes it to
+    the Xpress solver. If the solution is sucessful it returns
+    variable solutions and constraint dual values. The xpress module
+    must be installed for using this function.
+
+    For more information on solver options:
+    https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html
+    """
+
+    import xpress
+
+    m = xpress.problem()
+
+    m.read(problem_fn)
+    m.setControl(solver_options)
+
+    if solver_logfile is not None:
+        m.setlogfile(solver_logfile)
+
+    if warmstart:
+        m.readbasis(warmstart)
+
+    m.solve()
+
+    if store_basis:
+        n.basis_fn = solution_fn.replace('.sol', '.bas')
+        try:
+            m.writebasis(n.basis_fn)
+        except:
+            logger.info('No model basis stored')
+            del n.basis_fn
+
+    termination_condition = m.getProbStatusString()
+
+    if termination_condition == 'mip_optimal' or \
+       termination_condition == 'lp_optimal':
+        status = 'ok'
+    elif termination_condition == 'mip_unbounded' or \
+         termination_condition == 'mip_infeasible' or \
+         termination_condition == 'lp_unbounded' or \
+         termination_condition == 'lp_infeasible':
+        status = 'infeasible or unbounded'
+    else:
+        status = 'warning'
+
+    if termination_condition not in ["lp_optimal", "mip_optimal", "mip_solution"]:
+        return status, termination_condition, None, None, None
+
+    variables_sol = pd.Series({v.name: p.getSolution(v) for v
+                               in m.getVariable()}).pipe(set_int_index)
+
+    try:
+        constraints_dual = pd.Series({c.name: p.getDual(c) for c in
+                                      m.getConstraint()}).pipe(set_int_index)
+    except:
+        logger.warning("Shadow prices of MILP couldn't be parsed")
+        constraints_dual = pd.Series(index=[c.name for c in m.getConstraint()])
+
+    objective = m.getObjVal()
+
+    del m
+
+    return (status, termination_condition, variables_sol,
+            constraints_dual, objective)

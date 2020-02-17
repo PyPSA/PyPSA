@@ -26,6 +26,7 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, write_objective,
                      set_conref, set_varref, get_con, get_var, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
+                     run_and_read_xpress,
                      define_constraints, define_variables, define_binaries,
                      align_with_static_component)
 
@@ -877,7 +878,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         :func:`pypsa.linopt.get_dual` with corresponding name
 
     """
-    supported_solvers = ["cbc", "gurobi", 'glpk', 'scs']
+    supported_solvers = ["cbc", "gurobi", 'glpk', 'scs', 'xpress']
     if solver_name not in supported_solvers:
         raise NotImplementedError(f"Solver {solver_name} not in "
                                   f"supported solvers: {supported_solvers}")
