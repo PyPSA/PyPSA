@@ -640,12 +640,14 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         network.buses_disconnected = importer.get_static("buses_disconnected")
         network.buses_only_logical = importer.get_static("buses_only_logical")
         network.switches_connections = importer.get_static("switches_connections")
-        # deal with the lists in switches_connections.csv; lists in df cells should be replaced by a better structure
-        network.switches_connections = network.switches_connections.applymap(lambda x: x.strip("[]").replace("'","").split(", "))
-        network.switches_connections = network.switches_connections.applymap(lambda x: [] if x == [""] else x)
-        if network.buses_connected is None:
+        if network.buses_connected is not None:
+            # deal with the lists in switches_connections.csv; lists in df cells should be replaced by a better structure
+            network.switches_connections = network.switches_connections.applymap(lambda x: x.strip("[]").replace("'", "").split(", "))
+            network.switches_connections = network.switches_connections.applymap(lambda x: [] if x == [""] else x)
+        else:
             network.init_switches()
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
+
 
 def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_check=False):
     """
