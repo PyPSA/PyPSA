@@ -641,12 +641,35 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         network.buses_only_logical = importer.get_static("buses_only_logical")
         network.switches_connections = importer.get_static("switches_connections")
         if network.buses_connected is not None:
+            network.buses_connected = fill_with_bus_defaults(network, network.buses_connected)
+            network.buses_disconnected = fill_with_bus_defaults(network, network.buses_disconnected)
+            network.buses_only_logical = fill_with_bus_defaults(network, network.buses_only_logical)
             # deal with the lists in switches_connections.csv; lists in df cells should be replaced by a better structure
             network.switches_connections = network.switches_connections.applymap(lambda x: x.strip("[]").replace("'", "").split(", "))
             network.switches_connections = network.switches_connections.applymap(lambda x: [] if x == [""] else x)
         else:
             network.init_switches()
     logger.info("Imported network{} has {}".format(" " + basename, ", ".join(imported_components)))
+
+
+def fill_with_bus_defaults(network, dataframe):
+    """ fill the given dataframe with buses standard values. designed for
+    the dataframes buses_connected, buses_disconnected, buses_only_logical when
+    importing a network with initialized switches.
+    copied code section from import_components_from_dataframe"""
+    attrs = network.components["Bus"]["attrs"]
+    static_attrs = attrs[attrs.static].drop("name")
+    # Clean dataframe and ensure correct types
+    dataframe = pd.DataFrame(dataframe)
+    dataframe.index = dataframe.index.astype(str)
+    for k in static_attrs.index:
+        if k not in dataframe.columns:
+            dataframe[k] = static_attrs.at[k, "default"]
+        else:
+            if static_attrs.at[k, "type"] == 'string':
+                dataframe[k] = dataframe[k].replace({np.nan: ""})
+            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+    return dataframe
 
 
 def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_check=False):
