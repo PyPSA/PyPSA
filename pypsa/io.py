@@ -345,7 +345,16 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         pnl = network.pnl(component)
 
         if not export_standard_types and component in network.standard_type_components:
-            df = df.drop(network.components[component]["standard_types"].index)
+            try:
+                df = df.drop(network.components[component]["standard_types"].index)
+            except KeyError:
+                logger.error("You intantialized a network with ignore_standard_types=True, "
+                             "so that the method read_in_default_standard_types(self) was not called. "
+                             "That is why network.components['%s']['standard_types'] does not exist, "
+                             "which is used to drop standard types when exporting with "
+                             "export_standard_types=False. That failed and the standard types will be "
+                             "exported now. You should set ignore_standard_types when using the exported "
+                             "network again" % list_name)
 
         # first do static attributes
         df.index.name = "name"
