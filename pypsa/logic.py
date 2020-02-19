@@ -317,10 +317,20 @@ def open_switches(network, switches, skip_result_deletion=False):
     # connected_buses may only be removed when all switches, that share this bus are open
     check_for_unanimity = network.switches.loc[switches, "bus_connected"]
     to_drop = []
+    to_reclose = []
     for bus in check_for_unanimity:
-        n_closed = network.switches.loc[network.switches.bus_connected == bus, "status"].sum()
-        if n_closed == 0:
+        i_closed = network.switches.loc[network.switches.bus_connected == bus].loc[network.switches.status == 1].index.tolist()
+        if len(i_closed) == 0:
             to_drop.append(bus)
+        else:
+            # there is one switch in the logical subnetwork that is closed
+            # in case it is connected to the same electrical element, we need
+            # to bring back its bus_connected at that electrical element
+            to_reclose += i_closed
+    if len(to_reclose):
+        to_reclose = list(set(to_reclose))
+        logger.info("these switches might need to be closed again:\n%s", to_reclose)
+        network.close_switches(to_reclose, skip_result_deletion=True)
     to_drop = list(set(to_drop))
     logger.debug("Removing these buses, because all switches that share those as connected_bus are open:\n%s" % to_drop)
     network.buses.drop(to_drop, errors='ignore', inplace=True)
@@ -343,10 +353,13 @@ def open_switches(network, switches, skip_result_deletion=False):
     if not skip_result_deletion:
         delete_calculation_results(network)
 
+
 def switching(network):
     """
     use switches.status to build the network topology
     """
     logger.info("switching all switches")
-    network.close_switches(network.switches.loc[network.switches.status == 1].index, skip_result_deletion=True)
-    network.open_switches(network.switches.loc[network.switches.status == 0].index)
+    network.open_switches(network.switches.loc[network.switches.status == 0].index, skip_result_deletion=True)
+    network.close_switches(network.switches.loc[network.switches.status == 1].index)
+
+
