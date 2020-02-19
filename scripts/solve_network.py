@@ -20,7 +20,7 @@ Relevant Settings
             nhours:
             min_iterations:
             max_iterations:
-            skip_iterating:
+            skip_iterations:
             track_iterations:
         solver:
             name:
@@ -219,7 +219,7 @@ def solve_network(n, config, solver_log=None, opts='', **kwargs):
     n.config = config
     n.opts = opts
 
-    if config['solving']['options'].get('skip_iterating', False):
+    if config['solving']['options'].get('skip_iterations', False):
         network_lopf(n, solver_name=solver_name, solver_options=solver_options,
                      extra_functionality=extra_functionality, **kwargs)
     else:

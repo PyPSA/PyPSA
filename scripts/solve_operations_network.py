@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     config = snakemake.config
     opts = snakemake.wildcards.opts.split('-')
-    config['solving']['options']['skip_iterating'] = False
+    config['solving']['options']['skip_iterations'] = False
 
     with memory_logger(filename=getattr(snakemake.log, 'memory', None), interval=30.) as mem:
         n = prepare_network(n, solve_opts=snakemake.config['solving']['options'])
