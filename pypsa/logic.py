@@ -280,7 +280,7 @@ def close_switches(network, switches, skip_result_deletion=False):
     if not skip_result_deletion:
         delete_calculation_results(network)
 
-def open_switches(network, switches, skip_result_deletion=False):
+def open_switches(network, switches, skip_result_deletion=False, skip_reopening=False):
     """
     In order to open switches we:
         - let bus_connected disappear in one_port_components.bus and replace it with bus_disconnected
@@ -327,7 +327,7 @@ def open_switches(network, switches, skip_result_deletion=False):
             # in case it is connected to the same electrical element, we need
             # to bring back its bus_connected at that electrical element
             to_reclose += i_closed
-    if len(to_reclose):
+    if len(to_reclose) and not skip_reopening:
         to_reclose = list(set(to_reclose))
         logger.info("these switches might need to be closed again:\n%s", to_reclose)
         network.close_switches(to_reclose, skip_result_deletion=True)
@@ -359,7 +359,5 @@ def switching(network):
     use switches.status to build the network topology
     """
     logger.info("switching all switches")
-    network.open_switches(network.switches.loc[network.switches.status == 0].index, skip_result_deletion=True)
+    network.open_switches(network.switches.loc[network.switches.status == 0].index, skip_result_deletion=True, skip_reopening=True)
     network.close_switches(network.switches.loc[network.switches.status == 1].index)
-
-
