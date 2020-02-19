@@ -184,7 +184,7 @@ solving:
     min_iterations: 3
     max_iterations: 5
     clip_p_max_pu: 0.01
-    skip_iterations: false
+    skip_iterating: false
     track_iterations: false
     #nhours: 10
   solver:
