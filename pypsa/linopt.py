@@ -793,11 +793,11 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
     if termination_condition not in ["lp_optimal", "mip_optimal", "mip_solution"]:
         return status, termination_condition, None, None, None
 
-    variables_sol = pd.Series({v.name: p.getSolution(v) for v
+    variables_sol = pd.Series({v.name: m.getSolution(v) for v
                                in m.getVariable()}).pipe(set_int_index)
 
     try:
-        constraints_dual = pd.Series({c.name: p.getDual(c) for c in
+        constraints_dual = pd.Series({c.name: m.getDual(c) for c in
                                       m.getConstraint()}).pipe(set_int_index)
     except:
         logger.warning("Shadow prices of MILP couldn't be parsed")
