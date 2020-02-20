@@ -232,16 +232,18 @@ def define_ramp_limit_constraints(n, sns):
 
     # fix up
     gens_i = rup_i & fix_i
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-    rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-    define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
+    if not gens_i.empty:
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
+        rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+        define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
     gens_i = rup_i & ext_i
-    limit_pu = n.df(c)['ramp_limit_up'][gens_i]
-    p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
-    define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
+    if not gens_i.empty:
+        limit_pu = n.df(c)['ramp_limit_up'][gens_i]
+        p_nom = get_var(n, c, 'p_nom')[gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
+        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     # com up
     gens_i = rup_i & com_i
@@ -257,16 +259,18 @@ def define_ramp_limit_constraints(n, sns):
 
     # fix down
     gens_i = rdown_i & fix_i
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-    rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
-    define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
+    if not gens_i.empty:
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
+        rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
+        define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
     gens_i = rdown_i & ext_i
-    limit_pu = n.df(c)['ramp_limit_down'][gens_i]
-    p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
-    define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
+    if not gens_i.empty:
+        limit_pu = n.df(c)['ramp_limit_down'][gens_i]
+        p_nom = get_var(n, c, 'p_nom')[gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
+        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
     # com down
     gens_i = rdown_i & com_i
