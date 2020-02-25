@@ -22,7 +22,7 @@ snapshots:
   closed: 'left' # end is not inclusive
 
 enable:
-  prepare_links_p_nom: true
+  prepare_links_p_nom: false
   retrieve_databundle: true
   build_cutout: false
   build_natura_raster: false
