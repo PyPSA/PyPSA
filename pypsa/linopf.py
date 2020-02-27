@@ -350,6 +350,7 @@ def define_kirchhoff_constraints(n, sns):
         cycle_sum.index = sns
         con = write_constraint(n, cycle_sum, '=', 0)
         constraints.append(con)
+    if len(constraints) == 0: return 
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
