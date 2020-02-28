@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter|
+|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
 
 -----
 
@@ -282,3 +282,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |gitter| image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
+
+.. |binder| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples
+   :alt: Examples of use 
