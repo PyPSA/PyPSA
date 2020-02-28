@@ -1,0 +1,22 @@
+name: binder
+channels:
+  - conda-forge
+dependencies:
+  - pypsa
+  - python
+  - six >= 1.13.0
+  - numpy
+  - pyomo
+  - scipy
+  - pandas>=0.24.0
+  - pytables
+  - matplotlib
+  - networkx>=1.10
+  - pyomo
+  - cartopy>=0.16
+  - coincbc
+  - glpk
+  - gurobi::gurobi
+  - pip:
+    - git+https://github.com/FRESNA/vresutils.git#egg=vresutils
+
