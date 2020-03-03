@@ -20,8 +20,8 @@ from six import iterkeys
 from six.moves.collections_abc import Sequence
 
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT), Tobias Dess (elena international)"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), Copyright 2020 Tobias Dess (elena international) GNU GPL 3"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -678,8 +678,14 @@ def apply_transformer_types(network):
 
     # Get a copy of the transformers data
     # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
-    t = (network.transformers.loc[trafos_with_types_b, ["type", "tap_position", "num_parallel"]]
+    t = (network.transformers.loc[trafos_with_types_b, ["bus0", "bus1", "type", "tap_position", "num_parallel"]]
          .join(network.transformer_types, on='type'))
+
+    t = t.merge(network.buses.loc[:, "v_nom"], how='left', left_on="bus0", right_index=True, suffixes=('_bus_0', '_bus_1'))
+    t = t.merge(network.buses.loc[:, "v_nom"], how='left', left_on="bus1", right_index=True, suffixes=('_bus_0', '_bus_1'))
+
+    t["off_nomial_tap_ratio"] = (t["v_nom_0"]/t["v_nom_bus_0"])/(t["v_nom_1"]/t["v_nom_bus_1"])
+    t["off_nomial_voltage_level_winding_1"] = t["v_nom_1"]/t["v_nom_bus_1"]
 
     t["r"] = t["vscr"] /100.
     t["x"] = np.sqrt((t["vsc"]/100.)**2 - t["r"]**2)
@@ -697,11 +703,11 @@ def apply_transformer_types(network):
         t[attr] *= t["num_parallel"]
 
     #deal with tap positions
-
-    t["tap_ratio"] = 1. + (t["tap_position"] - t["tap_neutral"]) * (t["tap_step"]/100.)
+    t["tap_ratio"] = (1. + (t["tap_position"] - t["tap_neutral"]) * (t["tap_step"]/100.))
 
     # now set calculated values on live transformers
-    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]:
+    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio", "off_nomial_tap_ratio",
+                 "off_nomial_voltage_level_winding_1"]:
         network.transformers.loc[trafos_with_types_b, attr] = t[attr]
 
     #TODO: status, rate_A
@@ -746,7 +752,6 @@ def calculate_dependent_values(network):
     network.lines["g_pu"] = network.lines.g*network.lines.v_nom**2
     network.lines["x_pu_eff"] = network.lines["x_pu"]
     network.lines["r_pu_eff"] = network.lines["r_pu"]
-
 
     #convert transformer impedances from base power s_nom to base = 1 MVA
     network.transformers["x_pu"] = network.transformers.x/network.transformers.s_nom
@@ -935,22 +940,29 @@ def calculate_Y(sub_network,skip_pre=False):
     num_buses = len(buses_o)
 
     y_se = 1/(branches["r_pu"] + 1.j*branches["x_pu"])
-
     y_sh = branches["g_pu"]+ 1.j*branches["b_pu"]
 
     tau = branches["tap_ratio"].fillna(1.)
+    off_nom_tap_ratio = branches["off_nomial_tap_ratio"].fillna(1.)
+    off_nomial_voltage_level_winding_1 = branches["off_nomial_voltage_level_winding_1"].fillna(1.)
+
+    #correct the admitance with the off nominal voltage level of winding 1 (secondary side)
+    #(the implementation delivers testcase results consistent with NEPLAN 10.8.2.4, but the method is questionable)
+    y_se = y_se/off_nomial_voltage_level_winding_1**2
+    y_sh = y_sh/off_nomial_voltage_level_winding_1**2
 
     #catch some transformers falsely set with tau = 0 by pypower
     tau[tau==0] = 1.
 
     #define the HV tap ratios
-    tau_hv = pd.Series(1.,branches.index)
+    tau_hv = pd.Series(1., branches.index)
+
     tau_hv[branches.tap_side==0] = tau[branches.tap_side==0]
+    tau_hv = tau_hv*off_nom_tap_ratio
 
     #define the LV tap ratios
-    tau_lv = pd.Series(1.,branches.index)
+    tau_lv = pd.Series(1., branches.index)
     tau_lv[branches.tap_side==1] = tau[branches.tap_side==1]
-
 
     phase_shift = np.exp(1.j*branches["phase_shift"].fillna(0.)*np.pi/180.)
 
