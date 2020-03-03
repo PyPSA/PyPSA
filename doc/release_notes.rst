@@ -42,6 +42,7 @@ PyPSA 0.17.0
     * when network does not feature any extendable generators.
 
 * Fixed import from pandapower for transformers not based on standard types.
+* Examples jupyter notebooks are now available through `binder <https://mybinder.org/>`_.
 * Minor adjustments for compatibility with pandas v1.0.0.
 
 
