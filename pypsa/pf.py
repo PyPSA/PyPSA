@@ -961,9 +961,13 @@ def calculate_Y(sub_network,skip_pre=False):
     tau_hv = pd.Series(1., branches.index)
     tau_hv[branches.tap_side==0] = tau[branches.tap_side==0]
 
-    #take off nominal tap ratio into account
-    off_nom_tap_ratio = branches["off_nomial_tap_ratio"].fillna(1.)
-    tau_hv = tau_hv*off_nom_tap_ratio
+    #take off nominal tap ratio into account (the key "off_nomial_tap_ratio" is determined in apply_apply_transformer_types())
+    try:
+        off_nom_tap_ratio = branches["off_nomial_tap_ratio"].fillna(1.)
+        tau_hv = tau_hv*off_nom_tap_ratio
+    except KeyError:
+        # The key "off_nomial_tap_ratio" is determined by transformer type. Does not exist on trafos without type
+        pass
 
     #define the LV tap ratios
     tau_lv = pd.Series(1., branches.index)
