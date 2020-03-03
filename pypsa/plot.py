@@ -675,7 +675,7 @@ def iplot(n, fig=None, bus_colors='blue',
             index = n.lines.index
         return pd.Series(ser,
                          index=pd.MultiIndex(levels=(["Line"], index),
-                                             labels=(np.zeros(len(index)),
+                                             codes=(np.zeros(len(index)),
                                                      np.arange(len(index)))))
 
     line_colors = as_branch_series(line_colors)
