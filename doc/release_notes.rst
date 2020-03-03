@@ -5,19 +5,44 @@ Release Notes
 PyPSA 0.17.0
 =============
 
-* In favour of ``cartopy``, plotting geographical features with ``basemap`` is not supported anymore.  
-* Importing time series from custom non-standard output fields in ``network.component`` is now supported.
-* Deep copies of networks can now be created with a subset of snapshots, e.g. ``network.copy(snapshots=network.snapshots[:2])``.
+* In favour of ``cartopy``, plotting geographical features with
+  ``basemap`` is not supported anymore.  
+* Importing time series from custom non-standard output fields
+  in ``network.component`` is now supported.
+* Deep copies of networks can now be created with a subset of
+  snapshots, e.g. ``network.copy(snapshots=network.snapshots[:2])``.
+* When using the ``pyomo=False`` formulation of the LOPF (``network.lopf(pyomo=False)``): 
+
+    * It is now possible to alter the objective function.
+      Terms can be added to the objective via ``extra_functionality``
+      using the function :func:`pypsa.linopt.write_objective`.
+      When a pure custom objective function needs to be declared,
+      one can set ``skip_objective=True``.
+      In this case, only terms defined through ``extra_functionality``
+      will be considered in the objective function. 
+    * Shadow prices of capacity bounds for non-extendable passive branches
+      are parsed (similar to the ``pyomo=True`` setting)
+    * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle
+      exclusively radial network topologies.
+
+* When plotting, ``bus_sizes`` are now consistent when they have a ``pandas.MultiIndex``
+  or a ``pandas.Index``. The default is changed to ``bus_sizes=0.01`` because the bus
+  sizes now relate to the axis values.
+* When plotting, ``bus_alpha`` can now be used to add an alpha channel
+  which controls the opacity of the bus markers.
 * The argument ``bus_colors`` can a now also be a pandas.Series. 
-* The ``carrier`` component has two new columns 'color' and 'nice_name'. The color column is used by the plotting function if ``bus_sizes`` is a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined. 
-* When using the ``pyomo=False`` formulation of the LOPF: 
+* The ``carrier`` component has two new columns 'color' and 'nice_name'.
+  The color column is used by the plotting function if ``bus_sizes`` is
+  a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined. 
+* The function :func:`pypsa.linopf.ilopf` can now track the intermediate branch capacities
+  and objective values for each iteration using the ``track_iterations`` keyword.
+* Fixed unit commitment:
+    
+    * when ``min_up_time`` of committable generators exceeds the length of snapshots.
+    * when network does not feature any extendable generators.
 
-    * It is now possible to alter the objective function. Terms can be added to the objective via ``extra_functionality`` using the function :func:`pypsa.linopt.write_objective`. When a pure custom objective function needs to be declared, one can set ``skip_objective=True``. In this case, only terms defined through ``extra_functionality`` will be considered in the objective function. 
-    * Shadow prices of capacity bounds for non-extendable passive branches are parsed (similar to the ``pyomo=True`` setting)
-    * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle exclusively radial network topologies.
-
-* When plotting, ``bus_sizes`` are now consistent when they have a ``pandas.MultiIndex`` or a ``pandas.Index``. The default is changed to ``bus_sizes=0.01``. The bus sizes now relate to the axis values.
-* Fixed import from ``pandapower`` for transformers not based on standard types.
+* Fixed import from pandapower for transformers not based on standard types.
+* Minor adjustments for compatibility with pandas v1.0.0.
 
 
 PyPSA 0.16.1 (10th January 2020)
