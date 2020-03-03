@@ -37,7 +37,7 @@ You can also see/download the code directly from
 
 [[./examples/index.html][Examples]]
 
-* What PyPSA does and does not do (yet)
+* Functionality
 
 PyPSA can calculate:
 
@@ -70,15 +70,6 @@ It has models for:
    Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
    (BEVs), Fischer-Tropsch, direct air capture (DAC), etc.; each of
    these is demonstrated in the [[./examples/index.html][examples]]
-
-
-Functionality that may be added in the future:
-
-- Multi-year investment optimisation
-- Distributed active power slack
-- Interactive web-based GUI with SVG
-- OPF with the full non-linear network equations
-- Port to [[http://julialang.org/][Julia]]
 
 Other complementary libraries:
 

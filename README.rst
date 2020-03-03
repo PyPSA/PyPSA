@@ -52,8 +52,8 @@ Documentation is in `sphinx
 the ``doc`` sub-folder of the repository.
 
 
-What PyPSA does and does not do (yet)
-=======================================
+Functionality
+=============
 
 PyPSA can calculate:
 
@@ -87,14 +87,6 @@ It has models for:
   these is demonstrated in the `examples
   <http://www.pypsa.org/examples/>`_
 
-
-Functionality that may be added in the future:
-
-* Multi-year investment optimisation
-* Distributed active power slack
-* Interactive web-based GUI with SVG
-* OPF with the full non-linear network equations
-* Port to `Julia <http://julialang.org/>`_
 
 Other complementary libraries:
 
@@ -285,4 +277,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples
-   :alt: Examples of use 
+   :alt: Examples of use
