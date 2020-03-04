@@ -21,6 +21,17 @@ and in the paper
 System](https://arxiv.org/abs/1806.01613), 2018,
 [arXiv:1806.01613](https://arxiv.org/abs/1806.01613).
 
+**WARNING**: Please read the [limitations](https://pypsa-eur.readthedocs.io/en/latest/limitations.html) section of the
+documentation and paper carefully before using the model. We do not
+recommend to use the full resolution network model for simulations. At
+high granularity the assignment of loads and generators to the nearest
+network node may not be a correct assumption, depending on the topology of the underlying distribution grid,
+and local grid
+bottlenecks may cause unrealistic load-shedding or generator
+curtailment. We recommend to cluster the network to a couple of
+hundred nodes to remove these local inconsistencies. See the
+discussion in Section 3.4 "Model validation" of the paper. 
+
 ![PyPSA-Eur Grid Model](doc/img/base.png)
 
 ![PyPSA-Eur Grid Model Simplified](doc/img/elec_s_X.png)
@@ -45,3 +56,7 @@ The dataset consists of:
 
 Already-built versions of the model can be found in the accompanying [Zenodo
 repository](https://doi.org/10.5281/zenodo.3601882).
+
+A version of the model that adds building heating, transport and
+industry sectors to the model, as well as gas networks, can be found
+in the [PyPSA-Eur-Sec](https://github.com/PyPSA/pypsa-eur-sec) repository.
