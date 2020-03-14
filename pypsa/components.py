@@ -1069,6 +1069,16 @@ class Network(Basic):
                         logger.warning("The attribute %s of element %s of %s has NaN values for the following snapshots:\n%s",
                                        varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[min_pu[col].isnull()])
 
+                # check for infinite values
+                if np.isinf(max_pu).values.any():
+                    for col in max_pu.columns[np.isinf(max_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_max_pu", col, c.list_name, max_pu.index[np.isinf(max_pu[col])])
+                if np.isinf(min_pu).values.any():
+                    for col in min_pu.columns[np.isinf(min_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[np.isinf(min_pu[col])])
+
                 diff = max_pu - min_pu
                 diff = diff[diff < 0].dropna(axis=1, how='all')
                 for col in diff.columns:
