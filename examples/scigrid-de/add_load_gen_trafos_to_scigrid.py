@@ -465,8 +465,6 @@ monthly_load.plot(grid=True)
 
 ## Attach conventional generators from BNetzA list
 
-from vresutils import shapes as vshapes
-
 def read_kraftwerksliste(with_latlon=True):                                                                              
                                                                                                               
     kraftwerke = pd.read_csv('../../lib/vresutils/data/Kraftwerksliste_CSV_deCP850ed.csv',                                         
