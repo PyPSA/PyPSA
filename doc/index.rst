@@ -39,6 +39,9 @@ PyPSA-Eur is designed to be imported into the open toolbox `PyPSA <https://www.p
 
 This project is maintained by the `Energy System Modelling group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for Automation and Applied Informatics <https://www.iai.kit.edu/english/index.php>`_ at the `Karlsruhe Institute of Technology <http://www.kit.edu/english/index.php>`_. The group is funded by the `Helmholtz Association <https://www.helmholtz.de/en/>`_ until 2024. Previous versions were developed by the `Renewable Energy Group <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_ at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations for the `CoNDyNet project <http://condynet.de/>`_, financed by the `German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
+A version of the model that adds building heating, transport and industry sectors to the model,
+as well as gas networks, is currently being developed in the `PyPSA-Eur-Sec repository <https://github.com/pypsa/pypsa-eur-sec>`_.
+
 Documentation
 =============
 
@@ -103,6 +106,19 @@ Documentation
    release_notes
    limitations
    contributing
+
+Warnings
+========
+
+Please read the `limitations <https://pypsa-eur.readthedocs.io/en/latest/limitations.html>`_ section of the
+documentation and paper carefully before using the model. We do not
+recommend to use the full resolution network model for simulations. At
+high granularity the assignment of loads and generators to the nearest
+network node may not be a correct assumption, depending on the topology of the underlying distribution grid,
+and local grid
+bottlenecks may cause unrealistic load-shedding or generator
+curtailment. We recommend to cluster the network to a couple of
+hundred nodes to remove these local inconsistencies.
 
 Learning Energy System Modelling
 ================================
