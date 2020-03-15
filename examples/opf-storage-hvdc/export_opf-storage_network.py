@@ -49,7 +49,7 @@ network.add("Carrier","battery")
 
 
 # in kg CO2e
-n.add("GlobalConstraint","co2_limit",
+network.add("GlobalConstraint","co2_limit",
       sense="<=",
       constant=1000.)
 

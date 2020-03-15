@@ -556,8 +556,8 @@ def backup_capacity_german_grid(G):
         for n, cell in iteritems(cells):
             if cell.contains(p):
                 return n
-        else:
-            return min(cells, key=lambda n: cells[n].distance(p))
+            else:
+                return min(cells, key=lambda n: cells[n].distance(p))
     nodes = plants.apply(nodeofaplant, axis=1)
 
     capacity = plants['Netto-Nennleistung'].groupby((nodes, plants[u'Type'])).sum() / 1e3

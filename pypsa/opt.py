@@ -292,7 +292,7 @@ def free_pyomo_initializers(obj):
     elif isinstance(obj, Constraint):
         attrs = ('rule', '_init_expr')
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
     for attr in attrs:
         if hasattr(obj, attr):
