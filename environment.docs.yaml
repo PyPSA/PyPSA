@@ -44,7 +44,7 @@ dependencies:
 
   # The FRESNA/KIT stuff is not packaged for conda yet
   - pip:
-    - git+https://github.com/FRESNA/vresutils.git#egg=vresutils
+    - vresutils==0.3.1
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     - git+https://github.com/PyPSA/pypsa.git#egg=pypsa # until PyPSA/a3c0991 released 
