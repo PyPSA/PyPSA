@@ -2,8 +2,10 @@
 Release Notes
 #######################
 
-PyPSA 0.17.0
-=============
+Upcoming Release
+================
+
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * In favour of ``cartopy``, plotting geographical features with
   ``basemap`` is not supported anymore.  
