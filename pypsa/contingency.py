@@ -143,7 +143,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     p0["base"] = p0_base
 
     for branch in branch_outages:
-        if type(branch) is not tuple:
+        if not isinstance(branch, tuple):
             logger.warning("No type given for {}, assuming it is a line".format(branch))
             branch = ("Line",branch)
 

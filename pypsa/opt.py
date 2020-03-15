@@ -94,7 +94,7 @@ class LExpression(object):
         return self.__mul__(constant)
 
     def __add__(self,other):
-        if type(other) is LExpression:
+        if isinstance(other, LExpression):
             return LExpression(self.variables + other.variables,self.constant+other.constant)
         else:
             try:
@@ -219,7 +219,7 @@ def l_constraint(model,name,constraints,*args):
     v = getattr(model,name)
     for i in v._index:
         c = constraints[i]
-        if type(c) is LConstraint:
+        if isinstance(c, LConstraint):
             variables = c.lhs.variables + [(-item[0],item[1]) for item in c.rhs.variables]
             sense = c.sense
             constant = c.rhs.constant - c.lhs.constant
