@@ -953,7 +953,6 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
     for subnetwork in network.sub_networks.obj:
 
-        branches = subnetwork.branches()
         attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
 
         sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
@@ -1411,7 +1410,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     try:
         network.global_constraints.loc[:,"mu"] = - get_shadows(model.global_constraints, multiind=False)
-    except (AttributeError, KeyError) as e:
+    except (AttributeError, KeyError):
         logger.warning("Could not read out global constraint shadow prices")
 
     #extract unit commitment statuses
