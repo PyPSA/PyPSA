@@ -359,7 +359,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in ru_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_up"],
@@ -369,6 +368,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   -network.generators.at[gen, "ramp_limit_up"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_start_up"]*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
@@ -413,7 +413,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in rd_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (network.generators.at[gen, "ramp_limit_down"],
@@ -423,6 +422,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   network.generators.loc[gen, "ramp_limit_down"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    ((network.generators.at[gen, "ramp_limit_down"] - network.generators.at[gen, "ramp_limit_shut_down"])*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
