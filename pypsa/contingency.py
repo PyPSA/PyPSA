@@ -25,9 +25,9 @@ __author__ = "Tom Brown (FIAS)"
 __copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 
 
-from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
+from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack
 
-from numpy import r_, ones, zeros, newaxis
+from numpy import r_, ones, zeros
 
 import logging
 logger = logging.getLogger(__name__)

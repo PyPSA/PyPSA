@@ -70,9 +70,6 @@
 #
 #xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division,absolute_import
-
 import pypsa
 
 import pandas as pd
@@ -384,10 +381,7 @@ except:
 
 import load
 
-from vresutils import graph as vgraph
 from vresutils import shapes as vshapes
-from vresutils import grid as vgrid
-from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
 from load import germany as DEload
 import networkx as nx

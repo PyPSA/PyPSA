@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-
-
 import pypsa
 
 #NB: this test doesn't work for other cases because transformer tap

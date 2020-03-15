@@ -1,9 +1,6 @@
 
 #Use the component_library to add components.
 
-#NB: This only works with Python 3 because of super() in component_library
-
-
 import component_library
 
 import pandas as pd

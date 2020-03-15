@@ -57,9 +57,6 @@
 #
 #xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
-#make the code as Python 3 compatible as possible
-from __future__ import print_function, division, absolute_import
-
 import pypsa
 
 import numpy as np
@@ -69,8 +66,6 @@ import pandas as pd
 import os
 
 import plotly.offline as pltly
-
-import cufflinks as cf
 
 pltly.init_notebook_mode(connected=True)
 

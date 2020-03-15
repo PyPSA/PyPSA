@@ -2,8 +2,6 @@
 #Create a library with its own Network class that has a new CHP
 #component and a new LOPF function for the CHP constraints
 
-#NB: This only works with Python 3 because of super()
-
 import pypsa, pandas as pd, numpy as np
 
 from pypsa.descriptors import Dict

@@ -32,20 +32,17 @@ projects.
 
 # make the code as Python 3 compatible as possible
 from __future__ import division, absolute_import
-from six.moves import range
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize, maximize
-from weakref import ref as weakref_ref
+from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize
 
 import pyomo
 from contextlib import contextmanager
 from six import iteritems
 from six.moves import cPickle as pickle
-import pandas as pd
 import gc, os, tempfile
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
