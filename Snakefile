@@ -135,7 +135,8 @@ if config['enable'].get('build_cutout', False):
         benchmark: "benchmarks/build_cutout_{cutout}"
         # group: 'feedin_preparation'
         script: "scripts/build_cutout.py"
-else:
+
+if config['enable'].get('retrieve_cutout', True):
     rule retrieve_cutout:
         output: directory(expand("cutouts/{cutouts}", **config['atlite'])),
         log: "logs/retrieve_cutout.log"
@@ -150,7 +151,8 @@ if config['enable'].get('build_natura_raster', False):
         output: "resources/natura.tiff"
         log: "logs/build_natura_raster.log"
         script: "scripts/build_natura_raster.py"
-else:
+
+if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
         output: "resources/natura.tiff"
         log: "logs/retrieve_natura_raster.log"

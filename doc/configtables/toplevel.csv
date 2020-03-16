@@ -10,5 +10,7 @@ focus_weights,--,"Keys should be two-digit country codes (e.g. DE) and values sh
 enable,,,
 -- prepare_links_p_nom,bool,"{true, false}","Switch to retrieve current HVDC projects from `Wikipedia <https://en.wikipedia.org/wiki/List_of_HVDC_projects>`_"
 -- retrieve_databundle,bool,"{true, false}","Switch to retrieve databundle from zenodo via the rule :mod:`retrieve_databundle` or whether to keep a custom databundle located in the corresponding folder."
--- build_cutout,bool,"{true, false}","Switch to build cutouts via the rule :mod:`build_cutout` or whether to retrieve the data from zenodo with :mod:`retrieve_cutout`."
--- build_natura_raster,bool,"{true, false}","Switch to create raster ``natura.tiff`` via the rule :mod:`build_natura_raster` or whether to retrieve ``natura.tiff`` from zenodo with :mod:`retrieve_natura_raster`."
+-- build_cutout,bool,"{true, false}","Switch to enable the building of cutouts via the rule :mod:`build_cutout`."
+-- retrieve_cutout,bool,"{true, false}","Switch to enable the retrieval of cutouts from zenodo with :mod:`retrieve_cutout`."
+-- build_natura_raster,bool,"{true, false}","Switch to enable the creation of the raster ``natura.tiff`` via the rule :mod:`build_natura_raster`."
+-- retrieve_natura_raster,bool,"{true, false}","Switch to enable the retrieval of ``natura.tiff`` from zenodo with :mod:`retrieve_natura_raster`."
