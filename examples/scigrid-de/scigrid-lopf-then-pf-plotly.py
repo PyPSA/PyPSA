@@ -58,18 +58,15 @@
 #xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
 import pypsa
-
 import numpy as np
-
 import pandas as pd
-
 import os
-
 import plotly.offline as pltly
+import cufflinks as cf
 
 pltly.init_notebook_mode(connected=True)
 
-#You may have to adjust this path to where 
+#You may have to adjust this path to where
 #you downloaded the github repository
 #https://github.com/PyPSA/PyPSA
 
@@ -102,7 +99,7 @@ fig = dict(data=[],layout=dict(width=700,height=700))
 
 fig = network.iplot(bus_sizes=0.05*gen_distribution, fig=fig,
                      bus_text=tech + ' at bus ' + network.buses.index + ': ' + round(gen_distribution).values.astype(str) + ' MW',
-                     title=tech + " distribution")   
+                     title=tech + " distribution")
 
 ### Run Linear Optimal Power Flow on the first day of 2011
 
@@ -113,7 +110,7 @@ contingency_factor = 0.7
 
 network.lines.s_nom = contingency_factor*network.lines.s_nom
 
-#There are some infeasibilities without small extensions                                                                                 
+#There are some infeasibilities without small extensions
 for line_name in ["316","527","602"]:
     network.lines.loc[line_name,"s_nom"] = 1200
 
