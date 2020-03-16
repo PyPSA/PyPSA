@@ -1217,6 +1217,7 @@ def define_linear_objective(network,snapshots):
                                 for b in extendable_links.index])
     objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).zsum()
 
+    network.objective_constant = - objective.constant
 
     ## Unit commitment costs
 

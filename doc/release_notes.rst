@@ -46,7 +46,7 @@ Upcoming Release
 * Fixed import from pandapower for transformers not based on standard types.
 * Examples jupyter notebooks are now available through `binder <https://mybinder.org/>`_.
 * Minor adjustments for compatibility with pandas v1.0.0.
-
+* After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values. 
 
 PyPSA 0.16.1 (10th January 2020)
 ================================
