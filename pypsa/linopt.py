@@ -702,13 +702,13 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.solution.basis.write(n.basis_fn)
 
     objective = m.solution.get_objective_value()
-    sol = pd.Series(m.solution.get_values(), m.variables.get_names())
+    sol = pd.Series(m.solution.get_values(), m.variables.get_names()).pipe(set_int_index)
     if is_lp:
         dual = pd.Series(m.solution.get_dual_values(),
-                         m.linear_constraints.get_names())
+                         m.linear_constraints.get_names()).pipe(set_int_index)
     else:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        dual = pd.Series(index=m.linear_constraints.get_names())
+        dual = pd.Series(index=m.linear_constraints.get_names()).pipe(set_int_index)
     return (status, termination_condition, sol, dual, objective)
 
 
