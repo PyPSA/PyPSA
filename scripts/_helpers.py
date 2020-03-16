@@ -94,8 +94,6 @@ def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     import pypsa
     from add_electricity import update_transmission_costs, load_costs
 
-    opts = config['plotting']
-
     n = pypsa.Network(fn)
 
     n.loads["carrier"] = n.loads.bus.map(n.buses.carrier) + " load"

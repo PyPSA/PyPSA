@@ -22,7 +22,6 @@ import pypsa
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import logging
 
 def cum_p_nom_max(net, tech, country=None):
     carrier_b = net.generators.carrier == tech

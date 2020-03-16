@@ -227,7 +227,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algori
         elif algorithm == "louvain":
             return prefix + busmap_by_louvain(reduce_network(n, x), n_clusters[x.name], **algorithm_kwds)
         else:
-            raise ArgumentError("`algorithm` must be one of 'kmeans', 'spectral' or 'louvain'")
+            raise ValueError(f"`algorithm` must be one of 'kmeans', 'spectral' or 'louvain'. Is {algorithm}.")
 
     return (n.buses.groupby(['country', 'sub_network'], group_keys=False, squeeze=True)
             .apply(busmap_for_country).rename('busmap'))

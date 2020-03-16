@@ -66,7 +66,7 @@ import yaml
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-import scipy as sp, scipy.spatial
+import scipy as sp
 from scipy.sparse import csgraph
 from six import iteritems
 from itertools import product

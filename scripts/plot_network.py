@@ -17,7 +17,7 @@ Description
 
 import logging
 logger = logging.getLogger(__name__)
-from _helpers import (load_network, aggregate_p, aggregate_costs,
+from _helpers import (load_network_for_plots, aggregate_p, aggregate_costs,
                       configure_logging)
 
 import pandas as pd

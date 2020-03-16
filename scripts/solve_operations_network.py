@@ -47,7 +47,6 @@ from _helpers import configure_logging
 
 import pypsa
 import numpy as np
-import re
 
 from pathlib import Path
 from vresutils.benchmark import memory_logger

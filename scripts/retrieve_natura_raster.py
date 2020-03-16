@@ -29,7 +29,6 @@ This rule, as a substitute for :mod:`build_natura_raster`, downloads an already 
 import logging
 logger = logging.getLogger(__name__)
 
-from pathlib import Path
 from _helpers import progress_retrieve, configure_logging
 
 if __name__ == "__main__":
