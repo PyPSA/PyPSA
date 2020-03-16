@@ -350,7 +350,7 @@ def define_kirchhoff_constraints(n, sns):
         cycle_sum.index = sns
         con = write_constraint(n, cycle_sum, '=', 0)
         constraints.append(con)
-    if len(constraints) == 0: return 
+    if len(constraints) == 0: return
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
@@ -556,6 +556,7 @@ def define_objective(n, sns):
         constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
+    n.objective_constant = constant
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
