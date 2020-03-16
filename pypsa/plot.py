@@ -56,9 +56,10 @@ except ImportError:
 
 
 def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='darkgreen', bus_alpha=1, bus_sizes=1e-2, bus_cmap=None,
-         line_colors='indianred', link_colors='teal',  transformer_colors='orange',
-         line_widths=2, link_widths=2, transformer_widths=2,
+         bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
+         line_colors='rosybrown', link_colors='darkseagreen',
+         transformer_colors='orange',
+         line_widths=1.5, link_widths=1.5, transformer_widths=1.5,
          line_cmap=None, link_cmap=None, transformer_cmap=None,
          flow=None, branch_components=None, layouter=None, title="",
          boundaries=None, geometry=False, jitter=None, color_geomap=None):
@@ -80,9 +81,9 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         installed. If None (default) is passed the projection for cartopy
         is set to cartopy.crs.PlateCarree
     bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "b". If bus_sizes is a pandas.Series
-        with a Multiindex, bus_colors defaults to the n.carriers['color']
-        column.
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
     bus_sizes : dict/pandas.Series
         Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
         the function will draw pies for each bus (first index level) with
@@ -90,14 +91,18 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
     bus_alpha : float
         Adds alpha channel to buses, defaults to 1.
-    line_colors : dict/pandas.Series
-        Colors for the lines, defaults to "g" for Lines and "cyan" for
-        Links. Colors for branches other than Lines can be
-        specified using a pandas Series with a MultiIndex.
+    line_colors : str/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    link_colors : str/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    transfomer_colors : str/pandas.Series
+        Colors for the transfomer, defaults to 'orange'.
     line_widths : dict/pandas.Series
-        Widths of lines, defaults to 2. Widths for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
+        Widths of lines, defaults to 1.5
+    link_widths : dict/pandas.Series
+        Widths of links, defaults to 1.5
+    transformer_widths : dict/pandas.Series
+        Widths of transformer, defaults to 1.5
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
         n.snapshots is given, the flow at this timestamp will be
@@ -235,12 +240,14 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
     colors = [('Line', line_colors), ('Link', link_colors),
               ('Transformer', transformer_colors)]
-    branch_colors = pd.concat({c: as_branch_series(ser, 'color', c)
-                     for c, ser in colors if c in branch_components})
+    branch_colors = {c: as_branch_series(ser, 'color', c)
+                     for c, ser in colors if c in branch_components}
     widths = [('Line', line_widths), ('Link', link_widths),
               ('Transformer', transformer_widths)]
-    branch_widths = pd.concat({c: as_branch_series(ser, 'width', c)
-                     for c, ser in widths if c in branch_components})
+    branch_widths = {c: as_branch_series(ser, 'width', c)
+                     for c, ser in widths if c in branch_components}
+    branch_cmap = {'Line': line_cmap, 'Link': link_cmap,
+                   'Transformer': transformer_cmap}
 
     branch_collections = []
 
@@ -261,9 +268,11 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         b_colors = branch_colors[c.name]
         b_nums = None
 
-        if issubclass(b_colors.dtype.type, np.number):
-            b_nums = b_colors
+        try:
+            b_nums = b_colors.astype(int)
             b_colors = None
+        except ValueError:
+            continue
 
         if not geometry:
             segments = (np.asarray(((c.df.bus0.map(x), c.df.bus0.map(y)),
