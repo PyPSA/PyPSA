@@ -17,10 +17,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
-
-
 __author__ = "Tom Brown (FIAS)"
 __copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 

@@ -16,9 +16,6 @@
 """Power flow functionality.
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
-from six.moves import range
 from six import iterkeys
 from six.moves.collections_abc import Sequence
 
@@ -197,7 +194,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
         Distribution scheme describing how to determine the fraction of the total slack power
         (of each sub network individually) a bus of the subnetwork takes up.
         Default is to distribute proportional to generator dispatch ('p_set').
-        Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt'). 
+        Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be specified via a dictionary that has a key for each
         subnetwork index (``network.sub_networks.index``) and a
         pandas.Series/dict with buses or generators of the
@@ -271,7 +268,7 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
-        ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt'). 
+        ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
     """
@@ -312,7 +309,7 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
         network.generators_t.p.loc[snapshots,sub_network.slack_generator] -= network.buses_t.p.loc[snapshots,sub_network.slack_bus]
 
     network.generators_t.q.loc[snapshots,sub_network.slack_generator] -= network.buses_t.q.loc[snapshots,sub_network.slack_bus]
-    
+
     network.buses_t.p.loc[snapshots,sub_network.slack_bus] = 0.
     network.buses_t.q.loc[snapshots,sub_network.slack_bus] = 0.
 
@@ -342,7 +339,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
-        ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt'). 
+        ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
         that has the buses or the generators of the subnetwork as index/keys.
         When using custom weights with buses as index/keys the slack power of a bus is distributed
@@ -485,11 +482,11 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
             generators_t_p_choice = get_switchable_as_dense(network, 'Generator', slack_weights, snapshots)
             bus_generation = generators_t_p_choice.rename(columns=network.generators.bus)
             slack_weights_calc = pd.DataFrame(bus_generation.groupby(bus_generation.columns, axis=1).sum(), columns=buses_o).apply(normed, axis=1).fillna(0)
-        
+
         elif isinstance(slack_weights, str) and slack_weights in ['p_nom', 'p_nom_opt']:
             assert not all(network.generators[slack_weights]) == 0, "Invalid slack weights! Generator attribute {} is always zero.".format(slack_weights)
             slack_weights_calc = network.generators.groupby('bus').sum()[slack_weights].reindex(buses_o).pipe(normed).fillna(0)
-        
+
         elif generator_slack_weights_b:
             # convert generator-based slack weights to bus-based slack weights
             slack_weights_calc = slack_weights.rename(network.generators.bus).groupby(slack_weights.index.name).sum().reindex(buses_o).pipe(normed).fillna(0)

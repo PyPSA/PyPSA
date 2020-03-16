@@ -30,8 +30,6 @@ projects.
 
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 
 import logging
 logger = logging.getLogger(__name__)

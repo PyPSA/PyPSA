@@ -19,8 +19,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, iterkeys
 from weakref import ref
 

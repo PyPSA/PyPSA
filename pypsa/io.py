@@ -16,10 +16,7 @@
 """Functions for importing and exporting data.
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, iterkeys, string_types
-from six.moves import range
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
