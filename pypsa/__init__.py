@@ -22,19 +22,9 @@
 Grid calculation library.
 """
 
-
-from __future__ import absolute_import
-
 from . import components, descriptors
-from . import pf, opf, opt, plot, networkclustering, io, contingency, geo, stats
-
-import sys
-
-#do this as long as python 2.7 should be supported
-if sys.version_info.major >= 3:
-    from . import linopf, linopt
-
-
+from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo,
+               stats, linopf, linopt)
 
 from .components import Network, SubNetwork
 

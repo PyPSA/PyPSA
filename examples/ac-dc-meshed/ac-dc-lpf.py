@@ -3,19 +3,9 @@
 #Compute Linear Power Flow for each snapshot for AC-DC network in
 #folder ac-dc-data/
 
-
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
-
-
 import pypsa, os
 
-import pandas as pd
-
 import numpy as np
-
-from itertools import chain
 
 network = pypsa.Network()
 

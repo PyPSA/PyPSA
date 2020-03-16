@@ -3,23 +3,13 @@
 #Optimise the dispatch and capacities of the network in
 #opf-storage-data.
 
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
-
 import pypsa
 
-import datetime
 import pandas as pd
-
-import networkx as nx
 
 import numpy as np
 
-from itertools import chain
-
 import os
-
 
 from distutils.spawn import find_executable
 

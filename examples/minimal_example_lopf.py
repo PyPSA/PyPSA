@@ -2,8 +2,6 @@
 #
 #Available as a Jupyter notebook at <http://www.pypsa.org/examples/minimal_example_lopf.ipynb>.
 
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division
 import pypsa
 import numpy as np
 

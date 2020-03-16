@@ -15,7 +15,7 @@ pyomo (see module linopt.py)
 
 from .descriptors import Dict
 import pandas as pd
-import os, logging, re, io, subprocess
+import logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
 

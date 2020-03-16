@@ -19,8 +19,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, iterkeys
 from weakref import ref
 
@@ -933,8 +931,8 @@ class Network(Basic):
                                 "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
-                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
-                                self.buses.carrier.iloc[buses_i].value_counts())
+                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i,
+                                self.buses.carrier.iloc[buses_i].value_counts()))
 
             self.add("SubNetwork", i, carrier=carrier)
 
