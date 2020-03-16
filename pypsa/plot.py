@@ -56,11 +56,12 @@ except ImportError:
 
 
 def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', bus_alpha=1, line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=1e-2,
-         line_widths={'Line':2, 'Link':2},
-         flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_components=['Line', 'Link'], jitter=None,
-         color_geomap=None):
+         bus_colors='darkgreen', bus_alpha=1, bus_sizes=1e-2, bus_cmap=None,
+         line_colors='indianred', link_colors='teal',  transformer_colors='orange',
+         line_widths=2, link_widths=2, transformer_widths=2,
+         line_cmap=None, link_cmap=None, transformer_cmap=None,
+         flow=None, branch_components=None, layouter=None, title="",
+         boundaries=None, geometry=False, jitter=None, color_geomap=None):
     """
     Plot the network buses and lines using matplotlib and cartopy.
 
@@ -135,12 +136,6 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-    defaults_for_branches = pd.Series(
-        {'Link': dict(color="cyan", width=2),
-         'Line': dict(color="b", width=2),
-         'Transformer': dict(color='green', width=2)}
-        ).rename_axis('component')
-
     x, y = _get_coordinates(n, layouter=layouter)
 
     if geomap:
@@ -165,6 +160,8 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
     elif ax is None:
         ax = plt.gca()
+
+    # Plot buses:
 
     if jitter is not None:
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
@@ -225,61 +222,52 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         bus_collection = PatchCollection(patches, match_original=True)
         ax.add_collection(bus_collection)
 
-    def as_branch_series(ser):
-        # ensure that this function always return a multiindexed series
-        if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return pd.concat(
-                    {c.name: pd.Series(s, index=c.df.index) for c, s in
-                         zip(n.iterate_components(ser.keys()), ser.values())},
-                    names=['component', 'name'])
-        elif isinstance(ser, pd.Series) and isinstance(ser.index, pd.MultiIndex):
-            return ser.rename_axis(index=['component', 'name'])
-        else:
-            ser =  pd.Series(ser, n.lines.index)
-            return pd.concat([ser], axis=0, keys=['Line'],
-                             names=['component', 'name']).fillna(0)
+    # Plot branches:
 
-    line_colors = as_branch_series(line_colors)
-    line_widths = as_branch_series(line_widths)
+    def as_branch_series(ser, arg, c):
+        ser = pd.Series(ser, index=n.df(c).index)
+        assert not ser.isnull().any(), (f'{c}_{arg}s does not specify all '
+                f'entries. Missing values for {c}: {list(ser[ser.isnull()].index)}')
+        return ser
 
-    if not isinstance(line_cmap, dict):
-        line_cmap = {'Line': line_cmap}
+    if branch_components is None:
+        branch_components = n.branch_components
+
+    colors = [('Line', line_colors), ('Link', link_colors),
+              ('Transformer', transformer_colors)]
+    branch_colors = pd.concat({c: as_branch_series(ser, 'color', c)
+                     for c, ser in colors if c in branch_components})
+    widths = [('Line', line_widths), ('Link', link_widths),
+              ('Transformer', transformer_widths)]
+    branch_widths = pd.concat({c: as_branch_series(ser, 'width', c)
+                     for c, ser in widths if c in branch_components})
 
     branch_collections = []
 
     if flow is not None:
-        flow = (_flow_ds_from_arg(flow, n, branch_components)
-                .pipe(as_branch_series)
-                .div(sum(len(t.df) for t in
-                         n.iterate_components(branch_components)) + 100))
-        flow = flow.mul(line_widths[flow.index], fill_value=1)
+        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
+        flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
+        flow = flow.mul(branch_widths[flow.index], fill_value=1)
         # update the line width, allows to set line widths separately from flows
-        line_widths.update((5 * flow.abs()).pipe(np.sqrt))
+        branch_widths.update((5 * flow.abs()).pipe(np.sqrt))
         arrows = directed_flow(n, flow, x=x, y=y, ax=ax, geomap=geomap,
-                               branch_colors=line_colors,
-                               branch_comps=branch_components,
-                               cmap=line_cmap['Line'])
+                               branch_colors=branch_colors,
+                               branch_comps=branch_components)
         branch_collections.append(arrows)
 
 
     for c in n.iterate_components(branch_components):
-        l_defaults = defaults_for_branches[c.name]
-        l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_nums = None
-        l_colors = line_colors.get(c.name, l_defaults['color'])
+        b_widths = branch_widths[c.name]
+        b_colors = branch_colors[c.name]
+        b_nums = None
 
-        if isinstance(l_colors, pd.Series):
-            if issubclass(l_colors.dtype.type, np.number):
-                l_nums = l_colors
-                l_colors = None
-            else:
-                l_colors.fillna(l_defaults['color'], inplace=True)
+        if issubclass(b_colors.dtype.type, np.number):
+            b_nums = b_colors
+            b_colors = None
 
         if not geometry:
-            segments = (np.asarray(((c.df.bus0.map(x),
-                                     c.df.bus0.map(y)),
-                                    (c.df.bus1.map(x),
-                                     c.df.bus1.map(y))))
+            segments = (np.asarray(((c.df.bus0.map(x), c.df.bus0.map(y)),
+                                    (c.df.bus1.map(x), c.df.bus1.map(y))))
                         .transpose(2, 0, 1))
         else:
             from shapely.wkt import loads
@@ -290,21 +278,20 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                 "composed of LineStrings")
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
-        l_collection = LineCollection(segments,
-                                      linewidths=l_widths,
+        b_collection = LineCollection(segments,
+                                      linewidths=b_widths,
                                       antialiaseds=(1,),
-                                      colors=l_colors,
+                                      colors=b_colors,
                                       transOffset=ax.transData)
 
-        if l_nums is not None:
-            l_collection.set_array(np.asarray(l_nums))
-            l_collection.set_cmap(line_cmap.get(c.name, None))
-            l_collection.autoscale()
+        if b_nums is not None:
+            b_collection.set_array(np.asarray(b_nums))
+            b_collection.set_cmap(branch_cmap.get(c.name, None))
+            b_collection.autoscale()
 
-        ax.add_collection(l_collection)
-        l_collection.set_zorder(3)
-
-        branch_collections.append(l_collection)
+        ax.add_collection(b_collection)
+        b_collection.set_zorder(3)
+        branch_collections.append(b_collection)
 
     bus_collection.set_zorder(4)
 
@@ -412,8 +399,7 @@ def _flow_ds_from_arg(flow, n, branch_components):
 
 
 def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
-                  branch_colors='darkgreen', branch_comps=['Line', 'Link'],
-                  cmap=None):
+                  branch_colors='darkgreen', branch_comps=['Line', 'Link']):
     """
     Helper function to generate arrows from flow data.
     """
@@ -550,9 +536,9 @@ _open__mb_styles = ['open-street-map', 'white-bg', 'carto-positron',
 
 def iplot(n, fig=None, bus_colors='blue',
           bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
-          line_colors='green', line_widths=2, line_text=None, layouter=None, title="", size=None,
-          branch_components=['Line', 'Link'], iplot=True, jitter=None,
-          mapbox=False, mapbox_style='open-street-map', mapbox_token="",
+          line_colors='green', line_widths=2, line_text=None, layouter=None,
+          title="", size=None, branch_components=['Line', 'Link'], iplot=True,
+          jitter=None, mapbox=False, mapbox_style='open-street-map', mapbox_token="",
           mapbox_parameters={}):
     """
     Plot the network buses and lines interactively using plotly.
