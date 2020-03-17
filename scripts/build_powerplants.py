@@ -86,7 +86,7 @@ def add_custom_powerplants(ppl):
                            dtype={'bus': 'str'})
     if isinstance(custom_ppl_query, str):
         add_ppls.query(custom_ppl_query, inplace=True)
-    return ppl.append(add_ppls, sort=False)
+    return ppl.append(add_ppls, sort=False, ignore_index=True, verify_integrity=True)
 
 
 if __name__ == "__main__":

@@ -1,1 +1,1 @@
-id,Name,Fueltype,Technology,Set,Country,Capacity,Efficiency,Duration,Volume_Mm3,DamHeight_m,YearCommissioned,Retrofit,lat,lon,projectID
+Name,Fueltype,Technology,Set,Country,Capacity,Efficiency,Duration,Volume_Mm3,DamHeight_m,YearCommissioned,Retrofit,lat,lon,projectID,YearDecommissioning
