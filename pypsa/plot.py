@@ -248,18 +248,10 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
     if branch_components is None:
         branch_components = n.branch_components
 
-    def as_branch_series(ser, arg, c):
-        ser = pd.Series(ser, index=n.df(c).index)
-        assert not ser.isnull().any(), (f'{c}_{arg}s does not specify all '
-                f'entries. Missing values for {c}: {list(ser[ser.isnull()].index)}')
-        return ser
-
-    branch_colors = {c: as_branch_series(color, 'color', c)
-                     for c, color in [('Line', line_colors), ('Link', link_colors),
-                                      ('Transformer', transformer_colors)]}
-    branch_widths = {c: as_branch_series(width, 'width', c)
-                     for c, width in [('Line', line_widths), ('Link', link_widths),
-                                      ('Transformer', transformer_widths)]}
+    branch_colors = {'Line': line_colors, 'Link': link_colors,
+                     'Transformer': transformer_colors}
+    branch_widths = {'Line': line_widths, 'Link': link_widths,
+                     'Transformer': transformer_widths}
     branch_cmap = {'Line': line_cmap, 'Link': link_cmap,
                    'Transformer': transformer_cmap}
 
@@ -271,17 +263,15 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
 
     for c in n.iterate_components(branch_components):
-        b_widths = branch_widths[c.name]
-        b_colors = branch_colors[c.name]
+        b_widths = as_branch_series(branch_widths[c.name], 'width', c.name, n)
+        b_colors = as_branch_series(branch_colors[c.name], 'color', c.name, n)
         b_nums = None
         b_cmap = branch_cmap[c.name]
         b_flow = flow.get(c.name, None) if flow is not None else None
 
-        try:
-            b_nums = b_colors.astype(float)
+        if issubclass(b_colors.dtype.type, np.number):
+            b_nums = b_colors
             b_colors = None
-        except ValueError:
-            pass
 
         if not geometry:
             segments = (np.asarray(((c.df.bus0.map(x), c.df.bus0.map(y)),
@@ -333,13 +323,20 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
     if geomap:
         ax.outline_patch.set_visible(False)
-        ax.axis('off')
     else:
         ax.set_aspect('equal')
+    ax.axis('off')
 
     ax.set_title(title)
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
+
+
+def as_branch_series(ser, arg, c, n):
+    ser = pd.Series(ser, index=n.df(c).index)
+    assert not ser.isnull().any(), (f'{c}_{arg}s does not specify all '
+            f'entries. Missing values for {c}: {list(ser[ser.isnull()].index)}')
+    return ser
 
 
 def get_projection_from_crs(crs):
@@ -546,12 +543,14 @@ _open__mb_styles = ['open-street-map', 'white-bg', 'carto-positron',
 #inspired the breakout group and for contributing ideas to the iplot
 #function below.
 
-def iplot(n, fig=None, bus_colors='blue',
-          bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
-          line_colors='green', line_widths=2, line_text=None, layouter=None,
-          title="", size=None, branch_components=['Line', 'Link'], iplot=True,
-          jitter=None, mapbox=False, mapbox_style='open-street-map', mapbox_token="",
-          mapbox_parameters={}):
+def iplot(n, fig=None, bus_colors='cadetblue', bus_alpha=1, bus_sizes=10,
+          bus_cmap=None, bus_colorbar=None, bus_text=None,
+          line_colors='rosybrown', link_colors='darkseagreen',
+          transformer_colors='orange', line_widths=3, link_widths=3,
+          transformer_widths=3, line_text=None, link_text=None,
+          transformer_text=None,  layouter=None, title="", size=None,
+          branch_components=None, iplot=True, jitter=None, mapbox=False,
+          mapbox_style='open-street-map', mapbox_token="",mapbox_parameters={}):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -560,27 +559,37 @@ def iplot(n, fig=None, bus_colors='blue',
     fig : dict, default None
         If not None, figure is built upon this fig.
     bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "b"
-    bus_colorscale : string
-        Name of colorscale if bus_colors are floats, e.g. 'Jet', 'Viridis'
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
+    bus_alpha : float
+        Adds alpha channel to buses, defaults to 1.
+    bus_sizes : float/pandas.Series
+        Sizes of bus points, defaults to 10.
+    bus_cmap : plt.cm.ColorMap/str
+        If bus_colors are floats, this color map will assign the colors
     bus_colorbar : dict
         Plotly colorbar, e.g. {'title' : 'my colorbar'}
-    bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 10
-    bus_text : dict/pandas.Series
+    bus_text : pandas.Series
         Text for each bus, defaults to bus names
-    line_colors : dict/pandas.Series
-        Colors for the lines, defaults to "g" for Lines and "cyan" for
-        Links. Colors for branches other than Lines can be
-        specified using a pandas Series with a MultiIndex.
+    line_colors : str/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    link_colors : str/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    transfomer_colors : str/pandas.Series
+        Colors for the transfomer, defaults to 'orange'.
     line_widths : dict/pandas.Series
-        Widths of lines, defaults to 2. Widths for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
-    line_text : dict/pandas.Series
-        Text for lines, defaults to line names. Text for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
+        Widths of lines, defaults to 1.5
+    link_widths : dict/pandas.Series
+        Widths of links, defaults to 1.5
+    transformer_widths : dict/pandas.Series
+        Widths of transformer, defaults to 1.5
+    line_text : pandas.Series
+        Text for lines, defaults to line names.
+    link_text : pandas.Series
+        Text for links, defaults to line names.
+    tranformer_text : pandas.Series
+        Text for transformers, defaults to line names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
         overrules coordinates given in ``n.buses[['x','y']]``. See
@@ -624,12 +633,6 @@ def iplot(n, fig=None, bus_colors='blue',
     fig: dictionary for plotly figure
     """
 
-    defaults_for_branches = {
-        'Link': dict(color="cyan", width=2),
-        'Line': dict(color="blue", width=2),
-        'Transformer': dict(color='green', width=2)
-    }
-
     if fig is None:
         fig = dict(data=[],layout={})
 
@@ -647,82 +650,64 @@ def iplot(n, fig=None, bus_colors='blue',
                      type="scatter",
                      mode="markers",
                      hoverinfo="text",
+                     opacity=bus_alpha,
                      marker=dict(color=bus_colors,
-                                 size=bus_sizes),
-                     )
+                                 size=bus_sizes))
 
-    if bus_colorscale is not None:
-        bus_trace['marker']['colorscale'] = bus_colorscale
+    if bus_cmap is not None:
+        bus_trace['marker']['colorscale'] = bus_cmap
 
     if bus_colorbar is not None:
         bus_trace['marker']['colorbar'] = bus_colorbar
 
+    # Plot branches:
+    if isinstance(line_widths, pd.Series):
+        if isinstance(line_widths.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_widths' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing widths with arguments 'line_widths', "
+                            "'link_widths' and 'transformer_widths'.")
+    if isinstance(line_colors, pd.Series):
+        if isinstance(line_colors.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_colors' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing colors with arguments 'line_colors', "
+                            "'link_colors' and 'transformer_colors'.")
 
-    def as_branch_series(ser):
-        if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return pd.Series(ser)
-        elif isinstance(ser, pd.Series):
-            if isinstance(ser.index, pd.MultiIndex):
-                return ser
-            index = ser.index
-            ser = ser.values
-        else:
-            index = n.lines.index
-        return pd.Series(ser,
-                         index=pd.MultiIndex(levels=(["Line"], index),
-                                             codes=(np.zeros(len(index)),
-                                                     np.arange(len(index)))))
+    if branch_components is None:
+        branch_components = n.branch_components
 
-    line_colors = as_branch_series(line_colors)
-    line_widths = as_branch_series(line_widths)
-
-    if line_text is not None:
-        line_text = as_branch_series(line_text)
+    branch_colors = {'Line': line_colors, 'Link': link_colors,
+                     'Transformer': transformer_colors}
+    branch_widths = {'Line': line_widths, 'Link': link_widths,
+                     'Transformer': transformer_widths}
+    branch_text = {'Line': line_text, 'Link': link_text,
+                   'Transformer': transformer_text}
 
     shapes = []
-
     shape_traces = []
 
     for c in n.iterate_components(branch_components):
-        l_defaults = defaults_for_branches[c.name]
-        l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_colors = line_colors.get(c.name, l_defaults['color'])
+        b_widths = as_branch_series(branch_widths[c.name], 'width', c.name, n)
+        b_colors = as_branch_series(branch_colors[c.name], 'color', c.name, n)
+        b_text = branch_text[c.name]
 
-        if line_text is None:
-            l_text = c.name + ' ' + c.df.index
-        else:
-            l_text = line_text.get(c.name)
-
-        if isinstance(l_colors, pd.Series):
-            if issubclass(l_colors.dtype.type, np.number):
-                l_colors = None
-            else:
-                l_colors.fillna(l_defaults['color'], inplace=True)
+        if b_text is None:
+            b_text = c.name + ' ' + c.df.index
 
         x0 = c.df.bus0.map(x)
         x1 = c.df.bus1.map(x)
-
         y0 = c.df.bus0.map(y)
         y1 = c.df.bus1.map(y)
 
-        for line in c.df.index:
-            color = l_colors if isinstance(l_colors, string_types) else l_colors[line]
-            width = l_widths if isinstance(l_widths, (int, float)) else l_widths[line]
+        for b in c.df.index:
+            shapes.append(dict(type='line', opacity=0.8,
+                               x0=x0[b], y0=y0[b], x1=x1[b], y1=y1[b],
+                               line=dict(color=b_colors[b], width=b_widths[b])))
 
-            shapes.append(dict(type='line',
-                               x0=x0[line],
-                               y0=y0[line],
-                               x1=x1[line],
-                               y1=y1[line],
-                               opacity=0.7,
-                               line=dict(color=color, width=width)))
-
-        shape_traces.append(dict(x=0.5*(x0+x1),
-                                 y=0.5*(y0+y1),
-                                 text=l_text,
-                                 type="scatter",
-                                 mode="markers",
-                                 hoverinfo="text",
+        shape_traces.append(dict(x=0.5*(x0+x1), y=0.5*(y0+y1),
+                                 text=b_text, type="scatter",
+                                 mode="markers", hoverinfo="text",
                                  marker=dict(opacity=0.)))
 
     if mapbox:
