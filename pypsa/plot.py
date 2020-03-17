@@ -37,6 +37,7 @@ __copyright__ = "Copyright 2015-2020 Tom Brown (FIAS), Jonas Hoersch (FIAS); Cop
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Circle
 from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.patches import FancyArrow
 
 cartopy_present = True
 try:
@@ -228,6 +229,19 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         ax.add_collection(bus_collection)
 
     # Plot branches:
+    if isinstance(line_widths.index, pd.MultiIndex):
+        raise TypeError("Index of argument 'line_widths' is a Multiindex, "
+                        "this is not support since pypsa v0.17. "
+                        "Set differing widths with arguments 'line_widths', "
+                        "'link_widths' and 'transformer_widths'.")
+    if isinstance(line_colors.index, pd.MultiIndex):
+        raise TypeError("Index of argument 'line_colors' is a Multiindex, "
+                        "this is not support since pypsa v0.17. "
+                        "Set differing colors with arguments 'line_colors', "
+                        "'link_colors' and 'transformer_colors'.")
+
+    if branch_components is None:
+        branch_components = n.branch_components
 
     def as_branch_series(ser, arg, c):
         ser = pd.Series(ser, index=n.df(c).index)
@@ -235,38 +249,28 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                 f'entries. Missing values for {c}: {list(ser[ser.isnull()].index)}')
         return ser
 
-    if branch_components is None:
-        branch_components = n.branch_components
-
-    colors = [('Line', line_colors), ('Link', link_colors),
-              ('Transformer', transformer_colors)]
-    branch_colors = pd.concat({c: as_branch_series(ser, 'color', c)
-                     for c, ser in colors if c in branch_components})
-    widths = [('Line', line_widths), ('Link', link_widths),
-              ('Transformer', transformer_widths)]
-    branch_widths = pd.concat({c: as_branch_series(ser, 'width', c)
-                     for c, ser in widths if c in branch_components})
+    branch_colors = {c: as_branch_series(color, 'color', c)
+                     for c, color in [('Line', line_colors), ('Link', link_colors),
+                                      ('Transformer', transformer_colors)]}
+    branch_widths = {c: as_branch_series(width, 'width', c)
+                     for c, width in [('Line', line_widths), ('Link', link_widths),
+                                      ('Transformer', transformer_widths)]}
     branch_cmap = {'Line': line_cmap, 'Link': link_cmap,
                    'Transformer': transformer_cmap}
 
     branch_collections = []
+    arrow_collections = []
 
     if flow is not None:
         rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
         flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
-        flow = flow.mul(branch_widths[flow.index], fill_value=1)
-        # update the line width, allows to set line widths separately from flows
-        branch_widths.update((5 * flow.abs()).pipe(np.sqrt))
-        arrows = directed_flow(n, flow, x=x, y=y, ax=ax, geomap=geomap,
-                               branch_colors=branch_colors,
-                               branch_comps=branch_components)
-        branch_collections.append(arrows)
-
 
     for c in n.iterate_components(branch_components):
         b_widths = branch_widths[c.name]
         b_colors = branch_colors[c.name]
         b_nums = None
+        b_cmap = branch_cmap[c.name]
+        b_flow = flow.get(c.name, None) if flow is not None else None
 
         try:
             b_nums = b_colors.astype(float)
@@ -287,20 +291,37 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                 "composed of LineStrings")
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
+        if b_flow is not None:
+            coords = pd.DataFrame({'x1': c.df.bus0.map(x), 'y1': c.df.bus0.map(y),
+                                   'x2': c.df.bus1.map(x), 'y2': c.df.bus1.map(y)})
+            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=1)
+            # update the line width, allows to set line widths separately from flows
+            b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
+            area_factor = projected_area_factor(ax, n.srid)
+            f_collection = directed_flow(coords, flow[c.name], b_colors,
+                                   area_factor, b_cmap)
+            if b_nums is not None:
+                f_collection.set_array(np.asarray(b_nums))
+                f_collection.set_cmap(b_cmap)
+                f_collection.autoscale()
+            arrow_collections.append(f_collection)
+            ax.add_collection(f_collection)
+
+
         b_collection = LineCollection(segments, linewidths=b_widths,
                                       antialiaseds=(1,), colors=b_colors,
                                       transOffset=ax.transData)
 
         if b_nums is not None:
             b_collection.set_array(np.asarray(b_nums))
-            b_collection.set_cmap(branch_cmap[c.name])
+            b_collection.set_cmap(b_cmap)
             b_collection.autoscale()
 
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
 
-    bus_collection.set_zorder(4)
+    bus_collection.set_zorder(5)
 
     ax.update_datalim(compute_bbox_with_margins(margin, x, y))
     ax.autoscale_view()
@@ -313,7 +334,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
     ax.set_title(title)
 
-    return (bus_collection,) + tuple(branch_collections)
+    return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
 
 def get_projection_from_crs(crs):
@@ -405,40 +426,26 @@ def _flow_ds_from_arg(flow, n, branch_components):
                 .agg(flow, axis=0))
 
 
-def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
-                  branch_colors='darkgreen', branch_comps=['Line', 'Link']):
+def directed_flow(coords, flow, color,  area_factor=1, cmap=None):
     """
     Helper function to generate arrows from flow data.
     """
     # this funtion is used for diplaying arrows representing the network flow
-    from matplotlib.patches import FancyArrow
-    if ax is None:
-        ax = plt.gca()
-    x = n.buses.x if x is None else x
-    y = n.buses.y if y is None else y
-
-    #set the scale of the arrowsizes
-    fdata = pd.concat([pd.DataFrame(
-                      {'x1': n.df(l).bus0.map(x),
-                       'y1': n.df(l).bus0.map(y),
-                       'x2': n.df(l).bus1.map(x),
-                       'y2': n.df(l).bus1.map(y)})
-                      for l in branch_comps], keys=branch_comps,
-                    names=['component', 'name'])
-    fdata['arrowsize'] = flow.abs().pipe(np.sqrt).clip(lower=1e-8)
-    if geomap:
-        fdata['arrowsize']= fdata['arrowsize'].mul(projected_area_factor(ax, n.srid))
-    fdata['direction'] = np.sign(flow)
-    fdata['linelength'] = (np.sqrt((fdata.x1 - fdata.x2)**2. +
-                           (fdata.y1 - fdata.y2)**2))
-    fdata['arrowtolarge'] = (1.5 * fdata.arrowsize >
-                             fdata.loc[:, 'linelength'])
+    data = pd.DataFrame(
+        {'arrowsize': flow.abs().pipe(np.sqrt).clip(lower=1e-8),
+         'direction': np.sign(flow),
+         'linelength': (np.sqrt((coords.x1 - coords.x2)**2. +
+                                (coords.y1 - coords.y2)**2))})
+    data = data.join(coords)
+    if area_factor:
+        data['arrowsize']= data['arrowsize'].mul(area_factor)
+    data['arrowtolarge'] = (1.5 * data.arrowsize > data.linelength)
     # swap coords for negativ directions
-    fdata.loc[fdata.direction == -1., ['x1', 'x2', 'y1', 'y2']] = \
-        fdata.loc[fdata.direction == -1., ['x2', 'x1', 'y2', 'y1']].values
-    if ((fdata.linelength > 0.) & (~fdata.arrowtolarge)).any():
-        fdata['arrows'] = (
-                fdata[(fdata.linelength > 0.) & (~fdata.arrowtolarge)]
+    data.loc[data.direction == -1., ['x1', 'x2', 'y1', 'y2']] = \
+        data.loc[data.direction == -1., ['x2', 'x1', 'y2', 'y1']].values
+    if ((data.linelength > 0.) & (~data.arrowtolarge)).any():
+        data['arrows'] = (
+                data[(data.linelength > 0.) & (~data.arrowtolarge)]
                 .apply(lambda ds:
                        FancyArrow(ds.x1, ds.y1,
                                   0.6*(ds.x2 - ds.x1) - ds.arrowsize
@@ -446,26 +453,19 @@ def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
                                   0.6 * (ds.y2 - ds.y1) - ds.arrowsize
                                   * 0.75 * (ds.y2 - ds.y1)/ds.linelength,
                                   head_width=ds.arrowsize), axis=1))
-    fdata.loc[(fdata.linelength > 0.) & (fdata.arrowtolarge), 'arrows'] = \
-        (fdata[(fdata.linelength > 0.) & (fdata.arrowtolarge)]
+    data.loc[(data.linelength > 0.) & (data.arrowtolarge), 'arrows'] = \
+        (data[(data.linelength > 0.) & (data.arrowtolarge)]
          .apply(lambda ds:
                 FancyArrow(ds.x1, ds.y1,
                            0.001*(ds.x2 - ds.x1),
                            0.001*(ds.y2 - ds.y1),
                            head_width=ds.arrowsize), axis=1))
-    if isinstance(branch_colors.index, (pd.MultiIndex, str)):
-        # Catch the case that only multiindex with 'Line' in first level is passed
-        fdata = fdata.assign(color=branch_colors.reindex_like(fdata)
-                                                .fillna('darkgreen'))
-    else:
-        fdata = fdata.join(branch_colors.rename('color'))
-    fdata = fdata.dropna(subset=['arrows'])
-    arrowcol = PatchCollection(fdata.arrows,
-                               color=fdata.color,
+    data = data.dropna(subset=['arrows'])
+    arrowcol = PatchCollection(data.arrows,
+                               color=color,
                                edgecolors='k',
                                linewidths=0.,
-                               zorder=3, alpha=1)
-    ax.add_collection(arrowcol)
+                               zorder=4, alpha=1)
     return arrowcol
 
 
