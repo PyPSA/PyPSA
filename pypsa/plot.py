@@ -240,12 +240,12 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
     colors = [('Line', line_colors), ('Link', link_colors),
               ('Transformer', transformer_colors)]
-    branch_colors = {c: as_branch_series(ser, 'color', c)
-                     for c, ser in colors if c in branch_components}
+    branch_colors = pd.concat({c: as_branch_series(ser, 'color', c)
+                     for c, ser in colors if c in branch_components})
     widths = [('Line', line_widths), ('Link', link_widths),
               ('Transformer', transformer_widths)]
-    branch_widths = {c: as_branch_series(ser, 'width', c)
-                     for c, ser in widths if c in branch_components}
+    branch_widths = pd.concat({c: as_branch_series(ser, 'width', c)
+                     for c, ser in widths if c in branch_components})
     branch_cmap = {'Line': line_cmap, 'Link': link_cmap,
                    'Transformer': transformer_cmap}
 
@@ -269,10 +269,10 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         b_nums = None
 
         try:
-            b_nums = b_colors.astype(int)
+            b_nums = b_colors.astype(float)
             b_colors = None
         except ValueError:
-            continue
+            pass
 
         if not geometry:
             segments = (np.asarray(((c.df.bus0.map(x), c.df.bus0.map(y)),
@@ -287,15 +287,13 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                 "composed of LineStrings")
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
-        b_collection = LineCollection(segments,
-                                      linewidths=b_widths,
-                                      antialiaseds=(1,),
-                                      colors=b_colors,
+        b_collection = LineCollection(segments, linewidths=b_widths,
+                                      antialiaseds=(1,), colors=b_colors,
                                       transOffset=ax.transData)
 
         if b_nums is not None:
             b_collection.set_array(np.asarray(b_nums))
-            b_collection.set_cmap(branch_cmap.get(c.name, None))
+            b_collection.set_cmap(branch_cmap[c.name])
             b_collection.autoscale()
 
         ax.add_collection(b_collection)
