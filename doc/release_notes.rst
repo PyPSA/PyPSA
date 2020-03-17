@@ -26,6 +26,7 @@ Upcoming Release
       are parsed (similar to the ``pyomo=True`` setting)
     * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle
       exclusively radial network topologies.
+    * CPLEX is now supported as an additional solver option. Enable it by installing the `cplex <https://pypi.org/project/cplex/>`_ package (e.g. via ``pip install cplex`` or ``conda install -c ibmdecisionoptimization cplex``) and setting ``solver_name='cplex'``
 
 * When plotting, ``bus_sizes`` are now consistent when they have a ``pandas.MultiIndex``
   or a ``pandas.Index``. The default is changed to ``bus_sizes=0.01`` because the bus

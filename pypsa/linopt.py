@@ -18,6 +18,7 @@ import pandas as pd
 import logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
+from importlib.util import find_spec
 
 logger = logging.getLogger(__name__)
 
@@ -552,8 +553,7 @@ def set_int_index(ser):
     return ser
 
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
-                     solver_options, keep_files, warmstart=None,
-                     store_basis=True):
+                     solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
     solver. If the solution is sucessful it returns variable solutions and
@@ -605,8 +605,7 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
 
 
 def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
-                     solver_options, keep_files, warmstart=None,
-                     store_basis=True):
+                     solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
     solver. If the solution is sucessful it returns variable solutions and
@@ -672,9 +671,58 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
             constraints_dual, objective)
 
 
+def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
+                        solver_options, warmstart=None, store_basis=True):
+    """
+    Solving function. Reads the linear problem file and passes it to the cplex
+    solver. If the solution is sucessful it returns variable solutions and
+    constraint dual values. Cplex must be installed for using this function
+
+    """
+    if find_spec('cplex') is None:
+        raise ModuleNotFoundError("Optional dependency 'cplex' not found."
+           "Install via 'conda install -c ibmdecisionoptimization cplex' "
+           "or 'pip install cplex'")
+    import cplex
+    m = cplex.Cplex()
+    out = m.set_log_stream(solver_logfile)
+    if solver_options is not None:
+        for key, value in solver_options.items():
+            getattr(m.parameters, key).set(value)
+    m.read(problem_fn)
+    if warmstart:
+        m.start.read_basis(warmstart)
+    m.solve()
+    is_lp = m.problem_type[m.get_problem_type()] == 'LP'
+
+    termination_condition = m.solution.get_status_string()
+    if 'optimal' in termination_condition:
+        status = 'ok'
+        termination_condition = 'optimal'
+    else:
+        status = 'warning'
+
+    if (status == 'ok') and store_basis and is_lp:
+        n.basis_fn = solution_fn.replace('.sol', '.bas')
+        m.solution.basis.write(n.basis_fn)
+
+    objective = m.solution.get_objective_value()
+    variables_sol = pd.Series(m.solution.get_values(), m.variables.get_names())\
+                      .pipe(set_int_index)
+    if is_lp:
+        constraints_dual = pd.Series(m.solution.get_dual_values(),
+                         m.linear_constraints.get_names()).pipe(set_int_index)
+    else:
+        logger.warning("Shadow prices of MILP couldn't be parsed")
+        constraints_dual = pd.Series(index=m.linear_constraints.get_names())\
+                             .pipe(set_int_index)
+    del m
+    return (status, termination_condition, variables_sol, constraints_dual,
+            objective)
+
+
 def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, keep_files, warmstart=None,
-                        store_basis=True):
+                        solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
     solver. If the solution is sucessful it returns variable solutions and
@@ -683,6 +731,11 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     For more information on solver options:
     https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
+    if find_spec('gurobi') is None:
+        raise ModuleNotFoundError("Optional dependency 'gurobi' not found. "
+           "Install via 'conda install -c gurobi gurobi'  or follow the "
+           "instructions on the documentation page "
+           "https://www.gurobi.com/documentation/")
     import gurobipy
     # disable logging for this part, as gurobi output is doubled otherwise
     logging.disable(50)

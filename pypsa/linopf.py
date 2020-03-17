@@ -26,8 +26,8 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, write_objective,
                      set_conref, set_varref, get_con, get_var, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
-                     define_constraints, define_variables, define_binaries,
-                     align_with_static_component)
+                     run_and_read_cplex, define_constraints, define_variables,
+                     define_binaries, align_with_static_component)
 
 
 import pandas as pd
@@ -883,7 +883,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         :func:`pypsa.linopt.get_dual` with corresponding name
 
     """
-    supported_solvers = ["cbc", "gurobi", 'glpk', 'scs']
+    supported_solvers = ["cbc", "gurobi", 'glpk', 'cplex']
     if solver_name not in supported_solvers:
         raise NotImplementedError(f"Solver {solver_name} not in "
                                   f"supported solvers: {supported_solvers}")
@@ -914,7 +914,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
 
     solve = eval(f'run_and_read_{solver_name}')
     res = solve(n, problem_fn, solution_fn, solver_logfile,
-                solver_options, keep_files, warmstart, store_basis)
+                solver_options, warmstart, store_basis)
 
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
@@ -927,7 +927,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     elif status == "warning" and termination_condition == "suboptimal":
         logger.warning('Optimization solution is sub-optimal. Objective value: {:.2e}'.format(obj))
     else:
-        logger.warning(f'Optimization failed with status {status} and termination condition {termination_condition}')
+        logger.warning(f'Optimization failed with status {status} and '
+                       f'termination condition {termination_condition}')
         return status, termination_condition
 
     n.objective = obj
