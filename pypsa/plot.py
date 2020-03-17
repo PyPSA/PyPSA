@@ -85,13 +85,15 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         Colors for the buses, defaults to "cadetblue". If bus_sizes is a
         pandas.Series with a Multiindex, bus_colors defaults to the
         n.carriers['color'] column.
+    bus_alpha : float
+        Adds alpha channel to buses, defaults to 1.
     bus_sizes : dict/pandas.Series
         Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
         the function will draw pies for each bus (first index level) with
         segments of different color (second index level). Such a Series is ob-
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
-    bus_alpha : float
-        Adds alpha channel to buses, defaults to 1.
+    bus_cmap : plt.cm.ColorMap/str
+        If bus_colors are floats, this color map will assign the colors
     line_colors : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
@@ -104,6 +106,12 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         Widths of links, defaults to 1.5
     transformer_widths : dict/pandas.Series
         Widths of transformer, defaults to 1.5
+    line_cmap : plt.cm.ColorMap/str|dict
+        If line_colors are floats, this color map will assign the colors.
+    link_cmap : plt.cm.ColorMap/str|dict
+        If link_colors are floats, this color map will assign the colors.
+    transformer_cmap : plt.cm.ColorMap/str|dict
+        If transformer_colors are floats, this color map will assign the colors.
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
         n.snapshots is given, the flow at this timestamp will be
@@ -120,11 +128,6 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         of available options.
     title : string
         Graph title
-    line_cmap : plt.cm.ColorMap/str|dict
-        If line_colors are floats, this color map will assign the colors.
-        Use a dict to specify colormaps for more than one branch type.
-    bus_cmap : plt.cm.ColorMap/str
-        If bus_colors are floats, this color map will assign the colors
     boundaries : list of four floats
         Boundaries of the plot in format [x1,x2,y1,y2]
     branch_components : list of str
@@ -229,16 +232,18 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         ax.add_collection(bus_collection)
 
     # Plot branches:
-    if isinstance(line_widths.index, pd.MultiIndex):
-        raise TypeError("Index of argument 'line_widths' is a Multiindex, "
-                        "this is not support since pypsa v0.17. "
-                        "Set differing widths with arguments 'line_widths', "
-                        "'link_widths' and 'transformer_widths'.")
-    if isinstance(line_colors.index, pd.MultiIndex):
-        raise TypeError("Index of argument 'line_colors' is a Multiindex, "
-                        "this is not support since pypsa v0.17. "
-                        "Set differing colors with arguments 'line_colors', "
-                        "'link_colors' and 'transformer_colors'.")
+    if isinstance(line_widths, pd.Series):
+        if isinstance(line_widths.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_widths' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing widths with arguments 'line_widths', "
+                            "'link_widths' and 'transformer_widths'.")
+    if isinstance(line_colors, pd.Series):
+        if isinstance(line_colors.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_colors' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing colors with arguments 'line_colors', "
+                            "'link_colors' and 'transformer_colors'.")
 
     if branch_components is None:
         branch_components = n.branch_components
@@ -294,12 +299,12 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         if b_flow is not None:
             coords = pd.DataFrame({'x1': c.df.bus0.map(x), 'y1': c.df.bus0.map(y),
                                    'x2': c.df.bus1.map(x), 'y2': c.df.bus1.map(y)})
-            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=1)
+            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
             # update the line width, allows to set line widths separately from flows
             b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)
-            f_collection = directed_flow(coords, flow[c.name], b_colors,
-                                   area_factor, b_cmap)
+            f_collection = directed_flow(coords, b_flow, b_colors, area_factor,
+                                         b_cmap)
             if b_nums is not None:
                 f_collection.set_array(np.asarray(b_nums))
                 f_collection.set_cmap(b_cmap)
