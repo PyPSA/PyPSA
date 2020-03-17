@@ -17,7 +17,7 @@ For instance an invocation to
 
 .. code:: bash
 
-    .../pypsa-eur % snakemake networks/elec_s_128.nc
+    .../pypsa-eur % snakemake -j 1 networks/elec_s_128.nc
 
 follows this dependency graph:
 
@@ -29,7 +29,7 @@ The **blocks** represent the individual rules which are required to create the f
     The dependency graph shown above was generated using
     ``snakemake --dag networks/elec_s_128.nc | dot -Tpng > workflow.png``
 
-For the use of ``snakemake``, it makes sense to familiarize oneself quickly with its `basic tutorial <https://snakemake.readthedocs.io/en/stable/tutorial/basics.html>`_ and then read carefully through the section `Executing Snakemake <https://snakemake.readthedocs.io/en/stable/executable.html>`_, noting the arguments ``-n``, ``-r``, but also ``--dag``, ``-R`` and ``-t``.
+For the use of ``snakemake``, it makes sense to familiarize oneself quickly with its `basic tutorial <https://snakemake.readthedocs.io/en/stable/tutorial/basics.html>`_ and then read carefully through the section `Executing Snakemake <https://snakemake.readthedocs.io/en/stable/executable.html>`_, noting the arguments ``-j``, ``-n``, ``-r``, but also ``--dag``, ``-R`` and ``-t``.
 
 Scenarios, Configuration and Modification
 =========================================

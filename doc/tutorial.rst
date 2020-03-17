@@ -103,7 +103,7 @@ clustered down to 6 buses and every 24 hours aggregated to one snapshot. The com
 
 .. code:: bash
 
-    .../pypsa-eur % snakemake results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc
+    .../pypsa-eur % snakemake -j 1 results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc
 
 orders ``snakemake`` to run the script ``solve_network`` that produces the solved network and stores it in ``.../pypsa-eur/results/networks`` with the name ``elec_s_6_ec_lcopt_Co2L-24H.nc``:
 
@@ -120,7 +120,7 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
 .. warning::
     On Windows the previous command may currently cause a ``MissingRuleException`` due to problems with output files in subfolders.
     This is an `open issue <https://github.com/snakemake/snakemake/issues/46>`_ at `snakemake <https://snakemake.readthedocs.io/>`_.
-    Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake solve_all_elec_networks``.
+    Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake -j 1 solve_all_elec_networks``.
 
 This triggers a workflow of multiple preceding jobs that depend on each rule's inputs and outputs:
     
@@ -242,15 +242,15 @@ You can produce any output file occuring in the ``Snakefile`` by running
 
 .. code:: bash
 
-    .../pypsa-eur % snakemake <output file>
+    .../pypsa-eur % snakemake -j 1 <output file>
 
 For example, you can explore the evolution of the PyPSA networks by running
 
-#. ``.../pypsa-eur % snakemake networks/base.nc``
-#. ``.../pypsa-eur % snakemake networks/elec.nc``
-#. ``.../pypsa-eur % snakemake networks/elec_s.nc``
-#. ``.../pypsa-eur % snakemake networks/elec_s_6.nc``
-#. ``.../pypsa-eur % snakemake networks/elec_s_6_ec_lcopt_Co2L-24H.nc``
+#. ``.../pypsa-eur % snakemake -j 1 networks/base.nc``
+#. ``.../pypsa-eur % snakemake -j 1 networks/elec.nc``
+#. ``.../pypsa-eur % snakemake -j 1 networks/elec_s.nc``
+#. ``.../pypsa-eur % snakemake -j 1 networks/elec_s_6.nc``
+#. ``.../pypsa-eur % snakemake -j 1 networks/elec_s_6_ec_lcopt_Co2L-24H.nc``
 
 There's a special rule: If you simply run
 
