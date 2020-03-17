@@ -47,13 +47,13 @@ Upcoming Release
 * Examples jupyter notebooks are now available through `binder <https://mybinder.org/>`_.
 * Minor adjustments for compatibility with pandas v1.0.0.
 * After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values. 
-* Changes in the plotting function ``n.plot()`` include some **breaking changes**:
+* Changes in the plotting function ``n.plot()`` and ``n.iplot()`` include some **breaking changes**:
 
     * A set of new arguments were introduced to separate style parameters of the different branch components:  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
     * ``line_widths``, ``line_colors``, and ``line_cmap`` now only apply for lines and can no longer be used for other branch types (links and transformers). Passing a pandas.Series with a pandas.MultiIndex will raise an error.
-    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index run within the loop over individual branches. 
+    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index. 
+    * The argument ``bus_colorscale`` in ``n.iplot()`` was renamed to ``bus_cmap``.
     * The default colours changed.
-
 
 
 PyPSA 0.16.1 (10th January 2020)
