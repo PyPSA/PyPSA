@@ -47,11 +47,12 @@ Upcoming Release
 * Examples jupyter notebooks are now available through `binder <https://mybinder.org/>`_.
 * Minor adjustments for compatibility with pandas v1.0.0.
 * After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values. 
-* Plot function ``n.plot()``, **breaking changes**:
+* Changes in the plotting function ``n.plot()`` include some **breaking changes**:
 
-    * New arguments were introduced to the n.plot():  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
-    * ``line_widhts`` and ``line_colors`` now only apply for lines, passing a series with pandas.MultiIndex will raise an error.
-    * ``directed_flow()`` takes only a series with single index now. This enables to use the function within the loop over branch_components. 
+    * A set of new arguments were introduced to separate style parameters of the different branch components:  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
+    * ``line_widths``, ``line_colors``, and ``line_cmap`` now only apply for lines and can no longer be used for other branch types (links and transformers). Passing a pandas.Series with a pandas.MultiIndex will raise an error.
+    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index run within the loop over individual branches. 
+    * The default colours changed.
 
 
 
