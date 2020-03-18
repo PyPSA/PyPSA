@@ -41,7 +41,7 @@ dependencies:
   - fiona
   - proj
   - pyshp
-  - geopandas<=0.6.3
+  - geopandas
   - rasterio
   - shapely
   - libgdal
