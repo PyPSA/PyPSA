@@ -688,7 +688,10 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
     out = m.set_log_stream(solver_logfile)
     if solver_options is not None:
         for key, value in solver_options.items():
-            getattr(m.parameters, key).set(value)
+            param = m.parameters
+            for key_layer in key.split("."):
+                param = getattr(param, key_layer)
+            param.set(value)
     m.read(problem_fn)
     if warmstart:
         m.start.read_basis(warmstart)
