@@ -694,7 +694,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, 'p0', values)
                 set_from_frame(pnl, 'p1', - values)
-            elif c == 'Link':
+            elif c == 'Link' and attr == "p":
                 set_from_frame(pnl, 'p0', values)
                 for i in ['1'] + additional_linkports(n):
                     i_eff = '' if i == '1' else i
