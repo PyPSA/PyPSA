@@ -7,13 +7,30 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* In favour of ``cartopy``, plotting geographical features with
-  ``basemap`` is not supported anymore.  
-* Importing time series from custom non-standard output fields
-  in ``network.component`` is now supported.
+* Upcoming feature.
+
+
+PyPSA 0.17.0 (23rd March 2020)
+================================
+
+This release contains some minor breaking changes to plotting, some
+new features and bug fixes.
+
+
+* For plotting geographical features ``basemap`` is not supported anymore.  Please use ``cartopy`` instead.
+* Changes in the plotting functions ``n.plot()`` and ``n.iplot()`` include some **breaking changes**:
+
+    * A set of new arguments were introduced to separate style parameters of the different branch components:  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
+    * ``line_widths``, ``line_colors``, and ``line_cmap`` now only apply for lines and can no longer be used for other branch types (links and transformers). Passing a pandas.Series with a pandas.MultiIndex will raise an error.
+    * Additionally, the function `n.iplot()` has new arguments ``line_text``, ``link_text``, ``transformer_text`` to configure the text displayed when hovering over a branch component.
+    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index.
+    * The argument ``bus_colorscale`` in ``n.iplot()`` was renamed to ``bus_cmap``.
+    * The default colours changed.
+
+* If non-standard output fields in the time-dependent ``network.components_t`` (e.g. ``network.links_t.p2`` when there are multi-links) were exported, then PyPSA will now also import them automatically without requiring the use of the ``override_component_attrs`` argument.
 * Deep copies of networks can now be created with a subset of
   snapshots, e.g. ``network.copy(snapshots=network.snapshots[:2])``.
-* When using the ``pyomo=False`` formulation of the LOPF (``network.lopf(pyomo=False)``): 
+* When using the ``pyomo=False`` formulation of the LOPF (``network.lopf(pyomo=False)``):
 
     * It is now possible to alter the objective function.
       Terms can be added to the objective via ``extra_functionality``
@@ -21,7 +38,7 @@ Upcoming Release
       When a pure custom objective function needs to be declared,
       one can set ``skip_objective=True``.
       In this case, only terms defined through ``extra_functionality``
-      will be considered in the objective function. 
+      will be considered in the objective function.
     * Shadow prices of capacity bounds for non-extendable passive branches
       are parsed (similar to the ``pyomo=True`` setting)
     * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle
@@ -33,29 +50,24 @@ Upcoming Release
   sizes now relate to the axis values.
 * When plotting, ``bus_alpha`` can now be used to add an alpha channel
   which controls the opacity of the bus markers.
-* The argument ``bus_colors`` can a now also be a pandas.Series. 
+* The argument ``bus_colors`` can a now also be a pandas.Series.
 * The ``carrier`` component has two new columns 'color' and 'nice_name'.
   The color column is used by the plotting function if ``bus_sizes`` is
-  a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined. 
+  a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined.
 * The function :func:`pypsa.linopf.ilopf` can now track the intermediate branch capacities
   and objective values for each iteration using the ``track_iterations`` keyword.
 * Fixed unit commitment:
-    
+
     * when ``min_up_time`` of committable generators exceeds the length of snapshots.
     * when network does not feature any extendable generators.
 
 * Fixed import from pandapower for transformers not based on standard types.
-* Examples jupyter notebooks are now available through `binder <https://mybinder.org/>`_.
+* The various Jupyter Notebook examples are now available on the `binder <https://mybinder.org/>`_ platform. This allows new users to interactively run and explore the examples without the need of installing anything on their computers.
 * Minor adjustments for compatibility with pandas v1.0.0.
-* After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values. 
-* Changes in the plotting functions ``n.plot()`` and ``n.iplot()`` include some **breaking changes**:
+* After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values.
 
-    * A set of new arguments were introduced to separate style parameters of the different branch components:  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
-    * ``line_widths``, ``line_colors``, and ``line_cmap`` now only apply for lines and can no longer be used for other branch types (links and transformers). Passing a pandas.Series with a pandas.MultiIndex will raise an error.
-    * Additionally, the function `n.iplot()` has new arguments ``line_text``, ``link_text``, ``transformer_text`` to configure the text displayed when hovering over a branch component.
-    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index. 
-    * The argument ``bus_colorscale`` in ``n.iplot()`` was renamed to ``bus_cmap``.
-    * The default colours changed.
+Thanks to Fabian Hofmann (FIAS) and Fabian Neumann (KIT) for all their
+hard work on this release, and to all those who reported issues.
 
 
 PyPSA 0.16.1 (10th January 2020)
