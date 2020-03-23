@@ -417,6 +417,10 @@ def draw_map_cartopy(n, x, y, ax, boundaries=None, margin=0.05,
 
 def _flow_ds_from_arg(flow, n, branch_components):
     if isinstance(flow, pd.Series):
+        if not isinstance(flow.index, pd.MultiIndex):
+            raise ValueError("Argument 'flow' is a pandas.Series without "
+                     "a MultiIndex. Please provide a multiindexed series, with "
+                     "the first level being a subset of 'branch_components'.")
         return flow
     if flow in n.snapshots:
         return (pd.concat([n.pnl(c).p0.loc[flow]
