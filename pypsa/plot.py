@@ -591,9 +591,9 @@ def iplot(n, fig=None, bus_colors='cadetblue', bus_alpha=1, bus_sizes=10,
     line_text : pandas.Series
         Text for lines, defaults to line names.
     link_text : pandas.Series
-        Text for links, defaults to line names.
+        Text for links, defaults to link names.
     tranformer_text : pandas.Series
-        Text for transformers, defaults to line names.
+        Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
         overrules coordinates given in ``n.buses[['x','y']]``. See
