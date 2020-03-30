@@ -276,5 +276,5 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     :alt: Chat on Gitter
 
 .. |binder| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples
-   :alt: Examples of use
+    :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks
+    :alt: Examples of use
