@@ -508,6 +508,10 @@ class Network(Basic):
                 'extra_functionality': extra_functionality,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
         args.update(kwargs)
+
+        if not self.shunt_impedances.empty:
+            logger.warning("You have defined one or more shunt impedances. Shunt impedances are ignored by the linear optimal power flow (LOPF).")
+
         if pyomo:
             return network_lopf(self, **args)
         else:
