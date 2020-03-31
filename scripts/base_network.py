@@ -91,24 +91,19 @@ def _get_country(df):
         return pd.Series(np.nan, df.index)
 
 def _find_closest_links(links, new_links, distance_upper_bound=1.5):
-    tree = sp.spatial.KDTree(np.vstack([
-        new_links[['x1', 'y1', 'x2', 'y2']],
-        new_links[['x2', 'y2', 'x1', 'y1']]
-    ]))
-
-    dist, ind = tree.query(
-        np.asarray([np.asarray(shapely.wkt.loads(s))[[0, -1]].flatten()
-                    for s in links.geometry]),
-        distance_upper_bound=distance_upper_bound
-    )
-
-    found_b = ind < 2 * len(new_links)
-    return (
-        pd.DataFrame(dict(D=dist[found_b],
-                          i=new_links.index[ind[found_b] % len(new_links)]),
-                     index=links.index[found_b])
-        .groupby('i').D.idxmin()
-    )
+    treecoords = np.asarray([np.asarray(shapely.wkt.loads(s))[[0, -1]].flatten()
+                              for s in links.geometry])
+    querycoords = np.vstack([new_links[['x1', 'y1', 'x2', 'y2']],
+                            new_links[['x2', 'y2', 'x1', 'y1']]])
+    tree = sp.spatial.KDTree(treecoords)
+    dist, ind = tree.query(querycoords, distance_upper_bound=distance_upper_bound)
+    found_b = ind < len(links)
+    found_i = np.arange(len(new_links)*2)[found_b] % len(new_links)
+    return pd.DataFrame(dict(D=dist[found_b],
+                             i=links.index[ind[found_b] % len(links)]),
+                        index=new_links.index[found_i]).sort_values(by='D')\
+                        [lambda ds: ~ds.index.duplicated(keep='first')]\
+                         .sort_index()['i']
 
 def _load_buses_from_eg():
     buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
@@ -298,9 +293,18 @@ def _set_electrical_parameters_links(links):
     links['p_min_pu'] = -p_max_pu
 
     links_p_nom = pd.read_csv(snakemake.input.links_p_nom)
-    links_p_nom["j"] = _find_closest_links(links, links_p_nom)
-
+    
+    #Filter links that are not in operation anymore    
+    removed_b = links_p_nom.Remarks.str.contains('Shut down|Replaced', na=False)
+    links_p_nom = links_p_nom[~removed_b]
+    
+    #find closest link for all links in links_p_nom        
+    links_p_nom['j'] = _find_closest_links(links, links_p_nom)
+        
+    links_p_nom = links_p_nom.groupby(['j'],as_index=False).agg({'Power (MW)': 'sum'})    
+        
     p_nom = links_p_nom.dropna(subset=["j"]).set_index("j")["Power (MW)"]
+   
     # Don't update p_nom if it's already set
     p_nom_unset = p_nom.drop(links.index[links.p_nom.notnull()], errors='ignore') if "p_nom" in links else p_nom
     links.loc[p_nom_unset.index, "p_nom"] = p_nom_unset
