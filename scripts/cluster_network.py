@@ -262,13 +262,15 @@ def clustering_for_n_clusters(n, n_clusters, aggregate_carriers=None,
         generator_strategies={'p_nom_max': p_nom_max_strategy},
         scale_link_capital_costs=False)
 
-    nc = clustering.network
-    nc.links['underwater_fraction'] = (n.links.eval('underwater_fraction * length')
-                                       .div(nc.links.length).dropna())
-    nc.links['capital_cost'] = (nc.links['capital_cost']
-                                .add((nc.links.length - n.links.length)
-                                      .clip(lower=0).mul(extended_link_costs),
-                                      fill_value=0))
+    if not n.links.empty:
+        nc = clustering.network
+        nc.links['underwater_fraction'] = (n.links.eval('underwater_fraction * length')
+                                        .div(nc.links.length).dropna())
+        nc.links['capital_cost'] = (nc.links['capital_cost']
+                                    .add((nc.links.length - n.links.length)
+                                        .clip(lower=0).mul(extended_link_costs),
+                                        fill_value=0))
+
     return clustering
 
 def save_to_geojson(s, fn):
