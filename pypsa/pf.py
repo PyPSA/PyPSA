@@ -15,7 +15,7 @@
 
 """Power flow functionality.
 """
-
+from .inverter_functions import apply_controller
 from six import iterkeys
 from six.moves.collections_abc import Sequence
 
@@ -170,7 +170,7 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False,
     if not linear:
         return Dict({ 'n_iter': itdf, 'error': difdf, 'converged': cnvdf })
 
-def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False,
+def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=1e-3, use_seed=False,
                distribute_slack=False, slack_weights='p_set'):
     """
     Full non-linear power flow for generic network.
@@ -210,7 +210,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=Fal
         iteration error for each snapshot (rows) and sub_network (columns)
     """
 
-    return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol=x_tol,
+    return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol_outer=x_tol_outer, x_tol=x_tol,
                                        use_seed=use_seed, distribute_slack=distribute_slack,
                                        slack_weights=slack_weights)
 
@@ -316,7 +316,7 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
     return 0, 0., True # dummy substitute for newton raphson output
 
 
-def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_seed=False,
+def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=1e-3, use_seed=False,
                    distribute_slack=False, slack_weights='p_set'):
     """
     Non-linear power flow for connected sub-network.
@@ -501,28 +501,36 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     diffs = pd.Series(index=snapshots)
     convs = pd.Series(False, index=snapshots)
     for i, now in enumerate(snapshots):
-        p = network.buses_t.p.loc[now,buses_o]
-        q = network.buses_t.q.loc[now,buses_o]
-        ss[i] = s = p + 1j*q
+        voltage_difference, n_trials = (1, 0)
+        while voltage_difference > x_tol_outer and n_trials <= 20:
+            n_trials += 1
 
-        #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
-        guess = r_[network.buses_t.v_ang.loc[now,sub_network.pvpqs],network.buses_t.v_mag_pu.loc[now,sub_network.pqs]]
-
-        if distribute_slack:
-            guess = np.append(guess, [0]) # for total slack power
-            if isinstance(slack_weights, str) and slack_weights == 'p_set':
-                # snapshot-dependent slack weights
-                slack_args["slack_weights"] = slack_weights_calc.loc[now]
-            else:
-                slack_args["slack_weights"] = slack_weights_calc
-
-        #Now try and solve
-        start = time.time()
-        roots[i], n_iter, diff, converged = newton_raphson_sparse(f, guess, dfdx, x_tol=x_tol, **slack_args)
-        logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
-        iters[now] = n_iter
-        diffs[now] = diff
-        convs[now] = converged
+            previous_bus_voltages, repeat_loop, voltage_difference = apply_controller(network, now, n_trials)
+            _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
+            p = network.buses_t.p.loc[now,buses_o]
+            q = network.buses_t.q.loc[now,buses_o]
+            ss[i] = s = p + 1j*q
+    
+            #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
+            guess = r_[network.buses_t.v_ang.loc[now,sub_network.pvpqs],network.buses_t.v_mag_pu.loc[now,sub_network.pqs]]
+    
+            if distribute_slack:
+                guess = np.append(guess, [0]) # for total slack power
+                if isinstance(slack_weights, str) and slack_weights == 'p_set':
+                    # snapshot-dependent slack weights
+                    slack_args["slack_weights"] = slack_weights_calc.loc[now]
+                else:
+                    slack_args["slack_weights"] = slack_weights_calc
+    
+            #Now try and solve
+            start = time.time()
+            roots[i], n_iter, diff, converged = newton_raphson_sparse(f, guess, dfdx, x_tol=x_tol, **slack_args)
+            logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
+            iters[now] = n_iter
+            diffs[now] = diff
+            convs[now] = converged
+            if repeat_loop > 0:
+                voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_bus_voltages)).max()
 
 
     #now set everything

@@ -1,9 +1,23 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
-type,string,n/a,n/a,"Placeholder for load type. Not yet implemented.",Input (optional)
-p_set,static or series,MW,0.,Active power consumption (positive if the load is consuming power).,Input (optional)
-q_set,static or series,MVar,0.,Reactive power consumption (positive if the load is inductive).,Input (optional)
-sign,float,n/a,-1.,power sign (opposite sign to generator),Input (optional)
-p,series,MW,0.,active power at bus (positive if net load),Output
-q,series,MVar,0.,reactive power (positive if net load),Output
+type,string,n/a,n/a,Placeholder for load type. Not yet implemented.,Input (optional)
+p_set,static or series,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional)
+q_set,static or series,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional)
+sign,float,n/a,-1,power sign (opposite sign to generator),Input (optional)
+type_of_control_strategy,string,n/a,n/a,"Type of inverter control strategies are, supported types are: q_v,  p_v, fixed_cosphi, and cosphi_p.",Input (optional)
+pf,static or series,n/a,0,Power factor,Input (required when type_of_control_strategy is fixed_cosphi )
+sn,float,MWA,1,Inverter complex power capacity.,Input (required when type_of_control_strategy is q_v or cosphi_p )
+v1,float,n/a,0.9,Minimum voltage magnitude per unit (left curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
+v2,float,n/a,0.95,Maximum voltage magnitude per unit (left curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
+v3,float,n/a,0.96,Minimum voltage magnitude per unit (right curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
+v4,float,n/a,1.01,Maximum voltage magnitude per unit (right curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
+damper,float,n/a,1,"Damper which takes values between 0 - 1 and controlls controller output, (damper value will be multiplied to controller output).",Input (required when type_of_control_strategy is q_v or p_v )
+set_p1,float,n/a,50,"Injected power divided per inverter capacity set point in (%), controller takes no action for values less than set_p1 and power factor is 1.",Input (required when type_of_control_strategy is  cosphi_p )
+set_p2,float,n/a,100,"Injected power per inverter capacity set point  in (%), controller takes action for values greater than set_p2 with pf_min as power factor.",Input (required when type_of_control_strategy is  cosphi_p )
+pf_min,float,n/a,0.9,Minimum allowed power factor.,Input (required when type_of_control_strategy is  cosphi_p )
+v_pu_min_limit,float,n/a,0.9,Minimum allowed voltage per unit at which controller takes no action (power curtailment).,Input (required when type_of_control_strategy is  p_v )
+v_pu_cr,float,n/a,0.98,Critical voltage per unit at which controller starts taking action (power curtailment).,Input (required when type_of_control_strategy is  p_v )
+v_pu_max_limit,float,n/a,1.01,Maximum allowed voltage per unit at which controllers takes action 100% (power curtailment).,Input (required when type_of_control_strategy is  p_v )
+p,series,MW,0,active power at bus (positive if net load),Output
+q,series,MVar,0,reactive power (positive if net load),Output
