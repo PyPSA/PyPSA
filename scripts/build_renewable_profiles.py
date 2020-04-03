@@ -289,7 +289,7 @@ if __name__ == '__main__':
 
     potentials = config['capacity_per_sqkm'] * vlanduse._cutout_cell_areas(cutout)
     potmatrix = matrix * spdiag(potentials.ravel())
-    if config.get('keep_all_available_areas', False) != True:
+    if config.get('keep_all_available_areas', False) != True: # check config file if user wants to use all availbe areas for renewable potentials
         potmatrix.data[potmatrix.data < 1.] = 0 # ignore weather cells where only less than 1 MW can be installed
     potmatrix.eliminate_zeros()
 
