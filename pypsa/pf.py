@@ -15,7 +15,6 @@
 
 """Power flow functionality.
 """
-from .inverter_functions import apply_controller
 from six import iterkeys
 from six.moves.collections_abc import Sequence
 
@@ -41,7 +40,7 @@ from operator import itemgetter
 import time
 
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
-
+from .inverter_functions import apply_controller, iterate_over_control_strategies
 pd.Series.zsum = zsum
 
 def normed(s): return s/s.sum()
@@ -500,12 +499,14 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     iters = pd.Series(0, index=snapshots)
     diffs = pd.Series(index=snapshots)
     convs = pd.Series(False, index=snapshots)
+
+    voltage_dependent_controller_present, n_trials_max = iterate_over_control_strategies(network)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials = (1, 0)
-        while voltage_difference > x_tol_outer and n_trials <= 20:
+        while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
             n_trials += 1
 
-            previous_bus_voltages, repeat_loop, voltage_difference = apply_controller(network, now, n_trials)
+            previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials)
             _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]
@@ -529,9 +530,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
             iters[now] = n_iter
             diffs[now] = diff
             convs[now] = converged
-            if repeat_loop > 0:
-                voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_bus_voltages)).max()
-
+            if voltage_dependent_controller_present == True:
+                voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_v_mag_pu_voltage_dependent_controller)).max()
 
     #now set everything
     if distribute_slack:
