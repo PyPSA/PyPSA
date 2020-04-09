@@ -110,7 +110,7 @@ for index, row in Results_q.iterrows():
     Results_q.loc[index, "p/pmaxdroop"] = q_v(vmag[index])
 
 
- ''' Plotting '''
+''' Plotting '''
 # droop characteristic input and output variables
 vdroop = vmag
 qdroop = -Results_q["p/pmaxdroop"]
