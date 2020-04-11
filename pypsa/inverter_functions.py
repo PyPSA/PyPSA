@@ -14,13 +14,13 @@ def fixed_cosphi(p_input, now, component_df_p_set_var, component_df_t,
     p_input : pandas data frame
         Real power input to the controller.
     now : single snapshot
-        An instance of network.snapshots on which the power flow is run.
+        An instance of n.snapshots on which the power flow is run.
     component_df_p_set_var : pandas data frame
         Data frame of all componets which their p_set varies at each snapshot.
     component_df_t : pandas data frame
-        Data frame of varying attrs. eg:- network.loads_t
+        Data frame of varying attrs. eg:- n.loads_t
     component_df : pandas data frame
-        Data frame of component. eg:- network.loads
+        Data frame of component. eg:- n.loads
     reference : https://www.academia.edu/24772355/
 
     Returns
@@ -59,13 +59,13 @@ def cosphi_p(p_input, now, component_df_p_set_var, component_df_t,
     p_input : pandas data frame
         Real power input to the controller.
     now : single snapshot
-        An instance of network.snapshots on which the power flow is run.
+        An instance of n.snapshots on which the power flow is run.
     component_df_p_set_var : pandas data frame
         Data frame of all componets which their p_set varies at each snapshot.
     component_df_t : pandas data frame
-        Data frame of varying attrs. eg:- network.loads_t
+        Data frame of varying attrs. eg:- n.loads_t
     component_df : pandas data frame
-        Data frame of component. eg:- network.loads
+        Data frame of component. eg:- n.loads
     parameters : pandas data frame
         It contains the following parameters(sn, set_p1, set_p2, pf_min).
     sn : pandas data frame
@@ -95,14 +95,14 @@ def cosphi_p(p_input, now, component_df_p_set_var, component_df_t,
             'set_p1']) & (parameters['p_per_p_max'] <= parameters['set_p2'])
         adopt_min_pf = parameters['p_per_p_max'] > parameters['set_p2']
 
-        # defining power factor (pf) choices
+        # defining power factor (pf) choices for each conditions
         unity_pf = 1
         non_unity_pf = 1 - ((1-parameters['pf_min']) / (parameters['set_p2'] -
                             parameters['set_p1'])*(parameters['p_per_p_max'] -
                                                    parameters['set_p1']))
         min_pf = parameters['pf_min']
 
-        # power factor (pf) selection based on conditions and choices
+        # power factor (pf) allocation from choices based on conditions
         parameters['pf'] = np.select(
                             [adopt_unity_pf, adopt_non_unity_pf, adopt_min_pf],
                             [unity_pf, non_unity_pf, min_pf])
@@ -122,7 +122,7 @@ def cosphi_p(p_input, now, component_df_p_set_var, component_df_t,
         component_df_t.p_set.columns)) & (component_df.type_of_control_strategy
                                           == 'cosphi_p'), ('pf_min', 'sn',
                                                            'set_p1', 'set_p2')]
-    # adding lables to network.components.pf dataframe
+    # adding lables to n.components.pf dataframe
     component_df_t.pf = component_df_t.pf.reindex(
         parameters_var_p_set.index, axis=1, fill_value=0)
 
@@ -151,7 +151,7 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
     p_input : pandas data frame
         Real power input to the controller.
     now : single snapshot
-        An instance of network.snapshots on which the power flow is run.
+        An instance of n.snapshots on which the power flow is run.
     v_pu_buses : pandas data frame
         Voltage per unit of all buses controlled by this control method.
     component_type : string
@@ -163,9 +163,9 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
     component_df_p_set_var : pandas data frame
         Data frame of all componets which their p_set varies at each snapshot.
     component_df_t : pandas data frame
-        Data frame of varying attrs. eg:- network.loads_t
+        Data frame of varying attrs. eg:- n.loads_t
     component_df : pandas data frame
-        Data frame of component. eg:- network.loads
+        Data frame of component. eg:- n.loads
     parameters : pandas data frame
         It contains the following parameters ('sn', 'v1', 'v2', 'v3', 'v4',
                                                               'damper','bus').
@@ -189,6 +189,11 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
                the controller output and help to converge.
     bus : pandas data frame
         The bus where inverter is connected on.
+    qbyqmax : pandas data frame
+        It shows the reactive power compensation percentage based on maximum
+        reactive power capability of inverter.
+    Q_max : pandas data frame
+        It is the maximum reactive power capability of the inverter.
     reference: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6096349
     Returns
     -------
@@ -208,7 +213,7 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
             parameters['v_pu_bus'] = v_pu_buses.loc[now, parameters.loc[
                 parameters.index, 'bus']].values
 
-            # defining curve conditions
+            # defining q_set selection conditions
             under_voltage = parameters['v_pu_bus'] < parameters['v1']
             voltage_is_low = (parameters['v_pu_bus'] >= parameters['v1']) & (
                 parameters['v_pu_bus'] <= parameters['v2'])
@@ -218,7 +223,7 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
                 parameters['v_pu_bus'] <= parameters['v4'])
             over_voltage = parameters['v_pu_bus'] > parameters['v4']
 
-            # defining curve choices compensation in %
+            # defining q_set choices in %
             for_under_voltage, for_over_voltage = (100, -100)
             for_noramal_range = 0
             for_low_voltage = (100 - (100-0) / (parameters['v2'] - parameters[
@@ -226,13 +231,13 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials,
             for_high_voltage = -(100)*(parameters['v_pu_bus'] - parameters['v3']
                                        ) / (parameters['v4'] - parameters['v3'])
 
-            # q_set selection based on conditions and choices in %
+            # q_set selection from choices based on conditions
             parameters['qbyqmax'] = np.select(
                 [under_voltage, voltage_is_low, noramal_range, voltage_is_high,
                  over_voltage], [for_under_voltage, for_low_voltage,
                                  for_noramal_range, for_high_voltage,
                                  for_over_voltage])
-
+            # determining inverter max reactive power capacity
             parameters['Q_max'] = np.sqrt(parameters['sn']**2 - (
                 p_input.loc[now, parameters.index])**2)
             q_out = ((parameters['qbyqmax']*parameters['Q_max']
@@ -270,13 +275,13 @@ def apply_controller_to_components_df(component_df, component_df_t, v_pu_buses,
     Parameters
     ----------
     component_df : pandas data frame
-        Can be network.loads/storage_units/generators.
+        Can be n.loads/storage_units/generators.
     component_df_t : pandas data frame
-        can be network.loads_t/storage_units_t/generators_t
+        can be n.loads_t/storage_units_t/generators_t
     v_pu_buses : pandas data frame
         v_mag_pu of all buses.
     now : single snapshot
-        An current (happening) element of network.snapshots on which the power
+        An current (happening) element of n.snapshots on which the power
         power flow is run.
     n_trials : integer
         It shows the outer loop (while loop in pf.py) number of trials until
@@ -333,8 +338,10 @@ def apply_controller(n, now, n_trials):
 
     Parameters
     ----------
+    n : pypsa.components.Network
+        Network
     now : single snaphot
-        An current (happening) element of network.snapshots on which the power
+        An current (happening) element of n.snapshots on which the power
         flow is run.
     n_trials : TYPE
         It shows the outer loop (while loop in pf.py) number of trials until
@@ -379,7 +386,7 @@ def apply_controller(n, now, n_trials):
     return v_mag_pu_voltage_dependent_controller
 
 
-def iterate_over_control_strategies(network):
+def iterate_over_control_strategies(n):
     '''
     This method iterates in componets and checks if any voltage dependent
     controller is chosen or not. If any is chosen it will give an output which
@@ -388,6 +395,8 @@ def iterate_over_control_strategies(network):
 
     Parameters
     ----------
+    n : pypsa.components.Network
+        Network
     Returns
     -------
     voltage_dependent_controller_present : bool, defaut False
@@ -401,9 +410,9 @@ def iterate_over_control_strategies(network):
     '''
     n_trials_max = 20  # can be also an attribute of network
     voltage_dependent_controller_present = np.where(
-        network.loads.type_of_control_strategy.isin(['q_v']).any(
-        ) or network.generators.type_of_control_strategy.isin(['q_v']).any(
-            ) or network.storage_units.type_of_control_strategy.isin(
+        n.loads.type_of_control_strategy.isin(['q_v']).any(
+        ) or n.generators.type_of_control_strategy.isin(['q_v']).any(
+            ) or n.storage_units.type_of_control_strategy.isin(
                 ['q_v']).any(), True, False)
 
     n_trials_max = np.where(voltage_dependent_controller_present,
