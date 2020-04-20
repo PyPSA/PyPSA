@@ -125,3 +125,7 @@ plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
 plt.xlabel('Inverter_injection_percentage %')
 plt.ylabel('Power factor')
 plt.show()
+
+# prepare_data_frame_and_call_controllers(
+#         p_input, now, component_df_p_set_var, component_df_t, component_df,
+#         v_pu_buses, component_type, n_trials)

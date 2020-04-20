@@ -34,9 +34,8 @@ damper,float,n/a,1,"Damper which takes values between 0 - 1 and controlls contro
 set_p1,float,n/a,50,"Injected power divided per inverter capacity set point in (%), controller takes no action for values less than set_p1 and power factor is 1.",Input (required when type_of_control_strategy is  cosphi_p )
 set_p2,float,n/a,100,"Injected power per inverter capacity set point  in (%), controller takes action for values greater than set_p2 with pf_min as power factor.",Input (required when type_of_control_strategy is  cosphi_p )
 pf_min,float,n/a,0.9,Minimum allowed power factor.,Input (required when type_of_control_strategy is  cosphi_p )
-v_pu_min_limit,float,n/a,0.9,Minimum allowed voltage per unit at which controller takes no action (power curtailment).,Input (required when type_of_control_strategy is  p_v )
-v_pu_cr,float,n/a,0.98,Critical voltage per unit at which controller starts taking action (power curtailment).,Input (required when type_of_control_strategy is  p_v )
-v_pu_max_limit,float,n/a,1.01,Maximum allowed voltage per unit at which controllers takes action 100% (power curtailment).,Input (required when type_of_control_strategy is  p_v )
+v_pu_cr,float,n/a,0.98,Critical voltage per unit at which controller starts with minimum curtailment (power curtailment).,Input (required when type_of_control_strategy is  p_v )
+v_max_curtail,float,n/a,1.01,The voltage per unit at which controller curtails  100% of the input (power curtailment).,Input (required when type_of_control_strategy is  p_v )
 p,series,MW,0,active power at bus (positive if net generation),Output
 p_dispatch,series,MW,0,active power dispatch at bus,Output
 p_store,series,MW,0,active power charging at bus,Output
