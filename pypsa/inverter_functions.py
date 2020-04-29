@@ -64,7 +64,7 @@ def cosphi_p(p_input, now, parameters):
     return q_set, pf
 
 
-def q_v(p_input, now, v_pu_buses, component_type, n_trials, parameters):
+def q_v(p_input, now, v_pu_buses, component_type, n_trials, n_trials_max, parameters):
     '''
     Reactive power as a function of voltage Q(U): In this strategy controller
     finds the amount of inverter reactive power capability according to the
@@ -101,7 +101,7 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials, parameters):
     Is the new reactive power that will be set as new q_set in each
         controlled component as the result of applying q_v controller.
     '''
-    if n_trials == 20:
+    if n_trials == n_trials_max:
         logger.warning("The voltage difference at snapshot ' %s' , in "
                        "components '%s', with 'q_v' controller exceeds"
                        "x_tol_outer limit, please apply (damper < 1) or"
@@ -132,8 +132,9 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials, parameters):
     return q_set_out
 
 
-def prepare_df_and_call_controllers(
-     p_input, now, df_t, df, controller, v_pu_buses, component_type, n_trials):
+def prepare_df_and_call_controllers(p_input, now, df_t, df, controller,
+                                    v_pu_buses, component_type, n_trials,
+                                    n_trials_max):
     '''
     This method filters index of components based on type of control and then
     call each controller based on filtered dataframe. df_of_p_set_t and
@@ -144,7 +145,7 @@ def prepare_df_and_call_controllers(
                     (df.index.isin(df_t.p_set) & (controller == control_type))]
 
     def df_of_p_set(control_type): return df.loc[
-                           (~df.index.isin(df_t.p_set) & (controller == type))]
+                           (~df.index.isin(df_t.p_set) & (controller == control_type))]
     # cosphi_p controller
     df_t.pf = df_t.pf.reindex(df_of_p_set_t('cosphi_p').index, axis=1)
 
@@ -157,10 +158,10 @@ def prepare_df_and_call_controllers(
 
     # q_v controller
     df_t.q_set.loc[now, df_of_p_set_t('q_v').index] = q_v(
-      p_input, now, v_pu_buses, component_type, n_trials, df_of_p_set_t('q_v'))
+      p_input, now, v_pu_buses, component_type, n_trials, n_trials_max, df_of_p_set_t('q_v'))
 
     df.loc[df_of_p_set('q_v').index, 'q_set'] = q_v(
-        p_input, now, v_pu_buses, component_type, n_trials, df_of_p_set('q_v'))
+        p_input, now, v_pu_buses, component_type, n_trials, n_trials_max, df_of_p_set('q_v'))
 
     # fixed_cosphi
     df_t.q_set.loc[now, df_of_p_set_t('fixed_cosphi').index] = fixed_cosphi(
@@ -170,7 +171,8 @@ def prepare_df_and_call_controllers(
                                      p_input, now, df_of_p_set('fixed_cosphi'))
 
 
-def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials, component_type):
+def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials,
+                           n_trials_max, component_type):
     '''
     The function interates in components data frames and apply the right
     controller types to the controlled component.
@@ -216,13 +218,14 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials, component_type):
     df_t.q_set = df_t.q_set.reindex((df.loc[(df.index.isin(df_t.p_set) & (
         controller.isin(ctrl_list)))]).index, axis=1)
 
-    prepare_df_and_call_controllers(
-      p_input, now, df_t, df, controller, v_pu_buses, component_type, n_trials)
+    prepare_df_and_call_controllers(p_input, now, df_t, df, controller,
+                                    v_pu_buses, component_type, n_trials,
+                                    n_trials_max)
 
     return bus_names
 
 
-def apply_controller(n, now, n_trials):
+def apply_controller(n, now, n_trials, n_trials_max):
     '''
     This function iterates to storage_units, loads and generators to check
     if any controller is chosen to apply it to the component.
@@ -252,18 +255,20 @@ def apply_controller(n, now, n_trials):
     if n.loads.loc[n.loads.type_of_control_strategy != '',
                    'type_of_control_strategy'].any():
         bus_name_l = apply_controller_to_df(
-                            n.loads, n.loads_t, v_buses, now, n_trials, 'Load')
+                n.loads, n.loads_t, v_buses, now, n_trials,
+                n_trials_max, 'Load')
 
     if n.generators.loc[n.generators.type_of_control_strategy != '',
                         'type_of_control_strategy'].any():
         bus_name_g = apply_controller_to_df(
-            n.generators, n.generators_t, v_buses, now, n_trials, 'generators')
+                n.generators, n.generators_t, v_buses, now, n_trials,
+                n_trials_max, 'generators')
 
     if n.storage_units.loc[n.storage_units.type_of_control_strategy != '',
                            'type_of_control_strategy'].any():
         bus_name_s = apply_controller_to_df(
-                    n.storage_units, n.storage_units_t, v_buses, now, n_trials,
-                    'storage_units')
+                n.storage_units, n.storage_units_t, v_buses, now, n_trials,
+                n_trials_max, 'storage_units')
 
     # combining all bus names from loads, generators and storage_units
     voltage_dependent_controller_bus_names = np.unique(np.concatenate((
