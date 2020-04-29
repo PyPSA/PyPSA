@@ -128,6 +128,14 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials, n_trials_max, parame
 
     q_out = ((q_set_per_qmax*(np.sqrt(sn**2-(p_set)**2))) / 100)*damper
     q_set_out = np.where(component_type == 'loads', -q_out, q_out)
+    """
+    # TODO: jankaeh: this is the only time component_type is used?
+    gets passed along from apply_controller():
+    apply_controller_to_df() -> prepare_df_and_call_controllers() -> q_v()
+    documentation says: can be 'loads', 'storage_units' or 'generators'.
+    Only if it is called with "loads" it has an effect as per line 130. Instead
+    it is called with "Load" in apply_controller() in line 267
+    """
 
     return q_set_out
 
