@@ -203,12 +203,10 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials, component_type):
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
 
     assert (controller.isin(ctrl_list)).all(), (
-        "The type of controllers %s you have typed in %s,"
-        " is not supported. Supported controllers are %s. \n" % (
-            df.loc[(~ df['type_of_control_strategy'].isin(ctrl_list)),
-                   '    type_of_control_strategy'].values, df.loc[(~df[
-                              'type_of_control_strategy'].isin(ctrl_list)),
-                     'type_of_control_strategy'].index.values, ctrl_list[1:4]))
+        "Not all given types of controllers are supported. "
+        "Elements with unknown controllers are:\n%s\nSupported controllers are"
+        ": %s." % (df.loc[(~ df['type_of_control_strategy'].isin(ctrl_list)),
+        'type_of_control_strategy'], ctrl_list))
 
     # names of buses controlled by voltage dependent controllers
     bus_names = np.unique(df.loc[(df['type_of_control_strategy'
