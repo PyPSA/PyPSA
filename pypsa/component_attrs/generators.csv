@@ -28,7 +28,7 @@ ramp_limit_down,float,per unit,NaN,"Maximum active power decrease from one snaps
 ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power.   Only read if committable is True.",Input (optional)
 ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power.   Only read if committable is True.",Input (optional)
 type_of_control_strategy,string,n/a,n/a,"Type of inverter control strategies are, supported types are: q_v,  p_v, fixed_cosphi, and cosphi_p.",Input (optional)
-pf,static or series,n/a,0,Power factor,Input (required when type_of_control_strategy is fixed_cosphi )
+pf,static or series,n/a,1,Power factor,Input (required when type_of_control_strategy is fixed_cosphi )
 sn,float,MWA,1,Inverter complex power capacity.,Input (required when type_of_control_strategy is q_v or cosphi_p )
 v1,float,n/a,0.9,Minimum voltage magnitude per unit (left curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
 v2,float,n/a,0.95,Maximum voltage magnitude per unit (left curve for q_v controller).,Input (required when type_of_control_strategy is q_v )
