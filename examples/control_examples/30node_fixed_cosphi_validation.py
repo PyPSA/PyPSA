@@ -33,7 +33,7 @@ for i in range(n_buses):
     network.add("Load", "My load {}".format(i), bus="My bus {}".format(
         (i+1) % n_buses))
     network.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), control="PQ", p_set=L, pf=0.95)
+        (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.95)
 
 
 def power_flow():
@@ -54,7 +54,7 @@ for i in range(n_buses):
 
 # controller droop characteristic method simplified
 def droop_fixed_cosphi(p_set):
-    pf = network.generators.loc['My Gen 7', 'pf']
+    pf = network.generators.loc['My Gen 7', 'power_factor']
     q_out = -p_set*(math.tan((math.acos(pf))))
     return q_out
 

@@ -34,10 +34,10 @@ for i in range(n_buses):
     network.add("Bus", "My bus {}".format(i), v_nom=.4)
 for i in range(n_buses):
     network.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), control="PQ", p_set=L, sn=0.00025, v1=0.89, v2=0.94,
+        (i+1) % n_buses), control="PQ", p_set=L, s_nom=0.00025, v1=0.89, v2=0.94,
         v3=0.96, v4=1.02)
     network.add("Load", "My load {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), sn=0.00025, p_set=L1)
+        (i+1) % n_buses), s_nom=0.00025, p_set=L1)
     network.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
 
@@ -58,7 +58,7 @@ for i in range(n_buses):
                                                    ].values
     Results_q.loc[:, "q_set_controller_output {}".format(i)] = ((
         network.generators_t.q_set.loc[:, "My Gen {}".format(i)].values)/(
-            np.sqrt((network.generators.loc["My Gen {}".format(i), 'sn'])**2-(
+            np.sqrt((network.generators.loc["My Gen {}".format(i), 's_nom'])**2-(
                 Results_q["p_set"])**2)))*100
 
 

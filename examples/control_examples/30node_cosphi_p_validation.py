@@ -30,10 +30,10 @@ for i in range(n_buses):
     network.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
     network.add("Load", "My load {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), pf=0.95, sn=0.00025, v1=0.89, v2=0.94, v3=0.96,
+        (i+1) % n_buses), power_factor=0.95, s_nom=0.00025, v1=0.89, v2=0.94, v3=0.96,
         v4=1.02, p_set=-L)
     network.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), control="PQ", p_set=L, pf=0.95, sn=0.00025, v1=0.89,
+        (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.95, s_nom=0.00025, v1=0.89,
         v2=0.94, v3=0.96, v4=1.02)
 
 
@@ -47,11 +47,11 @@ power_flow()
 # saving the necessary data for plotting controller behavior
 for i in range(n_buses):
     Results_pf.loc[:, "pf_controller_output {}".format(
-        i)] = network.generators_t.pf.loc[:, "My Gen {}".format(i)].values
+        i)] = network.generators_t.power_factor.loc[:, "My Gen {}".format(i)].values
 
-    Results_injection.loc[:, "inverter_injection(p_set/sn) % {}".format(i)] = (
+    Results_injection.loc[:, "inverter_injection(p_set/s_nom) % {}".format(i)] = (
         network.generators_t.p_set.loc[:, "My Gen {}".format(i)])/(
-            network.generators.loc["My Gen {}".format(i), 'sn'])*100
+            network.generators.loc["My Gen {}".format(i), 's_nom'])*100
 
 
 # controller droop characteristic method simplified
@@ -67,18 +67,18 @@ def droop_cosphi_p_method(injection):
         The injection set point where controller takes no action
     set_p2 . int
         The injection set point where controller starts working with the
-        minimum allowed power factor 'pf_min'
-    pf_min : minimum allowed power factor in the grid
+        minimum allowed power factor 'power_factor_min'
+    power_factor_min : minimum allowed power factor in the grid
 
     Returns
     -------
-    pf : float
+    power_factor : float
         power factor (pf).
     '''
     # The parameters for all generators (Gen) are same, here from # 7 are chosen
     set_p1 = network.generators.loc['My Gen 7', 'set_p1']
     set_p2 = network.generators.loc['My Gen 7', 'set_p2']
-    pf_min = network.generators.loc['My Gen 7', 'pf_min']
+    pf_min = network.generators.loc['My Gen 7', 'power_factor_min']
     if injection <= set_p1:
         pf = 1.0
     elif injection > set_p1 and injection <= (set_p2):
@@ -107,7 +107,7 @@ droop_real_power = controller_droop_injection_percentage
 power_factor = Results_pf.loc[
     :, "pf_controller_output 1":"pf_controller_output 29"]
 p_set_injection_percentage = Results_injection.loc[
-    :, "inverter_injection(p_set/sn) % 1":"inverter_injection(p_set/sn) % 29"]
+    :, "inverter_injection(p_set/s_nom) % 1":"inverter_injection(p_set/s_nom) % 29"]
 
 # plot droop characteristic
 plt.plot(droop_real_power, droop_power_factor,
@@ -117,7 +117,7 @@ plt.scatter(p_set_injection_percentage, power_factor,
             color="g", label="cosphi_p controller characteristic")
 # adding x and y ticks
 # p_set_injection_percentage are same for all inverters so we chose #29 here
-plt.xticks(p_set_injection_percentage['inverter_injection(p_set/sn) % 29'])
+plt.xticks(p_set_injection_percentage['inverter_injection(p_set/s_nom) % 29'])
 plt.yticks(power_factor['pf_controller_output 29'])
 
 plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
