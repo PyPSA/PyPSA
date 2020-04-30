@@ -18,8 +18,7 @@ def cosphi_p(p_input, now, parameters):
     '''
     Power factor as a function of real power (cosphi_p): Sets new values to
     power factor (pf) and q_sets based on the amount of power injection.
-
-    Parameters
+    Parameters:
     ----------
     parameters : pandas data frame
         It contains the following parameters(sn, set_p1, set_p2, pf_min).
@@ -70,8 +69,7 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials, parameters):
     finds the amount of inverter reactive power capability according to the
     amount of power injection and then compensates reactive power based on
     v_mag_pu of the bus where inverter is connected.
-
-    Parameters
+    Parameters:
     ----------
     parameters : pandas data frame
         It contains the following parameters ('sn', 'v1', 'v2', 'v3', 'v4',
@@ -93,7 +91,6 @@ def q_v(p_input, now, v_pu_buses, component_type, n_trials, parameters):
     q_set_per_qmax : pandas data frame
         It is reactive power compensation in % out of maximum reactive
         power capability of inverter (q_max = np.sqrt(sn**2 - (p_set)**2).
-
     ref : https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6096349
     Returns
     -------
@@ -144,7 +141,7 @@ def prepare_df_and_call_controllers(
                     (df.index.isin(df_t.p_set) & (controller == control_type))]
 
     def df_of_p_set(control_type): return df.loc[
-                           (~df.index.isin(df_t.p_set) & (controller == type))]
+                    (~df.index.isin(df_t.p_set) & (controller == control_type))]
     # cosphi_p controller
     df_t.pf = df_t.pf.reindex(df_of_p_set_t('cosphi_p').index, axis=1)
 
@@ -174,8 +171,7 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials, component_type):
     '''
     The function interates in components data frames and apply the right
     controller types to the controlled component.
-
-    Parameters
+    Parameters:
     ----------
     df : pandas data frame
         component data frame. eg: n.loads/storage_units/generators.
@@ -216,7 +212,7 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials, component_type):
 
     # adding lables n.df_t.q_set data frame
     df_t.q_set = df_t.q_set.reindex((df.loc[(df.index.isin(df_t.p_set) & (
-        controller.isin(ctrl_list)))]).index, axis=1)
+                                  controller.isin(ctrl_list)))]).index, axis=1)
 
     prepare_df_and_call_controllers(
       p_input, now, df_t, df, controller, v_pu_buses, component_type, n_trials)
@@ -228,8 +224,7 @@ def apply_controller(n, now, n_trials):
     '''
     This function iterates to storage_units, loads and generators to check
     if any controller is chosen to apply it to the component.
-
-    Parameters
+    Parameters:
     ----------
     n : pypsa.components.Network
         Network
@@ -254,7 +249,7 @@ def apply_controller(n, now, n_trials):
     if n.loads.loc[n.loads.type_of_control_strategy != '',
                    'type_of_control_strategy'].any():
         bus_name_l = apply_controller_to_df(
-                            n.loads, n.loads_t, v_buses, now, n_trials, 'Load')
+                            n.loads, n.loads_t, v_buses, now, n_trials, 'loads')
 
     if n.generators.loc[n.generators.type_of_control_strategy != '',
                         'type_of_control_strategy'].any():
@@ -283,8 +278,7 @@ def iterate_over_control_strategies(n):
     This method checks if any voltage dependent controller is chosen or not.
     If any is chosen it will return the output such that it enables the power
     flow to repeat until the condition of while loop in pf.py is met.
-
-    Parameters
+    Parameters:
     ----------
     n : pypsa.components.Network-
         Network containing all components and elements of the power flow
