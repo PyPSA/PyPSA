@@ -53,7 +53,7 @@ for i in range(n_buses):
         network.generators_t.p_set.loc[:, "My Gen {}".format(i)])/(
             network.generators.loc["My Gen {}".format(i), 's_nom'])*100
 
-
+v=network.buses_t.v_mag_pu
 # controller droop characteristic method simplified
 def droop_cosphi_p_method(injection):
     '''
@@ -125,7 +125,3 @@ plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
 plt.xlabel('Inverter_injection_percentage %')
 plt.ylabel('Power factor')
 plt.show()
-
-# prepare_data_frame_and_call_controllers(
-#         p_input, now, component_df_p_set_var, component_df_t, component_df,
-#         v_pu_buses, component_type, n_trials)

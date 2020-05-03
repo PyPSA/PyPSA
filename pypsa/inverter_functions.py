@@ -10,8 +10,9 @@ def fixed_cosphi(p_input, now, parameters):
     components according to the real power input and power factor given.
     reference : https://www.academia.edu/24772355/
     """
-    pf = parameters['power_factor']
-    q_set_out = -p_input.loc[now, pf.index].mul(np.tan(np.arccos(pf)))
+    q_set_out = -p_input.loc[now, parameters['power_factor'].index].mul(
+        np.tan(np.arccos(parameters['power_factor'])))
+
     return q_set_out
 
 
@@ -48,20 +49,19 @@ def cosphi_p(p_input, now, parameters):
         component as the result of applying cosphi_p controller.
     ref : https://ieeexplore.ieee.org/document/6096349
     """
-    # controller parameters
-    s_nom = parameters['s_nom']
-    set_p1 = parameters['set_p1']
-    set_p2 = parameters['set_p2']
-    pf_min = parameters['power_factor_min']
-    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index])/abs(s_nom))*100
 
+    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index])/abs(
+        parameters['s_nom']))*100
     # pf allocation using np.select([condtions...], [choices...]) function.
-    pf = np.select([(p_set_per_s_nom < set_p1), (p_set_per_s_nom >= set_p1) & (
-              p_set_per_s_nom <= set_p2), (p_set_per_s_nom > set_p2)], [1, (1-(
-               (1-pf_min)/(set_p2-set_p1)*(p_set_per_s_nom-set_p1))), pf_min])
+    pf = np.select([(p_set_per_s_nom < parameters['set_p1']), (
+      p_set_per_s_nom >= parameters['set_p1']) & (p_set_per_s_nom <= parameters[
+            'set_p2']), (p_set_per_s_nom > parameters['set_p2'])], [1, (1-(
+                (1-parameters['power_factor_min'])/(parameters[
+                    'set_p2']-parameters['set_p1'])*(p_set_per_s_nom-parameters[
+                        'set_p1']))), parameters['power_factor_min']])
 
-    q_set = -p_input.loc[now, parameters.index].mul(np.tan((np.arccos(pf))))
-
+    q_set = np.where(pf == 1, 0, -p_input.loc[now, parameters.index].mul(
+                                                      np.tan((np.arccos(pf)))))
     return q_set, pf
 
 
@@ -103,35 +103,32 @@ def q_v(now, n_trials_max, n_trials, p_input, v_pu_buses, component_type, parame
     Is the new reactive power that will be set as new q_set in each
         controlled component as the result of applying q_v controller.
     """
-    if n_trials == n_trials_max:
-        logger.warning("The voltage difference at snapshot ' %s' , in "
-                       "components '%s', with 'q_v' controller exceeds "
-                       "x_tol_outer limit, please apply (damper < 1) or"
-                       "expand controller parameters range between v1 &"
-                       " v2 and or v3 & v4  to avoid the problem." % (
-                           now, parameters.index.values))
+    if not parameters.empty:
+        if n_trials == n_trials_max:
+            logger.warning("The voltage difference at snapshot ' %s' , in "
+                           "components '%s', with 'q_v' controller exceeds "
+                           "x_tol_outer limit, please apply (damper < 1) or"
+                           "expand controller parameters range between v1 &"
+                           " v2 and or v3 & v4  to avoid the problem." % (
+                               now, parameters.index.values))
 
-    p_set = p_input.loc[now, parameters.index]
-    v_pu_bus = v_pu_buses.loc[now, parameters.loc[
-                                   parameters.index, 'bus']].values
-    v1 = parameters['v1']
-    v2 = parameters['v2']
-    v3 = parameters['v3']
-    v4 = parameters['v4']
-    s_nom = parameters['s_nom']
-    damper = parameters['damper']
+        v_pu_bus = v_pu_buses.loc[now, parameters.loc[parameters.index, 'bus']
+                                  ].values
+        # q_set/s_nom selection from choices np.select([conditions], [choices])
+        q_set_per_qmax = np.select([(v_pu_bus < parameters['v1']), (
+            v_pu_bus >= parameters['v1']) & (v_pu_bus <= parameters['v2']), (
+                v_pu_bus > parameters['v2']) & (v_pu_bus <= parameters['v3']), (
+                 v_pu_bus > parameters['v3']) & (v_pu_bus <= parameters['v4']),
+                    (v_pu_bus > parameters['v4'])], [100, (100-(100-0) / (
+                        parameters['v2']-parameters['v1'])*(v_pu_bus-parameters[
+                            'v1'])), 0, -(100)*(v_pu_bus-parameters['v3']) / (
+                                parameters['v4']-parameters['v3']), -100])
 
-    # q_set selection from choices based on conditions in percentage %
-    q_set_per_qmax = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
-               v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (
-                   v_pu_bus > v3) & (v_pu_bus <= v4), (v_pu_bus > v4)
-                   ], [100, (100-(100-0) / (v2-v1)*(v_pu_bus-v1)), 0,
-                       -(100)*(v_pu_bus-v3) / (v4-v3), -100])
+        q_out = ((q_set_per_qmax*(np.sqrt(parameters['s_nom']**2-(p_input.loc[
+            now, parameters.index])**2))) / 100)*parameters['damper']
+        q_set = np.where(component_type == 'loads', -q_out, q_out)
 
-    q_out = ((q_set_per_qmax*(np.sqrt(s_nom**2-(p_set)**2))) / 100)*damper
-    q_set_out = np.where(component_type == 'loads', -q_out, q_out)
-
-    return q_set_out
+        return q_set
 
 
 def prepare_df_and_call_controllers(now, n_trials_max, n_trials, p_input, df_t,
@@ -212,7 +209,7 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials,
         "Not all given types of controllers are supported. "
         "Elements with unknown controllers are:\n%s\nSupported controllers are"
         ": %s." % (df.loc[(~ df['type_of_control_strategy'].isin(ctrl_list)),
-        'type_of_control_strategy'], ctrl_list[1:4]))
+                          'type_of_control_strategy'], ctrl_list[1:4]))
 
     # names of buses controlled by voltage dependent controllers
     bus_names = np.unique(df.loc[(df['type_of_control_strategy'
@@ -220,11 +217,10 @@ def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials,
 
     # adding lables n.df_t.q_set data frame
     df_t.q_set = df_t.q_set.reindex((df.loc[(df.index.isin(df_t.p_set) & (
-                                controller.isin(ctrl_list)))]).index, axis=1)
+                        controller.isin(ctrl_list[1:4])))]).index, axis=1)
 
     prepare_df_and_call_controllers(now, n_trials_max, n_trials, p_input, df_t,
                                     df, controller, v_pu_buses, component_type)
-
     return bus_names
 
 

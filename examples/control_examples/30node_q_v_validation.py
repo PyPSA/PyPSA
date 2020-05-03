@@ -62,71 +62,56 @@ for i in range(n_buses):
                 Results_q["p_set"])**2)))*100
 
 
-# controller droop characteristic method simplified
+# Q(U) controller droop characteristic method
 def q_v(v_pu_bus):
-    '''
-    Parameters
-    ----------
-    v_pu_bus : fload
-        voltage of the bus where controller is connected
-    v1, v2 : float
-        v_pu setpoint for lower curve of the controller.
-    v3, v4 : float
-        v_pu setpoint for upper curve of the controller.
-    damper : float / integer
-        Adds damping characteristic to the controller output.
-
-    Returns
-    -------
-    pf : float
-        power factor (pf).
-    '''
     # parameters are same for all the generators, thus Gen 7 is chosen here
     v1 = network.generators.loc['My Gen 7', 'v1']
     v2 = network.generators.loc['My Gen 7', 'v2']
     v3 = network.generators.loc['My Gen 7', 'v3']
     v4 = network.generators.loc['My Gen 7', 'v4']
     damper = network.generators.loc['My Gen 7', 'damper']
+    # np.select([conditions], [choices]), qbyqmax is chosen based on conditions
+    qbyqmax = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
+               v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (
+                   v_pu_bus > v3) & (v_pu_bus <= v4), (v_pu_bus > v4)
+                   ], [100, (100-(100-0)/(v2-v1)*(v_pu_bus-v1)), 0, -(100)*(
+                    v_pu_bus-v3) / (v4-v3), (-100)])
 
-    if v_pu_bus < v1:
-        qbyqmax = 100
-    elif v_pu_bus >= v1 and v_pu_bus <= v2:
-        qbyqmax = np.interp(v_pu_bus, [v1, v2], [100, 0], 100,  0)
-    elif v_pu_bus > v2 and v_pu_bus <= v3:
-        qbyqmax = 0
-    elif v_pu_bus > v3 and v_pu_bus <= v4:
-        qbyqmax = np.interp(v_pu_bus, [v3, v4], [0, -100], 0, -100)
-    elif v_pu_bus > v4:
-        qbyqmax = -100
-
-    return -qbyqmax*damper
+    return qbyqmax*damper
 
 
 # power factor optional values to calculate droop characteristic (%)
-vmag = [0.85, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99,
-        1.01, 1.02, 1.05]
+Results_droop = pd.DataFrame(np.arange(0.88, 1.03, 0.01), columns=['v_mag'])
 # calculation of droop characteristic (output)
-for index, row in Results_q.iterrows():
-    Results_q.loc[index, "p/pmaxdroop"] = q_v(vmag[index])
-
+for index, row in Results_droop.iterrows():
+    Results_droop.loc[index, "p/pmaxdroop"] = q_v(Results_droop.loc[index, 'v_mag'])
 
 ''' Plotting '''
 # droop characteristic input and output variables
-vdroop = vmag
-qdroop = -Results_q["p/pmaxdroop"]
+vdroop = Results_droop['v_mag']
+qdroop = Results_droop["p/pmaxdroop"]
 # controller input and output variables
 v_control = Results_v.loc[:, "V_pu_with_control 1":"V_pu_with_control 29"]
 qcontrol = Results_q.loc[:, "q_set_controller_output 0":
                          "q_set_controller_output 28"]
 # plot droop characteristic
-plt.plot(vmag, qdroop, label="Q(U) droop characteristic", color='r')
+plt.plot(vdroop, qdroop, label="Droop characteristic", color='r')
 # plot controller behavior
 plt.scatter(v_control, qcontrol, color="g",
-            label="Q(U) Controller characteristic")
-
+            label="Controller behaviour")
+# labeling controller parameters
+plt.text(network.generators.loc['My Gen 7', 'v1'], 100, "v1= %s" % (
+    network.generators.loc['My Gen 7', 'v1']), rotation=0)
+plt.text(network.generators.loc['My Gen 7', 'v2'], 0, "v2= %s" % (
+    network.generators.loc['My Gen 7', 'v2']), rotation=90)
+plt.text(network.generators.loc['My Gen 7', 'v3'], 0, "v3= %s" % (
+    network.generators.loc['My Gen 7', 'v3']), rotation=90)
+plt.text(network.generators.loc['My Gen 7', 'v4'], -100, "v4= %s" % (
+    network.generators.loc['My Gen 7', 'v4']), rotation=90)
+# legendsa and titles
 plt.legend(loc="best", bbox_to_anchor=(0.4, 0.4))
-plt.title("Q(U) Controller Behavior \n  30 node example, \n snapshots = 15\n"
-          "while loop condition = 1e-4")
+plt.title("Q(U) Controller Behavior \n  30 node example 15 snapshots\n"
+          "while loop condition = 1e-4\n v1,v2,v3,v4 are controller setpoints")
 plt.xlabel('voltage_pu')
 plt.ylabel('Reactive power compensation Q(U) %')
 plt.show()
