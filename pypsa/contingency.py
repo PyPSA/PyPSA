@@ -17,8 +17,8 @@
 """
 
 
-__author__ = "Tom Brown (FIAS)"
-__copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Fabian Neumann (KIT)"
+__copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), 2020 Fabian Neumann (KIT), GNU GPL 3"
 
 
 from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack
