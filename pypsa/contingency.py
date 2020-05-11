@@ -256,7 +256,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
             lhs_flow = p.apply(contingency_flow, axis=0)
 
             if len(fix_i):
-                lhs_flow_fix = lhs_flow.reindex(columns=fix_i).dropna(axis=1)
+                lhs_flow_fix = lhs_flow.loc[:,fix_i]
                 s_nom_fix = branches.loc[fix_i, "s_nom"]
 
                 key = ("upper", "non_ext", outage)
@@ -268,8 +268,8 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 rhs[key] = - s_nom_fix
             
             if len(ext_i):
-                lhs_flow_ext = lhs_flow.reindex(columns=ext_i).dropna(axis=1)
-                s_nom_ext = invest_vars.reindex(branches_i).dropna().astype(int)
+                lhs_flow_ext = lhs_flow.loc[:,ext_i]
+                s_nom_ext = invest_vars.loc[ext_i]
 
                 key = ("upper", "ext", outage)
                 lhs[key] = lhs_flow_ext + linexpr((-1, s_nom_ext))
