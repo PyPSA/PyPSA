@@ -815,11 +815,11 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None, skip_objective=False,
-         extra_postprocessing=None, formulation="kirchhoff",
+         skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
          solver_options=None, warmstart=False, store_basis=False,
-         solver_dir=None):
+         solver_dir=None, ptdf_tolerance=0.):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -854,6 +854,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    skip_pre : bool, default False
+        Skip the preliminary steps of computing topology.
     skip_objective : bool, default False
         Skip writing the default objective function. If False, a custom
         objective has to be defined via extra_functionality.
@@ -881,6 +883,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
         After solving, the shadow prices can be retrieved using
         :func:`pypsa.linopt.get_dual` with corresponding name
+    ptdf_tolerance : float
+        For "ptdf" formulation with pyomo.
 
     """
     supported_solvers = ["cbc", "gurobi", 'glpk', 'cplex']
@@ -899,7 +903,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
-    n.determine_network_topology()
+    if not skip_pre:
+        n.determine_network_topology()
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, skip_objective,
