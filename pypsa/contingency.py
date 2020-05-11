@@ -208,7 +208,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
 
     n = network
 
-    if not hasattr(n, "_branch_outages")
+    if not hasattr(n, "_branch_outages"):
         n._branch_outages = n.passive_branches().index
 
     branch_outages = [b
