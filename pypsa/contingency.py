@@ -252,7 +252,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 if branch.name == outage:
                     return pd.Series('', branch.index)
                 flow = linexpr((1, branch))
-                added_flow = linexpr((BODF.loc[branch.name, outage], p.loc[:, outage]))
+                added_flow = linexpr((BODF.at[branch.name, outage], p.loc[:, outage]))
                 return flow + added_flow
 
             lhs_flow = p.apply(contingency_flow, axis=0)
