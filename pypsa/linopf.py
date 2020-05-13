@@ -700,6 +700,8 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
                     i_eff = '' if i == '1' else i
                     eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
                     set_from_frame(pnl, f'p{i}', - values * eff)
+                    pnl[f'p{i}'].loc[sns, n.links.index[n.links[f'bus{i}'] == ""]] = \
+                                              n.component_attrs['Link'].loc[f'p{i}','default']
             else:
                 set_from_frame(pnl, attr, values)
         else:
