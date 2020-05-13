@@ -7,7 +7,14 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Upcoming feature.
+* There was a bug in the LOPF with `pyomo=False` whereby if some Links
+  were defined with multiple outputs (i.e. bus2, bus3, etc. were
+  defined), but there remained some Links without multiple outputs
+  (bus2, bus3, etc. set to `""`), then the Links without multiple
+  outputs were assigned erroneous non-zero values for p2, p3, etc. in
+  the LOPF with `pyomo=False`. Now p2, p3, etc. revert to the default
+  value for Links where bus2, bus3, etc. are not defined, just like
+  for the LOPF with `pyomo=True`.
 
 
 PyPSA 0.17.0 (23rd March 2020)
