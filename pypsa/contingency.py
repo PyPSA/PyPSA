@@ -239,7 +239,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
         ext_i = branches.loc[branches.s_nom_extendable].index
         fix_i = branches.loc[~branches.s_nom_extendable].index
 
-        p = dispatch_vars.loc[:, branches_i]
+        p = dispatch_vars[branches_i]
         
         BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
 
@@ -252,13 +252,13 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 if branch.name == outage:
                     return pd.Series('', branch.index)
                 flow = linexpr((1, branch))
-                added_flow = linexpr((BODF.at[branch.name, outage], p.loc[:, outage]))
+                added_flow = linexpr((BODF.at[branch.name, outage], p[outage]))
                 return flow + added_flow
 
             lhs_flow = p.apply(contingency_flow, axis=0)
 
             if len(fix_i):
-                lhs_flow_fix = lhs_flow.loc[:,fix_i]
+                lhs_flow_fix = lhs_flow[fix_i]
                 s_nom_fix = branches.loc[fix_i, "s_nom"]
 
                 key = ("upper", "non_ext", outage)
@@ -270,8 +270,8 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 rhs[key] = - s_nom_fix
             
             if len(ext_i):
-                lhs_flow_ext = lhs_flow.loc[:,ext_i]
-                s_nom_ext = invest_vars.loc[ext_i]
+                lhs_flow_ext = lhs_flow[ext_i]
+                s_nom_ext = invest_vars[ext_i]
 
                 key = ("upper", "ext", outage)
                 lhs[key] = lhs_flow_ext + linexpr((-1, s_nom_ext))
@@ -294,7 +294,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
         for c in comps:
             if c in constr.columns.levels[0]:
                 constr_name = "_".join([bound, *outage])
-                set_conref(n, constr.loc[:, c], c,
+                set_conref(n, constr[c], c,
                            f"mu_contingency_{constr_name}",
                            spec=spec)
 
