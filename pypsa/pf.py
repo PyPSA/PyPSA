@@ -40,7 +40,7 @@ from operator import itemgetter
 import time
 
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
-from .inverter_functions import apply_controller, iterate_over_control_strategies
+from .inverter_functions import apply_controller, prepare_controller_parameter_dict
 pd.Series.zsum = zsum
 
 def normed(s): return s/s.sum()
@@ -500,16 +500,14 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     diffs = pd.Series(index=snapshots)
     convs = pd.Series(False, index=snapshots)
 
-    (voltage_dependent_controller_present, n_trials_max, df_load, df_load_t, 
-     df_storage_units_t, df_storage_units, df_generators_t, df_generators) = iterate_over_control_strategies(network)
+    voltage_dependent_controller_present, n_trials_max, parameter_dict = prepare_controller_parameter_dict(network)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials, n_iter_overall = (1, 0, 0)
         start_outer = time.time()
         while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
             n_trials += 1
 
-            previous_v_mag_pu_voltage_dependent_controller = apply_controller(
-                network, now, n_trials, n_trials_max, df_load, df_load_t, df_storage_units_t, df_storage_units, df_generators_t, df_generators)
+            previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
             _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]

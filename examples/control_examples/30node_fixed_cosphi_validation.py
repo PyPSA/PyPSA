@@ -4,7 +4,8 @@ import pypsa
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-
+import time
+start = time.time()
 '''
 This example shows the validation of fixed power factor control strategy
 (fixed_cosphi) by plotting the controller output and its droop characteristic
@@ -92,4 +93,5 @@ plt.title("fixed_cosphi control strategy validation \n  30 node example, \n"
 plt.xlabel('Real power input')
 plt.ylabel('Reactive power compensation (new q_set)')
 plt.show()
-
+end = time.time()
+print(f"Runtime of the program is {end - start}")

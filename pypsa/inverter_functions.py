@@ -1,6 +1,7 @@
 """importing important libraries."""
 import numpy as np
 import logging
+import pandas as pd
 logger = logging.getLogger(__name__)
 
 
@@ -10,13 +11,14 @@ def fixed_cosphi(p_input, now, parameters):
     components according to the real power input and power factor given.
     reference : https://www.academia.edu/24772355/
     """
-    q_set_out = -p_input.loc[now, parameters['power_factor'].index].mul(
+
+    q_set = -p_input.loc[now, parameters['power_factor'].index].mul(
         np.tan(np.arccos(parameters['power_factor'])))
+    
+    return q_set
 
-    return q_set_out
 
-
-def cosphi_p(p_input, now, parameters):
+def cosphi_p(p_input, now, parameters, p_set_varies, df):
     """
     Power factor as a function of real power (cosphi_p) method. It sets new
     power factor and q_set values based on the amount of power injection.
@@ -49,23 +51,29 @@ def cosphi_p(p_input, now, parameters):
         component as the result of applying cosphi_p controller.
     ref : https://ieeexplore.ieee.org/document/6096349
     """
+    set_p1 = parameters['set_p1']
+    set_p2 = parameters['set_p2']
+    s_nom = parameters['s_nom']
+    power_factor_min = parameters['power_factor_min']
+    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index])/abs(s_nom))*100
 
-    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index])/abs(
-        parameters['s_nom']))*100
     # pf allocation using np.select([condtions...], [choices...]) function.
-    pf = np.select([(p_set_per_s_nom < parameters['set_p1']), (
-      p_set_per_s_nom >= parameters['set_p1']) & (p_set_per_s_nom <= parameters[
-            'set_p2']), (p_set_per_s_nom > parameters['set_p2'])], [1, (1-(
-                (1-parameters['power_factor_min'])/(parameters[
-                    'set_p2']-parameters['set_p1'])*(p_set_per_s_nom-parameters[
-                        'set_p1']))), parameters['power_factor_min']])
+    power_factor = np.select([(p_set_per_s_nom < set_p1), (
+        p_set_per_s_nom >= set_p1) & (p_set_per_s_nom <= set_p2), (
+            p_set_per_s_nom > set_p2)], [1, (1-((1-power_factor_min)/(
+                set_p2-set_p1)*(p_set_per_s_nom-set_p1))), power_factor_min])
 
-    q_set = np.where(pf == 1, 0, -p_input.loc[now, parameters.index].mul(
-                                                      np.tan((np.arccos(pf)))))
-    return q_set, pf
+    q_set = np.where(power_factor == 1, 0, -p_input.loc[
+        now, parameters.index].mul(np.tan((np.arccos(power_factor)))))
+    if p_set_varies:
+        df.power_factor.loc[now, parameters.index] = power_factor
+    else:
+        df.loc[parameters.index, 'power_factor'] = power_factor
+
+    return q_set
 
 
-def q_v(now, n_trials_max, n_trials, p_input, v_pu_buses, component_type, parameters):
+def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
     """
     Reactive power as a function of voltage Q(U): In this strategy controller
     finds the amount of inverter reactive power capability according to the
@@ -103,128 +111,37 @@ def q_v(now, n_trials_max, n_trials, p_input, v_pu_buses, component_type, parame
     Is the new reactive power that will be set as new q_set in each
         controlled component as the result of applying q_v controller.
     """
-    if not parameters.empty:
-        if n_trials == n_trials_max:
-            logger.warning("The voltage difference at snapshot ' %s' , in "
-                           "components '%s', with 'q_v' controller exceeds "
-                           "x_tol_outer limit, please apply (damper < 1) or"
-                           "expand controller parameters range between v1 &"
-                           " v2 and or v3 & v4  to avoid the problem." % (
-                               now, parameters.index.values))
 
-        v_pu_bus = v_pu_buses.loc[now, parameters.loc[parameters.index, 'bus']
-                                  ].values
-        # q_set/s_nom selection from choices np.select([conditions], [choices])
-        q_set_per_qmax = np.select([(v_pu_bus < parameters['v1']), (
-            v_pu_bus >= parameters['v1']) & (v_pu_bus <= parameters['v2']), (
-                v_pu_bus > parameters['v2']) & (v_pu_bus <= parameters['v3']), (
-                 v_pu_bus > parameters['v3']) & (v_pu_bus <= parameters['v4']),
-                    (v_pu_bus > parameters['v4'])], [100, (100-(100-0) / (
-                        parameters['v2']-parameters['v1'])*(v_pu_bus-parameters[
-                            'v1'])), 0, -(100)*(v_pu_bus-parameters['v3']) / (
-                                parameters['v4']-parameters['v3']), -100])
+    if n_trials == n_trials_max:
+        logger.warning("The voltage difference at snapshot ' %s' , in "
+                       "components '%s', with 'q_v' controller exceeds "
+                       "x_tol_outer limit, please apply (damper < 1) or"
+                       "expand controller parameters range between v1 &"
+                       " v2 and or v3 & v4  to avoid the problem." % (
+                           now, parameters.index.values))
 
-        q_out = ((q_set_per_qmax*(np.sqrt(parameters['s_nom']**2-(p_input.loc[
-            now, parameters.index])**2))) / 100)*parameters['damper']
-        q_set = np.where(component_type == 'loads', -q_out, q_out)
+    v_pu_bus = n.buses_t.v_mag_pu.loc[now, parameters.loc[
+                                               parameters.index, 'bus']].values
+    # Parameter
+    v1 = parameters['v1']
+    v2 = parameters['v2']
+    v3 = parameters['v3']
+    v4 = parameters['v4']
 
-        return q_set
+    # q_set/s_nom selection from choices np.select([conditions], [choices])
+    q_set_per_qmax = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
+        v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (v_pu_bus > v3)
+        & (v_pu_bus <= v4), (v_pu_bus > v4)], [100, (100-(100-0) / (v2-v1)*(
+            v_pu_bus-v1)), 0, -(100)*(v_pu_bus-v3) / (v4-v3), -100])
 
+    q_out = ((q_set_per_qmax*(np.sqrt(parameters['s_nom']**2-(p_input.loc[
+        now, parameters.index])**2))) / 100)*parameters['damper']
+    q_set = np.where(component_name.strip('_t') == 'loads', -q_out, q_out)
 
-def prepare_df_and_call_controllers(now, n_trials_max, n_trials, p_input, df_t,
-                                    df, controller, v_pu_buses, component_type):
-    """
-    Filter index of components based on type of control and then call each
-    controller with filtered dataframe as input parameter. df_of_p_set_t method
-    filters df for indexes having varying p_set and df_of_p_set method filters
-    df for indexes having fixed p_set respectively.
-    """
-    def df_of_p_set_t(control_type): return df.loc[
-                    (df.index.isin(df_t.p_set) & (controller == control_type))]
-
-    def df_of_p_set(control_type): return df.loc[
-                   (~df.index.isin(df_t.p_set) & (controller == control_type))]
-
-    # cosphi_p controller
-    df_t.power_factor = df_t.power_factor.reindex(
-                                       df_of_p_set_t('cosphi_p').index, axis=1)
-
-    df_t.q_set.loc[now, df_of_p_set_t('cosphi_p').index], df_t.power_factor.loc[
-                              now, df_of_p_set_t('cosphi_p').index] = cosphi_p(
-                                       p_input, now, df_of_p_set_t('cosphi_p'))
-
-    df.loc[df_of_p_set('cosphi_p').index, 'q_set'], df.loc[df_of_p_set(
-     'cosphi_p').index, 'power_factor'] = cosphi_p(
-                                         p_input, now, df_of_p_set('cosphi_p'))
-
-    # fixed_cosphi
-    df_t.q_set.loc[now, df_of_p_set_t('fixed_cosphi').index] = fixed_cosphi(
-                                   p_input, now, df_of_p_set_t('fixed_cosphi'))
-
-    df.loc[df_of_p_set('fixed_cosphi').index, 'q_set'] = fixed_cosphi(
-                                     p_input, now, df_of_p_set('fixed_cosphi'))
-
-    # q_v controller
-    df_t.q_set.loc[now, df_of_p_set_t('q_v').index] = q_v(
-           now, n_trials_max,
-           n_trials, p_input, v_pu_buses, component_type, df_of_p_set_t('q_v'))
-
-    df.loc[df_of_p_set('q_v').index, 'q_set'] = q_v(
-             now, n_trials_max,
-             n_trials, p_input, v_pu_buses, component_type, df_of_p_set('q_v'))
+    return q_set
 
 
-def apply_controller_to_df(df, df_t, v_pu_buses, now, n_trials,
-                           n_trials_max, component_type):
-    """
-    Iterate over components df and apply the right controller type on them.
-
-    Parameter:
-    ----------
-
-    df : pandas data frame
-        component data frame. eg: n.loads/storage_units/generators.
-    df_t : pandas data frame
-        Variable component data frame eg: n.loads_t/storage_units_t/generators_t
-    v_pu_buses : pandas data frame
-        v_mag_pu of all buses.
-    now : single snapshot
-        An current (happening) element of n.snapshots on which the power
-        power flow is run.
-    component_type : string
-        can be 'loads', 'storage_units' or 'generators'.
-
-    Returns
-    -------
-    bus_names : pandas data frame
-        Name of all thoses buses which are controlled by voltage dependent
-        controllers such as q_v. This output is needed to calculate their
-        v_mag_pu.
-    """
-    p_input = df_t.p
-    controller = df['type_of_control_strategy']
-    ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
-
-    assert (controller.isin(ctrl_list)).all(), (
-        "Not all given types of controllers are supported. "
-        "Elements with unknown controllers are:\n%s\nSupported controllers are"
-        ": %s." % (df.loc[(~ df['type_of_control_strategy'].isin(ctrl_list)),
-                          'type_of_control_strategy'], ctrl_list[1:4]))
-
-    # names of buses controlled by voltage dependent controllers
-    bus_names = np.unique(df.loc[(df['type_of_control_strategy'
-                                     ].isin(['q_v'])), 'bus'].values)
-
-    # adding lables n.df_t.q_set data frame
-    df_t.q_set = df_t.q_set.reindex((df.loc[(df.index.isin(df_t.p_set) & (
-                        controller.isin(ctrl_list[1:4])))]).index, axis=1)
-
-    prepare_df_and_call_controllers(now, n_trials_max, n_trials, p_input, df_t,
-                                    df, controller, v_pu_buses, component_type)
-    return bus_names
-
-
-def apply_controller(n, now, n_trials, n_trials_max):
+def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
     """
     Iterate over storage_units, loads and generators to to apply controoler.
 
@@ -240,6 +157,16 @@ def apply_controller(n, now, n_trials, n_trials_max):
     n_trials_max : integer
         It is the max number of outer loop (while loop in pf.py) trials until
         the controller converges.
+    parameter_dict : dictionary
+        It is a dynamic dictionary, meaning that its size and content depends on
+        the number controllers chosen on number components. Eg; if only 'q_v'
+        controller on Load component is chosen, then dictionary will look like:
+        Parameter_dict{'p_input': {'loads':n.loads_t.p }, controller_parameters:
+        {'q_v':{'loads':n.loads, 'loads_t':n.loads}}}, 'v_dep_buses':{array of
+        v_dependent bus names}}. Where n.loads is loads df that has p_set fixed
+        and loads_t is loads df that has changing p_set in each snapshot.
+        pramameter_dict exapands same way for the other controllers and
+        components but its structure does not change.
 
     Returns
     -------
@@ -249,65 +176,119 @@ def apply_controller(n, now, n_trials, n_trials_max):
         the voltage from the next n_trial of the power flow to decide wether to
         repeat the power flow  for the next iteration or not (in pf.py file).
     """
-    v_buses = n.buses_t.v_mag_pu
-    bus_name_l = bus_name_g = bus_name_s = np.array([])
+    if bool('controller_parameters' in parameter_dict):
+        for controller in parameter_dict['controller_parameters'].keys():
+            for component_name, parameter in parameter_dict[
+                    'controller_parameters'][controller].items():
 
-    if n.loads.loc[n.loads.type_of_control_strategy != '',
-                   'type_of_control_strategy'].any():
-        bus_name_l = apply_controller_to_df(
-                         n.loads, n.loads_t, v_buses, now, n_trials,
-                         n_trials_max, 'loads')
+                p_input = parameter_dict['P_input'][component_name.strip('_t')]
+                df = getattr(n, component_name)
+                p_set_varies = bool('_t' in component_name)
 
-    if n.generators.loc[n.generators.type_of_control_strategy != '',
-                        'type_of_control_strategy'].any():
-        bus_name_g = apply_controller_to_df(
-                         n.generators, n.generators_t, v_buses, now, n_trials,
-                         n_trials_max, 'generators')
+                if controller == 'q_v':
+                    q_set = q_v(now, n_trials_max, n_trials, p_input, n,
+                                component_name, parameter)
 
-    if n.storage_units.loc[n.storage_units.type_of_control_strategy != '',
-                           'type_of_control_strategy'].any():
-        bus_name_s = apply_controller_to_df(
-                         n.storage_units, n.storage_units_t, v_buses, now,
-                         n_trials, n_trials_max, 'storage_units')
+                if controller == 'fixed_cosphi':
+                    q_set = fixed_cosphi(p_input, now, parameter)
 
-    # combining all bus names from loads, generators and storage_units
-    voltage_dependent_controller_bus_names = np.unique(np.concatenate((
-                                  bus_name_l, bus_name_g, bus_name_s), axis=0))
+                if controller == 'cosphi_p':
+                    q_set = cosphi_p(p_input, now, parameter, p_set_varies, df)
 
-    # finding v_mag_pu of buses controlled by voltage dependent controllers
-    v_mag_pu_voltage_dependent_controller = v_buses.loc[
-                                   now, voltage_dependent_controller_bus_names]
+            if p_set_varies:
+                df.q_set.loc[now, parameter.index] = q_set
+            else:
+                df.loc[parameter.index, 'q_set'] = q_set
 
-    return v_mag_pu_voltage_dependent_controller
+        v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
+                                            now, parameter_dict['v_dep_buses']]
+
+        return v_mag_pu_voltage_dependent_controller
 
 
-def iterate_over_control_strategies(n):
+def prepare_dict_values(parameter_dict, comp, df, df_t, ctrl_list, controller):
     """
-    Check if any voltage dependent controller is chosen or not, if True, it.
-    will return the output such that it enables the power flow to repeat until
-    the condition of outer loop (while loop) in pf.py is met.
+    Prepare dictionary of controller parameter keys and values.
 
-    Parameter:
+    Parameters
     ----------
-    n : pypsa.components.Network-
-        Network containing all components and elements of the power flow
+    parameter_dict : dictionary
+        An empty dictonary ready to get filled with keys and values.
+    comp : string
+        Comp is component name, eg: 'loads', 'storage_units', 'generators'.
+    df : pandas data frame
+        Component data frame, eg; n.loads, n.generators, n.storage_units.
+    df_t : pandas data frame
+        Component time var data frame, eg; n.loads_t, n.generator_t.
+    ctrl_list : list
+        List of supported controllers ['q_v', 'cosphi_p', 'fixed_cosphi'].
+    controller : pandas data frame
+        Type of controller can be any of them in ctrl_list.
+
     Returns
     -------
-    voltage_dependent_controller_present : bool, defaut False
-        It will give a bool value (True/False) whether voltage dependent
-        controller is present in the grid or not, if present True if not False.
-    n_trials_max : integer
-        This enables the power flow to repeat power flow in while loop inside
-        pf.py file until either the while loop condition is met or n_trial_max
-        is reached.
+    parameter_dict : dictionary
+        All needed parameters for the chosen controller.
     """
-    n_trials_max = 20  # can be also an attribute of network
-    voltage_dependent_controller_present = np.where(
-        n.loads.type_of_control_strategy.isin(['q_v']).any(
-        ) or n.generators.type_of_control_strategy.isin(['q_v']).any(
-            ) or n.storage_units.type_of_control_strategy.isin(['q_v']).any(
-                ), True, False)
+    assert (controller.isin(ctrl_list)).all(), (
+        "Not all given types of controllers are supported. "
+        "Elements with unknown controllers are:\n%s\nSupported controllers are"
+        ": %s." % (df.loc[(~ df['type_of_control_strategy'].isin(ctrl_list)),
+                          'type_of_control_strategy'], ctrl_list[1:4]))
 
-    n_trials_max = np.where(
-                         voltage_dependent_controller_present, n_trials_max, 1)
-    return voltage_dependent_controller_present, n_trials_max
+    if 'controller_parameters' not in parameter_dict:
+        parameter_dict['controller_parameters'] = {}
+    if 'P_input' not in parameter_dict:
+        parameter_dict['P_input'] = {}
+    parameter_dict['P_input'][comp] = df_t.p
+
+    for c in ctrl_list[1:4]:
+        if (df.type_of_control_strategy == c).any():
+
+            if c not in parameter_dict['controller_parameters']:
+                parameter_dict['controller_parameters'][c] = {}
+
+            if df[df.type_of_control_strategy == c].index.isin(df_t.p_set).any():
+                parameter_dict['controller_parameters'][c][comp+'_t'] = df.loc[
+                                (df.index.isin(df_t.p_set) & (controller == c))]
+
+            if ~(df[df.type_of_control_strategy == c].index).isin(df_t.p_set).all():
+                parameter_dict['controller_parameters'][c][comp] = df.loc[
+                               (~df.index.isin(df_t.p_set) & (controller == c))]
+
+    df_t.power_factor = df_t.power_factor.reindex(df.loc[
+        (df.index.isin(df_t.p_set) & (controller == 'cosphi_p'))].index, axis=1)
+
+    df_t.q_set = df_t.q_set.reindex((df.loc[(df.index.isin(df_t.p_set) & (
+                              controller.isin(ctrl_list[1:4])))]).index, axis=1)
+    return parameter_dict
+
+
+def prepare_controller_parameter_dict(n):
+    """
+    Iterate over components (loads, storage_units, generators) and check if it
+    is controlled or not, if controlled the respective controller parameter from
+    that component will be considered in parameter_dict function.
+    """
+    components = ['loads', 'storage_units', 'generators']
+    ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
+    parameter_dict = {}
+    parameter_dict['v_dep_buses'] = {}
+    n_trials_max = 1
+
+    for comp in components:
+        df = getattr(n, comp)
+        df_t = getattr(n, comp+'_t')
+        controller = df['type_of_control_strategy']
+        if (df.type_of_control_strategy != '').any():
+            parameter_dict = prepare_dict_values(
+                         parameter_dict, comp, df, df_t, ctrl_list, controller)
+        if (df.type_of_control_strategy == 'q_v').any():
+            n_trials_max = 20
+
+    v_dep_controller_present = np.where(n_trials_max == 20, True, False)
+    if v_dep_controller_present:
+        parameter_dict['v_dep_buses'] = np.unique(pd.concat(
+                 parameter_dict['controller_parameters']['q_v'])['bus'].values)
+
+    return v_dep_controller_present, n_trials_max, parameter_dict
