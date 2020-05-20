@@ -59,10 +59,8 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
         switches_status_before = network.switches.status.copy()
         logger.info(network.buses)
         open_switches(network, network.switches.index)
-        logger.info(network.buses)
-    assert (bus0 in network.buses.index) & (bus1 in network.buses.index), (
-           "when adding a switch, make sure to add its buses (%s and %s) to "
-           "network.buses first:\n %s" % (bus0, bus1, network.buses))
+    assert(bus0 in network.buses.index or bus0 in network.buses_only_logical.index) & (bus1 in network.buses.index or bus1 in network.buses_only_logical.index), (
+           "when adding a switch, make sure to add its buses (%s and %s) to network.buses first:\n %s" % (bus0, bus1, network.buses))
     network.switches.loc[name] = {'i_max': i_max,
                                   'bus0': bus0, 'bus1': bus1,
                                   'status': status,
