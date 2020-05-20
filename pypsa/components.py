@@ -604,6 +604,7 @@ class Network(Basic):
                                      "So we need to call network.reinit_switches():\n%s",
                                      class_name, switch_related)
                         need_to_reinit = True
+                        status_before = self.switches.status.copy()
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:
                 bus_name = new_df.at[name,attr]
@@ -611,7 +612,7 @@ class Network(Basic):
                     if not switch_related:
                         logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
         if need_to_reinit:
-            self.reinit_switches()
+            self.reinit_switches(status_before)
 
 
     def remove(self, class_name, name):
@@ -807,8 +808,8 @@ class Network(Basic):
             self.open_switches(self.switches.index)
         cls_df.drop(names, inplace=True)
         if need_to_reinit:
-            self.reinit_switches(skip_switching=True)
-            self.switches.status = status_before
+            self.reinit_switches(status_before, skip_switching=True)
+            self.switches.status = status_before  # hold on, when we remove switches thaat fails right?
             self.switching()
 
         pnl = self.pnl(class_name)
@@ -1188,6 +1189,7 @@ class Network(Basic):
                                    "\nSwitches do not have impedance and when they are closed their bus0 and "
                                    "bus1 are replaced by one bus_connected in all attached components." %
                                    (c.list_name, parallel_to_switch))
+
 
 class SubNetwork(Common):
     """

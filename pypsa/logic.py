@@ -33,11 +33,11 @@ def is_switch_connecting_buses(network, bus0, bus1):
     return False
 
 
-def reinit_switches(network, skip_switching=False):
+def reinit_switches(network, status_old_switches, skip_switching=False):
     logger.info("reinitializing switches")
     if not skip_switching:  # when we call this when removing components, we must not switch
-        switches_status_before = network.switches.status.copy()
-        open_switches(network, network.switches.index)
+        switches_status_before = network.switches.status.copy()  # there might be new ones
+        open_switches(network, status_old_switches.index)
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
@@ -61,7 +61,8 @@ def add_switch(network, name, bus0, bus1, status, i_max=np.nan):
         open_switches(network, network.switches.index)
         logger.info(network.buses)
     assert (bus0 in network.buses.index) & (bus1 in network.buses.index), (
-           "when adding a switch, make sure to add its buses (%s and %s) to network.buses first:\n %s" % (bus0, bus1, network.buses))
+           "when adding a switch, make sure to add its buses (%s and %s) to "
+           "network.buses first:\n %s" % (bus0, bus1, network.buses))
     network.switches.loc[name] = {'i_max': i_max,
                                   'bus0': bus0, 'bus1': bus1,
                                   'status': status,

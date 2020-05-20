@@ -111,7 +111,7 @@ class ExporterCSV(Exporter):
         if not os.path.isdir(csv_folder_name):
             logger.warning("Directory {} does not exist, creating it"
                            .format(csv_folder_name))
-            os.mkdir(csv_folder_name)
+            os.makedirs(csv_folder_name)
 
     def save_attributes(self, attrs):
         name = attrs.pop('name')
@@ -753,10 +753,11 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
             try:
                 test_init = network.switches_connections  # AttributeError if not initialized
                 need_to_reinit = True
+                status_old_switches = network.switches.status
             except AttributeError:
                 need_to_init = True
-    
-        if len(network.switches):  # this does not catch first switches in network i.e. when importing from csv folder
+
+        elif len(network.switches):  # this does not catch first switches in network i.e. when importing from csv folder
             try:
                 test_init = network.switches_connections  # AttributeError if not initialized
                 for attr in ["bus", "bus0", "bus1"]:
@@ -768,6 +769,7 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
                                          "So we need to call network.reinit_switches():\n%s",
                                          cls_name, switch_related)
                             need_to_reinit = True
+                            status_old_switches = network.switches.status.copy()
             except AttributeError:
                 need_to_init = True
 
@@ -782,7 +784,7 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
                 else:
                     logger.debug("The following %s have buses which are not defined."
                                  " So network.init_switches() must have been called:\n%s",
-                                   cls_name, missing)
+                                 cls_name, missing)
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
@@ -795,7 +797,7 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
         return
     setattr(network, network.components[cls_name]["list_name"], new_df)
     if need_to_reinit:  # the new component is connected to a switch, initialize again
-        reinit_switches(network)
+        reinit_switches(network, status_old_switches)
     elif need_to_init:  # the new component is connected to a switch, initialize
         init_switches(network)
     #now deal with time-dependent properties
