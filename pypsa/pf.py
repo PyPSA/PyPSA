@@ -499,8 +499,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     iters = pd.Series(0, index=snapshots)
     diffs = pd.Series(index=snapshots)
     convs = pd.Series(False, index=snapshots)
-
-    voltage_dependent_controller_present, n_trials_max, parameter_dict = prepare_controller_parameter_dict(network)
+    # prepare controllers if any and enable outer loop if voltage dependent controller present
+    n_trials_max, parameter_dict = prepare_controller_parameter_dict(network)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials, n_iter_overall = (1, 0, 0)
         start_outer = time.time()
@@ -532,7 +532,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
             iters[now] = n_iter
             diffs[now] = diff
             convs[now] = converged
-            if voltage_dependent_controller_present == True:
+            if n_trials_max > 1:
                 voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_v_mag_pu_voltage_dependent_controller)).max()
         logger.info("Newton-Raphson solved in %d iterations and %d outer loops with error of %f in %f seconds",
                     n_iter_overall, n_trials, diff, time.time() - start_outer)

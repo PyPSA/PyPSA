@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 import time
+
 start = time.time()
 '''
 This example shows the validation of fixed power factor control strategy

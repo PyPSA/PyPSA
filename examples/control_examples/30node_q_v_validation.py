@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 start = time.time()
+pypsa.pf.logger.setLevel("INFO")
 '''
 This example is for validation of reactive power compensation control strategy
 (Q(v)) by plotting the controller output and its droop characteristic in the
@@ -117,4 +118,4 @@ plt.xlabel('voltage_pu')
 plt.ylabel('Reactive power compensation Q(U) %')
 plt.show()
 end = time.time()
-print(f"Runtime of the program is {end - start}")
+print("Runtime of the program is {end - start}")
