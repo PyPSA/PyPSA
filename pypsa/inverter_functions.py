@@ -212,11 +212,7 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
 
 def prepare_dict_values(parameter_dict, comp, df, df_t, ctrl_list, controller):
     """
-<<<<<<< HEAD
-    Add parameters of the given controlled components to the given parameter_dict.
-=======
     Add parameters of the given controlled components to the given parameter_dict
->>>>>>> df296e48522172cfe3264fc68fff505051273d54
 
     Parameters
     ----------
@@ -300,12 +296,8 @@ def prepare_controller_parameter_dict(n):
         if (df.type_of_control_strategy == 'q_v').any():
             # voltage dependent coltroller is present, activate the outer loop
             n_trials_max = 20
-<<<<<<< HEAD
-    logger.info(
-        "We are in %s. That's the parameter dict:\n%s", comp, parameter_dict)
-=======
+
         logger.info("We are in %s. That's the parameter dict:\n%s", comp, parameter_dict)
->>>>>>> df296e48522172cfe3264fc68fff505051273d54
 
     if n_trials_max > 1:
         parameter_dict['v_dep_buses'] = np.unique(pd.concat(
