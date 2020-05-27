@@ -594,7 +594,11 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    sol = pd.read_csv(solution_fn, header=None, skiprows=[0],
+    f = open(solution_fn,"rb")
+    trimed_sol_fn = re.sub(b'\*\*\s+', b'', f.read())
+    f.close()
+
+    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=None, skiprows=[0],
                       sep=r'\s+', usecols=[1,2,3], index_col=0)
     variables_b = sol.index.str[0] == 'x'
     variables_sol = sol[variables_b][2].pipe(set_int_index)

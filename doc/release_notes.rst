@@ -16,6 +16,8 @@ Upcoming Release
   value for Links where bus2, bus3, etc. are not defined, just like
   for the LOPF with `pyomo=True`.
 
+* Handle double-asterisk prefix in solution_fn when solving lopf with pyomo=False using CBC.
+
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
