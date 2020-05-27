@@ -143,7 +143,7 @@ def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
 
 def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
     """
-    Iterate over storage_units, loads and generators to to apply controoler.
+    Iterate over storage_units, loads and generators to to apply controller.
 
     Parameter:
     ----------
@@ -159,7 +159,7 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
         the controller converges.
     parameter_dict : dictionary
         It is a dynamic dictionary, meaning that its size and content depends on
-        the number controllers chosen on number components. Eg; if only 'q_v'
+        the number controllers chosen on number of components. Eg; if only 'q_v'
         controller on Load component is chosen, then dictionary will look like:
         Parameter_dict{'p_input': {'loads':n.loads_t.p }, controller_parameters:
         {'q_v':{'loads':n.loads, 'loads_t':n.loads}}}, 'v_dep_buses':{array of
@@ -172,7 +172,7 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
     -------
     v_mag_pu_voltage_dependent_controller : pandas data frame
         v_mag_pu of buses having voltage dependent controller attached to one of
-        their inverters. This is important in order to be able to v_mag_pu with
+        their inverters. This is important in order to be able to compare v_mag_pu with
         the voltage from the next n_trial of the power flow to decide wether to
         repeat the power flow  for the next iteration or not (in pf.py file).
     """
@@ -208,12 +208,12 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
 
 def prepare_dict_values(parameter_dict, comp, df, df_t, ctrl_list, controller):
     """
-    Prepare dictionary of controller parameter keys and values.
+    Add parameters of the given controlled components to the given parameter_dict.
 
     Parameters
     ----------
     parameter_dict : dictionary
-        An empty dictonary ready to get filled with keys and values.
+        Dictonary to add keys and values of the given component and controller.
     comp : string
         Comp is component name, eg: 'loads', 'storage_units', 'generators'.
     df : pandas data frame
@@ -266,9 +266,16 @@ def prepare_dict_values(parameter_dict, comp, df, df_t, ctrl_list, controller):
 
 def prepare_controller_parameter_dict(n):
     """
-    Iterate over components (loads, storage_units, generators) and check if it
-    is controlled or not, if controlled the respective controller parameter from
-    that component will be considered in parameter_dict function.
+    Iterate over components (loads, storage_units, generators) and check if they
+    are controlled. For all controlled components, the respective controller
+    parameters are stored in the dictionary parameter_dict.
+    Returns
+    -------
+    n_trials_max:
+        Maximum number of outer loops, dependent on the existance of a voltage
+        dependent controller: 1 if not present or 20 if present
+    parameter_dict : dictionary
+        All needed parameters for the chosen controller. (built in prepare_dict_values()).
     """
     components = ['loads', 'storage_units', 'generators']
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
@@ -284,11 +291,13 @@ def prepare_controller_parameter_dict(n):
             parameter_dict = prepare_dict_values(
                          parameter_dict, comp, df, df_t, ctrl_list, controller)
         if (df.type_of_control_strategy == 'q_v').any():
+            # voltage dependent coltroller is present, activate the outer loop
             n_trials_max = 20
+    logger.info(
+        "We are in %s. That's the parameter dict:\n%s", comp, parameter_dict)
 
-    v_dep_controller_present = np.where(n_trials_max == 20, True, False)
-    if v_dep_controller_present:
+    if n_trials_max > 1:
         parameter_dict['v_dep_buses'] = np.unique(pd.concat(
                  parameter_dict['controller_parameters']['q_v'])['bus'].values)
 
-    return v_dep_controller_present, n_trials_max, parameter_dict
+    return n_trials_max, parameter_dict
