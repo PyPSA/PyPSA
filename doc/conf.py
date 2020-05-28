@@ -37,8 +37,6 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx.ext.graphviz',
-    'sphinxcontrib.youtube',
-    'sphinxcontrib.slide',
     #'sphinx.ext.pngmath',
     #'sphinxcontrib.tikz',
     #'rinoh.frontend.sphinx',

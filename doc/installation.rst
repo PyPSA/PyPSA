@@ -55,7 +55,7 @@ The environment can be installed and activated using
 
     and then install the environment with
 
-    .. coda:: bash
+    .. code:: bash
 
         mamba env create -f environment.yaml
 
