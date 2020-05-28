@@ -5,6 +5,7 @@
 ![Size](https://img.shields.io/github/repo-size/pypsa/pypsa-eur)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg)](https://doi.org/10.5281/zenodo.3520875)
 [![Gitter](https://badges.gitter.im/PyPSA/community.svg)](https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Snakemake](https://img.shields.io/badge/snakemake-≥5.0.0-brightgreen.svg?style=flat)](https://snakemake.readthedocs.io)
 
 # PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 

@@ -25,6 +25,9 @@ with a discount rate of :math:`r` over the economic lifetime :math:`n` using the
 
 Based on the parameters above the ``marginal_cost`` and ``capital_cost`` of the system components are calculated.
 
+.. note::
+
+    Another great resource for `cost assumptions <https://ens.dk/en/our-services/projections-and-models/technology-data`_ is the cost database from the Danish Energy Agency.
 
 Modifying Cost Assumptions
 ==========================

@@ -24,6 +24,10 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
 
+.. image:: https://img.shields.io/badge/snakemake-≥5.0.0-brightgreen.svg?style=flat
+    :target: https://snakemake.readthedocs.io
+    :alt: Snakemake
+
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
 

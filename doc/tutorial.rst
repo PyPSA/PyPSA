@@ -4,6 +4,8 @@
 Tutorial
 #####################
 
+.. youtube:: mAwhQnNRIvs
+
 Before getting started with **PyPSA-Eur** it makes sense to be familiar
 with its general modelling framework `PyPSA <https://pypsa.readthedocs.io>`_.
 

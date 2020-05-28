@@ -45,6 +45,20 @@ The environment can be installed and activated using
     Note that activation is local to the currently open shell!
     After opening a new terminal window, one needs to reissue the second command!
 
+.. note::
+    If you have troubles with a slow ``conda`` installation, we recommend to install
+    `mamba <https://github.com/QuantStack/mamba>`_ as a fast drop-in replacement via
+
+    .. code:: bash
+        
+        conda install -c conda-forge mamba
+
+    and then install the environment with
+
+    .. coda:: bash
+
+        mamba env create -f environment.yaml
+
 Install a Solver
 ================
 
@@ -57,7 +71,7 @@ PyPSA is known to work with the free software
 
 and the non-free, commercial software (for which free academic licenses are available)
 
-- `Gurobi <https://www.gurobi.com/documentation/8.1/remoteservices/installation.html>`_
+- `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
 
 and any other solver that works with the underlying modelling framework `Pyomo <http://www.pyomo.org/>`_.

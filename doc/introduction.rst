@@ -4,6 +4,10 @@
  Introduction
 ##########################################
 
+.. youtube:: ty47YU1_eeQ
+
+.. slide:: https://docs.google.com/presentation/d/e/2PACX-1vQGQZD7KIVdocRZzRVu8Uk-JC_ltEow5zjtIarhyws46IMJpaqGuux695yincmJA_i5bVEibEs7z2eo/pub?start=false&loop=true&delayms=3000
+
 Workflow
 =========
 
