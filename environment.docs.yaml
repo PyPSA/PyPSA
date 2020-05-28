@@ -52,3 +52,4 @@ dependencies:
     - sphinx_rtd_theme
     - sphinxcontrib-youtube
     - sphinxcontrib-slide
+    - urlparse
