@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 20017-2020 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # -*- coding: utf-8 -*-
 #
 # PyPSA documentation build configuration file, created by

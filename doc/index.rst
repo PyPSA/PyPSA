@@ -1,3 +1,8 @@
+..
+  SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+
+  SPDX-License-Identifier: CC-BY-4.0
+
 PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 =========================================================================
 
@@ -27,6 +32,10 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 .. image:: https://img.shields.io/badge/snakemake-≥5.0.0-brightgreen.svg?style=flat
     :target: https://snakemake.readthedocs.io
     :alt: Snakemake
+
+.. image:: https://api.reuse.software/badge/github.com/pypsa/pypsa-eur
+    :target: https://api.reuse.software/info/github.com/pypsa/pypsa-eur
+    :alt: REUSE status
 
 PyPSA-Eur is an open model dataset of the European power system at the
 transmission network level that covers the full ENTSO-E area.
@@ -184,10 +193,16 @@ The included ``.nc`` files are PyPSA network files which can be imported with Py
 Licence
 =======
 
-The code in PyPSA-Eur is released as free software under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_, see
-`LICENSE <https://github.com/PyPSA/pypsa-eur/blob/master/LICENSE.txt>`_.
-However, different licenses and terms of use apply to the various input data, which are summarised below.
+PyPSA-Eur work is released under multiple licenses:
+
+* All original source code is licensed as free software under `GPL-3.0-or-later <LICENSES/GPL-3.0-or-later.txt>`_.
+* The documentation is licensed under `CC-BY-4.0 <LICENSES/CC-BY-4.0.txt>`_.
+* Configuration files are mostly licensed under `CC0-1.0 <LICENSES/CC0-1.0.txt>`_.
+* Data files are licensed under `CC-BY-4.0 <LICENSES/CC-BY-4.0.txt>`_.
+
+See the individual files and the `dep5 <.reuse/dep5>`_ file for license details.
+
+Additionally, different licenses and terms of use also apply to the various input data, which are summarised below.
 More details are included in 
 `the description of the data bundles on zenodo <https://zenodo.org/record/3517935#.XbGeXvzRZGo>`_.
 

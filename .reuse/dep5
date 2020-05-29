@@ -1,0 +1,28 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: PyPSA-Eur
+Upstream-Contact: Tom Brown <tom.brown@kit.edu>
+Source: https://github.com/pypsa/pypsa-eur
+
+Files: doc/img/*
+Copyright: 2019 Fabian Neumann (KIT)
+License: CC-BY-4.0
+
+Files: doc/configtables/*
+Copyright: 2019 Fabian Neumann (KIT)
+License: CC-BY-4.0
+
+Files: data/*
+Copyright: 2017-2020 The PyPSA-Eur Authors
+License: CC-BY-4.0
+
+Files: .github/*
+Copyright: 2019 The PyPSA-Eur Authors
+License: CC0-1.0
+
+Files: matplotlibrc
+Copyright: : 2017-2020 The PyPSA-Eur Authors
+License: CC0-1.0
+
+Files: borg-it
+Copyright: : 2017-2020 The PyPSA-Eur Authors
+License: CC0-1.0

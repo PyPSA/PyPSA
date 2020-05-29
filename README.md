@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2017-2020 The PyPSA-Eur Authors
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/pypsa/pypsa-eur?include_prereleases)
 [![Build Status](https://travis-ci.org/PyPSA/pypsa-eur.svg?branch=master)](https://travis-ci.org/PyPSA/pypsa-eur)
 [![Documentation](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)](https://pypsa-eur.readthedocs.io/en/latest/?badge=latest)
@@ -6,6 +11,7 @@
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg)](https://doi.org/10.5281/zenodo.3520875)
 [![Gitter](https://badges.gitter.im/PyPSA/community.svg)](https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Snakemake](https://img.shields.io/badge/snakemake-≥5.0.0-brightgreen.svg?style=flat)](https://snakemake.readthedocs.io)
+[![REUSE status](https://api.reuse.software/badge/github.com/pypsa/pypsa-eur)](https://api.reuse.software/info/github.com/pypsa/pypsa-eur)
 
 # PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 

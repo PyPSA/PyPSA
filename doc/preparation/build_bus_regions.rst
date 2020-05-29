@@ -1,3 +1,8 @@
+..
+  SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+
+  SPDX-License-Identifier: CC-BY-4.0
+
 .. _busregions:
 
 Rule ``build_bus_regions``

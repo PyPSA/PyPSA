@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+
+# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
 Extracts capacities of HVDC links from `Wikipedia <https://en.wikipedia.org/wiki/List_of_HVDC_projects>`_.
 

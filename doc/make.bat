@@ -1,3 +1,6 @@
+REM SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+REM SPDX-License-Identifier: GPL-3.0-or-later
+
 @ECHO OFF
 
 REM Command file for Sphinx documentation
