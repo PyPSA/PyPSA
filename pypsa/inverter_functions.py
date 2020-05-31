@@ -290,6 +290,8 @@ def prepare_controller_parameter_dict(n):
         df = getattr(n, comp)
         df_t = getattr(n, comp + '_t')
         controller = df['type_of_control_strategy']
+        if comp == 'generators':
+            df.loc[df.control == 'Slack', 'type_of_control_strategy'] = ''
         if (df.type_of_control_strategy != '').any():
             parameter_dict = prepare_dict_values(
                          parameter_dict, comp, df, df_t, ctrl_list, controller)
