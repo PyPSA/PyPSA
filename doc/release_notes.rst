@@ -7,16 +7,18 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* There was a bug in the LOPF with `pyomo=False` whereby if some Links
+* There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were
   defined), but there remained some Links without multiple outputs
-  (bus2, bus3, etc. set to `""`), then the Links without multiple
+  (bus2, bus3, etc. set to ``""``), then the Links without multiple
   outputs were assigned erroneous non-zero values for p2, p3, etc. in
-  the LOPF with `pyomo=False`. Now p2, p3, etc. revert to the default
+  the LOPF with ``pyomo=False``. Now p2, p3, etc. revert to the default
   value for Links where bus2, bus3, etc. are not defined, just like
-  for the LOPF with `pyomo=True`.
+  for the LOPF with ``pyomo=True``.
 
-* Handle double-asterisk prefix in solution_fn when solving lopf with pyomo=False using CBC.
+* Handle double-asterisk prefix in ``solution_fn`` when solving ``n.lopf(pyomo=False)`` using CBC.
+
+* When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
 
 PyPSA 0.17.0 (23rd March 2020)

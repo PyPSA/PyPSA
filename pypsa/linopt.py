@@ -711,7 +711,11 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
 
     if (status == 'ok') and store_basis and is_lp:
         n.basis_fn = solution_fn.replace('.sol', '.bas')
-        m.solution.basis.write(n.basis_fn)
+        try:
+            m.solution.basis.write(n.basis_fn)
+        except cplex.exceptions.errors.CplexSolverError:
+            logger.info('No model basis stored')
+            del n.basis_fn
 
     objective = m.solution.get_objective_value()
     variables_sol = pd.Series(m.solution.get_values(), m.variables.get_names())\
