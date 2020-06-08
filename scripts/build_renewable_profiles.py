@@ -294,7 +294,8 @@ if __name__ == '__main__':
 
     potentials = config['capacity_per_sqkm'] * vlanduse._cutout_cell_areas(cutout)
     potmatrix = matrix * spdiag(potentials.ravel())
-    potmatrix.data[potmatrix.data < 1.] = 0 # ignore weather cells where only less than 1 MW can be installed
+    if not config.get('keep_all_available_areas', False):
+        potmatrix.data[potmatrix.data < 1.] = 0 # ignore weather cells where only less than 1 MW can be installed
     potmatrix.eliminate_zeros()
 
     resource = config['resource']

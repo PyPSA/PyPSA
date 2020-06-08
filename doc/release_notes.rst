@@ -7,13 +7,15 @@
 Release Notes
 ##########################################
 
-* An updated extract of the `ENTSO-E Transmission System Map <https://www.entsoe.eu/data/map/>`_ (including Malta) was added to the repository using the `GridKit <https://github.com/PyPSA/GridKit>`_ tool. This tool has been updated to retrieve up-to-date map extracts using a single `script <https://github.com/PyPSA/GridKit/blob/master/entsoe/runall_in_docker.sh>`_. The update extract features 5322 buses, 6574 lines, 46 links. (`#118 <https://github.com/PyPSA/pypsa-eur/pull/118>`_).
-
 * The optimization is now performed using the ``pyomo=False`` setting in the :func:`pypsa.lopf.network_lopf`. This speeds up the solving process significantly and consumes much less memory. The inclusion of additional constraints were adjusted to the new implementation. They are all passed to the :func:`network_lopf` function via the ``extra_functionality`` argument. The rule ``trace_solve_network`` was integrated into the rule :mod:`solve_network` and can be activated via configuration with ``solving: options: track_iterations: true``. The charging and discharging capacities of batteries modelled as store-link combination are now coupled (`#116 <https://github.com/PyPSA/pypsa-eur/pull/116>`_).
 
-* Removed the `id` column for custom power plants in `data/custom_powerplants.csv` to avoid custom power plants with conflicting ids getting attached to the wrong bus (`#131 <https://github.com/PyPSA/pypsa-eur/pull/131>`_).
+* An updated extract of the `ENTSO-E Transmission System Map <https://www.entsoe.eu/data/map/>`_ (including Malta) was added to the repository using the `GridKit <https://github.com/PyPSA/GridKit>`_ tool. This tool has been updated to retrieve up-to-date map extracts using a single `script <https://github.com/PyPSA/GridKit/blob/master/entsoe/runall_in_docker.sh>`_. The update extract features 5322 buses, 6574 lines, 46 links. (`#118 <https://github.com/PyPSA/pypsa-eur/pull/118>`_).
+
+* Removed the ``id`` column for custom power plants in ``data/custom_powerplants.csv`` to avoid custom power plants with conflicting ids getting attached to the wrong bus (`#131 <https://github.com/PyPSA/pypsa-eur/pull/131>`_).
 
 * ``snakemake`` rules for retrieving cutouts and the natura raster can now be disabled independently from their respective rules to build them; via ``config.*yaml`` (`#136 <https://github.com/PyPSA/pypsa-eur/pull/136>`_).
+
+* Add option ``renewables: {carrier}: keep_all_available_areas: `` to use all availabe weather cells for renewable profile and potential generation. The default ignores weather cells where only less than 1 MW can be installed  (`#150 <https://github.com/PyPSA/pypsa-eur/pull/150>`_).
 
 * Added `FSFE REUSE <https://reuse.software>`_ compliant license information. Documentation now licensed under CC-BY-4.0 (`#160 <https://github.com/PyPSA/pypsa-eur/pull/160>`_).
 

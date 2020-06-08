@@ -11,3 +11,4 @@ corine,,,
 natura,bool,"{true, false}","Switch to exclude `Natura 2000 <https://en.wikipedia.org/wiki/Natura_2000>`_ natural protection areas. Area is excluded if ``true``."
 potential,--,"One of {'simple', 'conservative'}","Method to compute the maximal installable potential for a node; confer :ref:`renewableprofiles`"
 clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."
+keep_all_available_areas,bool,"{'true', 'false'}","Use all availabe weather cells for renewable profile and potential generation. The default ignores weather cells where only less than 1 MW can be installed."
