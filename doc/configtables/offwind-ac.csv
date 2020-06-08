@@ -10,3 +10,4 @@ max_depth,m,float,"Maximum sea water depth at which wind turbines can be build. 
 min_shore_distance,m,float,"Minimum distance to the shore below which wind turbines cannot be build. Such areas close to the shore are excluded in the process of calculating the AC-connected offshore wind potential."
 potential,--,"One of {'simple', 'conservative'}","Method to compute the maximal installable potential for a node; confer :ref:`renewableprofiles`"
 clip_p_max_pu,p.u.,float,"To avoid too small values in the renewables` per-unit availability time series values below this threshold are set to zero."
+keep_all_available_areas,bool,"{'true', 'false'}","Use all availabe weather cells for renewable profile and potential generation. The default ignores weather cells where only less than 1 MW can be installed."
