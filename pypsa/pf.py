@@ -508,8 +508,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
         while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
             n_trials += 1
 
-            previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
-            _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
+            previous_v_mag_pu_voltage_dependent_controller = apply_controller(
+                network, now, n_trials, n_trials_max, parameter_dict, _calculate_controllable_nodal_power_balance, sub_network, snapshots, buses_o)
+            # _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]
             ss[i] = s = p + 1j*q

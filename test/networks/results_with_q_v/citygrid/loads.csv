@@ -1,0 +1,7 @@
+name,bus,ratio_voltage_dependency_p,ratio_voltage_dependency_q,profile,cos_phi_profile
+Load7,N11,0.0,0.0,"""NO_PROFILE""",1.0
+Load6,N15,0.0,0.0,"""NO_PROFILE""",1.0
+Load3,N8,0.0,0.0,"""NO_PROFILE""",1.0
+Load4,N5,0.0,0.0,"""NO_PROFILE""",1.0
+Load5,N21,0.0,0.0,"""NO_PROFILE""",1.0
+Load1,N3,0.0,0.0,"""NO_PROFILE""",1.0

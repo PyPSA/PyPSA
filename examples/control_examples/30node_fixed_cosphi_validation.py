@@ -1,3 +1,7 @@
+'''
+This example shows validation of fixed power factor (fixed_cosphi) control
+strategy against its droop characteristic.
+'''
 from __future__ import print_function, division
 import pandas as pd
 import pypsa
@@ -7,11 +11,8 @@ import numpy as np
 import time
 
 start = time.time()
-'''
-This example shows the validation of fixed power factor control strategy
-(fixed_cosphi) by plotting the controller output and its droop characteristic
-in the same figure.
-'''
+pypsa.pf.logger.setLevel("INFO")
+
 snapshots = pd.date_range(
     start="2020-01-01 00:00", end="2020-01-01 02:00", periods=15)
 
@@ -33,30 +34,25 @@ for i in range(n_buses):
     network.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
     network.add("Load", "My load {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses))
+        (i) % n_buses))
     network.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
         (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.95)
 
-
-def power_flow():
-    network.lpf(network.snapshots)
-    network.pf(use_seed=True, snapshots=network.snapshots, x_tol_outer=1e-4)
-
-
 # setting control method
 network.generators.type_of_control_strategy = 'fixed_cosphi'
-power_flow()
-v_pu_yes = network.buses_t.v_mag_pu
+network.lpf(network.snapshots)
+network.pf(use_seed=True, snapshots=network.snapshots, x_tol_outer=1e-4)
+
 # saving the necessary data for plotting controller behavior
-for i in range(n_buses):
+for i in range(n_buses-1):
     Results_q.loc[:, "q_set_out_controller {}".format(
-        i)] = network.generators_t.q_set.loc[:, "My Gen {}".format(i)].values
+        i)] = network.generators_t.q_set.loc[:, "My Gen {}".format(i+1)].values
     Results_p.loc[:, "inverter_injection(p_set) {}".format(i)] = (
-        network.generators_t.p_set.loc[:, "My Gen {}".format(i)])
+        network.generators_t.p_set.loc[:, "My Gen {}".format(i+1)])
 
 
 # controller droop characteristic method simplified
-def droop_fixed_cosphi(p_set):
+def fixed_cosphi_controller_droop(p_set):
     pf = network.generators.loc['My Gen 7', 'power_factor']
     q_out = p_set*(math.tan((math.acos(pf))))
     return q_out
@@ -66,8 +62,8 @@ droop_df = pd.DataFrame(np.arange(0.004, 0.0001, -0.0003), columns=['optional_po
 # calculating droop output (q_out)
 
 for index, row in droop_df.iterrows():
-    droop_df.loc[index, "droop_output"] = droop_fixed_cosphi(droop_df.loc[index, 'optional_power_input'])
-
+    droop_df.loc[index, "droop_output"] = fixed_cosphi_controller_droop(
+                                   droop_df.loc[index, 'optional_power_input'])
 
 '''  Plotting  '''
 # droop characteristic for x and y axis
@@ -76,13 +72,12 @@ droop_output = droop_df['droop_output']
 
 # controller input and output variables
 controller_p_set = Results_p.loc[
-    :, "inverter_injection(p_set) 1":"inverter_injection(p_set) 29"]
+    :, "inverter_injection(p_set) 0":"inverter_injection(p_set) 28"]
 controller_q_set = Results_q.loc[
-    :, "q_set_out_controller 1":"q_set_out_controller 29"]
+    :, "q_set_out_controller 0":"q_set_out_controller 28"]
 
 # plot droop characteristic
-plt.plot(droop_input, droop_output, label="Q(U) droop characteristic",
-          color='r')
+plt.plot(droop_input, droop_output, label="Q(U) droop characteristic", color='r')
 # plot controller behavior
 plt.scatter(controller_p_set, -controller_q_set,
             color="g", label="fixed_cosphi controller characteristic")

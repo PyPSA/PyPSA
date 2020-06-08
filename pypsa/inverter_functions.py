@@ -7,26 +7,52 @@ logger = logging.getLogger(__name__)
 
 def fixed_cosphi(p_input, now, parameters):
     """
-    Fixed Power factor (fixed_cosphi): Sets the new q_set for controlled
-    components according to the real power input and power factor given.
+    fix power factor inverter controller.
     reference : https://www.academia.edu/24772355/
-    """
 
+    Parameters
+    ----------
+    p_input : pandas data frame
+        Input active power for controller, comming from n.component_t.p.
+    now : single snapshot
+        Current  element of n.snapshots on which the power flow is run.
+    parameters : pandas data frame
+        Controller parameters chosen for fix power factor controller for each
+        index of elements, Eg. power factor choice for controlling any generator
+        , load or storage unit elements.
+
+    Returns
+    -------
+    q_set : pandas data frame
+        Is the new reactive power that will be set as new q_set in each
+        controlled component as a result of applying this controller.
+
+    
+    """
     q_set = -p_input.loc[now, parameters['power_factor'].index].mul(
-        np.tan(np.arccos(parameters['power_factor'])))
+                                 np.tan(np.arccos(parameters['power_factor'])))
     return q_set
 
 
 def cosphi_p(p_input, now, parameters, p_set_varies, df):
     """
-    Power factor as a function of real power (cosphi_p) method. It sets new
-    power factor and q_set values based on the amount of power injection.
+    Power factor as a function of active power (cosphi_p) controller.
+    reference : https://ieeexplore.ieee.org/document/6096349.
 
-    Parameter:
+    Parameters
     ----------
-
+    p_input : pandas data frame
+        Input active power for controller, comming from n.component_t.p.
+    now : single snapshot
+        Current  element of n.snapshots on which the power flow is run.
+    p_set_varies : bool (True / False)
+        It determines if p_set is changing in each snapshot (True) or fixed.
+    df : pandas data frame
+        Component data frame, can be n.loads, n.storage_units, n.generators.
     parameters : pandas data frame
-        It contains parameters(s_nom, set_p1, set_p2, power_factor_min).
+        Controller parameters chosen for this controller for each index of the
+        elements, Eg. power factor choice for controlling any index of generator
+        load,or storage unit elements. It contains the following parameters:
     s_nom : pandas data frame
         Inverter nominal apparent power.
     set_p1 : pandas data frame
@@ -44,25 +70,19 @@ def cosphi_p(p_input, now, parameters, p_set_varies, df):
     -------
     q_set : pandas data frame
         Is the new reactive power that will be set as new q_set in each
-        controlled component as the result of applying cosphi_p controller.
-    pf : pandas data frame
-    power factor (pf) that will be set as new pf value in each controlled
-        component as the result of applying cosphi_p controller.
-    ref : https://ieeexplore.ieee.org/document/6096349
+        controlled component as a result of applying this controller.
     """
     set_p1 = parameters['set_p1']
     set_p2 = parameters['set_p2']
     s_nom = parameters['s_nom']
     power_factor_min = parameters['power_factor_min']
-    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index]) / abs(s_nom)) * 100
+    p_set_per_s_nom = (abs(p_input.loc[now, parameters.index]) / abs(s_nom))*100
 
     # pf allocation using np.select([condtions...], [choices...]) function.
-    power_factor = np.select([(p_set_per_s_nom < set_p1),
-                              (p_set_per_s_nom >= set_p1) & (p_set_per_s_nom <= set_p2),
-                              (p_set_per_s_nom > set_p2)],
-                             [1,
-                              (1 - ((1 - power_factor_min) / (set_p2 - set_p1) * (p_set_per_s_nom - set_p1))),
-                              power_factor_min])
+    power_factor = np.select([(p_set_per_s_nom < set_p1), (
+        p_set_per_s_nom >= set_p1) & (p_set_per_s_nom <= set_p2), (
+            p_set_per_s_nom > set_p2)], [1 ,(1 - ((1 - power_factor_min) / (
+             set_p2 - set_p1) * (p_set_per_s_nom - set_p1))), power_factor_min])
 
     q_set = np.where(power_factor == 1, 0, -p_input.loc[
         now, parameters.index].mul(np.tan((np.arccos(power_factor)))))
@@ -76,17 +96,30 @@ def cosphi_p(p_input, now, parameters, p_set_varies, df):
 
 def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
     """
-    Reactive power as a function of voltage Q(U): In this strategy controller
-    finds the amount of inverter reactive power capability according to the
-    amount of power injection and then compensates reactive power based on
-    v_mag_pu of the bus where inverter is connected.
+    Reactive power as a function of voltage Q(U).
+    reference : https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6096349
 
     Parameter:
     ----------
-
+    now : single snaphot
+        Current  element of n.snapshots on which the power flow is run.
+    n_trials_max : integer
+        It is the max number of outer loop (while loop in pf.py) trials until
+        the controller converges.
+    n_trials : integer
+        It is the outer loop (while loop in pf.py) number of trials until
+        the controller converges.
+    p_input : pandas data frame
+        Input active power for controller, comming from n.component_t.p.
+    n : pypsa.components.Network
+        Network
+    component_name : string
+        Name of component, could be; 'loads', 'loads_t', 'generators',
+        'generators_t', storage_units and storage_units_t.
     parameters : pandas data frame
-        It contains the following parameters ('s_nom', 'v1', 'v2', 'v3', 'v4',
-                                                           'damper','bus').
+        Controller parameters chosen for this controller for each index of the
+        elements, Eg. power factor choice for controlling any index of generator
+        load,or storage unit elements. It contains the following parameters:
     s_nom : pandas data frame
         Inverter nominal apparent power.
     v1, v2 : pandas data frame
@@ -104,7 +137,6 @@ def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
     q_set_per_qmax : pandas data frame
         It is reactive power compensation in % out of maximum reactive
         power capability of inverter (q_max = np.sqrt(s_nom**2 - (p_set)**2).
-    ref : https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6096349
 
     Returns
     -------
@@ -130,13 +162,11 @@ def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
     v4 = parameters['v4']
 
     # q_set/s_nom selection from choices np.select([conditions], [choices])
-    q_set_per_qmax = np.select([(v_pu_bus < v1),
-                                (v_pu_bus >= v1) & (v_pu_bus <= v2),
-                                (v_pu_bus > v2) & (v_pu_bus <= v3),
-                                (v_pu_bus > v3) & (v_pu_bus <= v4),
-                                (v_pu_bus > v4)],
-                               [100, 100 - 100 / (v2 - v1) * (v_pu_bus - v1),
-                                0, -100 * (v_pu_bus - v3) / (v4 - v3), -100])
+    q_set_per_qmax = np.select(
+        [(v_pu_bus < v1), (v_pu_bus >= v1) & (v_pu_bus <= v2),
+         (v_pu_bus > v2) & (v_pu_bus <= v3), (v_pu_bus > v3) & (v_pu_bus <= v4),
+         (v_pu_bus > v4)], [100, 100 - 100 / (v2 - v1) * (v_pu_bus - v1), 0,
+                            -100 * (v_pu_bus - v3) / (v4 - v3), -100])
 
     q_out = ((q_set_per_qmax * (np.sqrt(parameters['s_nom']**2 - (p_input.loc[
         now, parameters.index])**2))) / 100) * parameters['damper']
@@ -145,7 +175,9 @@ def q_v(now, n_trials_max, n_trials, p_input, n, component_name, parameters):
     return q_set
 
 
-def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
+def apply_controller(n, now, n_trials, n_trials_max, parameter_dict,
+                     _calculate_controllable_nodal_power_balance, sub_network,
+                     snapshots, buses_o):
     """
     Iterate over storage_units, loads and generators to to apply controller.
 
@@ -174,11 +206,11 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
 
     Returns
     -------
-    v_mag_pu_voltage_dependent_controller : pandas data frame
-        v_mag_pu of buses having voltage dependent controller attached to one of
-        their inverters. This is important in order to be able to compare v_mag_pu with
-        the voltage from the next n_trial of the power flow to decide wether to
-        repeat the power flow  for the next iteration or not (in pf.py file).
+    v_mag_pu_voltage_dependent_controller : pandas data frame v_mag_pu of buses
+    having voltage dependent controller attached to one oftheir inverters. This
+    is important in order to be able to compare v_mag_pu withthe voltage from
+    the next n_trial of the power flow to decide wether to repeat the power flow
+    for the next iteration or not (in pf.py file).
     """
     if bool('controller_parameters' in parameter_dict):
         for controller in parameter_dict['controller_parameters'].keys():
@@ -206,7 +238,8 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
 
         v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
                                             now, parameter_dict['v_dep_buses']]
-
+        _calculate_controllable_nodal_power_balance(
+                                             sub_network, n, snapshots, buses_o)
         return v_mag_pu_voltage_dependent_controller
 
 
@@ -283,7 +316,7 @@ def prepare_controller_parameter_dict(n):
     components = ['loads', 'storage_units', 'generators']
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
     parameter_dict = {}
-    parameter_dict['v_dep_buses'] = {}
+    buses = np.array([])
     n_trials_max = 1
 
     for comp in components:
@@ -295,14 +328,13 @@ def prepare_controller_parameter_dict(n):
         if (df.type_of_control_strategy != '').any():
             parameter_dict = prepare_dict_values(
                          parameter_dict, comp, df, df_t, ctrl_list, controller)
-        if (df.type_of_control_strategy == 'q_v').any():
+        if df.type_of_control_strategy.isin(['q_v']).any():
+            buses = np.append(buses, np.unique(df.loc[(
+                                            controller.isin(['q_v'])), 'bus']))
             # voltage dependent coltroller is present, activate the outer loop
-            n_trials_max = 20
+            n_trials_max = 30
 
         logger.info("We are in %s. That's the parameter dict:\n%s", comp, parameter_dict)
-
-    if n_trials_max > 1:
-        parameter_dict['v_dep_buses'] = np.unique(pd.concat(
-                 parameter_dict['controller_parameters']['q_v'])['bus'].values)
+    parameter_dict['v_dep_buses'] = buses
 
     return n_trials_max, parameter_dict
