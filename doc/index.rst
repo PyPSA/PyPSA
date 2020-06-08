@@ -16,9 +16,6 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
     :target: https://pypsa-eur.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://img.shields.io/github/license/pypsa/pypsa-eur
-    :alt: GitHub
-
 .. image:: https://img.shields.io/github/repo-size/pypsa/pypsa-eur
     :alt: GitHub repo size
 

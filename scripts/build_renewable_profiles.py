@@ -96,26 +96,31 @@ Outputs
 
     .. image:: ../img/profile_ts.png
         :scale: 33 %
+        :align: center
 
     - **p_nom_max**
 
     .. image:: ../img/p_nom_max_hist.png
         :scale: 33 %
+        :align: center
 
     - **potential**
 
     .. image:: ../img/potential_heatmap.png
         :scale: 33 %
+        :align: center
 
     - **average_distance**
 
     .. image:: ../img/distance_hist.png
         :scale: 33 %
+        :align: center
 
     - **underwater_fraction**
 
     .. image:: ../img/underwater_hist.png
         :scale: 33 %
+        :align: center
 
 Description
 -----------
@@ -134,10 +139,30 @@ cutout grid cell and each node using the `GLAES
 <https://github.com/FZJ-IEK3-VSA/glaes>`_ library. This uses the CORINE land use data,
 Natura2000 nature reserves and GEBCO bathymetry data.
 
+.. image:: ../img/eligibility.png
+    :scale: 50 %
+    :align: center
+
 To compute the layout of generators in each node's Voronoi cell, the
 installable potential in each grid cell is multiplied with the capacity factor
 at each grid cell. This is done since we assume more generators are installed
 at cells with a higher capacity factor.
+
+.. image:: ../img/offwinddc-gridcell.png
+    :scale: 50 %
+    :align: center
+
+.. image:: ../img/offwindac-gridcell.png
+    :scale: 50 %
+    :align: center
+
+.. image:: ../img/onwind-gridcell.png
+    :scale: 50 %
+    :align: center
+
+.. image:: ../img/solar-gridcell.png
+    :scale: 50 %
+    :align: center
 
 This layout is then used to compute the generation availability time series
 from the weather data cutout from ``atlite``.

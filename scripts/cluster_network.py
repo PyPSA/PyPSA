@@ -93,6 +93,30 @@ Description
     for all ``scenario`` s in the configuration file
     the rule :mod:`cluster_network`.
 
+Exemplary unsolved network clustered to 512 nodes:
+
+.. image:: ../img/elec_s_512.png
+    :scale: 40  %
+    :align: center
+
+Exemplary unsolved network clustered to 256 nodes:
+
+.. image:: ../img/elec_s_256.png
+    :scale: 40  %
+    :align: center
+
+Exemplary unsolved network clustered to 128 nodes:
+
+.. image:: ../img/elec_s_128.png
+    :scale: 40  %
+    :align: center
+
+Exemplary unsolved network clustered to 37 nodes:
+
+.. image:: ../img/elec_s_37.png
+    :scale: 40  %
+    :align: center  
+
 """
 
 import logging
