@@ -4,7 +4,7 @@
 
 # coding: utf-8
 """
-Creates the network topology from a `ENTSO-E map extract <https://github.com/PyPSA/GridKit/tree/master/entsoe>`_ (25 May 2018) as a PyPSA network.
+Creates the network topology from a `ENTSO-E map extract <https://github.com/PyPSA/GridKit/tree/master/entsoe>`_ (January 2020) as a PyPSA network.
 
 Relevant Settings
 -----------------
@@ -41,7 +41,7 @@ Relevant Settings
 Inputs
 ------
 
-- ``data/entsoegridkit``:  Extract from the geographical vector data of the online `ENTSO-E Interactive Map <https://www.entsoe.eu/data/map/>`_ by the `GridKit <https://github.com/pypsa/gridkit>`_ toolkit dating back to 25 May 2018.
+- ``data/entsoegridkit``:  Extract from the geographical vector data of the online `ENTSO-E Interactive Map <https://www.entsoe.eu/data/map/>`_ by the `GridKit <https://github.com/pypsa/gridkit>`_ toolkit dating back to January 2020.
 - ``data/parameter_corrections.yaml``: Corrections for ``data/entsoegridkit``
 - ``data/links_p_nom.csv``: confer :ref:`links`
 - ``data/links_tyndp.csv``: List of projects in the `TYNDP 2018 <https://tyndp.entsoe.eu/tyndp2018/>`_ that are at least *in permitting* with fields for start- and endpoint (names and coordinates), length, capacity, construction status, and project reference ID.
@@ -160,6 +160,9 @@ def _load_links_from_eg(buses):
 
     links['length'] /= 1e3
 
+    # hotfix
+    links.loc[links.bus1=='6271', 'bus1'] = '6273'
+
     links = _remove_dangling_branches(links, buses)
 
     # Add DC line parameters
@@ -198,8 +201,8 @@ def _add_links_from_tyndp(buses, links):
     buses = buses.loc[keep_b['Bus']]
     links = links.loc[keep_b['Link']]
 
-    links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.8)
-    # Corresponds approximately to 60km tolerances
+    links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.15)
+    # Corresponds approximately to 15km tolerances
 
     if links_tyndp["j"].notnull().any():
         logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))

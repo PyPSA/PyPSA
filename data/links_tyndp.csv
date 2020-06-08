@@ -2,7 +2,7 @@ Name,Converterstation 1,Converterstation 2,Length (given) (km),Length (distance*
 Biscay Gulf,Gatica (ES),Cubnezais (FR),370,,2200,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/16,-2.867,43.367,-0.408943,45.074191
 Italy-France,Piossasco (IT),Grand Ile (FR),190,,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/21,7.468,44.9898,6.045,45.472
 IFA2,Tourbe (FR),Chilling (GB),,247.2,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/25,-0.172042,49.083593,-1.277269,50.839338
-Italy-Montenegro,Villanova (IT),Latsva (MT),445,,1200,under construction,Link.5643,https://tyndp.entsoe.eu/tyndp2018/projects/projects/28,14.125,42.3947222222222,18.7947222222222,42.3175
+Italy-Montenegro,Villanova (IT),Latsva (MT),445,,1200,under construction,Link.14539,https://tyndp.entsoe.eu/tyndp2018/projects/projects/28,14.125,42.3947222222222,18.7947222222222,42.3175
 NordLink,Tonstad (NO),Wilster (DE),514,,1400,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/37,6.716948,58.662631,9.373979,53.922479
 COBRA cable,Endrup (DK),Eemshaven (NL),325,,700,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/71,8.718392,55.523115,6.835494,53.438589
 Thames Estuary Cluster (NEMO-Link),Richborough (GB),Gezelle (BE),140,,1000,under construction,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/74,1.324854,51.295891,3.23043,51.24902
@@ -21,6 +21,6 @@ HVDC SuedLink,Wilster (DE),Großgartach (DE),,637,4000,in permitting,,https://ty
 AQUIND Interconnector,Lovedean (GB),Barnabos (FR),254,,2000,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/247,-1.020512,50.908244,0.991736,49.656631
 HVDC Ultranet,Osterath (DE),Philippsburg (DE),,314,600,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/254,6.619451,51.272935,8.458036,49.235253
 Gridlink,Kingsnorth (UK),Warande (FR),160,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/285,0.596111111111111,51.41972,2.376776,51.034368
-SACOI 3 -1,Codrongianos (IT),Lucciana (FR),,268,400,in permitting,Link.6119.6120.5362:Bus.3740.4077,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,8.679351,40.65765,9.417275,42.547134
-SACOI 3 -2,Lucciana (FR),Suvereto (IT),,139,400,in permitting,Link.6118.6121:Bus.3739,https://tyndp.entsoe.eu/tyndp2018/projects/projects/299,9.417275,42.547134,10.678444,43.076683
 NeuConnect,Grain (UK),Fedderwarden (DE),680,,1400,in permitting,,https://tyndp.entsoe.eu/tyndp2018/projects/projects/309,0.716666666666667,51.44,8.046524,53.562763
+NordBalt,Klaipeda (LT),Nybro (SE),450,,700,built,,https://en.wikipedia.org/wiki/NordBalt,21.256667,55.681667,15.854167,56.767778
+Estlink 1,Harku (EE),Espoo (FI),105,,350,built,,https://en.wikipedia.org/wiki/Estlink,24.560278,59.384722,24.551667,60.203889

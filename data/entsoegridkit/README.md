@@ -91,18 +91,11 @@ Buses are connected by AC-lines:
 Connections between buses:
 
 + `link_id`: unique identifier for the link
-+ `src_bus_id`: first of the two connected buses
-+ `dst_bus_id`: second of two connected buses
-+ `voltage`: operating voltage of the link (_must_ be identical to
-  operating voltage of the buses)
-+ `circuits`: number of (independent) circuits in this link, each of
-  which typically has 3 cables (for AC lines).
-+ `dc`: boolean, `t` if this is a HVDC line
-+ `underground`: boolean, `t` if this is an underground cable, `f` for
-  an overhead line
++ `bus0`: first of the two connected buses
++ `bus1`: second of two connected buses
++ `length`: length of line in km
 + `under_construction`: boolean, `t` for lines that are currently
   under construction
-+ `length_m`: length of line in meters
 + `tags`: _hstore_ encoded dictionary of extra properties for this link
 + `geometry`: extent of this line in well-known-text format (WGS84)
 
@@ -112,26 +105,26 @@ Generators attached to the network.
 
 + `generator_id`: unique identifier for the generator
 + `bus_id`: the bus to which this generator is connected
-+ `symbol`: type of generator
-+ `capacity`: capacity of this generator (in megawatt)
++ `technology`: type of generator
++ `capacity`: capacity of this generator in MW
 + `tags`: _hstore_ encoded dictionary of extra attributes
 + `geometry`: location of generator in well-known text format (WGS84)
 
 ### transformers.csv
 
-A transformer forms a link between buses which operate at distinct
-voltages.  **NOTA BENE**: Transformers _never_ originate from the
-original dataset, and transformers are _only_ infered in 'real'
-stations, never in synthetic ('joint') stations.
+A transformer connects buses which operate at distinct voltages. **NOTA BENE**:
+Transformers are _not_ represented in the original dataset, but instead have
+been added at substations to connect AC transmission lines of distinct voltage
+levels.
 
 + `transformer_id`: unique identifier
-+ `symbol`: either `transformer` for AC-to-AC voltage transformers, or
-  `ac/dc` for AC-to-DC converters.
-+ `src_bus_id`: first of the connected buses
-+ `dst_bus_id`: second of connected buses
-+ `src_voltage`: voltage of first bus
-+ `dst_voltage`: voltage of second bus
-+ `src_dc`: boolean, `t` if first bus is a DC terminal
-+ `dst_dc`: boolean, `f` if second bus is a DC terminal
-+ `geometry`: location of station of this transformer in well-known
-  text format (WGS84)
++ `bus0`: Bus at lower voltage level
+  `bus1`: Bus at higher voltage level
+
+### converters.csv
+
+Back-to-back converters connecting non-synchronized buses.
+
++ `converter_id`: unique identifier
++ `bus0`: First bus
+  `bus1`: Second bus

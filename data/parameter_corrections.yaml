@@ -1,28 +1,29 @@
 Link:
   p_nom:
     oid:
-      "5256": 1400 # North-Sea link (NSN Link)
-      "7609": 400  # BorWin 1
-      "7718": 800  # BorWin 2
-      "7659": 900  # DolWin 2
-      "7611": 900  # DolWin 3
-      "10687": 576 # HelWin 1
-      "1163": 250  # Konti-Skan
-      "3595": 250  # GB-IE
-      "3596": 250  # GB-IE
-      "6119": 300  # Links on Corse
-      "6120": 300  # Links on Corse
-      "6121": 300  # Links on Corse
-      "1307": 700 # NO-DK
-      "8106": 1000 # ALEGrO BE-DE
-      "5241": 1000 # NEMO GB-BE
-      "7719": 700  # Cobra DK-NL
-      "5362": 300  # SACOI (between Sardignia and Corse)
+      "32551": 400  # BorWin 1
+      "32508": 800  # BorWin 2
+      "32513": 900  # DolWin 2
+      "32515": 900  # DolWin 3
+      "32517": 576  # HelWin 1
+      "32526": 250  # GB-IE
+      "32527": 250  # GB-IE
+      "32532": 300  # Links on Corse
+      "32528": 300  # Links on Corse
+      "32521": 300  # Links on Corse
+      "32529": 300  # SACOI (between Sardignia and Corse)
+      "32533": 300  # SACOI (between Sardignia and Corse)
+      "32550": 600  # Baltic
     index:
-      "11384": 1000 # NO-DK (part 1)
-      "11087": 1000 # NO-DK (part 2)
-      "11088": 1000 # NO-DK (part 3)
-      "11565": 1440 # SE-SE
-  under_construction:
-    oid:
-      "5256": yes
+      "14541": 1400 # North-Sea link (NSN Link)
+      "14559": 700  # NO-DK Skagerrak 4
+      "14564": 440  # NO-DK Skagerrak 3
+      "14546": 500  # NO-DK Skagerrak 1-2
+      "11511": 940  # NO-DK Skagerrak joint 1-3
+      "14543": 1440 # SE-SE
+      "14531": 250  # Konti-Skan
+      "14540": 700  # Cobra DK-NL
+      "14537": 1000 # NEMO GB-BE
+      "14538": 1000 # ALEGrO BE-DE
+      "14556": 600  # Storebaelt
+      "12997": 1000 # Sardignia      
