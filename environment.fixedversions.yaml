@@ -1,4 +1,8 @@
-name: pypsa-eur-v0.2.0
+# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: pypsa-eur
 channels:
   - bioconda
   - gurobi
