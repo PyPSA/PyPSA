@@ -27,7 +27,7 @@ def test_sclopf():
         n.lines.loc[line_name, "s_nom"] = 1200
 
     # choose the contingencies
-    branch_outages = n.lines.index[:3]
+    branch_outages = n.lines.index[:2]
 
     objectives = []
     for pyomo in [True, False]:
@@ -59,7 +59,7 @@ def test_sclopf():
             .loc["max"]
         )
 
-        arr_equal(max_loading, np.ones((len(max_loading))))
+        arr_equal(max_loading, np.ones((len(max_loading))), decimal=4)
 
         objectives.append(n.objective)
 
