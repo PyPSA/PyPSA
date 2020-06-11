@@ -501,16 +501,14 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     convs = pd.Series(False, index=snapshots)
 
     # prepare controllers if any and enable outer loop if voltage dependent controller present
-    n_trials_max, parameter_dict = prepare_controller_parameter_dict(network)
+    n_trials_max, parameter_dict, controller_present = prepare_controller_parameter_dict(network, sub_network)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials, n_iter_overall = (1, 0, 0)
         start_outer = time.time()
         while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
-            n_trials += 1
 
-            previous_v_mag_pu_voltage_dependent_controller = apply_controller(
-                network, now, n_trials, n_trials_max, parameter_dict, _calculate_controllable_nodal_power_balance, sub_network, snapshots, buses_o)
-            # _calculate_controllable_nodal_power_balance(sub_network, network, snapshots, buses_o)
+            previous_v_mag_pu_voltage_dependent_controller, n_trials = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
+
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]
             ss[i] = s = p + 1j*q
@@ -530,14 +528,18 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
             start = time.time()
             roots[i], n_iter, diff, converged = newton_raphson_sparse(f, guess, dfdx, x_tol=x_tol, **slack_args)
             n_iter_overall += n_iter
-            logger.debug("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
+
+            if controller_present:
+                logger.info("Newton-Raphson solved in %d iterations and %d outer loops with error of %f in %f seconds",
+                    n_iter_overall, n_trials, diff, time.time() - start_outer)
+            else:
+                logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
             iters[now] = n_iter
             diffs[now] = diff
             convs[now] = converged
             if n_trials_max > 1:
                 voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_v_mag_pu_voltage_dependent_controller)).max()
-        logger.info("Newton-Raphson solved in %d iterations and %d outer loops with error of %f in %f seconds",
-                    n_iter_overall, n_trials, diff, time.time() - start_outer)
+
     #now set everything
     if distribute_slack:
         last_pq = -1
