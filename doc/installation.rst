@@ -34,6 +34,7 @@ and the non-free software, commercial software (for which free academic licenses
 
 - `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
+- `FICO Xpress <https://www.fico.com/en/products/fico-xpress-optimization>`_
 
 For installation instructions of these solvers for your operating system, follow the links above.
 
@@ -48,7 +49,7 @@ For CBC on all operating systems except for Windows::
     conda install -c conda-forge coincbc
 
 .. note::
-    Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
+    Commercial solvers such as Gurobi, CPLEX, and Xpress currently significantly outperform open-source solvers for large-scale problems.
     It might be the case that you can only retrieve solutions by using a commercial solver.
 
 
