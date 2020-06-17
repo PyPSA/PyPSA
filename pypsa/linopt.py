@@ -810,7 +810,7 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
                         store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to
-    the Xpress solver. If the solution is sucessful it returns
+    the Xpress solver. If the solution is successful it returns
     variable solutions and constraint dual values. The xpress module
     must be installed for using this function.
 
