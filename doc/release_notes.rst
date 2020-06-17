@@ -7,7 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Upcoming feature.
+* Security-constrained linear optimal power flow is now also supported without pyomo, by running ``network.sclopf(pyomo=False)``.
 
 
 PyPSA 0.17.0 (23rd March 2020)
