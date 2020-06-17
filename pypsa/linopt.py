@@ -864,7 +864,7 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
     try:
         dual = [str(d) for d in m.getConstraint()]
         constraints_dual = pd.Series(m.getDual(dual), index=dual).pipe(set_int_index)
-    except xp.SolverError:
+    except xpress.SolverError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=dual).pipe(set_int_index)
 
