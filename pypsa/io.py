@@ -16,10 +16,7 @@
 """Functions for importing and exporting data.
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, iterkeys, string_types
-from six.moves import filter, range
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -32,7 +29,6 @@ from textwrap import dedent
 from glob import glob
 
 import pandas as pd
-import pypsa
 import numpy as np
 import math
 

@@ -18,7 +18,7 @@
 
 # Functions which will be attached to network and sub_network
 
-import scipy as sp, scipy.sparse
+import scipy as sp
 import numpy as np
 
 from .descriptors import OrderedGraph

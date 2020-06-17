@@ -5,9 +5,6 @@
 import pypsa
 import pandas as pd
 
-from pyomo.environ import Constraint
-
-
 network = pypsa.Network()
 
 network.set_snapshots(pd.date_range("2016-01-01 00:00","2016-01-01 03:00",freq="H"))

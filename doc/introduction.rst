@@ -2,8 +2,8 @@
  Introduction
 ##########################################
 
-What PyPSA does and does not do (yet)
-=======================================
+Functionality
+=============
 
 **PyPSA can calculate:**
 
@@ -36,14 +36,6 @@ What PyPSA does and does not do (yet)
   these is demonstrated in the `examples
   <http://www.pypsa.org/examples/>`_
 
-
-**Functionality that may be added in the future:**
-
-* Multi-year investment optimisation
-* Distributed active power slack
-* Interactive web-based GUI with SVG
-* OPF with the full non-linear network equations
-* Port to `Julia <http://julialang.org/>`_
 
 **Other complementary libraries:**
 

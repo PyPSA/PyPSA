@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-
-
 import pypsa
 
 from pypower.api import ppoption, runpf, case118 as case

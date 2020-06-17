@@ -19,8 +19,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, iterkeys
 from weakref import ref
 
@@ -510,6 +508,10 @@ class Network(Basic):
                 'extra_functionality': extra_functionality,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
         args.update(kwargs)
+
+        if not self.shunt_impedances.empty:
+            logger.warning("You have defined one or more shunt impedances. Shunt impedances are ignored by the linear optimal power flow (LOPF).")
+
         if pyomo:
             return network_lopf(self, **args)
         else:
@@ -933,8 +935,8 @@ class Network(Basic):
                                 "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
-                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
-                                self.buses.carrier.iloc[buses_i].value_counts())
+                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i,
+                                self.buses.carrier.iloc[buses_i].value_counts()))
 
             self.add("SubNetwork", i, carrier=carrier)
 
@@ -1068,6 +1070,16 @@ class Network(Basic):
                     for col in min_pu.columns[min_pu.isnull().any()]:
                         logger.warning("The attribute %s of element %s of %s has NaN values for the following snapshots:\n%s",
                                        varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[min_pu[col].isnull()])
+
+                # check for infinite values
+                if np.isinf(max_pu).values.any():
+                    for col in max_pu.columns[np.isinf(max_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_max_pu", col, c.list_name, max_pu.index[np.isinf(max_pu[col])])
+                if np.isinf(min_pu).values.any():
+                    for col in min_pu.columns[np.isinf(min_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[np.isinf(min_pu[col])])
 
                 diff = max_pu - min_pu
                 diff = diff[diff < 0].dropna(axis=1, how='all')

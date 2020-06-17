@@ -673,3 +673,15 @@ Outputs
 * link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
 
 * global_constraint.{mu}
+
+
+Utility Functions (without pyomo)
+---------------------------------
+
+.. automodule:: pypsa.linopf
+
+
+Utility Functions (with pyomo)
+------------------------------
+
+.. automodule:: pypsa.opf

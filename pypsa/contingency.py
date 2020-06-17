@@ -17,17 +17,13 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
-
-
 __author__ = "Tom Brown (FIAS)"
 __copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 
 
-from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vstack as svstack
+from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack
 
-from numpy import r_, ones, zeros, newaxis
+from numpy import r_, ones, zeros
 
 import logging
 logger = logging.getLogger(__name__)
@@ -143,7 +139,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     p0["base"] = p0_base
 
     for branch in branch_outages:
-        if type(branch) is not tuple:
+        if not isinstance(branch, tuple):
             logger.warning("No type given for {}, assuming it is a line".format(branch))
             branch = ("Line",branch)
 

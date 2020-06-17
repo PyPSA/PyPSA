@@ -20,8 +20,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, string_types
 
 
@@ -359,7 +357,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in ru_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_up"],
@@ -369,6 +366,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   -network.generators.at[gen, "ramp_limit_up"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_start_up"]*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
@@ -413,7 +411,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in rd_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (network.generators.at[gen, "ramp_limit_down"],
@@ -423,6 +420,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   network.generators.loc[gen, "ramp_limit_down"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    ((network.generators.at[gen, "ramp_limit_down"] - network.generators.at[gen, "ramp_limit_shut_down"])*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
@@ -953,7 +951,6 @@ def define_passive_branch_flows_with_kirchhoff(network,snapshots,skip_vars=False
 
     for subnetwork in network.sub_networks.obj:
 
-        branches = subnetwork.branches()
         attribute = "r_pu_eff" if network.sub_networks.at[subnetwork.name,"carrier"] == "DC" else "x_pu_eff"
 
         sub_network_cycle_index, sub_network_cycle_constraints = define_sub_network_cycle_constraints( subnetwork,
@@ -1220,6 +1217,7 @@ def define_linear_objective(network,snapshots):
                                 for b in extendable_links.index])
     objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).zsum()
 
+    network.objective_constant = - objective.constant
 
     ## Unit commitment costs
 
@@ -1411,7 +1409,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     try:
         network.global_constraints.loc[:,"mu"] = - get_shadows(model.global_constraints, multiind=False)
-    except (AttributeError, KeyError) as e:
+    except (AttributeError, KeyError):
         logger.warning("Could not read out global constraint shadow prices")
 
     #extract unit commitment statuses

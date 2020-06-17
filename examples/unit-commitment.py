@@ -149,8 +149,6 @@ nu.generators_t.p
 
 ## Ramp rate limits
 
-import pypsa
-
 nu = pypsa.Network()
 
 nu.set_snapshots(range(6))
@@ -173,8 +171,6 @@ nu.add("Load","load",bus="bus",p_set=[4000,7000,7000,7000,7000,3000])
 nu.lopf(nu.snapshots)
 
 nu.generators_t.p
-
-import pypsa
 
 nu = pypsa.Network()
 
@@ -202,7 +198,6 @@ nu.generators.p_nom_opt
 
 nu.generators_t.p
 
-import pypsa
 
 nu = pypsa.Network()
 

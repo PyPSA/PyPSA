@@ -26,7 +26,7 @@ from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
 from .linopt import (linexpr, write_bound, write_constraint, write_objective,
                      set_conref, set_varref, get_con, get_var, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
-                     run_and_read_xpress,
+                     run_and_read_cplex, run_and_read_xpress,
                      define_constraints, define_variables, define_binaries,
                      align_with_static_component)
 
@@ -351,6 +351,7 @@ def define_kirchhoff_constraints(n, sns):
         cycle_sum.index = sns
         con = write_constraint(n, cycle_sum, '=', 0)
         constraints.append(con)
+    if len(constraints) == 0: return
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
@@ -556,6 +557,7 @@ def define_objective(n, sns):
         constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
+    n.objective_constant = constant
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
@@ -690,15 +692,17 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
             n.solutions.at[(c, attr), 'pnl'] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             values = variables.stack().map(variables_sol).unstack()
-            if c in n.passive_branch_components:
+            if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, 'p0', values)
                 set_from_frame(pnl, 'p1', - values)
-            elif c == 'Link':
+            elif c == 'Link' and attr == "p":
                 set_from_frame(pnl, 'p0', values)
                 for i in ['1'] + additional_linkports(n):
                     i_eff = '' if i == '1' else i
                     eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
                     set_from_frame(pnl, f'p{i}', - values * eff)
+                    pnl[f'p{i}'].loc[sns, n.links.index[n.links[f'bus{i}'] == ""]] = \
+                                              n.component_attrs['Link'].loc[f'p{i}','default']
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -882,7 +886,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         :func:`pypsa.linopt.get_dual` with corresponding name
 
     """
-    supported_solvers = ["cbc", "gurobi", 'glpk', 'scs', 'xpress']
+    supported_solvers = ["cbc", "gurobi", 'glpk', 'cplex', 'xpress']
     if solver_name not in supported_solvers:
         raise NotImplementedError(f"Solver {solver_name} not in "
                                   f"supported solvers: {supported_solvers}")
@@ -913,7 +917,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
 
     solve = eval(f'run_and_read_{solver_name}')
     res = solve(n, problem_fn, solution_fn, solver_logfile,
-                solver_options, keep_files, warmstart, store_basis)
+                solver_options, warmstart, store_basis)
 
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
@@ -926,7 +930,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     elif status == "warning" and termination_condition == "suboptimal":
         logger.warning('Optimization solution is sub-optimal. Objective value: {:.2e}'.format(obj))
     else:
-        logger.warning(f'Optimization failed with status {status} and termination condition {termination_condition}')
+        logger.warning(f'Optimization failed with status {status} and '
+                       f'termination condition {termination_condition}')
         return status, termination_condition
 
     n.objective = obj
