@@ -846,6 +846,7 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
     if termination_condition == 'mip_optimal' or \
        termination_condition == 'lp_optimal':
         status = 'ok'
+        termination_condition = 'optimal'
     elif termination_condition == 'mip_unbounded' or \
          termination_condition == 'mip_infeasible' or \
          termination_condition == 'lp_unbounded' or \
@@ -854,18 +855,18 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
     else:
         status = 'warning'
 
-    if termination_condition not in ["lp_optimal", "mip_optimal", "mip_solution"]:
+    if termination_condition not in ["optimal"]:
         return status, termination_condition, None, None, None
 
-    variables_sol = pd.Series({v.name: m.getSolution(v) for v
-                               in m.getVariable()}).pipe(set_int_index)
+    var = [str(v) for v in m.getVariable()]
+    variables_sol = pd.Series(m.getSolution(var), index=var).pipe(set_int_index)
 
     try:
-        constraints_dual = pd.Series({c.name: m.getDual(c) for c in
-                                      m.getConstraint()}).pipe(set_int_index)
+        dual = [str(d) for d in m.getConstraint()]
+        constraints_dual = pd.Series(m.getDual(dual), index=dual).pipe(set_int_index)
     except:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=[c.name for c in m.getConstraint()])
+        constraints_dual = pd.Series(index=dual).pipe(set_int_index)
 
     objective = m.getObjVal()
 
