@@ -6,15 +6,15 @@
 Getting Python
 ==============
 
-If it's your first time with Python, people seem to recommend
+If it's your first time with Python, we recommend
 `Anaconda <https://www.continuum.io/downloads>`_ as an easy-to-use
 environment that includes many basic packages. Anaconda is available
 for Windows, Mac OS X and GNU/Linux.
 
+`Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_ is a minimal installer for conda.
 
-For those rolling their own on unix-like systems (GNU/Linux, Mac OS X)
-it's always helpful to use a `virtual environment
-<https://pypi.python.org/pypi/virtualenv>`_ for your python
+It's always helpful to use a dedicated `conda environment <https://docs.conda.io/en/latest/>`_ or `virtual environment
+<https://pypi.python.org/pypi/virtualenv>`_ for your Python
 installation (and even easier to use with a `virtualenv-burrito
 <https://github.com/brainsik/virtualenv-burrito>`_), in case you
 accidentally trash something.
@@ -25,21 +25,33 @@ Getting a solver for linear optimisation
 ========================================
 
 PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
-external solver. PyPSA is known to work with the free software `Cbc <https://projects.coin-or.org/Cbc>`_, the free software `GLPK <https://www.gnu.org/software/glpk/>`_ and the non-free software
-`Gurobi <http://www.gurobi.com/>`_ (and whatever else works with `Pyomo <https://en.wikipedia.org/wiki/Pyomo>`_).
+external solver. PyPSA is known to work with the free software
 
-For Cbc, see their `installation instructions <https://projects.coin-or.org/Cbc#DownloadandInstall>`_. For Debian-based systems you can do simply::
+- `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
+- `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
 
-  sudo apt-get install coinor-cbc
+and the non-free software, commercial software (for which free academic licenses are available)
 
-For GLPK in Debian-based systems execute::
+- `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
+- `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
+- `FICO Xpress <https://www.fico.com/en/products/fico-xpress-optimization>`_
 
-    sudo apt-get install glpk-utils
+For installation instructions of these solvers for your operating system, follow the links above.
 
-and there are similar packages for other GNU/Linux distributions.
+Depending on your operating system, you can also install some of the open-source solvers in a ``conda`` environment.
 
-For Windows there is `WinGLPK <http://winglpk.sourceforge.net/>`_. For
-Mac OS X `brew <http://brew.sh/>`_ is your friend.
+For GLPK on all operating systems::
+
+    conda install -c conda-forge glpk
+
+For CBC on all operating systems except for Windows::
+
+    conda install -c conda-forge coincbc
+
+.. note::
+    Commercial solvers such as Gurobi, CPLEX, and Xpress currently significantly outperform open-source solvers for large-scale problems.
+    It might be the case that you can only retrieve solutions by using a commercial solver.
+
 
 Installing PyPSA with conda
 ===========================
