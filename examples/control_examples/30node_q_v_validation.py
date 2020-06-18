@@ -16,62 +16,60 @@ pypsa.pf.logger.setLevel("INFO")
 snapshots = pd.date_range(start="2020-01-01 00:00", end="2020-01-01 02:00",
                           periods=15)
 
-# power generation or injection
-L = pd.Series([0.00001]*1+[0.00002]*1+[0.00003]*1+[0.00005]*1+[0.00007]*2 +
-              [0.00008]*1+[0.0001]*2+[0.00021]*2+[0.00022]*2+[0.00023]*2,
-              snapshots)
+# power generation or injection to the grid
+L = pd.Series([0.000001]*1+[0.000002]*1+[0.000003]*1+[0.00005]*1+[0.00007]*2 +
+              [0.00008]*1+[0.0001]*1+[0.00015]*1+[0.00018]*1+[0.0002]*1 +
+              [0.00021]*1+[0.00022]*1+[0.00023]*1+[0.00024]*1, snapshots)
 # load
-L1 = pd.Series([0.007]*1+[0.0066]*1+[0.006]*1+[0.0055]*1+[0.005]*2+[0.0045]*1 +
-               [0.00499]*1+[0.0047]*1+[0.0043]*1+[0.002]*1+[0.0008]*1 +
-               [0.0003]*1+[0.00009]*1+[0.00001]*1, snapshots)
+L1 = pd.Series([0.00675]*1+[0.0067]*1+[0.0066]*1+[0.0065]*1+[0.0063]*2 +
+               [0.0062]*1+[0.0060]*1+[0.0058]*1+[-0.0]*1+[0.0004]*1 +
+               [0.0006]*1+[0.003]*1+[0.004]*1+[0.005]*1, snapshots)
 
 # building empty dataframes for storing results
 Results_v = pd.DataFrame(columns=[])
 Results_q = pd.DataFrame(columns=[])
 
-# defining network
-network = pypsa.Network()
-network.set_snapshots(snapshots)
+# defining n
+n = pypsa.Network()
+n.set_snapshots(snapshots)
 n_buses = 30
 
 for i in range(n_buses):
-    network.add("Bus", "My bus {}".format(i), v_nom=.4)
+    n.add("Bus", "My bus {}".format(i), v_nom=.4, v_mag_pu_set=1.03)
 for i in range(n_buses):
-    network.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
+    n.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
         (i) % n_buses), control="PQ", p_set=L, s_nom=0.00025, v1=0.89, v2=0.94,
-        v3=0.96, v4=1.02)
-    network.add("Load", "My load {}".format(i), bus="My bus {}".format(
+        v3=0.96, v4=1.02, power_factor=0.7)
+    n.add("Load", "My load {}".format(i), bus="My bus {}".format(
         (i) % n_buses), s_nom=0.00025, p_set=L1)
-    network.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
+    n.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
 # setting control strategy type to Q(U) controller
-network.generators.type_of_control_strategy = 'q_v'
-network.lpf(network.snapshots)
-network.pf(use_seed=True, snapshots=network.snapshots, x_tol_outer=1e-4)
+n.generators.type_of_control_strategy = 'q_v'
+n.lpf(n.snapshots)
+n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-6)
 
-# # saving the necessary results for plotting controller behavior
-for i in range(n_buses-1): # slack bus and slack genenerator are excluded
-    # P_set values are same for all generators at each snapshot
-    Results_q.loc[:, 'p_set'] = network.generators_t.p_set.loc[
-        :, 'My Gen 26'].values
-    # format(i+1) to exclude slack bus voltage magnitude
-    Results_v.loc[:, "V_pu_with_control {}".format(i)
-                  ] = network.buses_t.v_mag_pu.loc[
-                                              :, "My bus {}".format(i+1)].values
-    # forma(i+1) to exclude slack generator
-    Results_q.loc[:, "q_set_controller_output {}".format(i)] = ((
-        network.generators_t.q_set.loc[:, "My Gen {}".format(i+1)].values)/(
-            np.sqrt((network.generators.loc["My Gen {}".format(i+1),'s_nom'])**2-(
-                Results_q["p_set"])**2)))*100
+Results_v = n.buses_t.v_mag_pu.loc[:, 'My bus 1':'My bus 29']
+# maximum q compensation consideration
+Q_max = n.generators_t.p_set.loc[:, 'My Gen 1':'My Gen 29'].mul(
+    np.tan((np.arccos(n.generators.loc['My Gen 1':'My Gen 29']['power_factor'],
+                      dtype=np.float64)), dtype=np.float64))
+
+Q_cap = n.generators.loc['My Gen 1':'My Gen 29']['s_nom']*np.sin(np.arccos(
+    n.generators.loc['My Gen 1':'My Gen 29']['power_factor']))
+Q_allowable = np.where(Q_max <= Q_cap, Q_max, Q_cap)
+# calculation of q compensation in percentage
+c_q_set_inj_percentage = n.generators_t.q_set/Q_allowable*100
+
 
 # Q(U) controller droop characteristic
 def q_v_controller_droop(v_pu_bus):
     # parameters are same for all the generators, here from Gen 7 are used
-    v1 = network.generators.loc['My Gen 7', 'v1']
-    v2 = network.generators.loc['My Gen 7', 'v2']
-    v3 = network.generators.loc['My Gen 7', 'v3']
-    v4 = network.generators.loc['My Gen 7', 'v4']
-    damper = network.generators.loc['My Gen 7', 'damper']
+    v1 = n.generators.loc['My Gen 7', 'v1']
+    v2 = n.generators.loc['My Gen 7', 'v2']
+    v3 = n.generators.loc['My Gen 7', 'v3']
+    v4 = n.generators.loc['My Gen 7', 'v4']
+    damper = n.generators.loc['My Gen 7', 'damper']
     # np.select([conditions], [choices]), qbyqmax is chosen based on conditions
     qbyqmax = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
                 v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (
@@ -81,35 +79,29 @@ def q_v_controller_droop(v_pu_bus):
 
     return qbyqmax*damper
 
+
 # power factor optional values to calculate droop characteristic (%)
 Results_droop = pd.DataFrame(np.arange(0.88, 1.03, 0.01), columns=['v_mag'])
 # calculation of droop characteristic (output)
 for index, row in Results_droop.iterrows():
     Results_droop.loc[index, "p/pmaxdroop"] = q_v_controller_droop(
                                               Results_droop.loc[index, 'v_mag'])
-
 ''' Plotting '''
-# droop characteristic input and output variables
-vdroop = Results_droop['v_mag']
-qdroop = Results_droop["p/pmaxdroop"]
-# controller input and output variables
-v_control = Results_v.loc[:, "V_pu_with_control 0":"V_pu_with_control 28"]
-qcontrol = Results_q.loc[:, "q_set_controller_output 0":
-                          "q_set_controller_output 28"]
 # plot droop characteristic
-plt.plot(vdroop, qdroop, label="Droop characteristic", color='r')
+plt.plot(Results_droop['v_mag'], Results_droop["p/pmaxdroop"],
+         label="Droop characteristic", color='r')
 # plot controller behavior
-plt.scatter(v_control, qcontrol, color="g",
+plt.scatter(Results_v, c_q_set_inj_percentage, color="g",
             label="Controller behaviour")
 # labeling controller parameters
-plt.text(network.generators.loc['My Gen 7', 'v1'], 100, "v1= %s" % (
-    network.generators.loc['My Gen 7', 'v1']), rotation=0)
-plt.text(network.generators.loc['My Gen 7', 'v2'], 0, "v2= %s" % (
-    network.generators.loc['My Gen 7', 'v2']), rotation=90)
-plt.text(network.generators.loc['My Gen 7', 'v3'], 0, "v3= %s" % (
-    network.generators.loc['My Gen 7', 'v3']), rotation=90)
-plt.text(network.generators.loc['My Gen 7', 'v4'], -100, "v4= %s" % (
-    network.generators.loc['My Gen 7', 'v4']), rotation=90)
+plt.text(n.generators.loc['My Gen 7', 'v1'], 100, "v1= %s" % (
+    n.generators.loc['My Gen 7', 'v1']), rotation=0)
+plt.text(n.generators.loc['My Gen 7', 'v2'], 0, "v2= %s" % (
+    n.generators.loc['My Gen 7', 'v2']), rotation=90)
+plt.text(n.generators.loc['My Gen 7', 'v3'], 0, "v3= %s" % (
+    n.generators.loc['My Gen 7', 'v3']), rotation=90)
+plt.text(n.generators.loc['My Gen 7', 'v4'], -100, "v4= %s" % (
+    n.generators.loc['My Gen 7', 'v4']), rotation=90)
 # legendsa and titles
 plt.legend(loc="best", bbox_to_anchor=(0.4, 0.4))
 plt.title("Q(U) Controller Behavior \n  30 node example 15 snapshots\n"

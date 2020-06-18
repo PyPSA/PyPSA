@@ -18,6 +18,17 @@ def assert_pf_results_are_almost_equal(n1, n2):
             n1.buses_t.v_ang, n2.buses_t.v_ang,
             verbose=True, decimal=5, err_msg='bus voltage angle violate')
 
+    # Compare bus actibe power
+    np.testing.assert_array_almost_equal(
+            n1.buses_t.p.sort_index(axis=1), n2.buses_t.p.sort_index(axis=1),
+            verbose=True, decimal=5, err_msg='buses p values violates')
+
+    # Compare bus reactive power
+    np.testing.assert_array_almost_equal(
+            n1.buses_t.q.sort_index(axis=1), n2.buses_t.q.sort_index(axis=1),
+            verbose=True, decimal=5,
+            err_msg='buses q values violates')
+
     # Compare pf branch flows
     np.testing.assert_array_almost_equal(
             n1.generators_t.q, n2.generators_t.q, verbose=True, decimal=5,
@@ -119,7 +130,9 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     n8 = n1.copy()
     n8.generators.type_of_control_strategy = "q_v"
     n8.generators.s_nom = 0.05
+    n8.generators.power_factor=0.6
     n8.pf(x_tol_outer=1e-6)
 
     # compare the two pf results (n7-cerberus and n8-PyPSA)
     assert_pf_results_are_almost_equal(n7, n8)
+test_PyPSA_pf_results_with_controllers_against_CERBERUS_network()

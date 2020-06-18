@@ -1,0 +1,36 @@
+name,i0,pfe,phase_shift,references,s_nom,tap_max,tap_min,tap_neutral,tap_side,tap_step,v_nom_0,v_nom_1,vsc,vscr
+0.25 MVA 10/0.4 kV,0.24,0.6,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,0.25,2,-2,0,0.0,2.5,10.0,0.4,4.0,1.2
+0.25 MVA 20/0.4 kV,0.32,0.8,150.0,pandapowe;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilenr,0.25,2,-2,0,0.0,2.5,20.0,0.4,6.0,1.44
+0.4 MVA 10/0.4 kV,0.2375,0.95,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,0.4,2,-2,0,0.0,2.5,10.0,0.4,4.0,1.325
+0.4 MVA 20/0.4 kV,0.3375,1.35,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,0.4,2,-2,0,0.0,2.5,20.0,0.4,6.0,1.425
+0.63 MVA 10/0.4 kV,0.1873,1.18,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,0.63,2,-2,0,0.0,2.5,10.0,0.4,4.0,1.0794
+0.63 MVA 20/0.4 kV,0.2619,1.65,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,0.63,2,-2,0,0.0,2.5,20.0,0.4,6.0,1.206
+100 MVA 220/110 kV,0.06,55.0,0.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,100.0,9,-9,0,0.0,1.5,220.0,110.0,12.0,0.26
+160 MVA 380/110 kV,0.06,60.0,0.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,160.0,9,-9,0,0.0,1.5,380.0,110.0,12.2,0.25
+25 MVA 110/10 kV,0.073,28.51,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,25.0,9,-9,0,0.0,1.5,110.0,10.0,10.04,0.276
+25 MVA 110/20 kV,0.071,29.0,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,25.0,9,-9,0,0.0,1.5,110.0,20.0,11.2,0.282
+40 MVA 110/10 kV,0.076,30.45,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,40.0,9,-9,0,0.0,1.5,110.0,10.0,10.04,0.295
+40 MVA 110/20 kV,0.08,31.0,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,40.0,9,-9,0,0.0,1.5,110.0,20.0,11.2,0.302
+63 MVA 110/10 kV,0.078,31.51,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,63.0,9,-9,0,0.0,1.5,110.0,10.0,10.04,0.31
+63 MVA 110/20 kV,0.086,33.0,150.0,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen,63.0,9,-9,0,0.0,1.5,110.0,20.0,11.2,0.322
+Öltransformator 50 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.05,0,0,0,0.0,0.0,20.0,0.4,3.8,2.41
+Öltransformator 100 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.1,0,0,0,0.0,0.0,20.0,0.4,3.94,2.13
+Öltransformator 160 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.16,0,0,0,0.0,0.0,20.0,0.4,3.94,1.8
+Öltransformator 250 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.25,0,0,0,0.0,0.0,20.0,0.4,4.27,1.72
+Öltransformator 400 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.4,0,0,0,0.0,0.0,20.0,0.4,4.04,1.5
+Öltransformator 630 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.63,0,0,0,0.0,0.0,20.0,0.4,4.11,1.18
+Öltransformator 800 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,0.8,0,0,0,0.0,0.0,20.0,0.4,6.08,1.0
+Öltransformator 1000 kVA 20/0.4 kV,0.0,0.0,0.0,cerberus,1.0,0,0,0,0.0,0.0,20.0,0.4,6.37,1.25
+Öltransformator 50 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.05,0,0,0,0.0,0.0,10.0,0.4,4.0,2.0
+Öltransformator 75 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.075,0,0,0,0.0,0.0,10.0,0.4,4.0,1.7
+Öltransformator 100 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.1,0,0,0,0.0,0.0,10.0,0.4,4.0,1.6
+Öltransformator 160 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.16,0,0,0,0.0,0.0,10.0,0.4,4.0,1.35
+Öltransformator 200 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.2,0,0,0,0.0,0.0,10.0,0.4,4.0,1.3
+Öltransformator 250 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.25,0,0,0,0.0,0.0,10.0,0.4,4.0,1.2
+Öltransformator 315 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.315,0,0,0,0.0,0.0,10.0,0.4,4.0,1.15
+Öltransformator 400 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.4,0,0,0,0.0,0.0,10.0,0.4,4.0,1.05
+Öltransformator 500 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.5,0,0,0,0.0,0.0,10.0,0.4,4.0,1.0
+Öltransformator 630 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.63,0,0,0,0.0,0.0,10.0,0.4,4.0,1.0
+Öltransformator 800 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,0.8,0,0,0,0.0,0.0,10.0,0.4,6.0,1.0
+Öltransformator 1000 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,1.0,0,0,0,0.0,0.0,10.0,0.4,6.0,1.0
+Öltransformator 1250 kVA 10/0.4 kV,0.0,0.0,0.0,cerberus,1.25,0,0,0,0.0,0.0,10.0,0.4,6.0,1.0
