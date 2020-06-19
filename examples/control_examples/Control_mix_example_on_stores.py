@@ -37,9 +37,10 @@ for i in range(n_buses-1):
           bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
 
 
-def run_pf():
+def run_pf(activate_controller=False):
     n.lpf()
-    n.pf(use_seed=True, inverter_control=True)
+    n.pf(use_seed=True, inverter_control=activate_controller)
+
 
 # run pf without controller and save the results
 run_pf()
@@ -49,21 +50,21 @@ Store_Result['no_control'] = n.buses_t.v_mag_pu.values.T
 # now apply reactive power as a function of voltage Q(U) or q_v controller,
 # parameters (v1,v2,v3,v4,s_nom,damper) are already set in (n.add('Store', v1, v2 ...))
 n.stores.type_of_control_strategy = 'q_v'
-run_pf()
+run_pf(activate_controller=True)
 Store_Result['q_v_control'] = n.buses_t.v_mag_pu.values.T
 
 # now apply fixed power factor controller (fixed_cosphi), parameters
 # (power_factor, damper) are already set in (n.add(Generator...))
 n.stores.q_set = 0  # to clean up q_v q_set
 n.stores.type_of_control_strategy = 'fixed_cosphi'
-run_pf()
+run_pf(activate_controller=True)
 Store_Result['fixed_pf_control'] = n.buses_t.v_mag_pu.values.T
 
 # now apply power factor as a function of real power (cosphi_p), parameters
 # (set_p1,set_p2,s_nom,damper,power_factor_min) are already set in (n.add('Store'...))
 n.stores.q_set = 0  # to clean fixed_cosphi q_set
 n.stores.type_of_control_strategy = 'cosphi_p'
-run_pf()
+run_pf(activate_controller=True)
 Store_Result['cosphi_p_control'] = n.buses_t.v_mag_pu.values.T
 
 # now apply mix of controllers
@@ -84,7 +85,7 @@ n.stores.loc['My store 3', 'set_p1'] = 50
 n.stores.loc['My store 3', 'set_p2'] = 100
 n.stores.loc['My store 3', 'power_factor_min'] = 0.9
 n.stores.loc['My store 3', 's_nom'] = 0.065
-run_pf()
+run_pf(activate_controller=True)
 Store_Result['mix_controllers'] = n.buses_t.v_mag_pu.values.T
 
 plt.plot(Store_Result['power_inj'], Store_Result['no_control'], linestyle='--',

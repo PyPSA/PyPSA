@@ -27,6 +27,7 @@ def fixed_cosphi(p_input, now, c_attrs):
         Is the new reactive power that will be set as new q_set in each
         controlled component as a result of applying this controller.
     """
+    # calculation of q based on provided power_factor
     q_set = -p_input.loc[now, c_attrs['power_factor'].index].mul(np.tan(
         np.arccos(c_attrs['power_factor'], dtype=np.float64), dtype=np.float64))
 
@@ -48,6 +49,8 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
         Component data frame, i.e. n.loads, n.storage_units...
     df_t : pandas data frame
         Component data frame, i.e. n.loads_t, n.storage_units_t...
+    time_varying_p_set : bool (True / False)
+        It determines if p_set is static (False) or series (True).
     c_attrs : pandas data frame
         Component attrs including controller required parameters for controlled
         indexes, i.e. s_nom, set_p1, set_p2, power_factor_min choice for
@@ -64,8 +67,6 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
         Minimum allowed power factor.
     p_set_per_s_nom : pandas data frame
         Inverter real power injection percentage or (p_set / s_nom)*100.
-    time_varying_p_set : bool (True / False)
-        It determines if p_set is static (False) or series (True).
 
     Returns
     -------
@@ -367,6 +368,10 @@ def prepare_dict_values(
         parameter_dict['deepcopy_component_t'] = {}
     # storing input power for each component
     parameter_dict['deepcopy_component_t'][c_list_name] = deepcopy(c_pnl)
+    # storing deepcopy of n.component_t for each component as a reference, is
+    # needed because Q(U) controller can also change p_set when more q is
+    # needed, and this causes a change in the input power for Q(U) if multiple
+    # iteration occurs per load flow which is mostly the case for Q(U).
     for i in ctrl_list[1:4]:
         # building a dictionary for each controller if they exist
         if (c_df.type_of_control_strategy == i).any():
@@ -382,7 +387,6 @@ def prepare_dict_values(
             if ~(c_df[c_df.type_of_control_strategy == i].index).isin(c_pnl.p_set).all():
                 parameter_dict['controller_parameters'][i][c_list_name] = \
                     c_df.loc[(~c_df.index.isin(c_pnl.p_set) & (controller == i))]
-
     # reindexing n.component_t.power_factor fata frame
     c_pnl.power_factor = c_pnl.power_factor.reindex(c_df.loc[(c_df.index.isin(
                      c_pnl.p_set) & (controller == 'cosphi_p'))].index, axis=1)
@@ -395,16 +399,28 @@ def prepare_dict_values(
 
 def prepare_controller_parameter_dict(n, sub_network, inverter_control):
     """
-    Iterate over components (loads, storage_units, generators) and check if they
-    are controlled. For all controlled components, the respective controller
-    parameters are stored in the dictionary parameter_dict.
+    Add parameters of the given controlled components to the given parameter_dict.
+
+    Parameters
+    ----------
+    parameter_dict : dictionary
+        Dictonary to add keys and values of the given component and controller.
+    c_list_name : string
+        Component name, i.e. 'loads', 'storage_units', 'generators'.
+    c_df : pandas data frame
+        DataFrame of static components for c_list_name, i.e. network.generators
+    c_pnl : pandas data frame
+        dictionary of DataFrames of varying components for c_list_name,
+        i.e. network.generators_t.
+    ctrl_list : list
+        List of supported controllers ['q_v', 'cosphi_p', 'fixed_cosphi'].
+    controller : pandas series
+        Type of controller can be any of them in ctrl_list.
+
     Returns
     -------
-    n_trials_max:
-        Maximum number of outer loops, dependent on the existance of a voltage
-        dependent controller: 1 if not present or 20 if present
     parameter_dict : dictionary
-        All needed controller parameters, (built in prepare_dict_values()).
+        All needed parameters for the chosen controller.
     """
     # defining initial variable values and status
     n_trials_max = 0
@@ -412,8 +428,9 @@ def prepare_controller_parameter_dict(n, sub_network, inverter_control):
     parameter_dict = {}
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
     if inverter_control:
-    # loop through loads, generators, storage_units and stores if they exist
+        # loop through loads, generators, storage_units and stores if they exist
         for c in sub_network.iterate_components(n.controllable_one_port_components):
+
             if (c.df.type_of_control_strategy != '').any():
                 controller = c.df['type_of_control_strategy']
                 # exclude slack generator to be controlled
@@ -435,5 +452,11 @@ def prepare_controller_parameter_dict(n, sub_network, inverter_control):
 
         parameter_dict['v_dep_buses'] = v_dep_buses  # names of v_dependent buses
         parameter_dict['deepcopy_buses_t'] = deepcopy(n.buses_t)
+        # deepcopy of the buses is needed to have the actual status of bus p and q
+        # as a reference, i.e. Q(u) can have multiple iterations per load flow
+        # until it converges. once it is converged then we say:
+        # n.buses_t.q or p = deepcopy(buses_t.p or q) + or - controller output
+        # if we dont have the deep copy it will keep on adding or subtracting
+        # in each iteration.
 
     return n_trials_max, parameter_dict
