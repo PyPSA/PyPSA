@@ -224,50 +224,48 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
     Needed to compare v_mag_pu of the controlled buses with the voltage from
     previous iteration to decide for repeation of pf (in pf.py file).
     """
-    # check if any controlled components exist in the parameter_dict
-    if bool('controller_parameters' in parameter_dict):
-        for controller in parameter_dict['controller_parameters'].keys():
-            # parameter is the controlled indexes dataframe of a components
-            for component_name, c_attrs in parameter_dict[
-                                  'controller_parameters'][controller].items():
+    for controller in parameter_dict['controller_parameters'].keys():
+        # parameter is the controlled indexes dataframe of a components
+        for component_name, c_attrs in parameter_dict[
+                              'controller_parameters'][controller].items():
 
-                # determine component name, p_input and required dataframes
-                c_list_name = component_name.strip('_t')
-                p_input = parameter_dict['deepcopy_component_t'][c_list_name]
-                df = getattr(n, c_list_name)
-                df_t = getattr(n, c_list_name + '_t')
-                # flag to check if the p_set of the component is static or series
-                time_varying_p_set = bool('_t' in component_name)
+            # determine component name, p_input and required dataframes
+            c_list_name = component_name.strip('_t')
+            p_input = parameter_dict['deepcopy_component_t'][c_list_name]
+            df = getattr(n, c_list_name)
+            df_t = getattr(n, c_list_name + '_t')
+            # flag to check if the p_set of the component is static or series
+            time_varying_p_set = bool('_t' in component_name)
 
-                # call each controller if it exist in parameter_dict
-                setting_p_set_required = False  # initial flag for setting p_set
-                p_set = None  # initial when setting_p_set_required is False
-                if controller == 'fixed_cosphi':
-                    q_set = fixed_cosphi(p_input.p, now, c_attrs)
+            # call each controller if it exist in parameter_dict
+            setting_p_set_required = False  # initial flag for setting p_set
+            p_set = None  # initial when setting_p_set_required is False
+            if controller == 'fixed_cosphi':
+                q_set = fixed_cosphi(p_input.p, now, c_attrs)
 
-                if controller == 'cosphi_p':
-                    q_set = cosphi_p(
-                       p_input.p, now, df, df_t, c_attrs, time_varying_p_set)
+            if controller == 'cosphi_p':
+                q_set = cosphi_p(
+                        p_input.p, now, df, df_t, c_attrs, time_varying_p_set)
 
-                if controller == 'q_v':
-                    q_set, p_set, setting_p_set_required = q_v(
-                            c_list_name, now, n_trials_max, n_trials, p_input.p,
-                            n.buses_t.v_mag_pu, c_attrs)
+            if controller == 'q_v':
+                q_set, p_set, setting_p_set_required = q_v(
+                        c_list_name, now, n_trials_max, n_trials, p_input.p,
+                        n.buses_t.v_mag_pu, c_attrs)
 
-                # sett the controller output to the network
-                _set_controller_outputs_to_n(
-                    n, parameter_dict, time_varying_p_set, c_attrs,
-                    df, df_t, q_set, p_set, now, setting_p_set_required, p_input)
-        # find the v_mag_pu of buses with v_dependent controller to return
-        v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
-             now, parameter_dict['v_dep_buses']]
+            # sett the controller output to the network
+            _set_controller_outputs_to_n(
+                n, parameter_dict, time_varying_p_set, c_attrs, df, df_t, q_set,
+                p_set, now, setting_p_set_required, p_input)
+    # find the v_mag_pu of buses with v_dependent controller to return
+    v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
+        now, parameter_dict['v_dep_buses']]
 
-        return v_mag_pu_voltage_dependent_controller
+    return v_mag_pu_voltage_dependent_controller
 
 
-def _set_controller_outputs_to_n(
-        n, parameter_dict, time_varying_p_set, c_attrs, df, df_t, q_set, p_set, now,
-        setting_p_set_required, p_input):
+def _set_controller_outputs_to_n(n, parameter_dict, time_varying_p_set, c_attrs,
+                                 df, df_t, q_set, p_set, now,
+                                 setting_p_set_required, p_input):
     """
     Set the controller outputs to the n (network).
 
@@ -395,7 +393,7 @@ def prepare_dict_values(
     return parameter_dict
 
 
-def prepare_controller_parameter_dict(n, sub_network):
+def prepare_controller_parameter_dict(n, sub_network, inverter_control):
     """
     Iterate over components (loads, storage_units, generators) and check if they
     are controlled. For all controlled components, the respective controller
@@ -409,35 +407,33 @@ def prepare_controller_parameter_dict(n, sub_network):
         All needed controller parameters, (built in prepare_dict_values()).
     """
     # defining initial variable values and status
-    controller_present = False
     n_trials_max = 0
     v_dep_buses = np.array([])
     parameter_dict = {}
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
-
+    if inverter_control:
     # loop through loads, generators, storage_units and stores if they exist
-    for c in sub_network.iterate_components(n.controllable_one_port_components):
+        for c in sub_network.iterate_components(n.controllable_one_port_components):
+            if (c.df.type_of_control_strategy != '').any():
+                controller = c.df['type_of_control_strategy']
+                # exclude slack generator to be controlled
+                if c.list_name == 'generators':
+                    c.df.loc[c.df.control == 'Slack', 'type_of_control_strategy'] = ''
+                # if voltage dep. controller exist,find the bus name
+                if c.df.type_of_control_strategy.isin(['q_v']).any():
+                    v_dep_buses = np.append(v_dep_buses, np.unique(c.df.loc[(
+                            controller.isin(['q_v'])), 'bus']))
+                    n_trials_max = 30  # max pf repeatation for controller convergance
 
-        if (c.df.type_of_control_strategy != '').any():
-            controller_present = True
-            controller = c.df['type_of_control_strategy']
-            # exclude slack generator to be controlled
-            if c.list_name == 'generators':
-                c.df.loc[c.df.control == 'Slack', 'type_of_control_strategy'] = ''
-            # if voltage dep. controller exist,find the bus name
-            if c.df.type_of_control_strategy.isin(['q_v']).any():
-                v_dep_buses = np.append(v_dep_buses, np.unique(c.df.loc[(
-                                            controller.isin(['q_v'])), 'bus']))
-                n_trials_max = 30  # max pf repeatation for controller convergance
+                # call the function to prepare the controller dictionary
+                parameter_dict = prepare_dict_values(parameter_dict, c.list_name,
+                                                     c.df, c.pnl, ctrl_list,
+                                                     controller)
 
-            # call the function to prepare the controller dictionary
-            parameter_dict = prepare_dict_values(
-                parameter_dict, c.list_name, c.df, c.pnl, ctrl_list, controller)
+                logger.info("We are in %s. That's the parameter dict:\n%s",
+                            c.name, parameter_dict)
 
-            logger.info("We are in %s. That's the parameter dict:\n%s", c.name,
-                        parameter_dict)
+        parameter_dict['v_dep_buses'] = v_dep_buses  # names of v_dependent buses
+        parameter_dict['deepcopy_buses_t'] = deepcopy(n.buses_t)
 
-    parameter_dict['v_dep_buses'] = v_dep_buses  # names of v_dependent buses
-    parameter_dict['deepcopy_buses_t'] = deepcopy(n.buses_t)
-
-    return n_trials_max, parameter_dict, controller_present
+    return n_trials_max, parameter_dict

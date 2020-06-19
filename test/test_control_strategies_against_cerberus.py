@@ -1,7 +1,22 @@
-"""Test pf results of inverter control strategies namely; fixed power factor
-(fixed_cosphi), power factors as a fucntion of active power (cosphi_p) and
-reactive power as a function of voltage (q_v) controllers against Cerberus."""
+"""Test power flow (pf) results of inverter control strategies namely; fixed
+power factor (fixed_cosphi), power factors as a fucntion of active power
+(cosphi_p) and reactive power as a function of voltage (q_v or Q(U)) against
+Cerberus. Cerberus is a power flow software which has the above mentioned control
+strategies as features. In an example of four generating units (PV or wind..)
+first, pf with out contro is run and the results are converted to PyPSA csv files
+which are saved in test/networks/results_no_c folder, then controllers are
+applied one by one and pf is run for each case and the results are saved in
+test/networks/... in seperate folder for each controller respectively, including
+their dsn files. Dsn file is the Cerberus file format. And the test are as follow.
 
+In test/networks there are four folders which contain cerberus pf results:
+
+    results_no_c = normal pf with out controller
+    results_with_cosphi_p = pf with power_factor as a function of active power
+    results_with_fixed_pf = pf with fixed power factor controller
+    results_with_q_v = pf with Q(U) controller
+"""
+# importing important libraries
 import os
 import pypsa
 import numpy as np
@@ -80,7 +95,15 @@ def assert_pf_results_are_almost_equal(n1, n2):
 
 
 def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
-
+    """
+    test/network contains network results with control and without control from
+    cerberus software. This function loads the network with no control applied
+    (results_no_c), runs the pf on it in PyPSA and compare the two results.
+    The pf results from Cerberus for each controller also exist in  test/network,
+    therefore each controller is applied on the network with no control case
+    of cerberus network and run PyPSA pf on it and then compared with the cerberus
+    results of that controller (for each controller separately).
+    """
     # pf results with no controller in Cerberus as n1
     cerberus_path = os.path.join('networks', 'results_no_c', 'citygrid')
     n1 = pypsa.Network(cerberus_path, ignore_standard_types=True)
@@ -100,8 +123,9 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n4
     n4 = n1.copy()
     n4.generators.type_of_control_strategy = "fixed_cosphi"
-    n4.generators.power_factor = np.cos(20*np.pi/180) # in cerberus it is translated as angle
-    n4.pf()
+    # in cerberus the option of choosing angle is provided - 20° is chosen
+    n4.generators.power_factor = np.cos(20*np.pi/180)  # finding power_factor
+    n4.pf(inverter_control=True)
 
     # compare the two pf results (n3-cerberus and n4-PyPSA)
     assert_pf_results_are_almost_equal(n3, n4)
@@ -114,9 +138,9 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n6
     n6 = n1.copy()
     n6.generators.type_of_control_strategy = "cosphi_p"
-    n6.generators.power_factor_min = np.cos(26*np.pi/180) # in cerberus it is translated as angle
+    n6.generators.power_factor_min = np.cos(26*np.pi/180)  # in cerberus it is translated as angle
     n6.generators.s_nom = 0.03  # in cerberus it is refered as P reference
-    n6.pf()
+    n6.pf(inverter_control=True)
 
     # compare the two pf results (n5-cerberus and n6-PyPSA)
     assert_pf_results_are_almost_equal(n5, n6)
@@ -130,9 +154,14 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     n8 = n1.copy()
     n8.generators.type_of_control_strategy = "q_v"
     n8.generators.s_nom = 0.05
-    n8.generators.power_factor=0.6
-    n8.pf(x_tol_outer=1e-6)
+    # in Cerberus after setting s_nom and p_set,  q_max and curve droop is required
+    # for Q(U), control. In cerberus s_nom = 0.05, p_set = 0.03 and q_max = 40
+    # is chosen. power_factor = np.cos(np.arctan(0.04/0.03)) = 0.6
+    n8.generators.power_factor = 0.6
+    n8.pf(x_tol_outer=1e-6, inverter_control=True)
 
     # compare the two pf results (n7-cerberus and n8-PyPSA)
     assert_pf_results_are_almost_equal(n7, n8)
+
+
 test_PyPSA_pf_results_with_controllers_against_CERBERUS_network()

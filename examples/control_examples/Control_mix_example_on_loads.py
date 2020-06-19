@@ -34,7 +34,7 @@ for i in range(n_buses-1):
 
 def run_pf():
     n.lpf()
-    n.pf(use_seed=True)
+    n.pf(use_seed=True, inverter_control=True)
 
 # run pf without controller and save the results
 run_pf()

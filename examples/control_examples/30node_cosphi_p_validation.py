@@ -44,7 +44,7 @@ for i in range(n_buses):
 # setting control strategy type
 n.generators.type_of_control_strategy = 'cosphi_p'
 n.lpf(n.snapshots)
-n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4)
+n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=True)
 
 # saving the necessary results for plotting controller behavior
 Results_power_factor = n.generators_t.power_factor.loc[:, 'My Gen 1':'My Gen 28']

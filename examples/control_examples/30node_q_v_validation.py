@@ -47,7 +47,7 @@ for i in range(n_buses):
 # setting control strategy type to Q(U) controller
 n.generators.type_of_control_strategy = 'q_v'
 n.lpf(n.snapshots)
-n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-6)
+n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-6, inverter_control=True)
 
 Results_v = n.buses_t.v_mag_pu.loc[:, 'My bus 1':'My bus 29']
 # maximum q compensation consideration

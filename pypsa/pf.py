@@ -170,7 +170,7 @@ def _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False,
         return Dict({ 'n_iter': itdf, 'error': difdf, 'converged': cnvdf })
 
 def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=1e-3, use_seed=False,
-               distribute_slack=False, slack_weights='p_set'):
+               distribute_slack=False, slack_weights='p_set', inverter_control=False):
     """
     Full non-linear power flow for generic network.
 
@@ -211,7 +211,7 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=
 
     return _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=False, x_tol_outer=x_tol_outer, x_tol=x_tol,
                                        use_seed=use_seed, distribute_slack=distribute_slack,
-                                       slack_weights=slack_weights)
+                                       slack_weights=slack_weights, inverter_control=inverter_control)
 
 
 def newton_raphson_sparse(f, guess, dfdx, x_tol=1e-10, lim_iter=100, distribute_slack=False, slack_weights=None):
@@ -316,7 +316,7 @@ def sub_network_pf_singlebus(sub_network, snapshots=None, skip_pre=False,
 
 
 def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=1e-3, use_seed=False,
-                   distribute_slack=False, slack_weights='p_set'):
+                   distribute_slack=False, slack_weights='p_set', inverter_control=False):
     """
     Non-linear power flow for connected sub-network.
 
@@ -501,13 +501,14 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     convs = pd.Series(False, index=snapshots)
 
     # prepare controllers if any and enable outer loop if voltage dependent controller present
-    n_trials_max, parameter_dict, controller_present = prepare_controller_parameter_dict(network, sub_network)
+    n_trials_max, parameter_dict = prepare_controller_parameter_dict(network, sub_network, inverter_control)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials, n_iter_overall = (1, 0, 0)
         start_outer = time.time()
         while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
             n_trials += 1
-            previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
+            if inverter_control:
+                previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
 
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]
@@ -528,14 +529,14 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
             start = time.time()
             roots[i], n_iter, diff, converged = newton_raphson_sparse(f, guess, dfdx, x_tol=x_tol, **slack_args)
             n_iter_overall += n_iter
-            if not controller_present:
+            if not inverter_control:
                 logger.info("Newton-Raphson solved in %d iterations with error of %f in %f seconds", n_iter,diff,time.time()-start)
             iters[now] = n_iter
             diffs[now] = diff
             convs[now] = converged
             if n_trials_max > 1:
                 voltage_difference = (abs(network.buses_t.v_mag_pu.loc[now] - previous_v_mag_pu_voltage_dependent_controller)).max()
-        if controller_present:
+        if inverter_control:
             logger.info("Newton-Raphson solved in %d iterations and %d outer loops with error of %f in %f seconds",
                 n_iter_overall, n_trials, diff, time.time() - start_outer)
 
