@@ -1,7 +1,6 @@
 """importing important libraries."""
 import logging
 import numpy as np
-import pandas as pd
 from copy import deepcopy
 logger = logging.getLogger(__name__)
 
@@ -81,7 +80,7 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
     power_factor_min = c_attrs['power_factor_min']
     p_set_per_s_nom = (abs(p_input.loc[now, c_attrs.index]) / abs(s_nom))*100
 
-    # pf allocation using np.select([condtions...], [choices...]) function.
+    # choice of power_factor according to controller inputs and its droop curve
     power_factor = np.select([(p_set_per_s_nom < set_p1), (
         p_set_per_s_nom >= set_p1) & (p_set_per_s_nom <= set_p2), (
             p_set_per_s_nom > set_p2)], [1, (1 - ((1 - power_factor_min) / (
@@ -92,7 +91,7 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
             now, c_attrs.index].mul(np.tan((np.arccos(
                           power_factor, dtype=np.float64)), dtype=np.float64)))
 
-    # setting the power factor value to n.components and n.components_t
+    # set the power factor output n.components(_t).power_factor
     if time_varying_p_set:
         df_t.power_factor.loc[now, c_attrs.index] = power_factor
     else:
@@ -357,7 +356,7 @@ def prepare_dict_values(
     # assert error when any of the controllers is not in the controlled list
     assert (controller.isin(ctrl_list)).all(), (
         "Not all given types of controllers are supported. Elements with unknown"
-        "controllers are:\n%s\nSupported controllers are : %s." % (c_df.loc[
+        " controllers are:\n%s\nSupported controllers are : %s." % (c_df.loc[
             (~ c_df['type_of_control_strategy'].isin(ctrl_list)),
             'type_of_control_strategy'], ctrl_list))
 
@@ -368,11 +367,11 @@ def prepare_dict_values(
         parameter_dict['deepcopy_component_t'] = {}
     # storing input power for each component
     parameter_dict['deepcopy_component_t'][c_list_name] = deepcopy(c_pnl)
-    # storing deepcopy of n.component_t for each component as a reference, is
-    # needed because Q(U) controller can also change p_set when more q is
-    # needed, and this causes a change in the input power for Q(U) if multiple
+    # storing deepcopy of n.component_t for each component as a reference, is\
+    # needed because Q(U) controller can also change p_set when more q is\
+    # needed, and this causes a change in the input power for Q(U) if multiple\
     # iteration occurs per load flow which is mostly the case for Q(U).
-    for i in ctrl_list[1:4]:
+    for i in ctrl_list:
         # building a dictionary for each controller if they exist
         if (c_df.type_of_control_strategy == i).any():
             if i not in parameter_dict['controller_parameters']:
@@ -444,19 +443,26 @@ def prepare_controller_parameter_dict(n, sub_network, inverter_control):
 
                 # call the function to prepare the controller dictionary
                 parameter_dict = prepare_dict_values(parameter_dict, c.list_name,
-                                                     c.df, c.pnl, ctrl_list,
+                                                     c.df, c.pnl, ctrl_list[1:4],
                                                      controller)
-
                 logger.info("We are in %s. That's the parameter dict:\n%s",
                             c.name, parameter_dict)
 
         parameter_dict['v_dep_buses'] = v_dep_buses  # names of v_dependent buses
         parameter_dict['deepcopy_buses_t'] = deepcopy(n.buses_t)
-        # deepcopy of the buses is needed to have the actual status of bus p and q
-        # as a reference, i.e. Q(u) can have multiple iterations per load flow
-        # until it converges. once it is converged then we say:
-        # n.buses_t.q or p = deepcopy(buses_t.p or q) + or - controller output
-        # if we dont have the deep copy it will keep on adding or subtracting
+        # deepcopy of the buses is needed to have the actual status of bus p and q\
+        # as a reference, i.e. Q(u) can have multiple iterations per load flow\
+        # until it converges. once it is converged then we say:\
+        # n.buses_t.q or p = deepcopy(buses_t.p or q) + or - controller output\
+        # if we dont have the deep copy it will keep on adding or subtracting\
         # in each iteration.
+
+        assert ('controller_parameters' in parameter_dict), (
+                "inverter_control is activated but no component is controlled,"
+                " please choose the type_of_control_strategy in the desired "
+                " component indexes. Supported type of controllers are:\n%s."
+                % (ctrl_list[1:4]))
+        # The assert error pops up when user mistakenly activates inverter_control\
+        # flag but chooses no controller for any component.
 
     return n_trials_max, parameter_dict
