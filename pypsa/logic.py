@@ -248,17 +248,19 @@ def close_switches(network, switches, skip_result_deletion=False):
           branch_components.bus0 and in branch_components.bus1 and replace it with bus_connected
     """
     logger.info("closing switches")
-    for switch in switches:
-        # change status of switch:
-        network.switches.loc[switch, "status"] = 1
+    # change status of switches:
+    network.switches.loc[switches, "status"] = 1
+    for col in network.switches_connections.columns:
         # change names in all connected components:
-        for el_bus_component_log_bus in network.switches_connections.loc[switch].index:
-            switch_con = network.switches_connections.loc[switch, el_bus_component_log_bus]
-            el_bus_component_log_bus = str.split(el_bus_component_log_bus, "_")
-            el_bus = el_bus_component_log_bus[0]
-            component = el_bus_component_log_bus[1]
-            log_bus = el_bus_component_log_bus[2]
-            getattr(network, component).loc[switch_con, el_bus] = network.switches.loc[switch, "bus_connected"]
+        el_bus_component_log_bus = str.split(col, "_")
+        el_bus = el_bus_component_log_bus[0]
+        component = el_bus_component_log_bus[1]
+        log_bus = el_bus_component_log_bus[2]
+        switches_con = network.switches_connections.loc[switches, col]
+        for switch in switches:
+            switch_con = switches_con.loc[switch]
+            if len(switch_con):
+                getattr(network, component).loc[switch_con, el_bus] = network.switches.loc[switch, "bus_connected"]
     # add buses
     new_df = pd.concat((network.buses,
                         network.buses_connected.loc[network.switches.loc[switches, "bus_connected"]]), sort=False)
@@ -279,6 +281,7 @@ def close_switches(network, switches, skip_result_deletion=False):
     if not skip_result_deletion:
         delete_calculation_results(network)
 
+
 def open_switches(network, switches, skip_result_deletion=False, skip_reopening=False):
     """
     In order to open switches we:
@@ -287,17 +290,19 @@ def open_switches(network, switches, skip_result_deletion=False, skip_reopening=
         - let bus_connected1 disappear in branch_components.bus1 and replace it with bus_diconnected1
     """
     logger.info("opening switches")
-    for switch in switches:
-        # change status of switch:
-        network.switches.loc[switch, "status"] = 0
+    # change status of switches:
+    network.switches.loc[switches, "status"] = 0
+    for col in network.switches_connections.columns:
         # change names in all connected components:
-        for el_bus_component_log_bus in network.switches_connections.loc[switch].index:
-            switch_con = network.switches_connections.loc[switch, el_bus_component_log_bus]
-            el_bus_component_log_bus = str.split(el_bus_component_log_bus, "_")
-            el_bus = el_bus_component_log_bus[0]
-            component = el_bus_component_log_bus[1]
-            log_bus = el_bus_component_log_bus[2]
-            getattr(network, component).loc[switch_con, el_bus] = network.switches.loc[switch, log_bus]
+        el_bus_component_log_bus = str.split(col, "_")
+        el_bus = el_bus_component_log_bus[0]
+        component = el_bus_component_log_bus[1]
+        log_bus = el_bus_component_log_bus[2]
+        switches_con = network.switches_connections.loc[switches, col]
+        for switch in switches:
+            switch_con = switches_con.loc[switch]
+            if len(switch_con):
+                getattr(network, component).loc[switch_con, el_bus] = network.switches.loc[switch, log_bus]
     # add relvant buses from network.buses_disconnected
     # there are three kinds of buses:
     # only electrical ones. they will never appear here.

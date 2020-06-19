@@ -609,8 +609,7 @@ class Network(Basic):
             if attr in new_df.columns:
                 bus_name = new_df.at[name,attr]
                 if bus_name not in self.buses.index:
-                    if not switch_related:
-                        logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
+                    logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
         if need_to_reinit:
             self.reinit_switches(status_before)
 
