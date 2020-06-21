@@ -21,7 +21,7 @@ for i in range(n_buses):
     n.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
         (i) % n_buses), control="PQ", p_set=power_inj[i],
         v1=0.9, v2=0.94, v3=0.96, v4=1.01, s_nom=0.1, set_p1=50, set_p2=100,
-        power_factor=0.98, power_factor_min=0.9, damper=0.1)
+        power_factor=0.98, power_factor_min=0.9, p_ref=0.03, damper=0.1)
 for i in range(n_buses-1):
     n.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
           bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)

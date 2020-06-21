@@ -36,7 +36,7 @@ for i in range(n_buses):
     n.add("Load", "My load {}".format(i), bus="My bus {}".format(
         (i) % n_buses))
     n.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
-        (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.95)
+        (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.98)
 
 # setting control method
 n.generators.type_of_control_strategy = 'fixed_cosphi'

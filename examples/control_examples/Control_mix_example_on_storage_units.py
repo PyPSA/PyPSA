@@ -27,8 +27,8 @@ for i in range(n_buses):
 
     n.add("StorageUnit", "My storage_unit {}".format(i), bus="My bus {}".format(
         (i) % n_buses), p_set=-power_inj[i], v1=0.89, v2=0.99, v3=0.96, v4=1.02,
-        s_nom=0.065, set_p1=50, set_p2=100, power_factor=0.98,
-        power_factor_min=0.98)
+        s_nom=0.065, set_p1=50, set_p2=100, power_factor=0.99,
+        power_factor_min=0.98, p_ref=0.03)
 
 for i in range(n_buses-1):
     n.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
@@ -78,7 +78,7 @@ n.storage_units.loc['My storage_unit 1', 'v4'] = 1.02
 n.storage_units.loc['My storage_unit 1', 's_nom'] = 0.08
 # fixed_cosphi controller
 n.storage_units.loc['My storage_unit 2', 'type_of_control_strategy'] = 'fixed_cosphi'
-n.storage_units.loc['My storage_unit 2', 'power_factor'] = 0.98
+n.storage_units.loc['My storage_unit 2', 'power_factor'] = 0.99
 # cosphi_p controller
 n.storage_units.loc['My storage_unit 3', 'type_of_control_strategy'] = 'cosphi_p'
 n.storage_units.loc['My storage_unit 3', 'set_p1'] = 50

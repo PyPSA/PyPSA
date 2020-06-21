@@ -135,11 +135,12 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
                        'networks', 'results_with_cosphi_p', 'citygrid')
     n5 = pypsa.Network(cerberus_path_cosphi_p_control, ignore_standard_types=True)
 
-    # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n6
+#    # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n6
     n6 = n1.copy()
     n6.generators.type_of_control_strategy = "cosphi_p"
     n6.generators.power_factor_min = np.cos(26*np.pi/180)  # in cerberus it is translated as angle
-    n6.generators.s_nom = 0.03  # in cerberus it is refered as P reference
+    n6.generators.s_nom = 0.05
+    n6.generators.p_ref = 0.03
     n6.pf(inverter_control=True)
 
     # compare the two pf results (n5-cerberus and n6-PyPSA)

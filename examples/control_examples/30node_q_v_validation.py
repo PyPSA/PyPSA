@@ -39,9 +39,9 @@ for i in range(n_buses):
 for i in range(n_buses):
     n.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
         (i) % n_buses), control="PQ", p_set=L, s_nom=0.00025, v1=0.89, v2=0.94,
-        v3=0.96, v4=1.02, power_factor=0.7)
+        v3=0.96, v4=1.02, power_factor=0.9)
     n.add("Load", "My load {}".format(i), bus="My bus {}".format(
-        (i) % n_buses), s_nom=0.00025, p_set=L1)
+        (i) % n_buses), p_set=L1)
     n.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
 # setting control strategy type to Q(U) controller

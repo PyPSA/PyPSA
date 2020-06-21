@@ -38,8 +38,9 @@ for i in range(n_buses):
         (i) % n_buses), p_set=-L)
 
     n.add("Generator", "My Gen {}".format(i), bus="My bus {}".format(
-                    (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.95,
-                            s_nom=0.00025, v1=0.89, v2=0.94, v3=0.96, v4=1.02)
+                    (i+1) % n_buses), control="PQ", p_set=L, power_factor_min=0.9,
+                            s_nom=0.00030, v1=0.89, v2=0.94, v3=0.96, v4=1.02,
+                            set_p1=40, sep_p2=100, p_ref=0.000250)
 
 # setting control strategy type
 n.generators.type_of_control_strategy = 'cosphi_p'
@@ -49,7 +50,7 @@ n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=Tr
 # saving the necessary results for plotting controller behavior
 Results_power_factor = n.generators_t.power_factor.loc[:, 'My Gen 1':'My Gen 28']
 Results_power_injection_percent = n.generators_t.p_set.loc[:, 'My Gen 1':'My Gen 28'] / (
-        n.generators.loc['My Gen 1':'My Gen 28', 's_nom'])*100
+        n.generators.loc['My Gen 1':'My Gen 28', 'p_ref'])*100
 
 # cosphi_p controller droop characteristic
 def cosphi_p_controller_droop(injection):
@@ -87,13 +88,13 @@ plt.scatter(Results_power_injection_percent, Results_power_factor,
             color="g", label="cosphi_p controller characteristic")
 # adding x and y ticks
 # p_set_injection_percentage are same for all inverters so we chose #7 here
-plt.xticks(Results_power_injection_percent['My Gen 7'])
+plt.xticks(Results_power_injection_percent['My Gen 7'], rotation=70)
 plt.yticks(Results_power_factor['My Gen 7'])
 
 plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
           "snapshots = 15")
 plt.xlabel('Inverter_injection_percentage %')
-plt.ylabel('Power factor')
+plt.ylabel('Power factor (per unit)')
 plt.show()
 end = time.time()
 print(f"Runtime of the program is {end - start}")

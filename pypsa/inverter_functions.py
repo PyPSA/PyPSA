@@ -5,7 +5,7 @@ from copy import deepcopy
 logger = logging.getLogger(__name__)
 
 
-def fixed_cosphi(p_input, now, c_attrs):
+def fixed_cosphi(p_input, now, c_attrs, c_list_name):
     """
     fix power factor inverter controller.
     reference : https://www.academia.edu/24772355/
@@ -19,6 +19,8 @@ def fixed_cosphi(p_input, now, c_attrs):
     c_attrs : pandas data frame
         Component attrs including controller required parameters for controlled
         indexes, i.e. power_factor choice for generators, loads...
+    c_list_name : string
+        Component name, i.e. 'loads', 'storage_units', 'generators'.
 
     Returns
     -------
@@ -26,18 +28,28 @@ def fixed_cosphi(p_input, now, c_attrs):
         Is the new reactive power that will be set as new q_set in each
         controlled component as a result of applying this controller.
     """
-    # calculation of q based on provided power_factor
-    q_set = -p_input.loc[now, c_attrs['power_factor'].index].mul(np.tan(
-        np.arccos(c_attrs['power_factor'], dtype=np.float64), dtype=np.float64))
+    # needed parameters
+    p = p_input.loc[now, c_attrs.index]
+    power_factor = c_attrs['power_factor']
+    s_nom = c_attrs['s_nom']
+    setting_p_set_required = False
+    new_p_set = 0
+    Q_inv_cap, Q_allowable, Q_max = find_allowable_q(p, power_factor, s_nom)
+    q_set = -Q_allowable
 
-    return q_set
+    # check if the calculated Q_max is not exceeding the inverter capacity \ if
+    # yes then increase it based on inverter capacity and reset p_set.
+    if (abs(Q_max) > Q_inv_cap).any().any():
+        setting_p_set_required = True
+        new_p_set = adjust_p_set(s_nom, q_set, p, c_list_name, 'fixed_cosphi')
+
+    return q_set, new_p_set, setting_p_set_required
 
 
-def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
+def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set, c_list_name):
     """
     Power factor as a function of active power (cosphi_p) controller.
     reference : https://ieeexplore.ieee.org/document/6096349.
-
     Parameters
     ----------
     p_input : pandas data frame
@@ -66,6 +78,8 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
         Minimum allowed power factor.
     p_set_per_s_nom : pandas data frame
         Inverter real power injection percentage or (p_set / s_nom)*100.
+    c_list_name : string
+        Component name, i.e. 'loads', 'storage_units', 'generators'.
 
     Returns
     -------
@@ -78,26 +92,62 @@ def cosphi_p(p_input, now, df, df_t, c_attrs, time_varying_p_set):
     set_p2 = c_attrs['set_p2']
     s_nom = c_attrs['s_nom']
     power_factor_min = c_attrs['power_factor_min']
-    p_set_per_s_nom = (abs(p_input.loc[now, c_attrs.index]) / abs(s_nom))*100
+    p_set_per_p_ref = (abs(p_input.loc[now, c_attrs.index]) / c_attrs['p_ref'])*100
 
     # choice of power_factor according to controller inputs and its droop curve
-    power_factor = np.select([(p_set_per_s_nom < set_p1), (
-        p_set_per_s_nom >= set_p1) & (p_set_per_s_nom <= set_p2), (
-            p_set_per_s_nom > set_p2)], [1, (1 - ((1 - power_factor_min) / (
-             set_p2 - set_p1) * (p_set_per_s_nom - set_p1))), power_factor_min])
+    power_factor = np.select([(p_set_per_p_ref < set_p1), (
+        p_set_per_p_ref >= set_p1) & (p_set_per_p_ref <= set_p2), (
+            p_set_per_p_ref > set_p2)], [1, (1 - ((1 - power_factor_min) / (
+             set_p2 - set_p1) * (p_set_per_p_ref - set_p1))), power_factor_min])
 
     # find q_set and avoid -0 apperance as the output when power_factor = 1
     q_set = np.where(power_factor == 1, 0, -p_input.loc[
             now, c_attrs.index].mul(np.tan((np.arccos(
                           power_factor, dtype=np.float64)), dtype=np.float64)))
 
-    # set the power factor output n.components(_t).power_factor
+    S = np.sqrt((p_input.loc[now, c_attrs.index])**2 + q_set**2)
+    assert ((S < s_nom).any().any()), (
+        "The resulting reactive power (q)  while using 'cosphi'_p control  "
+        "with the chosen attr 'power_factor_min' in '%s' component results a  "
+        "complex power (S = sqrt(p**2 + q**2))) which is greater than 's_nom') "
+        "of the inverter, please choose the right power_factor_min value"
+        % (c_list_name))
+
+    # set the the resulting power factor output in n.components(_t).power_factor
     if time_varying_p_set:
         df_t.power_factor.loc[now, c_attrs.index] = power_factor
     else:
         df.loc[c_attrs.index, 'power_factor'] = power_factor
 
     return q_set
+
+
+def find_allowable_q(p, power_factor, s_nom):
+
+    Q_max = p.mul(np.tan((np.arccos(power_factor, dtype=np.float64)),
+                         dtype=np.float64))
+    # find inverter q capacity according to power factor provided
+    Q_inv_cap = s_nom*np.sin(np.arccos(power_factor, dtype=np.float64),
+                             dtype=np.float64)
+    # find max allowable q that is possible based on s_nom
+    Q_allowable = np.where(Q_max <= Q_inv_cap, Q_max, Q_inv_cap)
+
+    return Q_inv_cap, Q_allowable, Q_max
+
+
+def adjust_p_set(s_nom, q_set, p, c_list_name, control_type):
+
+    adjusted_p_set = np.sqrt((s_nom**2 - q_set**2),  dtype=np.float64)
+    new_p_set = np.where(abs(p) <= abs(adjusted_p_set), p, adjusted_p_set)
+
+    log_info = np.where(
+            control_type == 'fixed_cosphi', '"fixed_cosphi" control is adjusted',
+            ' "q_v" control might be adjusted, if needed')
+
+    logger.info(" Some p_set in '%s' component with %s due to reactive power "
+                "compensation priority. ", c_list_name, log_info)
+
+    return new_p_set
 
 
 def q_v(c_list_name, now, n_trials_max, n_trials, p_input, v_pu_bus, c_attrs):
@@ -158,34 +208,25 @@ def q_v(c_list_name, now, n_trials_max, n_trials, p_input, v_pu_bus, c_attrs):
     v3 = c_attrs['v3']
     v4 = c_attrs['v4']
     s_nom = c_attrs['s_nom']
+    power_factor = c_attrs['power_factor']
     p = p_input.loc[now, c_attrs.index]
+    new_p_set = None
+    setting_p_set_required = False
+    Q_inv_cap, Q_allowable, Q_max = find_allowable_q(p, power_factor, s_nom)
 
     # calculation of maximum q compensation in % based on bus v_pu_bus
     curve_q_set_in_percentage = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
             v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (v_pu_bus > v3)
         & (v_pu_bus <= v4), (v_pu_bus > v4)], [100, 100 - 100 / (v2 - v1) * (
                 v_pu_bus - v1), 0, -100 * (v_pu_bus - v3) / (v4 - v3), -100])
-    # find max q according to power factor and p_set
-    Q_max = p.mul(np.tan((np.arccos(c_attrs[
-                        'power_factor'], dtype=np.float64)), dtype=np.float64))
-    # find inverter q capacity according to power factor provided
-    Q_inv_cap = s_nom*np.sin(np.arccos(c_attrs['power_factor'],
-                                       dtype=np.float64), dtype=np.float64)
-    # find max allowable q that is possible based on s_nom
-    Q_allowable = np.where(Q_max <= Q_inv_cap, Q_max, Q_inv_cap)
-    # find amount of q_set compensation according to bus v_mag_puz
+    # calculation of q_set
     q_set = (((curve_q_set_in_percentage * Q_allowable) / 100) * c_attrs[
-                                                   'damper'] * c_attrs['sign'])
+            'damper'] * c_attrs['sign'])
+
     # check if there is need to reduce p_set due to q need
     if (Q_max > Q_inv_cap).any().any():
         setting_p_set_required = True
-        adjusted_p_set = np.sqrt((s_nom**2 - q_set**2),  dtype=np.float64)
-        new_p_set = np.where(p <= adjusted_p_set, p, adjusted_p_set)
-        logger.info(" Some p_set in %s component in q_v controller are adjusted"
-                    " according to s_nom and power_factor chosen.", c_list_name)
-    else:
-        new_p_set = None
-        setting_p_set_required = False
+        new_p_set = adjust_p_set(s_nom, q_set, p, c_list_name, 'q_v')
 
     return q_set, new_p_set, setting_p_set_required
 
@@ -237,15 +278,17 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
             # flag to check if the p_set of the component is static or series
             time_varying_p_set = bool('_t' in component_name)
 
-            # call each controller if it exist in parameter_dict
+            # initial for p_set setting
             setting_p_set_required = False  # initial flag for setting p_set
             p_set = None  # initial when setting_p_set_required is False
+
+            # call each controller
             if controller == 'fixed_cosphi':
-                q_set = fixed_cosphi(p_input.p, now, c_attrs)
+                q_set, p_set, setting_p_set_required = fixed_cosphi(
+                        p_input.p, now, c_attrs, c_list_name)
 
             if controller == 'cosphi_p':
-                q_set = cosphi_p(
-                        p_input.p, now, df, df_t, c_attrs, time_varying_p_set)
+                q_set = cosphi_p(p_input.p, now, df, df_t, c_attrs, time_varying_p_set, c_list_name)
 
             if controller == 'q_v':
                 q_set, p_set, setting_p_set_required = q_v(
@@ -256,6 +299,7 @@ def apply_controller(n, now, n_trials, n_trials_max, parameter_dict):
             _set_controller_outputs_to_n(
                 n, parameter_dict, time_varying_p_set, c_attrs, df, df_t, q_set,
                 p_set, now, setting_p_set_required, p_input)
+
     # find the v_mag_pu of buses with v_dependent controller to return
     v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
         now, parameter_dict['v_dep_buses']]
@@ -358,7 +402,7 @@ def prepare_dict_values(
         "Not all given types of controllers are supported. Elements with unknown"
         " controllers are:\n%s\nSupported controllers are : %s." % (c_df.loc[
             (~ c_df['type_of_control_strategy'].isin(ctrl_list)),
-            'type_of_control_strategy'], ctrl_list))
+            'type_of_control_strategy'], ctrl_list[1:4]))
 
     if 'controller_parameters' not in parameter_dict:
         parameter_dict['controller_parameters'] = {}
@@ -371,7 +415,7 @@ def prepare_dict_values(
     # needed because Q(U) controller can also change p_set when more q is\
     # needed, and this causes a change in the input power for Q(U) if multiple\
     # iteration occurs per load flow which is mostly the case for Q(U).
-    for i in ctrl_list:
+    for i in ctrl_list[1:4]:
         # building a dictionary for each controller if they exist
         if (c_df.type_of_control_strategy == i).any():
             if i not in parameter_dict['controller_parameters']:
@@ -443,7 +487,7 @@ def prepare_controller_parameter_dict(n, sub_network, inverter_control):
 
                 # call the function to prepare the controller dictionary
                 parameter_dict = prepare_dict_values(parameter_dict, c.list_name,
-                                                     c.df, c.pnl, ctrl_list[1:4],
+                                                     c.df, c.pnl, ctrl_list,
                                                      controller)
                 logger.info("We are in %s. That's the parameter dict:\n%s",
                             c.name, parameter_dict)

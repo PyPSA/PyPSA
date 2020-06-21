@@ -28,7 +28,7 @@ for i in range(n_buses):
     n.add("Store", "My store {}".format(i), bus="My bus {}".format(
         (i) % n_buses), p_set=-power_inj[i], v1=0.89, v2=0.94, v3=0.96, v4=1.02,
         s_nom=0.065, set_p1=50, set_p2=100, power_factor=0.95,
-        power_factor_min=0.9, damper=0.8)
+        power_factor_min=0.9, damper=0.8, p_ref=0.01)
 
     n.add("Load", "My load {}".format(i), bus="My bus {}".format(
         (i) % n_buses), p_set=0)
