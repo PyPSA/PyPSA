@@ -41,15 +41,18 @@ def run_pf(activate_controller=False):
 
 # run pf without controller and save the results
 run_pf()
-StorageUnits_Result = pd.DataFrame(index=[n.buses.index], columns=[])
-StorageUnits_Result['power_inj'] = power_inj
-StorageUnits_Result['no_control'] = n.buses_t.v_mag_pu.values.T
+
+Storage_injection = pd.DataFrame(columns=[])
+Bus_v_mag_pu = pd.DataFrame(columns=[])
+Storage_injection['no_control'] = n.storage_units.p_set
+Bus_v_mag_pu['no_control'] = n.buses_t.v_mag_pu.T['now']
 
 # now apply reactive power as a function of voltage Q(U) or q_v controller,
 # parameters (v1,v2,v3,v4,s_nom,damper) are already set in (n.add('StorageUnit', ...))
 n.storage_units.type_of_control_strategy = 'q_v'
 run_pf(activate_controller=True)
-StorageUnits_Result['q_v_control'] = n.buses_t.v_mag_pu.values.T
+Storage_injection['q_v_control'] = n.storage_units.p_set
+Bus_v_mag_pu['q_v_control'] = n.buses_t.v_mag_pu.T['now']
 
 # now apply fixed power factor controller (fixed_cosphi), parameters
 # (power_factor, damper) are already set in (n.add(Generator...))
@@ -57,7 +60,8 @@ n.storage_units.q_set = 0  # to clean up q_v q_set
 n.storage_units.type_of_control_strategy = 'fixed_cosphi'
 # run pf and save the results
 run_pf(activate_controller=True)
-StorageUnits_Result['fixed_pf_control'] = n.buses_t.v_mag_pu.values.T
+Storage_injection['fixed_pf_control'] = n.storage_units.p_set
+Bus_v_mag_pu['fixed_pf_control'] = n.buses_t.v_mag_pu.T['now']
 
 # now apply power factor as a function of real power (cosphi_p), parameters
 # (set_p1,set_p2,s_nom,damper,power_factor_min) are already set in (n.add('StorageUnit'...))
@@ -65,7 +69,8 @@ n.storage_units.q_set = 0  # to clean fixed_cosphi q_set
 n.storage_units.type_of_control_strategy = 'cosphi_p'
 # run pf and save the results
 run_pf(activate_controller=True)
-StorageUnits_Result['cosphi_p_control'] = n.buses_t.v_mag_pu.values.T
+Storage_injection['cosphi_p_control'] = n.storage_units.p_set
+Bus_v_mag_pu['cosphi_p_control'] = n.buses_t.v_mag_pu.T['now']
 
 # now apply mix of controllers
 n.storage_units.q_set = 0
@@ -86,17 +91,19 @@ n.storage_units.loc['My storage_unit 3', 'set_p2'] = 100
 n.storage_units.loc['My storage_unit 3', 'power_factor_min'] = 0.98
 n.storage_units.loc['My storage_unit 3', 's_nom'] = 0.08
 run_pf(activate_controller=True)
-StorageUnits_Result['mix_controllers'] = n.buses_t.v_mag_pu.values.T
 
-plt.plot(StorageUnits_Result['power_inj'], StorageUnits_Result['no_control'],
+Storage_injection['mix_controllers'] = n.storage_units.p_set
+Bus_v_mag_pu['mix_controllers'] = n.buses_t.v_mag_pu.T['now']
+
+plt.plot(-Storage_injection['no_control'], Bus_v_mag_pu['no_control'],
          linestyle='--', label="no_control")
-plt.plot(StorageUnits_Result['power_inj'], StorageUnits_Result['cosphi_p_control'],
+plt.plot(abs(Storage_injection['cosphi_p_control']), Bus_v_mag_pu['cosphi_p_control'],
          label="cosphi_p")
-plt.plot(StorageUnits_Result['power_inj'], StorageUnits_Result['q_v_control'],
+plt.plot(abs(Storage_injection['q_v_control']), Bus_v_mag_pu['q_v_control'],
          label="q_v")
-plt.plot(StorageUnits_Result['power_inj'], StorageUnits_Result['fixed_pf_control'],
+plt.plot(abs(Storage_injection['fixed_pf_control']), Bus_v_mag_pu['fixed_pf_control'],
          label="fixed_cosphi")
-plt.plot(StorageUnits_Result['power_inj'], StorageUnits_Result['mix_controllers'],
+plt.plot(abs(Storage_injection['mix_controllers']), Bus_v_mag_pu['mix_controllers'],
          label="mix")
 plt.axhline(y=1.02, color='y', linestyle='--', label='max_v_mag_pu_limit',
             linewidth=3, alpha=0.5)
