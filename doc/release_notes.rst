@@ -22,6 +22,9 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
+* Fixed bug when saving dual variables in the lv_limit dual. Now using dual from the second last iteration in pypsa.linopf,
+  as last iteration returns NaN (no optimisation of line volumes in last iteration).
+
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
