@@ -22,11 +22,10 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
-* Integration of inverter control strategies and on load tap changer transformer for non linear power flow:
-   Inverter control strategies such as: fix power factor, reactive power as a function of voltage Q(U),
-   Active power as a function of voltage P(U) and  power factor (PF) as a function of active power PF(P) can be
-   can be implemented on Load, Generator, Store and StorageUnit components as new attributes for these components
-   and also application of On-Load tap changer transformer as attribute of transformer would be interesting to be implemented. 
+* Integration of inverter control strategies and on-load tap changer transformer for nonlinear power flow:
+  Inverter control strategies such as: fixed power factor, reactive power as a function of voltage Q(V),
+  active power as a function of voltage P(V) and power factor as a function of active power can be implemented
+  on Load, Generator, Store and StorageUnit components by specifying them as new attributes in these components.
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================

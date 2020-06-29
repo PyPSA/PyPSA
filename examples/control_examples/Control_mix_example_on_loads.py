@@ -21,8 +21,8 @@ for i in range(n_buses):
         (i) % n_buses), control="PQ")
 
     n.add("Load", "My load {}".format(i), bus="My bus {}".format(
-        (i) % n_buses), p_set=Load[i], v1=0.89, v2=0.94, v3=0.96, v4=1.01,
-        s_nom=0.075, set_p1=50, set_p2=100, power_factor=0.98,
+        (i) % n_buses), p_set=Load[i], v1=0.89, v2=0.94, v3=0.96, v4=1.02,
+        s_nom=0.075, set_p1=50, set_p2=100, power_factor=0.95,
         power_factor_min=0.95, damper=0.2, p_ref=0.035)
 
     n.add("Store", "My test_load {}".format(i), bus="My bus {}".format(
@@ -32,65 +32,62 @@ for i in range(n_buses-1):
           bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
 
 
-def run_pf(activate_controller=False):
+def run_pf(inverter_control=False):
     n.lpf()
-    n.pf(use_seed=True, inverter_control=activate_controller)
+    n.pf(use_seed=True, inverter_control=inverter_control)
 
 # run pf without controller and save the results
 run_pf()
 Loads_Result = pd.DataFrame(columns=[])
 Bus_v_mag_pu = pd.DataFrame(columns=[])
-Loads_Result['no_control'] = n.loads.p_set
+Loads_Result['no_control'] = n.loads_t.p.T['now']
 Bus_v_mag_pu['no_control'] = n.buses_t.v_mag_pu.T['now']
 
 # now apply reactive power as a function of voltage Q(U) or q_v controller,
 # parameters (v1,v2,v3,v4,s_nom,damper) are already set in (n.add('Load',...))
-n.loads.type_of_control_strategy = 'q_v'
+n.loads.control_strategy = 'q_v'
 # run pf and save the results
-run_pf(activate_controller=True)
+run_pf(inverter_control=True)
 Bus_v_mag_pu['q_v_control'] = n.buses_t.v_mag_pu.T['now']
-Loads_Result['q_v_control'] = n.loads.p_set
+Loads_Result['q_v_control'] = n.loads_t.p.T['now']
 
 # now apply fixed power factor controller (fixed_cosphi), parameters
 # (power_factor, damper) are already set in (n.add(Load...))
-n.loads.q_set = 0  # to clean up q_v q_set
-n.loads.type_of_control_strategy = 'fixed_cosphi'
+n.loads.control_strategy = 'fixed_cosphi'
 # run pf and save the results
-run_pf(activate_controller=True)
+run_pf(inverter_control=True)
 Bus_v_mag_pu['fixed_pf_control'] = n.buses_t.v_mag_pu.T['now']
-Loads_Result['fixed_pf_control'] = n.loads.p_set
+Loads_Result['fixed_pf_control'] = n.loads_t.p.T['now']
 
 # now apply power factor as a function of real power (cosphi_p), parameters
 # (set_p1,set_p2,s_nom,damper,power_factor_min) are already set in (n.add('Load'...))
-n.loads.q_set = 0  # to clean fixed_cosphi q_set
-n.loads.type_of_control_strategy = 'cosphi_p'
+n.loads.control_strategy = 'cosphi_p'
 # run pf and save the results
-run_pf(activate_controller=True)
+run_pf(inverter_control=True)
 Bus_v_mag_pu['cosphi_p_control'] = n.buses_t.v_mag_pu.T['now']
-Loads_Result['cosphi_p_control'] = n.loads.p_set
+Loads_Result['cosphi_p_control'] = n.loads_t.p.T['now']
 
 # now apply mix of controllers
-n.loads.q_set = 0
 # q_v controller
-n.loads.loc['My load 1', 'type_of_control_strategy'] = 'q_v'
+n.loads.loc['My load 1', 'control_strategy'] = 'q_v'
 n.loads.loc['My load 1', 'v1'] = 0.89
 n.loads.loc['My load 1', 'v2'] = 0.94
 n.loads.loc['My load 1', 'v3'] = 0.96
 n.loads.loc['My load 1', 'v4'] = 1.01
 n.loads.loc['My load 1', 's_nom'] = 0.075
 # fixed_cosphi controller
-n.loads.loc['My load 2', 'type_of_control_strategy'] = 'fixed_cosphi'
+n.loads.loc['My load 2', 'control_strategy'] = 'fixed_cosphi'
 n.loads.loc['My load 2', 'power_factor'] = 0.95
 # cosphi_p controller
-n.loads.loc['My load 3', 'type_of_control_strategy'] = 'cosphi_p'
+n.loads.loc['My load 3', 'control_strategy'] = 'cosphi_p'
 n.loads.loc['My load 3', 'set_p1'] = 50
 n.loads.loc['My load 3', 'set_p2'] = 100
 n.loads.loc['My load 3', 'power_factor_min'] = 0.9
 n.loads.loc['My load 3', 's_nom'] = 0.075
-run_pf(activate_controller=True)
+run_pf(inverter_control=True)
 
 Bus_v_mag_pu['mix_controllers'] = n.buses_t.v_mag_pu.T['now']
-Loads_Result['mix_controllers'] = n.loads.p_set
+Loads_Result['mix_controllers'] = n.loads_t.p.T['now']
 
 plt.plot(Loads_Result['no_control'], Bus_v_mag_pu['no_control'], linestyle='--',
          label="no_control")

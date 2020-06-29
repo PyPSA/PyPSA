@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from copy import deepcopy
 
 
 from setuptools import setup, find_packages

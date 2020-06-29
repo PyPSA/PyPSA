@@ -43,13 +43,13 @@ for i in range(n_buses):
                             set_p1=40, sep_p2=100, p_ref=0.000250)
 
 # setting control strategy type
-n.generators.type_of_control_strategy = 'cosphi_p'
+n.generators.control_strategy = 'cosphi_p'
 n.lpf(n.snapshots)
 n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=True)
 
 # saving the necessary results for plotting controller behavior
 Results_power_factor = n.generators_t.power_factor.loc[:, 'My Gen 1':'My Gen 28']
-Results_power_injection_percent = n.generators_t.p_set.loc[:, 'My Gen 1':'My Gen 28'] / (
+Results_power_injection_percent = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28'] / (
         n.generators.loc['My Gen 1':'My Gen 28', 'p_ref'])*100
 
 # cosphi_p controller droop characteristic
@@ -93,7 +93,7 @@ plt.yticks(Results_power_factor['My Gen 7'])
 
 plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
           "snapshots = 15")
-plt.xlabel('Inverter_injection_percentage %')
+plt.xlabel('Inverter__power_injection_percentage %')
 plt.ylabel('Power factor (per unit)')
 plt.show()
 end = time.time()

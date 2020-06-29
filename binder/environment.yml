@@ -18,6 +18,5 @@ dependencies:
   - glpk
   - gurobi::gurobi
   - pip:
-  - deepcopy
     - git+https://github.com/FRESNA/vresutils.git#egg=vresutils
 

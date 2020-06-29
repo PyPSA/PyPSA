@@ -32,7 +32,7 @@ print(network.lines)
 network.add("Generator","My gen",
             bus="My bus 0",
             p_set=100,
-            control="PQ", q_set=0)
+            control="PQ")
 
 print(network.generators)
 

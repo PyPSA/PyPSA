@@ -40,7 +40,7 @@ from operator import itemgetter
 import time
 
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
-from .inverter_functions import apply_controller, prepare_controller_parameter_dict
+from .control import apply_controller, prepare_controlled_index_dict
 pd.Series.zsum = zsum
 
 def normed(s): return s/s.sum()
@@ -183,6 +183,9 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
         Tolerance for Newton-Raphson power flow.
+    x_tol_outer: float
+        Tolerance for outer loop voltage difference between the two successive power flow iterations as a result
+        of applying voltage dependent controller such as reactive power as a function of voltage "q_v".
     use_seed : bool, default False
         Use a seed for the initial guess for the Newton-Raphson algorithm.
     distribute_slack : bool, default False
@@ -200,6 +203,9 @@ def network_pf(network, snapshots=None, skip_pre=False, x_tol=1e-6, x_tol_outer=
         corresponding subnetwork as index/keys.
         When specifying custom weights with buses as index/keys the slack power of a bus is distributed
         among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+    inverter_control : bool, default False
+        If ``True``, activates outerloop which applies inverter control strategies (control strategy chosen in
+        n.components.control_strategy) in the power flow.
 
     Returns
     -------
@@ -329,6 +335,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     x_tol: float
         Tolerance for Newton-Raphson power flow.
+    x_tol_outer: float
+        Tolerance for outer loop voltage difference between the two successive power flow iterations as a result
+        of applying voltage dependent controller such as reactive power as a function of voltage "q_v".
     use_seed : bool, default False
         Use a seed for the initial guess for the Newton-Raphson algorithm.
     distribute_slack : bool, default False
@@ -343,6 +352,9 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
         that has the buses or the generators of the subnetwork as index/keys.
         When using custom weights with buses as index/keys the slack power of a bus is distributed
         among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+    inverter_control : bool, default False
+        If ``True``, activates outerloop which applies inverter control strategies (control strategy chosen in
+        n.components.control_strategy) in the power flow.
 
     Returns
     -------
@@ -501,19 +513,19 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, x_to
     convs = pd.Series(False, index=snapshots)
 
     # prepare controllers if any and enable outer loop if voltage dependent controller present
-    n_trials_max, parameter_dict = prepare_controller_parameter_dict(network, sub_network, inverter_control)
+    n_trials_max, dict_controlled_index = prepare_controlled_index_dict(network, sub_network, inverter_control, snapshots)
     for i, now in enumerate(snapshots):
         voltage_difference, n_trials, n_iter_overall = (1, 0, 0)
         start_outer = time.time()
         while voltage_difference > x_tol_outer and n_trials <= n_trials_max:
             n_trials += 1
+
             if inverter_control:
-                previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, parameter_dict)
+                previous_v_mag_pu_voltage_dependent_controller = apply_controller(network, now, n_trials, n_trials_max, dict_controlled_index)
 
             p = network.buses_t.p.loc[now,buses_o]
             q = network.buses_t.q.loc[now,buses_o]
             ss[i] = s = p + 1j*q
-    
             #Make a guess for what we don't know: V_ang for PV and PQs and v_mag_pu for PQ buses
             guess = r_[network.buses_t.v_ang.loc[now,sub_network.pvpqs],network.buses_t.v_mag_pu.loc[now,sub_network.pqs]]
     

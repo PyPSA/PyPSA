@@ -15,7 +15,6 @@ dependencies:
   - pyomo
   - cartopy>=0.16
   - coincbc
-  - deepcopy
 
   - pip:
     - .

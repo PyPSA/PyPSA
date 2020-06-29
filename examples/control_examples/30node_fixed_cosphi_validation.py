@@ -39,19 +39,14 @@ for i in range(n_buses):
         (i+1) % n_buses), control="PQ", p_set=L, power_factor=0.98)
 
 # setting control method
-n.generators.type_of_control_strategy = 'fixed_cosphi'
+n.generators.control_strategy = 'fixed_cosphi'
 n.lpf(n.snapshots)
 n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=True)
 
 # saving the necessary data for plotting controller behavior
-for i in range(n_buses-1):
-    Results_q.loc[:, "q_set_out_controller {}".format(
-        i)] = n.generators_t.q_set.loc[:, "My Gen {}".format(i+1)].values
-    Results_p.loc[:, "inverter_injection(p_set) {}".format(i)] = (
-        n.generators_t.p_set.loc[:, "My Gen {}".format(i+1)])
 
-Results_q = n.generators_t.q_set.loc[:, 'My Gen 1':'My Gen 28']
-Results_p = n.generators_t.p_set.loc[:, 'My Gen 1':'My Gen 28']
+Results_q = n.generators_t.q.loc[:, 'My Gen 1':'My Gen 28']
+Results_p = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28']
 
 # controller droop characteristic method simplified
 def fixed_cosphi_controller_droop(p_set):

@@ -784,7 +784,7 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network_copy = fy()
+        >>> network_copy = network.copy()
 
         """
 

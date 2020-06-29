@@ -16,4 +16,3 @@ dependencies:
 #  - coincbc
   - glpk
   - gurobi::gurobi
-  - deepcopy

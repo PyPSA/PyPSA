@@ -44,25 +44,28 @@ for i in range(n_buses):
         (i) % n_buses), p_set=L1)
     n.add("Line", "My line {}".format(i), bus0="My bus {}".format(i),
                 bus1="My bus {}".format((i+1) % n_buses), x=0.1, r=0.01)
+
 # setting control strategy type to Q(U) controller
-n.generators.type_of_control_strategy = 'q_v'
+n.generators.control_strategy = 'q_v'
 n.lpf(n.snapshots)
 n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-6, inverter_control=True)
 
 Results_v = n.buses_t.v_mag_pu.loc[:, 'My bus 1':'My bus 29']
-# maximum q compensation consideration
-Q_max = n.generators_t.p_set.loc[:, 'My Gen 1':'My Gen 29'].mul(
+
+# q_v controller calculates the amount of reactive power internally
+q_max = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 29'].mul(
     np.tan((np.arccos(n.generators.loc['My Gen 1':'My Gen 29']['power_factor'],
                       dtype=np.float64)), dtype=np.float64))
-
-Q_cap = n.generators.loc['My Gen 1':'My Gen 29']['s_nom']*np.sin(np.arccos(
+# then it also calculates the reactive power capacity of the inverter
+q_cap = n.generators.loc['My Gen 1':'My Gen 29']['s_nom']*np.sin(np.arccos(
     n.generators.loc['My Gen 1':'My Gen 29']['power_factor']))
-Q_allowable = np.where(Q_max <= Q_cap, Q_max, Q_cap)
-# calculation of q compensation in percentage
-c_q_set_inj_percentage = n.generators_t.q_set/Q_allowable*100
+# here controller chooses the needed q based on grid need and availability of q in s_nom
+q_allowable = np.where(q_max <= q_cap, q_max, q_cap)  # maximum available q
+# calculation of q compensation by q_v controller in percentage
+c_q_set_inj_percentage = n.generators_t.q.loc[:, 'My Gen 1':'My Gen 29']/q_allowable*100
 
 
-# Q(U) controller droop characteristic
+# Q(V) controller droop characteristic
 def q_v_controller_droop(v_pu_bus):
     # parameters are same for all the generators, here from Gen 7 are used
     v1 = n.generators.loc['My Gen 7', 'v1']

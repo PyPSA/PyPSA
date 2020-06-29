@@ -122,7 +122,7 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
 
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n4
     n4 = n1.copy()
-    n4.generators.type_of_control_strategy = "fixed_cosphi"
+    n4.generators.control_strategy = "fixed_cosphi"
     # in cerberus the option of choosing angle is provided - 20° is chosen
     n4.generators.power_factor = np.cos(20*np.pi/180)  # finding power_factor
     n4.pf(inverter_control=True)
@@ -137,7 +137,7 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
 
 #    # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n6
     n6 = n1.copy()
-    n6.generators.type_of_control_strategy = "cosphi_p"
+    n6.generators.control_strategy = "cosphi_p"
     n6.generators.power_factor_min = np.cos(26*np.pi/180)  # in cerberus it is translated as angle
     n6.generators.s_nom = 0.05
     n6.generators.p_ref = 0.03
@@ -153,7 +153,7 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
 
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n8
     n8 = n1.copy()
-    n8.generators.type_of_control_strategy = "q_v"
+    n8.generators.control_strategy = "q_v"
     n8.generators.s_nom = 0.05
     # in Cerberus after setting s_nom and p_set,  q_max and curve droop is required
     # for Q(U), control. In cerberus s_nom = 0.05, p_set = 0.03 and q_max = 40
