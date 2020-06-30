@@ -401,10 +401,10 @@ def _add_reference(ref_dict, df, attr, pnl=True):
         else:
             ref_dict.pnl[attr] = df
     else:
-        if ref_dict.df.empty:
-            ref_dict.df[attr] = df
-        else:
+        if attr in ref_dict.df:
             ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
+        else:
+            ref_dict.df[attr] = df
 
 def set_varref(n, variables, c, attr, spec=''):
     """
@@ -800,7 +800,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
     objective = m.ObjVal
-    del m
+    n.model = m
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
 

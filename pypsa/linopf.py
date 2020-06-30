@@ -63,7 +63,12 @@ def define_nominal_for_extendable_variables(n, c, attr):
     if ext_i.empty: return
     lower = n.df(c)[attr+'_min'][ext_i]
     upper = n.df(c)[attr+'_max'][ext_i]
-    define_variables(n, lower, upper, c, attr)
+    nominal = define_variables(n, -inf, inf, c, attr, axes=ext_i, spec='ext')
+    nominal = linexpr((1, nominal))
+    define_constraints(n, nominal, '>=', lower, c, 'mu_nom_lower', spec='ext')
+    define_constraints(n, nominal, '<=', upper, c, 'mu_nom_upper', spec='ext')
+
+    # define_variables(n, lower, upper, c, attr)
 
 
 def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
@@ -109,14 +114,11 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
-    if c in n.passive_branch_components:
-        axes = [sns, fix_i]
-        flow = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
-        flow = linexpr((1, flow))
-        define_constraints(n, flow, '>=', lower, c, 'mu_lower', spec='non_ext')
-        define_constraints(n, flow, '<=', upper, c, 'mu_upper', spec='non_ext')
-    else:
-        define_variables(n, lower, upper, c, attr, spec='non_ext')
+    axes = [sns, fix_i]
+    dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
+    dispatch = linexpr((1, dispatch))
+    define_constraints(n, dispatch, '>=', lower, c, 'mu_lower', spec='non_ext')
+    define_constraints(n, dispatch, '<=', upper, c, 'mu_upper', spec='non_ext')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -702,7 +704,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
                     eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
                     set_from_frame(pnl, f'p{i}', - values * eff)
                     pnl[f'p{i}'].loc[sns, n.links.index[n.links[f'bus{i}'] == ""]] = \
-                                              n.component_attrs['Link'].loc[f'p{i}','default']
+                        n.component_attrs['Link'].loc[f'p{i}','default']
             else:
                 set_from_frame(pnl, attr, values)
         else:
