@@ -24,6 +24,8 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
+* Add compatibility for Pyomo 5.7.
+
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================

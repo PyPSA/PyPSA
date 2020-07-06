@@ -27,7 +27,7 @@ setup(
         'scipy',
         'pandas>=0.24.0',
         'tables',
-        'pyomo>=5.3',
+        'pyomo>=5.7',
         'matplotlib',
         'networkx>=1.10'
     ],
