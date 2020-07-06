@@ -1583,8 +1583,8 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     if logger.isEnabledFor(logging.INFO):
         network.results.write()
 
-    status = network.results["Solver"][0]["Status"].key
-    termination_condition = network.results["Solver"][0]["Termination condition"].key
+    status = network.results["Solver"][0]["Status"]
+    termination_condition = network.results["Solver"][0]["Termination condition"]
 
     if status == "ok" and termination_condition == "optimal":
         logger.info("Optimization successful")
