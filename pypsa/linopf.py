@@ -1039,7 +1039,5 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
-    if track_iterations:
-        save_optimal_capacities(n, iteration, status)
     n.lines.loc[ext_i, 's_nom_extendable'] = True
     n.links.loc[ext_links_i, 'p_nom_extendable'] = True
