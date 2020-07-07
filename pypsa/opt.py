@@ -145,6 +145,13 @@ class LConstraint(object):
     def __repr__(self):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
+def _build_sum_expression(variables, constant=0.):
+    expr = LinearExpression()
+    expr.linear_vars = [item[1] for item in variables]
+    expr.linear_coefs = [item[0] for item in variables]
+    expr.constant = constant
+    return expr
+
 def l_constraint(model,name,constraints,*args):
     """A replacement for pyomo's Constraint that quickly builds linear
     constraints.
