@@ -42,12 +42,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from distutils.version import StrictVersion, LooseVersion
-try:
-    _pd_version = StrictVersion(pd.__version__)
-except ValueError:
-    _pd_version = LooseVersion(pd.__version__)
-
 from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
                  find_cycles, _as_snapshots)
@@ -1230,10 +1224,6 @@ def define_linear_objective(network,snapshots):
 
 def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True,
                                  extra_postprocessing=None):
-
-    if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
-        # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
-        snapshots = pd.Index(snapshots.values)
 
     allocate_series_dataframes(network, {'Generator': ['p'],
                                          'Load': ['p'],
