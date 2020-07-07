@@ -25,6 +25,7 @@ import networkx as nx
 from collections import OrderedDict, namedtuple
 from six.moves import map, range, reduce
 from six import itervalues, iteritems
+from importlib.util import find_spec
 
 import logging
 logger = logging.getLogger(__name__)
@@ -313,7 +314,6 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 
     return Clustering(network_c, busmap, linemap, linemap_p, linemap_n)
 
-
 ################
 # Length
 
@@ -337,150 +337,145 @@ def length_clustering(network, length):
 ################
 # SpectralClustering
 
-try:
-    # available using pip as scikit-learn
+def busmap_by_spectral_clustering(network, n_clusters, **kwds):
+
+    if find_spec('sklearn') is None:
+        raise ModuleNotFoundError("Optional dependency 'sklearn' not found."
+            "Install via 'conda install -c conda-forge scikit-learn' "
+            "or 'pip install scikit-learn'")
+
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
+    
+    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
+    lines.weight+=0.1
+    G = nx.Graph()
+    G.add_nodes_from(network.buses.index)
+    G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
+    return pd.Series(list(map(str,sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1)),
+                        index=network.buses.index)
 
-    def busmap_by_spectral_clustering(network, n_clusters, **kwds):
-        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-        lines.weight+=0.1
-        G = nx.Graph()
-        G.add_nodes_from(network.buses.index)
-        G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        return pd.Series(list(map(str,sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1)),
-                         index=network.buses.index)
-
-    def spectral_clustering(network, n_clusters=8, **kwds):
-        busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
-        return get_clustering_from_busmap(network, busmap)
-
-except ImportError:
-    pass
+def spectral_clustering(network, n_clusters=8, **kwds):
+    busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
+    return get_clustering_from_busmap(network, busmap)
 
 ################
 # Louvain
 
-try:
-    # available using pip as python-louvain
+def busmap_by_louvain(network):
+
+    if find_spec('community') is None:
+        raise ModuleNotFoundError("Optional dependency 'community' not found."
+            "Install via 'conda install -c conda-forge python-louvain' "
+            "or 'pip install python-louvain'")
+
     import community
 
-    def busmap_by_louvain(network):
-        lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-        lines.weight+=0.1
-        G = nx.Graph()
-        G.add_nodes_from(network.buses.index)
-        G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-        b=community.best_partition(G)
-        list_cluster=[]
-        for i in b:
-            list_cluster.append(str(b[i]))
-        return pd.Series(list_cluster,index=network.buses.index)
+    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
+    lines.weight+=0.1
+    G = nx.Graph()
+    G.add_nodes_from(network.buses.index)
+    G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
+    b=community.best_partition(G)
+    list_cluster=[]
+    for i in b:
+        list_cluster.append(str(b[i]))
+    return pd.Series(list_cluster,index=network.buses.index)
 
-    def louvain_clustering(network, **kwds):
-        busmap = busmap_by_louvain(network)
-        return get_clustering_from_busmap(network, busmap)
-
-except ImportError:
-    pass
-
+def louvain_clustering(network, **kwds):
+    busmap = busmap_by_louvain(network)
+    return get_clustering_from_busmap(network, busmap)
 
 ################
 # k-Means clustering based on bus properties
 
-try:
-    # available using pip as scikit-learn
+def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwargs):
+    """
+    Create a bus map from the clustering of buses in space with a
+    weighting.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        The buses must have coordinates x,y.
+    bus_weightings : pandas.Series
+        Series of integer weights for buses, indexed by bus names.
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i : None|pandas.Index
+        If not None (default), subset of buses to cluster.
+    kwargs
+        Any remaining arguments to be passed to KMeans (e.g. n_init,
+        n_jobs).
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of network.buses to k-means clusters (indexed by
+        non-negative integers).
+    """
+
+    if find_spec('sklearn') is None:
+        raise ModuleNotFoundError("Optional dependency 'sklearn' not found."
+            "Install via 'conda install -c conda-forge scikit-learn' "
+            "or 'pip install scikit-learn'")
+
     from sklearn.cluster import KMeans
 
-    def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwargs):
-        """
-        Create a bus map from the clustering of buses in space with a
-        weighting.
+    if buses_i is None:
+        buses_i = network.buses.index
 
-        Parameters
-        ----------
-        network : pypsa.Network
-            The buses must have coordinates x,y.
-        bus_weightings : pandas.Series
-            Series of integer weights for buses, indexed by bus names.
-        n_clusters : int
-            Final number of clusters desired.
-        buses_i : None|pandas.Index
-            If not None (default), subset of buses to cluster.
-        kwargs
-            Any remaining arguments to be passed to KMeans (e.g. n_init,
-            n_jobs).
+    # since one cannot weight points directly in the scikit-learn
+    # implementation of k-means, just add additional points at
+    # same position
+    points = (network.buses.loc[buses_i, ["x","y"]].values
+                .repeat(bus_weightings.reindex(buses_i).astype(int), axis=0))
 
-        Returns
-        -------
-        busmap : pandas.Series
-            Mapping of network.buses to k-means clusters (indexed by
-            non-negative integers).
-        """
+    kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
 
-        if buses_i is None:
-            buses_i = network.buses.index
+    kmeans.fit(points)
 
-        # since one cannot weight points directly in the scikit-learn
-        # implementation of k-means, just add additional points at
-        # same position
-        points = (network.buses.loc[buses_i, ["x","y"]].values
-                  .repeat(bus_weightings.reindex(buses_i).astype(int), axis=0))
+    busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
+                        index=buses_i).astype(str)
 
-        kmeans = KMeans(init='k-means++', n_clusters=n_clusters, ** kwargs)
+    return busmap
 
-        kmeans.fit(points)
+def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0, ** kwargs):
+    """
+    Cluster then network according to k-means clustering of the
+    buses.
 
-        busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
-                           index=buses_i).astype(str)
+    Buses can be weighted by an integer in the series
+    `bus_weightings`.
 
-        return busmap
+    Note that this clustering method completely ignores the
+    branches of the network.
 
-    def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0, ** kwargs):
-        """
-        Cluster then network according to k-means clustering of the
-        buses.
-
-        Buses can be weighted by an integer in the series
-        `bus_weightings`.
-
-        Note that this clustering method completely ignores the
-        branches of the network.
-
-        Parameters
-        ----------
-        network : pypsa.Network
-            The buses must have coordinates x,y.
-        bus_weightings : pandas.Series
-            Series of integer weights for buses, indexed by bus names.
-        n_clusters : int
-            Final number of clusters desired.
-        line_length_factor : float
-            Factor to multiply the crow-flies distance between new buses in order to get new
-            line lengths.
-        kwargs
-            Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
+    Parameters
+    ----------
+    network : pypsa.Network
+        The buses must have coordinates x,y.
+    bus_weightings : pandas.Series
+        Series of integer weights for buses, indexed by bus names.
+    n_clusters : int
+        Final number of clusters desired.
+    line_length_factor : float
+        Factor to multiply the crow-flies distance between new buses in order to get new
+        line lengths.
+    kwargs
+        Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
 
 
-        Returns
-        -------
-        Clustering : named tuple
-            A named tuple containing network, busmap and linemap
-        """
+    Returns
+    -------
+    Clustering : named tuple
+        A named tuple containing network, busmap and linemap
+    """
 
-        busmap = busmap_by_kmeans(network, bus_weightings, n_clusters, ** kwargs)
-        return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
-
-except ImportError:
-    pass
-
-
-
-
-
+    busmap = busmap_by_kmeans(network, bus_weightings, n_clusters, ** kwargs)
+    return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
 ################
 # Rectangular grid clustering
-
 
 def busmap_by_rectangular_grid(buses, divisions=10):
     busmap = pd.Series(0, index=buses.index)
@@ -496,10 +491,6 @@ def busmap_by_rectangular_grid(buses, divisions=10):
 def rectangular_grid_clustering(network, divisions):
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
     return get_clustering_from_busmap(network, busmap)
-
-
-
-
 
 ################
 # Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
