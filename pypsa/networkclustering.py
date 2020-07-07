@@ -185,6 +185,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
             g=(voltage_factor * length_factor * l['g']).sum(),
             b=(voltage_factor * length_factor * l['b']).sum(),
             terrain_factor=l['terrain_factor'].mean(),
+            s_max_pu=(l['s_max_pu'] * _normed(l['s_nom'])).sum(),
             s_nom=l['s_nom'].sum(),
             s_nom_min=l['s_nom_min'].sum(),
             s_nom_max=l['s_nom_max'].sum(),
