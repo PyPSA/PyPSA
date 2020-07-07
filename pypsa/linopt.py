@@ -401,10 +401,11 @@ def _add_reference(ref_dict, df, attr, pnl=True):
         else:
             ref_dict.pnl[attr] = df
     else:
-        if ref_dict.df.empty:
-            ref_dict.df[attr] = df
-        else:
+        if attr in ref_dict.df:
             ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
+        else:
+            ref_dict.df[attr] = df
+
 
 def set_varref(n, variables, c, attr, spec=''):
     """
@@ -742,8 +743,8 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     For more information on solver options:
     https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
-    if find_spec('gurobi') is None:
-        raise ModuleNotFoundError("Optional dependency 'gurobi' not found. "
+    if find_spec('gurobipy') is None:
+        raise ModuleNotFoundError("Optional dependency 'gurobipy' not found. "
            "Install via 'conda install -c gurobi gurobi'  or follow the "
            "instructions on the documentation page "
            "https://www.gurobi.com/documentation/")
