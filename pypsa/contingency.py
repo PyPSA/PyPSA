@@ -371,9 +371,13 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
         if extra_functionality is not None:
             extra_functionality(network, snapshots)
 
+    pyomo_kwargs = {}
+    if pyomo:
+        pyomo_kwargs["ptdf_tolerance"] = ptdf_tolerance
+
     #need to skip preparation otherwise it recalculates the sub-networks
 
     network.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=pyomo, 
                  skip_pre=True, extra_functionality=_extra_functionality,
                  solver_options=solver_options, keep_files=keep_files,
-                 formulation=formulation, ptdf_tolerance=ptdf_tolerance)
+                 formulation=formulation, **pyomo_kwargs)
