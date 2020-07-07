@@ -1007,6 +1007,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
         n.iteration = iteration
+        n.global_constraints = n.global_constraints.rename(columns={'mu': f'mu_{iteration}'})
 
 
     if track_iterations:
