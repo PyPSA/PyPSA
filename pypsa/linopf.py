@@ -1029,8 +1029,6 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
                                 f'and termination {termination_condition}')
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
-            n.global_constraints = n.global_constraints.rename(columns={'mu': f'mu_{iteration}'})
-        final_duals = n.global_constraints.mu.copy() #save second last iteration of duals (needed for lv_limit duals)
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
@@ -1042,11 +1040,6 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
     if track_iterations:
-        n.global_constraints = n.global_constraints.rename(columns={'mu':f'mu_{iteration}'})
-    if 'lv_limit' in n.global_constraints.index:
-        logger.info(f'Resulting dual value for line volume limit (lv_limit) set to the one of iteration {iteration-1} '
-                    'due to its optimisation process.') # otherwise, final dual for lv_limit is NaN.
-        if track_iterations: n.global_constraints.at['lv_limit', f'mu_{iteration}'] = final_duals['lv_limit']
-        else: n.global_constraints.at['lv_limit', f'mu'] = final_duals['lv_limit']
+        save_optimal_capacities(n, iteration, status)
     n.lines.loc[ext_i, 's_nom_extendable'] = True
     n.links.loc[ext_links_i, 'p_nom_extendable'] = True
