@@ -24,7 +24,7 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
-* When solving ``n.lopf(pyomo=False)``, pypsa is now constraining the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows for retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True).   
+* When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True).   
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
