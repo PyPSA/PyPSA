@@ -401,10 +401,11 @@ def _add_reference(ref_dict, df, attr, pnl=True):
         else:
             ref_dict.pnl[attr] = df
     else:
-        if ref_dict.df.empty:
-            ref_dict.df[attr] = df
-        else:
+        if attr in ref_dict.df:
             ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
+        else:
+            ref_dict.df[attr] = df
+
 
 def set_varref(n, variables, c, attr, spec=''):
     """
