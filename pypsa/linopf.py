@@ -109,14 +109,11 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
-    if c in n.passive_branch_components:
-        axes = [sns, fix_i]
-        flow = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
-        flow = linexpr((1, flow))
-        define_constraints(n, flow, '>=', lower, c, 'mu_lower', spec='non_ext')
-        define_constraints(n, flow, '<=', upper, c, 'mu_upper', spec='non_ext')
-    else:
-        define_variables(n, lower, upper, c, attr, spec='non_ext')
+    axes = [sns, fix_i]
+    dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
+    dispatch = linexpr((1, dispatch))
+    define_constraints(n, dispatch, '>=', lower, c, 'mu_lower', spec='non_ext')
+    define_constraints(n, dispatch, '<=', upper, c, 'mu_upper', spec='non_ext')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -702,7 +699,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
                     eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
                     set_from_frame(pnl, f'p{i}', - values * eff)
                     pnl[f'p{i}'].loc[sns, n.links.index[n.links[f'bus{i}'] == ""]] = \
-                                              n.component_attrs['Link'].loc[f'p{i}','default']
+                        n.component_attrs['Link'].loc[f'p{i}','default']
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -818,11 +815,11 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None, skip_objective=False,
-         skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
+         extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
          solver_options=None, warmstart=False, store_basis=False,
-         solver_dir=None, ptdf_tolerance=0.):
+         solver_dir=None):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -857,8 +854,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
-    skip_pre : bool, default False
-        Skip the preliminary steps of computing topology.
     skip_objective : bool, default False
         Skip writing the default objective function. If False, a custom
         objective has to be defined via extra_functionality.
@@ -886,8 +881,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
         After solving, the shadow prices can be retrieved using
         :func:`pypsa.linopt.get_dual` with corresponding name
-    ptdf_tolerance : float
-        For "ptdf" formulation with pyomo.
 
     """
     supported_solvers = ["cbc", "gurobi", 'glpk', 'cplex', 'xpress']
@@ -906,8 +899,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
     n.calculate_dependent_values()
-    if not skip_pre:
-        n.determine_network_topology()
+    n.determine_network_topology()
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, skip_objective,
