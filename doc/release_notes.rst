@@ -24,12 +24,16 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
+* Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
+
 * Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
   because last iteration returns NaN (no optimisation of line capacities in final iteration).
 
 * When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True).   
 
-* Can now cluster lines with different ``s_max_pu`` values.
+* Can now cluster lines with different static ``s_max_pu`` values. Time-varying ``s_max_pu`` are not supported in clustering.
+
+* Improved handling of optional dependencies for network clustering functionalities (``sklearn`` and ``community``).
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
