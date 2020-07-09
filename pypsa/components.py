@@ -34,12 +34,6 @@ from collections import namedtuple
 import os
 
 
-from distutils.version import StrictVersion, LooseVersion
-try:
-    _pd_version = StrictVersion(pd.__version__)
-except ValueError:
-    _pd_version = LooseVersion(pd.__version__)
-
 from .descriptors import Dict, get_switchable_as_dense
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
@@ -389,8 +383,6 @@ class Network(Basic):
         self.snapshots = pd.Index(snapshots)
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
-        if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
-            snapshots = pd.Index(snapshots.values)
 
         for component in self.all_components:
             pnl = self.pnl(component)

@@ -24,6 +24,8 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
+* Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
+
 * Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
   because last iteration returns NaN (no optimisation of line capacities in final iteration).
 
