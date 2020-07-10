@@ -215,6 +215,19 @@ if __name__ == "__main__":
             else:
                 add_co2limit(n, Nyears)
 
+    for o in opts:
+        oo = o.split("+")
+        if oo[0].startswith(tuple(n.carriers.index)):
+            carrier = oo[0]
+            cost_factor = float(oo[1])
+            if carrier == "AC":  # lines do not have carrier
+                n.lines.capital_cost *= cost_factor
+            else:
+                comps = {"Generator", "Link", "StorageUnit"}
+                for c in n.iterate_components(comps):
+                    sel = c.df.carrier.str.contains(carrier)
+                    c.df.loc[sel,"capital_cost"] *= cost_factor
+
     if 'Ep' in opts:
         add_emission_prices(n)
 

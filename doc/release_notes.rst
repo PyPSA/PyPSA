@@ -11,7 +11,7 @@ Release Notes
 Upcoming Release
 ================
 
-* ...
+* Added an option to alter the capital cost of carriers by a factor via ``carrier+factor`` in the ``{opts}`` wildcard. This can be useful for exploring uncertain cost parameters. Example: ``solar+0.5`` reduces the capital cost of solar to 50% of original values (`#167 <https://github.com/PyPSA/pypsa-eur/pull/167>`_).
 
 
 PyPSA-Eur 0.2.0 (8th June 2020)
