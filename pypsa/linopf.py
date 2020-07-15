@@ -65,8 +65,8 @@ def define_nominal_for_extendable_variables(n, c, attr):
     upper = n.df(c)[attr+'_max'][ext_i]
     nominal = define_variables(n, -inf, inf, c, attr, axes=ext_i, spec='ext')
     nominal = linexpr((1, nominal))
-    define_constraints(n, nominal, '>=', lower, c, 'mu_nom_lower', spec='ext')
-    define_constraints(n, nominal, '<=', upper, c, 'mu_nom_upper', spec='ext')
+    define_constraints(n, nominal, '>=', lower, c, f'mu_lower_{attr}', spec='ext')
+    define_constraints(n, nominal, '<=', upper, c, f'mu_upper_{attr}', spec='ext')
 
     # define_variables(n, lower, upper, c, attr)
 
@@ -117,8 +117,8 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     axes = [sns, fix_i]
     dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
     dispatch = linexpr((1, dispatch))
-    define_constraints(n, dispatch, '>=', lower, c, 'mu_lower', spec='non_ext')
-    define_constraints(n, dispatch, '<=', upper, c, 'mu_upper', spec='non_ext')
+    define_constraints(n, dispatch, '>=', lower, c, f'mu_lower_{attr}', spec='non_ext')
+    define_constraints(n, dispatch, '<=', upper, c, f'mu_upper_{attr}', spec='non_ext')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -144,11 +144,11 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
 
     lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
-    define_constraints(n, lhs, '>=', rhs, c, 'mu_upper', axes=axes, spec=attr)
+    define_constraints(n, lhs, '>=', rhs, c, f'mu_upper_{attr}', axes=axes, spec=attr)
 
     lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v),
                          return_axes=True)
-    define_constraints(n, lhs, '<=', rhs, c, 'mu_lower', axes=axes, spec=attr)
+    define_constraints(n, lhs, '<=', rhs, c, f'mu_lower_{attr}', axes=axes, spec=attr)
 
 
 def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
