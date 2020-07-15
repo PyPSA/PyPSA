@@ -977,6 +977,7 @@ Release process
   upload dist/pypsa-0.x.0.tar.gz``
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Upload a zip to `zenodo <https://zenodo.org/>`_ (this should also be
-  possible automatically via a github hook).
+* Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
+  will trigger `zenodo <https://zenodo.org/>`_ to archive the release
+  with its own DOI.
 * Inform the PyPSA mailing list.

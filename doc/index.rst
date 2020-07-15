@@ -25,9 +25,9 @@ PyPSA: Python for Power System Analysis
 .. image:: https://img.shields.io/pypi/l/pypsa.svg
     :target: License
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-    :target: https://doi.org/10.5281/zenodo.786605
-   
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+   :target: https://doi.org/10.5281/zenodo.3946412
+
 .. image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
@@ -98,10 +98,10 @@ Documentation
    optimal_power_flow
    contingency_analysis
    plotting
-   
-   
+
+
 **Help & References**
-   
+
 * :doc:`release_notes`
 * :doc:`api_reference`
 * :doc:`troubleshooting`
@@ -178,7 +178,13 @@ Please use the following BibTeX: ::
 
 If you want to cite a specific PyPSA version, each release of PyPSA is
 stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
-This can be found linked from the overall PyPSA Zenodo DOI:
+The release-specific DOIs can be found linked from the overall PyPSA
+Zenodo DOI for Version 0.17.1 and onwards:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+   :target: https://doi.org/10.5281/zenodo.3946412
+
+or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
    :target: https://doi.org/10.5281/zenodo.786605
@@ -190,4 +196,3 @@ Licence
 
 PyPSA is released under the `GPLv3
 <http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
-
