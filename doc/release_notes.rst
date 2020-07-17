@@ -7,7 +7,9 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Added support for the FICO Xpress commercial solver for `pyomo=False`.
+* N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
+
+* Added support for the FICO Xpress commercial solver for ``pyomo=False``.
 
 * There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were
@@ -22,9 +24,10 @@ Upcoming Release
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
-* Fixed bug when saving dual variables in the lv_limit dual. Now using dual from the second last iteration in pypsa.linopf,
-  as last iteration returns NaN (no optimisation of line volumes in last iteration).
+* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
+  because last iteration returns NaN (no optimisation of line capacities in final iteration).
 
+* When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True).   
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
