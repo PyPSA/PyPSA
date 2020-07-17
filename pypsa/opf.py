@@ -20,7 +20,7 @@
 """
 
 
-from six import iteritems, itervalues, string_types
+from six import iteritems, itervalues
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
@@ -1561,7 +1561,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     else:
         args = [network.model]
 
-    if isinstance(free_memory, string_types):
+    if isinstance(free_memory, str):
         free_memory = {free_memory}
 
     if 'pypsa' in free_memory:

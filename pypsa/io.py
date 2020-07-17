@@ -16,7 +16,7 @@
 """Functions for importing and exporting data.
 """
 
-from six import iteritems, iterkeys, string_types
+from six import iteritems, iterkeys
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -196,18 +196,18 @@ if has_xarray:
     class ImporterNetCDF(Importer):
         def __init__(self, path):
             self.path = path
-            if isinstance(path, string_types):
+            if isinstance(path, str):
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
 
         def __enter__(self):
-            if isinstance(self.path, string_types):
+            if isinstance(self.path, str):
                 super(ImporterNetCDF, self).__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            if isinstance(self.path, string_types):
+            if isinstance(self.path, str):
                 super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
@@ -297,7 +297,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #exportable component types
     #what about None???? - nan is float?
-    allowed_types = (float,int,bool) + string_types + tuple(np.typeDict.values())
+    allowed_types = (float,int,bool) + str + tuple(np.typeDict.values())
 
     #first export network properties
     attrs = dict((attr, getattr(network, attr))
@@ -492,7 +492,7 @@ def import_from_netcdf(network, path, skip_time=False):
 
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = os.path.basename(path) if isinstance(path, string_types) else None
+    basename = os.path.basename(path) if isinstance(path, str) else None
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename,
                               skip_time=skip_time)

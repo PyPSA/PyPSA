@@ -8,13 +8,13 @@ try:
 except ImportError:
     pandapower_compatible = False
 
-import six
+import sys
 
 import pytest
 
 
 @pytest.mark.skipif(
-    six.PY2 and not pandapower_compatible,
+    sys.version_info.major == 2 and not pandapower_compatible,
     reason="Pandapower 2.0.0 dropped support for Python 2.",
 )
 def test_pandapower_case():

@@ -17,7 +17,6 @@
 """
 
 from six import iterkeys
-from six.moves.collections_abc import Sequence
 
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
@@ -36,7 +35,6 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-import six
 from operator import itemgetter
 import time
 
@@ -53,8 +51,7 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (Sequence, pd.Index))):
+    if isinstance(snapshots, str) or not isinstance(snapshots, pd.Index):
         return pd.Index([snapshots])
     else:
         return pd.Index(snapshots)

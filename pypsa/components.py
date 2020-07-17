@@ -19,7 +19,7 @@
 """
 
 
-from six import iteritems, itervalues, iterkeys
+from six import itervalues, iterkeys
 from weakref import ref
 
 
@@ -286,7 +286,7 @@ class Network(Basic):
             else:
                 self.import_from_csv_folder(import_name)
 
-        for key, value in iteritems(kwargs):
+        for key, value in kwargs.items():
             setattr(self, key, value)
 
 
@@ -557,7 +557,7 @@ class Network(Basic):
 
         setattr(self, self.components[class_name]["list_name"], new_df)
 
-        for k,v in iteritems(kwargs):
+        for k,v in kwargs.items():
             if k not in attrs.index:
                 logger.warning("{} has no attribute {}, ignoring this passed value.".format(class_name,k))
                 continue
@@ -606,7 +606,7 @@ class Network(Basic):
 
         pnl = self.pnl(class_name)
 
-        for df in itervalues(pnl):
+        for df in pnl.values():
             if name in df:
                 df.drop(name, axis=1, inplace=True)
 
@@ -686,7 +686,7 @@ class Network(Basic):
         new_names = names.astype(str) + suffix
 
         static = {}; series = {}
-        for k, v in iteritems(kwargs):
+        for k, v in kwargs.items():
             if isinstance(v, pd.DataFrame):
                 series[k] = v.rename(columns=lambda i: str(i)+suffix)
             elif isinstance(v, pd.Series):
@@ -698,7 +698,7 @@ class Network(Basic):
 
         self.import_components_from_dataframe(pd.DataFrame(static, index=new_names), class_name)
 
-        for k, v in iteritems(series):
+        for k, v in series.items():
             self.import_series_from_dataframe(v, class_name, k)
 
         return new_names
@@ -736,7 +736,7 @@ class Network(Basic):
 
         pnl = self.pnl(class_name)
 
-        for df in itervalues(pnl):
+        for df in pnl.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
 

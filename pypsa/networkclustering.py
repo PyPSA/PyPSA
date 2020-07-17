@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
-from six.moves import map, range, reduce
+from six.moves import reduce
 from six import itervalues, iteritems
 from importlib.util import find_spec
 
