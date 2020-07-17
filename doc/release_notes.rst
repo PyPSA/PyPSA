@@ -33,8 +33,7 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
 
-* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
-  because last iteration returns NaN (no optimisation of line capacities in final iteration).
+* Added tracking of iterations of global constraints in the optimisation.
 
 * When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True)``.
 
