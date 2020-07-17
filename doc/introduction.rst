@@ -142,3 +142,20 @@ contrast to PYPOWER, PyPSA has an easier-to-use data model (pandas
 DataFrames instead of numpy arrays), support for time-varying data
 inputs and support for multiply-connected networks using both AC
 and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
+
+
+
+Target user group
+=================
+
+PyPSA is intended for researchers, planners and utilities who need a
+fast, easy-to-use and transparent tool for power system
+analysis. PyPSA is free software and can be arbitrarily extended.
+
+
+
+Licence
+=======
+
+PyPSA is released under the `GPLv3
+<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.

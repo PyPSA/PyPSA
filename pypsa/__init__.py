@@ -28,6 +28,6 @@ from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo,
 
 from .components import Network, SubNetwork
 
-__version__ = "0.17.0"
+__version__ = "0.17.1"
 __author__ = "Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS), GNU GPL 3"
