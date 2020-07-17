@@ -35,6 +35,8 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * Added tracking of iterations of global constraints in the optimisation.
 
+* overwrite ``p_nom`` and ``s_nom`` of line and link attributes to original values after final optimisation
+
 * When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True)``.
 
 * Can now cluster lines with different static ``s_max_pu`` values. Time-varying ``s_max_pu`` are not supported in clustering.
