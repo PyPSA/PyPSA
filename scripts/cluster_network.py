@@ -221,7 +221,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
         opt = po.SolverFactory('ipopt')
 
     results = opt.solve(m)
-    assert results['Solver'][0]['Status'].key == 'ok', "Solver returned non-optimally: {}".format(results)
+    assert results['Solver'][0]['Status'] == 'ok', "Solver returned non-optimally: {}".format(results)
 
     return pd.Series(m.n.get_values(), index=L.index).astype(int)
 
