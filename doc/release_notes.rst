@@ -7,7 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* First new feature
+* overwrite ``p_nom`` and ``s_nom`` of line and link attributes to original values after final optimisation
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
@@ -31,11 +31,15 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
+* Added track iterations of global constraints
+
+* overwrite ``p_nom`` and ``s_nom`` of line and link attributes to original values after final optimisation
+
+* When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True).   
+
 * Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
 
 * Added tracking of iterations of global constraints in the optimisation.
-
-* overwrite ``p_nom`` and ``s_nom`` of line and link attributes to original values after final optimisation
 
 * When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True)``.
 
@@ -45,7 +49,6 @@ This release contains bug fixes and extensions to the features for optimization 
 
 Thanks to Pietro Belotti from FICO for adding the Xpress support, to Fabian Neumann (KIT) and Fabian Hofmann (FIAS) for all their
 hard work on this release, and to all those who fixed bugs and reported issues.
-
 
 PyPSA 0.17.0 (23rd March 2020)
 ================================
