@@ -1,6 +1,6 @@
-name,bus,control,initial_status
-EEA1,N10,PQ,1
-EEA11,N5,PQ,1
-EEA12,N8,PQ,1
-EEA121,N15,PQ,1
-NE_S1,N4,Slack,1
+name,bus,control,up_time_before,down_time_before
+EEA1,N10,PQ,1,0
+EEA11,N5,PQ,1,0
+EEA12,N8,PQ,1,0
+EEA121,N15,PQ,1,0
+NE_S1,N4,Slack,1,0

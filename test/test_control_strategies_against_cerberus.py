@@ -104,8 +104,10 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     of cerberus network and run PyPSA pf on it and then compared with the cerberus
     results of that controller (for each controller separately).
     """
-    # pf results with no controller in Cerberus as n1
-    cerberus_path = os.path.join('networks', 'results_no_c', 'citygrid')
+    # pf results of pf without controller in Cerberus
+    cerberus_path = os.path.join(os.path.dirname(__file__), "..", "test",
+                                    "networks","results_no_c", "citygrid")
+
     n1 = pypsa.Network(cerberus_path, ignore_standard_types=True)
 
     # copy the network and run pf in PyPSA without controllers as n2
@@ -116,8 +118,8 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     assert_pf_results_are_almost_equal(n1, n2)
 
     # Fixed power factor controller pf results in Cerberus as n3
-    cerberus_path_fixed_cosphi_control = os.path.join(
-                               'networks', 'results_with_fixed_pf', 'citygrid')
+    cerberus_path_fixed_cosphi_control = os.path.join(os.path.dirname(__file__), "..", "test",
+                                    "networks","results_with_fixed_pf", "citygrid")
     n3 = pypsa.Network(cerberus_path_fixed_cosphi_control, ignore_standard_types=True)
 
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n4
@@ -131,8 +133,8 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     assert_pf_results_are_almost_equal(n3, n4)
 
     # cosphi_p controller pf results in Cerberus as n5
-    cerberus_path_cosphi_p_control = os.path.join(
-                       'networks', 'results_with_cosphi_p', 'citygrid')
+    cerberus_path_cosphi_p_control = os.path.join(os.path.dirname(__file__), "..", "test",
+                                    "networks","results_with_cosphi_p", "citygrid")
     n5 = pypsa.Network(cerberus_path_cosphi_p_control, ignore_standard_types=True)
 
 #    # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n6
@@ -147,8 +149,8 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     assert_pf_results_are_almost_equal(n5, n6)
 
     # Q(U) or q_v controller pf results in Cerberus as n7
-    cerberus_path_q_v_control = os.path.join(
-                                    'networks', 'results_with_q_v', 'citygrid')
+    cerberus_path_q_v_control = os.path.join(os.path.dirname(__file__), "..", "test",
+                                    "networks","results_with_q_v", "citygrid")
     n7 = pypsa.Network(cerberus_path_q_v_control, ignore_standard_types=True)
 
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n8
@@ -164,5 +166,5 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     # compare the two pf results (n7-cerberus and n8-PyPSA)
     assert_pf_results_are_almost_equal(n7, n8)
 
-
-test_PyPSA_pf_results_with_controllers_against_CERBERUS_network()
+if __name__ == "__main__":
+    test_PyPSA_pf_results_with_controllers_against_CERBERUS_network()
