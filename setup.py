@@ -10,7 +10,7 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.17.0',
+    version='0.17.1',
     author='Tom Brown (FIAS, KIT), Jonas Hoersch (FIAS, KIT), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)',
     author_email='tom.brown@kit.edu',
     description='Python for Power Systems Analysis',
@@ -20,13 +20,14 @@ setup(
     license='GPLv3',
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
+    python_requires='>=3',
     install_requires=[
-        'six >= 1.13.0',
+        'six>=1.13.0',
         'numpy',
         'scipy',
         'pandas>=0.24.0',
         'tables',
-        'pyomo>=5.3',
+        'pyomo>=5.7',
         'matplotlib',
         'networkx>=1.10'
     ],
