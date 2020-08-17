@@ -9,14 +9,17 @@ def find_allowable_q(p, power_factor, s_nom):
     """
     Some times the reactive power that controller want to compensate using
     (p*tan(arccos(power_factor))) can go higher than what inverter can provide
-    "q_inv_cap" based on the "power_factor" provided. for this purpose this
-    fucntion calculates the reactive power "q" that controller want to compensate,
-    and also the inverter reactive power capacity  "q_inv_cap". Then "q" is checked,
-    if it is less than "q_inv_cap" take it, and for "q" values higher than "q_inv_cap"
-    take "q_inv_cap" instead and name this new selection "q_allowable". finally
-    return them all to the controller for further calculations(see controllers).
-    This is done to make sure that the inverter equation s_nom = np.sqrt((p**2 + q**2)
-    is not violated.
+    based on inverter "s_nom" and the provided "power_factor", in this case:
+        - calculate reactive power that the formula gives "q"
+        - calcualte reactive power max available capacity that inverter can
+          provide based on the power factor given "q_inv_cap".
+        - check q if it is less than "q_inv_cap" ok, if not take the value from
+          "q_allowable" instead.
+        - Return all (q, q_inv_cap, q_allowable) to the controller for further
+          calculations and considerations.
+
+    This values are returned to controller in order to check and make sure that
+    the inverter equation s_nom = np.sqrt((p**2 + q**2) is not violated.
     """
     # Calculate reactive power that controller want ot compensate initially
     q = p.mul(np.tan((np.arccos(power_factor, dtype=np.float64)),
@@ -32,10 +35,11 @@ def find_allowable_q(p, power_factor, s_nom):
 
 def adjust_p_set(s_nom, q, p, c, control_strategy):
     """
-    when compensated reactive power "q" by controller together with the generation
-    "p" violates inverter equation s_nom = np.sqrt((p**2 + q**2), in this case
-    controller needs to reduce p in order to fulfil reactive power need. In this
-    case p is adjusted to "new_p_set" here and return it to the controller.
+    when the initial reactive power "q" calculated by controller together with
+    the active power "p" violates inverter equation s_nom = np.sqrt((p**2 + q**2),
+    in this case controller needs to reduce p in order to fulfil reactive power
+    need. In this case p is reduced and calculated here "new_p_set" and return
+    it to the controller to consider this as p_out and set it to the network.
     """
     adjusted_p_set = np.sqrt((s_nom**2 - q**2),  dtype=np.float64)
     new_p_set = np.where(abs(p) <= abs(adjusted_p_set), p, adjusted_p_set)
@@ -50,12 +54,22 @@ def adjust_p_set(s_nom, q, p, c, control_strategy):
     return new_p_set
 
 
-def apply_fixed_cosphi(n, snapshot, c, c_attrs):
+def apply_fixed_cosphi(n, snapshot, c, index):
     """
     fix power factor inverter controller.
     This controller provides a fixed amount of reactive power compensation to the
     grid as a function of the amount of injected power (p_set) and the chosen
-    power factor value.
+    power factor value. 
+    Controller will take care of inverter capacity and controlls that the sum
+    of active and reactive power does not increase than the inverter capacity.
+    When reactive power need is more than what controller calculate based on
+    the provided power factor, controller decreases a portion of active power
+    to meet reactive power need, in this case controller will have two outputs
+    p_out and q_out where q_out is the reactive power output and p_out is the
+    reduced p_set and will be updated in buses_t.p and components_t.p.
+    
+    Finally the controller outpus are passed to "_set_controller_outputs_to_n"
+    to update the network.
 
     reference : https://ieeexplore.ieee.org/document/6096349
     DOI link  : 10.1109/JPHOTOV.2011.2174821
@@ -66,9 +80,7 @@ def apply_fixed_cosphi(n, snapshot, c, c_attrs):
         Network
     snapshot : single snapshot
         Current (now)  element of n.snapshots on which the power flow is run.
-    c_attrs : pandas data frame
-        Component attrs of controlled indexes, i.e. power_factor choice for
-        generators, loads...
+    index : index of controlled elements
     c : string
         Component name, i.e. 'Load', 'StorageUnit'...
 
@@ -77,9 +89,11 @@ def apply_fixed_cosphi(n, snapshot, c, c_attrs):
     None
     """
     # needed parameters
-    p_input = n.pnl(c).p.loc[snapshot, c_attrs.index]
-    power_factor = c_attrs['power_factor']
-    s_nom = c_attrs['s_nom']
+    p_input = n.pnl(c).p.loc[snapshot, index]
+    params = n.df(c).loc[index]
+    power_factor = params['power_factor']
+    s_nom = params['s_nom']
+
     p_out=None
     ctrl_p_out = False
     q_inv_cap, q_allowable, q = find_allowable_q(p_input, power_factor, s_nom)
@@ -91,19 +105,29 @@ def apply_fixed_cosphi(n, snapshot, c, c_attrs):
         ctrl_p_out = True
         p_out = adjust_p_set(s_nom, q_out, p_input, c, 'fixed_cosphi')
 
-    _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=ctrl_p_out,
+    _set_controller_outputs_to_n(n, c, index, snapshot, ctrl_p_out=ctrl_p_out,
                                  ctrl_q_out=True, p_out=p_out, q_out=q_out)
 
 
-def apply_cosphi_p(n, snapshot, c, c_attrs):
+def apply_cosphi_p(n, snapshot, c, index):
     """
     Power factor as a function of active power (cosphi_p) controller.
-    This controller provides reactive power compensation to the grid only when
-    the amount of generated power (p_set) is more than a specific value (p_ref).
-    controller chooses a variable power factor for reactive power calculation
-    based on the amount of generation and the provided droop for power factor
-    selection. Therefore for all generations less than p_ref no reactive power
-    support is provided.
+    This controller provides a variable power factor value based on the chosen
+    parameters and the droop curve defined below. And then using the calculated
+    power factor an amount of reactive power is calculated for reactive power
+    compensation, controller works as follow:
+        - calculate: p_set_per_p_ref = (p_set / p_ref)*100, where p_ref is a
+          setpoint in MW.
+        - Then controller compares "p_set_per_p_ref" with the "set_p1" and
+          "set_p2" set points where set_p1 and set_p2 are percentage values.
+        - Controller decides the power factor based on the defined droop below
+          (power_factor = ...). i.e. if p_set_per_p_ref < set_p1 then power
+          factor is 1, since p_set_per_p_ref < set_p1 shows low generation and
+          controller think there might not be any need for reactive power
+          with this amount of generation, thus power_factor=1 which means q = 0.
+          For the other conditions power factor is calculated respectively.
+    Finally the controller outpus are passed to "_set_controller_outputs_to_n"
+    to update the network.
 
     reference : https://ieeexplore.ieee.org/document/6096349.
     DOI link  : 10.1109/JPHOTOV.2011.2174821
@@ -114,9 +138,7 @@ def apply_cosphi_p(n, snapshot, c, c_attrs):
         Network
     snapshot : single snapshot
         Current (now)  element of n.snapshots on which the power flow is run.
-    c_attrs : pandas data frame
-        Component attrs of controlled indexes, i.e. power_factor choice for
-        generators, loads...
+    index : index of controlled elements
     c : string
         Component name, i.e. 'Load', 'StorageUnit'...
 
@@ -125,45 +147,53 @@ def apply_cosphi_p(n, snapshot, c, c_attrs):
     None
     """
     # parameters needed
-    set_p1 = c_attrs['set_p1']
-    set_p2 = c_attrs['set_p2']
-    s_nom = c_attrs['s_nom']
-    p_input = n.pnl(c).p.loc[snapshot, c_attrs.index]
-    power_factor_min = c_attrs['power_factor_min']
-    p_set_per_p_ref = (abs(p_input) / c_attrs['p_ref'])*100
+    params = n.df(c).loc[index]
+    p_input = n.pnl(c).p.loc[snapshot, index]
+
+    p_set_per_p_ref = (abs(p_input) / params['p_ref'])*100
 
     # choice of power_factor according to controller inputs and its droop curve
-    power_factor = np.select([(p_set_per_p_ref < set_p1), (
-        p_set_per_p_ref >= set_p1) & (p_set_per_p_ref <= set_p2), (
-            p_set_per_p_ref > set_p2)], [1, (1 - ((1 - power_factor_min) / (
-             set_p2 - set_p1) * (p_set_per_p_ref - set_p1))), power_factor_min])
+    power_factor = np.select([(p_set_per_p_ref < params['set_p1']),
+         (p_set_per_p_ref >= params['set_p1']) & (p_set_per_p_ref <= params[
+            'set_p2']), (p_set_per_p_ref > params['set_p2'])],
+        [1, (1 - ((1 - params['power_factor_min']) / (params['set_p2'] - params[
+                    'set_p1']) * (p_set_per_p_ref - params['set_p1']))),
+            params['power_factor_min']])
 
     # find q_set and avoid -0 apperance as the output when power_factor = 1
     q_out = np.where(power_factor == 1, 0, -p_input.mul(np.tan((np.arccos(
                           power_factor, dtype=np.float64)), dtype=np.float64)))
 
     S = np.sqrt((p_input)**2 + q_out**2)
-    assert ((S < s_nom).any().any()), (
+    assert ((S < params['s_nom']).any().any()), (
         "The resulting reactive power (q)  while using 'cosphi'_p control  "
         "with the chosen attr 'power_factor_min' in '%s' component results a  "
         "complex power (S = sqrt(p**2 + q**2))) which is greater than 's_nom') "
-        "of the inverter, please choose the right power_factor_min value"
-        % (c))
-    n.pnl(c)['power_factor'].loc[snapshot, c_attrs.index] = power_factor
+        "of the inverter, please choose the right power_factor_min value" % (c))
 
     _set_controller_outputs_to_n(
-        n, c, c_attrs, snapshot, ctrl_q_out=True, q_out=q_out)
+        n, c, index, snapshot, ctrl_q_out=True, q_out=q_out)
 
 
-def apply_q_v(n, snapshot, c, c_attrs, n_trials_max, n_trials):
+def apply_q_v(n, snapshot, c, index, n_trials_max, n_trials):
     """
     Reactive power as a function of voltage Q(V).
     This contrller controller provide reactive power compensation based on the
     voltage information of the bus where inverter is connected, for this purpose
     the droop for reactive power calculation is divided in to 5 different reactive
-    power calculation. v1, v2, v3, v4 attrs form the droop and the reactive power
-    is calculated based on where the the bus v_mag_pu is landing, as it is done
-    here in "curve_q_set_in_percentage"
+    power calculation zones. Where v1, v2, v3, v4 attrs form the droop and the
+    reactive power is calculated based on which zone the bus v_mag_pu is landing.
+        - controller finds the zone where bus v_mag_pu lands on
+        - Based on the zone and the droop provided it calcualtes "curve_q_set_in_percentage"
+        - Using "curve_q_set_in_percentage" it calcualtes reactive power q_out.
+    Controller will take care of inverter capacity and controlls that the sum
+    of active and reactive power does not increase than the inverter capacity.
+    When reactive power need is more than what controller calculate based on
+    the provided power factor, controller decreases a portion of active power
+    to meet reactive power need, in this case controller will have two outputs
+    p_out and q_out.
+    Finally the controller outpus are passed to "_set_controller_outputs_to_n"
+    to update the network.
 
     reference : https://ieeexplore.ieee.org/document/6096349
     DOI link  : 10.1109/JPHOTOV.2011.2174821 
@@ -174,9 +204,7 @@ def apply_q_v(n, snapshot, c, c_attrs, n_trials_max, n_trials):
         Network
     snapshot : single snapshot
         Current (now)  element of n.snapshots on which the power flow is run.
-    c_attrs : pandas data frame
-        Component attrs of controlled indexes, i.e. power_factor choice for
-        generators, loads...
+    index : index of controlled elements
     c : string
         Component name, i.e. 'Load', 'StorageUnit'...
     n_trials_max : integer
@@ -195,35 +223,37 @@ def apply_q_v(n, snapshot, c, c_attrs, n_trials_max, n_trials):
                        " '%s', with 'q_v' controller exceeds x_tol_outer limit,"
                        " please apply (damper < 1) or expand controller"
                        " parameters range between v1 & v2 and or v3 & v4 to"
-                       " avoid the problem." % (snapshot, c_attrs.index.values))
+                       " avoid the problem." % (snapshot, index))
     #  curve parameters
-    v_pu_bus = n.buses_t.v_mag_pu.loc[snapshot, c_attrs.loc[c_attrs.index, 'bus']].values
-    v1 = c_attrs['v1']
-    v2 = c_attrs['v2']
-    v3 = c_attrs['v3']
-    v4 = c_attrs['v4']
-    s_nom = c_attrs['s_nom']
-    power_factor = c_attrs['power_factor']
-    p_input = n.pnl(c).p.loc[snapshot, c_attrs.index]
+    v_pu_bus = n.buses_t.v_mag_pu.loc[snapshot, n.df(c).loc[index, 'bus']].values
+    params = n.df(c).loc[index]
+    print()
+    p_input = n.pnl(c).p.loc[snapshot, index]
     p_out = None
     ctrl_p_out = False
-    q_inv_cap, q_allowable, q = find_allowable_q(p_input, power_factor, s_nom)
+    q_inv_cap, q_allowable, q = find_allowable_q(p_input, params['power_factor'], params['s_nom'])
 
-    # calculation of maximum q compensation in % based on bus v_pu_bus
-    curve_q_set_in_percentage = np.select([(v_pu_bus < v1), (v_pu_bus >= v1) & (
-            v_pu_bus <= v2), (v_pu_bus > v2) & (v_pu_bus <= v3), (v_pu_bus > v3)
-        & (v_pu_bus <= v4), (v_pu_bus > v4)], [100, 100 - 100 / (v2 - v1) * (
-                v_pu_bus - v1), 0, -100 * (v_pu_bus - v3) / (v4 - v3), -100])
-    # calculation of q
-    q_out = (((curve_q_set_in_percentage * q_allowable) / 100) * c_attrs[
-            'damper'] * c_attrs['sign'])
+    # calculation of maximum q compensation in % based on bus v_pu_bus inside
+    # np.select([conditions], [choices]) function.
+    curve_q_set_in_percentage = np.select([
+        (v_pu_bus < params['v1']),(v_pu_bus >= params['v1']) & (
+            v_pu_bus <= params['v2']), (v_pu_bus > params['v2']) & (
+                v_pu_bus <= params['v3']), (v_pu_bus > params['v3'])
+        & (v_pu_bus <= params['v4']), (v_pu_bus > params['v4'])], [
+            100, 100 - 100 / (params['v2'] - params['v1']) * (
+                v_pu_bus - params['v1']), 0, -100 * (
+                v_pu_bus - params['v3']) / (params['v4'] - params['v3']), -100])
+
+    # calculation of q based on the "curve_q_set_in_percentage" output
+    q_out = (((curve_q_set_in_percentage * q_allowable) / 100) * params[
+            'damper'] * params['sign'])
 
     # check if there is need to reduce p_set due to q need
     if (q > q_inv_cap).any().any():
         ctrl_p_out = True
-        p_out = adjust_p_set(s_nom, q, p_input, c, 'q_v')
+        p_out = adjust_p_set(params['s_nom'], q, p_input, c, 'q_v')
 
-    _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=ctrl_p_out,
+    _set_controller_outputs_to_n(n, c, index, snapshot, ctrl_p_out=ctrl_p_out,
                                  ctrl_q_out=True, p_out=p_out, q_out=q_out)
 
 
@@ -262,20 +292,19 @@ def apply_controller(n, now, n_trials, n_trials_max, dict_controlled_index):
 
     for controller in dict_controlled_index.keys():
         # parameter is the controlled indexes dataframe of a components
-        for c, c_attrs in dict_controlled_index[controller].items():
+        for c, index in dict_controlled_index[controller].items():
 
             # call each controller
             if (controller == 'fixed_cosphi') and (n_trials == 1):
-                apply_fixed_cosphi(n, now, c, c_attrs)
+                apply_fixed_cosphi(n, now, c, index)
 
             elif (controller == 'cosphi_p') and (n_trials == 1):
-                apply_cosphi_p(n, now, c, c_attrs)
+                apply_cosphi_p(n, now, c, index)
 
             elif controller == 'q_v':
-
-                v_dep_buses = np.append(v_dep_buses, np.unique(c_attrs.loc[(
-                            c_attrs.control_strategy.isin(['q_v'])), 'bus']))
-                apply_q_v(n, now, c, c_attrs, n_trials_max, n_trials)
+                v_dep_buses = np.append(v_dep_buses, np.unique(n.df(c).loc[index].loc[(
+                    n.df(c).loc[index].control_strategy.isin(["q_v", "p_v"])), 'bus']))
+                apply_q_v(n, now, c, index, n_trials_max, n_trials)
 
     # find the v_mag_pu of buses with v_dependent controller to return
     v_mag_pu_voltage_dependent_controller = n.buses_t.v_mag_pu.loc[
@@ -284,7 +313,7 @@ def apply_controller(n, now, n_trials, n_trials_max, dict_controlled_index):
     return v_mag_pu_voltage_dependent_controller
 
 
-def _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=False,
+def _set_controller_outputs_to_n(n, c, index, snapshot, ctrl_p_out=False,
                                  ctrl_q_out=False, p_out=None, q_out=None):
     """
     Set the controller outputs to the n (network). The controller outputs
@@ -297,9 +326,7 @@ def _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=False,
         Network
     c : string
         Component name, i.e. 'Load', 'StorageUnit'...
-    c_attrs : pandas data frame
-        Component attrs of controlled indexes, i.e. power_factor choice for
-        generators, loads...
+    index : indexes of controlled elements
     snapshot : single snapshot
         Current (now)  element of n.snapshots on which the power flow is run.
     ctrl_p_out : bool default to False
@@ -323,8 +350,8 @@ def _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=False,
     None
     """
     # input power before applying controller output to the network
-    p_input = n.pnl(c).p.loc[snapshot, c_attrs.index]
-    q_input = n.pnl(c).q.loc[snapshot, c_attrs.index]
+    p_input = n.pnl(c).p.loc[snapshot, index]
+    q_input = n.pnl(c).q.loc[snapshot, index]
 
     # empty dictrionary and adding attribute values to it in each snapshot
     p_q_dict = {}
@@ -333,36 +360,40 @@ def _set_controller_outputs_to_n(n, c, c_attrs, snapshot, ctrl_p_out=False,
     if ctrl_q_out:
         p_q_dict['q'] = q_out
 
-    # setting p_set, q_out, p and q values to their respective dataframes
+    # setting p_out, q_out to component_t.(p or q) dataframes
     for attr in p_q_dict.keys():
-        n.pnl(c)[attr].loc[snapshot, c_attrs.index] = p_q_dict[attr]
+        n.pnl(c)[attr].loc[snapshot, index] = p_q_dict[attr]
 
         # Finding the change in p and q for the connected buses
         if attr == 'q':
             power_change = -((q_input - n.pnl(c).q).loc[
-                    snapshot, c_attrs.index] * c_attrs.loc[
-                            c_attrs.index, 'sign']).groupby(c_attrs.loc[
-                                    c_attrs.index, 'bus']).sum()
-        # note that n.pnl('Load') is equivalent to n.loads_t
-        if attr == 'p':
-            power_change = -((p_input - n.pnl(c).p).loc[snapshot, c_attrs.index] *
-                             c_attrs.loc[c_attrs.index, 'sign']).groupby(
-                                 c_attrs.loc[c_attrs.index, 'bus']).sum()
+                    snapshot, index] * n.df(c).loc[
+                            index, 'sign']).groupby(n.df(c).loc[
+                                    index, 'bus']).sum()
 
-        # adding the change to the respective buses
+        if attr == 'p':
+            power_change = -((p_input - n.pnl(c).p).loc[snapshot, index] *
+                             n.df(c).loc[index, 'sign']).groupby(
+                                 n.df(c).loc[index, 'bus']).sum()
+
+        # adding the p and q change to the controlled buses
         n.buses_t[attr].loc[snapshot, power_change.index] += power_change
 
 
 def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
     """
-    Iterate over "Generator", "Load", "Store" and "StorageUnit" to check if they
-    have inverter control strategy applied in any of their indexes and check
-    if any oltc is activated in any transformer. If yes the name of control
-    strategy will be set as key of the dictionary and the name of the controlled
-    component will be as values which will contain the controlled indexes with
-    their respective attributes. While preparing the dictionary if any "q_v"
-    controller is used by any component n_trial_max is chosen 30 which is the
-    maximum power flow trials for this controller to be converged. 
+    For components of type "Transformer", "Generator", "Load", "Store" and
+    "StorageUnit" collect the indices of controlled elements in the dictionary
+    of dictionaries dict_controlled_index:
+        - Any exisitng control strategy will be set as a key of dict_controlled_index
+        - Each of these keys holds a dictionary as value, with:
+            - the types of components it is enabled for as Keys
+            - and the related indices of the components as values.
+    If a "q_v" or 'p_v' controller is present, n_trial_max is set to 30
+    which enables the outer loop of the power flow and sets the maximum allowed
+    number of iterations.
+    The returned dictionary is used in apply_controller().
+
 
     Parameter:
     ----------
@@ -393,36 +424,30 @@ def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
         # loop through loads, generators, storage_units and stores if they exist
         for c in sub_network.iterate_components(n.controllable_one_port_components):
 
-            if (c.df.control_strategy != '').any():
-                assert (c.df.control_strategy.isin(ctrl_list)).all(), (
+            if (c.df.loc[c.ind].control_strategy != '').any():
+                assert (c.df.loc[c.ind].control_strategy.isin(ctrl_list)).all(), (
                         "Not all given types of controllers are supported. "
                         "Elements with unknown controllers are:\n%s\nSupported "
-                        "controllers are : %s." % (c.df.loc[(~ c.df[
-                            'control_strategy'].isin(ctrl_list)),
+                        "controllers are : %s." % (c.df.loc[c.ind].loc[
+                            (~ c.df.loc[c.ind]['control_strategy'].isin(ctrl_list)),
                             'control_strategy'], ctrl_list[1:4]))
-
-                if (c.df.control_strategy != '').any():
-                    # transfering power factors to n.component_t.power_factor
-                    power_factor = get_switchable_as_dense(
-                        n, c.name, 'power_factor', snapshots, c.ind)
-                    c.pnl.power_factor = c.pnl.power_factor.reindex(columns=c.ind)
-                    c.pnl['power_factor'].loc[snapshots, c.ind] = power_factor
 
                 # exclude slack generator to be controlled
                 if c.list_name == 'generators':
-                    c.df.loc[c.df.control == 'Slack', 'control_strategy'] = ''
+                    c.df.loc[c.ind].loc[c.df.loc[c.ind].control == 'Slack',
+                                        'control_strategy'] = ''
                 # if voltage dep. controller exist,find the bus name
                 n_trials_max = np.where(
-                      c.df.control_strategy.isin(['q_v']).any(), 30, 0)
+                      c.df.loc[c.ind].control_strategy.isin(['q_v']).any(), 30, 0)
 
-                for i in ctrl_list[1:4]:
+                for i in ctrl_list[1:5]:
                     # building a dictionary for each controller if they exist
-                    if (c.df.control_strategy == i).any():
+                    if (c.df.loc[c.ind].control_strategy == i).any():
                         if i not in dict_controlled_index:
                             dict_controlled_index[i] = {}
 
-                        dict_controlled_index[i][c.name] = c.df.loc[(
-                                c.df.control_strategy == i)]
+                        dict_controlled_index[i][c.name] = c.df.loc[c.ind].loc[(
+                                c.df.loc[c.ind].control_strategy == i)].index
 
                 logger.info("We are in %s. These indexes are controlled:\n%s",
                             c.name, dict_controlled_index)

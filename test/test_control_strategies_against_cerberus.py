@@ -125,7 +125,9 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     # copy n1 network, set controller parameters same as Cerberus and run pf in PyPSA as n4
     n4 = n1.copy()
     n4.generators.control_strategy = "fixed_cosphi"
-    # in cerberus the option of choosing angle is provided - 20° is chosen
+    # in cerberus the option of choosing angle is provided and 20° is chosen,
+    # but in PyPSA power factor is introduced. Therefore the equivalnce is
+    # calculated and set below.
     n4.generators.power_factor = np.cos(20*np.pi/180)  # finding power_factor
     n4.pf(inverter_control=True)
 
@@ -157,9 +159,10 @@ def test_PyPSA_pf_results_with_controllers_against_CERBERUS_network():
     n8 = n1.copy()
     n8.generators.control_strategy = "q_v"
     n8.generators.s_nom = 0.05
-    # in Cerberus after setting s_nom and p_set,  q_max and curve droop is required
-    # for Q(U), control. In cerberus s_nom = 0.05, p_set = 0.03 and q_max = 40
-    # is chosen. power_factor = np.cos(np.arctan(0.04/0.03)) = 0.6
+    # Parameters in cerberus: s_nom = 0.05, p_set = 0.03 and q_max = 40
+    # but in PypSA power factor is introduced, therefore the equivalnce
+    #is: power_factor = np.cos(np.arctan(0.04/0.03)) = 0.6, therefore we need
+    # to set power factor manually.
     n8.generators.power_factor = 0.6
     n8.pf(x_tol_outer=1e-6, inverter_control=True)
 
