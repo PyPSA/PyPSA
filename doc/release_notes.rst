@@ -31,11 +31,13 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
-* Integration of inverter control strategies for nonlinear power flow:
-  Inverter control strategies such as: fixed power factor, reactive power as a
-  function of voltage Q(V), power factor as a function of active power can be 
-  implemented on Load, Generator, Store and StorageUnit components by specifying
-  them as new attributes in these components.
+* Integration of inverter control strategies for nonlinear power flow such as:
+  - Fix power factor,
+  - Reactive power as a function of voltage Q(V),
+  - Active power as a function of voltage P(V)
+  - power factor as a function of active power power_factor(P) 
+ can be  implemented on Load, Generator, Store and StorageUnit components by specifying
+ them as new attributes in these components.
 =======
 * Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
 

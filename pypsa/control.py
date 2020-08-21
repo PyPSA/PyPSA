@@ -45,7 +45,7 @@ def adjust_p_set(s_nom, q, p, c, control_strategy):
     new_p_set = np.where(abs(p) <= abs(adjusted_p_set), p, adjusted_p_set)
     # info for user that p_set has been changed
     log_info = np.where(
-            control_strategy == 'fixed_cosphi', '"fixed_cosphi" control is adjusted',
+            control_strategy == "fixed_cosphi', '"fixed_cosphi" control is adjusted',
             ' "q_v" control might be adjusted, if needed')
 
     logger.info(" Some p_set in '%s' component with %s due to reactive power "
