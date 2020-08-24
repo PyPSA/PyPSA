@@ -15,6 +15,8 @@ Upcoming Release
 
 * Add compatibility for pyomo 5.7.0 in :mod:`cluster_network` and :mod:`simplify_network`.
 
+* Corrected HVDC link connections (a) between Norway and Denmark and (b) mainland Italy, Corsica (FR) and Sardinia (IT) (`#181 <https://github.com/PyPSA/pypsa-eur/pull/181>`_)
+
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================
 

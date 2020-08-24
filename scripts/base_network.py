@@ -542,11 +542,11 @@ def base_network():
     n.import_components_from_dataframe(links, "Link")
     n.import_components_from_dataframe(converters, "Link")
 
-    n = _remove_unconnected_components(n)
-
     _set_lines_s_nom_from_linetypes(n)
 
     _apply_parameter_corrections(n)
+
+    n = _remove_unconnected_components(n)
 
     _set_countries_and_substations(n)
 
