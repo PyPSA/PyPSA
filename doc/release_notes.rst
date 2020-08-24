@@ -19,6 +19,8 @@ Upcoming Release
 
 * Corrected HVDC link connections (a) between Norway and Denmark and (b) mainland Italy, Corsica (FR) and Sardinia (IT) (`#181 <https://github.com/PyPSA/pypsa-eur/pull/181>`_)
 
+* Added Google Cloud Platform tutorial (for Windows users).
+
 
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================
