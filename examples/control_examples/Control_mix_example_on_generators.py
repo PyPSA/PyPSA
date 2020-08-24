@@ -33,10 +33,10 @@ def run_pf(activate_controller=False):
 
 # run pf without controller and save the results
 run_pf()
-Generators_injection = pd.DataFrame(columns=[])
-Bus_v_mag_pu = pd.DataFrame(columns=[])
-Generators_injection['no_control'] = n.generators_t.p.T['now']
-Bus_v_mag_pu['no_control'] = n.buses_t.v_mag_pu.T['now']
+generators_injection = pd.DataFrame(columns=[])
+bus_v_mag_pu = pd.DataFrame(columns=[])
+generators_injection['no_control'] = n.generators_t.p.T['now']
+bus_v_mag_pu['no_control'] = n.buses_t.v_mag_pu.T['now']
 
 
 # now apply reactive power as a function of voltage Q(U) or q_v controller,
@@ -44,8 +44,8 @@ Bus_v_mag_pu['no_control'] = n.buses_t.v_mag_pu.T['now']
 n.generators.control_strategy = 'q_v'
 # run pf and save the results
 run_pf(activate_controller=True)
-Bus_v_mag_pu['q_v_control'] = n.buses_t.v_mag_pu.T['now']
-Generators_injection['q_v_control'] = n.generators_t.p.T['now']
+bus_v_mag_pu['q_v_control'] = n.buses_t.v_mag_pu.T['now']
+generators_injection['q_v_control'] = n.generators_t.p.T['now']
 
 # now apply fixed power factor controller (fixed_cosphi), parameters
 # (power_factor, damper) are already set in (n.add(Generator...))
@@ -53,8 +53,8 @@ Generators_injection['q_v_control'] = n.generators_t.p.T['now']
 n.generators.control_strategy = 'fixed_cosphi'
 # run pf and save the results
 run_pf(activate_controller=True)
-Bus_v_mag_pu['fixed_pf_control'] = n.buses_t.v_mag_pu.T['now']
-Generators_injection['fixed_pf_control'] = n.generators_t.p.T['now']
+bus_v_mag_pu['fixed_pf_control'] = n.buses_t.v_mag_pu.T['now']
+generators_injection['fixed_pf_control'] = n.generators_t.p.T['now']
 
 ## now apply power factor as a function of real power (cosphi_p), parameters
 ## (set_p1,set_p2,s_nom,damper,power_factor_min) are already set in (n.add(Generator...))
@@ -62,8 +62,8 @@ n.generators.q_set = 0  # to clean fixed_cosphi effect
 n.generators.control_strategy = 'cosphi_p'
 # run pf and save the results
 run_pf(activate_controller=True)
-Bus_v_mag_pu['cosphi_p_control'] = n.buses_t.v_mag_pu.T['now']
-Generators_injection['cosphi_p_control'] = n.generators_t.p.T['now']
+bus_v_mag_pu['cosphi_p_control'] = n.buses_t.v_mag_pu.T['now']
+generators_injection['cosphi_p_control'] = n.generators_t.p.T['now']
 ## now apply mix of controllers
 n.generators.q_set = 0  # clean the previous controller effect
 # q_v controller
@@ -84,19 +84,19 @@ n.generators.loc['My Gen 3', 'set_p2'] = 100
 n.generators.loc['My Gen 3', 'power_factor_min'] = 0.9
 # run pf and save the results
 run_pf(activate_controller=True)
-Bus_v_mag_pu['mix_controllers'] = n.buses_t.v_mag_pu.T['now']
-Generators_injection['mix_controllers'] = n.generators_t.p.T['now']
+bus_v_mag_pu['mix_controllers'] = n.buses_t.v_mag_pu.T['now']
+generators_injection['mix_controllers'] = n.generators_t.p.T['now']
 # plotting effect of each controller on v_mag_pu and compare them
 
-plt.plot(Generators_injection['no_control'], Bus_v_mag_pu['no_control'],
+plt.plot(generators_injection['no_control'], bus_v_mag_pu['no_control'],
          linestyle='--', label="no_controller applied")
-plt.plot(Generators_injection['cosphi_p_control'], Bus_v_mag_pu['cosphi_p_control'],
+plt.plot(generators_injection['cosphi_p_control'], bus_v_mag_pu['cosphi_p_control'],
          label="cosphi_p control")
-plt.plot(Generators_injection['q_v_control'], Bus_v_mag_pu['q_v_control'],
+plt.plot(generators_injection['q_v_control'], bus_v_mag_pu['q_v_control'],
          label="q_v control")
-plt.plot(Generators_injection['fixed_pf_control'], Bus_v_mag_pu['fixed_pf_control'],
+plt.plot(generators_injection['fixed_pf_control'], bus_v_mag_pu['fixed_pf_control'],
          label="fixed_cosphi control")
-plt.plot(Generators_injection['mix_controllers'], Bus_v_mag_pu['mix_controllers'],
+plt.plot(generators_injection['mix_controllers'], bus_v_mag_pu['mix_controllers'],
          label="mix_of_controllers")
 plt.axhline(y=1.02, color='y', linestyle='--', label='max_v_mag_pu_limit',
             linewidth=3, alpha=0.5)

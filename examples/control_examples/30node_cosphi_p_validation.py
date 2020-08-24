@@ -22,9 +22,9 @@ L = pd.Series([0.00025]*1+[0.000225]*1+[0.0002]*1+[0.000175]*1 +
               [0.0001]*2+[0.000075]*2+[0.00005]*1, snapshots)
 
 # building empty dataframes for storing results
-Results_pf = pd.DataFrame(columns=[])
-Results_injection = pd.DataFrame(columns=[])
-Results_droop = pd.DataFrame(columns=[])
+results_pf = pd.DataFrame(columns=[])
+results_injection = pd.DataFrame(columns=[])
+results_droop = pd.DataFrame(columns=[])
 
 n = pypsa.Network()
 n.set_snapshots(snapshots)
@@ -49,9 +49,9 @@ n.lpf(n.snapshots)
 n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=True)
 
 # saving the necessary results for plotting controller behavior
-Results_power_factor = np.cos(np.arctan(n.generators_t.q.loc[:, 'My Gen 1':'My Gen 28']/n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28']))
+results_power_factor = np.cos(np.arctan(n.generators_t.q.loc[:, 'My Gen 1':'My Gen 28']/n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28']))
 
-Results_power_injection_percent = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28'] / (
+results_power_injection_percent = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28'] / (
         n.generators.loc['My Gen 1':'My Gen 28', 'p_ref'])*100
 
 # cosphi_p controller droop characteristic
@@ -74,24 +74,24 @@ controller_droop_injection_percentage = [10, 20, 30, 40, 50, 55, 60, 65, 70,
                                          75, 80, 85, 90, 95, 100]
 # droop output which is power factor(pf)
 for i in range(len(snapshots)):
-    Results_droop.loc[i, 'droop_pf'] = cosphi_p_controller_droop(
+    results_droop.loc[i, 'droop_pf'] = cosphi_p_controller_droop(
         controller_droop_injection_percentage[i])
 
 '''  Plotting  '''
 # droop characteristic input and output variables
-droop_power_factor = Results_droop['droop_pf']
+droop_power_factor = results_droop['droop_pf']
 droop_real_power = controller_droop_injection_percentage
 
 # plot droop characteristic
-plt.plot(droop_real_power, Results_droop,
+plt.plot(droop_real_power, results_droop,
          label="Q(U) droop characteristic", color='r')
 # plot controller behavior
-plt.scatter(Results_power_injection_percent, Results_power_factor,
+plt.scatter(results_power_injection_percent, results_power_factor,
             color="g", label="cosphi_p controller characteristic")
 # adding x and y ticks
 # p_set_injection_percentage are same for all inverters so we chose #7 here
-plt.xticks(Results_power_injection_percent['My Gen 7'], rotation=70)
-plt.yticks(Results_power_factor['My Gen 7'])
+plt.xticks(results_power_injection_percent['My Gen 7'], rotation=70)
+plt.yticks(results_power_factor['My Gen 7'])
 
 plt.title("Cosphi_p control strategy validation \n  30 node example, \n"
           "snapshots = 15")

@@ -22,8 +22,8 @@ L = pd.Series([0.0001]*1+[0.0003]*1+[0.0005]*1+[0.0008]*1 +
               [0.003]*2+[0.0035]*2+[0.004]*1, snapshots)
 
 # building empty dataframes
-Results_p = pd.DataFrame(columns=[])
-Results_q = pd.DataFrame(columns=[])
+results_p = pd.DataFrame(columns=[])
+results_q = pd.DataFrame(columns=[])
 # defining the n
 n = pypsa.Network()
 n.set_snapshots(snapshots)
@@ -45,8 +45,8 @@ n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-4, inverter_control=Tr
 
 # saving the necessary data for plotting controller behavior
 
-Results_q = n.generators_t.q.loc[:, 'My Gen 1':'My Gen 28']
-Results_p = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28']
+results_q = n.generators_t.q.loc[:, 'My Gen 1':'My Gen 28']
+results_p = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 28']
 
 # controller droop characteristic method simplified
 def fixed_cosphi_controller_droop(p_set):
@@ -67,11 +67,11 @@ for index, row in droop_df.iterrows():
 # plot droop characteristic
 plt.plot(droop_df['optional_power_input'], droop_df['droop_output'], label="Q(U) droop characteristic", color='r')
 # plot controller behavior
-plt.scatter(Results_p, -Results_q,
+plt.scatter(results_p, -results_q,
             color="g", label="fixed_cosphi controller characteristic")
 # q_set and p_set are same for all compoenents, here #29 for ticks is chosen
-plt.xticks((Results_p['My Gen 27']), rotation=70)
-plt.yticks(-Results_q['My Gen 27'])
+plt.xticks((results_p['My Gen 27']), rotation=70)
+plt.yticks(-results_q['My Gen 27'])
 plt.title("fixed_cosphi control strategy validation \n  30 node example, \n"
           "snapshots = 15")
 plt.xlabel('Real power input (MW)')

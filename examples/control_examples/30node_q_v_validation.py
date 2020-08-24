@@ -26,8 +26,8 @@ L1 = pd.Series([0.00675]*1+[0.0067]*1+[0.0066]*1+[0.0065]*1+[0.0063]*2 +
                [0.0006]*1+[0.003]*1+[0.004]*1+[0.005]*1, snapshots)
 
 # building empty dataframes for storing results
-Results_v = pd.DataFrame(columns=[])
-Results_q = pd.DataFrame(columns=[])
+results_v = pd.DataFrame(columns=[])
+results_q = pd.DataFrame(columns=[])
 
 # defining n
 n = pypsa.Network()
@@ -50,7 +50,7 @@ n.generators.control_strategy = 'q_v'
 n.lpf(n.snapshots)
 n.pf(use_seed=True, snapshots=n.snapshots, x_tol_outer=1e-6, inverter_control=True)
 
-Results_v = n.buses_t.v_mag_pu.loc[:, 'My bus 1':'My bus 29']
+results_v = n.buses_t.v_mag_pu.loc[:, 'My bus 1':'My bus 29']
 
 # q_v controller calculates the amount of reactive power internally
 q_max = n.generators_t.p.loc[:, 'My Gen 1':'My Gen 29'].mul(
@@ -84,17 +84,17 @@ def q_v_controller_droop(v_pu_bus):
 
 
 # power factor optional values to calculate droop characteristic (%)
-Results_droop = pd.DataFrame(np.arange(0.88, 1.03, 0.01), columns=['v_mag'])
+results_droop = pd.DataFrame(np.arange(0.88, 1.03, 0.01), columns=['v_mag'])
 # calculation of droop characteristic (output)
-for index, row in Results_droop.iterrows():
-    Results_droop.loc[index, "p/pmaxdroop"] = q_v_controller_droop(
-                                              Results_droop.loc[index, 'v_mag'])
+for index, row in results_droop.iterrows():
+    results_droop.loc[index, "p/pmaxdroop"] = q_v_controller_droop(
+                                              results_droop.loc[index, 'v_mag'])
 ''' Plotting '''
 # plot droop characteristic
-plt.plot(Results_droop['v_mag'], Results_droop["p/pmaxdroop"],
+plt.plot(results_droop['v_mag'], results_droop["p/pmaxdroop"],
          label="Droop characteristic", color='r')
 # plot controller behavior
-plt.scatter(Results_v, c_q_set_inj_percentage, color="g",
+plt.scatter(results_v, c_q_set_inj_percentage, color="g",
             label="Controller behaviour")
 # labeling controller parameters
 plt.text(n.generators.loc['My Gen 7', 'v1'], 100, "v1= %s" % (
