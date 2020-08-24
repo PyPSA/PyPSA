@@ -506,10 +506,16 @@ def estimate_renewable_capacities(n, tech_map=None):
 
 def add_nice_carrier_names(n, config=None):
     if config is None: config = snakemake.config
-    nice_names = pd.Series(config['plotting']['nice_names'])
-    n.carriers['nice_name'] = nice_names[n.carriers.index]
-    colors = pd.Series(config['plotting']['tech_colors'])
-    n.carriers['color'] = colors[n.carriers.index]
+    carrier_i = n.carriers.index
+    nice_names = (pd.Series(config['plotting']['nice_names'])
+                  .reindex(carrier_i).fillna(carrier_i.to_series().str.title()))
+    n.carriers['nice_name'] = nice_names
+    colors = pd.Series(config['plotting']['tech_colors']).reindex(carrier_i)
+    if colors.isna().any():
+        missing_i = list(colors.index[colors.isna()])
+        logger.warning(f'tech_colors for carriers {missing_i} not defined '
+                       'in config.')
+    n.carriers['color'] = colors
 
 
 if __name__ == "__main__":
