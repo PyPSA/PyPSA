@@ -107,6 +107,7 @@ Documentation
 * :doc:`release_notes`
 * :doc:`limitations`
 * :doc:`contributing`
+* :doc:`cloudcomputing`
 
 .. toctree::
    :hidden:
@@ -116,6 +117,7 @@ Documentation
    release_notes
    limitations
    contributing
+   cloudcomputing
 
 Warnings
 ========
