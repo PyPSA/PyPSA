@@ -826,7 +826,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None, skip_objective=False,
-         extra_postprocessing=None, formulation="kirchhoff",
+         skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
          solver_options=None, warmstart=False, store_basis=False,
@@ -865,6 +865,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    skip_pre : bool, default False
+        Skip the preliminary steps of computing topology.
     skip_objective : bool, default False
         Skip writing the default objective function. If False, a custom
         objective has to be defined via extra_functionality.
@@ -907,10 +909,10 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         "optimising without pyomo. Thus minimum up time, minimum down time, "
         "start up costs, shut down costs will be ignored.")
 
-    #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
-    n.calculate_dependent_values()
-    n.determine_network_topology()
+    if not skip_pre:
+        n.calculate_dependent_values()
+        n.determine_network_topology()
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, skip_objective,
@@ -936,7 +938,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     if status == "ok" and termination_condition == "optimal":
         logger.info('Optimization successful. Objective value: {:.2e}'.format(obj))
     elif status == "warning" and termination_condition == "suboptimal":
-        logger.warning('Optimization solution is sub-optimal. Objective value: {:.2e}'.format(obj))
+        logger.warning('Optimization solution is sub-optimal. '
+                       'Objective value: {:.2e}'.format(obj))
     else:
         logger.warning(f'Optimization failed with status {status} and '
                        f'termination condition {termination_condition}')
@@ -1015,6 +1018,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
         n.iteration = iteration
+        n.global_constraints = n.global_constraints.rename(columns={'mu': f'mu_{iteration}'})
 
 
     if track_iterations:

@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize
+from pyomo.core.expr.numeric_expr import LinearExpression
 
 import pyomo
 from contextlib import contextmanager
@@ -144,33 +145,12 @@ class LConstraint(object):
     def __repr__(self):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
-try:
-    try:
-        # With pyomo version 5.6.2, expr_pyomo5.py has been split into three files
-        # https://github.com/Pyomo/pyomo/pull/888
-        from pyomo.core.expr.numeric_expr import LinearExpression
-    except ImportError:
-        # [5.6, 5.6.2)
-        from pyomo.core.expr.expr_pyomo5 import LinearExpression
-
-    def _build_sum_expression(variables, constant=0.):
-        expr = LinearExpression()
-        expr.linear_vars = [item[1] for item in variables]
-        expr.linear_coefs = [item[0] for item in variables]
-        expr.constant = constant
-        return expr
-
-except ImportError:
-    # - 5.6)
-    from pyomo.core.base import expr_coopr3
-
-    def _build_sum_expression(variables, constant=0.):
-        expr = expr_coopr3._SumExpression()
-        expr._args = [item[1] for item in variables]
-        expr._coef = [item[0] for item in variables]
-        expr._const = constant
-        return expr
-
+def _build_sum_expression(variables, constant=0.):
+    expr = LinearExpression()
+    expr.linear_vars = [item[1] for item in variables]
+    expr.linear_coefs = [item[0] for item in variables]
+    expr.constant = constant
+    return expr
 
 def l_constraint(model,name,constraints,*args):
     """A replacement for pyomo's Constraint that quickly builds linear

@@ -742,8 +742,8 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     For more information on solver options:
     https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
-    if find_spec('gurobi') is None:
-        raise ModuleNotFoundError("Optional dependency 'gurobi' not found. "
+    if find_spec('gurobipy') is None:
+        raise ModuleNotFoundError("Optional dependency 'gurobipy' not found. "
            "Install via 'conda install -c gurobi gurobi'  or follow the "
            "instructions on the documentation page "
            "https://www.gurobi.com/documentation/")

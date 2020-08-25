@@ -7,7 +7,16 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Added support for the FICO Xpress commercial solver for `pyomo=False`.
+* First new feature
+
+PyPSA 0.17.1 (15th July 2020)
+=============================
+
+This release contains bug fixes and extensions to the features for optimization when not using Pyomo.
+
+* N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
+
+* Added support for the FICO Xpress commercial solver for optimization withhout pyomo, i.e. ``pyomo=False``.
 
 * There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were
@@ -21,6 +30,20 @@ Upcoming Release
 * Handle double-asterisk prefix in ``solution_fn`` when solving ``n.lopf(pyomo=False)`` using CBC.
 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
+
+* Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
+
+* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
+  because last iteration returns NaN (no optimisation of line capacities in final iteration).
+
+* When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True)``.
+
+* Can now cluster lines with different static ``s_max_pu`` values. Time-varying ``s_max_pu`` are not supported in clustering.
+
+* Improved handling of optional dependencies for network clustering functionalities (``sklearn`` and ``community``).
+
+Thanks to Pietro Belotti from FICO for adding the Xpress support, to Fabian Neumann (KIT) and Fabian Hofmann (FIAS) for all their
+hard work on this release, and to all those who fixed bugs and reported issues.
 
 
 PyPSA 0.17.0 (23rd March 2020)
@@ -954,6 +977,7 @@ Release process
   upload dist/pypsa-0.x.0.tar.gz``
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Upload a zip to `zenodo <https://zenodo.org/>`_ (this should also be
-  possible automatically via a github hook).
+* Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
+  will trigger `zenodo <https://zenodo.org/>`_ to archive the release
+  with its own DOI.
 * Inform the PyPSA mailing list.
