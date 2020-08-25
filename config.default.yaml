@@ -179,7 +179,7 @@ costs:
     hydro: 0.
     H2: 0.
     battery: 0.
-  emission_prices: # only used with the option Ep
+  emission_prices: # in currency per tonne emission, only used with the option Ep
     co2: 0.
 
 solving:
