@@ -23,6 +23,7 @@ Upcoming Release
 
 * Corrected setting of exogenous emission price (in config -> cost -> emission price). This was not weighted by the efficiency and effective emission of the generators. Fixed in `#171 <https://github.com/PyPSA/pypsa-eur/pull/171>`_.
 
+* Don't remove capital costs from lines and links, when imposing a line volume limit (wildcard ``lv``) or a line cost limit (``lc``). Previously, these were removed to move the expansion in direction of the limit. 
 
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================

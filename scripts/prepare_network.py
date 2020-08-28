@@ -9,8 +9,8 @@ Prepare PyPSA network for solving according to :ref:`opts` and :ref:`ll`, such a
 - adding an annual **limit** of carbon-dioxide emissions,
 - adding an exogenous **price** per tonne emissions of carbon-dioxide (or other kinds),
 - setting an **N-1 security margin** factor for transmission line capacities,
-- specifying a limit on the **cost** of transmission expansion,
-- specifying a limit on the **volume** of transmission expansion, and
+- specifying an expansion limit on the **cost** of transmission expansion,
+- specifying an expansion limit on the **volume** of transmission expansion, and
 - reducing the **temporal** resolution by averaging over multiple hours.
 
 Relevant Settings
@@ -79,6 +79,7 @@ def add_co2limit(n, Nyears=1., factor=None):
           carrier_attribute="co2_emissions", sense="<=",
           constant=annual_emissions * Nyears)
 
+
 def add_emission_prices(n, emission_prices=None, exclude_co2=False):
     if emission_prices is None:
         emission_prices = snakemake.config['costs']['emission_prices']
@@ -90,85 +91,47 @@ def add_emission_prices(n, emission_prices=None, exclude_co2=False):
     su_ep = n.storage_units.carrier.map(ep) / n.storage_units.efficiency_dispatch
     n.storage_units['marginal_cost'] += su_ep
 
+
 def set_line_s_max_pu(n):
     # set n-1 security margin to 0.5 for 37 clusters and to 0.7 from 200 clusters
     n_clusters = len(n.buses)
     s_max_pu = np.clip(0.5 + 0.2 * (n_clusters - 37) / (200 - 37), 0.5, 0.7)
     n.lines['s_max_pu'] = s_max_pu
 
-def set_line_cost_limit(n, lc, Nyears=1.):
+
+def set_transmission_limit(n, ll_type, factor, Nyears=1):
     links_dc_b = n.links.carrier == 'DC' if not n.links.empty else pd.Series()
 
-    lines_s_nom = n.lines.s_nom.where(
-        n.lines.type == '',
-        np.sqrt(3) * n.lines.num_parallel *
-        n.lines.type.map(n.line_types.i_nom) *
-        n.lines.bus0.map(n.buses.v_nom)
-    )
+    _lines_s_nom = (np.sqrt(3) * n.lines.type.map(n.line_types.i_nom) *
+                   n.lines.num_parallel *  n.lines.bus0.map(n.buses.v_nom))
+    lines_s_nom = n.lines.s_nom.where(n.lines.type == '', _lines_s_nom)
 
-    n.lines['capital_cost_lc'] = n.lines['capital_cost']
-    n.links['capital_cost_lc'] = n.links['capital_cost']
-    total_line_cost = ((lines_s_nom * n.lines['capital_cost_lc']).sum() +
-                       n.links.loc[links_dc_b].eval('p_nom * capital_cost_lc').sum())
 
-    if lc == 'opt':
-        costs = load_costs(Nyears, snakemake.input.tech_costs,
-                           snakemake.config['costs'], snakemake.config['electricity'])
-        update_transmission_costs(n, costs, simple_hvdc_costs=False)
-    else:
-        # Either line_volume cap or cost
-        n.lines['capital_cost'] = 0.
-        n.links.loc[links_dc_b, 'capital_cost'] = 0.
+    col = 'capital_cost' if ll_type == 'c' else 'length'
+    ref = (lines_s_nom @ n.lines[col] +
+           n.links[links_dc_b].p_nom @ n.links[links_dc_b][col])
 
-    if lc == 'opt' or float(lc) > 1.0:
+    costs = load_costs(Nyears, snakemake.input.tech_costs,
+                       snakemake.config['costs'],
+                       snakemake.config['electricity'])
+    update_transmission_costs(n, costs, simple_hvdc_costs=False)
+
+    if factor == 'opt' or float(factor) > 1.0:
         n.lines['s_nom_min'] = lines_s_nom
         n.lines['s_nom_extendable'] = True
 
         n.links.loc[links_dc_b, 'p_nom_min'] = n.links.loc[links_dc_b, 'p_nom']
         n.links.loc[links_dc_b, 'p_nom_extendable'] = True
 
-        if lc != 'opt':
-            line_cost = float(lc) * total_line_cost
-            n.add('GlobalConstraint', 'lc_limit',
-                  type='transmission_expansion_cost_limit',
-                  sense='<=', constant=line_cost, carrier_attribute='AC, DC')
+    if factor != 'opt':
+        con_type = 'expansion_cost' if ll_type == 'c' else 'volume_expansion'
+        rhs = float(factor) * ref
+        n.add('GlobalConstraint', f'l{ll_type}_factor',
+              type=f'transmission_{con_type}_limit',
+              sense='<=', constant=rhs, carrier_attribute='AC, DC')
     return n
 
-def set_line_volume_limit(n, lv, Nyears=1.):
-    links_dc_b = n.links.carrier == 'DC' if not n.links.empty else pd.Series()
 
-    lines_s_nom = n.lines.s_nom.where(
-        n.lines.type == '',
-        np.sqrt(3) * n.lines.num_parallel *
-        n.lines.type.map(n.line_types.i_nom) *
-        n.lines.bus0.map(n.buses.v_nom)
-    )
-
-    total_line_volume = ((lines_s_nom * n.lines['length']).sum() +
-                         n.links.loc[links_dc_b].eval('p_nom * length').sum())
-
-    if lv == 'opt':
-        costs = load_costs(Nyears, snakemake.input.tech_costs,
-                           snakemake.config['costs'], snakemake.config['electricity'])
-        update_transmission_costs(n, costs, simple_hvdc_costs=True)
-    else:
-        # Either line_volume cap or cost
-        n.lines['capital_cost'] = 0.
-        n.links.loc[links_dc_b, 'capital_cost'] = 0.
-
-    if lv == 'opt' or float(lv) > 1.0:
-        n.lines['s_nom_min'] = lines_s_nom
-        n.lines['s_nom_extendable'] = True
-
-        n.links.loc[links_dc_b, 'p_nom_min'] = n.links.loc[links_dc_b, 'p_nom']
-        n.links.loc[links_dc_b, 'p_nom_extendable'] = True
-
-        if lv != 'opt':
-            line_volume = float(lv) * total_line_volume
-            n.add('GlobalConstraint', 'lv_limit',
-                  type='transmission_volume_expansion_limit',
-                  sense='<=', constant=line_volume, carrier_attribute='AC, DC')
-    return n
 
 def average_every_nhours(n, offset):
     logger.info('Resampling the network to {}'.format(offset))
@@ -191,7 +154,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('prepare_network', network='elec', simpl='',
-                                  clusters='5', ll='copt', opts='Co2L-24H')
+                                  clusters='40', ll='v0.3', opts='Co2L-24H')
     configure_logging(snakemake)
 
     opts = snakemake.wildcards.opts.split('-')
@@ -234,9 +197,6 @@ if __name__ == "__main__":
         add_emission_prices(n)
 
     ll_type, factor = snakemake.wildcards.ll[0], snakemake.wildcards.ll[1:]
-    if ll_type == 'v':
-        set_line_volume_limit(n, factor, Nyears)
-    elif ll_type == 'c':
-        set_line_cost_limit(n, factor, Nyears)
+    set_transmission_limit(n, ll_type, factor, Nyears)
 
     n.export_to_netcdf(snakemake.output[0])
