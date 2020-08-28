@@ -126,7 +126,7 @@ def set_transmission_limit(n, ll_type, factor, Nyears=1):
     if factor != 'opt':
         con_type = 'expansion_cost' if ll_type == 'c' else 'volume_expansion'
         rhs = float(factor) * ref
-        n.add('GlobalConstraint', f'l{ll_type}_factor',
+        n.add('GlobalConstraint', f'l{ll_type}_limit',
               type=f'transmission_{con_type}_limit',
               sense='<=', constant=rhs, carrier_attribute='AC, DC')
     return n
