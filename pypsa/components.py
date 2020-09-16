@@ -54,7 +54,8 @@ from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, find_cycles,
                  calculate_Y, calculate_PTDF, calculate_B_H,
                  calculate_dependent_values)
-from .logic import (init_switches, reinit_switches,
+from .logic import (init_switches, reinit_switches_after_adding_components,
+                    reinit_switches_after_removing_components,
                     determine_logical_topology,
                     find_only_logical_buses,
                     find_switches_connections,
@@ -222,7 +223,8 @@ class Network(Basic):
 
     # switching logic:
     init_switches = init_switches
-    reinit_switches = reinit_switches
+    reinit_switches_after_adding_components = reinit_switches_after_adding_components
+    reinit_switches_after_removing_components = reinit_switches_after_removing_components
     determine_logical_topology = determine_logical_topology
     find_only_logical_buses = find_only_logical_buses
     find_switches_connections = find_switches_connections
@@ -601,7 +603,7 @@ class Network(Basic):
                     switch_related = new_df.at[name, attr] in buses_with_switches
                     if switch_related:
                         logger.debug("The new %s has bus(es) which are connected to switches."
-                                     "So we need to call network.reinit_switches():\n%s",
+                                     "So we need to call network.reinit_switches_after_adding_components():\n%s",
                                      class_name, switch_related)
                         need_to_reinit = True
                         status_before = self.switches.status.copy()
@@ -611,7 +613,7 @@ class Network(Basic):
                 if bus_name not in self.buses.index:
                     logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
         if need_to_reinit:
-            self.reinit_switches(status_before)
+            self.reinit_switches_after_adding_components(status_before, class_name, switch_related)
 
 
     def remove(self, class_name, name):
@@ -650,7 +652,7 @@ class Network(Basic):
                     switch_related = cls_df.at[name, attr] in buses_with_switches
                     if switch_related:
                         logger.debug("The %s we are removing has bus(es) which are connected to switches."
-                                     "So we need to open_switches, call network.reinit_switches(True) and"
+                                     "So we need to open_switches, call network.reinit_switches_after_removing_components() and"
                                      "switch back to status_before:\n%s", class_name, switch_related)
                         need_to_reinit = True
         if need_to_reinit:
@@ -658,7 +660,9 @@ class Network(Basic):
             self.open_switches(self.switches.index)
         cls_df.drop(name, inplace=True)
         if need_to_reinit:
-            self.reinit_switches(skip_switching=True)
+            self.reinit_switches_after_removing_components(class_name, switch_related)
+            if class_name == "Switch": # we removed a switch, do that for status also
+                status_before = status_before.drop(name)
             self.switches.status = status_before
             self.switching()
         pnl = self.pnl(class_name)
@@ -791,15 +795,15 @@ class Network(Basic):
         # check if we need to reinitialize switches
         need_to_reinit = False
         if len(self.switches):
+            buses_with_switches = ((self.switches.bus1.
+                                    append(self.switches.bus0)).drop_duplicates().tolist()
+                                   + (self.buses_connected.index.tolist()))
             for attr in ["bus", "bus0", "bus1"]:
                 if attr in cls_df.columns:
-                    buses_with_switches = ((self.switches.bus1.
-                                            append(self.switches.bus0)).drop_duplicates().tolist()
-                                           + (self.buses_connected.index.tolist()))
                     switch_related = cls_df[attr].isin(buses_with_switches)
                     if len(switch_related):
                         logger.debug("The %s we are removing has bus(es) which are connected to switches."
-                                     "So we need to open_switches, call network.reinit_switches(True) and"
+                                     "So we need to open_switches, call network.reinit_switches_after_removing_components() and"
                                      "switch back to status_before:\n%s", class_name, switch_related)
                         need_to_reinit = True
         if need_to_reinit:
@@ -807,8 +811,10 @@ class Network(Basic):
             self.open_switches(self.switches.index)
         cls_df.drop(names, inplace=True)
         if need_to_reinit:
-            self.reinit_switches(status_before, skip_switching=True)
-            self.switches.status = status_before  # hold on, when we remove switches thaat fails right?
+            self.reinit_switches_after_removing_components(class_name, switch_related)
+            if class_name == "Switch": # we removed switches, do that for status also
+                status_before = status_before.drop(names)
+            self.switches.status = status_before
             self.switching()
 
         pnl = self.pnl(class_name)

@@ -32,11 +32,9 @@ from textwrap import dedent
 from glob import glob
 
 import pandas as pd
-import pypsa
+# import pypsa  # TODO: commented, not needed right?
 import numpy as np
 import math
-
-from .logic import init_switches, reinit_switches
 
 try:
     import xarray as xr
@@ -760,16 +758,18 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
         elif len(network.switches):  # this does not catch first switches in network i.e. when importing from csv folder
             try:
                 test_init = network.switches_connections  # AttributeError if not initialized
+                buses_with_switches = (network.switches.bus1.append(network.switches.bus0).drop_duplicates().tolist())
+                switch_related =  []
                 for attr in ["bus", "bus0", "bus1"]:
                     if attr in dataframe.columns:
-                        buses_with_switches = (network.switches.bus1.append(network.switches.bus0).drop_duplicates().tolist())
-                        switch_related = dataframe.index[dataframe[attr].isin(buses_with_switches)]
-                        if len(switch_related) > 0:
-                            logger.debug("The following %s have buses which are connected to switches."
-                                         "So we need to call network.reinit_switches():\n%s",
-                                         cls_name, switch_related)
-                            need_to_reinit = True
-                            status_old_switches = network.switches.status.copy()
+                        switch_related += dataframe.index[dataframe[attr].isin(buses_with_switches)].tolist()
+                switch_related = list(set(switch_related))
+                if len(switch_related) > 0:
+                    logger.debug("The following %s have buses which are connected to switches."
+                                 "So we need to call network.reinit_switches_after_adding_components():\n%s",
+                                 cls_name, switch_related)
+                    need_to_reinit = True
+                    status_old_switches = network.switches.status.copy()
             except AttributeError:
                 need_to_init = True
 
@@ -797,9 +797,9 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
         return
     setattr(network, network.components[cls_name]["list_name"], new_df)
     if need_to_reinit:  # the new component is connected to a switch, initialize again
-        reinit_switches(network, status_old_switches)
+        network.reinit_switches_after_adding_components(status_old_switches, cls_name, switch_related)
     elif need_to_init:  # the new component is connected to a switch, initialize
-        init_switches(network)
+        network.init_switches()
     #now deal with time-dependent properties
 
     pnl = network.pnl(cls_name)
