@@ -41,7 +41,7 @@ def reinit_switches_after_removing_components(network, cls_name, switch_related)
     init_switches, but without calling switching()
     """
     # before calling this, we opened all switches and dropped the components
-    logger.info("reinitializing switches after removing component(s) of type %s related to switches:/n%s" % (cls_name, switch_related))
+    logger.info("reinitializing switches after removing component(s) of type %s related to switches:\n%s" % (cls_name, switch_related))
     determine_logical_topology(network)
     find_only_logical_buses(network)
     find_switches_connections(network)
@@ -54,15 +54,17 @@ def reinit_switches_after_adding_components(network, status_old_switches, cls_na
     switches again. using seperate function for speed improvements:
     access 
     """
-    logger.error("\n\n\nreinitializing switches after adding component(s) of type %s related to switches:/n%s" % (cls_name, switch_related))
+    logger.info("reinitializing switches after adding component(s) of type %s related to switches:\n%s" % (cls_name, switch_related))
     switches_status_before = network.switches.status.copy()  # there might be new ones
-    open_switches(network, status_old_switches.index)
+    closed_switches_before = switches_status_before.loc[switches_status_before == 1].index.tolist()
+    network.open_switches(closed_switches_before, skip_result_deletion=True)
     determine_logical_topology(network)
     find_only_logical_buses(network)
     # find_switches_connections hurts most, because it is slow:
-    if False:
+    if cls_name == "Switch":  # TODO: think about this...
+        logger.error("adding a switch, consider improving speed...")
         find_switches_connections(network)
-    elif True:
+    else:
         # start section replacing find_switches_connections:
         list_name = network.components[cls_name]["list_name"]
         cls_df = network.df(cls_name).loc[switch_related]
@@ -98,48 +100,10 @@ def reinit_switches_after_adding_components(network, status_old_switches, cls_na
                 switches_connections.loc[switch, "bus_" + list_name + "_bus1"] += rename_list_el_log1
         setattr(network, "switches_connections", switches_connections)
         # end section replacing find_switches_connections(network)
-    else:
-        """
-        add the dataframe switches_connections to the network with switches as
-        index and columns that indicate for every existent type of component:
-            - with wich bus it is connected to the switch
-            - at which bus of the switch it is connected
-        The columns are named, so that they can be used for accessing the
-        relevant dataframes when splitting them by "_". For example, if lines
-        are existent in the network the df switches_connections will have these
-        columns:
-        bus0_lines_bus0, bus0_lines_bus1, bus_1_lines_bus0, bus1_lines_bus1
-        Each cell contains a list of indexes of connected electrical elements.
-        """
-        logger.info("find_switches_connections: creating network.switches_connections")
-        n_switches = len(network.switches)  # TODO: for now only switches, but maybe use fuses or so also
-        switches_connections = pd.DataFrame(index=network.switches.index)
-        for c in network.iterate_components(network.branch_components):
-            switches_connections["bus0_" + c.list_name + "_bus0"] = np.empty((n_switches, 0)).tolist()
-            switches_connections["bus0_" + c.list_name + "_bus1"] = np.empty((n_switches, 0)).tolist()
-            switches_connections["bus1_" + c.list_name + "_bus0"] = np.empty((n_switches, 0)).tolist()
-            switches_connections["bus1_" + c.list_name + "_bus1"] = np.empty((n_switches, 0)).tolist()
-        for c in network.iterate_components(network.one_port_components):
-            switches_connections["bus_" + c.list_name + "_bus0"] = np.empty((n_switches, 0)).tolist()
-            switches_connections["bus_" + c.list_name + "_bus1"] = np.empty((n_switches, 0)).tolist()
-        for switch in network.switches.index:
-            for c in network.iterate_components(network.branch_components):
-                rename_list_el0_log0 = c.df.loc[c.df.bus0 == network.switches.loc[switch, "bus0"]].index.tolist()
-                rename_list_el0_log1 = c.df.loc[c.df.bus0 == network.switches.loc[switch, "bus1"]].index.tolist()
-                rename_list_el1_log0 = c.df.loc[c.df.bus1 == network.switches.loc[switch, "bus0"]].index.tolist()
-                rename_list_el1_log1 = c.df.loc[c.df.bus1 == network.switches.loc[switch, "bus1"]].index.tolist()
-                switches_connections.loc[switch, "bus0_" + c.list_name + "_bus0"] += (rename_list_el0_log0)
-                switches_connections.loc[switch, "bus0_" + c.list_name + "_bus1"] += (rename_list_el0_log1)
-                switches_connections.loc[switch, "bus1_" + c.list_name + "_bus0"] += (rename_list_el1_log0)
-                switches_connections.loc[switch, "bus1_" + c.list_name + "_bus1"] += (rename_list_el1_log1)
-            for c in network.iterate_components(network.one_port_components):
-                rename_list_el_log0 = c.df.loc[c.df.bus == network.switches.loc[switch, "bus0"]].index.tolist()
-                rename_list_el_log1 = c.df.loc[c.df.bus == network.switches.loc[switch, "bus1"]].index.tolist()
-                switches_connections.loc[switch, "bus_" + c.list_name + "_bus0"] += rename_list_el_log0
-                switches_connections.loc[switch, "bus_" + c.list_name + "_bus1"] += rename_list_el_log1
-                network.switches_connections = switches_connections
-    network.switches.status = switches_status_before
-    network.switching()
+    network.close_switches(closed_switches_before)
+    if cls_name == "Switch":  # TODO: think about this...
+        network.switches.status = switches_status_before
+        network.switching()
 
 
 def add_switch(network, name, bus0, bus1, status, i_max=np.nan):

@@ -751,7 +751,7 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
             try:
                 test_init = network.switches_connections  # AttributeError if not initialized
                 need_to_reinit = True
-                status_old_switches = network.switches.status
+                status_old_switches = network.switches.status.copy()
             except AttributeError:
                 need_to_init = True
 
