@@ -333,7 +333,7 @@ if __name__ == "__main__":
 
     renewable_carriers = pd.Index([tech
                                    for tech in n.generators.carrier.unique()
-                                   if tech.split('-', 2)[0] in snakemake.config['renewable']])
+                                   if tech in snakemake.config['renewable']])
 
     if snakemake.wildcards.clusters.endswith('m'):
         n_clusters = int(snakemake.wildcards.clusters[:-1])
