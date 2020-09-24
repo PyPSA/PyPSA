@@ -48,7 +48,7 @@ def reinit_switches_after_removing_components(network, cls_name, switch_related)
     # after calling this we will switch back to the switching status from before calling this
 
 
-def reinit_switches_after_adding_components(network, status_old_switches, cls_name, switch_related):
+def reinit_switches_after_adding_components(network, status_old_switches, cls_name, switch_related, skip_result_deletion=False):
     """
     after adding components that are switch-related we need to init the
     switches again. using seperate function for speed improvements:
@@ -100,7 +100,7 @@ def reinit_switches_after_adding_components(network, status_old_switches, cls_na
                 switches_connections.loc[switch, "bus_" + list_name + "_bus1"] += rename_list_el_log1
         setattr(network, "switches_connections", switches_connections)
         # end section replacing find_switches_connections(network)
-    network.close_switches(closed_switches_before)
+    network.close_switches(closed_switches_before, skip_result_deletion)
     if cls_name == "Switch":  # TODO: think about this...
         network.switches.status = switches_status_before
         network.switching()
@@ -350,7 +350,7 @@ def close_switches(network, switches, skip_result_deletion=False):
         delete_calculation_results(network)
 
 
-def open_switches(network, switches, skip_result_deletion=False, skip_reopening=False):
+def open_switches(network, switches, skip_result_deletion=False, skip_reclosing=False):
     """
     In order to open switches we:
         - let bus_connected disappear in one_port_components.bus and replace it with bus_disconnected
@@ -399,7 +399,7 @@ def open_switches(network, switches, skip_result_deletion=False, skip_reopening=
             # in case it is connected to the same electrical element, we need
             # to bring back its bus_connected at that electrical element
             to_reclose += i_closed
-    if len(to_reclose) and not skip_reopening:
+    if len(to_reclose) and not skip_reclosing:
         to_reclose = list(set(to_reclose))
         logger.info("these switches might need to be closed again:\n%s", to_reclose)
         network.close_switches(to_reclose, skip_result_deletion=True)

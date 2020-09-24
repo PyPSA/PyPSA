@@ -797,7 +797,8 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
         return
     setattr(network, network.components[cls_name]["list_name"], new_df)
     if need_to_reinit:  # the new component is connected to a switch, initialize again
-        network.reinit_switches_after_adding_components(status_old_switches, cls_name, switch_related)
+        # TODO: skip_result_deletion? basically the user should know that adding a component makes results invalid?
+        network.reinit_switches_after_adding_components(status_old_switches, cls_name, switch_related, skip_result_deletion=True)
     elif need_to_init:  # the new component is connected to a switch, initialize
         network.init_switches()
     #now deal with time-dependent properties
