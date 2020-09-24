@@ -182,7 +182,8 @@ if __name__ == "__main__":
 
     for o in opts:
         oo = o.split("+")
-        if oo[0].startswith(tuple(n.carriers.index)):
+        suptechs = map(lambda c: c.split("-", 2)[0], n.carriers.index)
+        if oo[0].startswith(tuple(suptechs)):
             carrier = oo[0]
             cost_factor = float(oo[1])
             if carrier == "AC":  # lines do not have carrier
