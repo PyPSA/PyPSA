@@ -7,7 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* First new feature
+* Bump minimum ``pandas`` requirement to version 1.1.0.
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
