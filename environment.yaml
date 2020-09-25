@@ -27,6 +27,7 @@ dependencies:
   - pytables
   - lxml
   - powerplantmatching>=0.4.3
+  - numpy<=1.19.0 # otherwise macos fails
 
   # Second order dependencies which should really be deps of atlite
   - xarray
@@ -49,7 +50,7 @@ dependencies:
   - geopandas
   - rasterio
   - shapely
-  - libgdal<=3.0.2
+  - libgdal<=3.0.4
 
   # Solvers
   - gurobi:gurobi # until https://github.com/conda-forge/pypsa-feedstock/issues/4 closed
