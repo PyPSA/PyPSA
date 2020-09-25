@@ -11,7 +11,6 @@ channels:
 dependencies:
   - python
   - pip
-  - mamba
 
   - pypsa>=0.17.1
   - atlite=0.0.3
