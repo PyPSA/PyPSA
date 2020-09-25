@@ -27,6 +27,8 @@ Upcoming Release
 
 * Fix bug of clustering offwind-{ac,dc} sites in the option of high-resolution sites for renewables. Now, there are more sites for offwind-{ac,dc} available than network nodes. Before, they were clustered to the resolution of the network. (e.g. elec_s1024_37m.nc: 37 network nodes, 1024 sites)
 
+* Use `mamba` (https://github.com/mamba-org/mamba) for faster Travis CI builds (`#196 <https://github.com/PyPSA/pypsa-eur/pull/196>`_)
+
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================
 
