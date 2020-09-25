@@ -41,9 +41,7 @@ def test_sclopf():
 
         # For the PF, set the P to the optimised P
         n.generators_t.p_set = n.generators_t.p.copy()
-        n.generators.loc[:, "p_set_t"] = True
         n.storage_units_t.p_set = n.storage_units_t.p.copy()
-        n.storage_units.loc[:, "p_set_t"] = True
 
         # Check no lines are overloaded with the linear contingency analysis
 

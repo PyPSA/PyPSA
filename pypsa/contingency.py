@@ -129,7 +129,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for c in network.passive_branch_components:
         pnl = network.pnl(c)
-        p0_base[c] = pnl.p0.loc[snapshot]
+        p0_base.at[c] = pnl.p0.loc[snapshot]
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
