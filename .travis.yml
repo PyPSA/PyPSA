@@ -15,7 +15,6 @@ before_install:
   - source conda4travis.sh
 
   # install conda environment
-  - conda env create -f ./environment.yaml
   - conda install -c conda-forge mamba
   - mamba env create -f ./envs/environment.yaml
   - conda activate pypsa-eur
