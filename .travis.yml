@@ -20,8 +20,8 @@ before_install:
   - conda activate pypsa-eur
 
   # install open-source solver
-  - mamba install -c conda-forge ipopt
   - mamba install -c conda-forge glpk
+  - conda install -c conda-forge ipopt
 
   # list packages for easier debugging
   - conda list
