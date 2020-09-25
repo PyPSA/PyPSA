@@ -11,6 +11,7 @@ channels:
 dependencies:
   - python
   - pip
+  - mamba # esp for windows build
 
   - pypsa>=0.17.1
   - atlite=0.0.3
@@ -48,7 +49,7 @@ dependencies:
   - geopandas
   - rasterio
   - shapely
-  - libgdal
+  - libgdal<=3.0.2
 
   # Solvers
   - gurobi:gurobi # until https://github.com/conda-forge/pypsa-feedstock/issues/4 closed
