@@ -258,7 +258,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algori
             raise ValueError(f"`algorithm` must be one of 'kmeans', 'spectral' or 'louvain'. Is {algorithm}.")
 
     return (n.buses.groupby(['country', 'sub_network'], group_keys=False)
-            .apply(busmap_for_country).rename('busmap'))
+            .apply(busmap_for_country).squeeze().rename('busmap'))
 
 def plot_busmap_for_n_clusters(n, n_clusters=50):
     busmap = busmap_for_n_clusters(n, n_clusters)
