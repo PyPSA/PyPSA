@@ -47,47 +47,47 @@ The model can be adapted to only include selected countries (e.g. Germany) inste
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 16
+   :lines: 20
    
 Likewise, the example's temporal scope can be restricted (e.g. to a single month).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 18-21
+   :lines: 22-25
 
 It is also possible to allow less or more carbon-dioxide emissions. Here, we limit the emissions of Germany 100 Megatonnes per year.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 33
+   :lines: 35,37
 
 PyPSA-Eur also includes a database of existing conventional powerplants.
 We can select which types of powerplants we like to be included with fixed capacities:
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 47
+   :lines: 35,51
 
 To accurately model the temporal and spatial availability of renewables such as wind and solar energy, we rely on historical weather data.
 It is advisable to adapt the required range of coordinates to the selection of countries.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 49-57
+   :lines: 53-61
 
 We can also decide which weather data source should be used to calculate potentials and capacity factor time-series for each carrier.
 For example, we may want to use the ERA-5 dataset for solar and not the default SARAH-2 dataset.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 59,102-103
+   :lines: 63,106-107
 
 Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 158,167-168
+   :lines: 164,175-176
 
 .. note::
 
@@ -271,7 +271,7 @@ the wildcards given in ``scenario`` in the configuration file ``config.yaml`` ar
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 7-12
+   :lines: 13-18
 
 In this example we would not only solve a 6-node model of Germany but also a 2-node model.
 

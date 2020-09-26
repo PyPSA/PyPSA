@@ -152,11 +152,13 @@ lines:
     300.: "Al/St 240/40 3-bundle 300.0"
     380.: "Al/St 240/40 4-bundle 380.0"
   s_max_pu: 0.7
+  s_nom_max: .inf
   length_factor: 1.25
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 
 links:
   p_max_pu: 1.0
+  p_nom_max: .inf
   include_tyndp: true
   under_construction: 'zero' # 'zero': set capacity to zero, 'remove': remove, 'keep': with full capacity
 

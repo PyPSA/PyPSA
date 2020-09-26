@@ -90,6 +90,7 @@ from _helpers import configure_logging
 
 import numpy as np
 import pandas as pd
+import re
 
 import pypsa
 from pypsa.linopf import (get_var, define_constraints, linexpr, join_exprs,
@@ -167,6 +168,34 @@ def add_CCL_constraints(n, config):
                                            '<=', maximum, 'agg_p_nom', 'max')
 
 
+def add_EQ_constraints(n, o, scaling=1e-1):
+    float_regex = "[0-9]*\.?[0-9]+"
+    level = float(re.findall(float_regex, o)[0])
+    if o[-1] == 'c':
+        ggrouper = n.generators.bus.map(n.buses.country)
+        lgrouper = n.loads.bus.map(n.buses.country)
+        sgrouper = n.storage_units.bus.map(n.buses.country)
+    else:
+        ggrouper = n.generators.bus
+        lgrouper = n.loads.bus
+        sgrouper = n.storage_units.bus
+    load = n.snapshot_weightings @ \
+           n.loads_t.p_set.groupby(lgrouper, axis=1).sum()
+    inflow = n.snapshot_weightings @ \
+             n.storage_units_t.inflow.groupby(sgrouper, axis=1).sum()
+    inflow = inflow.reindex(load.index).fillna(0.)
+    rhs = scaling * ( level * load - inflow )
+    lhs_gen = linexpr((n.snapshot_weightings * scaling,
+                       get_var(n, "Generator", "p").T)
+              ).T.groupby(ggrouper, axis=1).apply(join_exprs)
+    lhs_spill = linexpr((-n.snapshot_weightings * scaling,
+                         get_var(n, "StorageUnit", "spill").T)
+                ).T.groupby(sgrouper, axis=1).apply(join_exprs)
+    lhs_spill = lhs_spill.reindex(lhs_gen.index).fillna("")
+    lhs = lhs_gen + lhs_spill
+    define_constraints(n, lhs, ">=", rhs, "equity", "min")
+
+
 def add_BAU_constraints(n, config):
     mincaps = pd.Series(config['electricity']['BAU_mincapacities'])
     lhs = (linexpr((1, get_var(n, 'Generator', 'p_nom')))
@@ -211,6 +240,9 @@ def extra_functionality(n, snapshots):
         add_SAFE_constraints(n, config)
     if 'CCL' in opts and n.generators.p_nom_extendable.any():
         add_CCL_constraints(n, config)
+    for o in opts:
+        if "EQ" in o:
+            add_EQ_constraints(n, o)
     add_battery_constraints(n)
 
 

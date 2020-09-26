@@ -18,7 +18,7 @@ Top-level configuration
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 1-8,17,24-30
+   :lines: 5-12,21,28-34
 
 .. csv-table::
    :header-rows: 1
@@ -50,7 +50,7 @@ An exemplary dependency graph (starting from the simplification rules) then look
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 10-15
+   :lines: 14-19
 
 .. csv-table::
    :header-rows: 1
@@ -66,7 +66,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 19-22
+   :lines: 23-26
 
 .. csv-table::
    :header-rows: 1
@@ -80,7 +80,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 32-50
+   :lines: 36-54
 
 .. csv-table::
    :header-rows: 1
@@ -97,7 +97,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 57-70
+   :lines: 61-74
 
 .. csv-table::
    :header-rows: 1
@@ -114,7 +114,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 72-89
+   :lines: 76-93
 
 .. csv-table::
    :header-rows: 1
@@ -126,7 +126,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 72,90-102
+   :lines: 76,94-106
 
 .. csv-table::
    :header-rows: 1
@@ -138,7 +138,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 72,103-116
+   :lines: 76,107-120
 
 .. csv-table::
    :header-rows: 1
@@ -150,7 +150,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 72,117-136
+   :lines: 76,121-140
 
 .. csv-table::
    :header-rows: 1
@@ -162,7 +162,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 72,137-143
+   :lines: 76,141-147
 
 .. csv-table::
    :header-rows: 1
@@ -176,7 +176,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 145-152
+   :lines: 149-157
 
 .. csv-table::
    :header-rows: 1
@@ -190,7 +190,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 154-157
+   :lines: 159-163
 
 .. csv-table::
    :header-rows: 1
@@ -204,7 +204,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 159-162
+   :lines: 165-168
 
 .. csv-table::
    :header-rows: 1
@@ -218,7 +218,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 164-165
+   :lines: 170-171
 
 .. csv-table::
    :header-rows: 1
@@ -232,7 +232,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 167-179
+   :lines: 173-185
 
 .. csv-table::
    :header-rows: 1
@@ -254,7 +254,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 181-189
+   :lines: 187-197
 
 .. csv-table::
    :header-rows: 1
@@ -266,7 +266,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 181,190-206
+   :lines: 187,198-214
 
 .. csv-table::
    :header-rows: 1
@@ -280,7 +280,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 208-342
+   :lines: 216-355
 
 .. csv-table::
    :header-rows: 1
