@@ -563,8 +563,9 @@ def define_objective(n, sns):
     for c, attr in nom_attr:
         ext_i = get_extendable_i(n, c)
         constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
-    object_const = write_bound(n, constant, constant)
-    write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
+    if constant != 0:
+        object_const = write_bound(n, constant, constant)
+        write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
     n.objective_constant = constant
 
     for c, attr in lookup.query('marginal_cost').index:
