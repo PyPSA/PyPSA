@@ -285,41 +285,30 @@ def define_ramp_limit_constraints(n, sns):
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
     for carrier in n.carriers.index:
-        col = f'nom_max_{carrier}'
-        if col not in n.buses.columns: continue
-        rhs = n.buses[col].dropna()
-        lhs = pd.Series('', rhs.index)
+        for bound, sense in [("max", "<="), ("min", ">=")]:
 
-        for c, attr in nominal_attrs.items():
-            if c not in n.one_port_components: continue
-            attr = nominal_attrs[c]
-            if (c, attr) not in n.variables.index: continue
-            nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
-            if nominals.empty: continue
-            per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
-            lhs += per_bus.reindex(lhs.index, fill_value='')
-        lhs = lhs[lhs != '']
-        rhs = rhs.reindex(lhs.index)
-        define_constraints(n, lhs, '<=', rhs, 'Bus', 'mu_' + col)
+            col = f'nom_{bound}_{carrier}'
+            if col not in n.buses.columns: continue
+            rhs = n.buses[col].dropna()
+            lhs = pd.Series('', rhs.index)
 
-    for carrier in n.carriers.index:
-        col = f'nom_min_{carrier}'
-        if col not in n.buses.columns: continue
-        rhs = n.buses[col].dropna()
-        lhs = pd.Series('', rhs.index)
+            for c, attr in nominal_attrs.items():
+                if c not in n.one_port_components: continue
+                attr = nominal_attrs[c]
+                if (c, attr) not in n.variables.index: continue
+                nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
+                if nominals.empty: continue
+                per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
+                lhs += per_bus.reindex(lhs.index, fill_value='')
 
-        for c, attr in nominal_attrs.items():
-            if c not in n.one_port_components: continue
-            attr = nominal_attrs[c]
-            if (c, attr) not in n.variables.index: continue
-            nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
-            if nominals.empty: continue
-            per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
-            lhs += per_bus.reindex(lhs.index, fill_value='')
-        assert (lhs != '').all(), (
-            f'No extendable components of carrier {carrier} on bus '
-            f'{list(lhs[lhs == ""].index)}')
-        define_constraints(n, lhs, '>=', rhs, 'Bus', 'mu_' + col)
+            if bound == 'max':
+                lhs = lhs[lhs != '']
+                rhs = rhs.reindex(lhs.index)
+            else:
+                assert (lhs != '').all(), (
+                    f'No extendable components of carrier {carrier} on bus '
+                    f'{list(lhs[lhs == ""].index)}')
+            define_constraints(n, lhs, sense, rhs, 'Bus', 'mu_' + col)
 
 
 def define_nodal_balance_constraints(n, sns):
