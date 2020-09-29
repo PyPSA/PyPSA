@@ -41,11 +41,13 @@ for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 Documentation
 =============
 
-`Documentation as a website <http://www.pypsa.org/doc/index.html>`_
+`Documentation <https://pypsa.readthedocs.io/en/latest/index.html>`_
 
-`Quick start <http://www.pypsa.org/doc/quick_start.html>`_
+`Quick start <https://pypsa.readthedocs.io/en/latest/quick_start.html>`_
 
 `Examples <http://www.pypsa.org/examples/>`_
+
+`Known users of PyPSA <https://pypsa.readthedocs.io/en/latest/users.html>`_
 
 Documentation is in `sphinx
 <http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
