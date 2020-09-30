@@ -431,5 +431,5 @@ def switching(network):
     use switches.status to build the network topology
     """
     logger.info("switching all switches")
-    network.open_switches(network.switches.loc[network.switches.status == 0].index, skip_result_deletion=True, skip_reopening=True)
+    network.open_switches(network.switches.loc[network.switches.status == 0].index, skip_result_deletion=True, skip_reclosing=True)
     network.close_switches(network.switches.loc[network.switches.status == 1].index)
