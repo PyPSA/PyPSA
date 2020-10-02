@@ -371,11 +371,7 @@ if __name__ == "__main__":
                                                focus_weights=focus_weights)
 
     clustering.network.export_to_netcdf(snakemake.output.network)
-    with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
-        with pd.HDFStore(snakemake.input.clustermaps, mode='r') as clustermaps:
-            for attr in clustermaps.keys():
-                store.put(attr, clustermaps[attr], format="table", index=False)
-        for attr in ('busmap', 'linemap', 'linemap_positive', 'linemap_negative'):
-            store.put(attr, getattr(clustering, attr), format="table", index=False)
+    for attr in ('busmap', 'linemap'): #also available: linemap_positive, linemap_negative
+        getattr(clustering, attr).to_csv(snakemake.output[attr])
 
     cluster_regions((clustering.busmap,))

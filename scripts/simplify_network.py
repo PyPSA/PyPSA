@@ -356,8 +356,7 @@ if __name__ == "__main__":
 
     n.export_to_netcdf(snakemake.output.network)
 
-    busemap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
-    with pd.HDFStore(snakemake.output.clustermaps, mode='w') as store:
-        store.put('busmap_s', busemap_s, format="table", index=False)
+    busmap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
+    busmap_s.to_csv(snakemake.output.busmap)
 
     cluster_regions(busmaps, snakemake.input, snakemake.output)

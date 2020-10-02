@@ -226,7 +226,7 @@ rule simplify_network:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        clustermaps='resources/clustermaps_{network}_s{simpl}.h5'
+        busmap='resources/busmap_{network}_s{simpl}.csv'
     log: "logs/simplify_network/{network}_s{simpl}.log"
     benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
     threads: 1
@@ -239,13 +239,14 @@ rule cluster_network:
         network='networks/{network}_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        clustermaps=ancient('resources/clustermaps_{network}_s{simpl}.h5'),
+        busmap=ancient('resources/busmap_{network}_s{simpl}.csv'),
         tech_costs=COSTS
     output:
         network='networks/{network}_s{simpl}_{clusters}.nc',
         regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
         regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson",
-        clustermaps='resources/clustermaps_{network}_s{simpl}_{clusters}.h5'
+        busmap="resources/busmap_{network}_s{simpl}_{clusters}.csv",
+        linemap="resources/linemap_{network}_s{simpl}_{clusters}.csv"
     log: "logs/cluster_network/{network}_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
     threads: 1

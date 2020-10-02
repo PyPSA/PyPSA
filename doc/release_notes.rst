@@ -35,6 +35,8 @@ Upcoming Release
 
 * Use `mamba` (https://github.com/mamba-org/mamba) for faster Travis CI builds (`#196 <https://github.com/PyPSA/pypsa-eur/pull/196>`_)
 
+*  The mappings for clustered lines and buses produced by the ``simplify_network`` and ``cluster_network`` rules changed from Hierarchical Data Format (.h5) to Comma-Separated Values format (.csv) (`#198 <https://github.com/PyPSA/pypsa-eur/pull/198>`_)
+
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================
 
