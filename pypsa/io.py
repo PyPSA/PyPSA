@@ -346,7 +346,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
             try:
                 df = df.drop(network.components[component]["standard_types"].index)
             except KeyError:
-                logger.error("You intantialized a network with ignore_standard_types=True, "
+                logger.error("You inintialized a network with ignore_standard_types=True, "
                              "so that the method read_in_default_standard_types(self) was not called. "
                              "That is why network.components['%s']['standard_types'] does not exist, "
                              "which is used to drop standard types when exporting with "
@@ -751,6 +751,7 @@ def import_components_from_dataframe(network, dataframe, cls_name, skip_switch_c
             try:
                 test_init = network.switches_connections  # AttributeError if not initialized
                 need_to_reinit = True
+                switch_related = None  # switch_related unused in reinit_switches_after_adding_components for switches
                 status_old_switches = network.switches.status.copy()
             except AttributeError:
                 need_to_init = True
