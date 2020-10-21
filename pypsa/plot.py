@@ -56,7 +56,7 @@ except ImportError:
     pltly_present = False
 
 
-def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
+def plot(n, margin=None, ax=None, geomap=True, projection=None,
          bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
          line_colors='rosybrown', link_colors='darkseagreen',
          transformer_colors='orange',
@@ -163,8 +163,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        transform = draw_map_cartopy(n, x, y, ax, boundaries, margin, geomap,
-                                     color_geomap)
+        transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
     elif ax is None:
@@ -318,8 +317,19 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
     bus_collection.set_zorder(5)
 
-    ax.update_datalim(compute_bbox_with_margins(margin, x, y))
-    ax.autoscale_view()
+    if margin is not None or boundaries is not None:
+        if margin is not None:
+            coords = _get_coordinates(n, layouter=layouter)
+            (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, *coords)
+        elif boundaries is not None:
+            x1, x2, y1, y2 = boundaries
+        if geomap:
+            ax.set_extent([x1, x2, y1, y2], crs=transform)
+        else:
+            ax.set_xlim(x1, x2)
+            ax.set_ylim(y1, y2)
+    else:
+        ax.autoscale()
 
     if geomap:
         ax.outline_patch.set_visible(False)
@@ -384,19 +394,12 @@ def projected_area_factor(ax, original_crs=4326):
                    /abs((pbounds[0] - pbounds[1])[:2].prod()))
 
 
-def draw_map_cartopy(n, x, y, ax, boundaries=None, margin=0.05,
-                     geomap=True, color_geomap=None):
-
-    if boundaries is None:
-        (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
-    else:
-        x1, x2, y1, y2 = boundaries
+def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
 
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
     axis_transformation = get_projection_from_crs(n.srid)
-    ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}
