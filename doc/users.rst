@@ -56,7 +56,9 @@ Companies and Non-Governmental Organisations
 
 * `Shell <https://www.shell.com/>`_: uses PyPSA for electricity market simulations in Europe
 
-* `ISA <http://www.isa.co/>`_, a South American transmission company: uses PyPSA for modelling the Columbian power system in a joint research project `EIA University <https://www.eia.edu.co/>`_ in Medellin, Columbia
+* `ISA <http://www.isa.co/>`_, a South American transmission company: uses PyPSA for modelling the Columbian power system in a joint research project with `EIA University <https://www.eia.edu.co/>`_ in Medellin, Columbia
+
+* `elena international <https://www.elena-international.com/>`_: uses PyPSA for customer projects and the research cooperation `NETFLEX <https://www.zhaw.ch/en/research/research-database/project-detailview/projektid/3026/>`_
 
 * `Edison Energy <https://www.edisonenergy.com/>`_
 
