@@ -168,6 +168,7 @@ def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
         n.iterate_components(iterkeys(components), skip_empty=False),
         itervalues(components)
     ):
+        if c.df.empty: continue
         if not existing_only: p_nom += "_opt"
         costs[(c.list_name, 'capital')] = (c.df[p_nom] * c.df.capital_cost).groupby(c.df.carrier).sum()
         if p_attr is not None:
