@@ -229,6 +229,12 @@ class Network(Basic):
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
+        #a list/index of scenarios/times
+        self.investment_periods = pd.Index(["now"])
+
+        #weighting of each investment period
+        self.investment_period_weightings = pd.Series(index=self.investment_periods,data=1.)
+
         if override_components is None:
             self.components = components
         else:
@@ -390,6 +396,34 @@ class Network(Basic):
 
             for k,default in attrs.default[attrs.varying].iteritems():
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
+
+        #NB: No need to rebind pnl to self, since haven't changed it
+
+    def set_investment_period(self, investment_period):
+        """
+        Set the investment period.
+
+
+        Parameters
+        ----------
+        investment_period : list or pandas.Index
+            Defines investment period.
+
+        Returns
+        -------
+        None
+        """
+
+        self.investment_period = pd.Index(investment_period)
+
+        self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_period,fill_value=1.)
+
+        # for component in self.all_components:
+        #     pnl = self.pnl(component)
+        #     attrs = self.components[component]["attrs"]
+
+        #     for k,default in attrs.default[attrs.varying].iteritems():
+        #         pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
 
         #NB: No need to rebind pnl to self, since haven't changed it
 
@@ -755,7 +789,8 @@ class Network(Basic):
         return override_components, override_component_attrs
 
 
-    def copy(self, with_time=True, snapshots=None, ignore_standard_types=False):
+    def copy(self, with_time=True, snapshots=None, investment_period=None,
+             ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -798,13 +833,18 @@ class Network(Basic):
             if snapshots is None:
                 snapshots = self.snapshots
             network.set_snapshots(snapshots)
+            if investment_period is None:
+                investment_period = self.investment_period
+            network.set_investment_period(investment_period)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
+            network.investment_period_weightings = self.investment_period_weightings.loc[snapshots].copy()
         else:
             network.snapshot_weightings = self.snapshot_weightings.copy()
+            network.investment_period_weightings = self.investment_period_weightings.loc[snapshots].copy()
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:
