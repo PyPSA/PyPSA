@@ -232,7 +232,7 @@ class Network(Basic):
         #a list/index of scenarios/times
         self.investment_periods = pd.Index(["now"])
 
-        #weighting of each investment period
+        #investment/CO2 constraint weighting of each investment period
         self.investment_period_weightings = pd.Series(index=self.investment_periods,data=1.)
 
         if override_components is None:
