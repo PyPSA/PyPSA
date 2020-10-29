@@ -357,6 +357,20 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
+
+    # component only active during lifetime
+    df = n.df(c)
+    df["build_year"].fillna(sns[0].year,inplace=True)
+    df.loc[df["lifetime"]==np.inf, "lifetime"] = sns[-1].year-sns[0].year+1
+
+    for col in max_pu.columns:
+        index_inactive = ~max_pu.index.year.isin(np.arange(df.loc[col, "build_year"],
+                                                 df.loc[col, ["build_year", "lifetime"]].sum()))
+
+        max_pu.loc[index_inactive, col] = 0
+        min_pu.loc[index_inactive, col] = 0
+
+
     return min_pu[index], max_pu[index]
 
 def additional_linkports(n):
