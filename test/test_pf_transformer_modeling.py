@@ -528,14 +528,21 @@ def test_real_transformer_with_off_nominal_turn_ratio_against_pandapower():
     network.pf()
     pandapower.runpp(pp_network)
 
-    print(network.buses_t)
-    print(network.buses_t.v_ang * 180 / np.pi)
-    print(pp_network.res_bus)
+    np.testing.assert_array_almost_equal(network.buses_t.v_ang.loc["now"] * 180 / np.pi, pp_network.res_bus.va_degree, decimal=4)
 
-    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, pp_network.res_bus.loc[:, ["vm_pu"]].T,  decimal=4)
-    np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, pp_network.res_bus.loc[:, ["va_degree"]].T, decimal=2)
-    np.testing.assert_array_almost_equal(network.transformers_t.p0, -pp_network.res_bus.loc[[0], ["p_mw"]].T, decimal=5)
-    np.testing.assert_array_almost_equal(network.transformers_t.q0, -pp_network.res_bus.loc[[0], ["q_mvar"]].T, decimal=5)
+    # compare bus voltage magnitudes
+    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu.loc["now"], pp_network.res_bus.vm_pu, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.p.loc["now"], -pp_network.res_bus.p_mw, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.q.loc["now"], -pp_network.res_bus.q_mvar, decimal=5)
+
+    #np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, pp_network.res_bus.loc[:, ["vm_pu"]].T,  decimal=4)
+    #np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, pp_network.res_bus.loc[:, ["va_degree"]].T, decimal=2)
+    #np.testing.assert_array_almost_equal(network.transformers_t.p0, -pp_network.res_bus.loc[[0], ["p_mw"]].T, decimal=5)
+    #np.testing.assert_array_almost_equal(network.transformers_t.q0, -pp_network.res_bus.loc[[0], ["q_mvar"]].T, decimal=5)
 
     #v_mag_pu_expected = np.array([[1., 0.6367]], dtype=float)
     #np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, v_mag_pu_expected, decimal=4)
@@ -596,14 +603,25 @@ def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_agai
     network.pf()
     pandapower.runpp(pp_network)
 
-    print(network.buses_t)
-    print(network.buses_t.v_ang * 180 / np.pi)
-    print(pp_network.res_bus)
+    np.testing.assert_array_almost_equal(network.buses_t.v_ang.loc["now"] * 180 / np.pi, pp_network.res_bus.va_degree, decimal=4)
 
-    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, pp_network.res_bus.loc[:, ["vm_pu"]].T,  decimal=4)
-    np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, pp_network.res_bus.loc[:, ["va_degree"]].T, decimal=2)
-    np.testing.assert_array_almost_equal(network.transformers_t.p0, -pp_network.res_bus.loc[[0], ["p_mw"]].T, decimal=5)
-    np.testing.assert_array_almost_equal(network.transformers_t.q0, -pp_network.res_bus.loc[[0], ["q_mvar"]].T, decimal=5)
+    # compare bus voltage magnitudes
+    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu.loc["now"], pp_network.res_bus.vm_pu, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.p.loc["now"], -pp_network.res_bus.p_mw, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.q.loc["now"], -pp_network.res_bus.q_mvar, decimal=5)
+
+
+    #np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, pp_network.res_bus.loc[:, ["vm_pu"]].T,  decimal=4)
+    #np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, pp_network.res_bus.loc[:, ["va_degree"]].T, decimal=2)
+    #np.testing.assert_array_almost_equal(network.transformers_t.p0, -pp_network.res_bus.loc[[0], ["p_mw"]].T, decimal=5)
+    #np.testing.assert_array_almost_equal(network.transformers_t.q0, -pp_network.res_bus.loc[[0], ["q_mvar"]].T, decimal=5)
+
+
+
     #v_mag_pu_expected = np.array([[1., 0.87455]], dtype=float)
     #np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, v_mag_pu_expected, decimal=4)
     #v_ang_expected = np.array([[0., -4.91]], dtype=float)
@@ -613,8 +631,19 @@ def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_agai
     #q0_expected = np.array([[0.29640]], dtype=float)
     #np.testing.assert_array_almost_equal(network.transformers_t.q0, q0_expected, decimal=3)
 
+    # compare bus angles
+    np.testing.assert_array_almost_equal(network.buses_t.v_ang.loc["now"] * 180 / np.pi, pp_network.res_bus.va_degree, decimal=4)
 
-def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_controlled_on_secondary_side():
+    # compare bus voltage magnitudes
+    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu.loc["now"], pp_network.res_bus.vm_pu, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.p.loc["now"], -pp_network.res_bus.p_mw, decimal=5)
+
+    # compare bus active power (NB: pandapower uses load signs)
+    np.testing.assert_array_almost_equal(network.buses_t.q.loc["now"], -pp_network.res_bus.q_mvar, decimal=5)
+
+def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_on_low_voltage_side_against_pandapower():
     """
     Tested against NEPLAN 10.8.2.4(App)
     """
@@ -642,7 +671,7 @@ def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_cont
                 name="ideal_transformer_with_tap",
                 bus0="Bus0",
                 bus1="Bus1",
-                model="pi",
+                model="t",
                 s_nom=0.630,
                 type="ideal_transformer_with_tap",
                 tap_position=2
@@ -652,16 +681,22 @@ def test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_cont
                 p_set=0.2,
                 q_set=0.2)
 
-    network.pf()
+    pp_network = config_base_network_pandapower()
 
-    v_mag_pu_expected = np.array([[1., 0.78756]], dtype=float)
-    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, v_mag_pu_expected, decimal=4)
-    v_ang_expected = np.array([[0., -5.40]], dtype=float)
-    np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, v_ang_expected, decimal=2)
-    p0_expected = np.array([[0.26074]], dtype=float)
-    np.testing.assert_array_almost_equal(network.transformers_t.p0, p0_expected, decimal=3)
-    q0_expected = np.array([[0.30174]], dtype=float)
-    np.testing.assert_array_almost_equal(network.transformers_t.q0, q0_expected, decimal=3)
+    pandapower.create_transformer_from_parameters(pp_network, hv_bus=0, lv_bus=1, sn_mva=0.630, vn_hv_kv=22., vn_lv_kv=0.45,
+    vkr_percent=10., vk_percent=30., pfe_kw=50., i0_percent=10., shift_degree=0, tap_side="lv", tap_neutral=0, tap_max=2, tap_min=-2,
+    tap_step_percent=-2., tap_pos=2, name="real_transformer_with_tap")
+    
+    pandapower.create_load(pp_network, bus=1, p_mw=0.2, q_mvar=0.2, name="Bus1")
+
+    network.pf()
+    pandapower.runpp(pp_network)
+
+    np.testing.assert_array_almost_equal(network.buses_t.v_mag_pu, pp_network.res_bus.loc[:, ["vm_pu"]].T,  decimal=4)
+    np.testing.assert_array_almost_equal(network.buses_t.v_ang * 180 / np.pi, pp_network.res_bus.loc[:, ["va_degree"]].T, decimal=2)
+    np.testing.assert_array_almost_equal(network.transformers_t.p0, -pp_network.res_bus.loc[[0], ["p_mw"]].T, decimal=5)
+    np.testing.assert_array_almost_equal(network.transformers_t.q0, -pp_network.res_bus.loc[[0], ["q_mvar"]].T, decimal=5)
+
 
 
 if __name__ == "__main__":
@@ -681,6 +716,8 @@ if __name__ == "__main__":
     #test_real_transformer_with_off_nominal_turn_ratio_against_pandapower()
 
     #test_real_transformer_with_off_nominal_turn_ratio_and_switched_position()
-    test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_against_pandapower()
+    #test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_against_pandapower()
+
+    test_real_transformer_with_off_nominal_turn_ratio_and_switched_position_on_low_voltage_side_against_pandapower()
 
     print("Tests finished")
