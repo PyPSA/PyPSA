@@ -25,9 +25,9 @@ PyPSA: Python for Power System Analysis
 .. image:: https://img.shields.io/pypi/l/pypsa.svg
     :target: License
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-    :target: https://doi.org/10.5281/zenodo.786605
-   
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+   :target: https://doi.org/10.5281/zenodo.3946412
+
 .. image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
@@ -100,16 +100,19 @@ Documentation
    transmission_expansion
    contingency_analysis
    plotting
-   
-   
+
+
 **Help & References**
-   
+
 * :doc:`release_notes`
 * :doc:`api_reference`
 * :doc:`troubleshooting`
 * :doc:`comparable_software`
 * :doc:`contributing`
+* :doc:`citing`
 * :doc:`unit_testing`
+* :doc:`mailing_list`
+* :doc:`users`
 
 .. toctree::
    :hidden:
@@ -121,75 +124,7 @@ Documentation
    troubleshooting
    comparable_software
    contributing
+   citing
    unit_testing
-
-
-Target user group
-=================
-
-PyPSA is intended for researchers, planners and utilities who need a
-fast, easy-to-use and transparent tool for power system
-analysis. PyPSA is free software and can be arbitrarily extended.
-
-
-Mailing list
-============
-
-PyPSA has a Google Group `forum / mailing list
-<https://groups.google.com/group/pypsa>`_.
-
-Anyone can join and anyone can read the posts; only members of the
-group can post to the list.
-
-The intention is to have a place where announcements of new releases
-can be made and questions can be asked.
-
-To discuss issues and suggest/contribute features
-for future development we prefer ticketing through the `PyPSA Github Issues page
-<https://github.com/PyPSA/PyPSA/issues>`_.
-
-
-Citing PyPSA
-============
-
-If you use PyPSA for your research, we would appreciate it if you
-would cite the following paper:
-
-* T. Brown, J. Hörsch, D. Schlachtberger, `PyPSA: Python for Power
-  System Analysis <https://arxiv.org/abs/1707.09913>`_, 2018,
-  `Journal of Open Research Software
-  <https://openresearchsoftware.metajnl.com/>`_, 6(1),
-  `arXiv:1707.09913 <https://arxiv.org/abs/1707.09913>`_,
-  `DOI:10.5334/jors.188 <https://doi.org/10.5334/jors.188>`_
-
-Please use the following BibTeX: ::
-
-   @article{PyPSA,
-      author = {T. Brown and J. H\"orsch and D. Schlachtberger},
-      title = {{PyPSA: Python for Power System Analysis}},
-      journal = {Journal of Open Research Software},
-      volume = {6},
-      issue = {1},
-      number = {4},
-      year = {2018},
-      eprint = {1707.09913},
-      url = {https://doi.org/10.5334/jors.188},
-      doi = {10.5334/jors.188}
-   }
-
-
-If you want to cite a specific PyPSA version, each release of PyPSA is
-stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
-This can be found linked from the overall PyPSA Zenodo DOI:
-
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-   :target: https://doi.org/10.5281/zenodo.786605
-
-
-
-Licence
-=======
-
-PyPSA is released under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
-
+   mailing_list
+   users

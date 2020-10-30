@@ -5,25 +5,13 @@
 
 #The network is then written as CSV files to csv_folder_name.
 
-
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division
-from __future__ import absolute_import
-
 import pypsa
 
 import datetime
 import pandas as pd
 
-import networkx as nx
-
 import numpy as np
 
-from itertools import chain
-
-import inspect
-
-import os
 from six.moves import range
 
 
@@ -61,7 +49,7 @@ network.add("Carrier","battery")
 
 
 # in kg CO2e
-n.add("GlobalConstraint","co2_limit",
+network.add("GlobalConstraint","co2_limit",
       sense="<=",
       constant=1000.)
 

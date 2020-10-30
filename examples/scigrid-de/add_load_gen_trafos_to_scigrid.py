@@ -70,9 +70,6 @@
 #
 #xii) Power plant start up costs, ramping limits/costs, minimum loading rates are not considered.
 
-# make the code as Python 3 compatible as possible
-from __future__ import print_function, division,absolute_import
-
 import pypsa
 
 import pandas as pd
@@ -384,10 +381,7 @@ except:
 
 import load
 
-from vresutils import graph as vgraph
 from vresutils import shapes as vshapes
-from vresutils import grid as vgrid
-from vresutils import dispatch as vdispatch
 from shapely.geometry import Polygon
 from load import germany as DEload
 import networkx as nx
@@ -470,8 +464,6 @@ monthly_load = total_load.resample("M").sum()
 monthly_load.plot(grid=True)
 
 ## Attach conventional generators from BNetzA list
-
-from vresutils import shapes as vshapes
 
 def read_kraftwerksliste(with_latlon=True):                                                                              
                                                                                                               
@@ -564,8 +556,8 @@ def backup_capacity_german_grid(G):
         for n, cell in iteritems(cells):
             if cell.contains(p):
                 return n
-        else:
-            return min(cells, key=lambda n: cells[n].distance(p))
+            else:
+                return min(cells, key=lambda n: cells[n].distance(p))
     nodes = plants.apply(nodeofaplant, axis=1)
 
     capacity = plants['Netto-Nennleistung'].groupby((nodes, plants[u'Type'])).sum() / 1e3

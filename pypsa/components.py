@@ -19,8 +19,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, iterkeys
 from weakref import ref
 
@@ -35,12 +33,6 @@ from scipy.sparse import csgraph
 from collections import namedtuple
 import os
 
-
-from distutils.version import StrictVersion, LooseVersion
-try:
-    _pd_version = StrictVersion(pd.__version__)
-except ValueError:
-    _pd_version = LooseVersion(pd.__version__)
 
 from .descriptors import Dict, get_switchable_as_dense
 
@@ -253,9 +245,10 @@ class Network(Basic):
         else:
             self.component_attrs = override_component_attrs
 
-        for c_type in set(self.components.type.unique()) - {np.nan}:
-            setattr(self, c_type + "_components",
-                    set(self.components.index[self.components.type == c_type]))
+        for c_type in set(self.components.type.unique()):
+            if not isinstance(c_type, float):
+                setattr(self, c_type + "_components",
+                        set(self.components.index[self.components.type == c_type]))
 
         self.one_port_components = self.passive_one_port_components|self.controllable_one_port_components
 
@@ -396,8 +389,6 @@ class Network(Basic):
         self.snapshots = pd.Index(snapshots)
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
-        if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
-            snapshots = pd.Index(snapshots.values)
 
         for component in self.all_components:
             pnl = self.pnl(component)
@@ -445,7 +436,6 @@ class Network(Basic):
 
         Other Parameters
         ----------------
-
         ptdf_tolerance : float
             Only taking effect when pyomo is True.
             Value below which PTDF entries are ignored
@@ -469,6 +459,10 @@ class Network(Basic):
             the model has solved and the results are extracted. It allows the user
             to extract further information about the solution, such as additional
             shadow prices.
+        skip_objective : bool, default False
+            Only taking effect when pyomo is False.
+            Skip writing the default objective function. If False, a custom
+            objective has to be defined via extra_functionality.
         warmstart : bool or string, default False
             Only taking effect when pyomo is False.
             Use this to warmstart the optimization. Pass a string which gives
@@ -496,12 +490,26 @@ class Network(Basic):
             Path to directory where necessary files are written, default None leads
             to the default temporary directory used by tempfile.mkstemp().
 
+        Returns
+        -------
+        status : str
+            Status of optimization.
+            Either "ok" if solution is optimal, or "warning" if not.
+        termination_condition : str
+            More information on how the solver terminated.
+            One of "optimal", "suboptimal" (in which case a solution is still
+            provided), "infeasible", "infeasible or unbounded", or "other".
+
         """
         args = {'snapshots': snapshots, 'keep_files': keep_files,
                 'solver_options': solver_options, 'formulation': formulation,
                 'extra_functionality': extra_functionality,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
         args.update(kwargs)
+
+        if not self.shunt_impedances.empty:
+            logger.warning("You have defined one or more shunt impedances. Shunt impedances are ignored by the linear optimal power flow (LOPF).")
+
         if pyomo:
             return network_lopf(self, **args)
         else:
@@ -753,7 +761,7 @@ class Network(Basic):
         return override_components, override_component_attrs
 
 
-    def copy(self, with_time=True, ignore_standard_types=False):
+    def copy(self, with_time=True, snapshots=None, ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -766,6 +774,9 @@ class Network(Basic):
         ----------
         with_time : boolean, default True
             Copy snapshots and time-varying network.component_names_t data too.
+        snapshots : list or index slice
+            A list of snapshots to copy, must be a subset of
+            network.snapshots, defaults to network.snapshots
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
 
@@ -790,17 +801,20 @@ class Network(Basic):
             import_components_from_dataframe(network, df, component.name)
 
         if with_time:
-            network.set_snapshots(self.snapshots)
+            if snapshots is None:
+                snapshots = self.snapshots
+            network.set_snapshots(snapshots)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
-                    pnl[k] = component.pnl[k].copy()
+                    pnl[k] = component.pnl[k].loc[snapshots].copy()
+            network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
+        else:
+            network.snapshot_weightings = self.snapshot_weightings.copy()
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:
             setattr(network,attr,getattr(self,attr))
-
-        network.snapshot_weightings = self.snapshot_weightings.copy()
 
         return network
 
@@ -936,8 +950,8 @@ class Network(Basic):
                                 "and branches. Passive flows are not allowed for non-electric networks!".format(i))
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
-                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i),
-                                self.buses.carrier.iloc[buses_i].value_counts())
+                logger.warning("Warning, sub network {} contains buses with mixed carriers! Value counts:\n{}".format(i,
+                                self.buses.carrier.iloc[buses_i].value_counts()))
 
             self.add("SubNetwork", i, carrier=carrier)
 
@@ -1071,6 +1085,16 @@ class Network(Basic):
                     for col in min_pu.columns[min_pu.isnull().any()]:
                         logger.warning("The attribute %s of element %s of %s has NaN values for the following snapshots:\n%s",
                                        varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[min_pu[col].isnull()])
+
+                # check for infinite values
+                if np.isinf(max_pu).values.any():
+                    for col in max_pu.columns[np.isinf(max_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_max_pu", col, c.list_name, max_pu.index[np.isinf(max_pu[col])])
+                if np.isinf(min_pu).values.any():
+                    for col in min_pu.columns[np.isinf(min_pu).any()]:
+                        logger.warning("The attribute %s of element %s of %s has infinite values for the following snapshots:\n%s",
+                                       varying_attr[0][0] + "_min_pu", col, c.list_name, min_pu.index[np.isinf(min_pu[col])])
 
                 diff = max_pu - min_pu
                 diff = diff[diff < 0].dropna(axis=1, how='all')

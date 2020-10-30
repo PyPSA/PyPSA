@@ -18,19 +18,11 @@
 """Descriptors for component attributes.
 """
 
-
-# make the code as Python 3 compatible as possible
-from __future__ import division
-from __future__ import absolute_import
 from six import iteritems
-
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
-
-#weak references are necessary to make sure the key-value pair are
-#destroyed if the key object goes out of scope
 
 from collections import OrderedDict
 from itertools import repeat

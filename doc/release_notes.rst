@@ -2,8 +2,148 @@
 Release Notes
 #######################
 
-PyPSA upcoming release
-======================
+Upcoming Release
+================
+
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* Bump minimum ``pandas`` requirement to version 1.1.0.
+
+PyPSA 0.17.1 (15th July 2020)
+=============================
+
+This release contains bug fixes and extensions to the features for optimization when not using Pyomo.
+
+* N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
+
+* Added support for the FICO Xpress commercial solver for optimization withhout pyomo, i.e. ``pyomo=False``.
+
+* There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
+  were defined with multiple outputs (i.e. bus2, bus3, etc. were
+  defined), but there remained some Links without multiple outputs
+  (bus2, bus3, etc. set to ``""``), then the Links without multiple
+  outputs were assigned erroneous non-zero values for p2, p3, etc. in
+  the LOPF with ``pyomo=False``. Now p2, p3, etc. revert to the default
+  value for Links where bus2, bus3, etc. are not defined, just like
+  for the LOPF with ``pyomo=True``.
+
+* Handle double-asterisk prefix in ``solution_fn`` when solving ``n.lopf(pyomo=False)`` using CBC.
+
+* When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
+
+* Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
+
+* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
+  because last iteration returns NaN (no optimisation of line capacities in final iteration).
+
+* When solving ``n.lopf(pyomo=False)``, PyPSA now constrains the dispatch variables for non extendable components with actual constraints, not with standard variable bounds. This allows retrieving shadow prices for all dispatch variables when running ``n.lopf(pyomo=False, keep_shadowprices=True)``.
+
+* Can now cluster lines with different static ``s_max_pu`` values. Time-varying ``s_max_pu`` are not supported in clustering.
+
+* Improved handling of optional dependencies for network clustering functionalities (``sklearn`` and ``community``).
+
+Thanks to Pietro Belotti from FICO for adding the Xpress support, to Fabian Neumann (KIT) and Fabian Hofmann (FIAS) for all their
+hard work on this release, and to all those who fixed bugs and reported issues.
+
+
+PyPSA 0.17.0 (23rd March 2020)
+================================
+
+This release contains some minor breaking changes to plotting, some
+new features and bug fixes.
+
+
+* For plotting geographical features ``basemap`` is not supported anymore.  Please use ``cartopy`` instead.
+* Changes in the plotting functions ``n.plot()`` and ``n.iplot()`` include some **breaking changes**:
+
+    * A set of new arguments were introduced to separate style parameters of the different branch components:  ``link_colors``, ``link_widths``, ``transformer_colors``, ``transformer_widths``, ``link_cmap``, ``transformer_cmap``
+    * ``line_widths``, ``line_colors``, and ``line_cmap`` now only apply for lines and can no longer be used for other branch types (links and transformers). Passing a pandas.Series with a pandas.MultiIndex will raise an error.
+    * Additionally, the function `n.iplot()` has new arguments ``line_text``, ``link_text``, ``transformer_text`` to configure the text displayed when hovering over a branch component.
+    * The function ``directed_flow()`` now takes only a pandas.Series with single pandas.Index.
+    * The argument ``bus_colorscale`` in ``n.iplot()`` was renamed to ``bus_cmap``.
+    * The default colours changed.
+
+* If non-standard output fields in the time-dependent ``network.components_t`` (e.g. ``network.links_t.p2`` when there are multi-links) were exported, then PyPSA will now also import them automatically without requiring the use of the ``override_component_attrs`` argument.
+* Deep copies of networks can now be created with a subset of
+  snapshots, e.g. ``network.copy(snapshots=network.snapshots[:2])``.
+* When using the ``pyomo=False`` formulation of the LOPF (``network.lopf(pyomo=False)``):
+
+    * It is now possible to alter the objective function.
+      Terms can be added to the objective via ``extra_functionality``
+      using the function :func:`pypsa.linopt.write_objective`.
+      When a pure custom objective function needs to be declared,
+      one can set ``skip_objective=True``.
+      In this case, only terms defined through ``extra_functionality``
+      will be considered in the objective function.
+    * Shadow prices of capacity bounds for non-extendable passive branches
+      are parsed (similar to the ``pyomo=True`` setting)
+    * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle
+      exclusively radial network topologies.
+    * CPLEX is now supported as an additional solver option. Enable it by installing the `cplex <https://pypi.org/project/cplex/>`_ package (e.g. via ``pip install cplex`` or ``conda install -c ibmdecisionoptimization cplex``) and setting ``solver_name='cplex'``
+
+* When plotting, ``bus_sizes`` are now consistent when they have a ``pandas.MultiIndex``
+  or a ``pandas.Index``. The default is changed to ``bus_sizes=0.01`` because the bus
+  sizes now relate to the axis values.
+* When plotting, ``bus_alpha`` can now be used to add an alpha channel
+  which controls the opacity of the bus markers.
+* The argument ``bus_colors`` can a now also be a pandas.Series.
+* The ``carrier`` component has two new columns 'color' and 'nice_name'.
+  The color column is used by the plotting function if ``bus_sizes`` is
+  a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined.
+* The function :func:`pypsa.linopf.ilopf` can now track the intermediate branch capacities
+  and objective values for each iteration using the ``track_iterations`` keyword.
+* Fixed unit commitment:
+
+    * when ``min_up_time`` of committable generators exceeds the length of snapshots.
+    * when network does not feature any extendable generators.
+
+* Fixed import from pandapower for transformers not based on standard types.
+* The various Jupyter Notebook examples are now available on the `binder <https://mybinder.org/>`_ platform. This allows new users to interactively run and explore the examples without the need of installing anything on their computers.
+* Minor adjustments for compatibility with pandas v1.0.0.
+* After optimizing, the network has now an additional attribute ``objective_constant`` which reflects the capital cost of already existing infrastructure in the network referring to ``p_nom`` and ``s_nom`` values.
+
+Thanks to Fabian Hofmann (FIAS) and Fabian Neumann (KIT) for all their
+hard work on this release, and to all those who reported issues.
+
+
+PyPSA 0.16.1 (10th January 2020)
+================================
+
+This release contains a few minor bux fixes from the introduction of
+nomopyomo in the previous release, as well as a few minor features.
+
+* When using the ``nomopyomo`` formulation of the LOPF with
+  ``network.lopf(pyomo=False)``, PyPSA was not correcting the bus
+  marginal prices by dividing by the ``network.snapshot_weightings``, as is done
+  in the ``pyomo`` formulation. This correction is now applied in the
+  ``nomopyomo`` formulation to be consistent with the ``pyomo``
+  formulation. (The reason this correction is applied is so that the
+  prices have a clear currency/MWh definition regardless of the
+  snapshot weightings. It also makes them stay roughly the same when
+  snapshots are aggregated: e.g. if hourly simulations are sampled
+  every n-hours, and the snapshot weighting is n.)
+* The ``status, termination_condition`` that the ``network.lopf`` returns
+  is now consistent between the ``nomopyomo`` and ``pyomo``
+  formulations. The possible return values are documented in the LOPF
+  docstring, see also the `LOPF documentation
+  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pypsa.Network.lopf>`_.
+  Furthermore in the ``nomopyomo`` formulation, the solution is still
+  returned when gurobi finds a suboptimal solution, since this
+  solution is usually close to optimal. In this case the LOPF returns
+  a ``status`` of ``warning`` and a ``termination_condition`` of
+  ``suboptimal``.
+* For plotting with ``network.plot()`` you can override the bus
+  coordinates by passing it a ``layouter`` function from ``networkx``. See
+  the docstring for more information. This is particularly useful for
+  networks with no defined coordinates.
+* For plotting with ``network.iplot()`` a background from `mapbox
+  <https://www.mapbox.com/>`_ can now be integrated.
+
+Please note that we are still aware of one implementation difference
+between ``nomopyomo`` and ``pyomo``, namely that ``nomopyomo`` doesn't read
+out shadow prices for non-extendable branches, see the `github issue
+<https://github.com/PyPSA/PyPSA/issues/119>`_.
+
 
 PyPSA 0.16.0 (20th December 2019)
 =================================
@@ -837,6 +977,7 @@ Release process
   upload dist/pypsa-0.x.0.tar.gz``
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Upload a zip to `zenodo <https://zenodo.org/>`_ (this should also be
-  possible automatically via a github hook).
+* Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
+  will trigger `zenodo <https://zenodo.org/>`_ to archive the release
+  with its own DOI.
 * Inform the PyPSA mailing list.

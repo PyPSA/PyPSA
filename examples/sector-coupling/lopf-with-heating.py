@@ -4,14 +4,7 @@
 #
 #Available as a Jupyter notebook at <http://www.pypsa.org/examples/lopf-with-heating.ipynb>.
 
-# make the code as Python 3 compatible as possible 
-from __future__ import print_function, division
-
 import pypsa
-
-import numpy as np
-
-import pandas as pd
 
 network = pypsa.Network()
 

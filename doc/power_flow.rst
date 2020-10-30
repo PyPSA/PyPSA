@@ -402,7 +402,8 @@ transformer.{p0, p1}
 
 link.{p0, p1}
 
+
 Utility Functions
------------------
+=================
 
 .. automodule:: pypsa.pf

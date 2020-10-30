@@ -20,8 +20,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, itervalues, string_types
 
 
@@ -43,12 +41,6 @@ except ImportError:
 import logging
 logger = logging.getLogger(__name__)
 
-
-from distutils.version import StrictVersion, LooseVersion
-try:
-    _pd_version = StrictVersion(pd.__version__)
-except ValueError:
-    _pd_version = LooseVersion(pd.__version__)
 
 from .pf import (calculate_dependent_values, find_slack_bus,
                  find_bus_controls, calculate_B_H, calculate_PTDF, find_tree,
@@ -164,10 +156,11 @@ def define_generator_variables_constraints(network,snapshots):
     ## Deal with minimum up time ##
 
     up_time_gens = fixed_committable_gens_i[network.generators.loc[fixed_committable_gens_i,"min_up_time"] > 0]
+    must_stay_up_too_long = False
 
     for gen_i, gen in enumerate(up_time_gens):
 
-        min_up_time = network.generators.at[gen,"min_up_time"]
+        min_up_time = network.generators.at[gen, 'min_up_time']
 
         #find out how long the generator has been up before snapshots
         up_time_before = 0
@@ -186,6 +179,9 @@ def define_generator_variables_constraints(network,snapshots):
         else:
             initial_status = 1
             must_stay_up = min_up_time - up_time_before
+            if must_stay_up > len(snapshots):
+                must_stay_up_too_long = True
+                must_stay_up = len(snapshots)
 
 
         def force_up(model,i):
@@ -203,6 +199,9 @@ def define_generator_variables_constraints(network,snapshots):
             return lhs >= rhs
         network.model.add_component("gen_up_time_{}".format(gen_i),Constraint(blocks,rule=gen_rule))
 
+    if must_stay_up_too_long:
+        logger.warning('At least one generator was set to an min_up_time longer '
+                       'than possible. Setting it to the maximal possible value.')
 
     ## Deal with minimum down time ##
 
@@ -352,7 +351,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in ru_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_up"],
@@ -362,6 +360,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   -network.generators.at[gen, "ramp_limit_up"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (-network.generators.at[gen, "ramp_limit_start_up"]*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
@@ -406,7 +405,6 @@ def define_generator_variables_constraints(network,snapshots):
         sn = snapshots[0]
         for gen in rd_gens:
             p_prev = network.generators_t.p.at[network.snapshots[start_i-1],gen]
-            status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
             if network.generators.at[gen, "p_nom_extendable"]:
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    (network.generators.at[gen, "ramp_limit_down"],
@@ -416,6 +414,7 @@ def define_generator_variables_constraints(network,snapshots):
                 lhs = LExpression([(1, network.model.generator_p[gen,sn])],
                                   network.generators.loc[gen, "ramp_limit_down"]*network.generators.at[gen, "p_nom"]-p_prev)
             else:
+                status_prev = network.generators_t.status.at[network.snapshots[start_i-1],gen]
                 lhs = LExpression([(1, network.model.generator_p[gen,sn]),
                                    ((network.generators.at[gen, "ramp_limit_down"] - network.generators.at[gen, "ramp_limit_shut_down"])*network.generators.at[gen, "p_nom"],
                                     network.model.generator_status[gen,sn])],
@@ -1209,6 +1208,7 @@ def define_linear_objective(network,snapshots,candidate_lines=False):
                                 for b in extendable_links.index])
     objective.constant -= (extendable_links.capital_cost * extendable_links.p_nom).zsum()
 
+    network.objective_constant = - objective.constant
 
     ## Unit commitment costs
 
@@ -1231,10 +1231,6 @@ def define_linear_objective(network,snapshots,candidate_lines=False):
 
 def extract_optimisation_results(network, snapshots, formulation="angles", free_pyomo=True,
                                  extra_postprocessing=None, candidate_lines=False):
-
-    if isinstance(snapshots, pd.DatetimeIndex) and _pd_version < '0.18.0':
-        # Work around pandas bug #12050 (https://github.com/pydata/pandas/issues/12050)
-        snapshots = pd.Index(snapshots.values)
 
     allocate_series_dataframes(network, {'Generator': ['p'],
                                          'Load': ['p'],
@@ -1448,7 +1444,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     try:
         network.global_constraints.loc[:,"mu"] = - get_shadows(model.global_constraints, multiind=False)
-    except (AttributeError, KeyError) as e:
+    except (AttributeError, KeyError):
         logger.warning("Could not read out global constraint shadow prices")
 
     #extract unit commitment statuses
@@ -1633,8 +1629,8 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     if logger.isEnabledFor(logging.INFO):
         network.results.write()
 
-    status = network.results["Solver"][0]["Status"].key
-    termination_condition = network.results["Solver"][0]["Termination condition"].key
+    status = network.results["Solver"][0]["Status"]
+    termination_condition = network.results["Solver"][0]["Termination condition"]
 
     if status == "ok" and termination_condition == "optimal":
         logger.info("Optimization successful")

@@ -10,9 +10,6 @@
 #
 #See the separate notebook at <http://www.pypsa.org/examples/add_load_gen_trafos_to_scigrid.ipynb>.
 
-
-from __future__ import print_function, division, absolute_import
-
 import pypsa, os
 
 csv_folder_name = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/scigrid-with-load-gen-trafos/"

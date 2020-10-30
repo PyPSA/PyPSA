@@ -685,7 +685,14 @@ Outputs
 
 * global_constraint.{mu}
 
-Utility Functions
------------------
+
+Utility Functions (without pyomo)
+---------------------------------
+
+.. automodule:: pypsa.linopf
+
+
+Utility Functions (with pyomo)
+------------------------------
 
 .. automodule:: pypsa.opf

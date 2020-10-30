@@ -19,9 +19,6 @@
 """
 
 
-# make the code as Python 3 compatible as possible
-from __future__ import division
-from __future__ import absolute_import
 from six import string_types
 
 import pandas as pd
@@ -37,20 +34,10 @@ __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Hofmann (FIAS), Fab
 __copyright__ = "Copyright 2015-2020 Tom Brown (FIAS), Jonas Hoersch (FIAS); Copyright 2019-2020 Fabian Hofmann (FIAS), Fabian Neumann (KIT), GNU GPL 3"
 
 
-plt_present = True
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Wedge
-    from matplotlib.collections import LineCollection, PatchCollection
-except ImportError:
-    plt_present = False
-
-basemap_present = True
-try:
-    from mpl_toolkits.basemap import Basemap
-except ImportError:
-    basemap_present = False
-
+import matplotlib.pyplot as plt
+from matplotlib.patches import Wedge, Circle
+from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.patches import FancyArrow
 
 cartopy_present = True
 try:
@@ -69,14 +56,16 @@ except ImportError:
     pltly_present = False
 
 
-def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
-         bus_colors='b', line_colors={'Line':'g', 'Link':'cyan'}, bus_sizes=10,
-         line_widths={'Line':2, 'Link':2},
-         flow=None, layouter=None, title="", line_cmap=None, bus_cmap=None, boundaries=None,
-         geometry=False, branch_components=['Line', 'Link'], jitter=None,
-         basemap=None, basemap_parameters=None, color_geomap=None):
+def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
+         bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
+         line_colors='rosybrown', link_colors='darkseagreen',
+         transformer_colors='orange',
+         line_widths=1.5, link_widths=1.5, transformer_widths=1.5,
+         line_cmap=None, link_cmap=None, transformer_cmap=None,
+         flow=None, branch_components=None, layouter=None, title="",
+         boundaries=None, geometry=False, jitter=None, color_geomap=None):
     """
-    Plot the network buses and lines using matplotlib and cartopy/basemap.
+    Plot the network buses and lines using matplotlib and cartopy.
 
     Parameters
     ----------
@@ -85,30 +74,47 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     ax : matplotlib ax, defaults to plt.gca()
         Axis to which to plot the network
     geomap: bool/str, default True
-        Switch to use Basemap or Cartopy (depends on what is installed).
-        If string is passed, it will be used as a resolution argument.
-        For Basemap users 'c' (crude), 'l' (low), 'i' (intermediate),
-        'h' (high), 'f' (full) are valid resolutions options.
-        For Cartopy users '10m', '50m', '110m' are valid resolutions options.
+        Switch to use Cartopy and draw geographical features.
+        If string is passed, it will be used as a resolution argument,
+        valid options are '10m', '50m' and '110m'.
     projection: cartopy.crs.Projection, defaults to None
         Define the projection of your geomap, only valid if cartopy is
         installed. If None (default) is passed the projection for cartopy
         is set to cartopy.crs.PlateCarree
     bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "b"
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
+    bus_alpha : float
+        Adds alpha channel to buses, defaults to 1.
     bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 10
-    line_colors : dict/pandas.Series
-        Colors for the lines, defaults to "g" for Lines and "cyan" for
-        Links. Colors for branches other than Lines can be
-        specified using a pandas Series with a MultiIndex.
+        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+        the function will draw pies for each bus (first index level) with
+        segments of different color (second index level). Such a Series is ob-
+        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
+    bus_cmap : plt.cm.ColorMap/str
+        If bus_colors are floats, this color map will assign the colors
+    line_colors : str/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    link_colors : str/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    transfomer_colors : str/pandas.Series
+        Colors for the transfomer, defaults to 'orange'.
     line_widths : dict/pandas.Series
-        Widths of lines, defaults to 2. Widths for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
+        Widths of lines, defaults to 1.5
+    link_widths : dict/pandas.Series
+        Widths of links, defaults to 1.5
+    transformer_widths : dict/pandas.Series
+        Widths of transformer, defaults to 1.5
+    line_cmap : plt.cm.ColorMap/str|dict
+        If line_colors are floats, this color map will assign the colors.
+    link_cmap : plt.cm.ColorMap/str|dict
+        If link_colors are floats, this color map will assign the colors.
+    transformer_cmap : plt.cm.ColorMap/str|dict
+        If transformer_colors are floats, this color map will assign the colors.
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
-        network.snapshots is given, the flow at this timestamp will be
+        n.snapshots is given, the flow at this timestamp will be
         displayed. If an aggregation function is given, is will be applied
         to the total network flow via pandas.DataFrame.agg (accepts also
         function names). Otherwise flows can be specified by passing a pandas
@@ -117,16 +123,11 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
         flow arrows.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``network.buses[['x','y']]``. See
+        overrules coordinates given in ``n.buses[['x','y']]``. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
         of available options.
     title : string
         Graph title
-    line_cmap : plt.cm.ColorMap/str|dict
-        If line_colors are floats, this color map will assign the colors.
-        Use a dict to specify colormaps for more than one branch type.
-    bus_cmap : plt.cm.ColorMap/str
-        If bus_colors are floats, this color map will assign the colors
     boundaries : list of four floats
         Boundaries of the plot in format [x1,x2,y1,y2]
     branch_components : list of str
@@ -134,11 +135,6 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     jitter : None|float
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
-    basemap_parameters : dict
-        Specify a dict with additional constructor parameters for the
-        Basemap. Will disable Cartopy.
-        Use this feature to set a custom projection.
-        (e.g. `{'projection': 'tmerc', 'lon_0':10.0, 'lat_0':50.0}`)
     color_geomap : dict or bool
         Specify colors to paint land and sea areas in.
         If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
@@ -149,81 +145,32 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-    defaults_for_branches = pd.Series({
-        'Link': dict(color="cyan", width=2),
-        'Line': dict(color="b", width=2),
-        'Transformer': dict(color='green', width=2)
-    }).rename_axis('component')
-
-    if not plt_present:
-        logger.error("Matplotlib is not present, so plotting won't work.")
-        return
-
-    if basemap is not None:
-        logger.warning("argument `basemap` is deprecated, "
-                       "use `geomap` instead.")
-        geomap = basemap
+    x, y = _get_coordinates(n, layouter=layouter)
 
     if geomap:
-        if not (cartopy_present or basemap_present):
-            # Not suggesting Basemap since it is being deprecated
+        if not cartopy_present:
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
-        # Use cartopy by default, fall back on basemap
-        use_basemap = False
-        use_cartopy = cartopy_present
-        if not use_cartopy:
-            use_basemap = basemap_present
+        if projection is None:
+            projection = get_projection_from_crs(n.srid)
 
-        # If the user specifies basemap parameters, they prefer
-        # basemap over cartopy.
-        # (This means that you can force the use of basemap by
-        # setting `basemap_parameters={}`)
-        if basemap_present:
-            if basemap_parameters is not None:
-                logger.warning("Basemap is being deprecated, consider "
-                               "switching to Cartopy.")
-                use_basemap = True
-                use_cartopy = False
-
-        if use_cartopy:
-            if projection is None:
-                projection = get_projection_from_crs(network.srid)
-
-            if ax is None:
-                ax = plt.gca(projection=projection)
-            else:
-                assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
-                        'The passed axis is not a GeoAxesSubplot. You can '
-                        'create one with: \nimport cartopy.crs as ccrs \n'
-                        'fig, ax = plt.subplots('
-                        'subplot_kw={"projection":ccrs.PlateCarree()})')
+        if ax is None:
+            ax = plt.gca(projection=projection)
+        else:
+            assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
+                    'The passed axis is not a GeoAxesSubplot. You can '
+                    'create one with: \nimport cartopy.crs as ccrs \n'
+                    'fig, ax = plt.subplots('
+                    'subplot_kw={"projection":ccrs.PlateCarree()})')
+        transform = draw_map_cartopy(n, x, y, ax, boundaries, margin, geomap,
+                                     color_geomap)
+        x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
+        x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
     elif ax is None:
         ax = plt.gca()
 
-    x, y = _get_coordinates(network, layouter=layouter)
-
-    axis_transform = ax.transData
-
-    if geomap:
-        if use_cartopy:
-            axis_transform = draw_map_cartopy(network, x, y, ax,
-                    boundaries, margin, geomap, color_geomap)
-            new_coords = pd.DataFrame(
-                    ax.projection.transform_points(axis_transform,
-                                                   x.values, y.values),
-                       index=network.buses.index, columns=['x', 'y', 'z'])
-            x, y = new_coords['x'], new_coords['y']
-        elif use_basemap:
-            basemap_transform = draw_map_basemap(network, x, y, ax,
-                    boundaries, margin, geomap, basemap_parameters, color_geomap)
-
-            # A non-standard projection might be used; the easiest way to
-            # support this is to tranform the bus coordinates.
-            x, y = basemap_transform(x.values, y.values)
-            x = pd.Series(x, network.buses.index)
-            y = pd.Series(y, network.buses.index)
+    # Plot buses:
 
     if jitter is not None:
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
@@ -231,16 +178,21 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert len(bus_sizes.index.levels[0].difference(network.buses.index)) == 0, \
+        assert len(bus_sizes.index.levels[0].difference(n.buses.index)) == 0, \
             "The first MultiIndex level of bus_sizes must contain buses"
-        assert (isinstance(bus_colors, dict) and
-                set(bus_colors).issuperset(bus_sizes.index.levels[1])), \
-            "bus_colors must be a dictionary defining a color for each element " \
-            "in the second MultiIndex level of bus_sizes"
+        if isinstance(bus_colors, dict):
+            bus_colors = pd.Series(bus_colors)
+        # case bus_colors isn't a series or dict: look in n.carriers for existent colors
+        if not isinstance(bus_colors, pd.Series):
+            bus_colors = n.carriers.color.dropna()
+        assert bus_sizes.index.levels[1].isin(bus_colors.index).all(), (
+            "Colors not defined for all elements in the second MultiIndex "
+            "level of bus_sizes, please make sure that all the elements are "
+            "included in bus_colors or in n.carriers.color")
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes *= projected_area_factor(ax, network.srid)**2
+            bus_sizes *= projected_area_factor(ax, n.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -255,70 +207,75 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
             for i, ratio in ratios.iteritems():
                 patches.append(Wedge((x.at[b_i], y.at[b_i]), radius,
                                      360*start, 360*(start+ratio),
-                                     facecolor=bus_colors[i]))
+                                     facecolor=bus_colors[i], alpha=bus_alpha))
                 start += ratio
         bus_collection = PatchCollection(patches, match_original=True)
         ax.add_collection(bus_collection)
     else:
-        c = pd.Series(bus_colors, index=network.buses.index)
-        s = pd.Series(bus_sizes, index=network.buses.index, dtype="float").fillna(10)
-        bus_collection = ax.scatter(x, y, c=c, s=s, cmap=bus_cmap, edgecolor='face')
+        c = pd.Series(bus_colors, index=n.buses.index)
+        s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
+        if geomap:
+            s *= projected_area_factor(ax, n.srid)**2
 
-    def as_branch_series(ser):
-        # ensure that this function always return a multiindexed series
-        if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return pd.concat(
-                    {c.name: pd.Series(s, index=c.df.index) for c, s in
-                         zip(network.iterate_components(ser.keys()), ser.values())},
-                    names=['component', 'name'])
-        elif isinstance(ser, pd.Series) and isinstance(ser.index, pd.MultiIndex):
-            return ser.rename_axis(index=['component', 'name'])
-        else:
-            ser =  pd.Series(ser, network.lines.index)
-            return pd.concat([ser], axis=0, keys=['Line'],
-                             names=['component', 'name']).fillna(0)
+        if bus_cmap is not None and c.dtype is np.dtype('float'):
+            if isinstance(bus_cmap, str):
+                bus_cmap = plt.cm.get_cmap(bus_cmap)
+            norm = plt.Normalize(vmin=c.min(), vmax=c.max())
+            c = c.apply(lambda cval: bus_cmap(norm(cval)))
 
-    line_colors = as_branch_series(line_colors)
-    line_widths = as_branch_series(line_widths)
+        patches = []
+        for b_i in s.index:
+            radius = s.at[b_i]**0.5
+            patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
+                                   facecolor=c.at[b_i], alpha=bus_alpha))
+        bus_collection = PatchCollection(patches, match_original=True)
+        ax.add_collection(bus_collection)
 
-    if not isinstance(line_cmap, dict):
-        line_cmap = {'Line': line_cmap}
+    # Plot branches:
+    if isinstance(line_widths, pd.Series):
+        if isinstance(line_widths.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_widths' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing widths with arguments 'line_widths', "
+                            "'link_widths' and 'transformer_widths'.")
+    if isinstance(line_colors, pd.Series):
+        if isinstance(line_colors.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_colors' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing colors with arguments 'line_colors', "
+                            "'link_colors' and 'transformer_colors'.")
+
+    if branch_components is None:
+        branch_components = n.branch_components
+
+    branch_colors = {'Line': line_colors, 'Link': link_colors,
+                     'Transformer': transformer_colors}
+    branch_widths = {'Line': line_widths, 'Link': link_widths,
+                     'Transformer': transformer_widths}
+    branch_cmap = {'Line': line_cmap, 'Link': link_cmap,
+                   'Transformer': transformer_cmap}
 
     branch_collections = []
+    arrow_collections = []
 
     if flow is not None:
-        flow = (_flow_ds_from_arg(flow, network, branch_components)
-                .pipe(as_branch_series)
-                .div(sum(len(t.df) for t in
-                         network.iterate_components(branch_components)) + 100))
-        flow = flow.mul(line_widths[flow.index], fill_value=1)
-        # update the line width, allows to set line widths separately from flows
-        line_widths.update((5 * flow.abs()).pipe(np.sqrt))
-        arrows = directed_flow(network, flow, x=x, y=y, ax=ax, geomap=geomap,
-                               branch_colors=line_colors,
-                               branch_comps=branch_components,
-                               cmap=line_cmap['Line'])
-        branch_collections.append(arrows)
+        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
+        flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
 
+    for c in n.iterate_components(branch_components):
+        b_widths = as_branch_series(branch_widths[c.name], 'width', c.name, n)
+        b_colors = as_branch_series(branch_colors[c.name], 'color', c.name, n)
+        b_nums = None
+        b_cmap = branch_cmap[c.name]
+        b_flow = flow.get(c.name, None) if flow is not None else None
 
-    for c in network.iterate_components(branch_components):
-        l_defaults = defaults_for_branches[c.name]
-        l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_nums = None
-        l_colors = line_colors.get(c.name, l_defaults['color'])
-
-        if isinstance(l_colors, pd.Series):
-            if issubclass(l_colors.dtype.type, np.number):
-                l_nums = l_colors
-                l_colors = None
-            else:
-                l_colors.fillna(l_defaults['color'], inplace=True)
+        if issubclass(b_colors.dtype.type, np.number):
+            b_nums = b_colors
+            b_colors = None
 
         if not geometry:
-            segments = (np.asarray(((c.df.bus0.map(x),
-                                     c.df.bus0.map(y)),
-                                    (c.df.bus1.map(x),
-                                     c.df.bus1.map(y))))
+            segments = (np.asarray(((c.df.bus0.map(x), c.df.bus0.map(y)),
+                                    (c.df.bus1.map(x), c.df.bus1.map(y))))
                         .transpose(2, 0, 1))
         else:
             from shapely.wkt import loads
@@ -329,35 +286,57 @@ def plot(network, margin=0.05, ax=None, geomap=True, projection=None,
                 "composed of LineStrings")
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
-        l_collection = LineCollection(segments,
-                                      linewidths=l_widths,
-                                      antialiaseds=(1,),
-                                      colors=l_colors,
+        if b_flow is not None:
+            coords = pd.DataFrame({'x1': c.df.bus0.map(x), 'y1': c.df.bus0.map(y),
+                                   'x2': c.df.bus1.map(x), 'y2': c.df.bus1.map(y)})
+            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
+            # update the line width, allows to set line widths separately from flows
+            b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
+            area_factor = projected_area_factor(ax, n.srid)
+            f_collection = directed_flow(coords, b_flow, b_colors, area_factor,
+                                         b_cmap)
+            if b_nums is not None:
+                f_collection.set_array(np.asarray(b_nums))
+                f_collection.set_cmap(b_cmap)
+                f_collection.autoscale()
+            arrow_collections.append(f_collection)
+            ax.add_collection(f_collection)
+
+
+        b_collection = LineCollection(segments, linewidths=b_widths,
+                                      antialiaseds=(1,), colors=b_colors,
                                       transOffset=ax.transData)
 
-        if l_nums is not None:
-            l_collection.set_array(np.asarray(l_nums))
-            l_collection.set_cmap(line_cmap.get(c.name, None))
-            l_collection.autoscale()
+        if b_nums is not None:
+            b_collection.set_array(np.asarray(b_nums))
+            b_collection.set_cmap(b_cmap)
+            b_collection.autoscale()
 
-        ax.add_collection(l_collection)
-        l_collection.set_zorder(3)
+        ax.add_collection(b_collection)
+        b_collection.set_zorder(3)
+        branch_collections.append(b_collection)
 
-        branch_collections.append(l_collection)
-
-    bus_collection.set_zorder(4)
+    bus_collection.set_zorder(5)
 
     ax.update_datalim(compute_bbox_with_margins(margin, x, y))
     ax.autoscale_view()
 
     if geomap:
-        if use_cartopy:
-            ax.outline_patch.set_visible(False)
-        ax.axis('off')
+        ax.outline_patch.set_visible(False)
+    else:
+        ax.set_aspect('equal')
+    ax.axis('off')
 
     ax.set_title(title)
 
-    return (bus_collection,) + tuple(branch_collections)
+    return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
+
+
+def as_branch_series(ser, arg, c, n):
+    ser = pd.Series(ser, index=n.df(c).index)
+    assert not ser.isnull().any(), (f'{c}_{arg}s does not specify all '
+            f'entries. Missing values for {c}: {list(ser[ser.isnull()].index)}')
+    return ser
 
 
 def get_projection_from_crs(crs):
@@ -405,43 +384,7 @@ def projected_area_factor(ax, original_crs=4326):
                    /abs((pbounds[0] - pbounds[1])[:2].prod()))
 
 
-
-def draw_map_basemap(network, x, y, ax, boundaries=None, margin=0.05,
-                     geomap=True, basemap_parameters=None, color_geomap=None):
-
-    if boundaries is None:
-        (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
-    else:
-        x1, x2, y1, y2 = boundaries
-
-    if basemap_parameters is None:
-        basemap_parameters = {}
-
-    resolution = 'l' if isinstance(geomap, bool) else geomap
-    gmap = Basemap(resolution=resolution,
-                    llcrnrlat=y1, urcrnrlat=y2, llcrnrlon=x1,
-                    urcrnrlon=x2, ax=ax, **basemap_parameters)
-    gmap.drawcountries(linewidth=0.3, zorder=2)
-    gmap.drawcoastlines(linewidth=0.4, zorder=2)
-
-    if color_geomap is None:
-        color_geomap = {'ocean': 'w', 'land': 'w'}
-    elif color_geomap and not isinstance(color_geomap, dict):
-        color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
-
-    gmap.drawlsmask(land_color=color_geomap['land'],
-                    ocean_color=color_geomap['ocean'],
-                    grid=1.25, ax=ax, zorder=1)
-
-    # no transformation -> use the default
-    basemap_projection = gmap
-
-    # disable gmap transformation due to arbitrary conversion
-    # x, y = gmap(x.values, y.values)
-
-    return basemap_projection
-
-def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
+def draw_map_cartopy(n, x, y, ax, boundaries=None, margin=0.05,
                      geomap=True, color_geomap=None):
 
     if boundaries is None:
@@ -452,7 +395,7 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
-    axis_transformation = get_projection_from_crs(network.srid)
+    axis_transformation = get_projection_from_crs(n.srid)
     ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
 
     if color_geomap is None:
@@ -474,6 +417,10 @@ def draw_map_cartopy(network, x, y, ax, boundaries=None, margin=0.05,
 
 def _flow_ds_from_arg(flow, n, branch_components):
     if isinstance(flow, pd.Series):
+        if not isinstance(flow.index, pd.MultiIndex):
+            raise ValueError("Argument 'flow' is a pandas.Series without "
+                     "a MultiIndex. Please provide a multiindexed series, with "
+                     "the first level being a subset of 'branch_components'.")
         return flow
     if flow in n.snapshots:
         return (pd.concat([n.pnl(c).p0.loc[flow]
@@ -485,41 +432,26 @@ def _flow_ds_from_arg(flow, n, branch_components):
                 .agg(flow, axis=0))
 
 
-def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
-                  branch_colors='darkgreen', branch_comps=['Line', 'Link'],
-                  cmap=None):
+def directed_flow(coords, flow, color,  area_factor=1, cmap=None):
     """
     Helper function to generate arrows from flow data.
     """
     # this funtion is used for diplaying arrows representing the network flow
-    from matplotlib.patches import FancyArrow
-    if ax is None:
-        ax = plt.gca()
-    x = n.buses.x if x is None else x
-    y = n.buses.y if y is None else y
-
-    #set the scale of the arrowsizes
-    fdata = pd.concat([pd.DataFrame(
-                      {'x1': n.df(l).bus0.map(x),
-                       'y1': n.df(l).bus0.map(y),
-                       'x2': n.df(l).bus1.map(x),
-                       'y2': n.df(l).bus1.map(y)})
-                      for l in branch_comps], keys=branch_comps,
-                    names=['component', 'name'])
-    fdata['arrowsize'] = flow.abs().pipe(np.sqrt).clip(lower=1e-8)
-    if geomap:
-        fdata['arrowsize']= fdata['arrowsize'].mul(projected_area_factor(ax, n.srid))
-    fdata['direction'] = np.sign(flow)
-    fdata['linelength'] = (np.sqrt((fdata.x1 - fdata.x2)**2. +
-                           (fdata.y1 - fdata.y2)**2))
-    fdata['arrowtolarge'] = (1.5 * fdata.arrowsize >
-                             fdata.loc[:, 'linelength'])
+    data = pd.DataFrame(
+        {'arrowsize': flow.abs().pipe(np.sqrt).clip(lower=1e-8),
+         'direction': np.sign(flow),
+         'linelength': (np.sqrt((coords.x1 - coords.x2)**2. +
+                                (coords.y1 - coords.y2)**2))})
+    data = data.join(coords)
+    if area_factor:
+        data['arrowsize']= data['arrowsize'].mul(area_factor)
+    data['arrowtolarge'] = (1.5 * data.arrowsize > data.linelength)
     # swap coords for negativ directions
-    fdata.loc[fdata.direction == -1., ['x1', 'x2', 'y1', 'y2']] = \
-        fdata.loc[fdata.direction == -1., ['x2', 'x1', 'y2', 'y1']].values
-    if ((fdata.linelength > 0.) & (~fdata.arrowtolarge)).any():
-        fdata['arrows'] = (
-                fdata[(fdata.linelength > 0.) & (~fdata.arrowtolarge)]
+    data.loc[data.direction == -1., ['x1', 'x2', 'y1', 'y2']] = \
+        data.loc[data.direction == -1., ['x2', 'x1', 'y2', 'y1']].values
+    if ((data.linelength > 0.) & (~data.arrowtolarge)).any():
+        data['arrows'] = (
+                data[(data.linelength > 0.) & (~data.arrowtolarge)]
                 .apply(lambda ds:
                        FancyArrow(ds.x1, ds.y1,
                                   0.6*(ds.x2 - ds.x1) - ds.arrowsize
@@ -527,40 +459,33 @@ def directed_flow(n, flow, x=None, y=None, ax=None, geomap=True,
                                   0.6 * (ds.y2 - ds.y1) - ds.arrowsize
                                   * 0.75 * (ds.y2 - ds.y1)/ds.linelength,
                                   head_width=ds.arrowsize), axis=1))
-    fdata.loc[(fdata.linelength > 0.) & (fdata.arrowtolarge), 'arrows'] = \
-        (fdata[(fdata.linelength > 0.) & (fdata.arrowtolarge)]
+    data.loc[(data.linelength > 0.) & (data.arrowtolarge), 'arrows'] = \
+        (data[(data.linelength > 0.) & (data.arrowtolarge)]
          .apply(lambda ds:
                 FancyArrow(ds.x1, ds.y1,
                            0.001*(ds.x2 - ds.x1),
                            0.001*(ds.y2 - ds.y1),
                            head_width=ds.arrowsize), axis=1))
-    if isinstance(branch_colors.index, (pd.MultiIndex, str)):
-        # Catch the case that only multiindex with 'Line' in first level is passed
-        fdata = fdata.assign(color=branch_colors.reindex_like(fdata)
-                                                .fillna('darkgreen'))
-    else:
-        fdata = fdata.join(branch_colors.rename('color'))
-    fdata = fdata.dropna(subset=['arrows'])
-    arrowcol = PatchCollection(fdata.arrows,
-                               color=fdata.color,
+    data = data.dropna(subset=['arrows'])
+    arrowcol = PatchCollection(data.arrows,
+                               color=color,
                                edgecolors='k',
                                linewidths=0.,
-                               zorder=3, alpha=1)
-    ax.add_collection(arrowcol)
+                               zorder=4, alpha=1)
     return arrowcol
 
 
-def autogenerate_coordinates(network, assign=False, layouter=None):
+def autogenerate_coordinates(n, assign=False, layouter=None):
     """
     Automatically generate bus coordinates for the network graph
     according to a layouting function from `networkx <https://networkx.github.io/>`_.
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     assign : bool, default False
         Assign generated coordinates to the network bus coordinates
-        at ``network.buses[['x','y']]``.
+        at ``n.buses[['x','y']]``.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
@@ -581,7 +506,7 @@ def autogenerate_coordinates(network, assign=False, layouter=None):
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
     """
 
-    G = network.graph()
+    G = n.graph()
 
     if layouter is None:
         is_planar = nx.check_planarity(G)[0]
@@ -593,17 +518,17 @@ def autogenerate_coordinates(network, assign=False, layouter=None):
     coordinates = pd.DataFrame(layouter(G)).T.rename({0: 'x', 1: 'y'}, axis=1)
 
     if assign:
-        network.buses[['x', 'y']] = coordinates
+        n.buses[['x', 'y']] = coordinates
 
     return coordinates
 
 
-def _get_coordinates(network, layouter=None):
-    if layouter is not None or network.buses[['x', 'y']].isin([np.nan, 0]).all().all():
-        coordinates = autogenerate_coordinates(network, layouter=layouter)
+def _get_coordinates(n, layouter=None):
+    if layouter is not None or n.buses[['x', 'y']].isin([np.nan, 0]).all().all():
+        coordinates = autogenerate_coordinates(n, layouter=layouter)
         return coordinates["x"], coordinates["y"]
     else:
-        return network.buses["x"], network.buses["y"]
+        return n.buses["x"], n.buses["y"]
 
 
 _token_required_mb_styles = ['basic', 'streets', 'outdoors', 'light', 'dark',
@@ -622,12 +547,14 @@ _open__mb_styles = ['open-street-map', 'white-bg', 'carto-positron',
 #inspired the breakout group and for contributing ideas to the iplot
 #function below.
 
-def iplot(network, fig=None, bus_colors='blue',
-          bus_colorscale=None, bus_colorbar=None, bus_sizes=10, bus_text=None,
-          line_colors='green', line_widths=2, line_text=None, layouter=None, title="", size=None,
-          branch_components=['Line', 'Link'], iplot=True, jitter=None,
-          mapbox=False, mapbox_style='open-street-map', mapbox_token="",
-          mapbox_parameters={}):
+def iplot(n, fig=None, bus_colors='cadetblue', bus_alpha=1, bus_sizes=10,
+          bus_cmap=None, bus_colorbar=None, bus_text=None,
+          line_colors='rosybrown', link_colors='darkseagreen',
+          transformer_colors='orange', line_widths=3, link_widths=3,
+          transformer_widths=3, line_text=None, link_text=None,
+          transformer_text=None,  layouter=None, title="", size=None,
+          branch_components=None, iplot=True, jitter=None, mapbox=False,
+          mapbox_style='open-street-map', mapbox_token="",mapbox_parameters={}):
     """
     Plot the network buses and lines interactively using plotly.
 
@@ -636,30 +563,40 @@ def iplot(network, fig=None, bus_colors='blue',
     fig : dict, default None
         If not None, figure is built upon this fig.
     bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "b"
-    bus_colorscale : string
-        Name of colorscale if bus_colors are floats, e.g. 'Jet', 'Viridis'
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
+    bus_alpha : float
+        Adds alpha channel to buses, defaults to 1.
+    bus_sizes : float/pandas.Series
+        Sizes of bus points, defaults to 10.
+    bus_cmap : plt.cm.ColorMap/str
+        If bus_colors are floats, this color map will assign the colors
     bus_colorbar : dict
         Plotly colorbar, e.g. {'title' : 'my colorbar'}
-    bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 10
-    bus_text : dict/pandas.Series
+    bus_text : pandas.Series
         Text for each bus, defaults to bus names
-    line_colors : dict/pandas.Series
-        Colors for the lines, defaults to "g" for Lines and "cyan" for
-        Links. Colors for branches other than Lines can be
-        specified using a pandas Series with a MultiIndex.
+    line_colors : str/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    link_colors : str/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    transfomer_colors : str/pandas.Series
+        Colors for the transfomer, defaults to 'orange'.
     line_widths : dict/pandas.Series
-        Widths of lines, defaults to 2. Widths for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
-    line_text : dict/pandas.Series
-        Text for lines, defaults to line names. Text for branches other
-        than Lines can be specified using a pandas Series with a
-        MultiIndex.
+        Widths of lines, defaults to 1.5
+    link_widths : dict/pandas.Series
+        Widths of links, defaults to 1.5
+    transformer_widths : dict/pandas.Series
+        Widths of transformer, defaults to 1.5
+    line_text : pandas.Series
+        Text for lines, defaults to line names.
+    link_text : pandas.Series
+        Text for links, defaults to link names.
+    tranformer_text : pandas.Series
+        Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``network.buses[['x','y']]``. See
+        overrules coordinates given in ``n.buses[['x','y']]``. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
         of available options.
     title : string
@@ -700,19 +637,13 @@ def iplot(network, fig=None, bus_colors='blue',
     fig: dictionary for plotly figure
     """
 
-    defaults_for_branches = {
-        'Link': dict(color="cyan", width=2),
-        'Line': dict(color="blue", width=2),
-        'Transformer': dict(color='green', width=2)
-    }
-
     if fig is None:
         fig = dict(data=[],layout={})
 
     if bus_text is None:
-        bus_text = 'Bus ' + network.buses.index
+        bus_text = 'Bus ' + n.buses.index
 
-    x, y = _get_coordinates(network, layouter=layouter)
+    x, y = _get_coordinates(n, layouter=layouter)
 
     if jitter is not None:
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
@@ -723,82 +654,64 @@ def iplot(network, fig=None, bus_colors='blue',
                      type="scatter",
                      mode="markers",
                      hoverinfo="text",
+                     opacity=bus_alpha,
                      marker=dict(color=bus_colors,
-                                 size=bus_sizes),
-                     )
+                                 size=bus_sizes))
 
-    if bus_colorscale is not None:
-        bus_trace['marker']['colorscale'] = bus_colorscale
+    if bus_cmap is not None:
+        bus_trace['marker']['colorscale'] = bus_cmap
 
     if bus_colorbar is not None:
         bus_trace['marker']['colorbar'] = bus_colorbar
 
+    # Plot branches:
+    if isinstance(line_widths, pd.Series):
+        if isinstance(line_widths.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_widths' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing widths with arguments 'line_widths', "
+                            "'link_widths' and 'transformer_widths'.")
+    if isinstance(line_colors, pd.Series):
+        if isinstance(line_colors.index, pd.MultiIndex):
+            raise TypeError("Index of argument 'line_colors' is a Multiindex, "
+                            "this is not support since pypsa v0.17. "
+                            "Set differing colors with arguments 'line_colors', "
+                            "'link_colors' and 'transformer_colors'.")
 
-    def as_branch_series(ser):
-        if isinstance(ser, dict) and set(ser).issubset(branch_components):
-            return pd.Series(ser)
-        elif isinstance(ser, pd.Series):
-            if isinstance(ser.index, pd.MultiIndex):
-                return ser
-            index = ser.index
-            ser = ser.values
-        else:
-            index = network.lines.index
-        return pd.Series(ser,
-                         index=pd.MultiIndex(levels=(["Line"], index),
-                                             labels=(np.zeros(len(index)),
-                                                     np.arange(len(index)))))
+    if branch_components is None:
+        branch_components = n.branch_components
 
-    line_colors = as_branch_series(line_colors)
-    line_widths = as_branch_series(line_widths)
-
-    if line_text is not None:
-        line_text = as_branch_series(line_text)
+    branch_colors = {'Line': line_colors, 'Link': link_colors,
+                     'Transformer': transformer_colors}
+    branch_widths = {'Line': line_widths, 'Link': link_widths,
+                     'Transformer': transformer_widths}
+    branch_text = {'Line': line_text, 'Link': link_text,
+                   'Transformer': transformer_text}
 
     shapes = []
-
     shape_traces = []
 
-    for c in network.iterate_components(branch_components):
-        l_defaults = defaults_for_branches[c.name]
-        l_widths = line_widths.get(c.name, l_defaults['width'])
-        l_colors = line_colors.get(c.name, l_defaults['color'])
+    for c in n.iterate_components(branch_components):
+        b_widths = as_branch_series(branch_widths[c.name], 'width', c.name, n)
+        b_colors = as_branch_series(branch_colors[c.name], 'color', c.name, n)
+        b_text = branch_text[c.name]
 
-        if line_text is None:
-            l_text = c.name + ' ' + c.df.index
-        else:
-            l_text = line_text.get(c.name)
-
-        if isinstance(l_colors, pd.Series):
-            if issubclass(l_colors.dtype.type, np.number):
-                l_colors = None
-            else:
-                l_colors.fillna(l_defaults['color'], inplace=True)
+        if b_text is None:
+            b_text = c.name + ' ' + c.df.index
 
         x0 = c.df.bus0.map(x)
         x1 = c.df.bus1.map(x)
-
         y0 = c.df.bus0.map(y)
         y1 = c.df.bus1.map(y)
 
-        for line in c.df.index:
-            color = l_colors if isinstance(l_colors, string_types) else l_colors[line]
-            width = l_widths if isinstance(l_widths, (int, float)) else l_widths[line]
+        for b in c.df.index:
+            shapes.append(dict(type='line', opacity=0.8,
+                               x0=x0[b], y0=y0[b], x1=x1[b], y1=y1[b],
+                               line=dict(color=b_colors[b], width=b_widths[b])))
 
-            shapes.append(dict(type='line',
-                               x0=x0[line],
-                               y0=y0[line],
-                               x1=x1[line],
-                               y1=y1[line],
-                               opacity=0.7,
-                               line=dict(color=color, width=width)))
-
-        shape_traces.append(dict(x=0.5*(x0+x1),
-                                 y=0.5*(y0+y1),
-                                 text=l_text,
-                                 type="scatter",
-                                 mode="markers",
-                                 hoverinfo="text",
+        shape_traces.append(dict(x=0.5*(x0+x1), y=0.5*(y0+y1),
+                                 text=b_text, type="scatter",
+                                 mode="markers", hoverinfo="text",
                                  marker=dict(opacity=0.)))
 
     if mapbox:
@@ -846,8 +759,8 @@ def iplot(network, fig=None, bus_colors='blue',
 
 
         if 'center' not in mapbox_parameters.keys():
-            lon=(network.buses.x.min() + network.buses.x.max()) / 2
-            lat=(network.buses.y.min() + network.buses.y.max()) / 2
+            lon=(n.buses.x.min() + n.buses.x.max()) / 2
+            lat=(n.buses.y.min() + n.buses.y.max()) / 2
             mapbox_parameters['center'] = dict(lat=lat, lon=lon)
 
         if 'zoom' not in mapbox_parameters.keys():

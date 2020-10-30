@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter|
+|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
 
 -----
 
@@ -41,19 +41,21 @@ for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 Documentation
 =============
 
-`Documentation as a website <http://www.pypsa.org/doc/index.html>`_
+`Documentation <https://pypsa.readthedocs.io/en/latest/index.html>`_
 
-`Quick start <http://www.pypsa.org/doc/quick_start.html>`_
+`Quick start <https://pypsa.readthedocs.io/en/latest/quick_start.html>`_
 
 `Examples <http://www.pypsa.org/examples/>`_
+
+`Known users of PyPSA <https://pypsa.readthedocs.io/en/latest/users.html>`_
 
 Documentation is in `sphinx
 <http://www.sphinx-doc.org/en/stable/>`_ reStructuredText format in
 the ``doc`` sub-folder of the repository.
 
 
-What PyPSA does and does not do (yet)
-=======================================
+Functionality
+=============
 
 PyPSA can calculate:
 
@@ -87,14 +89,6 @@ It has models for:
   these is demonstrated in the `examples
   <http://www.pypsa.org/examples/>`_
 
-
-Functionality that may be added in the future:
-
-* Multi-year investment optimisation
-* Distributed active power slack
-* Interactive web-based GUI with SVG
-* OPF with the full non-linear network equations
-* Port to `Julia <http://julialang.org/>`_
 
 Other complementary libraries:
 
@@ -235,7 +229,13 @@ Please use the following BibTeX: ::
 
 If you want to cite a specific PyPSA version, each release of PyPSA is
 stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
-This can be found linked from the overall PyPSA Zenodo DOI:
+The release-specific DOIs can be found linked from the overall PyPSA
+Zenodo DOI for Version 0.17.1 and onwards:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+   :target: https://doi.org/10.5281/zenodo.3946412
+
+or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
    :target: https://doi.org/10.5281/zenodo.786605
@@ -244,7 +244,7 @@ This can be found linked from the overall PyPSA Zenodo DOI:
 Licence
 =======
 
-Copyright 2015-2019 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
+Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
 David Schlachtberger (FIAS)
 
 This program is free software: you can redistribute it and/or
@@ -257,8 +257,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 `GNU General Public License <LICENSE.txt>`_ for more details.
 
-.. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-.. _link-latest-doi: https://doi.org/10.5281/zenodo.786605
+.. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+    :target: https://doi.org/10.5281/zenodo.3946412
 
 .. |badge_pypi| image:: https://img.shields.io/pypi/v/pypsa.svg
     :target: https://pypi.python.org/pypi/pypsa
@@ -282,3 +282,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |gitter| image:: https://badges.gitter.im/PyPSA/community.svg
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
+
+.. |binder| image:: https://mybinder.org/badge_logo.svg
+    :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks
+    :alt: Examples of use

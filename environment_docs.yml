@@ -6,9 +6,9 @@ dependencies:
   - python
   - six
   - numpy
-  - pyomo
+  - pyomo>=5.7.0
   - scipy
-  - pandas>=0.24.0
+  - pandas>=1.1.0
   - pytables
   - matplotlib
   - networkx>=1.10

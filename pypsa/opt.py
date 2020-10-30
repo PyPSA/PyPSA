@@ -30,22 +30,18 @@ projects.
 
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
-from six.moves import range
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize, maximize
-from weakref import ref as weakref_ref
+from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize
+from pyomo.core.expr.numeric_expr import LinearExpression
 
 import pyomo
 from contextlib import contextmanager
 from six import iteritems
 from six.moves import cPickle as pickle
-import pandas as pd
 import gc, os, tempfile
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
@@ -97,7 +93,7 @@ class LExpression(object):
         return self.__mul__(constant)
 
     def __add__(self,other):
-        if type(other) is LExpression:
+        if isinstance(other, LExpression):
             return LExpression(self.variables + other.variables,self.constant+other.constant)
         else:
             try:
@@ -149,33 +145,12 @@ class LConstraint(object):
     def __repr__(self):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
-try:
-    try:
-        # With pyomo version 5.6.2, expr_pyomo5.py has been split into three files
-        # https://github.com/Pyomo/pyomo/pull/888
-        from pyomo.core.expr.numeric_expr import LinearExpression
-    except ImportError:
-        # [5.6, 5.6.2)
-        from pyomo.core.expr.expr_pyomo5 import LinearExpression
-
-    def _build_sum_expression(variables, constant=0.):
-        expr = LinearExpression()
-        expr.linear_vars = [item[1] for item in variables]
-        expr.linear_coefs = [item[0] for item in variables]
-        expr.constant = constant
-        return expr
-
-except ImportError:
-    # - 5.6)
-    from pyomo.core.base import expr_coopr3
-
-    def _build_sum_expression(variables, constant=0.):
-        expr = expr_coopr3._SumExpression()
-        expr._args = [item[1] for item in variables]
-        expr._coef = [item[0] for item in variables]
-        expr._const = constant
-        return expr
-
+def _build_sum_expression(variables, constant=0.):
+    expr = LinearExpression()
+    expr.linear_vars = [item[1] for item in variables]
+    expr.linear_coefs = [item[0] for item in variables]
+    expr.constant = constant
+    return expr
 
 def l_constraint(model,name,constraints,*args):
     """A replacement for pyomo's Constraint that quickly builds linear
@@ -222,7 +197,7 @@ def l_constraint(model,name,constraints,*args):
     v = getattr(model,name)
     for i in v._index:
         c = constraints[i]
-        if type(c) is LConstraint:
+        if isinstance(c, LConstraint):
             variables = c.lhs.variables + [(-item[0],item[1]) for item in c.rhs.variables]
             sense = c.sense
             constant = c.rhs.constant - c.lhs.constant
@@ -295,7 +270,7 @@ def free_pyomo_initializers(obj):
     elif isinstance(obj, Constraint):
         attrs = ('rule', '_init_expr')
     else:
-        raise NotImplemented
+        raise NotImplementedError
 
     for attr in attrs:
         if hasattr(obj, attr):

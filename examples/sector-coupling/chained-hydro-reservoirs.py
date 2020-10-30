@@ -8,8 +8,6 @@ import pypsa
 import pandas as pd
 import numpy as np
 
-from pyomo.environ import Constraint
-
 #First tell PyPSA that links will have a 2nd bus by
 #overriding the component_attrs. This is needed so that
 #water can both go through a turbine AND feed the next reservoir

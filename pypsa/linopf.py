@@ -23,14 +23,17 @@ from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
 from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
                           expand_series, nominal_attrs, additional_linkports, Dict)
 
-from .linopt import (linexpr, write_bound, write_constraint, set_conref,
-                     set_varref, get_con, get_var, join_exprs, run_and_read_cbc,
-                     run_and_read_gurobi, run_and_read_glpk, define_constraints,
-                     define_variables, align_with_static_component, define_binaries)
+from .linopt import (linexpr, write_bound, write_constraint, write_objective,
+                     set_conref, set_varref, get_con, get_var, join_exprs,
+                     run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
+                     run_and_read_cplex, run_and_read_xpress,
+                     define_constraints, define_variables, define_binaries,
+                     align_with_static_component)
 
 
 import pandas as pd
 import numpy as np
+from numpy import inf
 
 import gc, time, os, re, shutil
 from tempfile import mkstemp
@@ -81,7 +84,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     if c == 'Generator':
         ext_i = ext_i | n.generators.query('committable').index
     if ext_i.empty: return
-    define_variables(n, -np.inf, np.inf, c, attr, axes=[sns, ext_i], spec='extendables')
+    define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
 
 def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
@@ -106,7 +109,11 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
-    define_variables(n, lower, upper, c, attr, spec='nonextendables')
+    axes = [sns, fix_i]
+    dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, spec='non_ext')
+    dispatch = linexpr((1, dispatch))
+    define_constraints(n, dispatch, '>=', lower, c, 'mu_lower', spec='non_ext')
+    define_constraints(n, dispatch, '<=', upper, c, 'mu_upper', spec='non_ext')
 
 
 def define_dispatch_for_extendable_constraints(n, sns, c, attr):
@@ -223,16 +230,18 @@ def define_ramp_limit_constraints(n, sns):
 
     # fix up
     gens_i = rup_i & fix_i
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-    rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-    define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
+    if not gens_i.empty:
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
+        rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+        define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
     gens_i = rup_i & ext_i
-    limit_pu = n.df(c)['ramp_limit_up'][gens_i]
-    p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
-    define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
+    if not gens_i.empty:
+        limit_pu = n.df(c)['ramp_limit_up'][gens_i]
+        p_nom = get_var(n, c, 'p_nom')[gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
+        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     # com up
     gens_i = rup_i & com_i
@@ -242,21 +251,24 @@ def define_ramp_limit_constraints(n, sns):
         status = get_var(n, c, 'status').loc[sns[1:], gens_i]
         status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_start - limit_up, status_prev), (- limit_start, status))
+                      (limit_start - limit_up, status_prev),
+                      (- limit_start, status))
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
 
     # fix down
     gens_i = rdown_i & fix_i
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-    rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
-    define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
+    if not gens_i.empty:
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
+        rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
+        define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
     gens_i = rdown_i & ext_i
-    limit_pu = n.df(c)['ramp_limit_down'][gens_i]
-    p_nom = get_var(n, c, 'p_nom')[gens_i]
-    lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
-    define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
+    if not gens_i.empty:
+        limit_pu = n.df(c)['ramp_limit_down'][gens_i]
+        p_nom = get_var(n, c, 'p_nom')[gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
+        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
     # com down
     gens_i = rdown_i & com_i
@@ -266,7 +278,8 @@ def define_ramp_limit_constraints(n, sns):
         status = get_var(n, c, 'status').loc[sns[1:], gens_i]
         status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_down - limit_shut, status), (limit_shut, status_prev))
+                      (limit_down - limit_shut, status),
+                      (limit_shut, status_prev))
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
 
 def define_nodal_balance_constraints(n, sns):
@@ -299,7 +312,7 @@ def define_nodal_balance_constraints(n, sns):
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
-           .agg(lambda x: ''.join(x.values))
+           .sum()
            .reindex(columns=n.buses.index, fill_value=''))
     sense = '='
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
@@ -335,6 +348,7 @@ def define_kirchhoff_constraints(n, sns):
         cycle_sum.index = sns
         con = write_constraint(n, cycle_sum, '=', 0)
         constraints.append(con)
+    if len(constraints) == 0: return
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
@@ -398,7 +412,7 @@ def define_store_constraints(n, sns):
     stores_i = n.stores.index
     if stores_i.empty: return
     c = 'Store'
-    variables = write_bound(n, -np.inf, np.inf, axes=[sns, stores_i])
+    variables = write_bound(n, -inf, inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
     eh = expand_series(n.snapshot_weightings[sns], stores_i)  #elapsed hours
@@ -455,7 +469,8 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = n.snapshot_weightings.to_frame() @ em_pu.to_frame('weightings').T
+            em_pu = n.snapshot_weightings[sns].to_frame('weightings') @\
+                    em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=False)
             lhs += join_exprs(vals)
@@ -495,6 +510,7 @@ def define_global_constraints(n, sns):
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
         lhs = ''
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
+            if n.df(c).empty: continue
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
             v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]),
@@ -537,7 +553,8 @@ def define_objective(n, sns):
         ext_i = get_extendable_i(n, c)
         constant += n.df(c)[attr][ext_i] @ n.df(c).capital_cost[ext_i]
     object_const = write_bound(n, constant, constant)
-    n.objective_f.write(linexpr((-1, object_const), as_pandas=False)[0])
+    write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
+    n.objective_constant = constant
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
@@ -545,19 +562,19 @@ def define_objective(n, sns):
                 .mul(n.snapshot_weightings[sns], axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
-        n.objective_f.write(join_exprs(terms))
+        write_objective(n, terms)
     # investment
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr)[cost.index]))
-        n.objective_f.write(join_exprs(terms))
+        write_objective(n, terms)
 
 
-def prepare_lopf(n, snapshots=None, keep_files=False,
+def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
                  extra_functionality=None, solver_dir=None):
     """
-    Sets up the linear problem and writes it out to a lp file
+    Sets up the linear problem and writes it out to a lp file.
 
     Returns
     -------
@@ -615,7 +632,11 @@ def prepare_lopf(n, snapshots=None, keep_files=False,
     define_kirchhoff_constraints(n, snapshots)
     define_nodal_balance_constraints(n, snapshots)
     define_global_constraints(n, snapshots)
-    define_objective(n, snapshots)
+    if skip_objective:
+        logger.info("The argument `skip_objective` is set to True. Expecting a "
+                    "custom objective to be build via `extra_functionality`.")
+    else:
+        define_objective(n, snapshots)
 
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
@@ -668,15 +689,17 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
             n.solutions.at[(c, attr), 'pnl'] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             values = variables.stack().map(variables_sol).unstack()
-            if c in n.passive_branch_components:
+            if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, 'p0', values)
                 set_from_frame(pnl, 'p1', - values)
-            elif c == 'Link':
+            elif c == 'Link' and attr == "p":
                 set_from_frame(pnl, 'p0', values)
                 for i in ['1'] + additional_linkports(n):
                     i_eff = '' if i == '1' else i
                     eff = get_as_dense(n, 'Link', f'efficiency{i_eff}', sns)
                     set_from_frame(pnl, f'p{i}', - values * eff)
+                    pnl[f'p{i}'].loc[sns, n.links.index[n.links[f'bus{i}'] == ""]] = \
+                        n.component_attrs['Link'].loc[f'p{i}','default']
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -746,6 +769,9 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
+    #correct prices for snapshot weightings
+    n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(n.snapshot_weightings.loc[sns],axis=0)
+
     # discard remaining if wanted
     if not keep_references:
         for c, attr in n.constraints.index.difference(sp):
@@ -788,10 +814,10 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
-         solver_logfile=None, extra_functionality=None,
-         extra_postprocessing=None, formulation="kirchhoff",
+         solver_logfile=None, extra_functionality=None, skip_objective=False,
+         skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
-         keep_shadowprices=['Bus', 'Line', 'GlobalConstraint'],
+         keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
          solver_options=None, warmstart=False, store_basis=False,
          solver_dir=None):
     """
@@ -828,6 +854,11 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    skip_pre : bool, default False
+        Skip the preliminary steps of computing topology.
+    skip_objective : bool, default False
+        Skip writing the default objective function. If False, a custom
+        objective has to be defined via extra_functionality.
     extra_postprocessing : callable function
         This function must take three arguments
         `extra_postprocessing(network,snapshots,duals)` and is called after
@@ -854,7 +885,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         :func:`pypsa.linopt.get_dual` with corresponding name
 
     """
-    supported_solvers = ["cbc", "gurobi", 'glpk', 'scs']
+    supported_solvers = ["cbc", "gurobi", 'glpk', 'cplex', 'xpress']
     if solver_name not in supported_solvers:
         raise NotImplementedError(f"Solver {solver_name} not in "
                                   f"supported solvers: {supported_solvers}")
@@ -863,17 +894,17 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
     if n.generators.committable.any():
-        logger.warn("Unit commitment is not yet completely implemented for "
+        logger.warning("Unit commitment is not yet completely implemented for "
         "optimising without pyomo. Thus minimum up time, minimum down time, "
         "start up costs, shut down costs will be ignored.")
 
-    #disable logging because multiple slack bus calculations, keep output clean
     snapshots = _as_snapshots(n, snapshots)
-    n.calculate_dependent_values()
-    n.determine_network_topology()
+    if not skip_pre:
+        n.calculate_dependent_values()
+        n.determine_network_topology()
 
     logger.info("Prepare linear problem")
-    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files,
+    fdp, problem_fn = prepare_lopf(n, snapshots, keep_files, skip_objective,
                                    extra_functionality, solver_dir)
     fds, solution_fn = mkstemp(prefix='pypsa-solve', suffix='.sol', dir=solver_dir)
 
@@ -885,18 +916,23 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
 
     solve = eval(f'run_and_read_{solver_name}')
     res = solve(n, problem_fn, solution_fn, solver_logfile,
-                solver_options, keep_files, warmstart, store_basis)
+                solver_options, warmstart, store_basis)
+
     status, termination_condition, variables_sol, constraints_dual, obj = res
 
     if not keep_files:
         os.close(fdp); os.remove(problem_fn)
         os.close(fds); os.remove(solution_fn)
 
-    if "optimal" not in termination_condition:
-        logger.warning('Problem was not solved to optimality')
-        return status, termination_condition
-    else:
+    if status == "ok" and termination_condition == "optimal":
         logger.info('Optimization successful. Objective value: {:.2e}'.format(obj))
+    elif status == "warning" and termination_condition == "suboptimal":
+        logger.warning('Optimization solution is sub-optimal. '
+                       'Objective value: {:.2e}'.format(obj))
+    else:
+        logger.warning(f'Optimization failed with status {status} and '
+                       f'termination condition {termination_condition}')
+        return status, termination_condition
 
     n.objective = obj
     assign_solution(n, snapshots, variables_sol, constraints_dual,
@@ -908,7 +944,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
 
 
 def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
-          max_iterations=100, **kwargs):
+          max_iterations=100, track_iterations=False, **kwargs):
     '''
     Iterative linear optimization updating the line parameters for passive
     AC and DC lines. This is helpful when line expansion is enabled. After each
@@ -932,6 +968,10 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     max_iterations : integer, default 100
         Maximal numbder of iterations to run regardless whether msq_threshold
         is already undercut
+    track_iterations: bool, default False
+        If True, the intermediate branch capacities and values of the
+        objective function are recorded for each iteration. The values of
+        iteration 0 represent the initial state.
     **kwargs
         Keyword arguments of the lopf function which runs at each iteration
 
@@ -961,18 +1001,34 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
                     f"{lines_err}")
         return lines_err
 
-    iteration = 0
+    def save_optimal_capacities(n, iteration, status):
+        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+            n.df(c)[f'{attr}_opt_{iteration}'] = n.df(c)[f'{attr}_opt']
+        setattr(n, f"status_{iteration}", status)
+        setattr(n, f"objective_{iteration}", n.objective)
+        n.iteration = iteration
+        n.global_constraints = n.global_constraints.rename(columns={'mu': f'mu_{iteration}'})
+
+
+    if track_iterations:
+        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+            n.df(c)[f'{attr}_opt_0'] = n.df(c)[f'{attr}']
+    iteration = 1
     kwargs['store_basis'] = True
     diff = msq_threshold
     while diff >= msq_threshold or iteration < min_iterations:
-        if iteration >= max_iterations:
+        if iteration > max_iterations:
             logger.info(f'Iteration {iteration} beyond max_iterations '
                         f'{max_iterations}. Stopping ...')
             break
 
         s_nom_prev = n.lines.s_nom_opt if iteration else n.lines.s_nom
         kwargs['warmstart'] = bool(iteration and ('basis_fn' in n.__dir__()))
-        network_lopf(n, snapshots, **kwargs)
+        status, termination_condition = network_lopf(n, snapshots, **kwargs)
+        assert status == 'ok', (f'Optimization failed with status {status}'
+                                f'and termination {termination_condition}')
+        if track_iterations:
+            save_optimal_capacities(n, iteration, status)
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
@@ -981,6 +1037,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     ext_links_i = get_extendable_i(n, 'Link')
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
     n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
+    kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
     n.lines.loc[ext_i, 's_nom_extendable'] = True
     n.links.loc[ext_links_i, 'p_nom_extendable'] = True

@@ -16,10 +16,7 @@
 """Functions for importing and exporting data.
 """
 
-# make the code as Python 3 compatible as possible
-from __future__ import division, absolute_import
 from six import iteritems, iterkeys, string_types
-from six.moves import filter, range
 
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
@@ -32,7 +29,6 @@ from textwrap import dedent
 from glob import glob
 
 import pandas as pd
-import pypsa
 import numpy as np
 import math
 
@@ -733,7 +729,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     >>> import numpy as np
     >>> network.set_snapshots(range(10))
     >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10,4), 
+            pd.DataFrame(np.random.rand(10,4),
                 columns=network.generators.index,
 			    index=range(10)),
 			"Generator",
@@ -750,18 +746,27 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
-        logger.warning("Components {} for attribute {} of {} are not in main components dataframe {}".format(diff,attr,cls_name,list_name))
+        logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "
+                       f"are not in main components dataframe {list_name}")
 
-    attr_series = network.components[cls_name]["attrs"].loc[attr]
+    attrs = network.components[cls_name]['attrs']
+    expected_attrs = attrs[lambda ds: ds.type.str.contains('series')].index
+    if attr not in expected_attrs:
+        pnl[attr] = dataframe
+        return
+
+    attr_series = attrs.loc[attr]
+    default = attr_series.default
     columns = dataframe.columns
 
     diff = network.snapshots.difference(dataframe.index)
     if len(diff):
-        logger.warning("Snapshots {} are missing from {} of {}. Filling with default value '{}'".format(diff,attr,cls_name,attr_series["default"]))
-        dataframe = dataframe.reindex(network.snapshots, fill_value=attr_series["default"])
+        logger.warning(f"Snapshots {diff} are missing from {attr} of {cls_name}."
+                       f" Filling with default value '{default}'")
+        dataframe = dataframe.reindex(network.snapshots, fill_value=default)
 
     if not attr_series.static:
-        pnl[attr] = pnl[attr].reindex(columns=df.index|columns, fill_value=attr_series.default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index | columns, fill_value=default)
     else:
         pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
 
@@ -935,7 +940,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     Importing from pandapower is still in beta;
     not all pandapower data is supported.
-    
+
     Unsupported features include:
     - three-winding transformers
     - switches
@@ -1037,10 +1042,10 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     # if it's not based on a standard-type - get the included values:
     else:
-        s_nom = net.trafo.sn_kva.values/1000.
+        s_nom = net.trafo.sn_mva.values/1000.
 
-        r = net.trafo.vscr_percent.values/100.
-        x = np.sqrt((net.trafo.vsc_percent.values/100.)**2 - r**2)
+        r = net.trafo.vkr_percent.values/100.
+        x = np.sqrt((net.trafo.vk_percent.values/100.)**2 - r**2)
         # NB: b and g are per unit of s_nom
         g = net.trafo.pfe_kw.values/(1000. * s_nom)
 
