@@ -19,11 +19,11 @@ Originally retrieved from nomopyomo ( -> 'no more Pyomo').
 """
 
 
-from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
-from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
+from pypsa.pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
+from pypsa.descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
                           expand_series, nominal_attrs, additional_linkports, Dict)
 
-from .linopt import (linexpr, write_bound, write_constraint, write_objective,
+from pypsa.linopt import (linexpr, write_bound, write_constraint, write_objective,
                      set_conref, set_varref, get_con, get_var, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
                      run_and_read_cplex, run_and_read_xpress,
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
 
-
+#%%
 def define_nominal_for_extendable_variables(n, c, attr):
     """
     Initializes variables for nominal capacities for a given component and a

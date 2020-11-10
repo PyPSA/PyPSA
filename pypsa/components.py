@@ -399,7 +399,7 @@ class Network(Basic):
 
         #NB: No need to rebind pnl to self, since haven't changed it
 
-    def set_investment_period(self, investment_period):
+    def set_investment_periods(self, investment_periods):
         """
         Set the investment period.
 
@@ -414,9 +414,9 @@ class Network(Basic):
         None
         """
 
-        self.investment_period = pd.Index(investment_period)
+        self.investment_periods = pd.Index(investment_periods)
 
-        self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_period,fill_value=1.)
+        self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_periods,fill_value=1.)
 
         # for component in self.all_components:
         #     pnl = self.pnl(component)
@@ -789,7 +789,7 @@ class Network(Basic):
         return override_components, override_component_attrs
 
 
-    def copy(self, with_time=True, snapshots=None, investment_period=None,
+    def copy(self, with_time=True, snapshots=None, investment_periods=None,
              ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
@@ -833,9 +833,9 @@ class Network(Basic):
             if snapshots is None:
                 snapshots = self.snapshots
             network.set_snapshots(snapshots)
-            if investment_period is None:
-                investment_period = self.investment_period
-            network.set_investment_period(investment_period)
+            if investment_periods is None:
+                investment_periods = self.investment_periods
+            network.set_investment_periods(investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
