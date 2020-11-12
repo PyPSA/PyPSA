@@ -21,7 +21,7 @@ dependencies:
   - scikit-learn
   - pycountry
   - seaborn
-  - snakemake-minimal<=5.24.2 # until https://github.com/snakemake/snakemake/issues/635 closed
+  - snakemake-minimal
   - memory_profiler
   - yaml
   - pytables
