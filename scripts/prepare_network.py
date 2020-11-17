@@ -108,7 +108,7 @@ def set_transmission_limit(n, ll_type, factor, Nyears=1):
 
     col = 'capital_cost' if ll_type == 'c' else 'length'
     ref = (lines_s_nom @ n.lines[col] +
-           n.links[links_dc_b].p_nom @ n.links[links_dc_b][col])
+           n.links.loc[links_dc_b, "p_nom"] @ n.links.loc[links_dc_b, col])
 
     costs = load_costs(Nyears, snakemake.input.tech_costs,
                        snakemake.config['costs'],
