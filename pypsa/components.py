@@ -1266,10 +1266,32 @@ class SubNetwork(Common):
         sub_networks = self.network.storage_units.bus.map(self.network.buses.sub_network)
         return self.network.storage_units.index[sub_networks == self.name]
 
+    def _contains_switch(self, switch_i):
+        connections = self.network.switches_connections.loc[switch_i]
+        connected_generators = set(connections['bus_generators_bus0']
+                                   + connections['bus_generators_bus1'])
+        connected_transformers = set(connections['bus0_transformers_bus0']
+                                     + connections['bus0_transformers_bus1']
+                                     + connections['bus1_transformers_bus0']
+                                     + connections['bus1_transformers_bus1'])
+        connected_loads = set(connections['bus_loads_bus0']
+                              + connections['bus_loads_bus1'])
+        connected_lines = set(connections['bus0_lines_bus0']
+                              + connections['bus0_lines_bus1']
+                              + connections['bus1_lines_bus0']
+                              + connections['bus1_lines_bus1'])
+        return connected_generators.issubset(set(self.generators_i())) \
+            and connected_transformers.issubset(set(self.transformers_i())) \
+            and connected_loads.issubset(set(self.loads_i())) \
+            and connected_lines.issubset(set(self.lines_i()))
+
+    def switches_i(self):
+        switches_i = self.network.switches.index
+        return [switch_i for switch_i in switches_i if self._contains_switch(switch_i)]
+
     def stores_i(self):
         sub_networks = self.network.stores.bus.map(self.network.buses.sub_network)
         return self.network.stores.index[sub_networks == self.name]
-
 
     def buses(self):
         return self.network.buses.loc[self.buses_i()]
@@ -1285,6 +1307,15 @@ class SubNetwork(Common):
 
     def storage_units(self):
         return self.network.storage_units.loc[self.storage_units_i()]
+
+    def transformers(self):
+        return self.network.transformers.loc[self.transformers_i()]
+
+    def lines(self):
+        return self.network.lines.loc[self.lines_i()]
+
+    def switches(self):
+        return self.network.switches.loc[self.switches_i()]
 
     def iterate_components(self, components=None, skip_empty=True):
         for c in self.network.iterate_components(components=components, skip_empty=False):
