@@ -581,6 +581,36 @@ class Network(Basic):
         #This guarantees that the correct attribute type is maintained
         obj_df = pd.DataFrame(data=[static_attrs.default],index=[name],columns=static_attrs.index)
         new_df = cls_df.append(obj_df, sort=False)
+
+        # check if we need to (re)initialize switches
+        need_to_reinit = False
+        need_to_init = False
+        if class_name == "Switch":
+            try:
+                test_init = self.switches_connections  # AttributeError if not initialized
+                need_to_reinit = True
+                switch_related = None  # switch_related unused in reinit_switches_after_adding_components for switches
+                status_old_switches = self.switches.status.copy()
+            except AttributeError:
+                need_to_init = True
+        elif len(self.switches):
+            try:
+                test_init = self.switches_connections  # AttributeError if not initialized
+                buses_with_switches = (self.switches.bus1.append(self.switches.bus0).drop_duplicates().tolist())
+                switch_related =  []
+                for attr in ["bus", "bus0", "bus1"]:
+                    if attr in new_df.columns:
+                        switch_related += new_df.index[new_df[attr].isin(buses_with_switches)].tolist()
+                switch_related = list(set(switch_related))
+                if len(switch_related) > 0:
+                    logger.debug("The new %s has bus(es) which are connected to switches."
+                                 "So we need to call network.reinit_switches_after_adding_components():\n%s",
+                                 class_name, switch_related)
+                    need_to_reinit = True
+                    status_old_switches = self.switches.status.copy()
+            except AttributeError:
+                need_to_init = True
+
         setattr(self, self.components[class_name]["list_name"], new_df)
 
         for k,v in iteritems(kwargs):
@@ -594,26 +624,18 @@ class Network(Basic):
                 new_df.at[name,k] = typ(v)
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
-        # check if we need to reinitialize switches
-        need_to_reinit = False
-        if len(self.switches):
-            for attr in ["bus", "bus0", "bus1"]:
-                if attr in new_df.columns:
-                    buses_with_switches = (self.switches.bus1.append(self.switches.bus0).drop_duplicates().tolist())
-                    switch_related = new_df.at[name, attr] in buses_with_switches
-                    if switch_related:
-                        logger.debug("The new %s has bus(es) which are connected to switches."
-                                     "So we need to call network.reinit_switches_after_adding_components():\n%s",
-                                     class_name, switch_related)
-                        need_to_reinit = True
-                        status_before = self.switches.status.copy()
+
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:
                 bus_name = new_df.at[name,attr]
                 if bus_name not in self.buses.index:
                     logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
-        if need_to_reinit:
-            self.reinit_switches_after_adding_components(status_before, class_name, switch_related)
+
+        if need_to_reinit:  # the new component is (connected to) a switch, initialize again
+            # TODO: skip_result_deletion? basically the user should know that adding a component makes results invalid?
+            self.reinit_switches_after_adding_components(status_old_switches, class_name, switch_related, skip_result_deletion=True)
+        elif need_to_init:  # the new component is (connected to) a switch, initialize
+            self.init_switches()
 
 
     def remove(self, class_name, name):

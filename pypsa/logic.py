@@ -57,7 +57,7 @@ def reinit_switches_after_adding_components(network, status_old_switches, cls_na
     logger.info("reinitializing switches after adding component(s) of type %s related to switches:\n%s" % (cls_name, switch_related))
     switches_status_before = network.switches.status.copy()  # there might be new ones
     closed_switches_before = switches_status_before.loc[switches_status_before == 1].index.tolist()
-    closed_old_switches = status_old_switches.loc[switches_status_before == 1].index.tolist()
+    closed_old_switches = status_old_switches.loc[status_old_switches == 1].index.tolist()
     network.open_switches(closed_old_switches, skip_result_deletion=True)
     determine_logical_topology(network)
     find_only_logical_buses(network)
