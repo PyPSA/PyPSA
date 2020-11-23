@@ -56,7 +56,7 @@ except ImportError:
     pltly_present = False
 
 
-def plot(n, margin=None, ax=None, geomap=True, projection=None,
+def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
          bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
          line_colors='rosybrown', link_colors='darkseagreen',
          transformer_colors='orange',
@@ -146,6 +146,9 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         Collections for buses and branches.
     """
     x, y = _get_coordinates(n, layouter=layouter)
+    if boundaries is None:
+        # in long-term replace margin setting with ax.autoscale()
+        boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap:
         if not cartopy_present:
@@ -166,8 +169,16 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+        ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
+        ax.axis(boundaries)
+    else:
+        ax.axis(boundaries)
+
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_title(title)
 
     # Plot buses:
 
@@ -227,7 +238,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
             radius = s.at[b_i]**0.5
             patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
                                    facecolor=c.at[b_i], alpha=bus_alpha))
-        bus_collection = PatchCollection(patches, match_original=True)
+        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         ax.add_collection(bus_collection)
 
     # Plot branches:
@@ -314,30 +325,6 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
-
-    bus_collection.set_zorder(5)
-
-    if margin is not None or boundaries is not None:
-        if margin is not None:
-            coords = _get_coordinates(n, layouter=layouter)
-            (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, *coords)
-        elif boundaries is not None:
-            x1, x2, y1, y2 = boundaries
-        if geomap:
-            ax.set_extent([x1, x2, y1, y2], crs=transform)
-        else:
-            ax.set_xlim(x1, x2)
-            ax.set_ylim(y1, y2)
-    else:
-        ax.autoscale()
-
-    if geomap:
-        ax.outline_patch.set_visible(False)
-    else:
-        ax.set_aspect('equal')
-    ax.axis('off')
-
-    ax.set_title(title)
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
