@@ -56,7 +56,7 @@ except ImportError:
     pltly_present = False
 
 
-def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
+def plot(n, margin=None, ax=None, geomap=True, projection=None,
          bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
          line_colors='rosybrown', link_colors='darkseagreen',
          transformer_colors='orange',
@@ -146,8 +146,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         Collections for buses and branches.
     """
     x, y = _get_coordinates(n, layouter=layouter)
-    if boundaries is None:
-        # in long-term replace margin setting with ax.autoscale()
+    if boundaries is None and margin:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap:
@@ -169,11 +168,11 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
-        ax.set_extent(boundaries, crs=transform)
+        if boundaries:
+            ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
-        ax.axis(boundaries)
-    else:
+    if not geomap and boundaries:
         ax.axis(boundaries)
 
     ax.set_aspect('equal')
@@ -325,6 +324,9 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
+
+    if boundaries is None:
+        ax.autoscale()
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
