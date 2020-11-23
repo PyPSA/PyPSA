@@ -129,7 +129,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for c in network.passive_branch_components:
         pnl = network.pnl(c)
-        p0_base.at[c] = pnl.p0.loc[snapshot]
+        p0_base[c] = pnl.p0.loc[snapshot]
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
@@ -235,12 +235,12 @@ def add_contingency_constraints_lowmem(network, snapshots):
         branches_i = sn.branches_i()
         branches = sn.branches()
         outages = branches_i.intersection(branch_outages)
-        
+
         ext_i = branches.loc[branches.s_nom_extendable].index
         fix_i = branches.loc[~branches.s_nom_extendable].index
 
         p = dispatch_vars[branches_i]
-        
+
         BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
 
         lhs = {}
@@ -268,7 +268,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 key = ("lower", "non_ext", outage)
                 lhs[key] = lhs_flow_fix
                 rhs[key] = - s_nom_fix
-            
+
             if len(ext_i):
                 lhs_flow_ext = lhs_flow[ext_i]
                 s_nom_ext = invest_vars[ext_i]
@@ -358,7 +358,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
     passive_branches = network.passive_branches()
 
     if branch_outages is None:
-        branch_outages = passive_branches.index  
+        branch_outages = passive_branches.index
 
     # save to network for extra_functionality
     network._branch_outages = branch_outages
@@ -377,7 +377,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
 
     #need to skip preparation otherwise it recalculates the sub-networks
 
-    network.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=pyomo, 
+    network.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=pyomo,
                  skip_pre=True, extra_functionality=_extra_functionality,
                  solver_options=solver_options, keep_files=keep_files,
                  formulation=formulation, **pyomo_kwargs)
