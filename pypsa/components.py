@@ -230,7 +230,7 @@ class Network(Basic):
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
         #a list/index of scenarios/times
-        self.investment_periods = pd.Index(["now"])
+        self.investment_periods = pd.Index(self.snapshots)
 
         #investment/CO2 constraint weighting of each investment period
         self.investment_period_weightings = pd.Series(index=self.investment_periods,data=1.)
@@ -396,6 +396,10 @@ class Network(Basic):
 
             for k,default in attrs.default[attrs.varying].iteritems():
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
+
+        self.investment_periods = pd.Index([self.snapshots[0]])
+        self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_periods,fill_value=1.)
+
 
         #NB: No need to rebind pnl to self, since haven't changed it
 
