@@ -334,8 +334,10 @@ def get_active_assets(n, c, inv_p, sns):
     df["build_year"].fillna(sns[0].year,inplace=True)
     df.loc[df["lifetime"]==np.inf, "lifetime"] = sns[-1].year-sns[0].year+1
 
-
-    index_active = (df["build_year"]<= inv_p.year) & (inv_p.year<df[["build_year", "lifetime"]].sum(axis=1))
+    if any(n.investment_periods =="now"):
+        index_active = df.index
+    else:
+        index_active = (df["build_year"]<= inv_p.year) & (inv_p.year<df[["build_year", "lifetime"]].sum(axis=1))
 
     return index_active
 
