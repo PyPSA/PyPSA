@@ -125,19 +125,13 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
         branch_outages = passive_branches.index
 
 
-    p0_base = pd.Series(index=passive_branches.index)
-
-    for c in network.passive_branch_components:
-        pnl = network.pnl(c)
-        p0_base[c] = pnl.p0.loc[snapshot]
+    p0_base = pd.concat({c: network.pnl(c).p0.loc[snapshot]
+                         for c in network.passive_branch_components})
+    p0 = p0_base.to_frame('base')
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
         sn.calculate_BODF()
-
-    p0 = pd.DataFrame(index=passive_branches.index)
-
-    p0["base"] = p0_base
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
