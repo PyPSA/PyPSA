@@ -41,8 +41,8 @@ electricity:
 
   extendable_carriers:
     Generator: []
-    StorageUnit: [battery, H2]
-    Store: [] # battery, H2
+    StorageUnit: [] # battery, H2
+    Store: [battery, H2]
     Link: []
 
   max_hours:
