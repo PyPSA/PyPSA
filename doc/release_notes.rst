@@ -10,6 +10,8 @@ Upcoming Release
 * Bump minimum ``pandas`` requirement to version 1.1.0.
 * When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.  
 
+* Fix setting ``margin`` and ``boundaries`` when plotting a network with ``geomap=False``. 
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 
