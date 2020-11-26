@@ -7,7 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* overwrite ``p_nom`` and ``s_nom`` of line and link attributes to original values after final optimisation
+* When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
@@ -32,6 +32,9 @@ This release contains bug fixes and extensions to the features for optimization 
 * When solving ``n.lopf(pyomo=False, store_basis=True, solver_name="cplex")`` an error raised by trying to store a non-existing basis is caught.
 
 * Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
+
+* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
+  because last iteration returns NaN (no optimisation of line capacities in final iteration).
 
 * Added tracking of iterations of global constraints in the optimisation.
 
