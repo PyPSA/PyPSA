@@ -9,6 +9,8 @@ Upcoming Release
 
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
 
+* Bump minimum ``pandas`` requirement to version 1.1.0.
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 

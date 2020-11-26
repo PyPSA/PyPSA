@@ -110,6 +110,7 @@ Documentation
 * :doc:`citing`
 * :doc:`unit_testing`
 * :doc:`mailing_list`
+* :doc:`users`
 
 .. toctree::
    :hidden:
@@ -124,3 +125,4 @@ Documentation
    citing
    unit_testing
    mailing_list
+   users
