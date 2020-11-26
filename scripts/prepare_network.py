@@ -205,14 +205,17 @@ if __name__ == "__main__":
         suptechs = map(lambda c: c.split("-", 2)[0], n.carriers.index)
         if oo[0].startswith(tuple(suptechs)):
             carrier = oo[0]
-            cost_factor = float(oo[1])
+            # handles only p_nom_max as stores and lines have no potentials
+            attr_lookup = {"p": "p_nom_max", "c": "capital_cost"}
+            attr = attr_lookup[oo[1][0]]
+            factor = float(oo[1][1:])
             if carrier == "AC":  # lines do not have carrier
-                n.lines.capital_cost *= cost_factor
+                n.lines[attr] *= factor
             else:
-                comps = {"Generator", "Link", "StorageUnit"}
+                comps = {"Generator", "Link", "StorageUnit", "Store"}
                 for c in n.iterate_components(comps):
                     sel = c.df.carrier.str.contains(carrier)
-                    c.df.loc[sel,"capital_cost"] *= cost_factor
+                    c.df.loc[sel,attr] *= factor
 
     if 'Ep' in opts:
         add_emission_prices(n)

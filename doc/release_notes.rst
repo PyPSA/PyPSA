@@ -17,7 +17,10 @@ Upcoming Release
   cross-border transfer capacities. Moreover, line and link capacities can be capped in the ``config.yaml`` at
   ``lines: s_nom_max:`` and ``links: p_nom_max`` (`#166 <https://github.com/PyPSA/pypsa-eur/pull/166>`_).
 
-* Added an option to alter the capital cost of carriers by a factor via ``carrier+factor`` in the ``{opts}`` wildcard. This can be useful for exploring uncertain cost parameters. Example: ``solar+0.5`` reduces the capital cost of solar to 50% of original values (`#167 <https://github.com/PyPSA/pypsa-eur/pull/167>`_).
+* Added an option to alter the capital cost (``c``) or installable potentials (``p``) of carriers by a factor via ``carrier+{c,p}factor`` in the ``{opts}`` wildcard.
+  This can be useful for exploring uncertain cost parameters.
+  Example: ``solar+c0.5`` reduces the capital cost of solar to 50% of original values
+  (`#167 <https://github.com/PyPSA/pypsa-eur/pull/167>`_ and `#207 <https://github.com/PyPSA/pypsa-eur/pull/207>`_).
 
 * Add compatibility for pyomo 5.7.0 in :mod:`cluster_network` and :mod:`simplify_network`.
 
