@@ -201,8 +201,8 @@ def _add_links_from_tyndp(buses, links):
     buses = buses.loc[keep_b['Bus']]
     links = links.loc[keep_b['Link']]
 
-    links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.15)
-    # Corresponds approximately to 15km tolerances
+    links_tyndp["j"] = _find_closest_links(links, links_tyndp, distance_upper_bound=0.20)
+    # Corresponds approximately to 20km tolerances
 
     if links_tyndp["j"].notnull().any():
         logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
