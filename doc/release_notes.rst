@@ -9,7 +9,7 @@ Upcoming Release
 
 * Bump minimum ``pandas`` requirement to version 1.1.0.
 
-* Fix setting `margin` and `boundaries` when plotting a network with `geomap=False`. 
+* Fix setting ``margin`` and ``boundaries`` when plotting a network with ``geomap=False``. 
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
