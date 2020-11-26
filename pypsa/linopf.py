@@ -1062,12 +1062,13 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
-    logger.info('Running last lopf with fixed branches, overwrite p_nom '
-                'for links and s_nom for lines')
+    logger.info('Running last lopf with fixed branches')
     ext_links_i = get_extendable_i(n, 'Link')
+    s_nom_orig = n.lines.s_nom.copy()
+    p_nom_orig = n.links.p_nom.copy()
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
     n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
-    n.lines.loc[ext_i, 's_nom_extendable'] = True
-    n.links.loc[ext_links_i, 'p_nom_extendable'] = True
+    n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = s_nom_orig.loc[ext_i], True
+    n.links.loc[ext_links_i, ['p_nom', 'p_nom_extendable']] = p_nom_orig.loc[ext_links_i], True
