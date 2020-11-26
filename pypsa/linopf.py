@@ -282,6 +282,35 @@ def define_ramp_limit_constraints(n, sns):
                       (limit_shut, status_prev))
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
 
+
+def define_nominal_constraints_per_bus_carrier(n, sns):
+    for carrier in n.carriers.index:
+        for bound, sense in [("max", "<="), ("min", ">=")]:
+
+            col = f'nom_{bound}_{carrier}'
+            if col not in n.buses.columns: continue
+            rhs = n.buses[col].dropna()
+            lhs = pd.Series('', rhs.index)
+
+            for c, attr in nominal_attrs.items():
+                if c not in n.one_port_components: continue
+                attr = nominal_attrs[c]
+                if (c, attr) not in n.variables.index: continue
+                nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
+                if nominals.empty: continue
+                per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
+                lhs += per_bus.reindex(lhs.index, fill_value='')
+
+            if bound == 'max':
+                lhs = lhs[lhs != '']
+                rhs = rhs.reindex(lhs.index)
+            else:
+                assert (lhs != '').all(), (
+                    f'No extendable components of carrier {carrier} on bus '
+                    f'{list(lhs[lhs == ""].index)}')
+            define_constraints(n, lhs, sense, rhs, 'Bus', 'mu_' + col)
+
+
 def define_nodal_balance_constraints(n, sns):
     """
     Defines nodal balance constraint.
@@ -620,6 +649,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_generator_status_variables(n, snapshots)
+    define_nominal_constraints_per_bus_carrier(n, snapshots)
 
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
