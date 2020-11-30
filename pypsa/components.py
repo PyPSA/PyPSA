@@ -208,6 +208,28 @@ class Network(Basic):
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
                  **kwargs):
+        self.buses = None
+        self.loads = None
+        self.generators = None
+        self.stores = None
+        self.storage_units = None
+        self.transformers = None
+        self.transformer_types = None
+        self.lines = None
+        self.line_types = None
+        self.storage_units = None
+        self.carriers = None
+        self.global_constraints = None
+        self.sub_networks = None
+        self.shunt_impedances = None
+        self.links = None
+        self.sub_networks = None
+
+        self.buses_t = None
+        self.generators_t = None
+        self.loads_t = None
+        self.lines_t = None
+        self.transformers_t = None
 
         if 'csv_folder_name' in kwargs:
             logger.warning("The argument csv_folder_name for initiating Network() is deprecated, please use import_name instead.")
