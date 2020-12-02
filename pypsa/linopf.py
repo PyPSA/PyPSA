@@ -380,7 +380,10 @@ def define_storage_unit_constraints(n, sns):
     cyclic_i = n.df(c).query('cyclic_state_of_charge').index
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge').index
 
-    prev_soc_cyclic = soc.shift().fillna(soc.loc[sns[-1]])
+    # TODO only helper, has to be changed when snapshots are multiindex
+    inv_p_i = sns.reindex(n.investment_periods)[1]
+    prev_soc_cyclic = soc.shift()
+    prev_soc_cyclic.iloc[inv_p_i] = prev_soc_cyclic.iloc[inv_p_i-1].sort_index().values
 
     coeff_var = [(-1, soc),
                  (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
