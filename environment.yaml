@@ -4,7 +4,6 @@
 
 name: pypsa-eur
 channels:
-  - defaults
   - conda-forge
   - bioconda
   - http://conda.anaconda.org/gurobi
@@ -51,6 +50,7 @@ dependencies:
   - rasterio
   - shapely
   - libgdal<=3.0.4
+  - descartes
 
   # Solvers
   - gurobi:gurobi # until https://github.com/conda-forge/pypsa-feedstock/issues/4 closed
