@@ -53,14 +53,9 @@ Inputs
         :scale: 34 %
 
 - ``data/geth2015_hydro_capacities.csv``: alternative to capacities above; NOT CURRENTLY USED!
-- ``data/bundle/time_series_60min_singleindex_filtered.csv``: Hourly per-country load profiles since 2010 from the `ENTSO-E statistical database <https://www.entsoe.eu/data/power-stats/hourly_load/>`_
 
-    .. image:: ../img/load-box.png
-        :scale: 33 %
 
-    .. image:: ../img/load-ts.png
-        :scale: 33 %
-
+- ``resources/opsd_load.csv`` Hourly per-country load profiles.
 - ``resources/regions_onshore.geojson``: confer :ref:`busregions`
 - ``resources/nuts3_shapes.geojson``: confer :ref:`shapes`
 - ``resources/powerplants.csv``: confer :ref:`powerplants`
@@ -91,7 +86,6 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 from vresutils.costdata import annuity
-from vresutils.load import timeseries_opsd
 from vresutils import transfer as vtransfer
 
 import logging
@@ -200,7 +194,6 @@ def load_powerplants(ppl_fn=None):
             .rename(columns=str.lower).drop(columns=['efficiency'])
             .replace({'carrier': carrier_dict}))
 
-
 # =============================================================================
 # Attach components
 # =============================================================================
@@ -211,16 +204,14 @@ def attach_load(n):
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = (gpd.read_file(snakemake.input.regions).set_index('name')
                .reindex(substation_lv_i))
-    opsd_load = (timeseries_opsd(slice(*n.snapshots[[0,-1]].year.astype(str)),
-                                 snakemake.input.opsd_load) *
-                 snakemake.config.get('load', {}).get('scaling_factor', 1.0))
+    opsd_load = (pd.read_csv(snakemake.input.load, index_col=0, parse_dates=True)
+                .filter(items=snakemake.config['countries']))
 
-    # Convert to naive UTC (has to be explicit since pandas 0.24)
-    opsd_load.index = opsd_load.index.tz_localize(None)
+    scaling = snakemake.config.get('load', {}).get('scaling_factor', 1.0)
+    logger.info(f"Load data scaled with scalling factor {scaling}.")
+    opsd_load *= scaling
 
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index('index')
-
-    def normed(x): return x.divide(x.sum())
 
     def upsample(cntry, group):
         l = opsd_load[cntry]
@@ -236,7 +227,8 @@ def attach_load(n):
                               index=group.index)
 
             # relative factors 0.6 and 0.4 have been determined from a linear
-            # regression on the country to continent load data (refer to vresutils.load._upsampling_weights)
+            # regression on the country to continent load data
+            # (refer to vresutils.load._upsampling_weights)
             factors = normed(0.6 * normed(gdp_n) + 0.4 * normed(pop_n))
             return pd.DataFrame(factors.values * l.values[:,np.newaxis],
                                 index=l.index, columns=factors.index)

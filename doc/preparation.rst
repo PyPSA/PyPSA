@@ -39,6 +39,7 @@ together into a detailed PyPSA network stored in ``networks/elec.nc``.
 
    preparation/retrieve
    preparation/build_shapes
+   preparation/build_load_data
    preparation/build_cutout
    preparation/build_natura_raster
    preparation/prepare_links_p_nom

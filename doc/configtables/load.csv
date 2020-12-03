@@ -1,2 +1,7 @@
 ,Unit,Values,Description
+url,--,string,"Link to open power system data time series data."
+power_statistics,bool,"{true, false}",Whether to load the electricity consumption data of the ENTSOE power statistics (only for files from 2019 and before) or from the ENTSOE transparency data (only has load data from 2015 onwards). 
+interpolate_limit,hours,integer,"Maximum gap size (consecutive nans) which interpolated linearly."
+time_shift_for_large_gaps,string,string,"Periods which are used for copying time-slices in order to fill large gaps of nans. Have to be valid ``pandas`` period strings."
+manual_adjustments,bool,"{true, false}","Whether to adjust the load data manually according to the function in :func:`manual_adjustment`."
 scaling_factor,--,float,"Global correction factor for the load time series."
