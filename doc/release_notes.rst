@@ -42,6 +42,9 @@ Upcoming Release
 
 * The mappings for clustered lines and buses produced by the ``simplify_network`` and ``cluster_network`` rules changed from Hierarchical Data Format (.h5) to Comma-Separated Values format (.csv) (`#198 <https://github.com/PyPSA/pypsa-eur/pull/198>`_)
 
+* Fixed a bug for storage units such that individual store and dispatch efficiencies are correctly taken account of rather than only their round-trip efficiencies.
+  In the cost database (``data/costs.csv``) the efficiency of battery inverters should be stated as per discharge/charge rather than per roundtrip (`#202 <https://github.com/PyPSA/pypsa-eur/pull/202>_).
+
 * Parameter corrections for East-Western and Anglo-Scottish interconnectors (`#206 <https://github.com/PyPSA/pypsa-eur/pull/206>`_)
 
 * Modelling hydrogen and battery storage with Store and Link components is now the default, rather than using StorageUnit components with fixed power-to-energy ratio (`#205 <https://github.com/PyPSA/pypsa-eur/pull/205>`_).

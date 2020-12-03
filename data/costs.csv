@@ -114,7 +114,7 @@ DAC,2030,lifetime,30,years,Fasihi
 DAC,2030,FOM,4,%/year,Fasihi
 battery inverter,2030,investment,411,USD/kWel,budischak2013
 battery inverter,2030,lifetime,20,years,budischak2013
-battery inverter,2030,efficiency,0.81,per unit,budischak2013; Lund and Kempton (2008) http://dx.doi.org/10.1016/j.enpol.2008.06.007
+battery inverter,2030,efficiency,0.9,per unit charge/discharge,budischak2013; Lund and Kempton (2008) http://dx.doi.org/10.1016/j.enpol.2008.06.007
 battery inverter,2030,FOM,3,%/year,budischak2013
 battery storage,2030,investment,192,USD/kWh,budischak2013
 battery storage,2030,lifetime,15,years,budischak2013

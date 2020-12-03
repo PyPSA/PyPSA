@@ -70,6 +70,9 @@ def attach_storageunits(n, costs):
 
     buses_i = n.buses.index
 
+    lookup_store = {"H2": "electrolysis", "battery": "battery inverter"}
+    lookup_dispatch = {"H2": "fuel cell", "battery": "battery inverter"}
+
     for carrier in carriers:
         n.madd("StorageUnit", buses_i, ' ' + carrier,
                bus=buses_i,
@@ -77,8 +80,8 @@ def attach_storageunits(n, costs):
                p_nom_extendable=True,
                capital_cost=costs.at[carrier, 'capital_cost'],
                marginal_cost=costs.at[carrier, 'marginal_cost'],
-               efficiency_store=costs.at[carrier, 'efficiency'],
-               efficiency_dispatch=costs.at[carrier, 'efficiency'],
+               efficiency_store=costs.at[lookup_store[carrier], 'efficiency'],
+               efficiency_dispatch=costs.at[lookup_dispatch[carrier], 'efficiency'],
                max_hours=max_hours[carrier],
                cyclic_state_of_charge=True)
 
@@ -132,7 +135,7 @@ def attach_stores(n, costs):
                bus0=buses_i,
                bus1=b_buses_i,
                carrier='battery charger',
-               efficiency=costs.at['battery inverter', 'efficiency']**0.5,
+               efficiency=costs.at['battery inverter', 'efficiency'],
                capital_cost=costs.at['battery inverter', 'capital_cost'],
                p_nom_extendable=True)
 
@@ -140,7 +143,7 @@ def attach_stores(n, costs):
                bus0=b_buses_i,
                bus1=buses_i,
                carrier='battery discharger',
-               efficiency=costs.at['battery inverter','efficiency']**0.5,
+               efficiency=costs.at['battery inverter','efficiency'],
                capital_cost=costs.at['battery inverter', 'capital_cost'],
                p_nom_extendable=True)
 
