@@ -25,6 +25,8 @@ Relevant Settings
         co2limit:
         extendable_carriers:
             Generator:
+        OPSD_VRES_countries:
+        include_renewable_capacities_from_OPSD:
         estimate_renewable_capacities_from_capacity_stats:
 
     load:
@@ -93,7 +95,8 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import geopandas as gpd
-import powerplantmatching as ppm
+import powerplantmatching as pm
+from powerplantmatching.export import map_country_bus
 
 from vresutils.costdata import annuity
 from vresutils.load import timeseries_opsd
@@ -304,7 +307,7 @@ def attach_conventional_generators(n, costs, ppl):
     ppl = (ppl.query('carrier in @carriers').join(costs, on='carrier')
            .rename(index=lambda s: 'C' + str(s)))
 
-    logger.info('Adding {} generators with capacities\n{}'
+    logger.info('Adding {} generators with capacities [MW] \n{}'
                 .format(len(ppl), ppl.groupby('carrier').p_nom.sum()))
 
     n.madd("Generator", ppl.index,
@@ -467,6 +470,39 @@ def attach_extendable_generators(n, costs, ppl):
                                       "Only OCGT, CCGT and nuclear are allowed at the moment.")
 
 
+
+def attach_OPSD_renewables(n):
+
+    available = ['DE', 'FR', 'PL', 'CH', 'DK', 'CZ', 'SE', 'GB']
+    tech_map = {'Onshore': 'onwind', 'Offshore': 'offwind', 'Solar': 'solar'}
+    countries = set(available) & set(n.buses.country)
+    techs = snakemake.config['electricity'].get('renewable_capacities_from_OPSD', [])
+    tech_map = {k: v for k, v in tech_map.items() if v in techs}
+
+    if not tech_map:
+        return
+
+    logger.info(f'Using OPSD renewable capacities in {", ".join(countries)} '
+                f'for technologies {", ".join(tech_map.values())}.')
+
+    df = pd.concat([pm.data.OPSD_VRE_country(c) for c in countries])
+    technology_b = ~df.Technology.isin(['Onshore', 'Offshore'])
+    df['Fueltype'] = df.Fueltype.where(technology_b, df.Technology)
+    df = df.query('Fueltype in @tech_map').powerplant.convert_country_to_alpha2()
+
+    for fueltype, carrier_like in tech_map.items():
+        gens = n.generators[lambda df: df.carrier.str.contains(carrier_like)]
+        buses = n.buses.loc[gens.bus.unique()]
+        gens_per_bus = gens.groupby('bus').p_nom.count()
+
+        caps = map_country_bus(df.query('Fueltype == @fueltype'), buses)
+        caps = caps.groupby(['bus']).Capacity.sum()
+        caps = caps / gens_per_bus.reindex(caps.index, fill_value=1)
+
+        n.generators.p_nom.update(gens.bus.map(caps).dropna())
+
+
+
 def estimate_renewable_capacities(n, tech_map=None):
     if tech_map is None:
         tech_map = (snakemake.config['electricity']
@@ -474,16 +510,25 @@ def estimate_renewable_capacities(n, tech_map=None):
 
     if len(tech_map) == 0: return
 
-    capacities = (ppm.data.Capacity_stats().powerplant.convert_country_to_alpha2()
+    capacities = (pm.data.Capacity_stats().powerplant.convert_country_to_alpha2()
                   [lambda df: df.Energy_Source_Level_2]
                   .set_index(['Fueltype', 'Country']).sort_index())
 
     countries = n.buses.country.unique()
 
+    if len(countries) == 0: return
+
+    logger.info('heuristics applied to distribute renewable capacities [MW] \n{}'
+                .format(capacities.query('Fueltype in @tech_map.keys() and Capacity >= 0.1')
+                        .groupby('Country').agg({'Capacity': 'sum'})))
+
     for ppm_fueltype, techs in tech_map.items():
         tech_capacities = capacities.loc[ppm_fueltype, 'Capacity']\
                                     .reindex(countries, fill_value=0.)
-        tech_i = n.generators.query('carrier in @techs').index
+        #tech_i = n.generators.query('carrier in @techs').index
+        tech_i = (n.generators.query('carrier in @techs')
+                  [n.generators.query('carrier in @techs')
+                   .bus.map(n.buses.country).isin(countries)].index)
         n.generators.loc[tech_i, 'p_nom'] = (
             (n.generators_t.p_max_pu[tech_i].mean() *
              n.generators.loc[tech_i, 'p_nom_max']) # maximal yearly generation
@@ -528,6 +573,8 @@ if __name__ == "__main__":
     attach_extendable_generators(n, costs, ppl)
 
     estimate_renewable_capacities(n)
+    attach_OPSD_renewables(n)
+
     add_nice_carrier_names(n)
 
     n.export_to_netcdf(snakemake.output[0])
