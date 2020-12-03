@@ -14,3 +14,4 @@ enable,,,
 -- retrieve_cutout,bool,"{true, false}","Switch to enable the retrieval of cutouts from zenodo with :mod:`retrieve_cutout`."
 -- build_natura_raster,bool,"{true, false}","Switch to enable the creation of the raster ``natura.tiff`` via the rule :mod:`build_natura_raster`."
 -- retrieve_natura_raster,bool,"{true, false}","Switch to enable the retrieval of ``natura.tiff`` from zenodo with :mod:`retrieve_natura_raster`."
+-- custom_busmap,bool,"{true, false}","Switch to enable the use of custom busmaps in rule :mod:`cluster_network`. If activated the rule looks for provided busmaps at ``data/custom_busmap_elec_s{simpl}_{clusters}.csv`` which should have the same format as ``resources/busmap_elec_s{simpl}_{clusters}.csv``, i.e. the index should contain the buses of ``networks/elec_s{simpl}.nc``."

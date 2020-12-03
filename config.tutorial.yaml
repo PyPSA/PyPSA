@@ -31,6 +31,7 @@ enable:
   retrieve_cutout: true
   build_natura_raster: false
   retrieve_natura_raster: true
+  custom_busmap: false
 
 electricity:
   voltages: [220., 300., 380.]
