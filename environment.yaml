@@ -57,6 +57,7 @@ dependencies:
 
   - pip:
     - vresutils==0.3.1
+    - tsam>=1.1.0
     - git+https://github.com/PyPSA/glaes.git#egg=glaes
     - git+https://github.com/PyPSA/geokit.git#egg=geokit
     - cdsapi

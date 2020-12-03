@@ -56,6 +56,12 @@ Upcoming Release
 
 * Electricity consumption data is now directly retrieved from the `OPSD website <https://data.open-power-system-data.org/time_series/2019-06-05>`_ using the rule ``build_load_data``. The user can decide whether to take the ENTSOE power statistics data (defaul) or the ENTSOE transparency data.   
 
+* Added an option to the ``{opts}`` wildcard that applies a time series segmentation algorithm based on renewables, hydro inflow and load time series
+  to produce a given total number of adjacent snapshots of varying lengths.
+  This feature is an alternative to downsampling the temporal resolution by simply averaging and
+  uses the `tsam <https://tsam.readthedocs.io/en/latest/index.html>`_ package
+  (#186 <https://github.com/PyPSA/pypsa-eur/pull/186>`_).
+
 PyPSA-Eur 0.2.0 (8th June 2020)
 ==================================
 

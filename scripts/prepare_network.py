@@ -11,7 +11,8 @@ Prepare PyPSA network for solving according to :ref:`opts` and :ref:`ll`, such a
 - setting an **N-1 security margin** factor for transmission line capacities,
 - specifying an expansion limit on the **cost** of transmission expansion,
 - specifying an expansion limit on the **volume** of transmission expansion, and
-- reducing the **temporal** resolution by averaging over multiple hours.
+- reducing the **temporal** resolution by averaging over multiple hours
+  or segmenting time series into chunks of varying lengths using ``tsam``.
 
 Relevant Settings
 -----------------
@@ -133,7 +134,7 @@ def set_transmission_limit(n, ll_type, factor, Nyears=1):
 
 
 def average_every_nhours(n, offset):
-    logger.info('Resampling the network to {}'.format(offset))
+    logger.info(f"Resampling the network to {offset}")
     m = n.copy(with_time=False)
 
     snapshot_weightings = n.snapshot_weightings.resample(offset).sum()
@@ -147,6 +148,47 @@ def average_every_nhours(n, offset):
                 pnl[k] = df.resample(offset).mean()
 
     return m
+
+def apply_time_segmentation(n, segments):
+    logger.info(f"Aggregating time series to {segments} segments.")
+    try:
+        import tsam.timeseriesaggregation as tsam
+    except:
+        raise ModuleNotFoundError("Optional dependency 'tsam' not found."
+                                  "Install via 'pip install tsam'")
+
+    p_max_pu_norm = n.generators_t.p_max_pu.max()
+    p_max_pu = n.generators_t.p_max_pu / p_max_pu_norm
+
+    load_norm = n.loads_t.p_set.max()
+    load = n.loads_t.p_set / load_norm
+    
+    inflow_norm = n.storage_units_t.inflow.max()
+    inflow = n.storage_units_t.inflow / inflow_norm
+
+    raw = pd.concat([p_max_pu, load, inflow], axis=1, sort=False)
+
+    solver_name = snakemake.config["solving"]["solver"]["name"]
+
+    agg = tsam.TimeSeriesAggregation(raw, hoursPerPeriod=len(raw),
+                                     noTypicalPeriods=1, noSegments=int(segments),
+                                     segmentation=True, solver=solver_name)
+
+    segmented = agg.createTypicalPeriods()
+
+    weightings = segmented.index.get_level_values("Segment Duration")
+    offsets = np.insert(np.cumsum(weightings[:-1]), 0, 0)
+    snapshots = [n.snapshots[0] + pd.Timedelta(f"{offset}h") for offset in offsets]
+
+    n.set_snapshots(pd.DatetimeIndex(snapshots, name='name'))
+    n.snapshot_weightings = pd.Series(weightings, index=snapshots, name="weightings", dtype="float64")
+    
+    segmented.index = snapshots
+    n.generators_t.p_max_pu = segmented[n.generators_t.p_max_pu.columns] * p_max_pu_norm
+    n.loads_t.p_set = segmented[n.loads_t.p_set.columns] * load_norm
+    n.storage_units_t.inflow = segmented[n.storage_units_t.inflow.columns] * inflow_norm
+
+    return n
 
 def enforce_autarky(n, only_crossborder=False):
     if only_crossborder:
@@ -189,8 +231,12 @@ if __name__ == "__main__":
         if m is not None:
             n = average_every_nhours(n, m.group(0))
             break
-    else:
-        logger.info("No resampling")
+
+    for o in opts:
+        m = re.match(r'^\d+seg$', o, re.IGNORECASE)
+        if m is not None:
+            n = apply_time_segmentation(n, m.group(0)[:-3])
+            break
 
     for o in opts:
         if "Co2L" in o:
