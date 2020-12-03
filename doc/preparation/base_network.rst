@@ -2,7 +2,7 @@
   SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
 
   SPDX-License-Identifier: CC-BY-4.0
-  
+
 .. _base:
 
 Rule ``base_network``

@@ -19,19 +19,19 @@ Description
 
 """
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import pypsa
-
 import pandas as pd
 import matplotlib.pyplot as plt
+
+logger = logging.getLogger(__name__)
+
 
 def cum_p_nom_max(net, tech, country=None):
     carrier_b = net.generators.carrier == tech
 
-    generators = \
-    pd.DataFrame(dict(
+    generators = pd.DataFrame(dict(
         p_nom_max=net.generators.loc[carrier_b, 'p_nom_max'],
         p_max_pu=net.generators_t.p_max_pu.loc[:,carrier_b].mean(),
         country=net.generators.loc[carrier_b, 'bus'].map(net.buses.country)

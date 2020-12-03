@@ -36,7 +36,7 @@ Link:
       "8068": "5819" # fix GB location of Anglo-Scottish interconnector
   length: 
     index:
-      "12998": 409.0 
+      "12998": 409.0
       "5627": 26.39
   bus0: 
     index: 

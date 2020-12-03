@@ -40,12 +40,12 @@ Relevant Settings
 Inputs
 ------
 
-- ``networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: confer :ref:`prepare`
+- ``networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: confer :ref:`prepare`
 
 Outputs
 -------
 
-- ``results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
+- ``results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc``: Solved PyPSA network including optimisation results
 
     .. image:: ../img/results.png
         :scale: 40 %
@@ -85,7 +85,6 @@ Details (and errors made through this heuristic) are discussed in the paper
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import numpy as np
@@ -95,8 +94,12 @@ import re
 import pypsa
 from pypsa.linopf import (get_var, define_constraints, linexpr, join_exprs,
                           network_lopf, ilopf)
+
 from pathlib import Path
 from vresutils.benchmark import memory_logger
+
+logger = logging.getLogger(__name__)
+
 
 def prepare_network(n, solve_opts):
 
@@ -249,15 +252,16 @@ def extra_functionality(n, snapshots):
 def solve_network(n, config, solver_log=None, opts='', **kwargs):
     solver_options = config['solving']['solver'].copy()
     solver_name = solver_options.pop('name')
-    track_iterations = config['solving']['options'].get('track_iterations', False)
-    min_iterations = config['solving']['options'].get('min_iterations', 4)
-    max_iterations = config['solving']['options'].get('max_iterations', 6)
+    cf_solving = config['solving']['options']
+    track_iterations = cf_solving.get('track_iterations', False)
+    min_iterations = cf_solving.get('min_iterations', 4)
+    max_iterations = cf_solving.get('max_iterations', 6)
 
     # add to network for extra_functionality
     n.config = config
     n.opts = opts
 
-    if config['solving']['options'].get('skip_iterations', False):
+    if cf_solving.get('skip_iterations', False):
         network_lopf(n, solver_name=solver_name, solver_options=solver_options,
                      extra_functionality=extra_functionality, **kwargs)
     else:
@@ -282,8 +286,8 @@ if __name__ == "__main__":
     opts = snakemake.wildcards.opts.split('-')
     solve_opts = snakemake.config['solving']['options']
 
-    with memory_logger(filename=getattr(snakemake.log, 'memory', None),
-                       interval=30.) as mem:
+    fn = getattr(snakemake.log, 'memory', None)
+    with memory_logger(filename=fn, interval=30.) as mem:
         n = pypsa.Network(snakemake.input[0])
         n = prepare_network(n, solve_opts)
         n = solve_network(n, config=snakemake.config, solver_dir=tmpdir,

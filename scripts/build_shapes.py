@@ -92,6 +92,7 @@ def _get_country(target, **keys):
     except (KeyError, AttributeError):
         return np.nan
 
+
 def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
     if isinstance(polys, MultiPolygon):
         polys = sorted(polys, key=attrgetter('area'), reverse=True)
@@ -104,6 +105,7 @@ def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
         else:
             polys = mainpoly
     return polys.simplify(tolerance=tolerance)
+
 
 def countries():
     cntries = snakemake.config['countries']
@@ -121,6 +123,7 @@ def countries():
 
     return s
 
+
 def eez(country_shapes):
     df = gpd.read_file(snakemake.input.eez)
     df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in snakemake.config['countries']])]
@@ -129,6 +132,7 @@ def eez(country_shapes):
     s = gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
     s.index.name = "name"
     return s
+
 
 def country_cover(country_shapes, eez_shapes=None):
     shapes = list(country_shapes)
@@ -139,6 +143,7 @@ def country_cover(country_shapes, eez_shapes=None):
     if isinstance(europe_shape, MultiPolygon):
         europe_shape = max(europe_shape, key=attrgetter('area'))
     return Polygon(shell=europe_shape.exterior)
+
 
 def nuts3(country_shapes):
     df = gpd.read_file(snakemake.input.nuts3)
@@ -158,7 +163,6 @@ def nuts3(country_shapes):
            .applymap(lambda x: pd.to_numeric(x, errors='coerce'))
            .fillna(method='bfill', axis=1))['2014']
 
-    # Swiss data
     cantons = pd.read_csv(snakemake.input.ch_cantons)
     cantons = cantons.set_index(cantons['HASC'].str[3:])['NUTS']
     cantons = cantons.str.pad(5, side='right', fillchar='0')
@@ -197,6 +201,7 @@ def nuts3(country_shapes):
 
     return df
 
+
 def save_to_geojson(df, fn):
     if os.path.exists(fn):
         os.unlink(fn)
@@ -206,20 +211,23 @@ def save_to_geojson(df, fn):
     schema = {**gpd.io.file.infer_schema(df), 'geometry': 'Unknown'}
     df.to_file(fn, driver='GeoJSON', schema=schema)
 
+
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('build_shapes')
     configure_logging(snakemake)
 
+    out = snakemake.output
+
     country_shapes = countries()
-    save_to_geojson(country_shapes, snakemake.output.country_shapes)
+    save_to_geojson(country_shapes, out.country_shapes)
 
     offshore_shapes = eez(country_shapes)
-    save_to_geojson(offshore_shapes, snakemake.output.offshore_shapes)
+    save_to_geojson(offshore_shapes, out.offshore_shapes)
 
     europe_shape = country_cover(country_shapes, offshore_shapes)
-    save_to_geojson(gpd.GeoSeries(europe_shape), snakemake.output.europe_shape)
+    save_to_geojson(gpd.GeoSeries(europe_shape), out.europe_shape)
 
     nuts3_shapes = nuts3(country_shapes)
-    save_to_geojson(nuts3_shapes, snakemake.output.nuts3_shapes)
+    save_to_geojson(nuts3_shapes, out.nuts3_shapes)

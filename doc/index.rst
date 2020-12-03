@@ -8,7 +8,7 @@ PyPSA-Eur: An Open Optimisation Model of the European Transmission System
 
 .. image:: https://img.shields.io/github/v/release/pypsa/pypsa-eur?include_prereleases
     :alt: GitHub release (latest by date including pre-releases)
-    
+
 .. image:: https://travis-ci.org/PyPSA/pypsa-eur.svg?branch=master
     :target: https://travis-ci.org/PyPSA/pypsa-eur
 
@@ -101,9 +101,9 @@ Documentation
    simplification
    solving
    plotting
-   
+
 **References**
-   
+
 * :doc:`release_notes`
 * :doc:`limitations`
 * :doc:`contributing`
@@ -183,7 +183,7 @@ There are pre-built networks available as a dataset on Zenodo as well for every 
 The included ``.nc`` files are PyPSA network files which can be imported with PyPSA via:
 
 .. code:: python
-    
+
     import pypsa
 
     filename = "elec_s_1024_ec.nc" # example
@@ -202,7 +202,7 @@ PyPSA-Eur work is released under multiple licenses:
 See the individual files and the `dep5 <.reuse/dep5>`_ file for license details.
 
 Additionally, different licenses and terms of use also apply to the various input data, which are summarised below.
-More details are included in 
+More details are included in
 `the description of the data bundles on zenodo <https://zenodo.org/record/3517935#.XbGeXvzRZGo>`_.
 
 .. csv-table::

@@ -47,23 +47,23 @@ Inputs
 - ``data/costs.csv``: The database of cost assumptions for all included technologies for specific years from various sources; e.g. discount rate, lifetime, investment (CAPEX), fixed operation and maintenance (FOM), variable operation and maintenance (VOM), fuel costs, efficiency, carbon-dioxide intensity.
 - ``resources/regions_onshore.geojson``: confer :ref:`busregions`
 - ``resources/regions_offshore.geojson``: confer :ref:`busregions`
-- ``networks/{network}.nc``: confer :ref:`electricity`
+- ``networks/elec.nc``: confer :ref:`electricity`
 
 Outputs
 -------
 
-- ``resources/regions_onshore_{network}_s{simpl}.geojson``:
+- ``resources/regions_onshore_elec_s{simpl}.geojson``:
 
     .. image:: ../img/regions_onshore_elec_s.png
             :scale: 33 %
 
-- ``resources/regions_offshore_{network}_s{simpl}.geojson``:
+- ``resources/regions_offshore_elec_s{simpl}.geojson``:
 
     .. image:: ../img/regions_offshore_elec_s  .png
             :scale: 33 %
 
-- ``resources/busmap_{network}_s{simpl}.csv``: Mapping of buses from ``networks/elec.nc`` to ``networks/elec_s{simpl}.nc``;
-- ``networks/{network}_s{simpl}.nc``:
+- ``resources/busmap_elec_s{simpl}.csv``: Mapping of buses from ``networks/elec.nc`` to ``networks/elec_s{simpl}.nc``;
+- ``networks/elec_s{simpl}.nc``:
 
     .. image:: ../img/elec_s.png
         :scale: 33 %
@@ -83,7 +83,6 @@ The rule :mod:`simplify_network` does up to four things:
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
@@ -101,7 +100,8 @@ import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
 from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
 
-idx = pd.IndexSlice
+logger = logging.getLogger(__name__)
+
 
 def simplify_network_to_380(n):
     ## All goes to v_nom == 380
@@ -138,6 +138,7 @@ def simplify_network_to_380(n):
 
     return n, trafo_map
 
+
 def _prepare_connection_costs_per_link(n):
     if n.links.empty: return {}
 
@@ -155,6 +156,7 @@ def _prepare_connection_costs_per_link(n):
             )
 
     return connection_costs_per_link
+
 
 def _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link=None, buses=None):
     if connection_costs_per_link is None:
@@ -175,6 +177,7 @@ def _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link=None, 
 
     return connection_costs_to_bus
 
+
 def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
     for tech in connection_costs_to_bus:
         tech_b = n.generators.carrier == tech
@@ -183,6 +186,7 @@ def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
             n.generators.loc[costs.index, "capital_cost"] += costs
             logger.info("Displacing {} generator(s) and adding connection costs to capital_costs: {} "
                         .format(tech, ", ".join("{:.0f} Eur/MW/a for `{}`".format(d, b) for b, d in costs.iteritems())))
+
 
 def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
@@ -207,6 +211,7 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
     for c in n.branch_components:
         df = n.df(c)
         n.mremove(c, df.index[df.bus0.isin(buses_to_del) | df.bus1.isin(buses_to_del)])
+
 
 def simplify_links(n):
     ## Complex multi-node links are folded into end-points
@@ -303,6 +308,7 @@ def simplify_links(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
     return n, busmap
 
+
 def remove_stubs(n):
     logger.info("Removing stubs")
 
@@ -313,6 +319,7 @@ def remove_stubs(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
 
     return n, busmap
+
 
 def cluster(n, n_clusters):
     logger.info(f"Clustering to {n_clusters} buses")
@@ -333,6 +340,7 @@ def cluster(n, n_clusters):
                                            solver_name=snakemake.config['solving']['solver']['name'])
 
     return clustering.network, clustering.busmap
+
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():

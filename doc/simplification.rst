@@ -22,7 +22,7 @@ After simplification and clustering of the network, additional components may be
 
 .. toctree::
    :caption: Overview
-   
+
    simplification/simplify_network
    simplification/cluster_network
    simplification/add_extra_components

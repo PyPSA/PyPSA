@@ -92,11 +92,12 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import os
 import atlite
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
@@ -113,4 +114,6 @@ if __name__ == "__main__":
                         cutout_dir=os.path.dirname(snakemake.output[0]),
                         **cutout_params)
 
-    cutout.prepare(nprocesses=snakemake.config['atlite'].get('nprocesses', 4))
+    nprocesses = snakemake.config['atlite'].get('nprocesses', 4)
+
+    cutout.prepare(nprocesses=nprocesses)

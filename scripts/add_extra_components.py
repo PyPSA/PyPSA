@@ -37,29 +37,32 @@ Inputs
 Outputs
 -------
 
-- ``networks/{network}_s{simpl}_{clusters}_ec.nc``:
+- ``networks/elec_s{simpl}_{clusters}_ec.nc``:
 
 
 Description
 -----------
 
-The rule :mod:`add_extra_components` attaches additional extendable components to the clustered and simplified network. These can be configured in the ``config.yaml`` at ``electricity: extendable_carriers: ``. It processes ``networks/{network}_s{simpl}_{clusters}.nc`` to build ``networks/{network}_s{simpl}_{clusters}_ec.nc``, which in contrast to the former (depending on the configuration) contain with **zero** initial capacity
+The rule :mod:`add_extra_components` attaches additional extendable components to the clustered and simplified network. These can be configured in the ``config.yaml`` at ``electricity: extendable_carriers: ``. It processes ``networks/elec_s{simpl}_{clusters}.nc`` to build ``networks/elec_s{simpl}_{clusters}_ec.nc``, which in contrast to the former (depending on the configuration) contain with **zero** initial capacity
 
 - ``StorageUnits`` of carrier 'H2' and/or 'battery'. If this option is chosen, every bus is given an extendable ``StorageUnit`` of the corresponding carrier. The energy and power capacities are linked through a parameter that specifies the energy capacity as maximum hours at full dispatch power and is configured in ``electricity: max_hours:``. This linkage leads to one investment variable per storage unit. The default ``max_hours`` lead to long-term hydrogen and short-term battery storage units.
 
 - ``Stores`` of carrier 'H2' and/or 'battery' in combination with ``Links``. If this option is chosen, the script adds extra buses with corresponding carrier where energy ``Stores`` are attached and which are connected to the corresponding power buses via two links, one each for charging and discharging. This leads to three investment variables for the energy capacity, charging and discharging capacity of the storage unit.
 """
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
+import pypsa
 import pandas as pd
 import numpy as np
-import pypsa
+
 from add_electricity import (load_costs, add_nice_carrier_names,
                              _add_missing_carriers_from_costs)
 
 idx = pd.IndexSlice
+
+logger = logging.getLogger(__name__)
+
 
 def attach_storageunits(n, costs):
     elec_opts = snakemake.config['electricity']
@@ -84,6 +87,7 @@ def attach_storageunits(n, costs):
                efficiency_dispatch=costs.at[lookup_dispatch[carrier], 'efficiency'],
                max_hours=max_hours[carrier],
                cyclic_state_of_charge=True)
+
 
 def attach_stores(n, costs):
     elec_opts = snakemake.config['electricity']
@@ -147,6 +151,7 @@ def attach_stores(n, costs):
                capital_cost=costs.at['battery inverter', 'capital_cost'],
                p_nom_extendable=True)
 
+
 def attach_hydrogen_pipelines(n, costs):
     elec_opts = snakemake.config['electricity']
     ext_carriers = elec_opts['extendable_carriers']
@@ -179,6 +184,7 @@ def attach_hydrogen_pipelines(n, costs):
            efficiency=costs.at['H2 pipeline','efficiency'],
            carrier="H2 pipeline")
 
+
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
@@ -187,7 +193,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
-    Nyears = n.snapshot_weightings.sum()/8760.
+    Nyears = n.snapshot_weightings.sum() / 8760.
     costs = load_costs(Nyears, tech_costs=snakemake.input.tech_costs,
                        config=snakemake.config['costs'],
                        elec_config=snakemake.config['electricity'])

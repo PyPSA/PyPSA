@@ -36,7 +36,7 @@ and local grid
 bottlenecks may cause unrealistic load-shedding or generator
 curtailment. We recommend to cluster the network to a couple of
 hundred nodes to remove these local inconsistencies. See the
-discussion in Section 3.4 "Model validation" of the paper. 
+discussion in Section 3.4 "Model validation" of the paper.
 
 ![PyPSA-Eur Grid Model](doc/img/base.png)
 

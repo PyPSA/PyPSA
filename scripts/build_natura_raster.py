@@ -41,6 +41,7 @@ Description
 
 import logging
 from _helpers import configure_logging
+
 import atlite
 import geokit as gk
 from pathlib import Path
@@ -58,7 +59,7 @@ def determine_cutout_xXyY(cutout_name):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('build_natura_raster') #has to be enabled
+        snakemake = mock_snakemake('build_natura_raster')
     configure_logging(snakemake)
 
     cutout_dir = Path(snakemake.input.cutouts[0]).parent.resolve()

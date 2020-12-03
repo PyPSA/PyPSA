@@ -20,7 +20,6 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import (load_network_for_plots, aggregate_p, aggregate_costs,
                       configure_logging)
 
@@ -34,6 +33,9 @@ import matplotlib as mpl
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.legend_handler import HandlerPatch
 to_rgba = mpl.colors.colorConverter.to_rgba
+
+logger = logging.getLogger(__name__)
+
 
 def make_handler_map_to_scale_circles_as_in(ax, dont_resize_actively=False):
     fig = ax.get_figure()
@@ -57,8 +59,10 @@ def make_handler_map_to_scale_circles_as_in(ax, dont_resize_actively=False):
         return e
     return {Circle: HandlerPatch(patch_func=legend_circle_handler)}
 
+
 def make_legend_circles_for(sizes, scale=1.0, **kw):
     return [Circle((0,0), radius=(s/scale)**0.5, **kw) for s in sizes]
+
 
 def set_plot_style():
     plt.style.use(['classic', 'seaborn-white',
@@ -69,8 +73,8 @@ def set_plot_style():
                     'legend.fontsize': 'medium',
                     'lines.linewidth': 1.5,
                     'pdf.fonttype': 42,
-                    # 'font.family': 'Times New Roman'
                 }])
+
 
 def plot_map(n, ax=None, attribute='p_nom', opts={}):
     if ax is None:
@@ -114,15 +118,10 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
            bus_sizes=0,
            bus_colors=tech_colors,
            boundaries=map_boundaries,
-           geomap=True,   # TODO : Turn to False, after the release of PyPSA 0.14.2 (refer to https://github.com/PyPSA/PyPSA/issues/75)
+           geomap=False,
            ax=ax)
     ax.set_aspect('equal')
     ax.axis('off')
-
-    # x1, y1, x2, y2 = map_boundaries
-    # ax.set_xlim(x1, x2)
-    # ax.set_ylim(y1, y2)
-
 
     # Rasterize basemap
     # TODO : Check if this also works with cartopy
@@ -176,13 +175,9 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
 
     return fig
 
-#n = load_network_for_plots(snakemake.input.network, opts, combine_hydro_ps=False)
-
 
 def plot_total_energy_pie(n, ax=None):
-    """Add total energy pie plot"""
-    if ax is None:
-        ax = plt.gca()
+    if ax is None: ax = plt.gca()
 
     ax.set_title('Energy per technology', fontdict=dict(fontsize="medium"))
 
@@ -190,7 +185,7 @@ def plot_total_energy_pie(n, ax=None):
 
     patches, texts, autotexts = ax.pie(e_primary,
         startangle=90,
-        labels = e_primary.rename(opts['nice_names_n']).index,
+        labels = e_primary.rename(opts['nice_names']).index,
         autopct='%.0f%%',
         shadow=False,
         colors = [opts['tech_colors'][tech] for tech in e_primary.index])
@@ -200,9 +195,7 @@ def plot_total_energy_pie(n, ax=None):
             t2.remove()
 
 def plot_total_cost_bar(n, ax=None):
-    """Add average system cost bar plot"""
-    if ax is None:
-        ax = plt.gca()
+    if ax is None: ax = plt.gca()
 
     total_load = (n.snapshot_weightings * n.loads_t.p.sum(axis=1)).sum()
     tech_colors = opts['tech_colors']
@@ -240,14 +233,13 @@ def plot_total_cost_bar(n, ax=None):
         if abs(data[-1]) < 5:
             continue
 
-        text = ax.text(1.1,(bottom-0.5*data)[-1]-3,opts['nice_names_n'].get(ind,ind))
+        text = ax.text(1.1,(bottom-0.5*data)[-1]-3,opts['nice_names'].get(ind,ind))
         texts.append(text)
 
     ax.set_ylabel("Average system cost [Eur/MWh]")
-    ax.set_ylim([0, 80]) # opts['costs_max']])
+    ax.set_ylim([0, opts.get('costs_max', 80)])
     ax.set_xlim([0, 1])
-    #ax.set_xticks([0.5])
-    ax.set_xticklabels([]) #["w/o\nEp", "w/\nEp"])
+    ax.set_xticklabels([])
     ax.grid(True, axis="y", color='k', linestyle='dotted')
 
 
@@ -279,8 +271,6 @@ if __name__ == "__main__":
 
     ax2 = fig.add_axes([-0.075, 0.1, 0.1, 0.45])
     plot_total_cost_bar(n, ax2)
-
-    #fig.tight_layout()
 
     ll = snakemake.wildcards.ll
     ll_type = ll[0]

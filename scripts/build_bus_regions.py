@@ -42,17 +42,24 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
-from vresutils.graph import voronoi_partition_pts
-
+import pypsa
 import os
-
 import pandas as pd
 import geopandas as gpd
 
-import pypsa
+from vresutils.graph import voronoi_partition_pts
+
+logger = logging.getLogger(__name__)
+
+
+def save_to_geojson(s, fn):
+    if os.path.exists(fn):
+        os.unlink(fn)
+    schema = {**gpd.io.file.infer_schema(s), 'geometry': 'Unknown'}
+    s.to_file(fn, driver='GeoJSON', schema=schema)
+
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
@@ -95,12 +102,6 @@ if __name__ == "__main__":
             })
         offshore_regions_c = offshore_regions_c.loc[offshore_regions_c.area > 1e-2]
         offshore_regions.append(offshore_regions_c)
-
-    def save_to_geojson(s, fn):
-        if os.path.exists(fn):
-            os.unlink(fn)
-        schema = {**gpd.io.file.infer_schema(s), 'geometry': 'Unknown'}
-        s.to_file(fn, driver='GeoJSON', schema=schema)
 
     save_to_geojson(pd.concat(onshore_regions, ignore_index=True), snakemake.output.regions_onshore)
 

@@ -20,7 +20,7 @@ before_install:
 
   # install conda environment
   - conda install -c conda-forge mamba
-  - mamba env create -f ./environment.yaml
+  - mamba env create -f ./envs/environment.yaml
   - conda activate pypsa-eur
 
   # install open-source solver

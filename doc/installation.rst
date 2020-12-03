@@ -1,6 +1,6 @@
 ..
   SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
-  
+
   SPDX-License-Identifier: CC-BY-4.0
 
 .. _installation:
@@ -37,12 +37,12 @@ We recommend using the package manager and environment management system ``conda
 Install `miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, which is a mini version of `Anaconda <https://www.anaconda.com/>`_ that includes only ``conda`` and its dependencies or make sure ``conda`` is already installed on your system.
 For instructions for your operating system follow the ``conda`` `installation guide <https://docs.conda.io/projects/conda/en/latest/user-guide/install/>`_.
 
-The python package requirements are curated in the `environment.yaml <https://github.com/PyPSA/pypsa-eur/blob/master/environment.yaml>`_ file.
+The python package requirements are curated in the `envs/environment.yaml <https://github.com/PyPSA/pypsa-eur/blob/master/envs/environment.yaml>`_ file.
 The environment can be installed and activated using
 
 .. code:: bash
 
-    .../pypsa-eur % conda env create -f environment.yaml
+    .../pypsa-eur % conda env create -f envs/environment.yaml
 
     .../pypsa-eur % conda activate pypsa-eur
 
@@ -55,14 +55,14 @@ The environment can be installed and activated using
     `mamba <https://github.com/QuantStack/mamba>`_ as a fast drop-in replacement via
 
     .. code:: bash
-        
+
         conda install -c conda-forge mamba
 
     and then install the environment with
 
     .. code:: bash
 
-        mamba env create -f environment.yaml
+        mamba env create -f envs/environment.yaml
 
 Install a Solver
 ================
@@ -102,10 +102,10 @@ For installation instructions of these solvers for your operating system, follow
     and on Windows
 
     .. code:: bash
-        
+
         conda activate pypsa-eur
         conda install -c conda-forge ipopt glpk
-        
+
 
 .. _defaultconfig:
 
@@ -113,7 +113,7 @@ Set Up the Default Configuration
 ================================
 
 PyPSA-Eur has several configuration options that must be specified in a ``config.yaml`` file located in the root directory.
-An example configuration ``config.default.yaml`` is maintained in the repository. 
+An example configuration ``config.default.yaml`` is maintained in the repository.
 More details on the configuration options are in :ref:`config`.
 
 Before first use, create a ``config.yaml`` by copying the example.

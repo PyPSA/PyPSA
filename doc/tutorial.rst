@@ -1,6 +1,6 @@
 ..
   SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
-  
+
   SPDX-License-Identifier: CC-BY-4.0
 
 .. _tutorial:
@@ -48,7 +48,7 @@ The model can be adapted to only include selected countries (e.g. Germany) inste
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
    :lines: 20
-   
+
 Likewise, the example's temporal scope can be restricted (e.g. to a single month).
 
 .. literalinclude:: ../config.tutorial.yaml
@@ -119,8 +119,8 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
 .. code::
 
     rule solve_network:
-        input: "networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-        output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+        input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+        output: "results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
         [...]
         script: "scripts/solve_network.py"
 
@@ -132,7 +132,7 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
     Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake -j 1 solve_all_elec_networks``.
 
 This triggers a workflow of multiple preceding jobs that depend on each rule's inputs and outputs:
-    
+
 .. graphviz::
     :align: center
 
@@ -184,7 +184,7 @@ This triggers a workflow of multiple preceding jobs that depend on each rule's i
         7 -> 11
         5 -> 11
         12 -> 11
-    } 
+    }
 
 |
 
@@ -229,8 +229,8 @@ A job (here ``simplify_network``) will display its attributes and normally some 
     INFO:__main__:Mapping all network lines onto a single 380kV layer
     INFO:__main__:Simplifying connected link components
     INFO:__main__:Removing stubs
-    INFO:__main__:Displacing offwind-ac generator(s) and adding connection costs to capital_costs: 20128 Eur/MW/a for `5718 offwind-ac` 
-    INFO:__main__:Displacing offwind-dc generator(s) and adding connection costs to capital_costs: 14994 Eur/MW/a for `5718 offwind-dc`, 26939 Eur/MW/a for `5724 offwind-dc`, 29621 Eur/MW/a for `5725 offwind-dc` 
+    INFO:__main__:Displacing offwind-ac generator(s) and adding connection costs to capital_costs: 20128 Eur/MW/a for `5718 offwind-ac`
+    INFO:__main__:Displacing offwind-dc generator(s) and adding connection costs to capital_costs: 14994 Eur/MW/a for `5718 offwind-dc`, 26939 Eur/MW/a for `5724 offwind-dc`, 29621 Eur/MW/a for `5725 offwind-dc`
     INFO:pypsa.io:Exported network elec_s.nc has lines, carriers, links, storage_units, loads, buses, generators
     [<DATETIME>]
     Finished job 3.
@@ -293,5 +293,5 @@ For inspiration, read the `examples section in the PyPSA documentation <https://
 .. note::
 
     There are rules for summaries and plotting available in the repository of PyPSA-Eur.
-    
-    They are currently under revision and therefore not yet documented. 
+
+    They are currently under revision and therefore not yet documented.

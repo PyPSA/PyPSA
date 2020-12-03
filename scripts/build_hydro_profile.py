@@ -60,13 +60,14 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import os
 import atlite
 import geopandas as gpd
 from vresutils import hydro as vhydro
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
@@ -75,8 +76,8 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     config = snakemake.config['renewable']['hydro']
-    cutout = atlite.Cutout(config['cutout'],
-                        cutout_dir=os.path.dirname(snakemake.input.cutout))
+    cutout_dir = os.path.dirname(snakemake.input.cutout)
+    cutout = atlite.Cutout(config['cutout'], cutout_dir=cutout_dir)
 
     countries = snakemake.config['countries']
     country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry'].reindex(countries)
@@ -84,9 +85,9 @@ if __name__ == "__main__":
 
     eia_stats = vhydro.get_eia_annual_hydro_generation(snakemake.input.eia_hydro_generation).reindex(columns=countries)
     inflow = cutout.runoff(shapes=country_shapes,
-                        smooth=True,
-                        lower_threshold_quantile=True,
-                        normalize_using_yearly=eia_stats)
+                           smooth=True,
+                           lower_threshold_quantile=True,
+                           normalize_using_yearly=eia_stats)
 
     if 'clip_min_inflow' in config:
         inflow.values[inflow.values < config['clip_min_inflow']] = 0.

@@ -30,9 +30,10 @@ This rule, as a substitute for :mod:`build_natura_raster`, downloads an already 
 """
 
 import logging
-logger = logging.getLogger(__name__)
 
 from _helpers import progress_retrieve, configure_logging
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():

@@ -63,7 +63,6 @@ Description
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
 
 import os
@@ -84,6 +83,9 @@ import progressbar as pgb
 
 from build_renewable_profiles import init_globals, calculate_potential
 
+logger = logging.getLogger(__name__)
+
+
 def build_area(flh, countries, areamatrix, breaks, fn):
     area_unbinned = xr.DataArray(areamatrix.todense(), [countries, capacity_factor.coords['spatial']])
     bins = xr.DataArray(pd.cut(flh.to_series(), bins=breaks), flh.coords, name="bins")
@@ -91,6 +93,7 @@ def build_area(flh, countries, areamatrix, breaks, fn):
     area.loc[:,slice(*area.sum()[lambda s: s > 0].index[[0,-1]])].to_csv(fn)
     area.columns = area.columns.map(lambda s: s.left)
     return area
+
 
 def plot_area_not_solar(area, countries):
     # onshore wind/offshore wind

@@ -181,27 +181,28 @@ node (`p_nom_max`): ``simple`` and ``conservative``:
 
 """
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import configure_logging
-
-import matplotlib.pyplot as plt
 
 import os
 import atlite
+
 import numpy as np
 import xarray as xr
 import pandas as pd
 import multiprocessing as mp
+import matplotlib.pyplot as plt
+import progressbar as pgb
 
 from scipy.sparse import csr_matrix, vstack
-
 from pypsa.geo import haversine
 from vresutils import landuse as vlanduse
 from vresutils.array import spdiag
 
-import progressbar as pgb
+logger = logging.getLogger(__name__)
 
 bounds = dx = dy = config = paths = gebco = clc = natura = None
+
+
 def init_globals(bounds_xXyY, n_dx, n_dy, n_config, n_paths):
     # Late import so that the GDAL Context is only created in the new processes
     global gl, gk, gdal
@@ -227,6 +228,7 @@ def init_globals(bounds_xXyY, n_dx, n_dy, n_config, n_paths):
 
     natura = gk.raster.loadRaster(paths["natura"])
 
+
 def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
     # The GDAL warp function with the 'average' resample algorithm needs a band of zero values of at least
     # the size of one coarse cell around the original raster or it produces erroneous results
@@ -237,6 +239,7 @@ def downsample_to_coarse_grid(bounds, dx, dy, mask, data):
     average = bounds.createRaster(dx, dy, dtype=gdal.GDT_Float32)
     assert gdal.Warp(average, padded, resampleAlg='average') == 1, "gdal warp failed: %s" % gdal.GetLastErrorMsg()
     return average
+
 
 def calculate_potential(gid, save_map=None):
     feature = gk.vector.extractFeature(paths["regions"], where=gid)

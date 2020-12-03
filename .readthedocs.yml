@@ -5,4 +5,4 @@
 version: 2
 
 conda:
-    environment: environment.docs.yaml
+    environment: envs/environment.docs.yaml

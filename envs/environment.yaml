@@ -37,8 +37,7 @@ dependencies:
   - progressbar2
   - pyyaml>=5.1.0
 
-  # Include ipython so that one does not inadvertently drop out of the conda
-  # environment by calling ipython
+  # Keep in conda environment when calling ipython
   - ipython
 
   # GIS dependencies:
@@ -51,9 +50,6 @@ dependencies:
   - shapely
   - libgdal<=3.0.4
   - descartes
-
-  # Solvers
-  - gurobi:gurobi # until https://github.com/conda-forge/pypsa-feedstock/issues/4 closed
 
   - pip:
     - vresutils==0.3.1

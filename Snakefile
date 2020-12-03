@@ -11,33 +11,31 @@ if not exists("config.yaml"):
 configfile: "config.yaml"
 
 COSTS="data/costs.csv"
+ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
+
 
 wildcard_constraints:
-    ll="(v|c)([0-9\.]+|opt|all)|all", # line limit, can be volume or cost
     simpl="[a-zA-Z0-9]*|all",
     clusters="[0-9]+m?|all",
-    sectors="[+a-zA-Z0-9]+",
+    ll="(v|c)([0-9\.]+|opt|all)|all",
     opts="[-+a-zA-Z0-9\.]*"
 
+
 rule cluster_all_elec_networks:
-    input:
-        expand("networks/elec_s{simpl}_{clusters}.nc",
-               **config['scenario'])
+    input: expand("networks/elec_s{simpl}_{clusters}.nc", **config['scenario'])
+
 
 rule extra_components_all_elec_networks:
-    input:
-        expand("networks/elec_s{simpl}_{clusters}_ec.nc",
-               **config['scenario'])
+    input: expand("networks/elec_s{simpl}_{clusters}_ec.nc", **config['scenario'])
+
 
 rule prepare_all_elec_networks:
-    input:
-        expand("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
-               **config['scenario'])
+    input: expand("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
+
 
 rule solve_all_elec_networks:
-    input:
-        expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
-               **config['scenario'])
+    input: expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
+
 
 if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
@@ -45,7 +43,6 @@ if config['enable'].get('prepare_links_p_nom', False):
         log: 'logs/prepare_links_p_nom.log'
         threads: 1
         resources: mem=500
-        # group: 'nonfeedin_preparation'
         script: 'scripts/prepare_links_p_nom.py'
 
 
@@ -55,20 +52,24 @@ datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls',
             'NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp', 'nama_10r_3popgdp.tsv.gz', 
             'nama_10r_3gdp.tsv.gz', 'corine/g250_clc06_V18_5.tif']
 
+
 if not config.get('tutorial', False):
     datafiles.extend(["natura/Natura2000_end2015.shp", "GEBCO_2014_2D.nc"])
 
+
 if config['enable'].get('retrieve_databundle', True):
     rule retrieve_databundle:
-        output:  expand('data/bundle/{file}', file=datafiles)
+        output: expand('data/bundle/{file}', file=datafiles)
         log: "logs/retrieve_databundle.log"
         script: 'scripts/retrieve_databundle.py'
+
 
 rule build_load_data:
     output: "resources/load.csv"
     log: "logs/build_load_data.log"
     script: 'scripts/build_load_data.py'
     
+
 rule build_powerplants:
     input:
         base_network="networks/base.nc",
@@ -77,8 +78,8 @@ rule build_powerplants:
     log: "logs/build_powerplants.log"
     threads: 1
     resources: mem=500
-    # group: 'nonfeedin_preparation'
     script: "scripts/build_powerplants.py"
+
 
 rule base_network:
     input:
@@ -98,8 +99,8 @@ rule base_network:
     benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem=500
-    # group: 'nonfeedin_preparation'
     script: "scripts/base_network.py"
+
 
 rule build_shapes:
     input:
@@ -118,8 +119,8 @@ rule build_shapes:
     log: "logs/build_shapes.log"
     threads: 1
     resources: mem=500
-    # group: 'nonfeedin_preparation'
     script: "scripts/build_shapes.py"
+
 
 rule build_bus_regions:
     input:
@@ -130,19 +131,20 @@ rule build_bus_regions:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     log: "logs/build_bus_regions.log"
+    threads: 1
     resources: mem=1000
-    # group: 'nonfeedin_preparation'
     script: "scripts/build_bus_regions.py"
 
-if config['enable'].get('build_cutout', False):        
+
+if config['enable'].get('build_cutout', False):
     rule build_cutout:
         output: directory("cutouts/{cutout}")
         log: "logs/build_cutout/{cutout}.log"
-        resources: mem=config['atlite'].get('nprocesses', 4) * 1000
-        threads: config['atlite'].get('nprocesses', 4)
         benchmark: "benchmarks/build_cutout_{cutout}"
-        # group: 'feedin_preparation'
+        threads: ATLITE_NPROCESSES
+        resources: mem=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
+
 
 if config['enable'].get('retrieve_cutout', True):
     rule retrieve_cutout:
@@ -151,14 +153,15 @@ if config['enable'].get('retrieve_cutout', True):
         script: 'scripts/retrieve_cutout.py'
 
 
-if config['enable'].get('build_natura_raster', False):        
+if config['enable'].get('build_natura_raster', False):
     rule build_natura_raster:
-        input: 
+        input:
             natura="data/bundle/natura/Natura2000_end2015.shp",
             cutouts=expand("cutouts/{cutouts}", **config['atlite'])
         output: "resources/natura.tiff"
         log: "logs/build_natura_raster.log"
         script: "scripts/build_natura_raster.py"
+
 
 if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
@@ -166,27 +169,29 @@ if config['enable'].get('retrieve_natura_raster', True):
         log: "logs/retrieve_natura_raster.log"
         script: 'scripts/retrieve_natura_raster.py'
 
+
 rule build_renewable_profiles:
     input:
         base_network="networks/base.nc",
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="resources/natura.tiff",
-        gebco=lambda wildcards: ("data/bundle/GEBCO_2014_2D.nc"
-                                 if "max_depth" in config["renewable"][wildcards.technology].keys()
-                                 else []),
+        gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
+                         if "max_depth" in config["renewable"][w.technology].keys()
+                         else []),
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
-        regions=lambda wildcards: ("resources/regions_onshore.geojson"
-                                   if wildcards.technology in ('onwind', 'solar')
-                                   else "resources/regions_offshore.geojson"),
-        cutout=lambda wildcards: "cutouts/" + config["renewable"][wildcards.technology]['cutout']
-    output: profile="resources/profile_{technology}.nc",
+        regions=lambda w: ("resources/regions_onshore.geojson"
+                           if w.technology in ('onwind', 'solar')
+                           else "resources/regions_offshore.geojson"),
+        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout']
+    output:
+        profile="resources/profile_{technology}.nc",
     log: "logs/build_renewable_profile_{technology}.log"
-    resources: mem=config['atlite'].get('nprocesses', 2) * 5000
-    threads: config['atlite'].get('nprocesses', 2)
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
-    # group: 'feedin_preparation'
+    threads: ATLITE_NPROCESSES
+    resources: mem=ATLITE_NPROCESSES * 5000
     script: "scripts/build_renewable_profiles.py"
+
 
 if 'hydro' in config['renewable'].keys():
     rule build_hydro_profile:
@@ -197,8 +202,8 @@ if 'hydro' in config['renewable'].keys():
         output: 'resources/profile_hydro.nc'
         log: "logs/build_hydro_profile.log"
         resources: mem=5000
-        # group: 'feedin_preparation'
         script: 'scripts/build_hydro_profile.py'
+
 
 rule add_electricity:
     input:
@@ -210,78 +215,77 @@ rule add_electricity:
         geth_hydro_capacities='data/geth2015_hydro_capacities.csv',
         load='resources/load.csv',
         nuts3_shapes='resources/nuts3_shapes.geojson',
-        **{'profile_' + t: "resources/profile_" + t + ".nc"
-           for t in config['renewable']}
+        **{f"profile_{tech}": f"resources/profile_{tech}.nc"
+           for tech in config['renewable']}
     output: "networks/elec.nc"
     log: "logs/add_electricity.log"
     benchmark: "benchmarks/add_electricity"
     threads: 1
     resources: mem=3000
-    # group: 'build_pypsa_networks'
     script: "scripts/add_electricity.py"
+
 
 rule simplify_network:
     input:
-        network='networks/{network}.nc',
+        network='networks/elec.nc',
         tech_costs=COSTS,
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     output:
-        network='networks/{network}_s{simpl}.nc',
-        regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        busmap='resources/busmap_{network}_s{simpl}.csv'
-    log: "logs/simplify_network/{network}_s{simpl}.log"
-    benchmark: "benchmarks/simplify_network/{network}_s{simpl}"
+        network='networks/elec_s{simpl}.nc',
+        regions_onshore="resources/regions_onshore_elec_s{simpl}.geojson",
+        regions_offshore="resources/regions_offshore_elec_s{simpl}.geojson",
+        busmap='resources/busmap_elec_s{simpl}.csv'
+    log: "logs/simplify_network/elec_s{simpl}.log"
+    benchmark: "benchmarks/simplify_network/elec_s{simpl}"
     threads: 1
     resources: mem=4000
-    # group: 'build_pypsa_networks'
     script: "scripts/simplify_network.py"
+
 
 rule cluster_network:
     input:
-        network='networks/{network}_s{simpl}.nc',
-        regions_onshore="resources/regions_onshore_{network}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}.geojson",
-        busmap=ancient('resources/busmap_{network}_s{simpl}.csv'),
-        custom_busmap=("data/custom_busmap_{network}_s{simpl}_{clusters}.csv"
+        network='networks/elec_s{simpl}.nc',
+        regions_onshore="resources/regions_onshore_elec_s{simpl}.geojson",
+        regions_offshore="resources/regions_offshore_elec_s{simpl}.geojson",
+        busmap=ancient('resources/busmap_elec_s{simpl}.csv'),
+        custom_busmap=("data/custom_busmap_elec_s{simpl}_{clusters}.csv"
                        if config["enable"].get("custom_busmap", False) else []),
         tech_costs=COSTS
     output:
-        network='networks/{network}_s{simpl}_{clusters}.nc',
-        regions_onshore="resources/regions_onshore_{network}_s{simpl}_{clusters}.geojson",
-        regions_offshore="resources/regions_offshore_{network}_s{simpl}_{clusters}.geojson",
-        busmap="resources/busmap_{network}_s{simpl}_{clusters}.csv",
-        linemap="resources/linemap_{network}_s{simpl}_{clusters}.csv"
-    log: "logs/cluster_network/{network}_s{simpl}_{clusters}.log"
-    benchmark: "benchmarks/cluster_network/{network}_s{simpl}_{clusters}"
+        network='networks/elec_s{simpl}_{clusters}.nc',
+        regions_onshore="resources/regions_onshore_elec_s{simpl}_{clusters}.geojson",
+        regions_offshore="resources/regions_offshore_elec_s{simpl}_{clusters}.geojson",
+        busmap="resources/busmap_elec_s{simpl}_{clusters}.csv",
+        linemap="resources/linemap_elec_s{simpl}_{clusters}.csv"
+    log: "logs/cluster_network/elec_s{simpl}_{clusters}.log"
+    benchmark: "benchmarks/cluster_network/elec_s{simpl}_{clusters}"
     threads: 1
     resources: mem=3000
-    # group: 'build_pypsa_networks'
     script: "scripts/cluster_network.py"
 
 
 rule add_extra_components:
     input:
-        network='networks/{network}_s{simpl}_{clusters}.nc',
+        network='networks/elec_s{simpl}_{clusters}.nc',
         tech_costs=COSTS,
-    output: 'networks/{network}_s{simpl}_{clusters}_ec.nc'
-    log: "logs/add_extra_components/{network}_s{simpl}_{clusters}.log"
-    benchmark: "benchmarks/add_extra_components/{network}_s{simpl}_{clusters}_ec"
+    output: 'networks/elec_s{simpl}_{clusters}_ec.nc'
+    log: "logs/add_extra_components/elec_s{simpl}_{clusters}.log"
+    benchmark: "benchmarks/add_extra_components/elec_s{simpl}_{clusters}_ec"
     threads: 1
     resources: mem=3000
-    # group: 'build_pypsa_networks'
     script: "scripts/add_extra_components.py"
 
 
 rule prepare_network:
-    input: 'networks/{network}_s{simpl}_{clusters}_ec.nc', tech_costs=COSTS
-    output: 'networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
-    log: "logs/prepare_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
+    input: 'networks/elec_s{simpl}_{clusters}_ec.nc', tech_costs=COSTS
+    output: 'networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
+    log: "logs/prepare_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
+    benchmark: "benchmarks/prepare_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     threads: 1
     resources: mem=4000
-    # benchmark: "benchmarks/prepare_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     script: "scripts/prepare_network.py"
+
 
 def memory(w):
     factor = 3.
@@ -299,47 +303,48 @@ def memory(w):
         return int(factor * (18000 + 180 * int(w.clusters[:-1])))
     else:
         return int(factor * (10000 + 195 * int(w.clusters)))
-        # return 4890+310 * int(w.clusters)
+
 
 rule solve_network:
-    input: "networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    shadow: "shallow"
+    input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
     log:
-        solver=normpath("logs/solve_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"),
-        python="logs/solve_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
-        memory="logs/solve_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
-    benchmark: "benchmarks/solve_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+        solver=normpath("logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"),
+        python="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
+        memory="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
+    benchmark: "benchmarks/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     threads: 4
     resources: mem=memory
-    # group: "solve" # with group, threads is ignored https://bitbucket.org/snakemake/snakemake/issues/971/group-job-description-does-not-contain
+    shadow: "shallow"
     script: "scripts/solve_network.py"
+
 
 rule solve_operations_network:
     input:
-        unprepared="networks/{network}_s{simpl}_{clusters}_ec.nc",
-        optimized="results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
-    shadow: "shallow"
+        unprepared="networks/elec_s{simpl}_{clusters}_ec.nc",
+        optimized="results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
     log:
-        solver=normpath("logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log"),
-        python="logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
-        memory="logs/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
-    benchmark: "benchmarks/solve_operations_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+        solver=normpath("logs/solve_operations_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log"),
+        python="logs/solve_operations_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
+        memory="logs/solve_operations_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
+    benchmark: "benchmarks/solve_operations_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     threads: 4
     resources: mem=(lambda w: 5000 + 372 * int(w.clusters))
-    # group: "solve_operations"
+    shadow: "shallow"
     script: "scripts/solve_operations_network.py"
+
 
 rule plot_network:
     input:
-        network="results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        network="results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
         tech_costs=COSTS
     output:
-        only_map="results/plots/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
-        ext="results/plots/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
-    log: "logs/plot_network/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
+        only_map="results/plots/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
+        ext="results/plots/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
+    log: "logs/plot_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
     script: "scripts/plot_network.py"
+
 
 def input_make_summary(w):
     # It's mildly hacky to include the separate costs input as first entry
@@ -350,48 +355,54 @@ def input_make_summary(w):
     else:
         ll = w.ll
     return ([COSTS] +
-            expand("results/networks/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+            expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
                    network=w.network,
                    ll=ll,
                    **{k: config["scenario"][k] if getattr(w, k) == "all" else getattr(w, k)
                       for k in ["simpl", "clusters", "opts"]}))
 
+
 rule make_summary:
     input: input_make_summary
-    output: directory("results/summaries/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
-    log: "logs/make_summary/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
+    output: directory("results/summaries/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
+    log: "logs/make_summary/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
     script: "scripts/make_summary.py"
 
+
 rule plot_summary:
-    input: "results/summaries/{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
-    output: "results/plots/summary_{summary}_{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
-    log: "logs/plot_summary/{summary}_{network}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
+    input: "results/summaries/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
+    output: "results/plots/summary_{summary}_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
+    log: "logs/plot_summary/{summary}_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
     script: "scripts/plot_summary.py"
 
-def input_plot_p_nom_max(wildcards):
-    return [('networks/{network}_s{simpl}{maybe_cluster}.nc'
-             .format(maybe_cluster=('' if c == 'full' else ('_' + c)), **wildcards))
-            for c in wildcards.clusts.split(",")]
+
+def input_plot_p_nom_max(w):
+    return [("networks/elec_s{simpl}{maybe_cluster}.nc"
+             .format(maybe_cluster=('' if c == 'full' else ('_' + c)), **w))
+            for c in w.clusts.split(",")]
+
+
 rule plot_p_nom_max:
     input: input_plot_p_nom_max
-    output: "results/plots/{network}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
-    log: "logs/plot_p_nom_max/{network}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
+    output: "results/plots/elec_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
+    log: "logs/plot_p_nom_max/elec_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
     script: "scripts/plot_p_nom_max.py"
+
 
 rule build_country_flh:
     input:
         base_network="networks/base.nc",
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="resources/natura.tiff",
-        gebco=lambda wildcards: ("data/bundle/GEBCO_2014_2D.nc"
-                                 if "max_depth" in config["renewable"][wildcards.technology].keys()
-                                 else []),
+        gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
+                         if "max_depth" in config["renewable"][w.technology].keys()
+                         else []),
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
         pietzker="data/pietzker2014.xlsx",
         regions=lambda w: ("resources/country_shapes.geojson"
-                                   if w.technology in ('onwind', 'solar')
-                                   else "resources/offshore_shapes.geojson"),
+                           if w.technology in ('onwind', 'solar')
+                           else "resources/offshore_shapes.geojson"),
         cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout']
     output:
         area="resources/country_flh_area_{technology}.csv",
@@ -402,9 +413,4 @@ rule build_country_flh:
     log: "logs/build_country_flh_{technology}.log"
     resources: mem=10000
     benchmark: "benchmarks/build_country_flh_{technology}"
-    # group: 'feedin_preparation'
     script: "scripts/build_country_flh.py"
-
-# Local Variables:
-# mode: python
-# End:

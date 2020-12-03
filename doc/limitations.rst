@@ -37,7 +37,7 @@ improving the approximations.
   not spatially disaggregated; assuming, as we have done, that the load time series
   shape is the same at each node within each country ignores local differences.
 
-- **Currently installed renewable capacities:** 
+- **Currently installed renewable capacities:**
   Information on existing wind, solar and small hydro, geothermal, marine and
   biomass power plants are excluded from the dataset because of a lack of data
   availability in many countries. Approximate distributions of wind and solar
@@ -56,4 +56,3 @@ improving the approximations.
   Belarus, Ukraine, Turkey and Morocco have not been taken into account;
   islands which are not connected to the main European system, such as Malta,
   Crete and Cyprus, are also excluded from the model.
-  

@@ -33,14 +33,15 @@ The :ref:`tutorial` uses a smaller `data bundle <https://zenodo.org/record/35179
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from _helpers import progress_retrieve, configure_logging
 
-from pathlib import Path
 import tarfile
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
 
 if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('retrieve_databundle')
