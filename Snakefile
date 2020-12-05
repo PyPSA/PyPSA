@@ -21,19 +21,19 @@ wildcard_constraints:
     opts="[-+a-zA-Z0-9\.]*"
 
 
-rule cluster_all_elec_networks:
+rule cluster_all_networks:
     input: expand("networks/elec_s{simpl}_{clusters}.nc", **config['scenario'])
 
 
-rule extra_components_all_elec_networks:
+rule extra_components_all_networks:
     input: expand("networks/elec_s{simpl}_{clusters}_ec.nc", **config['scenario'])
 
 
-rule prepare_all_elec_networks:
+rule prepare_all_networks:
     input: expand("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
 
 
-rule solve_all_elec_networks:
+rule solve_all_networks:
     input: expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
 
 

@@ -32,7 +32,7 @@ Based on the parameters above the ``marginal_cost`` and ``capital_cost`` of the 
 
 .. note::
 
-    Another great resource for `cost assumptions <https://ens.dk/en/our-services/projections-and-models/technology-data`_ is the cost database from the Danish Energy Agency.
+    Another great resource for cost assumptions is the `cost database from the Danish Energy Agency <https://ens.dk/en/our-services/projections-and-models/technology-data>`_.
 
 Modifying Cost Assumptions
 ==========================

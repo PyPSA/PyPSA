@@ -45,11 +45,6 @@
     background: #ffffff;
 }
 
-.wy-nav-content .highlight .nn,
-.wy-nav-content .admonition.warning a {
-    color: #dddddd;
-}
-
 .rst-content code.literal,
 .rst-content tt.literal {
     color: rgb(34, 97, 156)

@@ -17,7 +17,7 @@ Relevant Settings
         url:
         interpolate_limit:
         time_shift_for_large_gaps:
-        manual_adjustments: true
+        manual_adjustments:
 
 
 .. seealso::

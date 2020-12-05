@@ -10,10 +10,6 @@ Relevant Settings
 
 .. code:: yaml
 
-    (electricity:)
-        (BAU_mincapacities:)
-        (SAFE_reservemargin:)
-
     solving:
         tmpdir:
         options:
@@ -28,10 +24,6 @@ Relevant Settings
             track_iterations:
         solver:
             name:
-            (solveroptions):
-
-    (plotting:)
-        (conv_techs:)
 
 .. seealso::
     Documentation of the configuration file ``config.yaml`` at

@@ -60,7 +60,7 @@ Now a window with the machine details will open. You have to configure the follo
   You can edit your machine configuration later. So use a cheap machine type configuration to transfer data and
   only when everything is ready and tested, your expensive machine type, for instance a custom 8 vCPU with 160 GB memory.
   Solvers do not parallelise well, so we recommend not to choose more than 8 vCPU.
-  Check ``snakemake -j -n 1 solve_all_elec_networks`` as a dry run to see how much memory is required.
+  Check ``snakemake -n -j 1 solve_all_networks`` as a dry run to see how much memory is required.
   The memory requirements will vary depending on the spatial and temporal resoulution of your optimisation.
   Example: for an hourly, 181 node full European network, set 8 vCPU and 150 GB memory since the dry-run calculated a 135 GB memory requirement.)
 - Boot disk: As default, your VM is created with 10 GB. Depending on how much you want to handle on one VM you should increase the disk size.
@@ -85,7 +85,7 @@ Step 3 - Installation of Cloud SDK
         sudo apt-get update
         sudo apt-get install bzip2 libxml2-dev
         sudo apt-get install wget
-        wget https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh    (Check the link. To be up to date with anaconda, check the Anaconda website https://www.anaconda.com/products/individual )
+        wget https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh
         ls  (to see what anaconda file to bash)
         bash Anaconda3-2020.07-Linux-x86_64.sh
         source ~/.bashrc

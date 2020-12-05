@@ -12,7 +12,7 @@ be it with new ideas, suggestions, by filing bug reports or contributing code
 to our `GitHub repository <https://github.com/PyPSA/PyPSA-Eur>`_.
 
 * If you already have some code changes, you can submit them directly as a `pull request <https://github.com/PyPSA/pypsa-eur/pulls>`_.
-* If you are wondering where we would greatly appreciate your efforts, check out the ``help wanted`` tag in the `issues list <https://github.com/PyPSA/pypsa-eur/issues`_ and initiate a discussion there..
+* If you are wondering where we would greatly appreciate your efforts, check out the ``help wanted`` tag in the `issues list <https://github.com/PyPSA/pypsa-eur/issues>`_ and initiate a discussion there.
 * If you start working on a feature in the code, let us know by opening an issue or a draft pull request.
   This helps all of us to keep an overview on what is being done and helps to avoid a situation where we
   are doing the same work twice in parallel.

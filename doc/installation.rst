@@ -17,6 +17,7 @@ Clone the Repository
 
 First of all, clone the `PyPSA-Eur repository <https://github.com/PyPSA/pypsa-eur>`_ using the version control system ``git``.
 The path to the directory into which the ``git repository`` is cloned, must **not** have any spaces!
+If you do not have ``git`` installed, follow installation instructions `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`_.
 
 .. code:: bash
 
@@ -24,8 +25,6 @@ The path to the directory into which the ``git repository`` is cloned, must **no
 
     /some/path/without/spaces % git clone https://github.com/PyPSA/pypsa-eur.git
 
-.. note::
-    If you do not have ``git`` installed, follow installation instructions `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`_.
 
 .. _deps:
 
@@ -46,9 +45,8 @@ The environment can be installed and activated using
 
     .../pypsa-eur % conda activate pypsa-eur
 
-.. note::
-    Note that activation is local to the currently open shell!
-    After opening a new terminal window, one needs to reissue the second command!
+Note that activation is local to the currently open shell!
+After opening a new terminal window, one needs to reissue the second command!
 
 .. note::
     If you have troubles with a slow ``conda`` installation, we recommend to install
@@ -74,25 +72,23 @@ PyPSA is known to work with the free software
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
 - `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
 
-and the non-free, commercial software (for which free academic licenses are available)
+and the non-free, commercial software (for some of which free academic licenses are available)
 
 - `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
+- `FICO® Xpress Solver <https://www.fico.com/de/products/fico-xpress-solver>`_
 
-and any other solver that works with the underlying modelling framework `Pyomo <http://www.pyomo.org/>`_.
 For installation instructions of these solvers for your operating system, follow the links above.
+Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
+It might be the case that you can only retrieve solutions by using a commercial solver.
 
 .. seealso::
     `Getting a solver in the PyPSA documentation <https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-linear-optimisation>`_
 
 .. note::
-    Commercial solvers such as Gurobi and CPLEX currently significantly outperform open-source solvers for large-scale problems.
-    It might be the case that you can only retrieve solutions by using a commercial solver.
-
-.. note::
     The rules :mod:`cluster_network` and :mod:`simplify_network` solve a quadratic optimisation problem for clustering.
     The open-source solvers Cbc and GlPK cannot handle this. A fallback to Ipopt is implemented in this case, but requires
-    also Ipopt to be installed. For an open-source solver setup install in your `conda` environment on OSX/Linux
+    also Ipopt to be installed. For an open-source solver setup install in your ``conda`` environment on OSX/Linux
 
     .. code:: bash
 

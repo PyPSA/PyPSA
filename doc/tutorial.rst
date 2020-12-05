@@ -59,35 +59,35 @@ It is also possible to allow less or more carbon-dioxide emissions. Here, we lim
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 35,37
+   :lines: 36,38
 
 PyPSA-Eur also includes a database of existing conventional powerplants.
 We can select which types of powerplants we like to be included with fixed capacities:
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 35,51
+   :lines: 36,52
 
 To accurately model the temporal and spatial availability of renewables such as wind and solar energy, we rely on historical weather data.
 It is advisable to adapt the required range of coordinates to the selection of countries.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 53-61
+   :lines: 54-62
 
 We can also decide which weather data source should be used to calculate potentials and capacity factor time-series for each carrier.
 For example, we may want to use the ERA-5 dataset for solar and not the default SARAH-2 dataset.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 63,106-107
+   :lines: 64,107-108
 
 Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 164,175-176
+   :lines: 170,180-181
 
 .. note::
 
@@ -129,7 +129,7 @@ orders ``snakemake`` to run the script ``solve_network`` that produces the solve
 .. warning::
     On Windows the previous command may currently cause a ``MissingRuleException`` due to problems with output files in subfolders.
     This is an `open issue <https://github.com/snakemake/snakemake/issues/46>`_ at `snakemake <https://snakemake.readthedocs.io/>`_.
-    Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake -j 1 solve_all_elec_networks``.
+    Windows users should add the option ``--keep-target-files`` to the command or instead run ``snakemake -j 1 solve_all_networks``.
 
 This triggers a workflow of multiple preceding jobs that depend on each rule's inputs and outputs:
 
@@ -271,7 +271,7 @@ the wildcards given in ``scenario`` in the configuration file ``config.yaml`` ar
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 13-18
+   :lines: 14-18
 
 In this example we would not only solve a 6-node model of Germany but also a 2-node model.
 
@@ -286,12 +286,4 @@ The solved networks can be analysed just like any other PyPSA network (e.g. in J
 
     network = pypsa.Network("results/networks/elec_s_6_ec_lcopt_Co2L-24H.nc")
 
-    ...
-
 For inspiration, read the `examples section in the PyPSA documentation <https://pypsa.readthedocs.io/en/latest/examples.html>`_.
-
-.. note::
-
-    There are rules for summaries and plotting available in the repository of PyPSA-Eur.
-
-    They are currently under revision and therefore not yet documented.
