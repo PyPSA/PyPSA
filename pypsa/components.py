@@ -34,7 +34,7 @@ from collections import namedtuple
 import os
 
 
-from .descriptors import Dict, get_switchable_as_dense
+from .descriptors import Dict, get_switchable_as_dense, get_active_assets
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -845,10 +845,10 @@ class Network(Basic):
                 for k in iterkeys(component.pnl):
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
-            network.investment_period_weightings = self.investment_period_weightings.loc[snapshots].copy()
+            network.investment_period_weightings = self.investment_period_weightings.loc[investment_periods].copy()
         else:
             network.snapshot_weightings = self.snapshot_weightings.copy()
-            network.investment_period_weightings = self.investment_period_weightings.loc[snapshots].copy()
+            network.investment_period_weightings = self.investment_period_weightings.loc[investment_periods].copy()
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:
