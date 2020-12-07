@@ -322,6 +322,63 @@ def define_nodal_balance_constraints(n, sns):
     define_constraints(n, lhs, sense, rhs, 'Bus', 'marginal_price')
 
 
+
+def define_energy_balance_per_inv_p(n, sns):
+    """
+    Defines constraint that for each investment period (inv_p) total demand has
+    to be generated so that energy is not shift between investment periods
+    """
+
+    def bus_injection(c, attr, groupcol='bus', sign=1):
+    # additional sign only necessary for branches in reverse direction
+        if 'sign' in n.df(c):
+            sign = sign * n.df(c).sign
+        expr = linexpr((sign, get_var(n, c, attr))).rename(columns=n.df(c)[groupcol])
+        # drop empty bus2, bus3 if multiline link
+        if c == 'Link':
+            expr.drop(columns='', errors='ignore', inplace=True)
+        return expr
+
+    # one might reduce this a bit by using n.branches and lookup
+    args = [['Generator', 'p'],
+            ['Store', 'p', 'bus', -1],
+            # ['StorageUnit', 'p_dispatch', 'bus', 1],
+            # ['StorageUnit', 'p_store', 'bus', -1],
+            ['Line', 's', 'bus0', -1],
+            ['Line', 's', 'bus1', 1], ['Transformer', 's', 'bus0', -1],
+            ['Transformer', 's', 'bus1', 1], ['Link', 'p', 'bus0', -1],
+            ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
+    args = [arg for arg in args if not n.df(arg[0]).empty]
+
+    for i in additional_linkports(n):
+        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
+        args.append(['Link', 'p', f'bus{i}', eff])
+
+    # TODO  change when snapshots are multiindex
+    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
+    map_dict = {n.investment_periods[period] :
+                sns[(sns>=investment[period]) & (sns<investment[period+1])]
+                for period in range(len(n.investment_periods))}
+    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
+                                            map_dict.items() for l in levels])
+
+    # energy generation, convertion during investment period
+    lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
+           .groupby(axis=1, level=0)
+           .sum()
+           .reindex(columns=n.buses.index, fill_value='')
+           .set_index(multiindex).groupby(level=0).sum())
+
+    sense = '>='
+
+    # load during investment period
+    rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
+           .groupby(n.loads.bus, axis=1).sum()
+           .reindex(columns=n.buses.index, fill_value=0)
+           .set_index(multiindex).groupby(level=0).sum())
+
+    define_constraints(n, lhs, sense, rhs, 'Bus', 'energy_balance')
+
 def define_kirchhoff_constraints(n, sns):
     """
     Defines Kirchhoff voltage constraints
@@ -331,24 +388,34 @@ def define_kirchhoff_constraints(n, sns):
     if len(comps) == 0: return
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
+     # TODO only helper, has to be changed when snapshots are multiindex
+    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
+    map_dict = {n.investment_periods[period] :
+                sns[(sns>=investment[period]) & (sns<investment[period+1])]
+                for period in range(len(n.investment_periods))}
+    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
+                                            map_dict.items() for l in levels])
+
     def cycle_flow(ds):
         ds = ds[lambda ds: ds!=0.].dropna()
         vals = linexpr((ds, branch_vars[ds.index]), as_pandas=False)
         return vals.sum(1)
 
     constraints = []
-    for sub in n.sub_networks.obj:
-        branches = sub.branches()
-        C = pd.DataFrame(sub.C.todense(), index=branches.index)
-        if C.empty:
-            continue
-        carrier = n.sub_networks.carrier[sub.name]
-        weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
-        C_weighted = 1e5 * C.mul(weightings, axis=0)
-        cycle_sum = C_weighted.apply(cycle_flow)
-        cycle_sum.index = sns
-        con = write_constraint(n, cycle_sum, '=', 0)
-        constraints.append(con)
+    for inv_p in n.investment_periods:
+        active = pd.concat([get_active_assets(n, c, inv_p, sns) for c in comps])
+        for sub in n.sub_networks.obj:
+            branches = sub.branches()
+            C = pd.DataFrame(sub.C.todense(), index=branches.index)
+            if C.empty:
+                continue
+            carrier = n.sub_networks.carrier[sub.name]
+            weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
+            C_weighted = 1e5 * C.mul(weightings, axis=0)
+            cycle_sum = C_weighted.apply(cycle_flow)
+            cycle_sum.index = sns
+            con = write_constraint(n, cycle_sum, '=', 0)
+            constraints.append(con)
     if len(constraints) == 0: return
     constraints = pd.concat(constraints, axis=1, ignore_index=True)
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
@@ -381,9 +448,20 @@ def define_storage_unit_constraints(n, sns):
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge').index
 
     # TODO only helper, has to be changed when snapshots are multiindex
-    inv_p_i = sns.reindex(n.investment_periods)[1]
-    prev_soc_cyclic = soc.shift()
-    prev_soc_cyclic.iloc[inv_p_i] = prev_soc_cyclic.iloc[inv_p_i-1].sort_index().values
+    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
+    map_dict = {n.investment_periods[period] :
+                sns[(sns>=investment[period]) & (sns<investment[period+1])]
+                for period in range(len(n.investment_periods))}
+    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
+                                            map_dict.items() for l in levels])
+
+    # cyclic constraint for soc - shift each investment period
+    previous_soc_cyclic = soc.set_index(multiindex).groupby(level=0).shift()
+    fill_with_last = soc.set_index(multiindex).groupby(level=0).last()
+    previous_soc_cyclic = previous_soc_cyclic.combine_first(
+                          previous_soc_cyclic.add(fill_with_last, level=0, fill_value=0))
+    previous_soc_cyclic = previous_soc_cyclic.droplevel(level=0)
+
 
     coeff_var = [(-1, soc),
                  (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
@@ -397,7 +475,7 @@ def define_storage_unit_constraints(n, sns):
 
     if ('StorageUnit', 'spill') in n.variables.index:
         lhs += masked_term(-eh, get_var(n, c, 'spill'), spill.columns)
-    lhs += masked_term(eff_stand, prev_soc_cyclic, cyclic_i)
+    lhs += masked_term(eff_stand, previous_soc_cyclic, cyclic_i)
     lhs += masked_term(eff_stand.loc[sns[1:]], soc.shift().loc[sns[1:]], noncyclic_i)
 
     rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
@@ -426,7 +504,25 @@ def define_store_constraints(n, sns):
     cyclic_i = n.df(c).query('e_cyclic').index
     noncyclic_i = n.df(c).query('~e_cyclic').index
 
-    previous_e_cyclic = e.shift().fillna(e.loc[sns[-1]])
+    # previous_e_cyclic = e.shift().fillna(e.loc[sns[-1]])
+    # inv_p_i = sns.reindex(n.investment_periods)[1]
+    # previous_e_cyclic = e.shift()
+    # previous_e_cyclic.iloc[inv_p_i] = previous_e_cyclic.iloc[inv_p_i-1].sort_index().values
+
+    # TODO only helper, has to be changed when snapshots are multiindex
+    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
+    map_dict = {n.investment_periods[period] :
+                sns[(sns>=investment[period]) & (sns<investment[period+1])]
+                for period in range(len(n.investment_periods))}
+    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
+                                            map_dict.items() for l in levels])
+
+    # multiindex
+    previous_e_cyclic = e.set_index(multiindex).groupby(level=0).shift()
+    fill_with_last = e.set_index(multiindex).groupby(level=0).last()
+    previous_e_cyclic = previous_e_cyclic.combine_first(
+                          previous_e_cyclic.add(fill_with_last, level=0, fill_value=0))
+    previous_e_cyclic = previous_e_cyclic.droplevel(level=0)
 
     coeff_var = [(-eh, get_var(n, c, 'p')), (-1, e)]
 
@@ -646,6 +742,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
     define_nodal_balance_constraints(n, snapshots)
+    define_energy_balance_per_inv_p(n, snapshots)
     define_global_constraints(n, snapshots)
     if skip_objective:
         logger.info("The argument `skip_objective` is set to True. Expecting a "
