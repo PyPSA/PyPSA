@@ -201,7 +201,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes *= projected_area_factor(ax, n.srid)**2
+            bus_sizes = bus_sizes * projected_area_factor(ax, n.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -224,7 +224,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         c = pd.Series(bus_colors, index=n.buses.index)
         s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
         if geomap:
-            s *= projected_area_factor(ax, n.srid)**2
+            s = s * projected_area_factor(ax, n.srid)**2
 
         if bus_cmap is not None and c.dtype is np.dtype('float'):
             if isinstance(bus_cmap, str):
