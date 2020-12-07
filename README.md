@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC-BY-4.0
 [![Build Status](https://travis-ci.org/PyPSA/pypsa-eur.svg?branch=master)](https://travis-ci.org/PyPSA/pypsa-eur)
 [![Documentation](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)](https://pypsa-eur.readthedocs.io/en/latest/?badge=latest)
 ![Size](https://img.shields.io/github/repo-size/pypsa/pypsa-eur)
-[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3520875.svg)](https://doi.org/10.5281/zenodo.3520875)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3520874.svg)](https://doi.org/10.5281/zenodo.3520874)
 [![Gitter](https://badges.gitter.im/PyPSA/community.svg)](https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Snakemake](https://img.shields.io/badge/snakemake-≥5.0.0-brightgreen.svg?style=flat)](https://snakemake.readthedocs.io)
 [![REUSE status](https://api.reuse.software/badge/github.com/pypsa/pypsa-eur)](https://api.reuse.software/info/github.com/pypsa/pypsa-eur)
@@ -61,7 +61,7 @@ The dataset consists of:
 - Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils) and the [glaes library](https://github.com/FZJ-IEK3-VSA/glaes).
 
 Already-built versions of the model can be found in the accompanying [Zenodo
-repository](https://doi.org/10.5281/zenodo.3601882).
+repository](https://doi.org/10.5281/zenodo.3601881).
 
 A version of the model that adds building heating, transport and
 industry sectors to the model, as well as gas networks, can be found
