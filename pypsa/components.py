@@ -947,12 +947,13 @@ class Network(Basic):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
                          keys=self.controllable_branch_components, sort=True)
 
-    def determine_network_topology(self):
+    def determine_network_topology(self, inv_p=None):
         """
         Build sub_networks from topology.
         """
 
-        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components)
+        adjacency_matrix = self.adjacency_matrix(branch_components=self.passive_branch_components,
+                                                 inv_p=inv_p)
         n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
@@ -983,6 +984,11 @@ class Network(Basic):
 
         for c in self.iterate_components(self.passive_branch_components):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+
+            if inv_p is not None:
+                active = get_active_assets(self, c.name, inv_p, self.snapshots)
+                # set non active assets to NaN
+                c.df.loc[~active, "sub_network"] = np.nan
 
         for sub in self.sub_networks.obj:
             find_cycles(sub)
