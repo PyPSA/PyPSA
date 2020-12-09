@@ -388,13 +388,15 @@ def define_kirchhoff_constraints(n, sns):
     if len(comps) == 0: return
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
-     # TODO only helper, has to be changed when snapshots are multiindex
+
+    # TODO only helper, has to be changed when snapshots are multiindex
     investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
     map_dict = {n.investment_periods[period] :
                 sns[(sns>=investment[period]) & (sns<investment[period+1])]
                 for period in range(len(n.investment_periods))}
     multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
                                             map_dict.items() for l in levels])
+
 
     def cycle_flow(ds):
         ds = ds[lambda ds: ds!=0.].dropna()
@@ -403,7 +405,7 @@ def define_kirchhoff_constraints(n, sns):
 
     constraints = []
     for inv_p in n.investment_periods:
-        active = pd.concat([get_active_assets(n, c, inv_p, sns) for c in comps])
+        n.determine_network_topology(inv_p=inv_p)
         for sub in n.sub_networks.obj:
             branches = sub.branches()
             C = pd.DataFrame(sub.C.todense(), index=branches.index)
@@ -413,7 +415,8 @@ def define_kirchhoff_constraints(n, sns):
             weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
             C_weighted = 1e5 * C.mul(weightings, axis=0)
             cycle_sum = C_weighted.apply(cycle_flow)
-            cycle_sum.index = sns
+            cycle_sum.set_index(multiindex, inplace=True)
+            cycle_sum = cycle_sum.loc[inv_p]
             con = write_constraint(n, cycle_sum, '=', 0)
             constraints.append(con)
     if len(constraints) == 0: return
