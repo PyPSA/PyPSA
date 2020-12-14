@@ -690,7 +690,8 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
            "or 'pip install cplex'")
     import cplex
     m = cplex.Cplex()
-    out = m.set_log_stream(solver_logfile)
+    with open(solver_logfile, "w") as f:
+        out = m.set_log_stream(f)
     if solver_options is not None:
         for key, value in solver_options.items():
             param = m.parameters
