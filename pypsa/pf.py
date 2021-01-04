@@ -53,10 +53,10 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (Sequence, pd.Index))):
-        return pd.Index([snapshots])
+    if (isinstance(snapshots, (Sequence, pd.MultiIndex))):
+        return snapshots
     else:
+        print("warning: snapshots should be a multiindex")
         return pd.Index(snapshots)
 
 
