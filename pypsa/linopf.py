@@ -354,20 +354,12 @@ def define_energy_balance_per_inv_p(n, sns):
         eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
         args.append(['Link', 'p', f'bus{i}', eff])
 
-    # TODO  change when snapshots are multiindex
-    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
-    map_dict = {n.investment_periods[period] :
-                sns[(sns>=investment[period]) & (sns<investment[period+1])]
-                for period in range(len(n.investment_periods))}
-    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
-                                            map_dict.items() for l in levels])
-
     # energy generation, convertion during investment period
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
            .sum()
            .reindex(columns=n.buses.index, fill_value='')
-           .set_index(multiindex).groupby(level=0).sum())
+           .groupby(level=0).sum())
 
     sense = '>='
 
@@ -375,7 +367,7 @@ def define_energy_balance_per_inv_p(n, sns):
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
            .reindex(columns=n.buses.index, fill_value=0)
-           .set_index(multiindex).groupby(level=0).sum())
+           .groupby(level=0).sum())
 
     define_constraints(n, lhs, sense, rhs, 'Bus', 'energy_balance')
 
@@ -387,15 +379,6 @@ def define_kirchhoff_constraints(n, sns):
     comps = n.passive_branch_components & set(n.variables.index.levels[0])
     if len(comps) == 0: return
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
-
-
-    # TODO only helper, has to be changed when snapshots are multiindex
-    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
-    map_dict = {n.investment_periods[period] :
-                sns[(sns>=investment[period]) & (sns<investment[period+1])]
-                for period in range(len(n.investment_periods))}
-    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
-                                            map_dict.items() for l in levels])
 
 
     def cycle_flow(ds):
@@ -415,7 +398,7 @@ def define_kirchhoff_constraints(n, sns):
             weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
             C_weighted = 1e5 * C.mul(weightings, axis=0)
             cycle_sum = C_weighted.apply(cycle_flow)
-            cycle_sum.set_index(multiindex, inplace=True)
+            cycle_sum.set_index(sns, inplace=True)
             cycle_sum = cycle_sum.loc[inv_p]
             con = write_constraint(n, cycle_sum, '=', 0)
             constraints.append(con)
@@ -450,21 +433,11 @@ def define_storage_unit_constraints(n, sns):
     cyclic_i = n.df(c).query('cyclic_state_of_charge').index
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge').index
 
-    # TODO only helper, has to be changed when snapshots are multiindex
-    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
-    map_dict = {n.investment_periods[period] :
-                sns[(sns>=investment[period]) & (sns<investment[period+1])]
-                for period in range(len(n.investment_periods))}
-    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
-                                            map_dict.items() for l in levels])
-
     # cyclic constraint for soc - shift each investment period
-    previous_soc_cyclic = soc.set_index(multiindex).groupby(level=0).shift()
-    fill_with_last = soc.set_index(multiindex).groupby(level=0).last()
+    previous_soc_cyclic = soc.groupby(level=0).shift()
+    fill_with_last = soc.groupby(level=0).last()
     previous_soc_cyclic = previous_soc_cyclic.combine_first(
                           previous_soc_cyclic.add(fill_with_last, level=0, fill_value=0))
-    previous_soc_cyclic = previous_soc_cyclic.droplevel(level=0)
-
 
     coeff_var = [(-1, soc),
                  (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
@@ -507,25 +480,10 @@ def define_store_constraints(n, sns):
     cyclic_i = n.df(c).query('e_cyclic').index
     noncyclic_i = n.df(c).query('~e_cyclic').index
 
-    # previous_e_cyclic = e.shift().fillna(e.loc[sns[-1]])
-    # inv_p_i = sns.reindex(n.investment_periods)[1]
-    # previous_e_cyclic = e.shift()
-    # previous_e_cyclic.iloc[inv_p_i] = previous_e_cyclic.iloc[inv_p_i-1].sort_index().values
-
-    # TODO only helper, has to be changed when snapshots are multiindex
-    investment = n.investment_periods.union(pd.Index([sns[-1] + pd.Timedelta(days=1)]))
-    map_dict = {n.investment_periods[period] :
-                sns[(sns>=investment[period]) & (sns<investment[period+1])]
-                for period in range(len(n.investment_periods))}
-    multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
-                                            map_dict.items() for l in levels])
-
-    # multiindex
-    previous_e_cyclic = e.set_index(multiindex).groupby(level=0).shift()
-    fill_with_last = e.set_index(multiindex).groupby(level=0).last()
+    previous_e_cyclic = e.groupby(level=0).shift()
+    fill_with_last = e.groupby(level=0).last()
     previous_e_cyclic = previous_e_cyclic.combine_first(
                           previous_e_cyclic.add(fill_with_last, level=0, fill_value=0))
-    previous_e_cyclic = previous_e_cyclic.droplevel(level=0)
 
     coeff_var = [(-eh, get_var(n, c, 'p')), (-1, e)]
 
@@ -660,19 +618,26 @@ def define_objective(n, sns):
             active = get_active_assets(n, c, inv_p, sns)
             # index of active and extendable assets
             active_i = active[active].index.intersection(ext_i)
-            constant += n.df(c)[attr][active_i] @ n.df(c).capital_cost[active_i]
+            constant += (n.df(c)[attr][active_i] @
+                        (n.df(c).capital_cost[active_i] * n.investment_period_weightings[inv_p]))
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
     n.objective_constant = constant
+
+    multiindex = pd.MultiIndex.from_arrays([n.investment_periods, n.investment_periods])
+    investment_weightings = (n.investment_period_weightings.reset_index()
+                             .set_index(multiindex).reindex(sns)[0]
+                             .fillna(method="ffill"))
 
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
                 .mul(n.snapshot_weightings[sns], axis=0)
-                .mul(n.investment_period_weightings.reindex(sns).fillna(method="ffill"), axis=0))
+                .mul(investment_weightings, axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
+
     # investment
     for c, attr in nominal_attrs.items():
         cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
