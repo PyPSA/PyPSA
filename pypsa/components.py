@@ -224,7 +224,8 @@ class Network(Basic):
         self.pypsa_version = pypsa_version
 
         #a list/index of scenarios/times
-        self.snapshots = pd.Index(["now"])
+        self.snapshots =  pd.MultiIndex.from_arrays([["first"],["now"]],
+                                                    names=("investment_period", "snapshot"))
 
         #corresponds to number of hours represented by each snapshot
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
@@ -385,8 +386,20 @@ class Network(Basic):
         -------
         None
         """
+        # if format of snapshots is not a MultiIndex
+        if not isinstance(snapshots, pd.MultiIndex):
+            snapshots = pd.MultiIndex.from_product([["first"],
+                                                    snapshots],
+                                                   names=["investment_period",
+                                                          "snapshots"])
 
-        self.snapshots = pd.Index(snapshots)
+        # if MultiIndex has not as intended two levels([investment period, snapshots])
+        if snapshots.nlevels!=2:
+            logger.warning(dedent("""
+                format of snapshots should be a MultiIndex with first level
+                investment period, second level snapshots"""))
+
+        self.snapshots = snapshots
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
 
@@ -397,7 +410,7 @@ class Network(Basic):
             for k,default in attrs.default[attrs.varying].iteritems():
                 pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
 
-        self.investment_periods = pd.Index([self.snapshots[0]])
+        self.investment_periods = self.snapshots.levels[0]
         self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_periods,fill_value=1.)
 
 
@@ -417,10 +430,25 @@ class Network(Basic):
         -------
         None
         """
+        if isinstance(investment_periods, pd.core.indexes.multi.MultiIndex):
+            self.investment_periods = investment_periods.levels[0]
+            self.snapshots = investment_periods
 
-        self.investment_periods = pd.Index(investment_periods)
+        else:
+            self.investment_periods = investment_periods
+            self.snapshots = pd.MultiIndex.from_product([investment_periods,
+                                                         self.snapshots.droplevel("investment_period")])
 
+        self.snapshot_weightings = self.snapshot_weightings.reindex(self.snapshots,fill_value=1.)
         self.investment_period_weightings = self.investment_period_weightings.reindex(self.investment_periods,fill_value=1.)
+
+
+        for component in self.all_components:
+            pnl = self.pnl(component)
+            attrs = self.components[component]["attrs"]
+
+            for k,default in attrs.default[attrs.varying].iteritems():
+                pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
 
         # for component in self.all_components:
         #     pnl = self.pnl(component)
