@@ -263,7 +263,7 @@ if has_xarray:
                 self.ds[list_name + '_' + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            df.index.name = 'snapshots'
+            # df.index.set_names(['investment_period', 'snapshot'])
             df.columns.name = list_name + '_t_' + attr + '_i'
             self.ds[list_name + '_t_' + attr] = df
             if self.least_significant_digit is not None:
@@ -292,7 +292,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         Basename, used for logging
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
-        should then set "ignore_standard_types" when initialising the netowrk).
+        should then set "ignore_standard_types" when initialising the network).
     """
 
     #exportable component types
@@ -307,8 +307,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_attributes(attrs)
 
     #now export snapshots
-    snapshots = pd.DataFrame(dict(weightings=network.snapshot_weightings),
-                             index=pd.Index(network.snapshots, name="name"))
+    # snapshots = pd.DataFrame(dict(weightings=network.snapshot_weightings),
+    #                          index=pd.Index(network.snapshots, name="name"))
+    snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
 
     exported_components = []
@@ -358,7 +359,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
             if len(col_export) > 0:
-                df = pnl[attr][col_export]
+                df = pnl[attr].reset_index()[col_export]
                 exporter.save_series(list_name, attr, df)
             else:
                 exporter.remove_series(list_name, attr)
@@ -582,6 +583,19 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
     if df is not None:
+        # check if imported snapshots have MultiIndex
+        if set(["investment_period", "snapshot"]).issubset(df.columns):
+            df.set_index(["investment_period", "snapshot"], inplace=True)
+
+        if not isinstance(df.index, pd.MultiIndex):
+              logger.warning(dedent("""
+                set format of snapshots from DatetimeIndex (older pypsa version)
+                to MultiIndex"""))
+              df.set_index(pd.MultiIndex.from_product([["first"], df.index],
+                                                      names=("investment_period",
+                                                             "snapshot")),
+                           inplace=True)
+
         network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
@@ -604,6 +618,8 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
+                if not isinstance(df.index, pd.MultiIndex):
+                    df.set_index(network.snapshots, inplace=True)
                 import_series_from_dataframe(network, df, component, attr)
 
         logger.debug(getattr(network,list_name))
