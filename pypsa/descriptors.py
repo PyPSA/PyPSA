@@ -331,15 +331,33 @@ def get_active_assets(n, c, inv_p, sns):
     # component only active during lifetime
     df = n.df(c)
     # if no build year specified, assume build at the beginning and operates the whole time
-    df["build_year"].fillna(sns[0].year,inplace=True)
-    df.loc[df["lifetime"]==np.inf, "lifetime"] = sns[-1].year-sns[0].year+1
+    df["build_year"].fillna(sns[0][0],inplace=True)
+    df["build_year"] = df["build_year"].apply(lambda x: x.year
+                                              if type(x)==pd._libs.tslibs.timestamps.Timestamp
+                                              else x)
+    df.loc[df["lifetime"]==np.inf, "lifetime"] = n.investment_period_weightings.sum()
 
-    if any(n.investment_periods =="now"):
-        index_active = df.index
+    if type(inv_p)==pd._libs.tslibs.timestamps.Timestamp:
+        index_active = ((df["build_year"]<= inv_p.year) &
+                       (inv_p.year<df[["build_year", "lifetime"]].sum(axis=1)))
+
+
     else:
-        index_active = (df["build_year"]<= inv_p.year) & (inv_p.year<df[["build_year", "lifetime"]].sum(axis=1))
+        build_year = (df["build_year"].astype(int, errors="ignore")).astype(str)
+        missing = [build not in n.investment_periods for build in build_year]
+        if any(missing):
+            print("warning: build year of ",
+                  df.loc[missing].index,
+                  " not in investment periods, assumed that asset is build in \
+                  first investment period")
+            build_year.loc[missing] = n.investment_periods[0]
+        index_active = (build_year.isin(n.investment_period_weightings.loc[:inv_p].index)
+                        & ([n.investment_period_weightings.loc[build_year[asset]:inv_p].sum()
+                            <df.loc[asset, "lifetime"] for asset in df.index]))
+
 
     return index_active
+
 
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     """
@@ -378,17 +396,10 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
-    # component only active during lifetime
-    df = n.df(c)
-    df["build_year"].fillna(sns[0].year,inplace=True)
-    df.loc[df["lifetime"]==np.inf, "lifetime"] = sns[-1].year-sns[0].year+1
-
-    for col in max_pu.columns:
-        index_inactive = ~max_pu.index.year.isin(np.arange(df.loc[col, "build_year"],
-                                                 df.loc[col, ["build_year", "lifetime"]].sum()))
-
-        max_pu.loc[index_inactive, col] = 0
-        min_pu.loc[index_inactive, col] = 0
+    # set to zero if not active
+    for inv_p in n.investment_periods:
+        max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+        min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
 
 
     return min_pu[index], max_pu[index]
