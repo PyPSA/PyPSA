@@ -531,8 +531,8 @@ def define_global_constraints(n, sns):
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
             em_pu = (n.snapshot_weightings[sns]
-                     .mul(n.investment_period_weightings.reindex(sns)
-                          .fillna(method="ffill"))).to_frame('weightings') @\
+                     .mul(n.investment_period_weightings, level=0)
+                     ).to_frame('weightings') @\
                     em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=False)
