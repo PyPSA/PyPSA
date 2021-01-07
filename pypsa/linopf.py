@@ -83,7 +83,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if c == 'Generator':
-        ext_i = ext_i | n.generators.query('committable').index
+        ext_i = ext_i.union(n.generators.query('committable').index)
     if ext_i.empty: return
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
@@ -183,7 +183,7 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
 def define_generator_status_variables(n, snapshots):
     com_i = n.generators.query('committable').index
     ext_i = get_extendable_i(n, 'Generator')
-    if not (ext_i & com_i).empty:
+    if not (ext_i.intersection(com_i)).empty:
         logger.warning("The following generators have both investment optimisation"
         f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
         "do both these functions, so PyPSA is choosing investment optimisation "
