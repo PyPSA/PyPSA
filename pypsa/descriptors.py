@@ -335,7 +335,7 @@ def get_active_assets(n, c, inv_p, sns):
     df["build_year"] = df["build_year"].apply(lambda x: x.year
                                               if type(x)==pd._libs.tslibs.timestamps.Timestamp
                                               else x)
-    df.loc[df["lifetime"]==np.inf, "lifetime"] = n.investment_period_weightings.sum()
+    df.loc[df["lifetime"]==np.inf, "lifetime"] = n.investment_period_weightings["energy_weighting"].sum()
 
     if type(inv_p)==pd._libs.tslibs.timestamps.Timestamp:
         index_active = ((df["build_year"]<= inv_p.year) &
@@ -352,7 +352,7 @@ def get_active_assets(n, c, inv_p, sns):
                   first investment period")
             build_year.loc[missing] = n.investment_periods[0]
         index_active = (build_year.isin(n.investment_period_weightings.loc[:inv_p].index)
-                        & ([n.investment_period_weightings.loc[build_year[asset]:inv_p].sum()
+                        & ([n.investment_period_weightings.loc[build_year[asset]:inv_p, "energy_weighting"].sum()
                             <df.loc[asset, "lifetime"] for asset in df.index]))
 
 

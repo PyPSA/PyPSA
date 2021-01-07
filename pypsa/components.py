@@ -234,7 +234,12 @@ class Network(Basic):
         self.investment_periods = pd.Index(self.snapshots)
 
         #investment/CO2 constraint weighting of each investment period
-        self.investment_period_weightings = pd.Series(index=self.investment_periods,data=1.)
+        # investment_weighting weights costs (e.g. to include social discount rates)
+        # energy_weighting weights elapsed time between periods (e.g. CO2 emissions, costs)
+        self.investment_period_weightings = pd.DataFrame(index=self.investment_periods,
+                                                         columns=["investment_weighting",
+                                                                  "energy_weighting"],
+                                                         data=1.)
 
         if override_components is None:
             self.components = components

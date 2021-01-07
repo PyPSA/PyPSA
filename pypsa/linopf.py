@@ -19,12 +19,12 @@ Originally retrieved from nomopyomo ( -> 'no more Pyomo').
 """
 
 
-from pypsa.pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
-from pypsa.descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
+from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
+from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
                           expand_series, nominal_attrs, additional_linkports, Dict,
                           get_active_assets)
 
-from pypsa.linopt import (linexpr, write_bound, write_constraint, write_objective,
+from .linopt import (linexpr, write_bound, write_constraint, write_objective,
                      set_conref, set_varref, get_con, get_var, join_exprs,
                      run_and_read_cbc, run_and_read_gurobi, run_and_read_glpk,
                      run_and_read_cplex, run_and_read_xpress,
@@ -531,7 +531,7 @@ def define_global_constraints(n, sns):
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
             em_pu = (n.snapshot_weightings[sns]
-                     .mul(n.investment_period_weightings, level=0)
+                     .mul(n.investment_period_weightings["energy_weighting"], level=0)
                      ).to_frame('weightings') @\
                     em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
@@ -619,33 +619,34 @@ def define_objective(n, sns):
             # index of active and extendable assets
             active_i = active[active].index.intersection(ext_i)
             constant += (n.df(c)[attr][active_i] @
-                        (n.df(c).capital_cost[active_i] * n.investment_period_weightings[inv_p]))
+                        (n.df(c).capital_cost[active_i] * n.investment_period_weightings.loc[inv_p, "investment_weighting"]))
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
     n.objective_constant = constant
 
-    multiindex = pd.MultiIndex.from_arrays([n.investment_periods, n.investment_periods])
-    investment_weightings = (n.investment_period_weightings.reset_index()
-                             .set_index(multiindex).reindex(sns)[0]
-                             .fillna(method="ffill"))
-
+    # marginal cost
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
                 .mul(n.snapshot_weightings[sns], axis=0)
-                .mul(investment_weightings, axis=0))
+                .mul(n.investment_period_weightings.loc[sns.levels[0], "investment_weighting"], level=0, axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
 
     # investment
     for c, attr in nominal_attrs.items():
-        cost = n.df(c)['capital_cost'][get_extendable_i(n, c)]
+        ext_i = get_extendable_i(n, c)
+        cost = n.df(c)['capital_cost'][ext_i]
         if cost.empty: continue
         cost_inv = (pd.DataFrame(np.repeat([cost.values],
                                           len(n.investment_periods), axis=0),
                                 index=n.investment_periods, columns=cost.index)
-                    .mul(n.investment_period_weightings, axis=0))
+                    .mul(n.investment_period_weightings["investment_weighting"], axis=0))
+        for inv_p in n.investment_periods:
+            active = get_active_assets(n, c, inv_p, sns)
+            nonactive_i = active[~active].index.intersection(ext_i)
+            cost_inv.loc[inv_p, nonactive_i] = 0
         terms = linexpr((cost_inv, get_var(n, c, attr).loc[cost_inv.columns]))
         write_objective(n, terms)
 
