@@ -515,8 +515,15 @@ def define_global_constraints(n, sns):
         3. transmission_expansion_cost_limit
             Use this to set a limit for line expansion costs. Possible carriers
             are 'AC' and 'DC'
+        4. tech_capacity_expansion_limit
+            Use this to se a limit for the summed capacitiy of a carrier (e.g.
+            'onwind') for each investment period at choosen nodes. This limit
+            could e.g. represent land resource/ building restrictions for a
+            technology in a certain region. Currently, only the
+            capacities of extendable generators have to be below the set limit.
 
     """
+    # (1) primary_energy
     glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
         rhs = glc.constant
@@ -562,10 +569,12 @@ def define_global_constraints(n, sns):
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
-    # for the next two to we need a line carrier
-    if len(n.global_constraints) > len(glcs):
+    # for line expansion we need to add a line carrier
+    if any(n.global_constraints.type.isin(["transmission_volume_expansion_limit",
+                                           "transmission_expansion_cost_limit"])):
         n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
-    # expansion limits
+
+    # (2) transmission_volume_expansion_limit
     glcs = n.global_constraints.query('type == '
                                       '"transmission_volume_expansion_limit"')
     substr = lambda s: re.sub('[\[\]\(\)]', '', s)
@@ -585,7 +594,7 @@ def define_global_constraints(n, sns):
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
-    # expansion cost limits
+    # (3) transmission_expansion_cost_limit
     glcs = n.global_constraints.query('type == '
                                       '"transmission_expansion_cost_limit"')
     for name, glc in glcs.iterrows():
@@ -602,6 +611,28 @@ def define_global_constraints(n, sns):
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
+
+
+    # (4) tech_capacity_expansion_limit
+    glcs = n.global_constraints.query('type == '
+                                      '"tech_capacity_expansion_limit"')
+    for name, glc in glcs.iterrows():
+        car = eval(glc.carrier_attribute)
+        lhs = ''
+        c, attr = 'Generator', 'p_nom'
+        ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
+        if ext_i.empty: continue
+        for inv_p in n.investment_periods:
+            active = get_active_assets(n, c, inv_p, sns)
+            ext_and_active_i = active[active].index.intersection(ext_i)
+            caps = get_var(n, c, attr)[ext_and_active_i]
+            lhs= linexpr((1, caps)).groupby([n.df(c).carrier, n.df(c).bus]).sum()
+            rhs = n.global_constraints_t.constant.loc[inv_p]
+            sense = glc.sense
+
+            write_constraint(n, lhs, sense, rhs, axes=lhs.index)
+
+        # set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
 
 def define_objective(n, sns):

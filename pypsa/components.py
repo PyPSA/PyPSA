@@ -400,9 +400,9 @@ class Network(Basic):
 
         # if MultiIndex has not as intended two levels([investment period, snapshots])
         if snapshots.nlevels!=2:
-            logger.warning(dedent("""
+            logger.warning("""
                 format of snapshots should be a MultiIndex with first level
-                investment period, second level snapshots"""))
+                investment period, second level snapshots""")
 
         self.snapshots = snapshots
 
@@ -635,8 +635,11 @@ class Network(Basic):
             typ = attrs.at[k, "typ"]
             if not attrs.at[k,"varying"]:
                 new_df.at[name,k] = typ(v)
-            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, np.ndarray, list)):
+            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray, list)):
                 new_df.at[name,k] = typ(v)
+            # for global constraint p_nom_max at each node for each investment_period
+            elif isinstance(v, pd.DataFrame):
+                cls_pnl[k] = v.reindex(self.investment_periods).astype(typ)
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
