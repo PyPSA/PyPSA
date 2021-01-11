@@ -436,8 +436,8 @@ Links can also be defined with multiple outputs in fixed ratio to the
 power in the single input by defining new columns ``bus2``, ``bus3``,
 etc. (``bus`` followed by an integer) in ``network.links`` along with
 associated columns for the efficiencies ``efficiency2``,
-``efficiency3``, etc. The different outputs are then proportional to
-the input according to the efficiency; see :ref:`opf-links` for how
+``efficiency3``, etc. The different outputs are then equal to
+the input multiplied by the corresponding efficiency; see :ref:`opf-links` for how
 these are used in the LOPF and the `example of a CHP with a fixed
 power-heat ratio
 <https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
@@ -455,13 +455,20 @@ If the column ``bus2`` exists, values in the column are not compulsory
 for all links; if the link has no 2nd output, simply leave it empty
 ``network.links.at["my_link","bus2"] = ""``.
 
-For links with multiple inputs in fixed ratio to a single output,
-simply reverse the flow in a link with one input and multiple outputs
-by setting ``my_link.p_max_pu = 0`` and ``my_link.p_min_pu = -1``.
+For links with multiple inputs in fixed ratio to one of the inputs,
+you can define the other inputs as outputs with a negative efficiency
+so that they withdraw energy or material from the bus if there is a positive
+flow in the link.
 
-For multiple inputs to multiple outputs, connect a multi-to-single
-link to a single-to-multi link with an auxiliary bus in the middle.
+As an example, suppose a link representing a methanation process takes
+as inputs one unit of hydrogen and 0.5 units of carbon dioxide, and
+gives as outputs 0.8 units of methane and 0.2 units of heat. Then
+``bus0`` connects to hydrogen, ``bus1`` connects to carbon dioxide
+with ``efficiency=-0.5`` (since 0.5 units of carbon dioxide is taken
+for each unit of hydrogen), ``bus2`` connects to methane with
+``efficiency2=0.8`` and ``bus3`` to heat with ``efficiency3=0.2``.
 
+The Jupyter notebook `Biomass, synthetic fuels and carbon management <https://github.com/PyPSA/PyPSA/blob/master/examples/notebooks/biomass-synthetic-fuels-carbon-management.ipynb>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
 
 Groups of Components
 ====================
