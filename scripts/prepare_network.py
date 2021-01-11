@@ -204,7 +204,7 @@ def enforce_autarky(n, only_crossborder=False):
                     ].index
     else:
         lines_rm = n.lines.index
-        links_rm = n.links.index
+        links_rm = n.links.loc[n.links.carrier=="DC"].index
     n.mremove("Line", lines_rm)
     n.mremove("Link", links_rm)
 
