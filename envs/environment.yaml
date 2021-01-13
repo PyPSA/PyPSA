@@ -17,6 +17,7 @@ dependencies:
 
   # Dependencies of the workflow itself
   - xlrd
+  - openpyxl
   - scikit-learn
   - pycountry
   - seaborn
