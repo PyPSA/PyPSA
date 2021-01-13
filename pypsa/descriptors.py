@@ -329,7 +329,7 @@ def get_active_assets(n, c, inv_p, sns):
 
     """
     # component only active during lifetime
-    df = n.df(c)
+    df = n.df(c).copy()
     # if no build year specified, assume build at the beginning and operates the whole time
     df["build_year"].fillna(sns[0][0],inplace=True)
     df["build_year"] = df["build_year"].apply(lambda x: x.year
