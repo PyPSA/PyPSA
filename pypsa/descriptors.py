@@ -353,7 +353,7 @@ def get_active_assets(n, c, inv_p, sns):
             build_year.loc[missing] = n.investment_periods[0]
         index_active = (build_year.isin(n.investment_period_weightings.loc[:inv_p].index)
                         & ([n.investment_period_weightings.loc[build_year[asset]:inv_p, "energy_weighting"].sum()
-                            <df.loc[asset, "lifetime"] for asset in df.index]))
+                            <=df.loc[asset, "lifetime"] for asset in df.index]))
 
 
     return index_active
