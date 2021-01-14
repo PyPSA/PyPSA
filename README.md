@@ -42,7 +42,7 @@ discussion in Section 3.4 "Model validation" of the paper.
 
 ![PyPSA-Eur Grid Model Simplified](doc/img/elec_s_X.png)
 
-The model is designed to be imported into the open toolbox
+The model building routines are defined through a snakemake workflow. The model is designed to be imported into the open toolbox
 [PyPSA](https://github.com/PyPSA/PyPSA) for operational studies as
 well as generation and transmission expansion planning studies.
 
