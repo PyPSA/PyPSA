@@ -307,8 +307,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_attributes(attrs)
 
     #now export snapshots
-    # snapshots = pd.DataFrame(dict(weightings=network.snapshot_weightings),
-    #                          index=pd.Index(network.snapshots, name="name"))
     snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
 
@@ -360,6 +358,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
             if len(col_export) > 0:
                 df = pnl[attr].reset_index()[col_export]
+                if isinstance(df.columns, pd.MultiIndex):
+                    df = df.T.reset_index().T
                 exporter.save_series(list_name, attr, df)
             else:
                 exporter.remove_series(list_name, attr)
