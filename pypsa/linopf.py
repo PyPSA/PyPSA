@@ -342,8 +342,8 @@ def define_energy_balance_per_inv_p(n, sns):
     # one might reduce this a bit by using n.branches and lookup
     args = [['Generator', 'p'],
             ['Store', 'p', 'bus', -1],
-            # ['StorageUnit', 'p_dispatch', 'bus', 1],
-            # ['StorageUnit', 'p_store', 'bus', -1],
+            ['StorageUnit', 'p_dispatch', 'bus', 1],
+            ['StorageUnit', 'p_store', 'bus', -1],
             ['Line', 's', 'bus0', -1],
             ['Line', 's', 'bus1', 1], ['Transformer', 's', 'bus0', -1],
             ['Transformer', 's', 'bus1', 1], ['Link', 'p', 'bus0', -1],
@@ -356,20 +356,17 @@ def define_energy_balance_per_inv_p(n, sns):
 
     # energy generation, convertion during investment period
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
-           .groupby(axis=1, level=0)
-           .sum()
-           .reindex(columns=n.buses.index, fill_value='')
-           .groupby(level=0).sum())
+           .groupby(axis=1, level=0).sum()
+           .groupby(level=0).sum().sum(axis=1))
 
     sense = '>='
 
     # load during investment period
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
            .groupby(n.loads.bus, axis=1).sum()
-           .reindex(columns=n.buses.index, fill_value=0)
-           .groupby(level=0).sum())
+           .groupby(level=0).sum().sum(axis=1))
 
-    define_constraints(n, lhs, sense, rhs, 'Bus', 'energy_balance')
+    write_constraint(n, lhs, sense, rhs)
 
 def define_kirchhoff_constraints(n, sns):
     """
@@ -523,8 +520,62 @@ def define_global_constraints(n, sns):
             capacities of extendable generators have to be below the set limit.
 
     """
-    # (1) primary_energy
+    # (1)(a) primary_energy
     glcs = n.global_constraints.query('type == "primary_energy"')
+    for name, glc in glcs.iterrows():
+        rhs = glc.constant
+        lhs = ''
+        carattr = glc.carrier_attribute
+        emissions = n.carriers.query(f'{carattr} != 0')[carattr]
+
+        if emissions.empty: continue
+
+        # generators
+        gens = n.generators.query('carrier in @emissions.index')
+        if not gens.empty:
+            em_pu = gens.carrier.map(emissions)/gens.efficiency
+            em_pu = (n.snapshot_weightings[sns]
+                     .mul(n.investment_period_weightings["energy_weighting"], level=0)
+                     ).to_frame('weightings') @\
+                    em_pu.to_frame('weightings').T
+            vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
+                           as_pandas=True).groupby(level=0).sum().sum(axis=1)
+            # get time period to which constraint applies
+            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+                          pd.DatetimeIndex([glc["investment_period"]]))
+            lhs = vals.loc[time_valid]
+
+        # storage units
+        sus = n.storage_units.query('carrier in @emissions.index and '
+                                    'not cyclic_state_of_charge')
+        sus_i = sus.index
+        if not sus.empty:
+            coeff_val = (-sus.carrier.map(emissions), get_var(n, 'StorageUnit',
+                         'state_of_charge').loc[sns[-1], sus_i])
+            vals = linexpr(coeff_val, as_pandas=False)
+            lhs = lhs + '\n' + join_exprs(vals)
+            rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
+
+        # stores
+        n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
+        stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
+        if not stores.empty:
+            coeff_val = (-stores.carrier.map(emissions), get_var(n, 'Store', 'e')
+                         .loc[sns[-1], stores.index])
+            vals = linexpr(coeff_val, as_pandas=False)
+            lhs = lhs + '\n' + join_exprs(vals)
+            rhs -= stores.carrier.map(emissions) @ stores.e_initial
+
+        con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
+        set_conref(n, con, 'GlobalConstraint', 'mu', name)
+
+    # for line expansion we need to add a line carrier
+    if any(n.global_constraints.type.isin(["transmission_volume_expansion_limit",
+                                           "transmission_expansion_cost_limit"])):
+        n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
+
+     # (1)(b) Budget
+    glcs = n.global_constraints.query('type == "Budget"')
     for name, glc in glcs.iterrows():
         rhs = glc.constant
         lhs = ''
@@ -569,6 +620,7 @@ def define_global_constraints(n, sns):
         con = write_constraint(n, lhs, glc.sense, rhs, axes=pd.Index([name]))
         set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
+
     # for line expansion we need to add a line carrier
     if any(n.global_constraints.type.isin(["transmission_volume_expansion_limit",
                                            "transmission_expansion_cost_limit"])):
@@ -585,10 +637,19 @@ def define_global_constraints(n, sns):
             if n.df(c).empty: continue
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
-            v = linexpr((n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]),
+            # get time period to which constraint applies
+            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+                          pd.DatetimeIndex([glc["investment_period"]]))
+            # get active assets during time valid
+            active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
+                              for inv_p in time_valid], axis=1)
+                    .replace({True:1, False:0}))
+            ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
+            v = linexpr((n.df(c).loc[ext_and_active.columns, "length"].mul(ext_and_active),
+                         get_var(n, c, attr)[ext_and_active.columns]),
                         as_pandas=False)
-            lhs += '\n' + join_exprs(v)
-        if lhs == '': continue
+            lhs += v.sum(axis=1)
+        if type(lhs) == str: continue
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
@@ -603,10 +664,18 @@ def define_global_constraints(n, sns):
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
-            v = linexpr((n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]),
+            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+                          pd.DatetimeIndex([glc["investment_period"]]))
+            # get active assets during time valid
+            active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
+                              for inv_p in time_valid], axis=1)
+                    .replace({True:1, False:0}))
+            ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
+            v = linexpr((n.df(c).loc[ext_and_active.columns, "capital_cost"].mul(ext_and_active),
+                         get_var(n, c, attr)[ext_and_active.columns]),
                         as_pandas=False)
-            lhs += '\n' + join_exprs(v)
-        if lhs == '': continue
+            lhs += v.sum(axis=1)
+        if type(lhs) == str: continue
         sense = glc.sense
         rhs = glc.constant
         con = write_constraint(n, lhs, sense, rhs, axes=pd.Index([name]))
@@ -616,21 +685,37 @@ def define_global_constraints(n, sns):
     # (4) tech_capacity_expansion_limit
     glcs = n.global_constraints.query('type == '
                                       '"tech_capacity_expansion_limit"')
+    c, attr = 'Generator', 'p_nom'
+
     for name, glc in glcs.iterrows():
         car = eval(glc.carrier_attribute)
-        lhs = ''
-        c, attr = 'Generator', 'p_nom'
         ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
         if ext_i.empty: continue
-        for inv_p in n.investment_periods:
-            active = get_active_assets(n, c, inv_p, sns)
-            ext_and_active_i = active[active].index.intersection(ext_i)
-            caps = get_var(n, c, attr)[ext_and_active_i]
-            lhs= linexpr((1, caps)).groupby([n.df(c).carrier, n.df(c).bus]).sum()
-            rhs = n.global_constraints_t.constant.loc[inv_p]
-            sense = glc.sense
 
-            write_constraint(n, lhs, sense, rhs, axes=lhs.index)
+        active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
+                              for inv_p in n.investment_periods], axis=1)
+                    .replace({True:1, False:0}))
+        ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
+
+        cap_vars = get_var(n, c, attr)[ext_and_active.columns]
+
+        lhs = (linexpr((ext_and_active, cap_vars)).T
+               .groupby([n.df(c).carrier, n.df(c).bus]).sum().T)
+        rhs = n.global_constraints_t.constant.groupby(level=0).first()
+        sense = glc.sense
+
+        con = write_constraint(n, lhs, sense, rhs, axes=[n.investment_periods,
+                                                         lhs.columns])
+
+        set_conref(n, con, 'GlobalConstraint', 'mu_cap_limit', name)
+        # for inv_p in n.investment_periods:
+        #     active = get_active_assets(n, c, inv_p, sns)
+        #     ext_and_active_i = active[active].index.intersection(ext_i)
+        #     caps = get_var(n, c, attr)[ext_and_active_i]
+        #     rhs = n.global_constraints_t.constant.loc[inv_p]
+        #     sense = glc.sense
+
+        #     write_constraint(n, lhs, sense, rhs, axes=lhs.index)
 
         # set_conref(n, con, 'GlobalConstraint', 'mu', name)
 
@@ -723,7 +808,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
 
     for c, attr in lookup.query('nominal and not handle_separately').index:
         define_nominal_for_extendable_variables(n, c, attr)
-        # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
+        define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
         define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
@@ -784,8 +869,11 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         if attr not in pnl: #use this for subnetworks_t
             pnl[attr] = df.reindex(n.snapshots)
         elif pnl[attr].empty:
-            pnl[attr] = df.reindex(n.snapshots)
+            pnl[attr] = df.reindex(n.snapshots, level=0)
         else:
+            # for variables indexed with investment period not MultiIndex
+            if not isinstance(df, pd.MultiIndex):
+                df = df.reindex(n.snapshots, level=0)
             pnl[attr].loc[sns, :] = df.reindex(columns=pnl[attr].columns)
 
     pop = not keep_references
@@ -859,7 +947,8 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         to_component = c in n.all_components
         if is_pnl:
             n.dualvalues.at[(c, attr), 'in_comp'] = to_component
-            duals = constraints.stack().map(sign * constraints_dual).unstack()
+            duals = constraints.apply(lambda x: x.map((sign * constraints_dual)
+                                            .to_dict()), axis=1)
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
             pnl = n.pnl(c) if to_component else n.duals[c].pnl
