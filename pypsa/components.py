@@ -639,9 +639,12 @@ class Network(Basic):
                 new_df.at[name,k] = typ(v)
             # for global constraint p_nom_max at each node for each investment_period
             elif isinstance(v, pd.DataFrame):
-                cls_pnl[k] = v.reindex(self.investment_periods).astype(typ)
+                cls_pnl[k] = cls_pnl[k].reindex(columns=v.columns.union(cls_pnl[k].columns))
+                cls_pnl[k].loc[:,v.columns] = v.reindex(self.snapshots,
+                                                        level=0).astype(typ)
             else:
-                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots,
+                                             dtype=typ)
 
 
         for attr in ["bus","bus0","bus1"]:
