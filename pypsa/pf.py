@@ -43,7 +43,7 @@ import time
 from .descriptors import get_switchable_as_dense, allocate_series_dataframes, Dict, zsum, degree
 
 pd.Series.zsum = zsum
-
+#%%
 def normed(s): return s/s.sum()
 
 def real(X): return np.real(X.to_numpy())
@@ -53,10 +53,13 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if (isinstance(snapshots, (Sequence, pd.MultiIndex))):
+    if isinstance(snapshots, pd.MultiIndex):
         return snapshots
+    if isinstance(snapshots, Sequence):
+        return pd.MultiIndex.from_tuples([snapshots],
+                                         names=["investment_period", "snapshots"])
     else:
-        print("warning: snapshots should be a multiindex")
+        print("warning: snapshots should be a pd.MultiIndex")
         return pd.Index(snapshots)
 
 
