@@ -231,7 +231,7 @@ class Network(Basic):
         self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
 
         #a list/index of scenarios/times
-        self.investment_periods = pd.Index(self.snapshots)
+        self.investment_periods = pd.Index(self.snapshots.levels[0])
 
         #investment/CO2 constraint weighting of each investment period
         # investment_weighting weights costs (e.g. to include social discount rates)
