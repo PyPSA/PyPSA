@@ -1,3 +1,17 @@
+import sys
+sys.path = [ '/home/ws/bw0928/Dokumente/PyPSA',
+             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python36.zip',
+             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6',
+             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/lib-dynload',
+             '',
+             '/home/ws/bw0928/.local/lib/python3.6/site-packages',
+             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/site-packages',
+             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/site-packages/IPython/extensions',
+             '/opt/gurobi900/linux64/bin',
+             '/opt/ibm/ILOG/CPLEX_Studio129/cplex/python/3.7/x86-64_linux',
+             '/home/ws/bw0928/Dokumente/MA/Code',
+             '/home/ws/bw0928/.ipython']
+
 import pypsa
 
 import numpy as np
@@ -12,7 +26,7 @@ import six
 
 import pytest
 
-
+#%%
 @pytest.mark.skipif(
     six.PY2 and not pandapower_compatible,
     reason="Pandapower 2.0.0 dropped support for Python 2.",
@@ -60,41 +74,41 @@ def test_pandapower_case():
 
     # compare bus angles
     np.testing.assert_array_almost_equal(
-        n.buses_t.v_ang.loc["now"] * 180 / np.pi, net.res_bus.va_degree
+        n.buses_t.v_ang.loc[("first", "now")] * 180 / np.pi, net.res_bus.va_degree
     )
 
     # compare bus voltage magnitudes
     np.testing.assert_array_almost_equal(
-        n.buses_t.v_mag_pu.loc["now"], net.res_bus.vm_pu
+        n.buses_t.v_mag_pu.loc[("first", "now")], net.res_bus.vm_pu
     )
 
     # compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.p.loc["now"], -net.res_bus.p_mw)
+    np.testing.assert_array_almost_equal(n.buses_t.p.loc[("first", "now")], -net.res_bus.p_mw)
 
     # compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.q.loc["now"], -net.res_bus.q_mvar)
+    np.testing.assert_array_almost_equal(n.buses_t.q.loc[("first", "now")], -net.res_bus.q_mvar)
 
     # compare branch flows
     np.testing.assert_array_almost_equal(
-        n.lines_t.p0.loc["now"], net.res_line.p_from_mw
+        n.lines_t.p0.loc[("first", "now")], net.res_line.p_from_mw
     )
-    np.testing.assert_array_almost_equal(n.lines_t.p1.loc["now"], net.res_line.p_to_mw)
+    np.testing.assert_array_almost_equal(n.lines_t.p1.loc[("first", "now")], net.res_line.p_to_mw)
     np.testing.assert_array_almost_equal(
-        n.lines_t.q0.loc["now"], net.res_line.q_from_mvar
+        n.lines_t.q0.loc[("first", "now")], net.res_line.q_from_mvar
     )
     np.testing.assert_array_almost_equal(
-        n.lines_t.q1.loc["now"], net.res_line.q_to_mvar
+        n.lines_t.q1.loc[("first", "now")], net.res_line.q_to_mvar
     )
 
     np.testing.assert_array_almost_equal(
-        n.transformers_t.p0.loc["now"], net.res_trafo.p_hv_mw
+        n.transformers_t.p0.loc[("first", "now")], net.res_trafo.p_hv_mw
     )
     np.testing.assert_array_almost_equal(
-        n.transformers_t.p1.loc["now"], net.res_trafo.p_lv_mw
+        n.transformers_t.p1.loc[("first", "now")], net.res_trafo.p_lv_mw
     )
     np.testing.assert_array_almost_equal(
-        n.transformers_t.q0.loc["now"], net.res_trafo.q_hv_mvar
+        n.transformers_t.q0.loc[("first", "now")], net.res_trafo.q_hv_mvar
     )
     np.testing.assert_array_almost_equal(
-        n.transformers_t.q1.loc["now"], net.res_trafo.q_lv_mvar
+        n.transformers_t.q1.loc[("first", "now")], net.res_trafo.q_lv_mvar
     )
