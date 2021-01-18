@@ -766,9 +766,9 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
         dataframe = dataframe.reindex(network.snapshots, fill_value=default)
 
     if not attr_series.static:
-        pnl[attr] = pnl[attr].reindex(columns=df.index | columns, fill_value=default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index.union(columns), fill_value=default)
     else:
-        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
+        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns.union(columns)))
 
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
 
