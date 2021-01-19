@@ -82,7 +82,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if c == 'Generator':
-        ext_i = ext_i | n.generators.query('committable').index
+        ext_i = ext_i.union(n.generators.query('committable').index)
     if ext_i.empty: return
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
@@ -182,7 +182,7 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
 def define_generator_status_variables(n, snapshots):
     com_i = n.generators.query('committable').index
     ext_i = get_extendable_i(n, 'Generator')
-    if not (ext_i & com_i).empty:
+    if not (ext_i.intersection(com_i)).empty:
         logger.warning("The following generators have both investment optimisation"
         f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
         "do both these functions, so PyPSA is choosing investment optimisation "
@@ -1011,7 +1011,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     ext_i = get_extendable_i(n, 'Line')
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
-    ext_typed_i = ext_i & typed_i
+    ext_typed_i = ext_i.intersection(typed_i)
     base_s_nom = (np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
                   n.lines.bus0.map(n.buses.v_nom))
     n.lines.loc[ext_typed_i, 'num_parallel'] = (n.lines.s_nom/base_s_nom)[ext_typed_i]
