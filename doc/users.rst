@@ -2,7 +2,7 @@
 Users of PyPSA
 ###############
 
-The following universities, research institutes and companies are known to have either used PyPSA in the past, or to continue to use PyPSA. This list is necessarily incomplete, since we cannot track who uses PyPSA and we only find out who our users are when they contact the main developers of PyPSA.
+The following universities, research institutes, companies and non-governmental organisations are known to have either used PyPSA in the past, or to continue to use PyPSA. This list is necessarily incomplete, since we cannot track who uses PyPSA and we only find out who our users are when they contact the main developers of PyPSA.
 
 Research publications that cite the `PyPSA research paper <https://doi.org/10.5334/jors.188>`_ can be found on `Google Scholar <https://scholar.google.com/scholar?oi=bibs&hl=en&cites=11241966939032736670&as_sdt=5>`_.
 
@@ -51,6 +51,8 @@ Companies and Non-Governmental Organisations
 * `TransnetBW <https://www.transnetbw.de/>`_, the German transmission system operation in southwest Germany: used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_
 
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_
+
+* `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
 * `Saudi Aramco <https://www.aramco.com/>`_: used PyPSA for an assessment of renewables integration in 2019, see `arXiv:1709.03761 <https://arxiv.org/abs/1709.03761>`_
 
