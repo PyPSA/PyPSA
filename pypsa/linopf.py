@@ -515,9 +515,10 @@ def define_global_constraints(n, sns):
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
 
-        # stores
-        n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
-        stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
+        # stores (copy to avoid over-writing existing carrier attribute)
+        stores = n.stores.copy()
+        stores['carrier'] = stores.bus.map(n.buses.carrier)
+        stores = stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
             coeff_val = (-stores.carrier.map(emissions), get_var(n, 'Store', 'e')
                          .loc[sns[-1], stores.index])
