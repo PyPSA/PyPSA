@@ -665,19 +665,18 @@ class Network(Basic):
         # check if we need to reinitialize switches
         need_to_reinit = False
         if len(self.switches):
+            buses_with_switches = ((self.switches.bus1.append(self.switches.bus0)).drop_duplicates().tolist()
+                                   + (self.buses_connected.index.tolist()))
             for attr in ["bus", "bus0", "bus1"]:
                 if attr in cls_df.columns:
-                    buses_with_switches = ((self.switches.bus1.
-                                            append(self.switches.bus0)).drop_duplicates().tolist()
-                                            + (self.buses_connected.index.tolist()))
-                    logger.info(cls_df.at[name, attr])
                     switch_related = cls_df.at[name, attr] in buses_with_switches
                     if switch_related:
-                        logger.debug("The %s we are removing has bus(es) which are connected to switches."
-                                     "So we need to open_switches, call network.reinit_switches_after_removing_components() and"
-                                     "switch back to status_before:\n%s", class_name, switch_related)
+                        logger.debug("The %s we are removing is connected to a switch at %s. So we need to"
+                                     " open_switches, call network.reinit_switches_after_removing_components() and"
+                                     "switch back to status_before", class_name, attr)
                         need_to_reinit = True
         if need_to_reinit:
+            switch_related = [name]
             status_before = self.switches.status.copy()
             self.open_switches(self.switches.index)
         cls_df.drop(name, inplace=True)
@@ -821,13 +820,15 @@ class Network(Basic):
                                     append(self.switches.bus0)).drop_duplicates().tolist()
                                    + (self.buses_connected.index.tolist()))
             for attr in ["bus", "bus0", "bus1"]:
+                switch_related = []
                 if attr in cls_df.columns:
-                    switch_related = cls_df[attr].isin(buses_with_switches)
-                    if len(switch_related):
-                        logger.debug("The %s we are removing has bus(es) which are connected to switches."
-                                     "So we need to open_switches, call network.reinit_switches_after_removing_components() and"
-                                     "switch back to status_before:\n%s", class_name, switch_related)
-                        need_to_reinit = True
+                    switch_related += cls_df.index[cls_df[attr].isin(buses_with_switches)].tolist()
+            switch_related = list(set(switch_related))
+            if len(switch_related):
+                logger.debug("The %s we are removing has bus(es) which are connected to switches."
+                             "So we need to open_switches, call network.reinit_switches_after_removing_components()"
+                             "and switch back to status_before:\n%s", class_name, switch_related)
+                need_to_reinit = True
         if need_to_reinit:
             status_before = self.switches.status.copy()
             self.open_switches(self.switches.index)
