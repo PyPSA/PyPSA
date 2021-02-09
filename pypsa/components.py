@@ -599,11 +599,11 @@ class Network(Basic):
                 buses_with_switches = (self.switches.bus1.append(self.switches.bus0).drop_duplicates().tolist())
                 switch_related =  []
                 for attr in ["bus", "bus0", "bus1"]:
-                    if attr in new_df.columns:
-                        switch_related += new_df.index[new_df[attr].isin(buses_with_switches)].tolist()
+                    if attr in kwargs.keys():
+                        switch_related += [name] if kwargs[attr] in buses_with_switches else []
                 switch_related = list(set(switch_related))
                 if len(switch_related) > 0:
-                    logger.debug("The new %s has bus(es) which are connected to switches."
+                    logger.debug("The new %s is connected to switch(es)."
                                  "So we need to call network.reinit_switches_after_adding_components():\n%s",
                                  class_name, switch_related)
                     need_to_reinit = True
@@ -629,7 +629,11 @@ class Network(Basic):
             if attr in new_df.columns:
                 bus_name = new_df.at[name,attr]
                 if bus_name not in self.buses.index:
-                    logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
+                    if not need_to_reinit:
+                        logger.warning("The bus name `{}` given for {} of {} `{}` does not appear in network.buses".format(bus_name,attr,class_name,name))
+                    else:
+                        logger.debug("The bus name `{}` given for {} of {} `{}` does not appear in network.buses,"
+                                     " but it does apper in switches bus0 and bus1.".format(bus_name,attr,class_name,name))
 
         if need_to_reinit:  # the new component is (connected to) a switch, initialize again
             # TODO: skip_result_deletion? basically the user should know that adding a component makes results invalid?
