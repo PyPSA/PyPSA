@@ -167,9 +167,10 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
 
     if pnl:
         if attr + '_set' not in n.pnl(c): return
-        fix = n.pnl(c)[attr + '_set'].unstack().dropna()
+        fix = n.pnl(c)[attr + '_set'].unstack().dropna(axis=1)
         if fix.empty: return
-        lhs = linexpr((1, get_var(n, c, attr).unstack()[fix.index]), as_pandas=False)
+        lhs = linexpr((1, get_var(n, c, attr).unstack()[fix.columns]),
+                      as_pandas=False)
         constraints = write_constraint(n, lhs, '=', fix).unstack().T
     else:
         if attr + '_set' not in n.df(c): return
@@ -323,50 +324,6 @@ def define_nodal_balance_constraints(n, sns):
 
 
 
-def define_energy_balance_per_inv_p(n, sns):
-    """
-    Defines constraint that for each investment period (inv_p) total demand has
-    to be generated so that energy is not shift between investment periods
-    """
-
-    def bus_injection(c, attr, groupcol='bus', sign=1):
-    # additional sign only necessary for branches in reverse direction
-        if 'sign' in n.df(c):
-            sign = sign * n.df(c).sign
-        expr = linexpr((sign, get_var(n, c, attr))).rename(columns=n.df(c)[groupcol])
-        # drop empty bus2, bus3 if multiline link
-        if c == 'Link':
-            expr.drop(columns='', errors='ignore', inplace=True)
-        return expr
-
-    # one might reduce this a bit by using n.branches and lookup
-    args = [['Generator', 'p'],
-            ['Store', 'p', 'bus', -1],
-            ['StorageUnit', 'p_dispatch', 'bus', 1],
-            ['StorageUnit', 'p_store', 'bus', -1],
-            ['Line', 's', 'bus0', -1],
-            ['Line', 's', 'bus1', 1], ['Transformer', 's', 'bus0', -1],
-            ['Transformer', 's', 'bus1', 1], ['Link', 'p', 'bus0', -1],
-            ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
-    args = [arg for arg in args if not n.df(arg[0]).empty]
-
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
-        args.append(['Link', 'p', f'bus{i}', eff])
-
-    # energy generation, convertion during investment period
-    lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
-           .groupby(axis=1, level=0).sum()
-           .groupby(level=0).sum().sum(axis=1))
-
-    sense = '>='
-
-    # load during investment period
-    rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
-           .groupby(n.loads.bus, axis=1).sum()
-           .groupby(level=0).sum().sum(axis=1))
-
-    write_constraint(n, lhs, sense, rhs)
 
 def define_kirchhoff_constraints(n, sns):
     """
@@ -429,16 +386,28 @@ def define_storage_unit_constraints(n, sns):
     soc = get_var(n, c, 'state_of_charge')
     cyclic_i = n.df(c).query('cyclic_state_of_charge').index
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge').index
+    period_i = n.df(c).query("~cyclic_state_of_charge & state_of_charge_period").index
+    active =  pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
+                         for inv_p in n.investment_periods], axis=1).T
+    active_i =  active.apply(lambda x: x.astype(int), axis=1)[period_i]
 
-    # cyclic constraint for soc - shift each investment period
+    # state of charge same at the beginning of each investment period during the lifetime of the storage
+    soc_first_inv = soc.groupby(level=0).first()[period_i]
+    fill_with_first = soc[active.reindex(sns,level=0)].apply(lambda x: x.dropna().iloc[0]).loc[period_i]
+    lhs = linexpr((active_i, soc_first_inv),(-active_i, fill_with_first.T))
+
+    define_constraints(n, lhs, '==',  0 , c, 'periodic_state_of_charge')
+
+     # cyclic constraint for soc - shift each investment period
     previous_soc_cyclic = soc.groupby(level=0).shift()
     fill_with_last = soc.groupby(level=0).last()
     previous_soc_cyclic = previous_soc_cyclic.combine_first(
                           previous_soc_cyclic.add(fill_with_last, level=0, fill_value=0))
 
+
     coeff_var = [(-1, soc),
-                 (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
-                 (eff_store * eh, get_var(n, c, 'p_store'))]
+             (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
+             (eff_store * eh, get_var(n, c, 'p_store'))]
 
     lhs, *axes = linexpr(*coeff_var, return_axes=True)
 
@@ -450,6 +419,7 @@ def define_storage_unit_constraints(n, sns):
         lhs += masked_term(-eh, get_var(n, c, 'spill'), spill.columns)
     lhs += masked_term(eff_stand, previous_soc_cyclic, cyclic_i)
     lhs += masked_term(eff_stand.loc[sns[1:]], soc.shift().loc[sns[1:]], noncyclic_i)
+
 
     rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
     rhs.loc[sns[0], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
@@ -475,8 +445,20 @@ def define_store_constraints(n, sns):
 
     e = get_var(n, c, 'e')
     cyclic_i = n.df(c).query('e_cyclic').index
-    noncyclic_i = n.df(c).query('~e_cyclic').index
+    noncyclic_i = n.df(c).query('~e_cyclic & e_period').index
+    period_i = n.df(c).query("~e_cyclic & e_period").index
+    active =  pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
+                         for inv_p in n.investment_periods], axis=1).T
+    active_i =  active.apply(lambda x: x.astype(int), axis=1)[period_i]
 
+    # e same at the beginning of each investment period during the lifetime of the storage
+    e_first_inv = e.groupby(level=0).first()[period_i]
+    fill_with_first = e[active.reindex(sns,level=0)].apply(lambda x: x.dropna().iloc[0]).loc[period_i]
+    lhs = linexpr((active_i, e_first_inv),(-active_i, fill_with_first.T))
+
+    define_constraints(n, lhs, '==',  0 , c, 'periodic_e')
+
+    # cyclic constraint
     previous_e_cyclic = e.groupby(level=0).shift()
     fill_with_last = e.groupby(level=0).last()
     previous_e_cyclic = previous_e_cyclic.combine_first(
@@ -734,6 +716,7 @@ def define_objective(n, sns):
             active = get_active_assets(n, c, inv_p, sns)
             # index of active and extendable assets
             active_i = active[active].index.intersection(ext_i)
+            if active_i.empty: continue
             constant += (n.df(c)[attr][active_i] @
                         (n.df(c).capital_cost[active_i] * n.investment_period_weightings.loc[inv_p, "investment_weighting"]))
     object_const = write_bound(n, constant, constant)
@@ -808,7 +791,6 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
 
     for c, attr in lookup.query('nominal and not handle_separately').index:
         define_nominal_for_extendable_variables(n, c, attr)
-        define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
         define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
@@ -827,8 +809,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
     define_nodal_balance_constraints(n, snapshots)
-    define_energy_balance_per_inv_p(n, snapshots)
     define_global_constraints(n, snapshots)
+
     if skip_objective:
         logger.info("The argument `skip_objective` is set to True. Expecting a "
                     "custom objective to be build via `extra_functionality`.")
