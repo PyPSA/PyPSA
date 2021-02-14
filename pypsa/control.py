@@ -1,5 +1,4 @@
 """importing important libraries."""
-from .descriptors import get_switchable_as_dense
 import logging
 import numpy as np
 logger = logging.getLogger(__name__)
@@ -59,7 +58,7 @@ def apply_fixed_cosphi(n, snapshot, c, index):
     fix power factor inverter controller.
     This controller provides a fixed amount of reactive power compensation to the
     grid as a function of the amount of injected power (p_set) and the chosen
-    power factor value. 
+    power factor value.
     Controller will take care of inverter capacity and controlls that the sum
     of active and reactive power does not increase than the inverter capacity.
     When reactive power need is more than what controller calculate based on
@@ -67,7 +66,7 @@ def apply_fixed_cosphi(n, snapshot, c, index):
     to meet reactive power need, in this case controller will have two outputs
     p_out and q_out where q_out is the reactive power output and p_out is the
     reduced p_set and will be updated in buses_t.p and components_t.p.
-    
+
     Finally the controller outpus are passed to "_set_controller_outputs_to_n"
     to update the network.
 
@@ -94,7 +93,7 @@ def apply_fixed_cosphi(n, snapshot, c, index):
     power_factor = params['power_factor']
     s_nom = params['s_nom']
 
-    p_out=None
+    p_out = None
     ctrl_p_out = False
     q_inv_cap, q_allowable, q = find_allowable_q(p_input, power_factor, s_nom)
     q_out = -q_allowable
@@ -196,7 +195,7 @@ def apply_q_v(n, snapshot, c, index, n_trials_max, n_trials):
     to update the network.
 
     reference : https://ieeexplore.ieee.org/document/6096349
-    DOI link  : 10.1109/JPHOTOV.2011.2174821 
+    DOI link  : 10.1109/JPHOTOV.2011.2174821
 
     Parameters:
     ----------
@@ -236,7 +235,7 @@ def apply_q_v(n, snapshot, c, index, n_trials_max, n_trials):
     # calculation of maximum q compensation in % based on bus v_pu_bus inside
     # np.select([conditions], [choices]) function.
     curve_q_set_in_percentage = np.select([
-        (v_pu_bus < params['v1']),(v_pu_bus >= params['v1']) & (
+        (v_pu_bus < params['v1']), (v_pu_bus >= params['v1']) & (
             v_pu_bus <= params['v2']), (v_pu_bus > params['v2']) & (
                 v_pu_bus <= params['v3']), (v_pu_bus > params['v3'])
         & (v_pu_bus <= params['v4']), (v_pu_bus > params['v4'])], [
@@ -394,7 +393,6 @@ def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
     number of iterations.
     The returned dictionary is used in apply_controller().
 
-
     Parameter:
     ----------
     n : pypsa.components.Network
@@ -421,10 +419,13 @@ def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
     dict_controlled_index = {}
     ctrl_list = ['', 'q_v', 'cosphi_p', 'fixed_cosphi']
     if inverter_control:
+        # deactivate the outerloop in pf.py incase no controlled elements exist.
+        inverter_control = False
         # loop through loads, generators, storage_units and stores if they exist
         for c in sub_network.iterate_components(n.controllable_one_port_components):
-
             if (c.df.loc[c.ind].control_strategy != '').any():
+                # print('expected controlled sub_n are 0 and 4', sub_network)
+                inverter_control = True
                 assert (c.df.loc[c.ind].control_strategy.isin(ctrl_list)).all(), (
                         "Not all given types of controllers are supported. "
                         "Elements with unknown controllers are:\n%s\nSupported "
@@ -434,13 +435,10 @@ def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
 
                 # exclude slack generator to be controlled
                 if c.list_name == 'generators':
-                    c.df.loc[c.ind].loc[c.df.loc[c.ind].control == 'Slack',
-                                        'control_strategy'] = ''
-                # if voltage dep. controller exist,find the bus name
-                n_trials_max = np.where(
-                      c.df.loc[c.ind].control_strategy.isin(['q_v']).any(), 30, 0)
+                    n.generators.loc[
+                        n.generators.control == 'Slack', 'control_strategy'] = ''
 
-                for i in ctrl_list[1:5]:
+                for i in ctrl_list[1:4]:
                     # building a dictionary for each controller if they exist
                     if (c.df.loc[c.ind].control_strategy == i).any():
                         if i not in dict_controlled_index:
@@ -452,10 +450,6 @@ def prepare_controlled_index_dict(n, sub_network, inverter_control, snapshots):
                 logger.info("We are in %s. These indexes are controlled:\n%s",
                             c.name, dict_controlled_index)
 
-        assert (bool(dict_controlled_index)), (
-                "inverter_control is activated but no component is controlled,"
-                " please choose the control_strategy in the desired "
-                " component indexes. Supported type of controllers are:\n%s."
-                % (ctrl_list[1:4]))
+    n_trials_max = np.where("q_v" in dict_controlled_index, 30, 1)
 
     return n_trials_max, dict_controlled_index
