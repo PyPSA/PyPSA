@@ -89,7 +89,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
 
     return graph
 
-def adjacency_matrix(network, branch_components=None, busorder=None, weights=None, inv_p=None):
+def adjacency_matrix(network, branch_components=None, busorder=None, weights=None, investment_period=None):
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -133,16 +133,16 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weight_vals = []
     for c in network.iterate_components(branch_components):
         if c.ind is None:
-            if inv_p is None:
+            if investment_period is None:
                 sel = slice(None)
             else:
-                active = get_active_assets(network, c.name, inv_p, network.snapshots)
+                active = get_active_assets(network, c.name, investment_period, network.snapshots)
                 sel = c.df.loc[active].index
         else:
-            if inv_p is None:
+            if investment_period is None:
                 sel = c.ind
             else:
-                active = get_active_assets(network, c.name, inv_p, network.snapshots)
+                active = get_active_assets(network, c.name, investment_period, network.snapshots)
                 sel = c.ind  & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])

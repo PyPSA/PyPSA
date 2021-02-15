@@ -321,40 +321,21 @@ def get_non_extendable_i(n, c):
     """
     return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
-def get_active_assets(n, c, inv_p, sns):
+def get_active_assets(n, c, investment_period, snapshots):
     """
     Getter function. Get the index of elements which are active of a given
     component c, depending on lifetime and build year for a investment_period
-    inv_p (assuming that component is already used in build year)
+    investment_period (assuming that component is already used in build year)
 
     """
     # component only active during lifetime
     df = n.df(c).copy()
     # if no build year specified, assume build at the beginning and operates the whole time
-    df.loc[df.build_year==0, "build_year"] = sns[0][0]
-    df["build_year"] = df["build_year"].apply(lambda x: x.year
-                                              if type(x)==pd._libs.tslibs.timestamps.Timestamp
-                                              else x)
+    df.loc[df.build_year==0, "build_year"] = snapshots[0][0]
     df.loc[df["lifetime"]==np.inf, "lifetime"] = n.investment_period_weightings["energy_weighting"].sum()
 
-    if type(inv_p)==pd._libs.tslibs.timestamps.Timestamp:
-        index_active = ((df["build_year"]<= inv_p.year) &
-                       (inv_p.year<df[["build_year", "lifetime"]].sum(axis=1)))
-
-
-    else:
-        build_year = (df["build_year"].astype(int, errors="ignore")).astype(str)
-        missing = [build not in n.investment_periods for build in build_year]
-        if any(missing):
-            print("warning: build year of ",
-                  df.loc[missing].index,
-                  " not in investment periods, assumed that asset is build in \
-                  first investment period")
-            build_year.loc[missing] = n.investment_periods[0]
-        index_active = (build_year.isin(n.investment_period_weightings.loc[:inv_p].index)
-                        & ([n.investment_period_weightings.loc[build_year[asset]:inv_p, "energy_weighting"].sum()
-                            <=df.loc[asset, "lifetime"] for asset in df.index]))
-
+    index_active = ((df["build_year"]<= investment_period) &
+                   (investment_period<df[["build_year", "lifetime"]].sum(axis=1)))
 
     return index_active
 
@@ -397,7 +378,7 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
     # set to zero if not active
-    for inv_p in n.investment_periods:
+    for inv_p in sns.levels[0]:
         max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
         min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
 
@@ -409,4 +390,16 @@ def additional_linkports(n):
             and i not in ['bus0', 'bus1']]
 
 
+def reindex_df(df, new_index, fill_value=1.):
+    # reindex multiindex on level drops missing values, therefore seperate the cases
+    # both multiindex or both single
+    if isinstance(new_index, type(df.index)):
+        df = df.reindex(new_index, fill_value=fill_value)
+    # if multiindex -> index
+    elif type(df.index) == pd.MultiIndex:
+        df = df.droplevel(0).reindex(new_index, fill_value=fill_value)
+    # index -> multiindex
+    else:
+        df = df.reindex(new_index, level=1, fill_value=fill_value)
 
+    return df

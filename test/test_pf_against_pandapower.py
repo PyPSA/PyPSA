@@ -1,17 +1,4 @@
 import sys
-sys.path = [ '/home/ws/bw0928/Dokumente/PyPSA',
-             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python36.zip',
-             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6',
-             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/lib-dynload',
-             '',
-             '/home/ws/bw0928/.local/lib/python3.6/site-packages',
-             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/site-packages',
-             '/home/ws/bw0928/miniconda3/envs/test-pypsa/lib/python3.6/site-packages/IPython/extensions',
-             '/opt/gurobi900/linux64/bin',
-             '/opt/ibm/ILOG/CPLEX_Studio129/cplex/python/3.7/x86-64_linux',
-             '/home/ws/bw0928/Dokumente/MA/Code',
-             '/home/ws/bw0928/.ipython']
-
 import pypsa
 
 import numpy as np

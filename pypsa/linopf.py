@@ -341,8 +341,8 @@ def define_kirchhoff_constraints(n, sns):
         return vals.sum(1)
 
     constraints = []
-    for inv_p in n.investment_periods:
-        n.determine_network_topology(inv_p=inv_p)
+    for inv_p in sns.levels[0]:
+        n.determine_network_topology(investment_period=inv_p)
         for sub in n.sub_networks.obj:
             branches = sub.branches()
             C = pd.DataFrame(sub.C.todense(), index=branches.index)
@@ -388,7 +388,7 @@ def define_storage_unit_constraints(n, sns):
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge').index
     period_i = n.df(c).query("~cyclic_state_of_charge & state_of_charge_period").index
     active =  pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                         for inv_p in n.investment_periods], axis=1).T
+                         for inv_p in sns.levels[0]], axis=1).T
     active_i =  active.apply(lambda x: x.astype(int), axis=1)[period_i]
 
     # state of charge same at the beginning of each investment period during the lifetime of the storage
@@ -448,7 +448,7 @@ def define_store_constraints(n, sns):
     noncyclic_i = n.df(c).query('~e_cyclic & e_period').index
     period_i = n.df(c).query("~e_cyclic & e_period").index
     active =  pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                         for inv_p in n.investment_periods], axis=1).T
+                         for inv_p in sns.levels[0]], axis=1).T
     active_i =  active.apply(lambda x: x.astype(int), axis=1)[period_i]
 
     # e same at the beginning of each investment period during the lifetime of the storage
@@ -523,7 +523,7 @@ def define_global_constraints(n, sns):
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=True).groupby(level=0).sum().sum(axis=1)
             # get time period to which constraint applies
-            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+            time_valid = (sns.levels[0] if glc["investment_period"]=='' else
                           pd.DatetimeIndex([glc["investment_period"]]))
             lhs = vals.loc[time_valid]
 
@@ -620,7 +620,7 @@ def define_global_constraints(n, sns):
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
             # get time period to which constraint applies
-            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+            time_valid = (sns.levels[0] if glc["investment_period"]=='' else
                           pd.DatetimeIndex([glc["investment_period"]]))
             # get active assets during time valid
             active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
@@ -646,7 +646,7 @@ def define_global_constraints(n, sns):
         for c, attr in (('Line', 's_nom'), ('Link', 'p_nom')):
             ext_i = n.df(c).query(f'carrier in @car and {attr}_extendable').index
             if ext_i.empty: continue
-            time_valid = (n.investment_periods if glc["investment_period"]=='' else
+            time_valid = (sns.levels[0] if glc["investment_period"]=='' else
                           pd.DatetimeIndex([glc["investment_period"]]))
             # get active assets during time valid
             active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
@@ -675,7 +675,7 @@ def define_global_constraints(n, sns):
         if ext_i.empty: continue
 
         active_i = (pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                              for inv_p in n.investment_periods], axis=1)
+                              for inv_p in sns.levels[0]], axis=1)
                     .replace({True:1, False:0}))
         ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
 
@@ -686,11 +686,11 @@ def define_global_constraints(n, sns):
         rhs = n.global_constraints_t.constant.groupby(level=0).first()
         sense = glc.sense
 
-        con = write_constraint(n, lhs, sense, rhs, axes=[n.investment_periods,
+        con = write_constraint(n, lhs, sense, rhs, axes=[sns.levels[0],
                                                          lhs.columns])
 
         set_conref(n, con, 'GlobalConstraint', 'mu_cap_limit', name)
-        # for inv_p in n.investment_periods:
+        # for inv_p in sns.levels[0]:
         #     active = get_active_assets(n, c, inv_p, sns)
         #     ext_and_active_i = active[active].index.intersection(ext_i)
         #     caps = get_var(n, c, attr)[ext_and_active_i]
@@ -712,13 +712,13 @@ def define_objective(n, sns):
     constant = 0
     for c, attr in nom_attr:
         ext_i = get_extendable_i(n, c)
-        for inv_p in n.investment_periods:
+        for inv_p in sns.levels[0]:
             active = get_active_assets(n, c, inv_p, sns)
             # index of active and extendable assets
             active_i = active[active].index.intersection(ext_i)
             if active_i.empty: continue
             constant += (n.df(c)[attr][active_i] @
-                        (n.df(c).capital_cost[active_i] * n.investment_period_weightings.loc[inv_p, "investment_weighting"]))
+                        (n.df(c).capital_cost[active_i] * n.investment_period_weightings.loc[inv_p, "objective_weightings"]))
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
     n.objective_constant = constant
@@ -728,7 +728,7 @@ def define_objective(n, sns):
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
                 .mul(n.snapshot_weightings[sns], axis=0)
-                .mul(n.investment_period_weightings.loc[sns.levels[0], "investment_weighting"], level=0, axis=0))
+                .mul(n.investment_period_weightings.loc[sns.levels[0], "objective_weightings"], level=0, axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
@@ -739,10 +739,10 @@ def define_objective(n, sns):
         cost = n.df(c)['capital_cost'][ext_i]
         if cost.empty: continue
         cost_inv = (pd.DataFrame(np.repeat([cost.values],
-                                          len(n.investment_periods), axis=0),
-                                index=n.investment_periods, columns=cost.index)
-                    .mul(n.investment_period_weightings["investment_weighting"], axis=0))
-        for inv_p in n.investment_periods:
+                                          len(sns.levels[0]), axis=0),
+                                index=sns.levels[0], columns=cost.index)
+                    .mul(n.investment_period_weightings["objective_weightings"], axis=0))
+        for inv_p in sns.levels[0]:
             active = get_active_assets(n, c, inv_p, sns)
             nonactive_i = active[~active].index.intersection(ext_i)
             cost_inv.loc[inv_p, nonactive_i] = 0
@@ -999,7 +999,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 def network_lopf(n, snapshots=None, solver_name="cbc",
          solver_logfile=None, extra_functionality=None, skip_objective=False,
          skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
-         keep_references=False, keep_files=False,
+         keep_references=False, keep_files=False, multi_investment_periods=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
          solver_options=None, warmstart=False, store_basis=False,
          solver_dir=None):
