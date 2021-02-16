@@ -83,6 +83,11 @@ class ImporterCSV(Importer):
         if not os.path.isfile(fn): return None
         return pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
 
+    def get_investment_periods(self):
+        fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
+        if not os.path.isfile(fn): return None
+        return pd.read_csv(fn, index_col=0, encoding=self.encoding)
+
     def get_static(self, list_name):
         fn = os.path.join(self.csv_folder_name, list_name + ".csv")
         return (pd.read_csv(fn, index_col=0, encoding=self.encoding)
@@ -117,6 +122,10 @@ class ExporterCSV(Exporter):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
 
+    def save_investment_periods(self, investment_periods):
+        fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
+        investment_periods.to_csv(fn, encoding=self.encoding)
+
     def save_static(self, list_name, df):
         fn = os.path.join(self.csv_folder_name, list_name + ".csv")
         df.to_csv(fn, encoding=self.encoding)
@@ -146,6 +155,9 @@ class ImporterHDF5(Importer):
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
+
+    def get_investment_periods(self):
+        return self.ds["/investment_periods"] if "/investment_periods" in self.ds else None
 
     def get_static(self, list_name):
         if "/" + list_name not in self.ds:
@@ -182,6 +194,9 @@ class ExporterHDF5(Exporter):
     def save_snapshots(self, snapshots):
         self.ds.put('/snapshots', snapshots, format='table', index=False)
 
+    def save_investment_periods(self, investment_periods):
+        self.ds.put('/investment_periods', investment_periods, format='table', index=False)
+
     def save_static(self, list_name, df):
         df.index.name = 'name'
         self.index[list_name] = df.index
@@ -217,6 +232,9 @@ if has_xarray:
 
         def get_snapshots(self):
             return self.get_static('snapshots', 'snapshots')
+
+        def get_investment_periods(self):
+            return self.get_static('investment_periods', 'investment_periods')
 
         def get_static(self, list_name, index_name=None):
             t = list_name + '_'
@@ -255,6 +273,11 @@ if has_xarray:
             snapshots.index.name = 'snapshots'
             for attr in snapshots.columns:
                 self.ds['snapshots_' + attr] = snapshots[attr]
+
+        def save_investment_periods(self, investment_periods):
+            investment_periods.index.name = 'investment_periods'
+            for attr in investment_periods.columns:
+                self.ds['investment_periods_' + attr] = investment_periods[attr]
 
         def save_static(self, list_name, df):
             df.index.name = list_name + '_i'
@@ -307,8 +330,16 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_attributes(attrs)
 
     #now export snapshots
+    if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
+        network.snapshot_weightings.index.rename(["investment_periods", "snapshots"], inplace=True)
+    else:
+        network.snapshot_weightings.index.rename("snapshots")
     snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
+
+    # export investment period weightings
+    investment_periods = network.investment_period_weightings
+    exporter.save_investment_periods(investment_periods)
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
@@ -582,24 +613,27 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
+    # read in investment period weightings
+    investment_periods = importer.get_investment_periods()
     if df is not None:
         # check if imported snapshots have MultiIndex
-        if set(["investment_period", "snapshot"]).issubset(df.columns):
-            df.set_index(["investment_period", "snapshot"], inplace=True)
+        if set(["investment_periods", "snapshots"]).issubset(df.columns):
+            df.set_index(["investment_periods", "snapshots"], inplace=True)
 
-        if not isinstance(df.index, pd.MultiIndex):
-              logger.warning(dedent("""
-                set format of snapshots from DatetimeIndex (older pypsa version)
-                to MultiIndex"""))
-              df.set_index(pd.MultiIndex.from_product([["first"], df.index],
-                                                      names=("investment_period",
-                                                             "snapshot")),
-                           inplace=True)
+        elif "index" in df.columns:
+            df.set_index("index", inplace=True)
 
         network.set_snapshots(df.index)
-        if "weightings" in df.columns:
-            network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
+        if investment_periods is not None:
+            network.investment_period_weightings = investment_periods.reindex(network.investment_period_weightings.index)
+        if all(network.snapshot_weightings.columns.isin(df.columns)):
+            network.snapshot_weightings = df[network.snapshot_weightings.columns].reindex(network.snapshots)
+        elif "weightings" in df.columns:
+            logger.warning("snapshot weightings are in the current "
+                           "version split between objective weightings "
+                           "and component weightings")
+            network.snapshot_weightings = network.snapshot_weightings.apply(lambda x: df.weightings.reindex(network.snapshots).fillna(1.))
     imported_components = []
 
     # now read in other components; make sure buses and carriers come first
