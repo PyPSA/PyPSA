@@ -227,13 +227,17 @@ class Network(Basic):
         self.snapshots = pd.Index(["now"])
 
         #corresponds to number of hours represented by each snapshot
-        self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
+        self.snapshot_weightings = pd.DataFrame(columns=["objective_weightings",
+                                                           "store_weightings",
+                                                           "generator_weightings"],
+                                                index=self.snapshots,
+                                                data=1.)
 
-        #investment/CO2 constraint weighting of each investment period
+        # investment/CO2 constraint weighting of each investment period
         # investment_weighting weights costs (e.g. to include social discount rates)
-        # energy_weighting weights elapsed time between periods (e.g. CO2 emissions, costs)
+        # store_weighting/generator weightings weights elapsed time between periods (e.g. CO2 emissions, costs)
         self.investment_period_weightings = pd.DataFrame(columns=["objective_weightings",
-                                                                  "energy_weighting"])
+                                                                  "time_weightings"])
 
         if override_components is None:
             self.components = components
@@ -394,11 +398,12 @@ class Network(Basic):
             if not (all([isinstance(x, int) for x in snapshots.levels[0]])
                     and all(sorted(snapshots.levels[0])==snapshots.get_level_values(0).unique())):
                  logger.error("Investment periods should be integer and increasing")
+                 return
             self.investment_period_weightings = self.investment_period_weightings.reindex(self.snapshots.levels[0],
                                                                                            fill_value=1.)
         else:
-            self.investment_period_weightings = pd.DataFrame(columns=["investment_weighting",
-                                                          "energy_weighting"])
+            self.investment_period_weightings = pd.DataFrame(columns=["objective_weightings",
+                                                                      "time_weightings"], dtype=float)
 
         # reindex carefully, because reindexing with multiindex on a level drops unkown values
         self.snapshot_weightings = reindex_df(self.snapshot_weightings,
@@ -446,6 +451,7 @@ class Network(Basic):
         if not (all([isinstance(x, int) for x in investment_periods.levels[0]])
                 and all(sorted(investment_periods.levels[0])==investment_periods.get_level_values(0).unique())):
              logger.error("Investment periods should be integer and increasing")
+             return
 
 
         self.snapshots = investment_periods
@@ -881,7 +887,7 @@ class Network(Basic):
             if snapshots is None:
                 snapshots = self.snapshots
             network.set_snapshots(snapshots)
-            network.set_investment_periods(investment_periods)
+            investment_periods = self.investment_period_weightings.index
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in iterkeys(component.pnl):
