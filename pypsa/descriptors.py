@@ -330,9 +330,6 @@ def get_active_assets(n, c, investment_period, snapshots):
     """
     # component only active during lifetime
     df = n.df(c).copy()
-    # if no build year specified, assume build at the beginning and operates the whole time
-    df.loc[df.build_year==0, "build_year"] = snapshots[0][0]
-    df.loc[df["lifetime"]==np.inf, "lifetime"] = n.investment_period_weightings["energy_weighting"].sum()
 
     index_active = ((df["build_year"]<= investment_period) &
                    (investment_period<df[["build_year", "lifetime"]].sum(axis=1)))
@@ -378,9 +375,10 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
     # set to zero if not active
-    for inv_p in sns.levels[0]:
-        max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
-        min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+    if isinstance(sns, pd.MultiIndex):
+        for inv_p in sns.levels[0]:
+            max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+            min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
 
 
     return min_pu[index], max_pu[index]
@@ -403,3 +401,35 @@ def reindex_df(df, new_index, fill_value=1.):
         df = df.reindex(new_index, level=1, fill_value=fill_value)
 
     return df
+
+
+def snapshot_consistency(n, snapshots, multi_investment_periods):
+    """
+    checks if snapshots types are correctly set regarding wished optimisation form
+    (multi- or single investment)
+    """
+    # check if snapshots are multiindex for multiinvestment optimisation
+    if  multi_investment_periods and not isinstance(snapshots,pd.MultiIndex):
+        raise TypeError(" snapshots have to be pd.MultiIndex for multi investment"
+                       " multi_investment_periods=True.")
+    # print warning if MultiIndex but multi _investment_periods=False
+    elif not multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
+            logger.warning(" snapshots are MultiIndex but multi_investment_periods=False,"
+                           " network lopf is calculated with only one investment step.")
+            snapshots = snapshots.droplevel(0)
+            n.set_snapshots(snapshots)
+            return snapshots
+    # check if all snapshots are in investment period weightings
+    elif multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
+        if not n.snapshots.levels[0].difference(n.investment_period_weightings.index).empty:
+            raise TypeError(" not all snapshots on level[0] in investment_period_weightings index")
+        if not (all([isinstance(x, int) for x in n.investment_period_weightings.index])
+           and all(sorted(n.investment_period_weightings.index)==n.investment_period_weightings.index)):
+                raise TypeError(" Investment periods should be integer and increasing")
+
+
+
+
+
+
+
