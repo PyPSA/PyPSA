@@ -55,11 +55,10 @@ def _as_snapshots(network, snapshots):
         snapshots = network.snapshots
     if isinstance(snapshots, pd.MultiIndex):
         return snapshots
-    if isinstance(snapshots, Sequence):
-        return pd.MultiIndex.from_tuples([snapshots],
-                                         names=["investment_period", "snapshots"])
+    if (isinstance(snapshots, six.string_types) or
+        not isinstance(snapshots, (Sequence, pd.Index))):
+        return pd.Index([snapshots])
     else:
-        print("warning: snapshots should be a pd.MultiIndex")
         return pd.Index(snapshots)
 
 
