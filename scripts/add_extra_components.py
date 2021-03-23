@@ -114,7 +114,8 @@ def attach_stores(n, costs):
                carrier='H2 electrolysis',
                p_nom_extendable=True,
                efficiency=costs.at["electrolysis", "efficiency"],
-               capital_cost=costs.at["electrolysis", "capital_cost"])
+               capital_cost=costs.at["electrolysis", "capital_cost"],
+               marginal_cost=snakemake.config['costs']['marginal_cost'].get('H2'))
 
         n.madd("Link", h2_buses_i + " Fuel Cell",
                bus0=h2_buses_i,
@@ -123,7 +124,8 @@ def attach_stores(n, costs):
                p_nom_extendable=True,
                efficiency=costs.at["fuel cell", "efficiency"],
                #NB: fixed cost is per MWel
-               capital_cost=costs.at["fuel cell", "capital_cost"] * costs.at["fuel cell", "efficiency"])
+               capital_cost=costs.at["fuel cell", "capital_cost"] * costs.at["fuel cell", "efficiency"],
+               marginal_cost=snakemake.config['costs']['marginal_cost'].get('H2'))
 
     if 'battery' in carriers:
         b_buses_i = n.madd("Bus", buses_i + " battery", carrier="battery", **bus_sub_dict)
@@ -141,7 +143,8 @@ def attach_stores(n, costs):
                carrier='battery charger',
                efficiency=costs.at['battery inverter', 'efficiency'],
                capital_cost=costs.at['battery inverter', 'capital_cost'],
-               p_nom_extendable=True)
+               p_nom_extendable=True,
+               marginal_cost=snakemake.config['costs']['marginal_cost'].get('battery')))
 
         n.madd("Link", b_buses_i + " discharger",
                bus0=b_buses_i,
@@ -149,7 +152,8 @@ def attach_stores(n, costs):
                carrier='battery discharger',
                efficiency=costs.at['battery inverter','efficiency'],
                capital_cost=costs.at['battery inverter', 'capital_cost'],
-               p_nom_extendable=True)
+               p_nom_extendable=True,
+               marginal_cost=snakemake.config['costs']['marginal_cost'].get('battery')))
 
 
 def attach_hydrogen_pipelines(n, costs):

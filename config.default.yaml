@@ -179,7 +179,7 @@ costs:
   year: 2030
   discountrate: 0.07 # From a Lion Hirth paper, also reflects average of Noothout et al 2016
   USD2013_to_EUR2013: 0.7532 # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html
-  marginal_cost:
+  marginal_cost: # EUR/MWh
     solar: 0.01
     onwind: 0.015
     offwind: 0.015
