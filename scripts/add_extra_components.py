@@ -155,7 +155,7 @@ def attach_stores(n, costs):
                efficiency=costs.at['battery inverter','efficiency'],
                capital_cost=costs.at['battery inverter', 'capital_cost'],
                p_nom_extendable=True,
-               marginal_cost=costs.at["battery inverter", "marginal_cost"]))
+               marginal_cost=costs.at["battery inverter", "marginal_cost"])
 
 
 def attach_hydrogen_pipelines(n, costs):
