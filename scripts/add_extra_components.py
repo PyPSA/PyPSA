@@ -115,7 +115,7 @@ def attach_stores(n, costs):
                p_nom_extendable=True,
                efficiency=costs.at["electrolysis", "efficiency"],
                capital_cost=costs.at["electrolysis", "capital_cost"],
-               marginal_cost=snakemake.config['costs']['marginal_cost'].get('H2'))
+               marginal_cost=costs.at["electrolysis", "marginal_cost"])
 
         n.madd("Link", h2_buses_i + " Fuel Cell",
                bus0=h2_buses_i,
