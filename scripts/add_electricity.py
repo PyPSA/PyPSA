@@ -245,6 +245,11 @@ def update_transmission_costs(n, costs, length_factor=1.0, simple_hvdc_costs=Fal
     if n.links.empty: return
 
     dc_b = n.links.carrier == 'DC'
+
+    # If there are no dc links, then the 'underwater_fraction' column
+    # may be missing. Therefore we have to return here.
+    if n.links.loc[dc_b].empty: return
+
     if simple_hvdc_costs:
         costs = (n.links.loc[dc_b, 'length'] * length_factor *
                  costs.at['HVDC overhead', 'capital_cost'])
