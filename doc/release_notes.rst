@@ -11,6 +11,8 @@ Release Notes
 Upcoming Release
 ================
 
+* Fix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq (from 3.1e9 t CO2-eq). The new value represents emissions related to the electricity sector for EU+UK. The old value was ~2x too high and used when the emissions wildcard in ``{opts}`` was used.
+
 
 PyPSA-Eur 0.3.0 (7th December 2020)
 ==================================
