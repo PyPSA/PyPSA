@@ -498,7 +498,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     ss = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs) + slack_variable_b))
     iters = pd.Series(0, index=snapshots)
-    diffs = pd.Series(index=snapshots)
+    diffs = pd.Series(index=snapshots, dtype=float)
     convs = pd.Series(False, index=snapshots)
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
