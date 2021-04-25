@@ -495,7 +495,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
             # take bus-based slack weights
             slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)
 
-    ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
+    ss = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs) + slack_variable_b))
     iters = pd.Series(0, index=snapshots)
     diffs = pd.Series(index=snapshots)
@@ -548,8 +548,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     v0 = V[:,buses_indexer(branch_bus0)]
     v1 = V[:,buses_indexer(branch_bus1)]
 
-    i0 = np.empty((len(snapshots), sub_network.Y0.shape[0]), dtype=np.complex)
-    i1 = np.empty((len(snapshots), sub_network.Y1.shape[0]), dtype=np.complex)
+    i0 = np.empty((len(snapshots), sub_network.Y0.shape[0]), dtype=complex)
+    i1 = np.empty((len(snapshots), sub_network.Y1.shape[0]), dtype=complex)
     for i, now in enumerate(snapshots):
         i0[i] = sub_network.Y0*V[i]
         i1[i] = sub_network.Y1*V[i]
@@ -564,7 +564,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         c.pnl.p1.loc[snapshots,s1t.columns] = s1t.values.real
         c.pnl.q1.loc[snapshots,s1t.columns] = s1t.values.imag
 
-    s_calc = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
+    s_calc = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     for i in np.arange(len(snapshots)):
         s_calc[i] = V[i]*np.conj(sub_network.Y*V[i])
     slack_index = buses_o.get_loc(sub_network.slack_bus)
