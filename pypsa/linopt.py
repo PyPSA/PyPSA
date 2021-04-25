@@ -19,6 +19,7 @@ import logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
 from importlib.util import find_spec
+from distutils.version import LooseVersion
 
 logger = logging.getLogger(__name__)
 
@@ -689,9 +690,13 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
            "Install via 'conda install -c ibmdecisionoptimization cplex' "
            "or 'pip install cplex'")
     import cplex
+    _version = LooseVersion(cplex.__version__)
     m = cplex.Cplex()
-    with open(solver_logfile, "w") as f:
-        out = m.set_log_stream(f)
+    if _version >= "12.10":
+        log_file_or_path = open(solver_logfile, "w")
+    else:
+        log_file_or_path = solver_logfile
+    out = m.set_log_stream(log_file_or_path)
     if solver_options is not None:
         for key, value in solver_options.items():
             param = m.parameters
@@ -703,6 +708,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
+    if isinstance(log_file_or_path, io.IOBase): logfile.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:
