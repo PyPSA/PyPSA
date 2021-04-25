@@ -184,7 +184,7 @@ def define_generator_status_variables(n, snapshots):
     ext_i = get_extendable_i(n, 'Generator')
     if not (ext_i.intersection(com_i)).empty:
         logger.warning("The following generators have both investment optimisation"
-        f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
+        f" and unit commitment:\n\n\t{', '.join((ext_i.intersection(com_i)))}\n\nCurrently PyPSA cannot "
         "do both these functions, so PyPSA is choosing investment optimisation "
         "for these generators.")
         com_i = com_i.difference(ext_i)
@@ -229,14 +229,14 @@ def define_ramp_limit_constraints(n, sns):
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
 
     # fix up
-    gens_i = rup_i & fix_i
+    gens_i = rup_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
         define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
-    gens_i = rup_i & ext_i
+    gens_i = rup_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_up'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -244,7 +244,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     # com up
-    gens_i = rup_i & com_i
+    gens_i = rup_i.intersection(com_i)
     if not gens_i.empty:
         limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
         limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
@@ -256,14 +256,14 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
 
     # fix down
-    gens_i = rdown_i & fix_i
+    gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
         define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
-    gens_i = rdown_i & ext_i
+    gens_i = rdown_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_down'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -271,7 +271,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
     # com down
-    gens_i = rdown_i & com_i
+    gens_i = rdown_i.intersection(com_i)
     if not gens_i.empty:
         limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
         limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
@@ -1020,9 +1020,9 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     def update_line_params(n, s_nom_prev):
         factor = n.lines.s_nom_opt / s_nom_prev
         for attr, carrier in (('x', 'AC'), ('r', 'DC')):
-            ln_i = (n.lines.query('carrier == @carrier').index & ext_untyped_i)
+            ln_i = (n.lines.query('carrier == @carrier').index.intersection(ext_untyped_i))
             n.lines.loc[ln_i, attr] /= factor[ln_i]
-        ln_i = ext_i & typed_i
+        ln_i = ext_i.intersection(typed_i)
         n.lines.loc[ln_i, 'num_parallel'] = (n.lines.s_nom_opt/base_s_nom)[ln_i]
 
     def msq_diff(n, s_nom_prev):
