@@ -14,6 +14,8 @@ Upcoming Release
 
 * Fix setting ``margin`` and ``boundaries`` when plotting a network with ``geomap=False``. 
 
+* Adjust log file creation for CPLEX version 12.10 and higher.
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 
