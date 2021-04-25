@@ -1250,7 +1250,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             v.clear()
 
     def get_values(indexedvar, free=free_pyomo):
-        s = pd.Series(indexedvar.get_values())
+        s = pd.Series(indexedvar.get_values(), dtype=float)
         if free:
             clear_indexedvar(indexedvar)
         return s
