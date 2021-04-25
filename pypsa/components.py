@@ -19,7 +19,6 @@
 """
 
 
-from six import itervalues, iterkeys
 from weakref import ref
 
 
@@ -800,7 +799,7 @@ class Network(Basic):
             network.set_snapshots(snapshots)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
-                for k in iterkeys(component.pnl):
+                for k in component.pnl.keys():
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
         else:

@@ -16,8 +16,6 @@
 """Functions for importing and exporting data.
 """
 
-from six import iteritems, iterkeys
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
@@ -212,7 +210,7 @@ if has_xarray:
 
         def get_attributes(self):
             return {attr[len('network_'):]: val
-                    for attr, val in iteritems(self.ds.attrs)
+                    for attr, val in self.ds.attrs.items()
                     if attr.startswith('network_')}
 
         def get_snapshots(self):
@@ -227,14 +225,14 @@ if has_xarray:
                 return None
             index = self.ds.coords[index_name].to_index().rename('name')
             df = pd.DataFrame(index=index)
-            for attr in iterkeys(self.ds.data_vars):
+            for attr in self.ds.data_vars.keys():
                 if attr.startswith(t) and attr[i:i+2] != 't_':
                     df[attr[i:]] = self.ds[attr].to_pandas()
             return df
 
         def get_series(self, list_name):
             t = list_name + '_t_'
-            for attr in iterkeys(self.ds.data_vars):
+            for attr in self.ds.data_vars.keys():
                 if attr.startswith(t):
                     df = self.ds[attr].to_pandas()
                     df.index.name = 'name'
@@ -249,7 +247,7 @@ if has_xarray:
 
         def save_attributes(self, attrs):
             self.ds.attrs.update(('network_' + attr, val)
-                                 for attr, val in iteritems(attrs))
+                                 for attr, val in attrs.items())
 
         def save_snapshots(self, snapshots):
             snapshots.index.name = 'snapshots'
@@ -565,7 +563,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         except KeyError:
             pypsa_version = None
 
-        for attr, val in iteritems(attrs):
+        for attr, val in attrs.items():
             setattr(network, attr, val)
 
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
