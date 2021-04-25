@@ -83,7 +83,7 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator dispatch variables ##
 
     gen_p_bounds = {(gen,sn) : (None,None)
-                    for gen in extendable_gens_i | fixed_committable_gens_i
+                    for gen in extendable_gens_i.union(fixed_committable_gens_i)
                     for sn in snapshots}
 
     if len(fixed_gens_i):
