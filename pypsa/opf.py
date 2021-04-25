@@ -79,7 +79,7 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator dispatch variables ##
 
     gen_p_bounds = {(gen,sn) : (None,None)
-                    for gen in extendable_gens_i | fixed_committable_gens_i
+                    for gen in extendable_gens_i.union(fixed_committable_gens_i)
                     for sn in snapshots}
 
     if len(fixed_gens_i):
@@ -1246,7 +1246,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
             v.clear()
 
     def get_values(indexedvar, free=free_pyomo):
-        s = pd.Series(indexedvar.get_values())
+        s = pd.Series(indexedvar.get_values(), dtype=float)
         if free:
             clear_indexedvar(indexedvar)
         return s

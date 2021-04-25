@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 
-import collections
+from collections.abc import Iterable
 
 from .descriptors import get_extendable_i, get_non_extendable_i
 from .pf import calculate_PTDF, _as_snapshots
@@ -109,7 +109,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     if snapshots is None:
         snapshots = network.snapshots
 
-    if isinstance(snapshots, collections.Iterable):
+    if isinstance(snapshots, Iterable):
         logger.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
         snapshot = snapshots[0]
     else:
@@ -129,7 +129,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for c in network.passive_branch_components:
         pnl = network.pnl(c)
-        p0_base[c] = pnl.p0.loc[snapshot]
+        p0_base.at[c] = pnl.p0.loc[snapshot]
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
@@ -223,7 +223,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
     invest_vars = pd.concat({
         c: get_var(n, c, "s_nom")
         if not get_extendable_i(n, c).empty
-        else pd.Series(dtype=np.float64)
+        else pd.Series(dtype=float)
         for c in comps
     })
 
