@@ -1,8 +1,6 @@
 name: pypsa
-
 channels:
   - conda-forge
-
 dependencies:
   - python
   - pip
