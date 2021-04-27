@@ -17,13 +17,14 @@ env:
 before_install:
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
   - source conda4travis.sh
+  # prefer mamba over conda
+  - conda install -c conda-forge mamba
   - if [ "$TRAVIS_OS_NAME" != "windows" ]; then echo "  - coincbc" >> environment.yaml; fi;
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - conda create -n pypsa python pip
-  - conda env update -n pypsa --file=environment.yaml
-  - conda env update -n pypsa --file=environment_dev.yaml
+  - mamba env create -n pypsa --file=environment.yaml
+  - mamba env update -n pypsa --file=environment_dev.yaml
   - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .
