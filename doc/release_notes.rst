@@ -11,8 +11,12 @@ Release Notes
 Upcoming Release
 ================
 
+* Switch to new major release, ``>=v0.2.1`` of ``atlite``.  The version upgrade comes along with significant speed up for the rule ``build_renewable_profiles.py`` (~factor 2). A lot of the code which calculated the landuse availability is now outsourced and does not rely on ``glaes``, ``geokit`` anymore. This facilitates the environment building and version compatibility of ``gdal``, ``libgdal`` with other packages. 
+* The minimum python version was set to ``3.8``.
+* The rule and script ``build_country_flh`` are removed as they're no longer used or maintained.
+* The flag ``keep_all_available_areas`` in the configuration for renewable potentials (config.yaml -> renewable -> {technology}) was deprecated and now defaults to ``True``. 
+* The tutorial cutout was renamed from ``cutouts/europe-2013-era5.nc`` to ``cutouts/europe-2013-era5-tutorial.nc`` to accomodate tutorial and productive cutouts side-by-side.
 * Fix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq (from 3.1e9 t CO2-eq). The new value represents emissions related to the electricity sector for EU+UK. The old value was ~2x too high and used when the emissions wildcard in ``{opts}`` was used.
-
 * Add option to include marginal costs of links representing fuel cells, electrolysis, and battery inverters 
   [`#232 <https://github.com/PyPSA/pypsa-eur/pull/232>`_].
 

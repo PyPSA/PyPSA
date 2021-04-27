@@ -62,18 +62,28 @@ electricity:
 atlite:
   nprocesses: 4
   cutouts:
+    # use 'base' to determine geographical bounds and time span from config
+    # base: 
+      # module: era5  
     europe-2013-era5:
-      module: era5
-      xs: [-12., 35.]
-      ys: [72., 33.]
-      years: [2013, 2013]
+      module: era5 # in priority order 
+      x: [-12., 35.]
+      y: [33., 72]
+      dx: 0.3
+      dy: 0.3
+      time: ['2013', '2013']
     europe-2013-sarah:
-      module: sarah
-      resolution: 0.2
-      xs: [-12., 42.]
-      ys: [65., 33.]
-      years: [2013, 2013]
+      module: [sarah, era5] # in priority order 
+      x: [-12., 45.]
+      y: [33., 65]
+      dx: 0.2
+      dy: 0.2
+      time: ['2013', '2013']
+      sarah_interpolate: false
+      sarah_dir: 
+      features: [influx, temperature]
 
+      
 renewable:
   onwind:
     cutout: europe-2013-era5
