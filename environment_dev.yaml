@@ -2,7 +2,7 @@ name: pypsa
 channels:
   - conda-forge
 dependencies:
-  - python
+  - python>=3.6
   - pip
   - pytest
   - pytest-cov
