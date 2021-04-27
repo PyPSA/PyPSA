@@ -16,10 +16,6 @@
 """Power flow functionality.
 """
 
-from six import iterkeys
-from six.moves.collections_abc import Sequence
-
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
 
@@ -31,12 +27,12 @@ from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vs
 from numpy import r_, ones
 from scipy.sparse.linalg import spsolve
 from numpy.linalg import norm
+from pandas.api.types import is_list_like
 
 import numpy as np
 import pandas as pd
 import networkx as nx
 
-import six
 from operator import itemgetter
 import time
 
@@ -53,8 +49,7 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (Sequence, pd.Index))):
+    if not is_list_like(snapshots):
         return pd.Index([snapshots])
     else:
         return pd.Index(snapshots)
@@ -1063,7 +1058,7 @@ def find_tree(sub_network, weight='x_pu'):
     for j,bus in enumerate(buses_i):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
-            branch = next(iterkeys(graph[path[i]][path[i+1]]))
+            branch = next(iter(graph[path[i]][path[i+1]].keys()))
             branch_i = branches_i.get_loc(branch)
             sign = +1 if branches_bus0.iat[branch_i] == path[i] else -1
             sub_network.T[branch_i,j] = sign
@@ -1096,7 +1091,7 @@ def find_cycles(sub_network, weight='x_pu'):
     for j,cycle in enumerate(cycles):
 
         for i in range(len(cycle)):
-            branch = next(iterkeys(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]]))
+            branch = next(iter(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys()))
             branch_i = branches_i.get_loc(branch)
             sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
             sub_network.C[branch_i,j] += sign

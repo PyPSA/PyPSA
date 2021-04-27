@@ -76,9 +76,6 @@ import pandas as pd
 
 import numpy as np
 
-from six import iteritems
-from six.moves import range
-
 import os
 
 import matplotlib.pyplot as plt
@@ -488,10 +485,10 @@ def read_kraftwerksliste(with_latlon=True):
     kraftwerke.PLZ = kraftwerke.PLZ.apply(sanitize_plz)
     if with_latlon:
         postcodes = {pc: sh.centroid
-                     for pc, sh in iteritems(vshapes.postcodeareas())
+                     for pc, sh in vshapes.postcodeareas().items()
                      if sh is not None}
-        kraftwerke['lon'] = kraftwerke.PLZ.map({pc: c.x for pc, c in iteritems(postcodes)})
-        kraftwerke['lat'] = kraftwerke.PLZ.map({pc: c.y for pc, c in iteritems(postcodes)})
+        kraftwerke['lon'] = kraftwerke.PLZ.map({pc: c.x for pc, c in postcodes.items()})
+        kraftwerke['lat'] = kraftwerke.PLZ.map({pc: c.y for pc, c in postcodes.items()})
         #kraftwerke.dropna(subset=('lon','lat'), inplace=True)                                                           
 
     kraftwerke[u'Type'] = kraftwerke[u"Auswertung Energieträger"].map({
@@ -553,7 +550,7 @@ def backup_capacity_german_grid(G):
         if np.isnan(x["lon"]) or np.isnan(x["lat"]):
             return random.choice(list(cells.keys()))
         p = Point(x["lon"], x["lat"])
-        for n, cell in iteritems(cells):
+        for n, cell in cells.items():
             if cell.contains(p):
                 return n
             else:
