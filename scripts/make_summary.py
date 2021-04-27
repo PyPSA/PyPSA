@@ -71,7 +71,7 @@ opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
 
 
 def _add_indexed_rows(df, raw_index):
-    new_index = df.index|pd.MultiIndex.from_product(raw_index)
+    new_index = df.index.union(pd.MultiIndex.from_product(raw_index))
     if isinstance(new_index, pd.Index):
         new_index = pd.MultiIndex.from_tuples(new_index)
 
@@ -126,7 +126,7 @@ def calculate_costs(n, label, costs):
 
         marginal_costs_grouped = marginal_costs.groupby(c.df.carrier).sum()
 
-        costs = costs.reindex(costs.index|pd.MultiIndex.from_product([[c.list_name],["marginal"],marginal_costs_grouped.index]))
+        costs = costs.reindex(costs.index.union(pd.MultiIndex.from_product([[c.list_name],["marginal"],marginal_costs_grouped.index])))
 
         costs.loc[idx[c.list_name,"marginal",list(marginal_costs_grouped.index)],label] = marginal_costs_grouped.values
 
@@ -222,7 +222,7 @@ def calculate_supply(n, label, supply):
                 #lots of sign compensation for direction and to do maximums
                 s = (-1)**(1-int(end))*((-1)**int(end)*c.pnl["p"+end][items]).max().groupby(c.df.loc[items,'carrier']).sum()
 
-                supply = supply.reindex(supply.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
+                supply = supply.reindex(supply.index.union(pd.MultiIndex.from_product([[i],[c.list_name],s.index])))
                 supply.loc[idx[i,c.list_name,list(s.index)],label] = s.values
 
     return supply
@@ -268,7 +268,7 @@ def calculate_supply_energy(n, label, supply_energy):
 
                 s = (-1)*c.pnl["p"+end][items].sum().groupby(c.df.loc[items,'carrier']).sum()
 
-                supply_energy = supply_energy.reindex(supply_energy.index|pd.MultiIndex.from_product([[i],[c.list_name],s.index]))
+                supply_energy = supply_energy.reindex(supply_energy.index.union(pd.MultiIndex.from_product([[i],[c.list_name],s.index])))
                 supply_energy.loc[idx[i,c.list_name,list(s.index)],label] = s.values
 
     return supply_energy
@@ -276,7 +276,7 @@ def calculate_supply_energy(n, label, supply_energy):
 
 def calculate_metrics(n,label,metrics):
 
-    metrics = metrics.reindex(metrics.index|pd.Index(["line_volume","line_volume_limit","line_volume_AC","line_volume_DC","line_volume_shadow","co2_shadow"]))
+    metrics = metrics.reindex(metrics.index.union(pd.Index(["line_volume","line_volume_limit","line_volume_AC","line_volume_DC","line_volume_shadow","co2_shadow"])))
 
     metrics.at["line_volume_DC",label] = (n.links.length*n.links.p_nom_opt)[n.links.carrier == "DC"].sum()
     metrics.at["line_volume_AC",label] = (n.lines.length*n.lines.s_nom_opt).sum()
@@ -298,7 +298,7 @@ def calculate_prices(n,label,prices):
 
     bus_type = pd.Series(n.buses.index.str[3:],n.buses.index).replace("","electricity")
 
-    prices = prices.reindex(prices.index|bus_type.value_counts().index)
+    prices = prices.reindex(prices.index.union(bus_type.value_counts().index))
 
     logger.warning("Prices are time-averaged, not load-weighted")
     prices[label] = n.buses_t.marginal_price.mean().groupby(bus_type).mean()

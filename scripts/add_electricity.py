@@ -337,7 +337,7 @@ def attach_hydro(n, costs, ppl):
 
     country = ppl['bus'].map(n.buses.country).rename("country")
 
-    inflow_idx = ror.index | hydro.index
+    inflow_idx = ror.index.union(hydro.index)
     if not inflow_idx.empty:
         dist_key = ppl.loc[inflow_idx, 'p_nom'].groupby(country).transform(normed)
 
