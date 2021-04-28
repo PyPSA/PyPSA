@@ -399,6 +399,7 @@ class Network(Basic):
                     and all(sorted(snapshots.levels[0])==snapshots.get_level_values(0).unique())):
                  logger.error("Investment periods should be integer and increasing")
                  return
+            self.snapshots.rename(["investment_period", "snapshot"], inplace=True)
             self.investment_period_weightings = self.investment_period_weightings.reindex(self.snapshots.levels[0],
                                                                                            fill_value=1.)
         else:
@@ -418,8 +419,27 @@ class Network(Basic):
                 pnl[k] = reindex_df(pnl[k], self.snapshots, fill_value=default)
 
 
+    def snapshots_to_single_index(self):
+        """
+        Set the snapshots from multi index to flat single index and reindex all
+        time-dependent data.
 
-        #NB: No need to rebind pnl to self, since haven't changed it
+        """
+        if not isinstance(self.snapshots, pd.MultiIndex):
+            logger.error("snapshots have to be pandas MultiIndex")
+        # set single index for snapshots and weightings
+        self.snapshots = self.snapshots.to_flat_index()
+        self.investment_period_weightings = pd.DataFrame(columns=["objective_weightings",
+                                                                  "time_weightings"], dtype=float)
+        self.snapshot_weightings.index = self.snapshots
+
+        # time varying component data
+        for component in self.all_components:
+            pnl = self.pnl(component)
+            attrs = self.components[component]["attrs"]
+
+            for k,default in attrs.default[attrs.varying].iteritems():
+                pnl[k].index = pnl[k].index.to_flat_index()
 
 
 

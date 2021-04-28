@@ -405,9 +405,18 @@ def reindex_df(df, new_index, fill_value=1.):
 
 def snapshot_consistency(n, snapshots, multi_investment_periods):
     """
-    checks if snapshots types are correctly set regarding wished optimisation form
-    (multi- or single investment)
+    checks if snapshots types are correctly set regarding wished optimisation
+    form (multi-index and multi-decade or single index and single investment)
+
+    if single investment but snapshots do have the format pandas MultiIndex,
+    snapshots are changed to single Index and the switch "to_single" is changed
+    to True
     """
+    to_single = False
+    # check if snapshots are in network snapshots
+    if not snapshots.difference(n.snapshots).empty:
+        raise TypeError("in function lopf() called snapshots are not defined "
+                        "in the network.")
     # check if snapshots are multiindex for multiinvestment optimisation
     if  multi_investment_periods and not isinstance(snapshots,pd.MultiIndex):
         raise TypeError(" snapshots have to be pd.MultiIndex for multi investment"
@@ -416,9 +425,9 @@ def snapshot_consistency(n, snapshots, multi_investment_periods):
     elif not multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
             logger.warning(" snapshots are MultiIndex but multi_investment_periods=False,"
                            " network lopf is calculated with only one investment step.")
-            snapshots = snapshots.droplevel(0)
-            n.set_snapshots(snapshots)
-            return snapshots
+            n.snapshots_to_single_index()
+            to_single = True
+            return snapshots.to_flat_index(), to_single
     # check if all snapshots are in investment period weightings
     elif multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
         if not n.snapshots.levels[0].difference(n.investment_period_weightings.index).empty:
@@ -426,6 +435,10 @@ def snapshot_consistency(n, snapshots, multi_investment_periods):
         if not (all([isinstance(x, int) for x in n.investment_period_weightings.index])
            and all(sorted(n.investment_period_weightings.index)==n.investment_period_weightings.index)):
                 raise TypeError(" Investment periods should be integer and increasing")
+        return snapshots, to_single
+
+    else:
+        return snapshots, to_single
 
 
 

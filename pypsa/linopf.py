@@ -438,7 +438,7 @@ def define_storage_unit_constraints(n, sns):
 
     # rhs consider inflow and initial state of charge
     rhs = -get_as_dense(n, c, 'inflow', sns).reindex(sns_with_inv, level=1).mul(eh)
-    rhs.loc[sns_with_inv[0], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
+    rhs.loc[sns_with_inv[:1], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
     # set state of charge at the beginning of each investment period to soc_initial
     soc_initial_period = expand_series(n.df(c).state_of_charge_initial, sns_with_inv).T
     exclude = ~(rhs.groupby(level=0).shift().isna() & active.reindex(sns_with_inv, level=0))
@@ -503,7 +503,7 @@ def define_store_constraints(n, sns):
     lhs += masked_term(eff_stand_periodic, previous_e_periodic, period_i)
 
     rhs = pd.DataFrame(0, sns_with_inv, stores_i)
-    rhs.loc[sns_with_inv[0], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
+    rhs.loc[sns_with_inv[:1], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
     e_initial_period = expand_series(n.df(c).e_initial, sns_with_inv).T
     exclude = ~(rhs.groupby(level=0).shift().isna() & active.reindex(sns_with_inv, level=0))
     e_initial_period[exclude] = 0
@@ -1122,7 +1122,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     snapshots = _as_snapshots(n, snapshots)
 
     # check snapshots have right form for single or multiindex optimisation
-    snapshots = snapshot_consistency(n, snapshots, multi_investment_periods)
+    snapshots, to_single = snapshot_consistency(n, snapshots, multi_investment_periods)
 
     if not skip_pre:
         n.calculate_dependent_values()
@@ -1165,8 +1165,9 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
                     keep_shadowprices=keep_shadowprices)
     gc.collect()
 
-    # reset snapshots
-    n.set_snapshots(snapshots)
+    # change single index snapshots back to Multi Index
+    if to_single:
+        n.set_snapshots(pd.MultiIndex.from_tuples(n.snapshots))
 
     return status,termination_condition
 
