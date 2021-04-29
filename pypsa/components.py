@@ -209,6 +209,7 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
+
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
                  **kwargs):
@@ -228,11 +229,10 @@ class Network(Basic):
         #this will be saved on export
         self.pypsa_version = pypsa_version
 
-        #a list/index of scenarios/times
-        self.snapshots = pd.Index(["now"])
+        self._snapshots = pd.Index(["now"])
 
         #corresponds to number of hours represented by each snapshot
-        self.snapshot_weightings = pd.Series(index=self.snapshots,data=1.)
+        self.snapshot_weightings = pd.Series(1, index=self.snapshots)
 
         if override_components is None:
             self.components = components
@@ -372,7 +372,8 @@ class Network(Basic):
         return getattr(self, self.components[component_name]["list_name"]+"_t")
 
 
-    def set_snapshots(self,snapshots):
+
+    def set_snapshots(self, value):
         """
         Set the snapshots and reindex all time-dependent data.
 
@@ -388,20 +389,23 @@ class Network(Basic):
         -------
         None
         """
-
-        self.snapshots = pd.Index(snapshots)
+        self._snapshots = pd.Index(value)
 
         self.snapshot_weightings = (
-            self.snapshot_weightings.reindex(self.snapshots,fill_value=1.))
+            self.snapshot_weightings.reindex(self._snapshots, fill_value=1.))
 
         for component in self.all_components:
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
 
             for k,default in attrs.default[attrs.varying].iteritems():
-                pnl[k] = pnl[k].reindex(self.snapshots).fillna(default)
+                pnl[k] = pnl[k].reindex(self._snapshots).fillna(default)
 
         #NB: No need to rebind pnl to self, since haven't changed it
+
+    snapshots = property(lambda self: self._snapshots, set_snapshots,
+                         doc="Time steps of the network")
+
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
              solver_options={}, solver_logfile=None, formulation="kirchhoff",
