@@ -16,6 +16,9 @@ Upcoming Release
 
 * Adjust log file creation for CPLEX version 12.10 and higher.
 
+* ``network.snapshots`` are now a property, hence assigning values with ``network.snapshots = values `` is the same as ``network.set_snapshots(values)`` 
+
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 
