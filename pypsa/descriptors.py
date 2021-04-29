@@ -18,8 +18,6 @@
 """Descriptors for component attributes.
 """
 
-from six import iteritems
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
@@ -263,7 +261,7 @@ def allocate_series_dataframes(network, series):
 
 """
 
-    for component, attributes in iteritems(series):
+    for component, attributes in series.items():
 
         df = network.df(component)
         pnl = network.pnl(component)

@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 
-import collections
+from collections.abc import Iterable
 
 from .descriptors import get_extendable_i, get_non_extendable_i
 from .pf import calculate_PTDF, _as_snapshots
@@ -109,7 +109,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     if snapshots is None:
         snapshots = network.snapshots
 
-    if isinstance(snapshots, collections.Iterable):
+    if isinstance(snapshots, Iterable):
         logger.warning("Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot.")
         snapshot = snapshots[0]
     else:
@@ -125,19 +125,13 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
         branch_outages = passive_branches.index
 
 
-    p0_base = pd.Series(index=passive_branches.index)
-
-    for c in network.passive_branch_components:
-        pnl = network.pnl(c)
-        p0_base.at[c] = pnl.p0.loc[snapshot]
+    p0_base = pd.concat({c: network.pnl(c).p0.loc[snapshot]
+                         for c in network.passive_branch_components})
+    p0 = p0_base.to_frame('base')
 
     for sn in network.sub_networks.obj:
         sn._branches = sn.branches()
         sn.calculate_BODF()
-
-    p0 = pd.DataFrame(index=passive_branches.index)
-
-    p0["base"] = p0_base
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
@@ -223,7 +217,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
     invest_vars = pd.concat({
         c: get_var(n, c, "s_nom")
         if not get_extendable_i(n, c).empty
-        else pd.Series(dtype=np.float64)
+        else pd.Series(dtype=float)
         for c in comps
     })
 
@@ -235,12 +229,12 @@ def add_contingency_constraints_lowmem(network, snapshots):
         branches_i = sn.branches_i()
         branches = sn.branches()
         outages = branches_i.intersection(branch_outages)
-        
+
         ext_i = branches.loc[branches.s_nom_extendable].index
         fix_i = branches.loc[~branches.s_nom_extendable].index
 
         p = dispatch_vars[branches_i]
-        
+
         BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
 
         lhs = {}
@@ -268,7 +262,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 key = ("lower", "non_ext", outage)
                 lhs[key] = lhs_flow_fix
                 rhs[key] = - s_nom_fix
-            
+
             if len(ext_i):
                 lhs_flow_ext = lhs_flow[ext_i]
                 s_nom_ext = invest_vars[ext_i]
@@ -358,7 +352,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
     passive_branches = network.passive_branches()
 
     if branch_outages is None:
-        branch_outages = passive_branches.index  
+        branch_outages = passive_branches.index
 
     # save to network for extra_functionality
     network._branch_outages = branch_outages
@@ -377,7 +371,7 @@ def network_sclopf(network, snapshots=None, branch_outages=None, solver_name="gl
 
     #need to skip preparation otherwise it recalculates the sub-networks
 
-    network.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=pyomo, 
+    network.lopf(snapshots=snapshots, solver_name=solver_name, pyomo=pyomo,
                  skip_pre=True, extra_functionality=_extra_functionality,
                  solver_options=solver_options, keep_files=keep_files,
                  formulation=formulation, **pyomo_kwargs)

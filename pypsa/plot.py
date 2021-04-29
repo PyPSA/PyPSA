@@ -19,8 +19,6 @@
 """
 
 
-from six import string_types
-
 import pandas as pd
 import numpy as np
 import networkx as nx
@@ -56,7 +54,7 @@ except ImportError:
     pltly_present = False
 
 
-def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
+def plot(n, margin=None, ax=None, geomap=True, projection=None,
          bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
          line_colors='rosybrown', link_colors='darkseagreen',
          transformer_colors='orange',
@@ -146,6 +144,8 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         Collections for buses and branches.
     """
     x, y = _get_coordinates(n, layouter=layouter)
+    if boundaries is None and margin:
+        boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap:
         if not cartopy_present:
@@ -163,12 +163,19 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        transform = draw_map_cartopy(n, x, y, ax, boundaries, margin, geomap,
-                                     color_geomap)
+        transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+        if boundaries:
+            ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
+    if not geomap and boundaries:
+        ax.axis(boundaries)
+
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_title(title)
 
     # Plot buses:
 
@@ -192,7 +199,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes *= projected_area_factor(ax, n.srid)**2
+            bus_sizes = bus_sizes * projected_area_factor(ax, n.srid)**2
 
         patches = []
         for b_i in bus_sizes.index.levels[0]:
@@ -215,7 +222,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         c = pd.Series(bus_colors, index=n.buses.index)
         s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
         if geomap:
-            s *= projected_area_factor(ax, n.srid)**2
+            s = s * projected_area_factor(ax, n.srid)**2
 
         if bus_cmap is not None and c.dtype is np.dtype('float'):
             if isinstance(bus_cmap, str):
@@ -228,7 +235,7 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
             radius = s.at[b_i]**0.5
             patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
                                    facecolor=c.at[b_i], alpha=bus_alpha))
-        bus_collection = PatchCollection(patches, match_original=True)
+        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         ax.add_collection(bus_collection)
 
     # Plot branches:
@@ -316,18 +323,8 @@ def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
 
-    bus_collection.set_zorder(5)
-
-    ax.update_datalim(compute_bbox_with_margins(margin, x, y))
-    ax.autoscale_view()
-
-    if geomap:
-        ax.outline_patch.set_visible(False)
-    else:
-        ax.set_aspect('equal')
-    ax.axis('off')
-
-    ax.set_title(title)
+    if boundaries is None:
+        ax.autoscale()
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
@@ -384,19 +381,12 @@ def projected_area_factor(ax, original_crs=4326):
                    /abs((pbounds[0] - pbounds[1])[:2].prod()))
 
 
-def draw_map_cartopy(n, x, y, ax, boundaries=None, margin=0.05,
-                     geomap=True, color_geomap=None):
-
-    if boundaries is None:
-        (x1, y1), (x2, y2) = compute_bbox_with_margins(margin, x, y)
-    else:
-        x1, x2, y1, y2 = boundaries
+def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
 
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
     axis_transformation = get_projection_from_crs(n.srid)
-    ax.set_extent([x1, x2, y1, y2], crs=axis_transformation)
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}

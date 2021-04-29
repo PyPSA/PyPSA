@@ -12,8 +12,6 @@ import pandas as pd
 
 import numpy as np
 
-from six.moves import range
-
 
 
 #ensure the same random number are produced when refactoring

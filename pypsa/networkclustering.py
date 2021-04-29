@@ -23,8 +23,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 from collections import OrderedDict, namedtuple
-from six.moves import map, range, reduce
-from six import itervalues, iteritems
+from functools import reduce
 from importlib.util import find_spec
 
 import logging
@@ -90,7 +89,7 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
 
     new_pnl = dict()
     if with_time:
-        for attr, df in iteritems(network.generators_t):
+        for attr, df in network.generators_t.items():
             pnl_gens_agg_b = df.columns.to_series().map(gens_agg_b)
             df_agg = df.loc[:, pnl_gens_agg_b]
             if not df_agg.empty:
@@ -126,7 +125,7 @@ def aggregateoneport(network, busmap, component, with_time=True, custom_strategi
     new_pnl = dict()
     if with_time:
         old_pnl = network.pnl(component)
-        for attr, df in iteritems(old_pnl):
+        for attr, df in old_pnl.items():
             if not df.empty:
                 pnl_df = df.groupby(grouper, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
@@ -258,7 +257,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                                                          custom_strategies=generator_strategies)
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
-            for attr, df in iteritems(generators_pnl):
+            for attr, df in generators_pnl.items():
                 if not df.empty:
                     io.import_series_from_dataframe(network_c, df, "Generator", attr)
 
@@ -267,7 +266,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
         new_df, new_pnl = aggregateoneport(network, busmap, component=one_port, with_time=with_time,
                                            custom_strategies=one_port_strategies.get(one_port, {}))
         io.import_components_from_dataframe(network_c, new_df, one_port)
-        for attr, df in iteritems(new_pnl):
+        for attr, df in new_pnl.items():
             io.import_series_from_dataframe(network_c, df, one_port, attr)
 
 
@@ -283,7 +282,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 
     if with_time:
         for c in network.iterate_components(one_port_components):
-            for attr, df in iteritems(c.pnl):
+            for attr, df in c.pnl.items():
                 if not df.empty:
                     io.import_series_from_dataframe(network_c, df, c.name, attr)
 
@@ -305,7 +304,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, new_links, "Link")
 
     if with_time:
-        for attr, df in iteritems(network.links_t):
+        for attr, df in network.links_t.items():
             if not df.empty:
                 io.import_series_from_dataframe(network_c, df, "Link", attr)
 
@@ -485,7 +484,7 @@ def busmap_by_rectangular_grid(buses, divisions=10):
     else:
         divisions_x = divisions_y = divisions
     gb = buses.groupby([pd.cut(buses.x, divisions_x), pd.cut(buses.y, divisions_y)])
-    for nk, oks in enumerate(itervalues(gb.groups)):
+    for nk, oks in enumerate(gb.groups.values()):
         busmap.loc[oks] = nk
     return busmap
 

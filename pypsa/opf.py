@@ -19,10 +19,6 @@
 """Optimal Power Flow functions.
 """
 
-
-from six import iteritems, itervalues, string_types
-
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
 
@@ -83,7 +79,7 @@ def define_generator_variables_constraints(network,snapshots):
     ## Define generator dispatch variables ##
 
     gen_p_bounds = {(gen,sn) : (None,None)
-                    for gen in extendable_gens_i | fixed_committable_gens_i
+                    for gen in extendable_gens_i.union(fixed_committable_gens_i)
                     for sn in snapshots}
 
     if len(fixed_gens_i):
@@ -1065,7 +1061,7 @@ def define_nodal_balance_constraints(network,snapshots):
             network._p_balance[bus0,sn].variables.append((-1,network.model.passive_branch_p[bt,bn,sn]))
             network._p_balance[bus1,sn].variables.append((1,network.model.passive_branch_p[bt,bn,sn]))
 
-    power_balance = {k: LConstraint(v,"==",LExpression()) for k,v in iteritems(network._p_balance)}
+    power_balance = {k: LConstraint(v,"==",LExpression()) for k,v in network._p_balance.items()}
 
     l_constraint(network.model, "power_balance", power_balance,
                  list(network.buses.index), snapshots)
@@ -1246,11 +1242,11 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         model.dual.clear()
 
     def clear_indexedvar(indexedvar):
-        for v in itervalues(indexedvar._data):
+        for v in indexedvar._data.values():
             v.clear()
 
     def get_values(indexedvar, free=free_pyomo):
-        s = pd.Series(indexedvar.get_values())
+        s = pd.Series(indexedvar.get_values(), dtype=float)
         if free:
             clear_indexedvar(indexedvar)
         return s
@@ -1561,7 +1557,7 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     else:
         args = [network.model]
 
-    if isinstance(free_memory, string_types):
+    if isinstance(free_memory, str):
         free_memory = {free_memory}
 
     if 'pypsa' in free_memory:
