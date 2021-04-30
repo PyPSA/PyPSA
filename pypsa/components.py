@@ -434,7 +434,7 @@ class Network(Basic):
             self._snapshot_weightings = df
         else:
             self._snapshot_weightings = df
-giot
+
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
              solver_options={}, solver_logfile=None, formulation="kirchhoff",
