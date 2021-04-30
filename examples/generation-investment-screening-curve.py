@@ -66,12 +66,12 @@ n.generators_t.p.plot(ylim=[0,600],title="Generation Dispatch")
 
 #Demonstrate zero-profit condition
 print("Total costs:")
-print(n.generators.p_nom_opt*n.generators.capital_cost + n.generators_t.p.multiply(n.snapshot_weightings,axis=0).sum()*n.generators.marginal_cost)
+print(n.generators.p_nom_opt*n.generators.capital_cost + n.generators_t.p.multiply(n.snapshot_weightings.generators,axis=0).sum()*n.generators.marginal_cost)
 
 
 
 print("\nTotal revenue:")
-print(n.generators_t.p.multiply(n.snapshot_weightings,axis=0).multiply(n.buses_t.marginal_price["bus"],axis=0).sum())
+print(n.generators_t.p.multiply(n.snapshot_weightings.generators,axis=0).multiply(n.buses_t.marginal_price["bus"],axis=0).sum())
 
 ## Without expansion optimisation
 #
@@ -95,10 +95,10 @@ n.buses_t.marginal_price.sum(axis=1).value_counts()
 #Differences are due to singular times, see above, not a problem
 
 print("Total costs:")
-print(n.generators.p_nom*n.generators.capital_cost + n.generators_t.p.multiply(n.snapshot_weightings,axis=0).sum()*n.generators.marginal_cost)
+print(n.generators.p_nom*n.generators.capital_cost + n.generators_t.p.multiply(n.snapshot_weightings.generators,axis=0).sum()*n.generators.marginal_cost)
 
 
 
 print("Total revenue:")
-print(n.generators_t.p.multiply(n.snapshot_weightings,axis=0).multiply(n.buses_t.marginal_price["bus"],axis=0).sum())
+print(n.generators_t.p.multiply(n.snapshot_weightings.generators,axis=0).multiply(n.buses_t.marginal_price["bus"],axis=0).sum())
 
