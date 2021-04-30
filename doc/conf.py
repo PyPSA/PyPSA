@@ -36,6 +36,8 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
+    'nbsphinx',
+    # 'nbsphinx_link',
 #    'sphinx.ext.pngmath',
 #    'sphinxcontrib.tikz',
     #'rinoh.frontend.sphinx',
@@ -227,6 +229,11 @@ html_context = {
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'PyPSAdoc'
+
+# -- Options for nbsphinx -------------------------------------------------
+# nbsphinx_kernel_name = 'atlite-doc'
+nbsphinx_execute = 'never'
+
 
 # -- Options for LaTeX output ---------------------------------------------
 
