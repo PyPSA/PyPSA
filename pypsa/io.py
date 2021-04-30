@@ -295,7 +295,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #exportable component types
     #what about None???? - nan is float?
-    allowed_types = (float,int,bool) + str + tuple(np.typeDict.values())
+    allowed_types = (float, int, bool, str) + tuple(np.typeDict.values())
 
     #first export network properties
     attrs = dict((attr, getattr(network, attr))
