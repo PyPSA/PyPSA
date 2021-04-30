@@ -18,6 +18,14 @@ Upcoming Release
 
 * ``network.snapshots`` are now a property, hence assigning values with ``network.snapshots = values `` is the same as ``network.set_snapshots(values)`` 
 
+* ``network.snapshot_weightings`` are now subdivided into weightings for the objective function, generators and storages/storage units.   
+
+  * Objective weightings determine the multiplier of the marginal costs in the objective function of the LOPF. 
+  * Generator weightings specify the impact of generators in `GlobalConstraint`s. 
+  * Store weightings define the elapsed hours for the charge, discharge, standing loss and spillage of storage units and stores in order to determine the current state of charge.
+ 
+  PyPSA still supports setting ``snapshot_weightings`` in the old style, i.e. by a assigning with a pandas.Series. These are then applied to all columns of the new ``snapshot_weightings`` pandas.Dataframe.
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================

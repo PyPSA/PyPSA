@@ -414,12 +414,12 @@ class Network(Basic):
         * Objective weightings multiply the operational cost in the
           objective function.
 
-        * Generator weightings multiply the power output of all generators
-          at a specific time.
+        * Generator weightings multiply the impact of all generators
+          in global constraints, e.g. multiplier of GHG emmissions.
 
         * Store weightings define the elapsed hours for the charge, discharge
-          standing loss and spillage of storage units and stores to determine
-          the state of charge
+          standing loss and spillage of storage units and stores in order to
+          determine the state of charge.
 
         """
         return self._snapshot_weightings
