@@ -305,9 +305,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_attributes(attrs)
 
     #now export snapshots
-    snapshots = pd.DataFrame(dict(weightings=network.snapshot_weightings),
-                             index=pd.Index(network.snapshots, name="name"))
-    exporter.save_snapshots(snapshots)
+    exporter.save_snapshots(network.snapshot_weightings.rename_axis('name'))
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
@@ -581,11 +579,12 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     df = importer.get_snapshots()
     if df is not None:
         network.set_snapshots(df.index)
-        if "weightings" in df.columns:
-            network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
-        elif df.columns.intersection(['objective', 'generators', 'stores']):
+        cols = ['objective', 'generators', 'stores']
+        if not df.columns.intersection(cols).empty:
             network.snapshot_weightings = df.reindex(
-                index=network.snapshots, columns=['objective', 'generators', 'stores'])
+                index=network.snapshots, columns=cols)
+        elif "weightings" in df.columns:
+            network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
     imported_components = []
 
