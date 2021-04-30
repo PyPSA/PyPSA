@@ -583,6 +583,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         network.set_snapshots(df.index)
         if "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
+        elif df.columns.intersection(['objective', 'generators', 'stores']):
+            network.snapshot_weightings = df.reindex(
+                index=network.snapshots, columns=['objective', 'generators', 'stores'])
 
     imported_components = []
 
