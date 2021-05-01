@@ -16,8 +16,6 @@
 """Functions for importing and exporting data.
 """
 
-from six import iteritems, iterkeys, string_types
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
@@ -196,23 +194,23 @@ if has_xarray:
     class ImporterNetCDF(Importer):
         def __init__(self, path):
             self.path = path
-            if isinstance(path, string_types):
+            if isinstance(path, str):
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
 
         def __enter__(self):
-            if isinstance(self.path, string_types):
+            if isinstance(self.path, str):
                 super(ImporterNetCDF, self).__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            if isinstance(self.path, string_types):
+            if isinstance(self.path, str):
                 super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
             return {attr[len('network_'):]: val
-                    for attr, val in iteritems(self.ds.attrs)
+                    for attr, val in self.ds.attrs.items()
                     if attr.startswith('network_')}
 
         def get_snapshots(self):
@@ -227,14 +225,14 @@ if has_xarray:
                 return None
             index = self.ds.coords[index_name].to_index().rename('name')
             df = pd.DataFrame(index=index)
-            for attr in iterkeys(self.ds.data_vars):
+            for attr in self.ds.data_vars.keys():
                 if attr.startswith(t) and attr[i:i+2] != 't_':
                     df[attr[i:]] = self.ds[attr].to_pandas()
             return df
 
         def get_series(self, list_name):
             t = list_name + '_t_'
-            for attr in iterkeys(self.ds.data_vars):
+            for attr in self.ds.data_vars.keys():
                 if attr.startswith(t):
                     df = self.ds[attr].to_pandas()
                     df.index.name = 'name'
@@ -249,7 +247,7 @@ if has_xarray:
 
         def save_attributes(self, attrs):
             self.ds.attrs.update(('network_' + attr, val)
-                                 for attr, val in iteritems(attrs))
+                                 for attr, val in attrs.items())
 
         def save_snapshots(self, snapshots):
             snapshots.index.name = 'snapshots'
@@ -297,7 +295,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #exportable component types
     #what about None???? - nan is float?
-    allowed_types = (float,int,bool) + string_types + tuple(np.typeDict.values())
+    allowed_types = (float, int, bool, str) + tuple(np.typeDict.values())
 
     #first export network properties
     attrs = dict((attr, getattr(network, attr))
@@ -492,7 +490,7 @@ def import_from_netcdf(network, path, skip_time=False):
 
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = os.path.basename(path) if isinstance(path, string_types) else None
+    basename = os.path.basename(path) if isinstance(path, str) else None
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename,
                               skip_time=skip_time)
@@ -565,7 +563,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         except KeyError:
             pypsa_version = None
 
-        for attr, val in iteritems(attrs):
+        for attr, val in attrs.items():
             setattr(network, attr, val)
 
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
@@ -766,9 +764,9 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
         dataframe = dataframe.reindex(network.snapshots, fill_value=default)
 
     if not attr_series.static:
-        pnl[attr] = pnl[attr].reindex(columns=df.index | columns, fill_value=default)
+        pnl[attr] = pnl[attr].reindex(columns=df.index.union(columns), fill_value=default)
     else:
-        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns | columns))
+        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns.union(columns)))
 
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[network.snapshots, columns]
 

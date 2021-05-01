@@ -82,7 +82,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if c == 'Generator':
-        ext_i = ext_i | n.generators.query('committable').index
+        ext_i = ext_i.union(n.generators.query('committable').index)
     if ext_i.empty: return
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
@@ -182,9 +182,9 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
 def define_generator_status_variables(n, snapshots):
     com_i = n.generators.query('committable').index
     ext_i = get_extendable_i(n, 'Generator')
-    if not (ext_i & com_i).empty:
+    if not (ext_i.intersection(com_i)).empty:
         logger.warning("The following generators have both investment optimisation"
-        f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
+        f" and unit commitment:\n\n\t{', '.join((ext_i.intersection(com_i)))}\n\nCurrently PyPSA cannot "
         "do both these functions, so PyPSA is choosing investment optimisation "
         "for these generators.")
         com_i = com_i.difference(ext_i)
@@ -229,14 +229,14 @@ def define_ramp_limit_constraints(n, sns):
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
 
     # fix up
-    gens_i = rup_i & fix_i
+    gens_i = rup_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
         define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
-    gens_i = rup_i & ext_i
+    gens_i = rup_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_up'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -244,7 +244,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     # com up
-    gens_i = rup_i & com_i
+    gens_i = rup_i.intersection(com_i)
     if not gens_i.empty:
         limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
         limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
@@ -256,14 +256,14 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
 
     # fix down
-    gens_i = rdown_i & fix_i
+    gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
         define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
-    gens_i = rdown_i & ext_i
+    gens_i = rdown_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_down'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -271,7 +271,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
     # com down
-    gens_i = rdown_i & com_i
+    gens_i = rdown_i.intersection(com_i)
     if not gens_i.empty:
         limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
         limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
@@ -281,6 +281,35 @@ def define_ramp_limit_constraints(n, sns):
                       (limit_down - limit_shut, status),
                       (limit_shut, status_prev))
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='com.')
+
+
+def define_nominal_constraints_per_bus_carrier(n, sns):
+    for carrier in n.carriers.index:
+        for bound, sense in [("max", "<="), ("min", ">=")]:
+
+            col = f'nom_{bound}_{carrier}'
+            if col not in n.buses.columns: continue
+            rhs = n.buses[col].dropna()
+            lhs = pd.Series('', rhs.index)
+
+            for c, attr in nominal_attrs.items():
+                if c not in n.one_port_components: continue
+                attr = nominal_attrs[c]
+                if (c, attr) not in n.variables.index: continue
+                nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
+                if nominals.empty: continue
+                per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
+                lhs += per_bus.reindex(lhs.index, fill_value='')
+
+            if bound == 'max':
+                lhs = lhs[lhs != '']
+                rhs = rhs.reindex(lhs.index)
+            else:
+                assert (lhs != '').all(), (
+                    f'No extendable components of carrier {carrier} on bus '
+                    f'{list(lhs[lhs == ""].index)}')
+            define_constraints(n, lhs, sense, rhs, 'Bus', 'mu_' + col)
+
 
 def define_nodal_balance_constraints(n, sns):
     """
@@ -486,9 +515,10 @@ def define_global_constraints(n, sns):
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
 
-        # stores
-        n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
-        stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
+        # stores (copy to avoid over-writing existing carrier attribute)
+        stores = n.stores.copy()
+        stores['carrier'] = stores.bus.map(n.buses.carrier)
+        stores = stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
             coeff_val = (-stores.carrier.map(emissions), get_var(n, 'Store', 'e')
                          .loc[sns[-1], stores.index])
@@ -620,6 +650,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_generator_status_variables(n, snapshots)
+    define_nominal_constraints_per_bus_carrier(n, snapshots)
 
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
@@ -981,7 +1012,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     ext_i = get_extendable_i(n, 'Line')
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
-    ext_typed_i = ext_i & typed_i
+    ext_typed_i = ext_i.intersection(typed_i)
     base_s_nom = (np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
                   n.lines.bus0.map(n.buses.v_nom))
     n.lines.loc[ext_typed_i, 'num_parallel'] = (n.lines.s_nom/base_s_nom)[ext_typed_i]
@@ -989,9 +1020,9 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     def update_line_params(n, s_nom_prev):
         factor = n.lines.s_nom_opt / s_nom_prev
         for attr, carrier in (('x', 'AC'), ('r', 'DC')):
-            ln_i = (n.lines.query('carrier == @carrier').index & ext_untyped_i)
+            ln_i = (n.lines.query('carrier == @carrier').index.intersection(ext_untyped_i))
             n.lines.loc[ln_i, attr] /= factor[ln_i]
-        ln_i = ext_i & typed_i
+        ln_i = ext_i.intersection(typed_i)
         n.lines.loc[ln_i, 'num_parallel'] = (n.lines.s_nom_opt/base_s_nom)[ln_i]
 
     def msq_diff(n, s_nom_prev):
@@ -1032,12 +1063,13 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
-    logger.info('Running last lopf with fixed branches, overwrite p_nom '
-                'for links and s_nom for lines')
+    logger.info('Running last lopf with fixed branches')
     ext_links_i = get_extendable_i(n, 'Link')
+    s_nom_orig = n.lines.s_nom.copy()
+    p_nom_orig = n.links.p_nom.copy()
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
     n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
-    n.lines.loc[ext_i, 's_nom_extendable'] = True
-    n.links.loc[ext_links_i, 'p_nom_extendable'] = True
+    n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = s_nom_orig.loc[ext_i], True
+    n.links.loc[ext_links_i, ['p_nom', 'p_nom_extendable']] = p_nom_orig.loc[ext_links_i], True
