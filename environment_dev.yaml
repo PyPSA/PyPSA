@@ -7,6 +7,7 @@ dependencies:
   - pytest
   - pytest-cov
   - twine
+  - xarray # for netcdf export test
   - pip:
     - pypower
     - pandapower>=2.0
