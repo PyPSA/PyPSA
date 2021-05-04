@@ -13,5 +13,6 @@ dependencies:
   - pyomo>=5.7.0
   - cartopy>=0.16
   - glpk
+  - deprecation
 #  - coincbc
 #  - gurobi::gurobi

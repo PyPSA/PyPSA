@@ -18,6 +18,7 @@ Upcoming Release
 
 * ``network.snapshots`` are now a property, hence assigning values with ``network.snapshots = values `` is the same as ``network.set_snapshots(values)`` 
 
+* The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
