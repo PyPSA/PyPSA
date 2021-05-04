@@ -1,0 +1,9 @@
+#!/bin/bash
+ls ../../examples/notebooks > files.txt
+
+for line in $(cat files.txt)
+do
+	echo "{\"path\": \"../../examples/notebooks/$line\"}" > "${line/\.ipynb/}".nblink
+done
+
+rm files.txt

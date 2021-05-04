@@ -37,7 +37,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'nbsphinx',
-    # 'nbsphinx_link',
+    'nbsphinx_link',
 #    'sphinx.ext.pngmath',
 #    'sphinxcontrib.tikz',
     #'rinoh.frontend.sphinx',
@@ -231,8 +231,16 @@ html_context = {
 htmlhelp_basename = 'PyPSAdoc'
 
 # -- Options for nbsphinx -------------------------------------------------
-# nbsphinx_kernel_name = 'atlite-doc'
+# nbsphinx_kernel_name = 'pypsa'
 nbsphinx_execute = 'never'
+nbsphinx_prolog = """
+{% set docname = env.doc2path(env.docname, base=None).replace("nblink","ipynb").replace("examples/", "examples/notebooks/") %}
+.. note::
+
+    You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
+    or start it `in interactive mode <https://mybinder.org/v2/gh/PyPSA/pypsa/v{{ env.config.release|e }}?filepath={{ docname|e }}>`_.
+
+"""
 
 
 # -- Options for LaTeX output ---------------------------------------------

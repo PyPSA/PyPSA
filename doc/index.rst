@@ -64,7 +64,6 @@ Documentation
 * :doc:`introduction`
 * :doc:`installation`
 * :doc:`quick_start`
-* :doc:`examples`
 
 .. toctree::
    :hidden:
@@ -74,7 +73,6 @@ Documentation
    introduction
    installation
    quick_start
-   examples
 
 **User Guide**
 
@@ -98,6 +96,32 @@ Documentation
    optimal_power_flow
    contingency_analysis
    plotting
+
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Examples
+
+   examples/battery-electric-vehicle-charging.ipynb
+   examples/biomass-synthetic-fuels-carbon-management.ipynb
+   examples/capacity-constraint-per-bus.ipynb
+   examples/chained-hydro-reservoirs.ipynb
+   examples/chp-fixed-heat-power-ratio.ipynb
+   examples/generation-investment-screening-curve.ipynb
+   examples/lopf-with-heating.ipynb
+   examples/logging-demo.ipynb
+   examples/ac-dc-lopf.ipynb
+   examples/lopf_with_pyomo_False.ipynb
+   examples/power-to-gas-boiler-chp.ipynb
+   examples/power-to-heat-water-tank.ipynb
+   examples/replace-generator-storage-units-with-store.ipynb
+   examples/scigrid-lopf-then-pf.ipynb
+   examples/scigrid-sclopf.ipynb
+   examples/simple-electricity-market-examples.ipynb
+   examples/transformer_example.ipynb
+   examples/unit-commitment.ipynb
+   
 
 
 **Help & References**
