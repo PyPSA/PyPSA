@@ -539,7 +539,7 @@ def define_storage_variables_constraints(network,snapshots):
 
             soc[su,sn] =  [[],"==",0.]
 
-            elapsed_hours = network.snapshot_weightings[sn]
+            elapsed_hours = network.snapshot_weightings.stores[sn]
 
             if i == 0 and not sus.at[su,"cyclic_state_of_charge"]:
                 previous_state_of_charge = sus.at[su,"state_of_charge_initial"]
@@ -567,7 +567,7 @@ def define_storage_variables_constraints(network,snapshots):
             soc[su,sn][2] -= inflow.at[sn,su] * elapsed_hours
 
     for su,sn in spill_index:
-        elapsed_hours = network.snapshot_weightings.at[sn]
+        elapsed_hours = network.snapshot_weightings.stores[sn]
         storage_p_spill = model.storage_p_spill[su,sn]
         soc[su,sn][0].append((-1.*elapsed_hours,storage_p_spill))
 
@@ -648,7 +648,7 @@ def define_store_variables_constraints(network,snapshots):
 
             e[store,sn].lhs.variables.append((-1,model.store_e[store,sn]))
 
-            elapsed_hours = network.snapshot_weightings[sn]
+            elapsed_hours = network.snapshot_weightings.stores[sn]
 
             if i == 0 and not stores.at[store,"e_cyclic"]:
                 previous_e = stores.at[store,"e_initial"]
@@ -1104,7 +1104,7 @@ def define_global_constraints(network,snapshots):
                 gens = network.generators.index[network.generators.carrier == carrier]
                 c.lhs.variables.extend([(attribute
                                          * (1/network.generators.at[gen,"efficiency"])
-                                         * network.snapshot_weightings[sn],
+                                         * network.snapshot_weightings.generators[sn],
                                          network.model.generator_p[gen,sn])
                                         for gen in gens
                                         for sn in snapshots])
@@ -1167,7 +1167,7 @@ def define_linear_objective(network,snapshots):
     for sn, marginal_cost in zip(snapshots, marginal_cost_it):
         gen_mc, su_mc, st_mc, link_mc = marginal_cost
 
-        weight = network.snapshot_weightings[sn]
+        weight = network.snapshot_weightings.objective[sn]
         for gen in network.generators.index:
             coefficient = gen_mc.at[gen] * weight
             objective.variables.extend([(coefficient, model.generator_p[gen, sn])])
@@ -1348,7 +1348,9 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
                             .map(duals))
 
             #correct for snapshot weightings
-            network.buses_t.marginal_price.loc[snapshots] = network.buses_t.marginal_price.loc[snapshots].divide(network.snapshot_weightings.loc[snapshots],axis=0)
+            network.buses_t.marginal_price.loc[snapshots] = (
+                network.buses_t.marginal_price.loc[snapshots].divide(
+                    network.snapshot_weightings.objective.loc[snapshots],axis=0))
 
         if formulation == "angles":
             set_from_series(network.buses_t.v_ang,

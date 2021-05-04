@@ -398,7 +398,7 @@ def define_storage_unit_constraints(n, sns):
     spill = write_bound(n, 0, upper)
     set_varref(n, spill, 'StorageUnit', 'spill')
 
-    eh = expand_series(n.snapshot_weightings[sns], sus_i) #elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], sus_i) #elapsed hours
 
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
     eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns).T
@@ -444,7 +444,7 @@ def define_store_constraints(n, sns):
     variables = write_bound(n, -inf, inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
-    eh = expand_series(n.snapshot_weightings[sns], stores_i)  #elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)  #elapsed hours
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
 
     e = get_var(n, c, 'e')
@@ -498,7 +498,7 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = n.snapshot_weightings[sns].to_frame('weightings') @\
+            em_pu = n.snapshot_weightings.generators[sns].to_frame('weightings') @\
                     em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=False)
@@ -589,7 +589,7 @@ def define_objective(n, sns):
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
-                .mul(n.snapshot_weightings[sns], axis=0))
+                .mul(n.snapshot_weightings.objective[sns], axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
@@ -801,7 +801,9 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         map_dual(c, attr)
 
     #correct prices for snapshot weightings
-    n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(n.snapshot_weightings.loc[sns],axis=0)
+    n.buses_t.marginal_price.loc[sns] = (
+        n.buses_t.marginal_price.loc[sns].divide(
+            n.snapshot_weightings.objective.loc[sns],axis=0))
 
     # discard remaining if wanted
     if not keep_references:

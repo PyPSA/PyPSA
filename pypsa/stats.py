@@ -64,7 +64,7 @@ def describe_storage_unit_contraints(n):
 
     description = {}
 
-    eh = expand_series(n.snapshot_weightings, sus_i)
+    eh = expand_series(n.snapshot_weightings.stores, sus_i)
     stand_eff = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
     dispatch_eff = expand_series(n.df(c).efficiency_dispatch, sns).T
     store_eff = expand_series(n.df(c).efficiency_store, sns).T
@@ -152,7 +152,7 @@ def describe_store_contraints(n):
     c = 'Store'
     pnl = n.pnl(c)
 
-    eh = expand_series(n.snapshot_weightings, stores_i)
+    eh = expand_series(n.snapshot_weightings.stores, stores_i)
     stand_eff = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
 
     start = pnl.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
