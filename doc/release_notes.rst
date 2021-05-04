@@ -26,6 +26,7 @@ Upcoming Release
  
   PyPSA still supports setting ``snapshot_weightings`` with a ``pandas.Series``. In this case, the weightings are uniformly applied to all columns of the new ``snapshot_weightings`` ``pandas.DataFrame``.
 
+* The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
