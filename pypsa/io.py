@@ -329,9 +329,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #now export snapshots
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
-        network.snapshot_weightings.index.rename(["investment_periods", "snapshots"], inplace=True)
+        network.snapshot_weightings.index.rename(["period", "snapshot"], inplace=True)
     else:
-        network.snapshot_weightings.index.rename("snapshots")
+        network.snapshot_weightings.index.rename("snapshot")
     snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
 
@@ -387,7 +387,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
             if len(col_export) > 0:
-                df = pnl[attr][col_export]
+                df = pnl[attr].reset_index()[col_export]
                 exporter.save_series(list_name, attr, df)
             else:
                 exporter.remove_series(list_name, attr)
@@ -617,16 +617,15 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     if df is not None:
 
         # check if imported snapshots have MultiIndex
-        if set(["investment_periods", "snapshots"]).issubset(df.columns):
-            df.set_index(["investment_periods", "snapshots"], inplace=True)
-        elif "index" in df.columns:
-            df.set_index("index", inplace=True)
-
+        snapshot_levels = set(["period", "snapshot"]).intersection(df.columns)
+        if snapshot_levels:
+            df.set_index(list(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
+
         cols = ['objective', 'generators', 'stores']
         if not df.columns.intersection(cols).empty:
-            network.snapshot_weightings = df.reindex(
-                index=network.snapshots, columns=cols)
+            network.snapshot_weightings = df.reindex(index=network.snapshots,
+                                                     columns=cols)
         elif "weightings" in df.columns:
             network.snapshot_weightings = df["weightings"].reindex(network.snapshots)
 
@@ -655,6 +654,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
+                df.set_index(network.snapshots, inplace=True)
                 import_series_from_dataframe(network, df, component, attr)
 
         logger.debug(getattr(network,list_name))
