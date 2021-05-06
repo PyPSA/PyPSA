@@ -152,7 +152,6 @@ def attach_stores(n, costs):
                bus1=buses_i,
                carrier='battery discharger',
                efficiency=costs.at['battery inverter','efficiency'],
-               capital_cost=costs.at['battery inverter', 'capital_cost'],
                p_nom_extendable=True,
                marginal_cost=costs.at["battery inverter", "marginal_cost"])
 
