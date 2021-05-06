@@ -79,7 +79,10 @@ class ImporterCSV(Importer):
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn): return None
-        return pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        if "snapshot" in df:
+            df["snapshot"] = pd.to_datetime(df.snapshot)
+        return df
 
     def get_investment_periods(self):
         fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
@@ -619,7 +622,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         # check if imported snapshots have MultiIndex
         snapshot_levels = set(["period", "snapshot"]).intersection(df.columns)
         if snapshot_levels:
-            df.set_index(list(snapshot_levels), inplace=True)
+            df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
 
         cols = ['objective', 'generators', 'stores']
