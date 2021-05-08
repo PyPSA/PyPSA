@@ -406,4 +406,7 @@ link.{p0, p1}
 Utility Functions
 =================
 
+.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
+
 .. automodule:: pypsa.pf
+    :members:
