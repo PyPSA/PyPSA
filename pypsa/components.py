@@ -231,8 +231,8 @@ class Network(Basic):
 
         self._snapshots = pd.Index(["now"])
 
-        #corresponds to number of hours represented by each snapshot
-        self.snapshot_weightings = pd.Series(1, index=self.snapshots)
+        cols = ["objective", "stores", "generators"]
+        self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
         if override_components is None:
             self.components = components
@@ -405,6 +405,35 @@ class Network(Basic):
 
     snapshots = property(lambda self: self._snapshots, set_snapshots,
                          doc="Time steps of the network")
+
+    @property
+    def snapshot_weightings(self):
+        """
+        Weightings applied to each snapshots during the optimization (LOPF).
+
+        * Objective weightings multiply the operational cost in the
+          objective function.
+
+        * Generator weightings multiply the impact of all generators
+          in global constraints, e.g. multiplier of GHG emmissions.
+
+        * Store weightings define the elapsed hours for the charge, discharge
+          standing loss and spillage of storage units and stores in order to
+          determine the state of charge.
+
+        """
+        return self._snapshot_weightings
+
+
+    @snapshot_weightings.setter
+    def snapshot_weightings(self, df):
+        assert df.index.equals(self.snapshots), "Weightings not defined for all snapshots."
+        if isinstance(df, pd.Series):
+            logger.info('Applying weightings to all columns of `snapshot_weightings`')
+            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+            self._snapshot_weightings = df
+        else:
+            self._snapshot_weightings = df
 
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",

@@ -29,7 +29,8 @@ setup(
         'tables',
         'pyomo>=5.7',
         'matplotlib',
-        'networkx>=1.10'
+        'networkx>=1.10',
+        'deprecation'
     ],
     extras_require = {
         "cartopy": ['cartopy>=0.16'],
