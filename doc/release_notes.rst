@@ -28,7 +28,7 @@ Upcoming Release
 
 * The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
-* All `pypsa` functionalities except for optimization with `pyomo` work now with multi-indexed snapshots.
+* All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
