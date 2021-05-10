@@ -334,7 +334,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
         network.snapshot_weightings.index.rename(["period", "snapshot"], inplace=True)
     else:
-        network.snapshot_weightings.index.rename("snapshot")
+        network.snapshot_weightings.index.rename("snapshot", inplace=True)
     snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
 
