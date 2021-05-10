@@ -389,7 +389,11 @@ class Network(Basic):
         -------
         None
         """
-        self._snapshots = pd.Index(value)
+        if isinstance(value, pd.MultiIndex):
+            assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
+            self._snapshots = value.rename(['period', 'snapshot'])
+        else:
+            self._snapshots = pd.Index(value, name='snapshot')
 
         self.snapshot_weightings = (
             self.snapshot_weightings.reindex(self._snapshots, fill_value=1.))

@@ -49,6 +49,8 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
+    if isinstance(snapshots, pd.MultiIndex):
+        return snapshots
     if not is_list_like(snapshots):
         return pd.Index([snapshots])
     else:

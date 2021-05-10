@@ -1437,6 +1437,9 @@ def network_lopf_build_model(network, snapshots=None, skip_pre=False,
     -------
     network.model
     """
+    if isinstance(network.snapshots, pd.MultiIndex):
+        raise NotImplementedError("Optimization with multiindexed snapshots "
+                                  "using pyomo is not supported.")
 
     if not skip_pre:
         network.determine_network_topology()

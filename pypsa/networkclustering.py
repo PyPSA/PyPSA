@@ -245,8 +245,8 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     if with_time:
-        network_c.snapshot_weightings = network.snapshot_weightings.copy()
         network_c.set_snapshots(network.snapshots)
+        network_c.snapshot_weightings = network.snapshot_weightings.copy()
 
     one_port_components = network.one_port_components.copy()
 
@@ -345,7 +345,7 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
             "or 'pip install scikit-learn'")
 
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
-    
+
     lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
     lines.weight+=0.1
     G = nx.Graph()
