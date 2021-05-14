@@ -608,7 +608,7 @@ changes to the internal API.
   :ref:`line-types`. For transformers you just need to specify the
   type, see :ref:`transformer-types`. The implementation of PyPSA's
   standard types is based on `pandapower's standard types
-  <http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_. The
+  <https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`_. The
   old interface of specifying r, x, b and g manually is still available.
 * The transformer model has been substantially overhauled, see
   :ref:`transformer-model`. The equivalent model now defaults to the
