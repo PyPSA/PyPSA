@@ -130,8 +130,7 @@ It can take the values ``onwind``, ``offwind-ac``, ``offwind-dc``, and ``solar``
 
 The wildcard can moreover be used to create technology specific figures and summaries.
 For instance ``{technology}`` can be used to plot regionally disaggregated potentials
-with the rule :mod:`plot_p_nom_max` or to summarize a particular technology's
-full load hours in various countries with the rule :mod:`build_country_flh`.
+with the rule :mod:`plot_p_nom_max`.
 
 .. _attr:
 

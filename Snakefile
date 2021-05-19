@@ -5,6 +5,9 @@
 from os.path import normpath, exists
 from shutil import copyfile
 
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+HTTP = HTTPRemoteProvider()
+
 if not exists("config.yaml"):
     copyfile("config.default.yaml", "config.yaml")
 
@@ -135,10 +138,12 @@ rule build_bus_regions:
     resources: mem=1000
     script: "scripts/build_bus_regions.py"
 
-
 if config['enable'].get('build_cutout', False):
     rule build_cutout:
-        output: directory("cutouts/{cutout}")
+        input: 
+            regions_onshore="resources/regions_onshore.geojson",
+            regions_offshore="resources/regions_offshore.geojson"
+        output: "cutouts/{cutout}.nc"
         log: "logs/build_cutout/{cutout}.log"
         benchmark: "benchmarks/build_cutout_{cutout}"
         threads: ATLITE_NPROCESSES
@@ -148,16 +153,16 @@ if config['enable'].get('build_cutout', False):
 
 if config['enable'].get('retrieve_cutout', True):
     rule retrieve_cutout:
-        output: directory(expand("cutouts/{cutouts}", **config['atlite'])),
-        log: "logs/retrieve_cutout.log"
-        script: 'scripts/retrieve_cutout.py'
+        input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True)
+        output: "cutouts/{cutout}.nc"
+        shell: "mv {input} {output}"
 
 
 if config['enable'].get('build_natura_raster', False):
     rule build_natura_raster:
         input:
             natura="data/bundle/natura/Natura2000_end2015.shp",
-            cutouts=expand("cutouts/{cutouts}", **config['atlite'])
+            cutouts=expand("cutouts/{cutouts}.nc", **config['atlite'])
         output: "resources/natura.tiff"
         log: "logs/build_natura_raster.log"
         script: "scripts/build_natura_raster.py"
@@ -165,9 +170,9 @@ if config['enable'].get('build_natura_raster', False):
 
 if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
+        input: HTTP.remote("zenodo.org/record/4706686/files/natura.tiff", keep_local=True)
         output: "resources/natura.tiff"
-        log: "logs/retrieve_natura_raster.log"
-        script: 'scripts/retrieve_natura_raster.py'
+        shell: "mv {input} {output}"
 
 
 rule build_renewable_profiles:
@@ -181,11 +186,10 @@ rule build_renewable_profiles:
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
         regions=lambda w: ("resources/regions_onshore.geojson"
-                           if w.technology in ('onwind', 'solar')
-                           else "resources/regions_offshore.geojson"),
-        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout']
-    output:
-        profile="resources/profile_{technology}.nc",
+                                   if w.technology in ('onwind', 'solar')
+                                   else "resources/regions_offshore.geojson"),
+        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout'] + ".nc"
+    output: profile="resources/profile_{technology}.nc",
     log: "logs/build_renewable_profile_{technology}.log"
     benchmark: "benchmarks/build_renewable_profiles_{technology}"
     threads: ATLITE_NPROCESSES
@@ -198,7 +202,7 @@ if 'hydro' in config['renewable'].keys():
         input:
             country_shapes='resources/country_shapes.geojson',
             eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
-            cutout="cutouts/" + config["renewable"]['hydro']['cutout']
+            cutout="cutouts/" + config["renewable"]['hydro']['cutout'] + ".nc"
         output: 'resources/profile_hydro.nc'
         log: "logs/build_hydro_profile.log"
         resources: mem=5000
@@ -388,29 +392,3 @@ rule plot_p_nom_max:
     log: "logs/plot_p_nom_max/elec_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
     script: "scripts/plot_p_nom_max.py"
 
-
-rule build_country_flh:
-    input:
-        base_network="networks/base.nc",
-        corine="data/bundle/corine/g250_clc06_V18_5.tif",
-        natura="resources/natura.tiff",
-        gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
-                         if "max_depth" in config["renewable"][w.technology].keys()
-                         else []),
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        pietzker="data/pietzker2014.xlsx",
-        regions=lambda w: ("resources/country_shapes.geojson"
-                           if w.technology in ('onwind', 'solar')
-                           else "resources/offshore_shapes.geojson"),
-        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout']
-    output:
-        area="resources/country_flh_area_{technology}.csv",
-        aggregated="resources/country_flh_aggregated_{technology}.csv",
-        uncorrected="resources/country_flh_uncorrected_{technology}.csv",
-        plot="resources/country_flh_{technology}.pdf",
-        exclusion=directory("resources/country_exclusion_{technology}")
-    log: "logs/build_country_flh_{technology}.log"
-    resources: mem=10000
-    benchmark: "benchmarks/build_country_flh_{technology}"
-    script: "scripts/build_country_flh.py"

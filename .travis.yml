@@ -29,6 +29,9 @@ before_install:
   # list packages for easier debugging
   - conda list
 
+before_script:
+  - 'echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc'
+
 script:
   - cp ./test/config.test1.yaml ./config.yaml
   - snakemake -j all solve_all_networks

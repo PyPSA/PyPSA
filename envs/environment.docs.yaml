@@ -9,7 +9,8 @@ dependencies:
   - python<=3.7
   - pip
   - pypsa>=0.17.1
-  - atlite=0.0.3
+  - atlite>=0.2.2
+  - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
   - pre-commit
 
   # Dependencies of the workflow itself
@@ -19,27 +20,13 @@ dependencies:
   - memory_profiler
   - yaml
   - pytables
-  - powerplantmatching>=0.4.3
-
-  # Second order dependencies which should really be deps of atlite
-  - xarray
-  - progressbar2
-  - pyyaml>=5.1.0
+  - powerplantmatching>=0.4.8
 
   # GIS dependencies have to come all from conda-forge
   - cartopy
-  - fiona
-  - proj
-  - pyshp
-  - geopandas
-  - rasterio
-  - shapely
-  - libgdal
+  - descartes
 
   - pip:
     - vresutils==0.3.1
-    - git+https://github.com/PyPSA/glaes.git#egg=glaes
-    - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    - cdsapi
     - sphinx
     - sphinx_rtd_theme

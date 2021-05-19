@@ -95,9 +95,12 @@ Specifies the temporal range to build an energy system model for as arguments to
 ``atlite``
 =============
 
+Define and specify the ``atlite.Cutout`` used for calculating renewable potentials and time-series. All options except for ``features`` are directly used as `cutout parameters <https://atlite.readthedocs.io/en/latest/ref_api.html#cutout>`_.
+
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 62-75
+   :start-at: atlite:
+   :end-before: renewable:
 
 .. csv-table::
    :header-rows: 1

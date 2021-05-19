@@ -43,17 +43,28 @@ import logging
 from _helpers import configure_logging
 
 import atlite
-import geokit as gk
-from pathlib import Path
+import geopandas as gpd
+import rasterio as rio
+from rasterio.features import geometry_mask
+from rasterio.warp import transform_bounds
 
 logger = logging.getLogger(__name__)
 
+
 def determine_cutout_xXyY(cutout_name):
-    cutout = atlite.Cutout(cutout_name, cutout_dir=cutout_dir)
+    cutout = atlite.Cutout(cutout_name)
+    assert cutout.crs.to_epsg() == 4326
     x, X, y, Y = cutout.extent
-    dx = (X - x) / (cutout.shape[1] - 1)
-    dy = (Y - y) / (cutout.shape[0] - 1)
+    dx, dy = cutout.dx, cutout.dy
     return [x - dx/2., X + dx/2., y - dy/2., Y + dy/2.]
+
+
+def get_transform_and_shape(bounds, res):
+    left, bottom = [(b // res)* res for b in bounds[:2]]
+    right, top = [(b // res + 1) * res for b in bounds[2:]]
+    shape = int((top - bottom) // res), int((right - left) / res)
+    transform = rio.Affine(res, 0, left, 0, -res, top)
+    return transform, shape
 
 
 if __name__ == "__main__":
@@ -62,11 +73,19 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_natura_raster')
     configure_logging(snakemake)
 
-    cutout_dir = Path(snakemake.input.cutouts[0]).parent.resolve()
-    cutout_names = {res['cutout'] for res in snakemake.config['renewable'].values()}
-    xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutout_names))
-    xXyY = min(xs), max(Xs), min(ys), max(Ys)
 
-    natura = gk.vector.loadVector(snakemake.input.natura)
-    extent = gk.Extent.from_xXyY(xXyY).castTo(3035).fit(100)
-    extent.rasterize(natura, pixelWidth=100, pixelHeight=100, output=snakemake.output[0])
+    cutouts = snakemake.input.cutouts
+    xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutouts))
+    bounds = transform_bounds(4326, 3035, min(xs), min(ys), max(Xs), max(Ys))
+    transform, out_shape = get_transform_and_shape(bounds, res=100)
+
+    # adjusted boundaries
+    shapes = gpd.read_file(snakemake.input.natura).to_crs(3035)
+    raster = ~geometry_mask(shapes.geometry, out_shape[::-1], transform)
+    raster = raster.astype(rio.uint8)
+
+    with rio.open(snakemake.output[0], 'w', driver='GTiff', dtype=rio.uint8,
+                  count=1, transform=transform, crs=3035, compress='lzw',
+                  width=raster.shape[1], height=raster.shape[0]) as dst:
+        dst.write(raster, indexes=1)
+
