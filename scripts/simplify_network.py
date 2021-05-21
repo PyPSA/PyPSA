@@ -324,6 +324,8 @@ def remove_stubs(n):
 def cluster(n, n_clusters):
     logger.info(f"Clustering to {n_clusters} buses")
 
+    focus_weights = snakemake.config.get('focus_weights', None)
+    
     renewable_carriers = pd.Index([tech
                                     for tech in n.generators.carrier.unique()
                                     if tech.split('-', 2)[0] in snakemake.config['renewable']])
@@ -337,7 +339,8 @@ def cluster(n, n_clusters):
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
     clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap=False, potential_mode=potential_mode,
-                                           solver_name=snakemake.config['solving']['solver']['name'])
+                                           solver_name=snakemake.config['solving']['solver']['name'],
+                                           focus_weights=focus_weights)
 
     return clustering.network, clustering.busmap
 
