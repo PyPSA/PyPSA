@@ -19,6 +19,7 @@ Upcoming Release
 * Fix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq (from 3.1e9 t CO2-eq). The new value represents emissions related to the electricity sector for EU+UK. The old value was ~2x too high and used when the emissions wildcard in ``{opts}`` was used.
 * Add option to include marginal costs of links representing fuel cells, electrolysis, and battery inverters 
   [`#232 <https://github.com/PyPSA/pypsa-eur/pull/232>`_].
+* Bugfix in :mod:`solve_operations_network`: optimised capacities are now fixed for all extendable links, not only HVDC links [`#244 <https://github.com/PyPSA/pypsa-eur/pull/244>`_].
 * The ``focus_weights`` are now also considered when pre-clustering in the :mod:`simplify_network` rule [`#241 <https://github.com/PyPSA/pypsa-eur/pull/241>`_].
 
 PyPSA-Eur 0.3.0 (7th December 2020)
@@ -44,6 +45,7 @@ Using the ``{opts}`` wildcard for scenarios:
   This feature is an alternative to downsampling the temporal resolution by simply averaging and
   uses the `tsam <https://tsam.readthedocs.io/en/latest/index.html>`_ package
   [`#186 <https://github.com/PyPSA/pypsa-eur/pull/186>`_].
+
 
 More OPSD integration:
 

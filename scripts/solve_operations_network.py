@@ -71,7 +71,7 @@ def set_parameters_from_optimized(n, n_optim):
             n_optim.lines[attr].reindex(lines_untyped_i, fill_value=0.)
     n.lines['s_nom_extendable'] = False
 
-    links_dc_i = n.links.index[n.links.carrier == 'DC']
+    links_dc_i = n.links.index[n.links.p_nom_extendable]
     n.links.loc[links_dc_i, 'p_nom'] = \
         n_optim.links['p_nom_opt'].reindex(links_dc_i, fill_value=0.)
     n.links.loc[links_dc_i, 'p_nom_extendable'] = False
