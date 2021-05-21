@@ -59,6 +59,8 @@ electricity:
   #   Wind: [onwind, offwind-ac, offwind-dc]
   #   Solar: [solar]
 
+simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+
 atlite:
   nprocesses: 4
   cutouts:

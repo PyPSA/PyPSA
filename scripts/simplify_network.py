@@ -98,7 +98,7 @@ from six.moves import reduce
 
 import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
-from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
+from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport, get_clustering_from_busmap, _make_consense
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +308,6 @@ def simplify_links(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
     return n, busmap
 
-
 def remove_stubs(n):
     logger.info("Removing stubs")
 
@@ -319,6 +318,46 @@ def remove_stubs(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
 
     return n, busmap
+
+def aggregate_to_substations(n):
+    logger.info("Aggregating buses that are no substations or have a no valid offshore connection")#
+
+    busmap = n.buses.index.to_series()
+
+    no_substations = list(set(n.buses.index)-set(n.generators.bus)-set(n.loads.bus))
+
+
+    index = [np.append(["Line" for c in range(len(n.lines))],
+                       ["Link" for c in range(len(n.links))]),
+             np.append(n.lines.index, n.links.index)]
+    #under_construction lines should be last choice, but weight should be < inf in case no other node is reachable, hence 1e-3
+    weight = pd.Series(np.append((n.lines.length/n.lines.s_nom.apply(lambda b: b if b>0 else 1e-3)).values,
+                                 (n.links.length/n.links.p_nom.apply(lambda b: b if b>0 else 1e-3)).values),
+                       index=index)
+
+    adj = n.adjacency_matrix(branch_components=['Line', 'Link'], weights=weight)
+
+    dist = dijkstra(adj, directed=False, indices=n.buses.index.get_indexer(no_substations))
+    dist[:, n.buses.index.get_indexer(no_substations)] = np.inf #no_substations should not be assigned to other no_substations
+
+    #restrict to same country:
+    for bus in no_substations:
+        country_buses =  n.buses[~n.buses.country.isin([n.buses.loc[bus].country])].index
+        dist[n.buses.loc[no_substations].index.get_indexer([bus]),n.buses.index.get_indexer(country_buses)] = np.inf
+        
+    assign_to = dist.argmin(axis=1)
+    busmap.loc[no_substations] = n.buses.iloc[assign_to].index
+
+    clustering = get_clustering_from_busmap(n, busmap,
+                                            bus_strategies=dict(country=_make_consense("Bus", "country")),
+                                            aggregate_generators_weighted=True,
+                                            aggregate_generators_carriers=None,
+                                            aggregate_one_ports=["Load", "StorageUnit"],
+                                            line_length_factor=1.0,
+                                            generator_strategies={'p_nom_max': 'sum'},
+                                            scale_link_capital_costs=False)
+        
+    return clustering.network, busmap
 
 
 def cluster(n, n_clusters):
@@ -357,6 +396,10 @@ if __name__ == "__main__":
     n, stub_map = remove_stubs(n)
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
+
+    if snakemake.config['simplify_to_substations']:
+        n, substation_map = aggregate_to_substations(n)
+        busmaps.append(substation_map)
 
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))

@@ -51,6 +51,8 @@ electricity:
   custom_powerplants: false # use pandas query strings here, e.g. Country in ['Germany']
   conventional_carriers: [coal, CCGT] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
+simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+
 atlite:
   nprocesses: 4
   cutouts:
