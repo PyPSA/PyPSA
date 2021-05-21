@@ -11,18 +11,20 @@ os:
 env:
   - PYTHON_VERSION="3.6"
   - PYTHON_VERSION="3.7"
-  # - PYTHON_VERSION="3.8" # until gurobi in conda https://anaconda.org/Gurobi/gurobi/files?version=9.0.0
+  - PYTHON_VERSION="3.8"
+  - PYTHON_VERSION="3.9"
 
 before_install:
   - wget https://raw.githubusercontent.com/trichter/conda4travis/latest/conda4travis.sh -O conda4travis.sh
   - source conda4travis.sh
+  # prefer mamba over conda
+  - conda install -c conda-forge mamba
   - if [ "$TRAVIS_OS_NAME" != "windows" ]; then echo "  - coincbc" >> environment.yaml; fi;
 
 install:
   - conda config --add pinned_packages python=$PYTHON_VERSION
-  - conda create -n pypsa python pip
-  - conda env update -n pypsa --file=environment.yaml
-  - conda env update -n pypsa --file=environment_dev.yaml
+  - mamba env create -n pypsa --file=environment.yaml
+  - mamba env update -n pypsa --file=environment_dev.yaml
   - conda activate pypsa
   # - conda install -q -c conda-forge python-coveralls # don't install on appveyor
   - pip install --no-cache-dir .

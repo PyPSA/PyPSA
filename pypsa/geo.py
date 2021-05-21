@@ -23,6 +23,7 @@ __author__ = "Tom Brown (FIAS)"
 __copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
 
 import numpy as np
+from deprecation import deprecated
 
 import logging
 logger = logging.getLogger(__name__)
@@ -100,12 +101,13 @@ def haversine(a, b):
     return haversine_pts(a[np.newaxis,:], b[:,np.newaxis])
 
 
-#This function follows http://toblerity.org/shapely/manual.html
-
+@deprecated(deprecated_in="0.18", removed_in="0.19")
 def area_from_lon_lat_poly(geometry):
     """
     Compute the area in km^2 of a shapely geometry, whose points are in
     longitude and latitude.
+    
+    This function follows http://toblerity.org/shapely/manual.html
 
     Parameters
     ----------

@@ -678,10 +678,16 @@ Outputs
 Utility Functions (without pyomo)
 ---------------------------------
 
+.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
+
 .. automodule:: pypsa.linopf
+   :members:
 
 
 Utility Functions (with pyomo)
 ------------------------------
 
+.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
+
 .. automodule:: pypsa.opf
+   :members:

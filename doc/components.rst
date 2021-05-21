@@ -325,7 +325,7 @@ parameters.
 
 The line type parameters in the following table and the implementation
 in PyPSA are based on `pandapower's standard types
-<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_,
+<https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`_,
 whose parameterisation is in turn loosely based on `DIgSILENT
 PowerFactory
 <http://www.digsilent.de/index.php/products-powerfactory.html>`_.

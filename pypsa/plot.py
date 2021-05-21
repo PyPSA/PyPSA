@@ -19,8 +19,6 @@
 """
 
 
-from six import string_types
-
 import pandas as pd
 import numpy as np
 import networkx as nx
@@ -168,7 +166,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
-        if boundaries:
+        if boundaries is not None:
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
@@ -218,7 +216,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
                                      360*start, 360*(start+ratio),
                                      facecolor=bus_colors[i], alpha=bus_alpha))
                 start += ratio
-        bus_collection = PatchCollection(patches, match_original=True)
+        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=n.buses.index)
