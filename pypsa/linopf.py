@@ -1070,7 +1070,10 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     s_nom_orig = n.lines.s_nom.copy()
     p_nom_orig = n.links.p_nom.copy()
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
-    n.links[['p_nom', 'p_nom_extendable']] = n.links['p_nom_opt'], False
+    for i in n.links.index:
+      if n.links.carrier == "DC":
+        n.links.loc[i,'p_nom'] = n.links.loc[i,'p_nom_opt']
+        n.links.loc[i,'p_nom_extendable'] = False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
     n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = s_nom_orig.loc[ext_i], True
