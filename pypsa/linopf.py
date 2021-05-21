@@ -1019,9 +1019,9 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     def update_line_params(n, s_nom_prev):
         factor = n.lines.s_nom_opt / s_nom_prev
         for attr, carrier in (('x', 'AC'), ('r', 'DC')):
-            ln_i = (n.lines.query('carrier == @carrier').index & ext_untyped_i)
+            ln_i = (n.lines.query('carrier == @carrier').index).intersection(ext_untyped_i)
             n.lines.loc[ln_i, attr] /= factor[ln_i]
-        ln_i = ext_i & typed_i
+        ln_i = ext_i.intersection(typed_i)
         n.lines.loc[ln_i, 'num_parallel'] = (n.lines.s_nom_opt/base_s_nom)[ln_i]
 
     def msq_diff(n, s_nom_prev):
