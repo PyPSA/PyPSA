@@ -1070,10 +1070,14 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     s_nom_orig = n.lines.s_nom.copy()
     p_nom_orig = n.links.p_nom.copy()
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
-dc_links_b = n.links.carrier == "DC"
-n.links.loc[dc_links_b, "p_nom"] = n.links.loc[dc_links_b, "p_nom_opt"]
-n.links.loc[dc_links_b, "p_nom_extendable"] = False
+    dc_links_b = n.links.carrier == "DC"
+    n.links.loc[dc_links_b, "p_nom"] = n.links.loc[dc_links_b, "p_nom_opt"]
+    n.links.loc[dc_links_b, "p_nom_extendable"] = False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
     n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = s_nom_orig.loc[ext_i], True
     n.links.loc[ext_links_i, ['p_nom', 'p_nom_extendable']] = p_nom_orig.loc[ext_links_i], True
+    ## add costs of additional infrastructure to objective value of last iteration
+    obj_links = (n.links[n.links.carrier=="DC"]['p_nom_opt'] - n.links[n.links.carrier=="DC"]['p_nom_min']) * n.links[n.links.carrier=="DC"]['capital_cost']
+    obj_lines = (n.lines['s_nom_opt'] - n.lines['s_nom_min']) * n.lines['capital_cost']
+    n.objective = n.objective + obj_lines.sum() + obj_links.sum()
