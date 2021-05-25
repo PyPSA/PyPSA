@@ -9,7 +9,7 @@ Tools for fast Linear Problem file writing. This module contains
 - solver functions which read the lp file, run the problem and return the
   solution
 
-This module supports the linear optimal power flow calculation whithout using
+This module supports the linear optimal power flow calculation without using
 pyomo (see module linopt.py)
 """
 
@@ -35,8 +35,8 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     least one of lower and upper has to be an array (including pandas) of
     shape > (1,) or axes have to define the dimensions of the variables.
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     n : pypsa.Network
     lower : pd.Series/pd.DataFrame/np.array/str/float
         lower bound(s) for the variable(s)
@@ -54,7 +54,7 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
         if one-dimensional
     axes : pd.Index or tuple of pd.Index objects, default None
         Specifies the axes and therefore the shape of the variables if bounds
-        are single strings or floats. This is helpful when mutliple variables
+        are single strings or floats. This is helpful when multiple variables
         have the same upper and lower bound.
 
 
@@ -88,8 +88,8 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     For each entry for the pd.Series of pd.DataFrame spanned by the axes
     argument the function defines a binary.
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     n : pypsa.Network
     axes : pd.Index or tuple of pd.Index objects
         Specifies the axes and therefore the shape of the variables.
@@ -119,7 +119,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     sense and right hand side (rhs). The constraints are stored in the network
     object under n.cons with key of the constraint name. If multiple constraints
     are defined at ones, only using np.arrays, then the axes argument can be used
-    for defining the axes for the constraints (this is espececially recommended
+    for defining the axes for the constraints (this is especially recommended
     for time-dependent constraints). If one of lhs, sense and rhs is a
     pd.Series/pd.DataFrame the axes argument is not necessary.
 
@@ -156,7 +156,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     during the first 10 snapshots. We then firstly get all operational variables
     for this subset and constraint there sum to less equal 100.
 
-    >>> from pypsa.linopt import get_var, linexpr, defin_constraints
+    >>> from pypsa.linopt import get_var, linexpr, define_constraints
     >>> gas_i = n.generators.query('carrier == "Natural Gas"').index
     >>> gas_vars = get_var(n, 'Generator', 'p').loc[n.snapshots[:10], gas_i]
     >>> lhs = linexpr((1, gas_vars)).sum().sum()
@@ -167,11 +167,11 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
 
     >>> cons = get_var(n, 'Generator', 'gas_power_limit')
 
-    Under the hook they are stored in n.cons.Generator.pnl.gas_power_limit.
+    Under the hood they are stored in n.cons.Generator.pnl.gas_power_limit.
     For retrieving their shadow prices add the general name of the constraint
     to the keep_shadowprices argument.
 
-    Note that this is usefull for the `extra_functionality` argument.
+    Note that this is useful for the `extra_functionality` argument.
 
     """
     con = write_constraint(n, lhs, sense, rhs, axes)
@@ -194,7 +194,7 @@ def _get_handlers(axes, *maybearrays):
 
 def write_bound(n, lower, upper, axes=None):
     """
-    Writer function for writing out mutliple variables at a time. If lower and
+    Writer function for writing out multiple variables at a time. If lower and
     upper are floats it demands to give pass axes, a tuple of (index, columns)
     or (index), for creating the variable of same upper and lower bounds.
     Return a series or frame with variable references.
@@ -210,7 +210,7 @@ def write_bound(n, lower, upper, axes=None):
 
 def write_constraint(n, lhs, sense, rhs, axes=None):
     """
-    Writer function for writing out mutliple constraints to the corresponding
+    Writer function for writing out multiple constraints to the corresponding
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
@@ -228,7 +228,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
 
 def write_binary(n, axes):
     """
-    Writer function for writing out mutliple binary-variables at a time.
+    Writer function for writing out multiple binary-variables at a time.
     According to the axes it writes out binaries for each entry the pd.Series
     or pd.DataFrame spanned by axes. Returns a series or frame with variable
     references.
@@ -411,9 +411,9 @@ def _add_reference(ref_dict, df, attr, pnl=True):
 def set_varref(n, variables, c, attr, spec=''):
     """
     Sets variable references to the network.
-    One-dimensional variable references will be collected at n.vars[c].df,
-    two-dimensional varaibles in n.vars[c].pnl
-    For example:
+    One-dimensional variable references will be collected at `n.vars[c].df`,
+    two-dimensional varaibles in `n.vars[c].pnl`. For example:
+
     * nominal capacity variables for generators are stored in
       `n.vars.Generator.df.p_nom`
     * operational variables for generators are stored in
@@ -431,10 +431,11 @@ def set_varref(n, variables, c, attr, spec=''):
 
 def set_conref(n, constraints, c, attr, spec=''):
     """
-    Sets variable references to the network.
-    One-dimensional constraint references will be collected at n.cons[c].df,
-    two-dimensional in n.cons[c].pnl
+    Sets constraint references to the network.
+    One-dimensional constraint references will be collected at `n.cons[c].df`,
+    two-dimensional in `n.cons[c].pnl`
     For example:
+
     * constraints for nominal capacity variables for generators are stored in
       `n.cons.Generator.df.mu_upper`
     * operational capacity limits for generators are stored in
@@ -451,7 +452,7 @@ def set_conref(n, constraints, c, attr, spec=''):
         _add_reference(n.cons[c], constraints, attr, pnl=pnl)
 
 def get_var(n, c, attr, pop=False):
-    '''
+    """
     Retrieves variable references for a given static or time-depending
     attribute of a given component. The function looks into n.variables to
     detect whether the variable is a time-dependent or static.
@@ -468,7 +469,7 @@ def get_var(n, c, attr, pop=False):
     -------
     >>> get_var(n, 'Generator', 'p')
 
-    '''
+    """
     vvars = n.vars[c].pnl if n.variables.pnl[c, attr] else n.vars[c].df
     return vvars.pop(attr) if pop else vvars[attr]
 
