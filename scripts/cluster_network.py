@@ -135,7 +135,7 @@ import pyomo.environ as po
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from six.moves import reduce
+from functools import reduce
 
 from pypsa.networkclustering import (busmap_by_kmeans, busmap_by_spectral_clustering,
                                      _make_consense, get_clustering_from_busmap)

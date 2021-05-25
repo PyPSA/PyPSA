@@ -74,7 +74,6 @@ import scipy as sp
 import networkx as nx
 
 from scipy.sparse import csgraph
-from six import iteritems
 from itertools import product
 
 from shapely.geometry import Point, LineString
@@ -268,13 +267,13 @@ def _apply_parameter_corrections(n):
 
     if corrections is None: return
 
-    for component, attrs in iteritems(corrections):
+    for component, attrs in corrections.items():
         df = n.df(component)
         oid = _get_oid(df)
         if attrs is None: continue
 
-        for attr, repls in iteritems(attrs):
-            for i, r in iteritems(repls):
+        for attr, repls in attrs.items():
+            for i, r in repls.items():
                 if i == 'oid':
                     r = oid.map(repls["oid"]).dropna()
                 elif i == 'index':

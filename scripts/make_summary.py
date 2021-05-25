@@ -60,7 +60,6 @@ import os
 import pypsa
 import pandas as pd
 
-from six import iteritems
 from add_electricity import load_costs, update_transmission_costs
 
 idx = pd.IndexSlice
@@ -386,7 +385,7 @@ def make_summaries(networks_dict, country='all'):
     for output in outputs:
         dfs[output] = pd.DataFrame(columns=columns,dtype=float)
 
-    for label, filename in iteritems(networks_dict):
+    for label, filename in networks_dict.items():
         print(label, filename)
         if not os.path.exists(filename):
             print("does not exist!!")
@@ -417,7 +416,7 @@ def make_summaries(networks_dict, country='all'):
 def to_csv(dfs):
     dir = snakemake.output[0]
     os.makedirs(dir, exist_ok=True)
-    for key, df in iteritems(dfs):
+    for key, df in dfs.items():
         df.to_csv(os.path.join(dir, f"{key}.csv"))
 
 

@@ -62,7 +62,6 @@ import re
 import pypsa
 import numpy as np
 import pandas as pd
-from six import iteritems
 
 from add_electricity import load_costs, update_transmission_costs
 
@@ -145,7 +144,7 @@ def average_every_nhours(n, offset):
 
     for c in n.iterate_components():
         pnl = getattr(m, c.list_name+"_t")
-        for k, df in iteritems(c.pnl):
+        for k, df in c.pnl.items():
             if not df.empty:
                 pnl[k] = df.resample(offset).mean()
 

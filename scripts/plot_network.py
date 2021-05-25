@@ -25,7 +25,6 @@ from _helpers import (load_network_for_plots, aggregate_p, aggregate_costs,
 
 import pandas as pd
 import numpy as np
-from six.moves import zip
 
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt

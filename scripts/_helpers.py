@@ -156,7 +156,6 @@ def aggregate_p_curtailed(n):
     ])
 
 def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
-    from six import iterkeys, itervalues
 
     components = dict(Link=("p_nom", "p0"),
                       Generator=("p_nom", "p"),
@@ -167,8 +166,8 @@ def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
 
     costs = {}
     for c, (p_nom, p_attr) in zip(
-        n.iterate_components(iterkeys(components), skip_empty=False),
-        itervalues(components)
+        n.iterate_components(components.keys(), skip_empty=False),
+        components.values()
     ):
         if c.df.empty: continue
         if not existing_only: p_nom += "_opt"
