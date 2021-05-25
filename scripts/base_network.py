@@ -212,6 +212,7 @@ def _add_links_from_tyndp(buses, links):
     if links_tyndp["j"].notnull().any():
         logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
         links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
+        if links_tyndp.empty: return buses, links
 
     tree = sp.spatial.KDTree(buses[['x', 'y']])
     _, ind0 = tree.query(links_tyndp[["x1", "y1"]])
