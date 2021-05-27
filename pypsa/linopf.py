@@ -1052,7 +1052,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
                         f'{max_iterations}. Stopping ...')
             break
 
-        s_nom_prev = n.lines.s_nom_opt if iteration else n.lines.s_nom
+        s_nom_prev = n.lines.s_nom_opt.copy() if iteration else n.lines.s_nom.copy()
         kwargs['warmstart'] = bool(iteration and ('basis_fn' in n.__dir__()))
         status, termination_condition = network_lopf(n, snapshots, **kwargs)
         assert status == 'ok', (f'Optimization failed with status {status}'
@@ -1066,7 +1066,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     ext_dc_links_b = n.links.p_nom_extendable & (n.links.carrier == "DC")
     s_nom_orig = n.lines.s_nom.copy()
     p_nom_orig = n.links.p_nom.copy()
-    n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
+    n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = n.lines.loc[ext_i, 's_nom_opt'], False
     n.links.loc[ext_dc_links_b, ["p_nom", "p_nom_extendable"]] = n.links.loc[ext_dc_links_b, "p_nom_opt"], False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
@@ -1074,6 +1074,6 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     n.links.loc[ext_dc_links_b, ['p_nom', 'p_nom_extendable']] = p_nom_orig.loc[ext_dc_links_b], True
     ## add costs of additional infrastructure to objective value of last iteration
     obj_links = n.links[ext_dc_links_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
-    obj_lines = n.lines[ext_i].eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
+    obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= (obj_links + obj_lines)
