@@ -1065,12 +1065,20 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
-    logger.info('Running last lopf with fixed branches')
+    logger.info('Running last lopf with fixed branches (HVDC links and HVAC lines)')
+    ext_links_b = n.links.p_nom_extendable
+    dc_links_b = n.links.carrier == "DC"
     s_nom_orig = n.lines.s_nom.copy()
+    p_nom_orig = n.links.p_nom.copy()
     n.lines[['s_nom', 's_nom_extendable']] = n.lines['s_nom_opt'], False
+    n.links.loc[dc_links_b, "p_nom"] = n.links.loc[dc_links_b, "p_nom_opt"]
+    n.links.loc[dc_links_b, "p_nom_extendable"] = False
     kwargs['warmstart'] = False
     network_lopf(n, snapshots, **kwargs)
     n.lines.loc[ext_i, ['s_nom', 's_nom_extendable']] = s_nom_orig.loc[ext_i], True
+    n.links.loc[ext_links_b & dc_links_b, ['p_nom', 'p_nom_extendable']] = p_nom_orig.loc[ext_links_b & dc_links_b], True
     ## add costs of additional infrastructure to objective value of last iteration
-    obj_lines = (n.lines['s_nom_opt'] - n.lines['s_nom_min']) * n.lines['capital_cost']
-    n.objective = n.objective + obj_lines.sum()
+    obj_links = n.links[ext_links_b & dc_links_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
+    obj_lines = n.lines[ext_i].eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
+    n.objective += obj_links + obj_lines
+    n.objective_constant -= (obj_links + obj_lines)
