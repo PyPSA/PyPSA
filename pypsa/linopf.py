@@ -214,7 +214,7 @@ def define_committable_generator_constraints(n, snapshots):
 
 def define_ramp_limit_constraints(n, sns):
     """
-    Defines ramp limits for generators wiht valid ramplimit
+    Defines ramp limits for generators with valid ramplimit
 
     """
     c = 'Generator'
@@ -679,7 +679,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
                   ('objective_f', fdo), ('binaries_f', fdi)):
         getattr(n, f).close(); delattr(n, f); os.close(fd)
 
-    # concate files
+    # concatenate files
     with open(problem_fn, 'wb') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
             with open(f,'rb') as fd:
@@ -748,7 +748,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in n.variables.index:
         map_solution(c, attr)
 
-    # if nominal capcity was no variable set optimal value to nominal
+    # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query('nominal').index.difference(n.variables.index):
         n.df(c)[attr+'_opt'] = n.df(c)[attr]
 
@@ -766,7 +766,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         sp = sp[sp.isin(keep_shadowprices, level=0)]
 
     def map_dual(c, attr):
-        # If c is a pypsa component name the dual is store at n.pnl(c)
+        # If c is a pypsa component name the dual is stored at n.pnl(c)
         # or n.df(c). For the second case the index of the constraints have to
         # be a subset of n.df(c).index otherwise the dual is stored at
         # n.duals[c].df
@@ -800,7 +800,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
-    #correct prices for snapshot weightings
+    # correct prices for snapshot weightings
     n.buses_t.marginal_price.loc[sns] = (
         n.buses_t.marginal_price.loc[sns].divide(
             n.snapshot_weightings.objective.loc[sns],axis=0))
@@ -810,11 +810,11 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         for c, attr in n.constraints.index.difference(sp):
             get_con(n, c, attr, pop)
 
-    #load
+    # load
     if len(n.loads):
         set_from_frame(n.pnl('Load'), 'p', get_as_dense(n, 'Load', 'p_set', sns))
 
-    #clean up vars and cons
+    # clean up vars and cons
     for c in list(n.vars):
         if n.vars[c].df.empty and n.vars[c].pnl == {}: n.vars.pop(c)
     for c in list(n.cons):
@@ -864,9 +864,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
-    pyomo : bool, default True
-        Whether to use pyomo for building and solving the model, setting
-        this to False saves a lot of memory and time.
     solver_logfile : None|string
         If not None, sets the logfile option of the solver.
     solver_options : dictionary
@@ -999,7 +996,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         Minimal number of iteration to run regardless whether the msq_threshold
         is already undercut
     max_iterations : integer, default 100
-        Maximal numbder of iterations to run regardless whether msq_threshold
+        Maximal number of iterations to run regardless whether msq_threshold
         is already undercut
     track_iterations: bool, default False
         If True, the intermediate branch capacities and values of the
