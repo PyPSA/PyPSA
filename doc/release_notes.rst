@@ -19,6 +19,7 @@ Upcoming Release
 * Fix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq (from 3.1e9 t CO2-eq). The new value represents emissions related to the electricity sector for EU+UK. The old value was ~2x too high and used when the emissions wildcard in ``{opts}`` was used.
 * Add option to include marginal costs of links representing fuel cells, electrolysis, and battery inverters 
   [`#232 <https://github.com/PyPSA/pypsa-eur/pull/232>`_].
+* Add option to pre-aggregate nodes without power injections (positive or negative, i.e. generation or demand) to electrically closest nodes or neighbors in ``simplify_network``. Defaults to ``False``. This affects nodes that are no substations or have no offshore connection.
 
 PyPSA-Eur 0.3.0 (7th December 2020)
 ==================================
