@@ -19,6 +19,8 @@ scenario:
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
 
+simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+
 snapshots:
   start: "2013-01-01"
   end: "2014-01-01"
@@ -58,8 +60,6 @@ electricity:
   #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
   #   Wind: [onwind, offwind-ac, offwind-dc]
   #   Solar: [solar]
-
-simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
 
 atlite:
   nprocesses: 4

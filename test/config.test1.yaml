@@ -18,6 +18,8 @@ scenario:
 
 countries: ['DE']
 
+simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+
 snapshots:
   start: "2013-03-01"
   end: "2014-04-01"
@@ -49,8 +51,6 @@ electricity:
   powerplants_filter: false # use pandas query strings here, e.g. Country not in ['Germany']
   custom_powerplants: false # use pandas query strings here, e.g. Country in ['Germany']
   conventional_carriers: [coal, CCGT] # [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
-
-simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
 
 atlite:
   nprocesses: 4
