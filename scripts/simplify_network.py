@@ -399,7 +399,7 @@ if __name__ == "__main__":
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
-    if snakemake.config['simplify_to_substations']:
+    if snakemake.config['clustering']['simplify']['to_substations']:
         n, substation_map = aggregate_to_substations(n)
         busmaps.append(substation_map)
 

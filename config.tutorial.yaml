@@ -19,7 +19,9 @@ scenario:
 
 countries: ['DE']
 
-simplify_to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+clustering:
+  simplify:
+    to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
 
 snapshots:
   start: "2013-03-01"
