@@ -1,0 +1,3 @@
+,Unit,Values,Description
+simplify,,,
+-- to_substations,bool,"{'true','false'}","Aggregates all nodes without power injection (positive or negative, i.e. demand or generation) to electrically closest ones"

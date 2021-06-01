@@ -53,41 +53,41 @@ Likewise, the example's temporal scope can be restricted (e.g. to a single month
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 22-25
+   :lines: 24-27
 
 It is also possible to allow less or more carbon-dioxide emissions. Here, we limit the emissions of Germany 100 Megatonnes per year.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 36,38
+   :lines: 38,40
 
 PyPSA-Eur also includes a database of existing conventional powerplants.
 We can select which types of powerplants we like to be included with fixed capacities:
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 36,52
+   :lines: 38,54
 
 To accurately model the temporal and spatial availability of renewables such as wind and solar energy, we rely on historical weather data.
 It is advisable to adapt the required range of coordinates to the selection of countries.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 54-62
+   :lines: 56-63
 
 We can also decide which weather data source should be used to calculate potentials and capacity factor time-series for each carrier.
 For example, we may want to use the ERA-5 dataset for solar and not the default SARAH-2 dataset.
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 64,107-108
+   :lines: 65,108-109
 
 Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 170,180-181
+   :lines: 171,181-182
 
 .. note::
 

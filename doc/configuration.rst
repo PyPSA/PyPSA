@@ -256,7 +256,7 @@ Define and specify the ``atlite.Cutout`` used for calculating renewable potentia
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 192-202
+   :lines: 208-217
 
 .. csv-table::
    :header-rows: 1
@@ -268,7 +268,7 @@ Define and specify the ``atlite.Cutout`` used for calculating renewable potentia
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 192,203-219
+   :lines: 218-227
 
 .. csv-table::
    :header-rows: 1
@@ -282,7 +282,7 @@ Define and specify the ``atlite.Cutout`` used for calculating renewable potentia
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 221-299
+   :lines: 236-314
 
 .. csv-table::
    :header-rows: 1
