@@ -319,13 +319,15 @@ def remove_stubs(n):
 
     return n, busmap
 
-def aggregate_to_substations(n):
-    logger.info("Aggregating buses that are no substations or have a no valid offshore connection")#
+def aggregate_to_substations(n, buses_i=None):
+    # can be used to aggregate a selection of buses to electrically closest neighbors
+    # if no buses are given, nodes that are no substations or without offshore connection are aggregated
+    
+    if buses_i is None:
+        logger.info("Aggregating buses that are no substations or have no valid offshore connection")
+        buses_i = list(set(n.buses.index)-set(n.generators.bus)-set(n.loads.bus))
 
     busmap = n.buses.index.to_series()
-
-    no_substations = list(set(n.buses.index)-set(n.generators.bus)-set(n.loads.bus))
-
 
     index = [np.append(["Line" for c in range(len(n.lines))],
                        ["Link" for c in range(len(n.links))]),
@@ -337,16 +339,16 @@ def aggregate_to_substations(n):
 
     adj = n.adjacency_matrix(branch_components=['Line', 'Link'], weights=weight)
 
-    dist = dijkstra(adj, directed=False, indices=n.buses.index.get_indexer(no_substations))
-    dist[:, n.buses.index.get_indexer(no_substations)] = np.inf #no_substations should not be assigned to other no_substations
+    dist = dijkstra(adj, directed=False, indices=n.buses.index.get_indexer(buses_i))
+    dist[:, n.buses.index.get_indexer(buses_i)] = np.inf #bus in buses_i should not be assigned to different bus in buses_i
 
     #restrict to same country:
-    for bus in no_substations:
+    for bus in buses_i:
         country_buses =  n.buses[~n.buses.country.isin([n.buses.loc[bus].country])].index
-        dist[n.buses.loc[no_substations].index.get_indexer([bus]),n.buses.index.get_indexer(country_buses)] = np.inf
+        dist[n.buses.loc[buses_i].index.get_indexer([bus]),n.buses.index.get_indexer(country_buses)] = np.inf
         
     assign_to = dist.argmin(axis=1)
-    busmap.loc[no_substations] = n.buses.iloc[assign_to].index
+    busmap.loc[buses_i] = n.buses.iloc[assign_to].index
 
     clustering = get_clustering_from_busmap(n, busmap,
                                             bus_strategies=dict(country=_make_consense("Bus", "country")),
