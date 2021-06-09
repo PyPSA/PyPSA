@@ -103,24 +103,12 @@ Documentation
    :maxdepth: 2
    :caption: Examples
 
-   examples/battery-electric-vehicle-charging.ipynb
-   examples/biomass-synthetic-fuels-carbon-management.ipynb
-   examples/capacity-constraint-per-bus.ipynb
-   examples/chained-hydro-reservoirs.ipynb
-   examples/chp-fixed-heat-power-ratio.ipynb
-   examples/generation-investment-screening-curve.ipynb
-   examples/lopf-with-heating.ipynb
-   examples/logging-demo.ipynb
-   examples/ac-dc-lopf.ipynb
-   examples/lopf_with_pyomo_False.ipynb
-   examples/power-to-gas-boiler-chp.ipynb
-   examples/power-to-heat-water-tank.ipynb
-   examples/replace-generator-storage-units-with-store.ipynb
-   examples/scigrid-lopf-then-pf.ipynb
-   examples/scigrid-sclopf.ipynb
-   examples/simple-electricity-market-examples.ipynb
-   examples/transformer_example.ipynb
-   examples/unit-commitment.ipynb
+
+   examples-basic
+   examples-lopf
+   examples-sector_coupling
+   examples-other
+
    
 
 
