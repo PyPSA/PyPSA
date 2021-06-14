@@ -17,6 +17,7 @@ dependencies:
   - cartopy>=0.16
   - coincbc
   - deprecation
+  - seaborn
 
   - pip:
     - .
