@@ -28,6 +28,8 @@ Upcoming Release
 
 * The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
+* All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 
@@ -606,7 +608,7 @@ changes to the internal API.
   :ref:`line-types`. For transformers you just need to specify the
   type, see :ref:`transformer-types`. The implementation of PyPSA's
   standard types is based on `pandapower's standard types
-  <http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_. The
+  <https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`_. The
   old interface of specifying r, x, b and g manually is still available.
 * The transformer model has been substantially overhauled, see
   :ref:`transformer-model`. The equivalent model now defaults to the
