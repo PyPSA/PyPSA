@@ -15,6 +15,7 @@ pyomo (see module linopt.py)
 
 from .descriptors import Dict
 import pandas as pd
+import os
 import logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
@@ -575,13 +576,17 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
         n.basis_fn = solution_fn.replace('.sol', '.bas')
         command += f'-basisO {n.basis_fn} '
 
-    result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    if not os.path.exists(solution_fn):
+        os.mknod(solution_fn)
+
+    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
     if solver_logfile is not None:
         print(result.stdout.decode('utf-8'), file=open(solver_logfile, 'w'))
+    result.wait()
 
-    f = open(solution_fn,"r")
-    data = f.readline()
-    f.close()
+    with open(solution_fn, "r") as f:
+        data = f.readline()
+
 
     if data.startswith("Optimal - objective value"):
         status = "ok"
@@ -606,7 +611,6 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     variables_b = sol.index.str[0] == 'x'
     variables_sol = sol[variables_b][2].pipe(set_int_index)
     constraints_dual = sol[~variables_b][3].pipe(set_int_index)
-
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
 
@@ -633,7 +637,8 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
 
-    subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
+    result.wait()
 
     f = open(solution_fn)
     def read_until_break(f):
