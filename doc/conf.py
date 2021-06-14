@@ -232,7 +232,6 @@ htmlhelp_basename = 'PyPSAdoc'
 
 # -- Options for nbsphinx -------------------------------------------------
 # nbsphinx_kernel_name = 'pypsa'
-nbsphinx_execute = 'never'
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None).replace("nblink","ipynb").replace("examples/", "examples/notebooks/") %}
 .. note::
