@@ -16,8 +16,10 @@ dependencies:
   - pyomo
   - cartopy>=0.16
   - coincbc
+  - glpk
   - deprecation
   - seaborn
+  - pandoc
 
   - pip:
     - .
