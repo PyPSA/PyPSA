@@ -20,7 +20,7 @@ dependencies:
   - deprecation
   - seaborn
   - pandoc
-  - nb_conda_kernels # for executing nbs
+  - ipykernel # for executing nbs
 
   - pip:
     - .
