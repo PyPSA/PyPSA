@@ -19,7 +19,7 @@ standing_loss,float,per unit,0.,Losses per hour to energy.,Input (optional)
 p,series,MW,0.,active power at bus (positive if net generation),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 e,series,MWh,0.,Energy as calculated by the OPF.,Output
-e_nom_opt,float,MW,0.,Optimised nominal energy capacity outputed by OPF.,Output
+e_nom_opt,float,MWh,0.,Optimised nominal energy capacity outputed by OPF.,Output
 mu_upper,series,currency/MWh,0.,Shadow price of upper e_nom limit,Output
 mu_lower,series,currency/MWh,0.,Shadow price of lower e_nom limit,Output
 mu_e_set,series,currency/MWh,0.,Shadow price of fixed energy level e_set,Output
