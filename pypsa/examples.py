@@ -51,7 +51,7 @@ def ac_dc_meshed(update=False):
 
 def storage_hvdc(update=False):
     name = "storage-hvdc"
-    repofile = "examples/opf-storage-hvdc/opf-storage-hvdc-data.nc"
+    repofile = "examples/opf-storage-hvdc/storage-hvdc.nc"
     path = _retrieve_if_not_local(name, repofile, update=update)
     return Network(path)
 
