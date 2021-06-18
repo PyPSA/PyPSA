@@ -1,0 +1,30 @@
+name: CI for all plattforms using conda
+
+on: [push]
+
+jobs:
+  test:
+    name:  ${{ matrix.platform }}
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        conda install -c conda-forge mamba
+        mamba env create -n pypsa --file=environment.yaml
+        mamba env update -n pypsa --file=environment_dev.yaml
+        conda activate pypsa
+        pip install --no-cache-dir .
+    - name: Test with pytest
+      run: |
+        export HDF5_USE_FILE_LOCKING=FALSE
+        pytest
+
+
+
