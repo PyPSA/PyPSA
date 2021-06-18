@@ -20,8 +20,11 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda env update --file environment.yaml --name base
-        conda env update --file environment_dev.yaml --name base
+        conda install -c conda-forge mamba
+        mamba env create -n pypsa --file=environment.yaml
+        mamba env update -n pypsa --file=environment_dev.yaml
+        conda activate pypsa
+        pip install --no-cache-dir --no-deps -e .
     - name: Lint with flake8
       run: |
         conda install flake8
@@ -31,5 +34,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        conda install pytest
         pytest
