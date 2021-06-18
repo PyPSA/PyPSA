@@ -20,6 +20,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
+        echo "  - coincbc" >> environment.yaml # only use for linux/mac
         conda install -c conda-forge mamba
         mamba env update --file environment.yaml --name base
         mamba env update --file environment_dev.yaml --name base
