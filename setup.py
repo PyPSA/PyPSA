@@ -26,6 +26,8 @@ setup(
         'numpy',
         'scipy',
         'pandas>=0.24.0',
+        'xarray',
+        'netcdf4',
         'tables',
         'pyomo>=5.7',
         'matplotlib',
