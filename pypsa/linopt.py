@@ -714,7 +714,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
-    if isinstance(log_file_or_path, io.IOBase): logfile.close()
+    if isinstance(log_file_or_path, io.IOBase): log_file_or_path.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:
