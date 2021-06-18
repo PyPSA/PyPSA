@@ -17,14 +17,11 @@ jobs:
         python-version: 3.8
     - name: Install dependencies
       run: |
-        if [[ ${{matrix.platform}} != ubuntu-latest;
+        if [[ ${{matrix.platform}} != ubuntu-latest]];
             sudo apt-get install coinor-cbc glpk-utils
         fi
-        if [[ ${{matrix.platform}} != macos-latest;
+        if [[ ${{matrix.platform}} != macos-latest]];
             brew install cbc glpk
-        fi
-        if [[ ${{matrix.platform}} != windows-latest;
-            sudo apt-get install coinor-cbc glpk-utils
         fi
         python -m pip install --upgrade pip
         pip install -e .[dev]
