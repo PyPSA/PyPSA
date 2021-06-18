@@ -30,6 +30,9 @@ Upcoming Release
 
 * All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
 
+* A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project. 
+
+
 PyPSA 0.17.1 (15th July 2020)
 =============================
 
