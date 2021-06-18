@@ -23,7 +23,10 @@ _data_dir = os.path.join(
     "pypsa-examples",
 )
 _data_dir = Path(_data_dir)
-_data_dir.mkdir(exist_ok=True)
+try:
+    _data_dir.mkdir(exist_ok=True)
+except FileNotFoundError:
+    os.makedirs(_data_dir)
 
 
 def _repo_url(master=False):
