@@ -15,7 +15,7 @@ See :ref:`upgrading-packages` and :ref:`upgrading-pypsa`.
 Consistency check on network
 ============================
 
-.. automethod:: pypsa.Network.consistency_check
+A consistency check can be performed using the function :py:meth`pypsa.Network.consistency_check`.
 
 
 Problems with power flow convergence

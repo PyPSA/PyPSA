@@ -205,7 +205,7 @@ package in conda is updated.
   according to the distribution scheme provided in the argument
   ``slack_weights``. If ``distribute_slack=False`` only the slack
   generator takes up the slack. There is further `documentation
-  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`_.
+  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`__.
 
 * Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
 
@@ -290,7 +290,7 @@ This release contains a new feature and bug fixes.
   generators being handled correctly when networks are aggregated.
 * Network.consistency_check() now only prints necessary columns when
   reporting NaN values.
-* Import from `pandapower <https://www.pandapower.org/>`_ networks has
+* Import from `pandapower <https://www.pandapower.org/>`__ networks has
   been updated to pandapower 2.0 and to include non-standard lines and
   transformers.
 

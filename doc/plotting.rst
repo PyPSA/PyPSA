@@ -16,9 +16,7 @@ Static plots of networks can be created that use the library
 `Jupyter notebooks <https://jupyter.org/>`_, but can also be used to
 generate image files.
 To plot a network with matplotlib run
-``network.plot()``.
-
-.. automethod:: pypsa.Network.plot
+``network.plot()``, see :py:meth`pypsa.Network.plot` for details.
 
 See also the `SciGRID matplotlib example
 <https://pypsa.org/examples/scigrid-lopf-then-pf.html>`_.
@@ -32,9 +30,7 @@ Interactive plots of networks can be created that use the `d3js
 <https://plot.ly/python/>`_ (this uses JavaScript and SVGs). This is
 meant for use with `Jupyter notebooks <https://jupyter.org/>`_.
 To plot a network with plotly run
-``network.iplot()``.
-
-.. automethod:: pypsa.Network.iplot
+``network.iplot()``, see :py:meth`pypsa.Network.iplot` for details. 
 
 See also the `SciGRID plotly example
 <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_.

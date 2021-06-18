@@ -62,17 +62,15 @@ The diagonal entries of the BODF are simply:
 .. math::
    BODF_{bb} = -1
 
-.. automethod:: pypsa.SubNetwork.calculate_BODF
+See :py:meth:`pypsa.SubNetwork.calculate_BODF` for further details.
 
 Linear Power Flow Contingency Analysis
 ======================================
 
-``network.lpf_contingency(snapshot, branch_outages)`` computes a base
+The function :py:meth:`pypsa.Network.lpf_contingency` computes a base
 case linear power flow (LPF) with no outages for ``snapshot``, and
 then cycles through the list of branches in ``branch_outages`` and
 computes the line flows after the outage of that branch using the BODF.
-
-.. automethod:: pypsa.Network.lpf_contingency
 
 
 Security-Constrained Linear Optimal Power Flow (SCLOPF)
@@ -84,9 +82,7 @@ the Linear Optimal Power Flow (LOPF) described in
 branches may not become overloaded after the outage of a selection of
 branches.
 
-The SCLOPF is called with the method
-
-.. automethod:: pypsa.Network.sclopf
+The SCLOPF is called with the method :py:meth`pypsa.Network.sclopf`.
 
 
 Note that
