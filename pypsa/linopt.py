@@ -46,8 +46,10 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     name : str
         general name of the variable (or component which the variable is
         referring to). The variable will then be stored under:
+
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
+
         but can easily be accessed with :func:`get_var(n, name, attr)`
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
@@ -97,8 +99,10 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     name : str
         general name of the variable (or component which the variable is
         referring to). The variable will then be stored under:
+
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
+
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
