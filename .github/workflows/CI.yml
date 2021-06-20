@@ -30,9 +30,10 @@ jobs:
       run: |
         brew install cbc glpk
     - name: Install dependencies
-      python -m pip install --upgrade pip
-      python -m pip install flake8 pytest
-      pip install -e .[dev]
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install flake8 pytest
+        pip install -e .[dev]
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
