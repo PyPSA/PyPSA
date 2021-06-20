@@ -26,24 +26,23 @@ jobs:
     #   run: |
     #     # $CONDA is an environment variable pointing to the root of the miniconda directory
     #     echo $CONDA/bin >> $GITHUB_PATH
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.1.1
-      with:
-        auto-activate-base: true
-        activate-environment: true
-        python-version: ${{ matrix.python-version }}
     - name: Add cbc to environment if not windows
       if: matrix.os != 'windows-latest'
       run: |
         echo "  - coincbc" >> environment.yaml
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.1.1
+      with:
+        activate-environment: pypsa
     - name: Install dependencies  
       run: |
+        conda config --add pinned_packages python=${{ matrix.python-version }}
         conda install -c conda-forge mamba  
-        mamba env update --file environment.yaml --name base
-        mamba env update --file environment_dev.yaml --name base
+        mamba env create --file environment.yaml --name pypsa
+        mamba env update --file environment_dev.yaml --name pypsa
         pip install --no-cache-dir --no-deps -e .
-        conda info
         conda list
+    # conda activate pypsa
     # - name: Lint with flake8
     #   run: |
     #     mamba install -c conda-forge flake8
