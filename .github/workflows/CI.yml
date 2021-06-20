@@ -28,10 +28,11 @@ jobs:
     - name: Install macos dependencies
       if: matrix.os == 'macos-latest'
       run: |
+        brew tap coin-or-tools/coinor
         brew install cbc glpk
     - name: Set up windows package manager
       if: matrix.os == 'windows-latest'
-      uses: crazy-max/ghaction-chocolatey@v1
+      uses: crazy-max/ghaction- chocolatey@v1
       with:
           args: -h
     - name: Install windows dependencies

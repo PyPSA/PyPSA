@@ -7,6 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
+      matrix:
+        python-version:
+        - 3.8
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -18,9 +25,12 @@ jobs:
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
+    - name: Add cbc to environment if not windows
+      if: matrix.os != 'windows-latest'
+      run: |
+        echo "  - coincbc" >> environment.yaml
     - name: Install dependencies
       run: |
-        echo "  - coincbc" >> environment.yaml # only use for linux/mac
         conda install -c conda-forge mamba
         mamba env update --file environment.yaml --name base
         mamba env update --file environment_dev.yaml --name base
