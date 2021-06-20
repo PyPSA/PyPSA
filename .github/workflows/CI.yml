@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [3.7, 3.8, 3.9]
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -21,13 +21,18 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Install ubuntu dependencies
+      if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install glpk-utils
-        if [ "${{ matrix.os }}" != "windows-latest" ]; then sudo apt-get install coinor-cbc; fi;
-        python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
-        pip install -e .[dev]
+        sudo apt-get install coinor-cbc glpk-utils
+    - name: Install macos dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cbc glpk
+    - name: Install dependencies
+      python -m pip install --upgrade pip
+      python -m pip install flake8 pytest
+      pip install -e .[dev]
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
