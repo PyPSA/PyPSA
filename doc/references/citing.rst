@@ -1,5 +1,5 @@
 #######################
-Citing
+Citation
 #######################
 
 
@@ -38,6 +38,8 @@ Zenodo DOI for Version 0.17.1 and onwards:
    :target: https://doi.org/10.5281/zenodo.3946412
 
 or from the overall PyPSA Zenodo DOI for Versions up to and incluing 0.17.0:
+
+|
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
    :target: https://doi.org/10.5281/zenodo.786605

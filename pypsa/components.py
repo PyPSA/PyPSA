@@ -567,7 +567,7 @@ class Network(Basic):
         Adds it to component DataFrame.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`user_guide/components`.
 
         This method is slow for many components; instead use ``madd`` or
         ``import_components_from_dataframe`` (see below).
@@ -679,7 +679,7 @@ class Network(Basic):
         subset of names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`user_guide/components`.
 
         Parameters
         ----------

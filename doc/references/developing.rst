@@ -1,6 +1,21 @@
-###############
-Release process
-###############
+#######################
+Developing
+#######################
+
+Contributing
+============
+
+We strongly welcome anyone interested in contributing to this project.
+
+Submit pull requests / issues to the `github repository <https://github.com/PyPSA/PyPSA>`_.
+
+Join the `mailing list
+<https://groups.google.com/group/pypsa>`_.
+
+
+Release Process
+===============
+
 
 * Update ``release_notes.rst``
 * Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
@@ -16,3 +31,16 @@ Release process
   will trigger `zenodo <https://zenodo.org/>`_ to archive the release
   with its own DOI.
 * Inform the PyPSA mailing list.
+
+Unit Testing
+============
+
+Unit testing is performed with ``py.test``.
+
+Tests can be found in ``pypsa/test/``.
+
+Power flow is tested against Pypower (the Python implementation of MATPOWER) using its built-in cases.
+
+Unit testing of new GitHub commits is automated with `Travis CI <https://travis-ci.org/PyPSA/PyPSA>`_.
+
+

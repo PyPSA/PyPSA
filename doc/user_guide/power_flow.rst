@@ -9,7 +9,6 @@ See the module :mod:`pypsa.pf`.
 Full non-linear power flow
 ==========================
 
-
 The non-linear power flow :meth:`.Network.pf` works for AC networks and
 by extension for DC networks too (with a work-around described below).
 
@@ -22,7 +21,6 @@ separately). If no argument is passed, it will be called on all
 ``network.snapshots``.
 
 .. autosummary:: pypsa.Network.pf
-
 
 Non-linear power flow for AC networks
 -------------------------------------
@@ -39,8 +37,6 @@ rotating angle is taken relative to the slack bus.
 
 :math:`Y_{ij}` is the bus admittance matrix, based on the branch
 impedances and any shunt admittances attached to the buses.
-
-
 
 For the slack bus :math:`i=0` it is assumed :math:`|V_0|` is given and that :math:`\theta_0 = 0`; P and Q are to be found.
 
@@ -97,8 +93,6 @@ Line model
 Lines are modelled with the standard equivalent PI model. In the
 future a model with distributed parameters may be added.
 
-
-
 If the series impedance is given by
 
 .. math::
@@ -110,7 +104,6 @@ and the shunt admittance is given by
    y = g + jb
 
 then the currents and voltages at buses 0 and 1 for a line:
-
 
 .. image:: ../img/line-equivalent.png
 
@@ -127,7 +120,6 @@ are related by
     v_0 \\ v_1
   \end{array}
     \right)
-
 
 .. _transformer-model:
 
@@ -155,11 +147,9 @@ then the user can specify the ``tap_position`` which results in a
 .. math::
   \tau = 1 + (\textrm{tap_position} - \textrm{tap_neutral})\cdot \frac{\textrm{tap_step}}{100}
 
-
 For a transformer with tap ratio :math:`\tau` on the primary side
 ``tap_side = 0`` and phase shift :math:`\theta_{\textrm{shift}}`, the
 equivalent T model is given by:
-
 
 .. image:: ../img/transformer-t-equivalent-tap-hv.png
 
@@ -169,8 +159,6 @@ equivalent T model is given by:
 
 
 .. image:: ../img/transformer-t-equivalent-tap-lv.png
-
-
 
 For the admittance matrix, the T model is transformed into a PI model
 with the wye-delta transformation.
@@ -197,8 +185,6 @@ for which the currents and voltages are related by:
     \right)
 
 
-
-
 For a transformer with tap ratio :math:`\tau` on the secondary side
 ``tap_side = 1`` and phase shift :math:`\theta_{\textrm{shift}}`, the
 equivalent PI model is given by:
@@ -219,9 +205,6 @@ for which the currents and voltages are related by:
     v_0 \\ v_1
   \end{array}
     \right)
-
-
-
 
 
 Non-linear power flow for DC networks
@@ -252,51 +235,32 @@ For the non-linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-bus.{v_nom, v_mag_pu_set (if PV generators are attached)}
-
-load.{p_set, q_set}
-
-generator.{control, p_set, q_set (for control PQ)}
-
-storage_unit.{control, p_set, q_set (for control PQ)}
-
-store.{p_set, q_set}
-
-shunt_impedance.{b, g}
-
-line.{x, r, b, g}
-
-transformer.{x, r, b, g}
-
-link.{p_set}
-
-
+* ``bus.{v_nom, v_mag_pu_set}`` (set-point only if PV generators are attached)
+* ``load.{p_set, q_set}`` 
+* ``generator.{control, p_set, q_set}``  (``q_set`` for control PQ)
+* ``storage_unit.{control, p_set, q_set }`` (``q_set`` for control PQ)
+* ``store.{p_set, q_set}`` 
+* ``shunt_impedance.{b, g}`` 
+* ``line.{x, r, b, g}`` 
+* ``transformer.{x, r, b, g}`` 
+* ``link.{p_set}`` 
 
 .. note:: Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators NOT on the buses. Buses then inherit the  control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
-
 
 .. note:: Note that for lines and transformers you MUST make sure that :math:`r+jx` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
 
-bus.{v_mag_pu, v_ang, p, q}
-
-load.{p, q}
-
-generator.{p, q}
-
-storage_unit.{p, q}
-
-store.{p, q}
-
-shunt_impedance.{p, q}
-
-line.{p0, q0, p1, q1}
-
-transformer.{p0, q0, p1, q1}
-
-link.{p0, p1}
+* ``bus.{v_mag_pu, v_ang, p, q}``
+* ``load.{p, q}``
+* ``generator.{p, q}``
+* ``storage_unit.{p, q}``
+* ``store.{p, q}``
+* ``shunt_impedance.{p, q}``
+* ``line.{p0, q0, p1, q1}``
+* ``transformer.{p0, q0, p1, q1}``
+* ``link.{p0, p1}``
 
 
 Linear power flow
@@ -342,8 +306,6 @@ The flows ``p0`` in the network branches at ``bus0`` can then be found by multip
 .. math::
    F_l = \sum_i (BK^T)_{li} \theta_i - b_l \theta_l^{\textrm{shift}}
 
-
-
 For DC networks, it is assumed for the linear power flow that voltage
 magnitude differences across branches are all small.
 
@@ -360,44 +322,28 @@ For the linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-bus.{v_nom}
+* ``bus.{v_nom}``
+* ``load.{p_set}``
+* ``generator.{p_set}``
+* ``storage_unit.{p_set}``
+* ``store.{p_set}``
+* ``shunt_impedance.{g}``
+* ``line.{x}``
+* ``transformer.{x}``
+* ``link.{p_set}``
 
-load.{p_set}
-
-generator.{p_set}
-
-storage_unit.{p_set}
-
-store.{p_set}
-
-shunt_impedance.{g}
-
-line.{x}
-
-transformer.{x}
-
-link.{p_set}
-
-.. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+.. warning:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
 
-bus.{v_mag_pu, v_ang, p}
-
-load.{p}
-
-generator.{p}
-
-storage_unit.{p}
-
-store.{p}
-
-shunt_impedance.{p}
-
-line.{p0, p1}
-
-transformer.{p0, p1}
-
-link.{p0, p1}
+* ``bus.{v_mag_pu, v_ang, p}``
+* ``load.{p}``
+* ``generator.{p}``
+* ``storage_unit.{p}``
+* ``store.{p}``
+* ``shunt_impedance.{p}``
+* ``line.{p0, p1}``
+* ``transformer.{p0, p1}``
+* ``link.{p0, p1}``
 

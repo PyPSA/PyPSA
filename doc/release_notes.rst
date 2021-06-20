@@ -1,5 +1,5 @@
 #######################
-Release Notes
+Releases
 #######################
 
 Upcoming Release
@@ -57,7 +57,7 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * Add compatibility for Pyomo 5.7. This is also the new minimum requirement.
 
-* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in ``pypsa.linopf``,
+* Fixed bug when saving dual variables of the line volume limit. Now using dual from the second last iteration in :mod:`pypsa.linopf`,
   because last iteration returns NaN (no optimisation of line capacities in final iteration).
 
 * Added tracking of iterations of global constraints in the optimisation.
@@ -354,7 +354,7 @@ internal API changes.
 
 * If you want to define your own components and override the standard
   functionality of PyPSA, you can now override the standard components
-  by passing pypsa.Network() the arguments ``override_components`` and
+  by passing :class:`pypsa.Network` the arguments ``override_components`` and
   ``override_component_attrs``, see the section on
   :ref:`custom_components`. There are examples for defining new
   components in the git repository in ``examples/new_components/``,
@@ -702,7 +702,7 @@ particularly regarding time-varying component attributes.
   switches and print statements have been removed.
 * There are now more warnings.
 * You can call ``network.consistency_check()`` to make sure all your
-  components are well defined; see :doc:`troubleshooting`.
+  components are well defined; see :doc:`references/troubleshooting`.
 
 
 All `examples <http://www.pypsa.org/examples/>`_ have been updated to

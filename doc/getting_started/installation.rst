@@ -167,5 +167,5 @@ do at the command line::
 
     pip install -U pypsa
 
-Don't forget to read the :doc:`../help_references/release_notes` regarding API changes
+Don't forget to read the :doc:`../release_notes` regarding API changes
 that might require you to update your code.

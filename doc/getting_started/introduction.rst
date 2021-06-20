@@ -37,17 +37,6 @@ Functionality
   <http://www.pypsa.org/examples/>`_
 
 
-**Other complementary libraries:**
-
-* `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
-  detailed modelling of distribution grids, short-circuit
-  calculations, unbalanced load flow and more
-* `PowerDynamics.jl
-  <https://github.com/JuliaEnergy/PowerDynamics.jl>`_ for dynamic
-  modelling of power grids at time scales where differential equations are relevant
-
-
-
 Screenshots
 ===========
 
@@ -86,8 +75,6 @@ example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
 
 
 
-
-
 What PyPSA uses under the hood
 ===============================
 
@@ -122,7 +109,7 @@ equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/s
 Other comparable software
 =========================
 
-For a full list see :doc:`../help_references/comparable_software`.
+For a full list see :doc:`../references/comparable_software`.
 
 PyPSA is not as fully featured as other power system simulation tools
 such as the Matlab-based free software `PSAT
@@ -143,16 +130,15 @@ DataFrames instead of numpy arrays), support for time-varying data
 inputs and support for multiply-connected networks using both AC
 and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 
-Unit testing
-============
+Other complementary libraries:
 
-Unit testing is performed with ``py.test``.
+* `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
+  detailed modelling of distribution grids, short-circuit
+  calculations, unbalanced load flow and more
 
-Tests can be found in ``pypsa/test/``.
-
-Power flow is tested against Pypower (the Python implementation of MATPOWER) using its built-in cases.
-
-Unit testing of new GitHub commits is automated with `Travis CI <https://travis-ci.org/PyPSA/PyPSA>`_.
+* `PowerDynamics.jl
+  <https://github.com/JuliaEnergy/PowerDynamics.jl>`_ for dynamic
+  modelling of power grids at time scales where differential equations are relevant
 
 
 Target user group
@@ -163,9 +149,3 @@ fast, easy-to-use and transparent tool for power system
 analysis. PyPSA is free software and can be arbitrarily extended.
 
 
-
-Licence
-=======
-
-PyPSA is released under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.

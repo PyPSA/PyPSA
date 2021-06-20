@@ -52,7 +52,7 @@ for more details).
 .. autosummary:: pypsa.Network.lopf
 
 
-  Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
+Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
 
 
 
@@ -207,7 +207,7 @@ Generator unit commitment constraints
    
    pypsa.opf.define_generator_variables_constraints
    pypsa.linopf.define_committable_generator_constraints
-   pypsa.linopf.define_generators_status_variables
+   pypsa.linopf.define_generator_status_variables
 
 .. important::
    Unit commitment constraints will only be build fully if pyomo is set to True.
@@ -481,7 +481,7 @@ Controllable branch flows: links
 
 .. autosummary::
    
-   pypsa.opf.define_controllable_branch_flows
+   pypsa.opf.define_link_flows
    pypsa.opf.define_branch_extension_variables
 
 

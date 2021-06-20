@@ -5,11 +5,9 @@ Help and References
    
 .. toctree::
 
-   release_notes
+   citing
    troubleshooting
    comparable_software
-   contributing
-   citing
    mailing_list
+   developing
    users
-   release_process

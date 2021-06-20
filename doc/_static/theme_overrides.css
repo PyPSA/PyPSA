@@ -1,4 +1,4 @@
-.wy-side-nav-search {
+/* .wy-side-nav-search {
     background-color: #eeeeee;
 }
 
@@ -48,7 +48,7 @@
 
 .wy-nav-content a.reference {
     color: rgb(34, 97, 156);
-}
+} */
 
 
 /* override table width restrictions */
@@ -65,6 +65,6 @@
         overflow: visible !important;
     }
     .wy-nav-content {
-        max-width: 910px !important;
+        max-width: 100px !important;
     }
 }

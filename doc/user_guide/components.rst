@@ -47,9 +47,9 @@ For functions such as :doc:`power_flow` and :doc:`optimal_power_flow` the inputs
 Network
 =======
 
-The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.lopf()`` and
-``network.pf()``.
+The :class:`pypsa.Network` is the overall container for all components. It also
+has the major functions as methods, such as :meth:`.Network.lopf` and
+:meth:`.Network.pf`.
 
 .. csv-table::
    :header-rows: 1
@@ -94,8 +94,7 @@ energy conservation for all elements feeding in and out of it
 
 .. image:: ../img/buses.png
 
-
-
+|
 
 .. csv-table::
    :header-rows: 1
@@ -171,12 +170,7 @@ Generators with static limits are like controllable conventional
 generators which can dispatch anywhere between ``p_nom*p_min_pu`` and
 ``p_nom*p_max_pu`` at all times. The static factor ``p_max_pu``,
 stored at ``network.generator.loc[gen_name,"p_max_pu"]`` essentially
-acts like a de-rating factor. In the following example ``p_max_pu =
-0.9`` and ``p_min_pu = 0``. Since ``p_nom`` is 12000 MW, the maximum
-dispatchable active power is 0.9*12000 MW = 10800 MW.
-
-.. image:: ../img/nuclear-dispatch.png
-
+acts like a de-rating factor. 
 
 Generators with time-varying limits are like variable
 weather-dependent renewable generators. The time series ``p_max_pu``,
@@ -184,18 +178,12 @@ stored as a series in ``network.generators_t.p_max_pu[gen_name]``,
 dictates the active power availability for each snapshot per unit of
 the nominal power ``p_nom`` and another time series ``p_min_pu`` which
 dictates the minimum dispatch. These time series can take values
-between 0 and 1, e.g. ``network.generators_t.p_max_pu[gen_name]``
-could be
-
-.. image:: ../img/p_max_pu.png
+between 0 and 1.
 
 This time series is then multiplied by ``p_nom`` to get the available
 power dispatch, which is the maximum that may be dispatched. The
 actual dispatch ``p``, stored in ``network.generators_t.p[gen_name]``,
-may be below this value, e.g.
-
-.. image:: ../img/scigrid-curtailment.png
-
+may be below this value.
 
 For the implementation of unit commitment, see :ref:`unit-commitment`.
 
@@ -500,7 +488,7 @@ Custom Components
 
 If you want to define your own components and override the standard
 functionality of PyPSA, you can easily override the standard
-components by passing pypsa.Network() the arguments
+components by passing :class:`pypsa.Network` the arguments
 ``override_components`` and ``override_component_attrs``.
 
 For this network, these will replace the standard definitions in
@@ -509,13 +497,13 @@ For this network, these will replace the standard definitions in
 repository CSV files ``pypsa/components.csv`` and
 ``pypsa/component_attrs/*.csv``.
 
-``components`` is a pandas.DataFrame with the component ``name``,
+``components`` is a ``pandas.DataFrame`` with the component ``name``,
 ``list_name`` and ``description``. ``component_attrs`` is a
-pypsa.descriptors.Dict of pandas.DataFrame with the attribute
-properties for each component.  Just follow the formatting for the
+:class:`.descriptors.Dict` of ``pandas.DataFrame`` with the attribute
+properties for each component. Just follow the formatting for the
 standard components.
 
-There are examples for defining new components in the git repository
+There are examples for defining new components in the ``git`` repository
 in ``examples/new_components/``, including an example of
 overriding e.g. :meth:`.Network.lopf` for functionality for
 combined-heat-and-power (CHP) plants.

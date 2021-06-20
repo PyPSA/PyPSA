@@ -1,7 +1,3 @@
-.. PyPSA documentation master file, created by
-   sphinx-quickstart on Tue Jan  5 10:04:42 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 PyPSA: Python for Power System Analysis
 =======================================
@@ -42,8 +38,8 @@ and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
 
-This project is maintained by the `Energy System Modelling
-group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for
+This project is maintained by the energy system modelling
+group at the `Institute for
 Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
@@ -53,12 +49,20 @@ Previous versions were developed by the `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
-`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
+`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ 
+as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
 .. toctree::
     :hidden:
 
     getting_started/index
     user_guide/index
-    help_references/index
     api_reference/index
+    release_notes
+    references/index
+
+Licence
+=======
+
+PyPSA is released under the `GPLv3
+<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
