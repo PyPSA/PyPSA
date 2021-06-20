@@ -8,11 +8,12 @@ on: [push]
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: [3.7, 3.8, 3.9]
+        os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -22,7 +23,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        sudo apt-get install coinor-cbc glpk-utils
+        sudo apt-get install glpk-utils
+        if [ "${{ matrix.os }}" != "windows-latest" ]; then sudo apt-get install coinor-cbc; fi;
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         pip install -e .[dev]
