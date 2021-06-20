@@ -41,9 +41,11 @@ jobs:
         mamba env update --file environment.yaml --name base
         mamba env update --file environment_dev.yaml --name base
         pip install --no-cache-dir --no-deps -e .
+        conda info
+        conda list
     - name: Lint with flake8
       run: |
-        conda install flake8
+        mamba install -c conda-forge flake8
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Test with pytest
