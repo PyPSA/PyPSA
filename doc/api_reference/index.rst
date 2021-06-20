@@ -19,3 +19,4 @@ API
     opf
     plot
     geo
+    networkclustering

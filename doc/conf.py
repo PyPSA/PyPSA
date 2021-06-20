@@ -36,7 +36,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
-    'sphinx_panels',
+    'autodocsumm',
 #    'sphinx.ext.pngmath',
 #    'sphinxcontrib.tikz',
     #'rinoh.frontend.sphinx',
@@ -45,6 +45,9 @@ extensions = [
 
 autodoc_default_flags = ['members']
 autosummary_generate = True
+autodoc_default_options = {
+    'autosummary': True,
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -138,8 +141,8 @@ html_theme = 'pydata_sphinx_theme'
 # pydata theme
 html_theme_options = {
     "github_url": "https://github.com/pypsa/pypsa",
-    "show_toc_level": 2,
-    "collapse_navigation": True,
+    "show_toc_level": 3,
+    "collapse_navigation": False,
     "navigation_depth": 2
 }
 

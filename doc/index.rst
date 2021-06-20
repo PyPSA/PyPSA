@@ -2,6 +2,15 @@
 PyPSA: Python for Power System Analysis
 =======================================
 
+.. toctree::
+    :hidden:
+
+    getting_started/index
+    user_guide/index
+    api_reference/index
+    release_notes
+    references/index
+
 .. image:: https://img.shields.io/pypi/v/pypsa.svg
     :target: https://pypi.python.org/pypi/pypsa
     :alt: PyPI version
@@ -28,15 +37,16 @@ PyPSA: Python for Power System Analysis
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
 
-PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
-
 PyPSA is a `free software
 <http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
-to scale well with large networks and long time series.
+to scale well with large networks and long time series. It is pronounced "pipes-ah".
+
+Team and History
+================
 
 This project is maintained by the energy system modelling
 group at the `Institute for
@@ -51,15 +61,6 @@ at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 `German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ 
 as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
-
-.. toctree::
-    :hidden:
-
-    getting_started/index
-    user_guide/index
-    api_reference/index
-    release_notes
-    references/index
 
 Licence
 =======
