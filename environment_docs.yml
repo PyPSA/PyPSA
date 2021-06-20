@@ -21,4 +21,5 @@ dependencies:
   - pip:
     - .
     - sphinx
-    - sphinx_rtd_theme
+    - pydata-sphinx-theme
+    - autodocsumm

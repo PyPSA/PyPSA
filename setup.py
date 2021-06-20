@@ -34,7 +34,7 @@ setup(
     ],
     extras_require = {
         "cartopy": ['cartopy>=0.16'],
-        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"],
+        "docs": ["numpydoc", "sphinx", "pydata-sphinx-theme", "autodocsumm"],
         'gurobipy':['gurobipy']
     },
     classifiers=[
