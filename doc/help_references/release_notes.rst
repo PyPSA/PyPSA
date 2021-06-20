@@ -471,7 +471,7 @@ This release contains new features but no changes to existing APIs.
   easily zoom in and out on the network. See the `SciGRID example
   <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_ for
   a showcase of this feature and also the (sparse) documentation
-  :doc:`plotting`.
+  :doc:`../user_guide/plotting`.
 * There is a new function ``network.madd()`` for adding multiple new
   components to the network. This is significantly faster than
   repeatedly calling ``network.add()`` and uses the functions
@@ -635,7 +635,7 @@ changes to the internal API.
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
   descriptions.  These CSVs are also sourced for the documentation in
-  :doc:`components`, so the documentation will always be up-to-date.
+  :doc:`../user_guide/components`, so the documentation will always be up-to-date.
 * All examples have been updated appropriately.
 
 
@@ -753,8 +753,7 @@ may also be removed; see below.
 All `examples <http://www.pypsa.org/examples/>`_ have been updated to
 accommodate the changes listed below.
 
-Sector coupling
----------------
+**Sector coupling**
 
 * components, opt: A new ``Store`` component has been introduced which
   stores energy, inheriting the energy carrier from the bus to which
@@ -778,8 +777,7 @@ Sector coupling
   which were deprecated in 0.5.0, have been now completely
   removed. Please update your old code to use ``Link`` instead.
 
-Downgrading object interface
-----------------------------
+**Downgrading object interface**
 
 The intention is to have only the pandas DataFrame interface for
 accessing component attributes, to make the code simpler. The
@@ -794,8 +792,7 @@ may be removed altogether.
 
 * components: ``network.add()`` no longer returns the object.
 
-Other
------
+**Other**
 
 * components, opf: Unlimited upper bounds for
   e.g. ``generator.p_nom_max`` or ``line.s_nom_max`` were previous set
@@ -988,21 +985,3 @@ variables was introduced. This replaced the manual attachment of
 pandas.DataFrames per time-dependent variable as attributes of the
 main component pandas.DataFrame.
 
-
-Release process
-===============
-
-* Update ``release_notes.rst``
-* Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
-* ``git commit`` and put release notes in commit message
-* ``git tag v0.x.0``
-* ``git push`` and  ``git push --tags``
-* To upload to `PyPI <https://pypi.org/>`_, run ``python setup.py
-  sdist``, then ``twine check dist/pypsa-0.x.0.tar.gz`` and ``twine
-  upload dist/pypsa-0.x.0.tar.gz``
-* To update to conda-forge, check the pull request generated at the `feedstock repository
-  <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
-  will trigger `zenodo <https://zenodo.org/>`_ to archive the release
-  with its own DOI.
-* Inform the PyPSA mailing list.

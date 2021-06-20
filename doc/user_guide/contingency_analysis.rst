@@ -3,7 +3,7 @@ Contingency Analysis
 ######################
 
 
-See the module ``pypsa.contingency``.
+See the module :mod:`pypsa.contingency`.
 
 Contingency analysis is concerned with the behaviour of the power
 system after contingencies such as the outage of particular branches.
@@ -15,9 +15,9 @@ outages may be added in the future.
 Branch Outage Distribution Factors (BODF)
 =========================================
 
-``sub_network.caculate_BODF()`` calculates the matrix of Branch Outage
+:meth:`.SubNetwork.calculate_BODF()` calculates the matrix of Branch Outage
 Distribution Factors (BODF) and stores it as
-``sub_network.BODF``. (BODF are also called Line Outage Distribution
+:attr:`.SubNetwork.BODF`. (BODF are also called Line Outage Distribution
 Factors (LODF) in the literature, but in PyPSA other passive branches
 such as transformers are also included.)
 
@@ -62,7 +62,7 @@ The diagonal entries of the BODF are simply:
 .. math::
    BODF_{bb} = -1
 
-.. automethod:: pypsa.SubNetwork.calculate_BODF
+.. autosummary:: pypsa.SubNetwork.calculate_BODF
 
 Linear Power Flow Contingency Analysis
 ======================================
@@ -72,7 +72,7 @@ case linear power flow (LPF) with no outages for ``snapshot``, and
 then cycles through the list of branches in ``branch_outages`` and
 computes the line flows after the outage of that branch using the BODF.
 
-.. automethod:: pypsa.Network.lpf_contingency
+.. autosummary:: pypsa.Network.lpf_contingency
 
 
 Security-Constrained Linear Optimal Power Flow (SCLOPF)
@@ -86,7 +86,7 @@ branches.
 
 The SCLOPF is called with the method
 
-.. automethod:: pypsa.Network.sclopf
+.. autosummary:: pypsa.Network.sclopf
 
 
 Note that

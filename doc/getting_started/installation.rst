@@ -1,6 +1,6 @@
-################
- Installation
-################
+############
+Installation
+############
 
 
 Getting Python
@@ -24,7 +24,7 @@ accidentally trash something.
 Getting a solver for linear optimisation
 ========================================
 
-PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
+PyPSA passes optimisation problems for :doc:`   ` to an
 external solver. PyPSA is known to work with the free software
 
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
@@ -167,5 +167,5 @@ do at the command line::
 
     pip install -U pypsa
 
-Don't forget to read the :doc:`release_notes` regarding API changes
+Don't forget to read the :doc:`../help_references/release_notes` regarding API changes
 that might require you to update your code.

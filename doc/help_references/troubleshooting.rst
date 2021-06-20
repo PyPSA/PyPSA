@@ -15,13 +15,13 @@ See :ref:`upgrading-packages` and :ref:`upgrading-pypsa`.
 Consistency check on network
 ============================
 
-.. automethod:: pypsa.Network.consistency_check
+.. autosummary:: pypsa.Network.consistency_check
 
 
 Problems with power flow convergence
 ====================================
 
-If your ``network.pf()`` is not converging there are two possible reasons:
+If your :meth:`.Network.pf()` is not converging there are two possible reasons:
 
 * The problem you have defined is not solvable (e.g. because in
   reality you would have a voltage collapse)
@@ -37,7 +37,7 @@ There are some steps you can take to distinguish these two cases:
   If your units are out by a factor 1000
   (e.g. using kW instead of MW) don't be surprised if your problem is
   no longer solvable.
-* Check with a linear power flow ``network.lpf()`` that all voltage
+* Check with a linear power flow :meth:`.Network.lpf` that all voltage
   angles differences across branches are less than 40 degrees. You can do this with the following code:
 
 .. code:: python
@@ -72,12 +72,12 @@ There are some steps you can take to distinguish these two cases:
 Problems with optimisation convergence
 ======================================
 
-If your ``network.lopf()`` is not converging here are some suggestions:
+If your :meth:`.Network.lopf` is not converging here are some suggestions:
 
-* Very small non-zero values, for example in
+* Very small non-zero values, for example in    
   ``network.generators_t.p_max_pu`` can confuse the
   optimiser. Consider e.g. removing values smaller than 0.001 with
-  ``numpy.clip``.
+  `numpy.clip``.
 * Open source solvers like GLPK and clp struggle with large
   problems. Consider switching to a commerical solver like Gurobi,
   CPLEX or Xpress.
@@ -98,9 +98,9 @@ data. They are all defined as functions to make this clear.
 
 For example:
 
-* ``network.branches()`` returns a DataFrame which is a concatenation
+* :meth:`.Network.branches` returns a DataFrame which is a concatenation
   of ``network.lines`` and ``network.transformers``
-* ``sub_network.generators()`` returns a DataFrame consisting of
+* :meth:`.SubNetwork.generators()` returns a DataFrame consisting of
   generators in ``sub_network``
 
 

@@ -6,7 +6,7 @@
 Network object is the overall container
 =======================================
 
-The ``pypsa.Network`` is an overall container for all network
+The `:class:`pypsa.Network` is an overall container for all network
 components; components cannot exist without a network.
 
 It is also the object on which calculations, such as power flow and
@@ -25,7 +25,7 @@ The bus's role is to enforce energy conservation for all elements
 feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
 
-.. image:: img/buses.png
+.. image:: ../img/buses.png
 
 
 Energy flow in the model
@@ -147,7 +147,7 @@ No GUI: Use Jupyter notebooks
 =============================
 
 PyPSA has no Graphical User Interface (GUI). However it has features
-for plotting time series and networks (e.g. ``network.plot()``), which
+for plotting time series and networks (e.g. :meth:`.Network.plot()`), which
 works especially well in combination with `Jupyter notebooks
 <http://jupyter.org/>`_.
 
@@ -168,18 +168,18 @@ The units for physical quantities are chosen for easy user input.
 The units follow the general rules:
 
 Power: MW/MVA/MVar (unless per unit of nominal power,
-e.g. generator.p_max_pu for variable generators is per unit of
-generator.p_nom)
+e.g. ``network.generators.p_max_pu`` for variable generators is per unit of
+``network.generators.p_nom``)
 
 Time: h
 
 Energy: MWh
 
-Voltage: kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc.
+Voltage: kV phase-phase for ``network.buses.v_nom``; per unit for ``v_mag_pu``, ``v_mag_pu_set``, ``v_mag_pu_min`` etc.
 
-Angles: radians, except transformer.phase_shift which is in degrees for easy input
+Angles: radians, except ``network.transformers.phase_shift`` which is in degrees for easy input
 
-Impedance: Ohm, except transformers which are pu, using transformer.s_nom for the base power
+Impedance: Ohm, except transformers which are pu, using ``network.transformers.s_nom`` for the base power
 
 CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of energy carrier
 
@@ -192,17 +192,17 @@ Sign Conventions
 The sign convention in PyPSA follows other major software packages,
 such as MATPOWER, PYPOWER and DIgSILENT PowerFactory.
 
-* The power (p,q) of generators or storage units is positive if the
+* The power (``p``,``q``) of generators or storage units is positive if the
   asset is injecting power into the bus, negative if withdrawing power
   from bus.
-* The power (p,q) of loads is positive if withdrawing power from bus, negative if injecting power into bus.
-* The power (p0,q0) at bus0 of a branch is positive if the branch is
-  withdrawing power from bus0, i.e. bus0 is injecting into branch
-* Similarly the power (p1,q1) at bus1 of a branch is positive if the
-  branch is withdrawing power from bus1, negative if the branch is
-  injecting into bus1
-* If p0 > 0 and p1 < 0 for a branch then active power flows from bus0
-  to bus1; p0+p1 > 0 is the active power losses for this direction of
+* The power (``p``,``q``) of loads is positive if withdrawing power from bus, negative if injecting power into bus.
+* The power (``p0``,``q0``) at ``bus0`` of a branch is positive if the branch is
+  withdrawing power from ``bus0``, i.e. ``bus0`` is injecting into branch
+* Similarly the power (``p1``,``q1``) at ``bus1`` of a branch is positive if the
+  branch is withdrawing power from ``bus1``, negative if the branch is
+  injecting into ``bus1``
+* If ``p0 > 0`` and ``p1 < 0`` for a branch then active power flows from ``bus0``
+  to ``bus1``; ``p0+p1 > 0`` is the active power losses for this direction of
   power flow.
 
 AC/DC Terminology
@@ -227,8 +227,8 @@ All equations are listed in the section :doc:`power_flow`.
 Set points are stored separately from actual dispatch points
 ============================================================
 
-Dispatchable generators have a p_set series which is separate from the
-calculated active power series p, since the operators's intention may
+Dispatchable generators have a ``p_set`` series which is separate from the
+calculated active power series ``p``, since the operators's intention may
 be different from what is calculated (e.g. when using distributed
 slack for the active power).
 

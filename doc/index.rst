@@ -55,74 +55,10 @@ at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
 `German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
-
-Documentation
-=============
-
-**Getting Started**
-
-* :doc:`introduction`
-* :doc:`installation`
-* :doc:`quick_start`
-* :doc:`examples`
-
 .. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: Getting Started
+    :hidden:
 
-   introduction
-   installation
-   quick_start
-   examples
-
-**User Guide**
-
-* :doc:`design`
-* :doc:`components`
-* :doc:`import_export`
-* :doc:`power_flow`
-* :doc:`optimal_power_flow`
-* :doc:`contingency_analysis`
-* :doc:`plotting`
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: User Guide
-
-   design
-   components
-   import_export
-   power_flow
-   optimal_power_flow
-   contingency_analysis
-   plotting
-
-
-**Help & References**
-
-* :doc:`release_notes`
-* :doc:`api_reference`
-* :doc:`troubleshooting`
-* :doc:`comparable_software`
-* :doc:`contributing`
-* :doc:`citing`
-* :doc:`unit_testing`
-* :doc:`mailing_list`
-* :doc:`users`
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: Help & References
-
-   release_notes
-   api_reference
-   troubleshooting
-   comparable_software
-   contributing
-   citing
-   unit_testing
-   mailing_list
-   users
+    getting_started/index
+    user_guide/index
+    help_references/index
+    api_reference/index

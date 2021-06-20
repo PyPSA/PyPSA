@@ -3,17 +3,17 @@ Power Flow
 ######################
 
 
-See the module ``pypsa.pf``.
+See the module :mod:`pypsa.pf`.
 
 
 Full non-linear power flow
 ==========================
 
 
-The non-linear power flow ``network.pf()`` works for AC networks and
+The non-linear power flow :meth:`.Network.pf` works for AC networks and
 by extension for DC networks too (with a work-around described below).
 
-The non-linear power flow ``network.pf()`` can be called for a
+The non-linear power flow :meth:`.Network.pf` can be called for a
 particular ``snapshot`` as ``network.pf(snapshot)`` or on an iterable
 of ``snapshots`` as ``network.pf(snapshots)`` to calculate the
 non-linear power flow on a selection of snapshots at once (which is
@@ -21,8 +21,7 @@ more performant than calling ``network.pf`` on each snapshot
 separately). If no argument is passed, it will be called on all
 ``network.snapshots``.
 
-.. automethod:: pypsa.Network.pf
-
+.. autosummary:: pypsa.Network.pf
 
 
 Non-linear power flow for AC networks
@@ -113,7 +112,7 @@ and the shunt admittance is given by
 then the currents and voltages at buses 0 and 1 for a line:
 
 
-.. image:: img/line-equivalent.png
+.. image:: ../img/line-equivalent.png
 
 are related by
 
@@ -162,14 +161,14 @@ For a transformer with tap ratio :math:`\tau` on the primary side
 equivalent T model is given by:
 
 
-.. image:: img/transformer-t-equivalent-tap-hv.png
+.. image:: ../img/transformer-t-equivalent-tap-hv.png
 
 For a transformer with tap ratio :math:`\tau` on the secondary side
 ``tap_side = 1`` and phase shift :math:`\theta_{\textrm{shift}}`, the
 equivalent T model is given by:
 
 
-.. image:: img/transformer-t-equivalent-tap-lv.png
+.. image:: ../img/transformer-t-equivalent-tap-lv.png
 
 
 
@@ -181,7 +180,7 @@ For a transformer with tap ratio :math:`\tau` on the primary side
 equivalent PI model is given by:
 
 
-.. image:: img/transformer-pi-equivalent-tap-hv.png
+.. image:: ../img/transformer-pi-equivalent-tap-hv.png
 
 for which the currents and voltages are related by:
 
@@ -205,7 +204,7 @@ For a transformer with tap ratio :math:`\tau` on the secondary side
 equivalent PI model is given by:
 
 
-.. image:: img/transformer-pi-equivalent-tap-lv.png
+.. image:: ../img/transformer-pi-equivalent-tap-lv.png
 
 for which the currents and voltages are related by:
 
@@ -234,7 +233,7 @@ AC networks, with the difference that all quantities are real.
 To solve the non-linear equations for a DC network, ensure that the
 series reactance :math:`x` and shunt susceptance :math:`b` are zero
 for all branches, pick a Slack bus (where :math:`V_0 = 1`) and set all
-other buses to be 'PQ' buses. Then execute ``network.pf()``.
+other buses to be 'PQ' buses. Then execute :meth:`.Network.pf`.
 
 The voltage magnitudes then satisfy at each bus :math:`i`:
 
@@ -303,7 +302,7 @@ link.{p0, p1}
 Linear power flow
 =================
 
-The linear power flow ``network.lpf()`` can be called for a
+The linear power flow :meth:`.Network.lpf` can be called for a
 particular ``snapshot`` as ``network.lpf(snapshot)`` or on an iterable
 of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
 linear power flow on a selection of snapshots at once (which is
@@ -311,7 +310,7 @@ more performant than calling ``network.lpf`` on each snapshot
 separately). If no argument is passed, it will be called on all
 ``network.snapshots``.
 
-.. automethod:: pypsa.Network.lpf
+.. autosummary:: pypsa.Network.lpf
 
 For AC networks, it is assumed for the linear power flow that reactive
 power decouples, there are no voltage magnitude variations, voltage
@@ -402,11 +401,3 @@ transformer.{p0, p1}
 
 link.{p0, p1}
 
-
-Utility Functions
-=================
-
-.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
-
-.. automodule:: pypsa.pf
-    :members:

@@ -7,7 +7,7 @@ PyPSA represents the power system using the following components:
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/components.csv
+   :file: ../../pypsa/components.csv
 
 This table is also available as a dictionary within each network
 object as ``network.components``.
@@ -53,7 +53,7 @@ has the major functions as methods, such as ``network.lopf()`` and
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/networks.csv
+   :file: ../../pypsa/component_attrs/networks.csv
 
 
 Sub-Network
@@ -75,12 +75,12 @@ The power flow in sub-networks is determined by the passive flow
 through passive branches due to the impedances of the passive branches.
 
 Sub-Network are determined by calling
-``network.determine_network_topology()``.
+:meth:`.Network.determine_network_topology`.
 
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/sub_networks.csv
+   :file: ../../pypsa/component_attrs/sub_networks.csv
 
 
 Bus
@@ -92,14 +92,14 @@ energy conservation for all elements feeding in and out of it
 (i.e. like Kirchhoff's Current Law).
 
 
-.. image:: img/buses.png
+.. image:: ../img/buses.png
 
 
 
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/buses.csv
+   :file: ../../pypsa/component_attrs/buses.csv
 
 
 
@@ -122,7 +122,7 @@ relevant for limits on CO2 emissions.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/carriers.csv
+   :file: ../../pypsa/component_attrs/carriers.csv
 
 
 
@@ -149,7 +149,7 @@ on the total expansion of lines and links).
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/global_constraints.csv
+   :file: ../../pypsa/component_attrs/global_constraints.csv
 
 
 Generator
@@ -175,7 +175,7 @@ acts like a de-rating factor. In the following example ``p_max_pu =
 0.9`` and ``p_min_pu = 0``. Since ``p_nom`` is 12000 MW, the maximum
 dispatchable active power is 0.9*12000 MW = 10800 MW.
 
-.. image:: img/nuclear-dispatch.png
+.. image:: ../img/nuclear-dispatch.png
 
 
 Generators with time-varying limits are like variable
@@ -187,14 +187,14 @@ dictates the minimum dispatch. These time series can take values
 between 0 and 1, e.g. ``network.generators_t.p_max_pu[gen_name]``
 could be
 
-.. image:: img/p_max_pu.png
+.. image:: ../img/p_max_pu.png
 
 This time series is then multiplied by ``p_nom`` to get the available
 power dispatch, which is the maximum that may be dispatched. The
 actual dispatch ``p``, stored in ``network.generators_t.p[gen_name]``,
 may be below this value, e.g.
 
-.. image:: img/scigrid-curtailment.png
+.. image:: ../img/scigrid-curtailment.png
 
 
 For the implementation of unit commitment, see :ref:`unit-commitment`.
@@ -206,7 +206,7 @@ to the bus and if :math:`q>0` it is supplying reactive power
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/generators.csv
+   :file: ../../pypsa/component_attrs/generators.csv
 
 
 
@@ -233,7 +233,7 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/storage_units.csv
+   :file: ../../pypsa/component_attrs/storage_units.csv
 
 
 Store
@@ -258,7 +258,7 @@ generators and storage units with fundamental links and stores
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/stores.csv
+   :file: ../../pypsa/component_attrs/stores.csv
 
 
 Load
@@ -273,7 +273,7 @@ like an inductor).
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/loads.csv
+   :file: ../../pypsa/component_attrs/loads.csv
 
 
 Shunt Impedance
@@ -293,7 +293,7 @@ an capacitor).
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/shunt_impedances.csv
+   :file: ../../pypsa/component_attrs/shunt_impedances.csv
 
 
 Line
@@ -309,7 +309,7 @@ imbalances. To see how the impedances are used in the power flow, see
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/lines.csv
+   :file: ../../pypsa/component_attrs/lines.csv
 
 
 .. _line-types:
@@ -333,7 +333,7 @@ PowerFactory
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/line_types.csv
+   :file: ../../pypsa/component_attrs/line_types.csv
 
 
 If you do not import your own line types, then PyPSA will provide
@@ -345,7 +345,7 @@ We take no responsibility for the accuracy of the values.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/standard_types/line_types.csv
+   :file: ../../pypsa/standard_types/line_types.csv
 
 
 Transformer
@@ -361,7 +361,7 @@ the power flow, see :ref:`transformer-model`.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/transformers.csv
+   :file: ../../pypsa/component_attrs/transformers.csv
 
 
 .. _transformer-types:
@@ -385,7 +385,7 @@ PowerFactory
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/transformer_types.csv
+   :file: ../../pypsa/component_attrs/transformer_types.csv
 
 
 
@@ -399,7 +399,7 @@ We take no responsibility for the accuracy of the values.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/standard_types/transformer_types.csv
+   :file: ../../pypsa/standard_types/transformer_types.csv
 
 
 .. _controllable-link:
@@ -424,7 +424,7 @@ pump or resistive heater from an AC/DC bus to a heat bus, etc.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/links.csv
+   :file: ../../pypsa/component_attrs/links.csv
 
 
 .. _components-links-multiple-outputs:
@@ -444,7 +444,7 @@ power-heat ratio
 
 To define the new columns ``bus2``, ``efficiency2``, ``bus3``,
 ``efficiency3``, etc. in ``network.links`` you need to override the
-standard component attributes by passing ``pypsa.Network()`` an
+standard component attributes by passing :meth:`pypsa.Network` an
 ``override_component_attrs`` argument. See the section
 :ref:`custom_components` and the `example of a CHP with a fixed
 power-heat ratio
@@ -482,7 +482,7 @@ i.e. generators, loads, storage units, etc.. They share the attributes
 ``bus``, ``p_set``, ``q_set``, ``p``, ``q``.
 
 Branches connect two buses. A copy of their attributes can be accessed
-as a group by the function ``network.branches()``. They share the
+as a group by the function :meth:`.Network.branches`. They share the
 attributes ``bus0``, ``bus1``.
 
 Passive branches are branches whose power flow is not directly
@@ -517,5 +517,5 @@ standard components.
 
 There are examples for defining new components in the git repository
 in ``examples/new_components/``, including an example of
-overriding e.g. ``network.lopf()`` for functionality for
+overriding e.g. :meth:`.Network.lopf` for functionality for
 combined-heat-and-power (CHP) plants.

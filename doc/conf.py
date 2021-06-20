@@ -122,16 +122,24 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pydata_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {
-    'canonical_url': 'https://www.pypsa.org/doc',
-    'display_version': True,
-    'sticky_navigation': True,
+# readthedocs theme
+# html_theme_options = {
+    # 'canonical_url': 'https://www.pypsa.org/doc',
+    # 'display_version': True,
+    # 'sticky_navigation': True,
     #'style_nav_header_background': '#009682',
+# }
+# pydata theme
+html_theme_options = {
+    "github_url": "https://github.com/pypsa/pypsa",
+    "show_toc_level": 2,
+    "collapse_navigation": True,
+    "navigation_depth": 2
 }
 
 
@@ -159,11 +167,11 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
-}
+# html_context = {
+#     'css_files': [
+#         '_static/theme_overrides.css',  # override wide tables in RTD theme
+#         ],
+# }
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

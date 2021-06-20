@@ -1,6 +1,6 @@
-##########################################
- Introduction
-##########################################
+############
+Introduction
+############
 
 Functionality
 =============
@@ -54,28 +54,28 @@ Screenshots
 
 * `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_ optimising capacities of generation, storage and transmission lines (9% line volume expansion allowed) for a 95% reduction in CO2 emissions in Europe compared to 1990 levels
 
-.. image:: img/elec_s_256_lv1.09_Co2L-3H.png
+.. image:: ../img/elec_s_256_lv1.09_Co2L-3H.png
     :align: center
     :width: 700px
 
 
 *  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_
 
-.. image:: img/stacked-gen_and_storage-scigrid.png
+.. image:: ../img/stacked-gen_and_storage-scigrid.png
     :align: center
 
-.. image:: img/lmp_and_line-loading.png
+.. image:: ../img/lmp_and_line-loading.png
     :align: right
 
 
-.. image:: img/reactive-power.png
+.. image:: ../img/reactive-power.png
     :align: center
     :width: 600px
 
 
 * Small meshed AC-DC toy model
 
-.. image:: img/ac_dc_meshed.png
+.. image:: ../img/ac_dc_meshed.png
     :align: center
     :width: 400px
 
@@ -122,7 +122,7 @@ equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/s
 Other comparable software
 =========================
 
-For a full list see :doc:`comparable_software`.
+For a full list see :doc:`../help_references/comparable_software`.
 
 PyPSA is not as fully featured as other power system simulation tools
 such as the Matlab-based free software `PSAT
@@ -143,6 +143,16 @@ DataFrames instead of numpy arrays), support for time-varying data
 inputs and support for multiply-connected networks using both AC
 and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 
+Unit testing
+============
+
+Unit testing is performed with ``py.test``.
+
+Tests can be found in ``pypsa/test/``.
+
+Power flow is tested against Pypower (the Python implementation of MATPOWER) using its built-in cases.
+
+Unit testing of new GitHub commits is automated with `Travis CI <https://travis-ci.org/PyPSA/PyPSA>`_.
 
 
 Target user group
