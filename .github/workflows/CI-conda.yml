@@ -22,22 +22,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    # - name: Set up Python ${{ matrix.python-version }}
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: ${{ matrix.python-version }}
-    # - name: Add conda to system path
-    #   run: |
-    #     # $CONDA is an environment variable pointing to the root of the miniconda directory
-    #     echo $CONDA/bin >> $GITHUB_PATH
     - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.1.1
-      with:
+      uses: conda-incubator/setup-miniconda@v2.1.1 
+      with: # checks out environment 'test' by default
           python-version: ${{ matrix.python-version }}
           mamba-version: "*"
           channels: conda-forge,defaults
           channel-priority: true
-    - name: Add cbc to environment if not windows
+    - name: Add cbc solver to environment if not on windows
       if: matrix.os != 'windows-latest'
       run: |
         echo "  - coincbc" >> environment.yaml
@@ -47,11 +39,10 @@ jobs:
         mamba env update --file environment.yaml --name test
         mamba env update --file environment_dev.yaml --name test
         pip install --no-cache-dir --no-deps -e .
-    # - name: Lint with flake8
-    #   run: |
-    #     mamba install -c conda-forge flake8
-    #     # stop the build if there are Python syntax errors or undefined names
-    #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Test with pytest
       run: |
         pytest
