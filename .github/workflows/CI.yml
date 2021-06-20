@@ -29,8 +29,11 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         brew install cbc glpk
-    - name: Install windows dependencies
+    - name: Set up windows package manager
+      if: matrix.os == 'windows-latest'
       uses: crazy-max/ghaction-chocolatey@v1
+    - name: Install windows dependencies
+      if: matrix.os == 'windows-latest'
       run: |
         choco install glpk
     - name: Install dependencies
