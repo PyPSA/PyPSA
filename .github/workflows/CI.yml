@@ -32,6 +32,8 @@ jobs:
     - name: Set up windows package manager
       if: matrix.os == 'windows-latest'
       uses: crazy-max/ghaction-chocolatey@v1
+      with:
+          args: -h
     - name: Install windows dependencies
       if: matrix.os == 'windows-latest'
       run: |
