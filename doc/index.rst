@@ -74,6 +74,27 @@ Documentation
    installation
    quick_start
 
+
+**Examples**
+
+* :doc:`examples-basic`
+* :doc:`examples-lopf`
+* :doc:`examples-sector_coupling`
+* :doc:`examples-other`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Examples
+
+
+   examples-basic
+   examples-lopf
+   examples-sector_coupling
+   examples-other
+
+
+
 **User Guide**
 
 * :doc:`design`
@@ -96,18 +117,6 @@ Documentation
    optimal_power_flow
    contingency_analysis
    plotting
-
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-   :caption: Examples
-
-
-   examples-basic
-   examples-lopf
-   examples-sector_coupling
-   examples-other
 
    
 
