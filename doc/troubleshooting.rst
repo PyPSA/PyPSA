@@ -79,7 +79,7 @@ If your ``network.lopf()`` is not converging here are some suggestions:
   optimiser. Consider e.g. removing values smaller than 0.001 with
   ``numpy.clip``.
 * Open source solvers like GLPK and clp struggle with large
-  problems. Consider switching to a commerical solver like Gurobi,
+  problems. Consider switching to a commercial solver like Gurobi,
   CPLEX or Xpress.
 * Use the interior point or barrier method, and stop it from crossing
   over to the simplex algorithm once it is close to the solution. This
