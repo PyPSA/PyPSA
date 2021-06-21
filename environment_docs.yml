@@ -10,6 +10,8 @@ dependencies:
   - pyomo>=5.7.0
   - scipy
   - pandas>=1.1.0
+  - xarray
+  - netcdf4
   - pytables
   - matplotlib
   - networkx>=1.10
