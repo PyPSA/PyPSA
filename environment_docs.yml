@@ -10,15 +10,23 @@ dependencies:
   - pyomo>=5.7.0
   - scipy
   - pandas>=1.1.0
+  - xarray
+  - netcdf4
   - pytables
   - matplotlib
   - networkx>=1.10
   - pyomo
   - cartopy>=0.16
   - coincbc
+  - glpk
   - deprecation
+  - seaborn
+  - pandoc
+  - ipykernel # for executing nbs
 
   - pip:
     - .
     - sphinx
     - sphinx_rtd_theme
+    - nbsphinx
+    - nbsphinx_link

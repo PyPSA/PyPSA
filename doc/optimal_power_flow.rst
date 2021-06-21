@@ -39,7 +39,8 @@ Execute:
     network.lopf(snapshots, solver_name="glpk", solver_io=None,
                  extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles",
-                 extra_postprocessing=None)``
+                 extra_postprocessing=None)
+
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
 string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
@@ -52,11 +53,11 @@ the solver, ``keep_files`` means that the ``.lp`` file is saved and
 ``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
 for more details).
 
-.. automethod:: pypsa.Network.lopf
+See :py:meth:`pypsa.Network.lopf` for the documentation. 
 
 
 
-.. important:: Since version v0.16.0, PyPSA enables optimisation without the use of `pyomo <http://www.pyomo.org/>`_ by setting ``pyomo=False``. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` wich mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo.
+.. important:: Since version v0.16.0, PyPSA enables optimisation without the use of `pyomo <http://www.pyomo.org/>`_ by setting ``pyomo=False``. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` which mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo.
   Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
 
 .. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
@@ -243,7 +244,7 @@ Similarly if the minimum down time :math:`T_{\textrm{min_down}}` (``generator.mi
 .. math::
    \sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{n,s,t'})\geq T_\textrm{min_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
 
-You can also defined ``generator.down_time_before`` for periods before ``network.snapshots``, analagous to the up time.
+You can also defined ``generator.down_time_before`` for periods before ``network.snapshots``, analogous to the up time.
 
 For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
 
@@ -595,15 +596,10 @@ In general when pyomo is disabled, all variable and constraint references are st
 
 An additional constraint can easily be implemented by using the functions
 
-* ``pypsa.linopt.get_var`` for getting the variables which should be included in the constraint
-* ``pypsa.linopt.linexpr`` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-* ``pypsa.linopt.define_constraints`` for defining a network constraint.
+* :py:meth:`pypsa.linopt.get_var` for getting the variables which should be included in the constraint
+* :py:meth:`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
+* :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
 
-The are functions defined as such:
-
-.. automethod:: pypsa.linopt.get_var
-.. automethod:: pypsa.linopt.linexpr
-.. automethod:: pypsa.linopt.define_constraints
 
 The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
 
@@ -674,20 +670,3 @@ Outputs
 
 * global_constraint.{mu}
 
-
-Utility Functions (without pyomo)
----------------------------------
-
-.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
-
-.. automodule:: pypsa.linopf
-   :members:
-
-
-Utility Functions (with pyomo)
-------------------------------
-
-.. warning:: Future documentation versions will exclusively list these in the :ref:`api`.
-
-.. automodule:: pypsa.opf
-   :members:
