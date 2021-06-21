@@ -19,7 +19,7 @@ of ``snapshots`` as ``network.pf(snapshots)`` to calculate the
 non-linear power flow on a selection of snapshots at once (which is
 more performant than calling ``network.pf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``, see :py:meth`pypsa.Network.pf` for details.
+``network.snapshots``, see :py:meth:`pypsa.Network.pf` for details.
 
 
 
@@ -308,7 +308,7 @@ of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
 linear power flow on a selection of snapshots at once (which is
 more performant than calling ``network.lpf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``, , see :py:meth`pypsa.Network.lpf` for details.
+``network.snapshots``, , see :py:meth:`pypsa.Network.lpf` for details.
 
 
 For AC networks, it is assumed for the linear power flow that reactive

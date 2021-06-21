@@ -53,7 +53,7 @@ the solver, ``keep_files`` means that the ``.lp`` file is saved and
 ``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
 for more details).
 
-See :py:meth`pypsa.Network.lopf` for the documentation. 
+See :py:meth:`pypsa.Network.lopf` for the documentation. 
 
 
 
@@ -596,9 +596,9 @@ In general when pyomo is disabled, all variable and constraint references are st
 
 An additional constraint can easily be implemented by using the functions
 
-* :py:meth`pypsa.linopt.get_var` for getting the variables which should be included in the constraint
-* :py:meth`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-* :py:meth`pypsa.linopt.define_constraints` for defining a network constraint.
+* :py:meth:`pypsa.linopt.get_var` for getting the variables which should be included in the constraint
+* :py:meth:`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
+* :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
 
 
 The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
