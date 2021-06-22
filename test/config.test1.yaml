@@ -20,7 +20,7 @@ countries: ['DE']
 
 snapshots:
   start: "2013-03-01"
-  end: "2014-04-01"
+  end: "2013-03-08"
   closed: 'left' # end is not inclusive
 
 enable:
@@ -57,7 +57,7 @@ atlite:
       module: era5
       x: [4., 15.]
       y: [46., 56.]
-      time: ["2013-03", "2013-03"]
+      time: ["2013-03-01", "2013-03-08"]
 
 renewable:
   onwind:
