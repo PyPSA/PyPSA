@@ -43,5 +43,5 @@ jobs:
       run: |
         conda list
         cp test/config.test1.yaml config.yaml
-        snakemake -j all solve_all_networks
+        snakemake --cores all solve_all_networks
         rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results
