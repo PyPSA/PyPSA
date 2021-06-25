@@ -13,8 +13,7 @@ import pandas as pd
 
 import numpy as np
 import pytest
-
-
+from numpy.testing import assert_array_almost_equal as equal
 
 
 @pytest.mark.skipif(pypower_version <= '5.0.0',
@@ -47,29 +46,23 @@ def test_pypower_case():
     columns = "bus, p, q, q_max, q_min, Vg, mBase, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(", ")
     results_df['gen'] = pd.DataFrame(data=results["gen"],columns=columns)
 
-
-
     #now compute in PyPSA
-
     network = pypsa.Network()
     network.import_from_pypower_ppc(ppc)
     network.lpf()
 
-
-
     #compare generator dispatch
-
     p_pypsa = network.generators_t.p.loc["now"].values
     p_pypower = results_df['gen']["p"].values
 
-    np.testing.assert_array_almost_equal(p_pypsa,p_pypower)
+    equal(p_pypsa, p_pypower)
 
     #compare branch flows
-    for item in ["lines","transformers"]:
-        df = getattr(network,item)
-        pnl = getattr(network,item + "_t")
+    for item in ["lines", "transformers"]:
+        df = getattr(network, item)
+        pnl = getattr(network, item + "_t")
 
         for si in ["p0","p1"]:
             si_pypsa = getattr(pnl,si).loc["now"].values
             si_pypower = results_df['branch'][si][df.original_index].values
-            np.testing.assert_array_almost_equal(si_pypsa,si_pypower)
+            equal(si_pypsa, si_pypower)
