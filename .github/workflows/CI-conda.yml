@@ -32,11 +32,6 @@ jobs:
           channels: conda-forge,defaults
           channel-priority: true
 
-    - name: Add cbc solver to environment if not on windows
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo "  - coincbc" >> environment.yaml
-
     - name: Install dependencies  
       run: |
         conda config --add pinned_packages python=${{ matrix.python-version }}
