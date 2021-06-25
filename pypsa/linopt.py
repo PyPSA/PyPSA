@@ -378,6 +378,8 @@ def _str_array(array, integer_string=False):
             return _to_int_str(array)
         return _to_float_str(array)
     array = np.asarray(array)
+    if array.dtype.type == np.str_:
+        array = np.asarray(array, dtype=object)
     if array.dtype < str and array.size:
         if integer_string:
             return _v_to_int_str(np.asarray(array))
