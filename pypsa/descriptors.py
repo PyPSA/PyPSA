@@ -371,6 +371,13 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
+
+    # set to zero if not active
+    if isinstance(sns, pd.MultiIndex):
+        for inv_p in sns.levels[0]:
+            max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+            min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+
     return min_pu[index], max_pu[index]
 
 def additional_linkports(n):
