@@ -21,7 +21,7 @@
 import scipy as sp
 import numpy as np
 
-from .descriptors import OrderedGraph
+from .descriptors import OrderedGraph, get_active_assets
 
 def graph(network, branch_components=None, weight=None, inf_weight=False):
     """
@@ -89,7 +89,8 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
 
     return graph
 
-def adjacency_matrix(network, branch_components=None, busorder=None, weights=None):
+def adjacency_matrix(network, branch_components=None, investment_period=None,
+                     busorder=None, weights=None):
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -133,11 +134,19 @@ def adjacency_matrix(network, branch_components=None, busorder=None, weights=Non
     weight_vals = []
     for c in network.iterate_components(branch_components):
         if c.ind is None:
-            sel = slice(None)
-            no_branches = len(c.df)
+            if investment_period is None:
+                sel = slice(None)
+            else:
+                active = get_active_assets(network, c.name, investment_period, network.snapshots)
+                sel = c.df.loc[active].index
         else:
-            sel = c.ind
-            no_branches = len(c.ind)
+            if investment_period is None:
+                sel = c.ind
+            else:
+                active = get_active_assets(network, c.name, investment_period, network.snapshots)
+                sel = c.ind  & c.df.loc[active].index
+
+        no_branches = len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
         weight_vals.append(np.ones(no_branches)

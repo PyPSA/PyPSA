@@ -847,7 +847,8 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
 
 
 def network_lopf(n, snapshots=None, solver_name="cbc",
-         solver_logfile=None, extra_functionality=None, skip_objective=False,
+         solver_logfile=None, extra_functionality=None,
+         multi_investment_periods=False, skip_objective=False,
          skip_pre=False, extra_postprocessing=None, formulation="kirchhoff",
          keep_references=False, keep_files=False,
          keep_shadowprices=['Bus', 'Line', 'Transformer', 'Link', 'GlobalConstraint'],
