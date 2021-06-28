@@ -394,6 +394,8 @@ class Network(Basic):
         """
         if isinstance(value, pd.MultiIndex):
             assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
+            assert (all([isinstance(x, int) for x in value.levels[0]])
+                    and all(sorted(value.get_level_values(level=0).unique())==value.get_level_values(0).unique())), "Investment periods should be integer and increasing."
             self._snapshots = value.rename(['period', 'snapshot'])
             self._investment_period_weightings = (self._investment_period_weightings
                                                  .reindex(value.levels[0],
@@ -468,7 +470,7 @@ class Network(Basic):
         if isinstance(self.snapshots, pd.MultiIndex):
             assert df.index.equals(self.snapshots.levels[0]), "Weightings not defined for all investment periods."
             assert (all([isinstance(x, int) for x in df.index])
-                    and all(sorted(df.index)==df.index)), "Investment periods should be integer and increasing."
+                    and all(sorted(df.get_level_values(level=0).unique())==df.index.get_level_values(0).unique())), "Investment periods should be integer and increasing."
             if isinstance(df, pd.Series):
                 logger.info('Applying weightings to all columns of `investment_period_weightings`')
                 df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
