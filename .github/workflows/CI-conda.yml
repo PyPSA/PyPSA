@@ -11,6 +11,7 @@ jobs:
       matrix:
         python-version:
         - 3.8
+        - 3.9
         os:
         - ubuntu-latest
         - macos-latest
