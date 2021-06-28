@@ -319,6 +319,22 @@ def get_non_extendable_i(n, c):
     """
     return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
+
+def get_active_assets(n, c, investment_period, snapshots):
+    """
+    Getter function. Get the index of elements which are active of a given
+    component c, depending on lifetime and build year for a investment_period
+    investment_period (assuming that component is already used in build year)
+    """
+    # component only active during lifetime
+    df = n.df(c).copy()
+
+    index_active = ((df["build_year"]<= investment_period) &
+                   (investment_period<df[["build_year", "lifetime"]].sum(axis=1)))
+
+    return index_active
+
+
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     """
     Getter function to retrieve the per unit bounds of a given compoent for
