@@ -276,7 +276,7 @@ if has_xarray:
                 self.ds['snapshots_' + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.name = 'investment_periods'
+            investment_periods.index.rename("investment_periods", inplace=True)
             for attr in investment_periods.columns:
                 self.ds['investment_periods_' + attr] = investment_periods[attr]
 
@@ -339,9 +339,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_snapshots(snapshots)
 
     # export investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = network.investment_period_weightings
-    # exporter.save_investment_periods(investment_periods)
+    investment_periods = network.investment_period_weightings
+    exporter.save_investment_periods(investment_periods)
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
@@ -614,8 +613,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
     # read in investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = importer.get_investment_periods()
+    investment_periods = importer.get_investment_periods()
 
     if df is not None:
 
@@ -634,10 +632,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         network.set_snapshots(df.index)
 
-        # TODO: uncomment as soon as merge multi-decade branch
-        # if investment_periods is not None:
-        #     network.investment_period_weightings = (
-        #         investment_periods.reindex(network.investment_period_weightings.index))
+        if investment_periods is not None:
+            network._investment_period_weightings = (
+                investment_periods.reindex(network.investment_period_weightings.index))
 
     imported_components = []
 
