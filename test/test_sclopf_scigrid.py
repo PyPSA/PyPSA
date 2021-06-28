@@ -6,7 +6,7 @@ import sys
 from numpy.testing import assert_array_almost_equal as arr_equal
 from numpy.testing import assert_almost_equal as equal
 
-solver_name = "glpk" if sys.platform == "win32" else "cbc"
+solver_name = "glpk"
 
 
 def test_sclopf():

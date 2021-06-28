@@ -11,6 +11,7 @@ jobs:
       matrix:
         python-version:
         - 3.8
+        - 3.9
         os:
         - ubuntu-latest
         - macos-latest
@@ -31,11 +32,6 @@ jobs:
           mamba-version: "*"
           channels: conda-forge,defaults
           channel-priority: true
-
-    - name: Add cbc solver to environment if not on windows
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo "  - coincbc" >> environment.yaml
 
     - name: Install dependencies  
       run: |

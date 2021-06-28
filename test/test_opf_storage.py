@@ -5,7 +5,7 @@ import sys
 import os
 from numpy.testing import assert_array_almost_equal as equal
 
-solvers = ['glpk'] if sys.platform == 'win32' else ['cbc', 'glpk']
+solver_name = 'glpk'
 
 
 def test_opf():
@@ -19,21 +19,16 @@ def test_opf():
 
     target_gen_p = pd.read_csv(target_path, index_col=0, parse_dates=True)
 
-    #test results were generated with GLPK and other solvers may differ
-    for solver_name in solvers:
+    n.lopf(solver_name=solver_name, pyomo=True)
 
-        n.lopf(solver_name=solver_name, pyomo=True)
-
-        equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+    equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
     if sys.version_info.major >= 3:
 
-        for solver_name in solvers:
-
-            status, cond = n.lopf(solver_name=solver_name, pyomo=False)
-            assert status == 'ok'
-            equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
-                  decimal=2)
+        status, cond = n.lopf(solver_name=solver_name, pyomo=False)
+        assert status == 'ok'
+        equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p,
+                decimal=2)
 
 
 if __name__ == "__main__":
