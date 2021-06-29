@@ -519,8 +519,8 @@ class Network(Basic):
             solver. It allows the user to
             add/change constraints and add/change the objective function.
         multi_investment_periods : bool, default False
-            Wheter to optimise with one single invesment or allow multiple
-            investment steps,then format of snapshots should be pd.MultiIndex
+            Whether to optimise as a single investment period or to optimise in multiple
+            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
 
         Other Parameters
         ----------------
