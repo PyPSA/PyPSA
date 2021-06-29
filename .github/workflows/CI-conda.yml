@@ -1,0 +1,50 @@
+name: CI with conda
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 5
+      matrix:
+        python-version:
+        - 3.8
+        - 3.9
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.1.1 
+      with: # checks out environment 'test' by default
+          python-version: ${{ matrix.python-version }}
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
+
+    - name: Install dependencies  
+      run: |
+        conda config --add pinned_packages python=${{ matrix.python-version }}
+        mamba env update --file environment.yaml --name test
+        mamba env update --file environment_dev.yaml --name test
+        pip install --no-cache-dir --no-deps -e .
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+    - name: Test with pytest
+      run: |
+        pytest

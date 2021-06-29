@@ -84,7 +84,7 @@ import matplotlib.pyplot as plt
 
 ### Read in the raw SciGRID data
 
-#You may have to adjust this path to where 
+#You may have to adjust this path to where
 #you downloaded the github repository
 #https://github.com/PyPSA/PyPSA
 
@@ -122,17 +122,17 @@ pypsa.io.import_components_from_dataframe(network,links,"Line")
 
 ### Add specific missing AC lines
 
-# Add AC lines known to be missing in SciGRID                                                                                                             
-# E.g. lines missing because of OSM mapping errors.                                                                                                       
-# This is no systematic list, just what we noticed;                                                                                                       
-# please tell SciGRID and/or Tom Brown (brown@fias.uni-frankfurt.de)                                                                                      
-# if you know of more examples                                                                                                                            
+# Add AC lines known to be missing in SciGRID
+# E.g. lines missing because of OSM mapping errors.
+# This is no systematic list, just what we noticed;
+# please tell SciGRID and/or Tom Brown (brown@fias.uni-frankfurt.de)
+# if you know of more examples
 
 columns = ["bus0","bus1","wires","cables","voltage"]
 
-data = [["100","255",2,6,220000], # Niederstedem to Wengerohr                                                                                             
-        ["384","351",4,6,380000], # Raitersaich to Ingolstadt                                                                                             
-        ["351","353",4,6,380000], # Ingolstadt to Irsching                                                                                                
+data = [["100","255",2,6,220000], # Niederstedem to Wengerohr
+        ["384","351",4,6,380000], # Raitersaich to Ingolstadt
+        ["351","353",4,6,380000], # Ingolstadt to Irsching
         ]
 
 last_scigrid_line = int(network.lines.index[-1])
@@ -189,7 +189,7 @@ for i,u in enumerate(network.buses.index):
     distance_km = pypsa.geo.haversine(vs,network.buses.loc[u,["x","y"]])
 
     to_add = pd.Series(data=distance_km[:,0],index=[(u,v) for v in vs.index])
-    
+
     pairs = pd.concat((pairs,to_add))
 
 pairs.sort_values().head()
@@ -197,22 +197,22 @@ pairs.sort_values().head()
 # determine topology so we can look what's actually connected
 network.determine_network_topology()
 
-# Example all substations which are close to                                                                                                              
-# each other geographically by not connected in network.adj                                                                                               
+# Example all substations which are close to
+# each other geographically by not connected in network.adj
 
-start = 0  #km                                                                                                                                            
-stop = 1 #km                                                                                                                                              
+start = 0  #km
+stop = 1 #km
 
 for (u,v),dist in pairs.sort_values().iteritems():
 
     if dist < start:
         continue
 
-    #only go up to pairs stop km apart                                                                                                                    
+    #only go up to pairs stop km apart
     if dist > stop:
         break
 
-    #ignore if they're already connected                                                                                                                  
+    #ignore if they're already connected
     if u in network.graph().adj[v]:
         continue
 
@@ -224,25 +224,25 @@ for (u,v),dist in pairs.sort_values().iteritems():
     v_x = network.buses.at[v,"x"]
     v_y = network.buses.at[v,"y"]
 
-    #have a look what's going on in OSM                                                                                                                   
+    #have a look what's going on in OSM
     print("https://www.openstreetmap.org/#map=18/{}/{}".format(u_y,u_x))
     print("https://www.openstreetmap.org/#map=18/{}/{}".format(v_y,v_x))
 
-# From examining the map, it seems that all cases where substations                                                                                       
-# are less than 850m apart are connected in reality                                                                                                       
-# The first one to fail is 46-48 (Marzahn) at 892 m                                                                                                       
+# From examining the map, it seems that all cases where substations
+# are less than 850m apart are connected in reality
+# The first one to fail is 46-48 (Marzahn) at 892 m
 
-# Connect these substations                                                                                                                               
+# Connect these substations
 
 limit = 0.85
 
 for (u,v),dist in pairs.sort_values().iteritems():
 
-    #only go up to pairs stop km apart                                                                                                                    
+    #only go up to pairs stop km apart
     if dist > limit:
         break
 
-    #ignore if they're already connected                                                                                                                  
+    #ignore if they're already connected
     if u in network.graph().adj[v]:
         continue
 
@@ -251,15 +251,15 @@ for (u,v),dist in pairs.sort_values().iteritems():
     kv_v = network.buses.at[v,"v_nom"]
 
     print(u,v,dist,kv_u,kv_v)
-    
+
     last_scigrid_line = int(network.lines.index[-1])
-    
+
     voltage = max(kv_u,kv_v)*1000
-    
+
     wires = {220000 : 2, 380000 : 4}[voltage]
-    
+
     cables = 6
-    
+
     df = pd.DataFrame([[u,v,length_factor*dist,wires,cables,voltage]],columns=["bus0","bus1","length","wires","cables","voltage"],index=[str(last_scigrid_line+1)])
 
     pypsa.io.import_components_from_dataframe(network,df,"Line")
@@ -329,7 +329,7 @@ network.determine_network_topology()
 for sn in network.sub_networks.obj:
     buses = sn.buses().index
     branches = sn.branches().index
-    
+
     if len(buses) < 5:
         print("Dropping Sub-Network {} because it only has {} buses".format(sn,len(buses)))
         #print(buses.index)
@@ -362,7 +362,7 @@ network.lines["s_nom"] = 3.**0.5*network.lines.voltage/1000.*network.lines.num_p
 
 #import FIAS libraries for attaching data
 
-#this script uses old versions of the FIAS libraries and 
+#this script uses old versions of the FIAS libraries and
 #has not yet been updated to the new versions
 
 #the latest versions are available at
@@ -393,15 +393,15 @@ def generate_dummy_graph(network):
     It adds the "pos" attribute and removes the 380 kV duplicate
     buses when the buses have been split, so that all load and generation
     is attached to the 220kV bus."""
-    
+
     graph = pypsa.descriptors.OrderedGraph()
-    
+
     graph.add_nodes_from([bus for bus in network.buses.index if bus not in buses_to_split])
-    
+
     #add positions to graph for voronoi cell computation
     for node in graph.nodes():
         graph.node[node]["pos"] = np.array(network.buses.loc[node,["x","y"]],dtype=float)
-    
+
     return graph
 
 graph = generate_dummy_graph(network)
@@ -409,10 +409,10 @@ graph = generate_dummy_graph(network)
 graph.name = "scigrid_v2"
 
 def voronoi_partition(G, outline):
-    """                                                                                                                                                   
-    For 2D-embedded graph `G`, within the boundary given by the shapely polygon                                                                           
-    `outline`, returns `G` with the Voronoi cell region as an additional node                                                                             
-    attribute.                                                                                                                                            
+    """
+    For 2D-embedded graph `G`, within the boundary given by the shapely polygon
+    `outline`, returns `G` with the Voronoi cell region as an additional node
+    attribute.
     """
     #following line from vresutils.graph caused a bug
     #G = polygon_subgraph(G, outline, copy=False)
@@ -462,18 +462,18 @@ monthly_load.plot(grid=True)
 
 ## Attach conventional generators from BNetzA list
 
-def read_kraftwerksliste(with_latlon=True):                                                                              
-                                                                                                              
-    kraftwerke = pd.read_csv('../../lib/vresutils/data/Kraftwerksliste_CSV_deCP850ed.csv',                                         
-                             delimiter=';', encoding='utf-8', thousands='.', decimal=',')                                
-    def sanitize_names(x):                                                                                               
-        try:                                                                                                             
-            x = x[:x.index('(')]                                                                                         
-        except ValueError:                                                                                               
-            pass                                                                                                         
+def read_kraftwerksliste(with_latlon=True):
+
+    kraftwerke = pd.read_csv('../../lib/vresutils/data/Kraftwerksliste_CSV_deCP850ed.csv',
+                             delimiter=';', encoding='utf-8', thousands='.', decimal=',')
+    def sanitize_names(x):
+        try:
+            x = x[:x.index('(')]
+        except ValueError:
+            pass
         return x.replace(u'\n', u' ').strip()
     kraftwerke.columns = kraftwerke.columns.map(sanitize_names)
-    
+
     def sanitize_plz(x):
         try:
             x = x.strip()
@@ -489,7 +489,7 @@ def read_kraftwerksliste(with_latlon=True):
                      if sh is not None}
         kraftwerke['lon'] = kraftwerke.PLZ.map({pc: c.x for pc, c in postcodes.items()})
         kraftwerke['lat'] = kraftwerke.PLZ.map({pc: c.y for pc, c in postcodes.items()})
-        #kraftwerke.dropna(subset=('lon','lat'), inplace=True)                                                           
+        #kraftwerke.dropna(subset=('lon','lat'), inplace=True)
 
     kraftwerke[u'Type'] = kraftwerke[u"Auswertung Energieträger"].map({
         u'Erdgas': u'Gas',
@@ -529,20 +529,20 @@ import random
 #./Kraftwerksdaten.ipynb
 
 
-def backup_capacity_german_grid(G):   
+def backup_capacity_german_grid(G):
 
     from shapely.geometry import Point
 
     plants = power_plants
     plants = plants[plants["Kraftwerksstatus"] == u"in Betrieb"]
-    
+
     #remove EEG-receiving power plants - except biomass, these will be added later
-    
+
     #it's necessary to remove biomass because we don't have coordinates for it
-    
+
     for tech in ["Solar","Wind Onshore","Wind Offshore","Biomass"]:
         plants = plants[plants['Type'] != tech]
-    
+
     cells = {n: d["region"]
              for n, d in G.nodes_iter(data=True)}
 
@@ -602,13 +602,12 @@ for (bus_name,tech_name) in cap.index:
         network.add("Generator",bus_name + " " + tech_name,
                 bus=bus_name,p_nom=1000*cap[(bus_name,tech_name)],
                 marginal_cost=m_costs.get(tech_name,default_cost),
-                carrier=tech_name)   
+                carrier=tech_name)
 
 ## Add renewables
 
 import generation.germany as DEgen
 
-reload(DEgen)
 
 generation = DEgen.timeseries_eeg(graph)
 
@@ -633,12 +632,12 @@ cutout = vresutils.reatlas.Cutout(cutoutname="Europe_2011_2014", username="becke
 def panel_capacity(panel):
     """
     Returns the panel capacity in MW.
-    
+
     Parameters
     ----------
     panel : string
         Panel name, e.g. "Sunpower"
-    
+
     Returns
     -------
     capacity : float
@@ -703,7 +702,7 @@ d = {"windoff" : {"full_name" : "Wind Offshore", "caps" : windoff_caps},
 for tech in ["windoff",'windon',"solar"]:
     caps = d[tech]["caps"]
     caps = caps[caps != 0]
-    
+
     for i in caps.index:
         network.add("Generator","{} {}".format(i,d[tech]["full_name"]),
                     p_nom=caps[i]*1000.,dispatch="variable",
