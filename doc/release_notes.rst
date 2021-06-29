@@ -8,6 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
+* Add new descriptive attribute 'unit' to 'bus' component.
 
 * Bump minimum ``pandas`` requirement to version 1.1.0.
 * When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.  
@@ -29,6 +30,9 @@ Upcoming Release
 * The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
 * All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
+
+* A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project. 
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
@@ -202,7 +206,7 @@ package in conda is updated.
   according to the distribution scheme provided in the argument
   ``slack_weights``. If ``distribute_slack=False`` only the slack
   generator takes up the slack. There is further `documentation
-  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`_.
+  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`__.
 
 * Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
 
@@ -287,7 +291,7 @@ This release contains a new feature and bug fixes.
   generators being handled correctly when networks are aggregated.
 * Network.consistency_check() now only prints necessary columns when
   reporting NaN values.
-* Import from `pandapower <https://www.pandapower.org/>`_ networks has
+* Import from `pandapower <https://www.pandapower.org/>`__ networks has
   been updated to pandapower 2.0 and to include non-standard lines and
   transformers.
 

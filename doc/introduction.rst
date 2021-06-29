@@ -39,7 +39,7 @@ Functionality
 
 **Other complementary libraries:**
 
-* `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
+* `pandapower <https://github.com/e2nIEE/pandapower>`__ for more
   detailed modelling of distribution grids, short-circuit
   calculations, unbalanced load flow and more
 * `PowerDynamics.jl
