@@ -382,6 +382,8 @@ def _str_array(array, integer_string=False):
             return _to_int_str(array)
         return _to_float_str(array)
     array = np.asarray(array)
+    if array.dtype.type == np.str_:
+        array = np.asarray(array, dtype=object)
     if array.dtype < str and array.size:
         if integer_string:
             return _v_to_int_str(np.asarray(array))
@@ -718,7 +720,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
-    if isinstance(log_file_or_path, io.IOBase): logfile.close()
+    if isinstance(log_file_or_path, io.IOBase): log_file_or_path.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:

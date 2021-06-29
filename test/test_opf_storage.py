@@ -6,7 +6,6 @@ import sys
 import os
 from numpy.testing import assert_array_almost_equal as equal
 
-
 @pytest.fixture
 def target_gen_p():
     target_path = os.path.join(

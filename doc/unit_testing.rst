@@ -3,10 +3,36 @@ Unit Testing
 ########################
 
 
-Unit testing is performed with ``py.test``.
+Unit testing is performed with ``py.test`` that can be installed via
 
-Tests can be found in ``pypsa/test/``.
+.. code::
 
-Power flow is tested against Pypower (the Python implementation of MATPOWER) using its built-in cases.
+    pip install pytest
 
-Unit testing of new GitHub commits is automated with `Travis CI <https://travis-ci.org/PyPSA/PyPSA>`_.
+The tests can be found in ``pypsa/test/`` and can be run from there via
+
+.. code::
+
+    pytest
+
+Or to run individual tests:
+
+.. code::
+
+    pytest test_lpf_against_pypower.py
+
+Power flow is tested against PYPOWER (the Python implementation of MATPOWER) 
+and pandapower.
+
+.. warning::
+
+    Note that PYPOWER 5.0 has a bug in the linear load flow, which was fixed in the github version in January 2016.
+
+.. note::
+
+    Note also that the test results against which everything is tested
+    were generated with the free software LP solver GLPK; other solver may
+    give other results (e.g. Gurobi can give a slightly better result).
+
+
+Unit testing of new GitHub commits is automated with Github Actions.

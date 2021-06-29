@@ -4,9 +4,10 @@ channels:
 dependencies:
   - python>=3.6
   - numpy
-  - pyomo
   - scipy
   - pandas>=0.24.0
+  - xarray
+  - netcdf4
   - pytables
   - matplotlib
   - networkx>=1.10
