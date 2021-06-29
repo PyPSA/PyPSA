@@ -45,7 +45,6 @@ logger = logging.getLogger(__name__)
 lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
 
-#%%
 def define_nominal_for_extendable_variables(n, c, attr):
     """
     Initializes variables for nominal capacities for a given component and a
