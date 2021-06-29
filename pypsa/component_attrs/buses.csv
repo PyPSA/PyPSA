@@ -2,8 +2,8 @@
 "name","string","n/a","n/a","Unique name","Input (required)",
 "v_nom","float","kV",1,"Nominal voltage","Input (optional)",
 "type","string","n/a","n/a","Placeholder for bus type. Not yet implemented.","Input (optional)",
-"x","float","n/a",0,"Position (e.g. longitude)"," the Spatial Reference System Identifier (SRID) is set in network.srid.","Input (optional)"
-"y","float","n/a",0,"Position (e.g. latitude)"," the Spatial Reference System Identifier (SRID) is set in network.srid.","Input (optional)"
+"x","float","n/a",0,"Position (e.g. longitude); the Spatial Reference System Identifier (SRID) is set in network.srid.","Input (optional)"
+"y","float","n/a",0,"Position (e.g. latitude); the Spatial Reference System Identifier (SRID) is set in network.srid.","Input (optional)"
 "carrier","string","n/a","AC","Energy carrier: can be ""AC"" or ""DC"" for electrical buses, or ""heat"" or ""gas"".","Input (optional)",
 "unit","string","n/a","None","Unit of the bus’ carrier if the implicitly assumed unit (""MW"") is inappropriate (e.g. ""t/h"", ""MWh_th/h""). Only descriptive. Does not influence any PyPSA functions.","Input (optional)",
 "v_mag_pu_set","static or series","per unit",1,"Voltage magnitude set point, per unit of v_nom.","Input (optional)",
