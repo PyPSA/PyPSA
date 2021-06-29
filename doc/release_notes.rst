@@ -8,6 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
+* Add new descriptive attribute 'unit' to 'bus' component.
 
 * Bump minimum ``pandas`` requirement to version 1.1.0.
 * When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.  
