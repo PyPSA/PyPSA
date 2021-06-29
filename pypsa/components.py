@@ -454,11 +454,12 @@ class Network(Basic):
         Weightings applied to each investment period during the optimization
         (LOPF).
 
-        * Objective weightings multiply all cost in the
-          objective function (e.g. to include a social discount rate).
+        * Objective weightings are multiplied with all cost coefficients in the
+          objective function of the respective investment period
+          (e.g. to include a social discount rate).
 
-        * Time weightings elapsed time between investment periods
-          (e.g. used for global constraints CO2 emissions)
+        * Time weightings denote the elapsed time until the subsequent investment period
+          (e.g. used for global constraints CO2 emissions).
 
         """
         return self._investment_period_weightings
