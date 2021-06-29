@@ -394,8 +394,8 @@ class Network(Basic):
         """
         if isinstance(value, pd.MultiIndex):
             assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            assert (all([isinstance(x, int) for x in value.levels[0]])
-                    and all(sorted(value.get_level_values(level=0).unique())==value.get_level_values(0).unique())), "Investment periods should be integer and increasing."
+            assert (all(isinstance(x, int) for x in value.levels[0])
+                    and all(sorted(value.get_level_values(0).unique()) == value.get_level_values(0).unique())), "Investment periods should be integer and increasing."
             self._snapshots = value.rename(['period', 'snapshot'])
             self._investment_period_weightings = (self._investment_period_weightings
                                                  .reindex(value.levels[0],
