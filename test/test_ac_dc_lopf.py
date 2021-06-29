@@ -64,8 +64,6 @@ def test_lopf(n, n_r, formulation, free_memory):
         decimal=4
     )
 
-@pytest.mark.skipif(sys.version_info.major < 3,
-                    reason="Optimisation without pyomo requires Python 3.")
 def test_lopf_lowmem(n, n_r):
 
     status, _ = n.lopf(

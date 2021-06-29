@@ -41,8 +41,6 @@ def test_opf_pyomo(network, target_gen_p):
     )
 
 
-@pytest.mark.skipif(sys.version_info.major < 3,
-                    reason="Optimisation without pyomo requires Python 3.")
 def test_opf_lowmem(network, target_gen_p):
     status, _ = network.lopf(solver_name='glpk', pyomo=False)
     assert status == 'ok'
