@@ -43,3 +43,5 @@ website/examples/*.py
 *.zip
 
 *.html
+
+.vscode

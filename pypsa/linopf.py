@@ -82,7 +82,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if c == 'Generator':
-        ext_i = ext_i | n.generators.query('committable').index
+        ext_i = ext_i.union(n.generators.query('committable').index)
     if ext_i.empty: return
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec='ext')
 
@@ -182,9 +182,9 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
 def define_generator_status_variables(n, snapshots):
     com_i = n.generators.query('committable').index
     ext_i = get_extendable_i(n, 'Generator')
-    if not (ext_i & com_i).empty:
+    if not (ext_i.intersection(com_i)).empty:
         logger.warning("The following generators have both investment optimisation"
-        f" and unit commitment:\n\n\t{', '.join((ext_i & com_i))}\n\nCurrently PyPSA cannot "
+        f" and unit commitment:\n\n\t{', '.join((ext_i.intersection(com_i)))}\n\nCurrently PyPSA cannot "
         "do both these functions, so PyPSA is choosing investment optimisation "
         "for these generators.")
         com_i = com_i.difference(ext_i)
@@ -214,7 +214,7 @@ def define_committable_generator_constraints(n, snapshots):
 
 def define_ramp_limit_constraints(n, sns):
     """
-    Defines ramp limits for generators wiht valid ramplimit
+    Defines ramp limits for generators with valid ramplimit
 
     """
     c = 'Generator'
@@ -229,14 +229,14 @@ def define_ramp_limit_constraints(n, sns):
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
 
     # fix up
-    gens_i = rup_i & fix_i
+    gens_i = rup_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
         define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', spec='nonext.')
 
     # ext up
-    gens_i = rup_i & ext_i
+    gens_i = rup_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_up'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -244,7 +244,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='ext.')
 
     # com up
-    gens_i = rup_i & com_i
+    gens_i = rup_i.intersection(com_i)
     if not gens_i.empty:
         limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
         limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
@@ -256,14 +256,14 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', spec='com.')
 
     # fix down
-    gens_i = rdown_i & fix_i
+    gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
         rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
         define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', spec='nonext.')
 
     # ext down
-    gens_i = rdown_i & ext_i
+    gens_i = rdown_i.intersection(ext_i)
     if not gens_i.empty:
         limit_pu = n.df(c)['ramp_limit_down'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
@@ -271,7 +271,7 @@ def define_ramp_limit_constraints(n, sns):
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', spec='ext.')
 
     # com down
-    gens_i = rdown_i & com_i
+    gens_i = rdown_i.intersection(com_i)
     if not gens_i.empty:
         limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
         limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
@@ -398,7 +398,7 @@ def define_storage_unit_constraints(n, sns):
     spill = write_bound(n, 0, upper)
     set_varref(n, spill, 'StorageUnit', 'spill')
 
-    eh = expand_series(n.snapshot_weightings[sns], sus_i) #elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], sus_i) #elapsed hours
 
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
     eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns).T
@@ -444,7 +444,7 @@ def define_store_constraints(n, sns):
     variables = write_bound(n, -inf, inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
-    eh = expand_series(n.snapshot_weightings[sns], stores_i)  #elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)  #elapsed hours
     eff_stand = expand_series(1-n.df(c).standing_loss, sns).T.pow(eh)
 
     e = get_var(n, c, 'e')
@@ -498,7 +498,7 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = n.snapshot_weightings[sns].to_frame('weightings') @\
+            em_pu = n.snapshot_weightings.generators[sns].to_frame('weightings') @\
                     em_pu.to_frame('weightings').T
             vals = linexpr((em_pu, get_var(n, 'Generator', 'p')[gens.index]),
                            as_pandas=False)
@@ -515,9 +515,10 @@ def define_global_constraints(n, sns):
             lhs = lhs + '\n' + join_exprs(vals)
             rhs -= sus.carrier.map(emissions) @ sus.state_of_charge_initial
 
-        # stores
-        n.stores['carrier'] = n.stores.bus.map(n.buses.carrier)
-        stores = n.stores.query('carrier in @emissions.index and not e_cyclic')
+        # stores (copy to avoid over-writing existing carrier attribute)
+        stores = n.stores.copy()
+        stores['carrier'] = stores.bus.map(n.buses.carrier)
+        stores = stores.query('carrier in @emissions.index and not e_cyclic')
         if not stores.empty:
             coeff_val = (-stores.carrier.map(emissions), get_var(n, 'Store', 'e')
                          .loc[sns[-1], stores.index])
@@ -588,7 +589,7 @@ def define_objective(n, sns):
     for c, attr in lookup.query('marginal_cost').index:
         cost = (get_as_dense(n, c, 'marginal_cost', sns)
                 .loc[:, lambda ds: (ds != 0).all()]
-                .mul(n.snapshot_weightings[sns], axis=0))
+                .mul(n.snapshot_weightings.objective[sns], axis=0))
         if cost.empty: continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
@@ -678,7 +679,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
                   ('objective_f', fdo), ('binaries_f', fdi)):
         getattr(n, f).close(); delattr(n, f); os.close(fd)
 
-    # concate files
+    # concatenate files
     with open(problem_fn, 'wb') as wfd:
         for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
             with open(f,'rb') as fd:
@@ -747,7 +748,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in n.variables.index:
         map_solution(c, attr)
 
-    # if nominal capcity was no variable set optimal value to nominal
+    # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query('nominal').index.difference(n.variables.index):
         n.df(c)[attr+'_opt'] = n.df(c)[attr]
 
@@ -765,7 +766,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         sp = sp[sp.isin(keep_shadowprices, level=0)]
 
     def map_dual(c, attr):
-        # If c is a pypsa component name the dual is store at n.pnl(c)
+        # If c is a pypsa component name the dual is stored at n.pnl(c)
         # or n.df(c). For the second case the index of the constraints have to
         # be a subset of n.df(c).index otherwise the dual is stored at
         # n.duals[c].df
@@ -799,19 +800,21 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
-    #correct prices for snapshot weightings
-    n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(n.snapshot_weightings.loc[sns],axis=0)
+    # correct prices for snapshot weightings
+    n.buses_t.marginal_price.loc[sns] = (
+        n.buses_t.marginal_price.loc[sns].divide(
+            n.snapshot_weightings.objective.loc[sns],axis=0))
 
     # discard remaining if wanted
     if not keep_references:
         for c, attr in n.constraints.index.difference(sp):
             get_con(n, c, attr, pop)
 
-    #load
+    # load
     if len(n.loads):
         set_from_frame(n.pnl('Load'), 'p', get_as_dense(n, 'Load', 'p_set', sns))
 
-    #clean up vars and cons
+    # clean up vars and cons
     for c in list(n.vars):
         if n.vars[c].df.empty and n.vars[c].pnl == {}: n.vars.pop(c)
     for c in list(n.cons):
@@ -861,9 +864,6 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     solver_name : string
         Must be a solver name that pyomo recognises and that is
         installed, e.g. "glpk", "gurobi"
-    pyomo : bool, default True
-        Whether to use pyomo for building and solving the model, setting
-        this to False saves a lot of memory and time.
     solver_logfile : None|string
         If not None, sets the logfile option of the solver.
     solver_options : dictionary
@@ -996,7 +996,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
         Minimal number of iteration to run regardless whether the msq_threshold
         is already undercut
     max_iterations : integer, default 100
-        Maximal numbder of iterations to run regardless whether msq_threshold
+        Maximal number of iterations to run regardless whether msq_threshold
         is already undercut
     track_iterations: bool, default False
         If True, the intermediate branch capacities and values of the
@@ -1011,7 +1011,7 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     ext_i = get_extendable_i(n, 'Line')
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
-    ext_typed_i = ext_i & typed_i
+    ext_typed_i = ext_i.intersection(typed_i)
     base_s_nom = (np.sqrt(3) * n.lines['type'].map(n.line_types.i_nom) *
                   n.lines.bus0.map(n.buses.v_nom))
     n.lines.loc[ext_typed_i, 'num_parallel'] = (n.lines.s_nom/base_s_nom)[ext_typed_i]
@@ -1019,9 +1019,9 @@ def ilopf(n, snapshots=None, msq_threshold=0.05, min_iterations=1,
     def update_line_params(n, s_nom_prev):
         factor = n.lines.s_nom_opt / s_nom_prev
         for attr, carrier in (('x', 'AC'), ('r', 'DC')):
-            ln_i = (n.lines.query('carrier == @carrier').index & ext_untyped_i)
+            ln_i = (n.lines.query('carrier == @carrier').index.intersection(ext_untyped_i))
             n.lines.loc[ln_i, attr] /= factor[ln_i]
-        ln_i = ext_i & typed_i
+        ln_i = ext_i.intersection(typed_i)
         n.lines.loc[ln_i, 'num_parallel'] = (n.lines.s_nom_opt/base_s_nom)[ln_i]
 
     def msq_diff(n, s_nom_prev):

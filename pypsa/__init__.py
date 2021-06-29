@@ -24,7 +24,7 @@ Grid calculation library.
 
 from . import components, descriptors
 from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo,
-               stats, linopf, linopt)
+               stats, linopf, linopt, examples)
 
 from .components import Network, SubNetwork
 

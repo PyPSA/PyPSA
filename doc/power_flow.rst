@@ -19,9 +19,8 @@ of ``snapshots`` as ``network.pf(snapshots)`` to calculate the
 non-linear power flow on a selection of snapshots at once (which is
 more performant than calling ``network.pf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``.
+``network.snapshots``, see :py:meth:`pypsa.Network.pf` for details.
 
-.. automethod:: pypsa.Network.pf
 
 
 
@@ -136,7 +135,7 @@ Transformer model
 -----------------
 
 The transformer models here are largely based on the implementation in
-`pandapower <https://github.com/panda-power/pandapower>`_, which is
+`pandapower <https://github.com/panda-power/pandapower>`__, which is
 loosely based on `DIgSILENT PowerFactory
 <http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
@@ -309,9 +308,8 @@ of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
 linear power flow on a selection of snapshots at once (which is
 more performant than calling ``network.lpf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``.
+``network.snapshots``, , see :py:meth:`pypsa.Network.lpf` for details.
 
-.. automethod:: pypsa.Network.lpf
 
 For AC networks, it is assumed for the linear power flow that reactive
 power decouples, there are no voltage magnitude variations, voltage
@@ -402,8 +400,3 @@ transformer.{p0, p1}
 
 link.{p0, p1}
 
-
-Utility Functions
-=================
-
-.. automodule:: pypsa.pf

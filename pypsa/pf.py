@@ -16,10 +16,6 @@
 """Power flow functionality.
 """
 
-from six import iterkeys
-from six.moves.collections_abc import Sequence
-
-
 __author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
 __copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
 
@@ -31,12 +27,12 @@ from scipy.sparse import issparse, csr_matrix, csc_matrix, hstack as shstack, vs
 from numpy import r_, ones
 from scipy.sparse.linalg import spsolve
 from numpy.linalg import norm
+from pandas.api.types import is_list_like
 
 import numpy as np
 import pandas as pd
 import networkx as nx
 
-import six
 from operator import itemgetter
 import time
 
@@ -53,8 +49,9 @@ def imag(X): return np.imag(X.to_numpy())
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if (isinstance(snapshots, six.string_types) or
-        not isinstance(snapshots, (Sequence, pd.Index))):
+    if isinstance(snapshots, pd.MultiIndex):
+        return snapshots
+    if not is_list_like(snapshots):
         return pd.Index([snapshots])
     else:
         return pd.Index(snapshots)
@@ -495,10 +492,10 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
             # take bus-based slack weights
             slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)
 
-    ss = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
+    ss = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     roots = np.empty((len(snapshots), len(sub_network.pvpqs) + len(sub_network.pqs) + slack_variable_b))
     iters = pd.Series(0, index=snapshots)
-    diffs = pd.Series(index=snapshots)
+    diffs = pd.Series(index=snapshots, dtype=float)
     convs = pd.Series(False, index=snapshots)
     for i, now in enumerate(snapshots):
         p = network.buses_t.p.loc[now,buses_o]
@@ -548,8 +545,8 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
     v0 = V[:,buses_indexer(branch_bus0)]
     v1 = V[:,buses_indexer(branch_bus1)]
 
-    i0 = np.empty((len(snapshots), sub_network.Y0.shape[0]), dtype=np.complex)
-    i1 = np.empty((len(snapshots), sub_network.Y1.shape[0]), dtype=np.complex)
+    i0 = np.empty((len(snapshots), sub_network.Y0.shape[0]), dtype=complex)
+    i1 = np.empty((len(snapshots), sub_network.Y1.shape[0]), dtype=complex)
     for i, now in enumerate(snapshots):
         i0[i] = sub_network.Y0*V[i]
         i1[i] = sub_network.Y1*V[i]
@@ -564,7 +561,7 @@ def sub_network_pf(sub_network, snapshots=None, skip_pre=False, x_tol=1e-6, use_
         c.pnl.p1.loc[snapshots,s1t.columns] = s1t.values.real
         c.pnl.q1.loc[snapshots,s1t.columns] = s1t.values.imag
 
-    s_calc = np.empty((len(snapshots), len(buses_o)), dtype=np.complex)
+    s_calc = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     for i in np.arange(len(snapshots)):
         s_calc[i] = V[i]*np.conj(sub_network.Y*V[i])
     slack_index = buses_o.get_loc(sub_network.slack_bus)
@@ -1063,7 +1060,7 @@ def find_tree(sub_network, weight='x_pu'):
     for j,bus in enumerate(buses_i):
         path = nx.shortest_path(sub_network.tree,bus,tree_slack_bus)
         for i in range(len(path)-1):
-            branch = next(iterkeys(graph[path[i]][path[i+1]]))
+            branch = next(iter(graph[path[i]][path[i+1]].keys()))
             branch_i = branches_i.get_loc(branch)
             sign = +1 if branches_bus0.iat[branch_i] == path[i] else -1
             sub_network.T[branch_i,j] = sign
@@ -1096,7 +1093,7 @@ def find_cycles(sub_network, weight='x_pu'):
     for j,cycle in enumerate(cycles):
 
         for i in range(len(cycle)):
-            branch = next(iterkeys(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]]))
+            branch = next(iter(mgraph[cycle[i]][cycle[(i+1)%len(cycle)]].keys()))
             branch_i = branches_i.get_loc(branch)
             sign = +1 if branches_bus0.iat[branch_i] == cycle[i] else -1
             sub_network.C[branch_i,j] += sign

@@ -22,7 +22,7 @@ Functionality
 
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
-* standard types for lines and transformers following the implementation in `pandapower <https://www.uni-kassel.de/eecs/fachgebiete/e2n/software/pandapower.html>`_
+* standard types for lines and transformers following the implementation in `pandapower <https://www.pandapower.org>`_
 * conventional dispatchable generators with unit commitment
 * generators with time-varying power availability, such as
   wind and solar generators
@@ -39,7 +39,7 @@ Functionality
 
 **Other complementary libraries:**
 
-* `pandapower <https://github.com/e2nIEE/pandapower>`_ for more
+* `pandapower <https://github.com/e2nIEE/pandapower>`__ for more
   detailed modelling of distribution grids, short-circuit
   calculations, unbalanced load flow and more
 * `PowerDynamics.jl

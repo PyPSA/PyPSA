@@ -9,16 +9,18 @@ Tools for fast Linear Problem file writing. This module contains
 - solver functions which read the lp file, run the problem and return the
   solution
 
-This module supports the linear optimal power flow calculation whithout using
+This module supports the linear optimal power flow calculation without using
 pyomo (see module linopt.py)
 """
 
 from .descriptors import Dict
 import pandas as pd
+import os
 import logging, re, io, subprocess
 import numpy as np
 from pandas import IndexSlice as idx
 from importlib.util import find_spec
+from distutils.version import LooseVersion
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +36,8 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     least one of lower and upper has to be an array (including pandas) of
     shape > (1,) or axes have to define the dimensions of the variables.
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     n : pypsa.Network
     lower : pd.Series/pd.DataFrame/np.array/str/float
         lower bound(s) for the variable(s)
@@ -44,8 +46,10 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
     name : str
         general name of the variable (or component which the variable is
         referring to). The variable will then be stored under:
+
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
+
         but can easily be accessed with :func:`get_var(n, name, attr)`
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
@@ -53,7 +57,7 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
         if one-dimensional
     axes : pd.Index or tuple of pd.Index objects, default None
         Specifies the axes and therefore the shape of the variables if bounds
-        are single strings or floats. This is helpful when mutliple variables
+        are single strings or floats. This is helpful when multiple variables
         have the same upper and lower bound.
 
 
@@ -87,16 +91,18 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     For each entry for the pd.Series of pd.DataFrame spanned by the axes
     argument the function defines a binary.
 
-    Parameter
-    ---------
+    Parameters
+    ----------
     n : pypsa.Network
     axes : pd.Index or tuple of pd.Index objects
         Specifies the axes and therefore the shape of the variables.
     name : str
         general name of the variable (or component which the variable is
         referring to). The variable will then be stored under:
+
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
+
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
@@ -118,7 +124,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     sense and right hand side (rhs). The constraints are stored in the network
     object under n.cons with key of the constraint name. If multiple constraints
     are defined at ones, only using np.arrays, then the axes argument can be used
-    for defining the axes for the constraints (this is espececially recommended
+    for defining the axes for the constraints (this is especially recommended
     for time-dependent constraints). If one of lhs, sense and rhs is a
     pd.Series/pd.DataFrame the axes argument is not necessary.
 
@@ -155,7 +161,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     during the first 10 snapshots. We then firstly get all operational variables
     for this subset and constraint there sum to less equal 100.
 
-    >>> from pypsa.linopt import get_var, linexpr, defin_constraints
+    >>> from pypsa.linopt import get_var, linexpr, define_constraints
     >>> gas_i = n.generators.query('carrier == "Natural Gas"').index
     >>> gas_vars = get_var(n, 'Generator', 'p').loc[n.snapshots[:10], gas_i]
     >>> lhs = linexpr((1, gas_vars)).sum().sum()
@@ -166,11 +172,11 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
 
     >>> cons = get_var(n, 'Generator', 'gas_power_limit')
 
-    Under the hook they are stored in n.cons.Generator.pnl.gas_power_limit.
+    Under the hood they are stored in n.cons.Generator.pnl.gas_power_limit.
     For retrieving their shadow prices add the general name of the constraint
     to the keep_shadowprices argument.
 
-    Note that this is usefull for the `extra_functionality` argument.
+    Note that this is useful for the `extra_functionality` argument.
 
     """
     con = write_constraint(n, lhs, sense, rhs, axes)
@@ -193,7 +199,7 @@ def _get_handlers(axes, *maybearrays):
 
 def write_bound(n, lower, upper, axes=None):
     """
-    Writer function for writing out mutliple variables at a time. If lower and
+    Writer function for writing out multiple variables at a time. If lower and
     upper are floats it demands to give pass axes, a tuple of (index, columns)
     or (index), for creating the variable of same upper and lower bounds.
     Return a series or frame with variable references.
@@ -209,7 +215,7 @@ def write_bound(n, lower, upper, axes=None):
 
 def write_constraint(n, lhs, sense, rhs, axes=None):
     """
-    Writer function for writing out mutliple constraints to the corresponding
+    Writer function for writing out multiple constraints to the corresponding
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
@@ -227,7 +233,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
 
 def write_binary(n, axes):
     """
-    Writer function for writing out mutliple binary-variables at a time.
+    Writer function for writing out multiple binary-variables at a time.
     According to the axes it writes out binaries for each entry the pd.Series
     or pd.DataFrame spanned by axes. Returns a series or frame with variable
     references.
@@ -410,9 +416,9 @@ def _add_reference(ref_dict, df, attr, pnl=True):
 def set_varref(n, variables, c, attr, spec=''):
     """
     Sets variable references to the network.
-    One-dimensional variable references will be collected at n.vars[c].df,
-    two-dimensional varaibles in n.vars[c].pnl
-    For example:
+    One-dimensional variable references will be collected at `n.vars[c].df`,
+    two-dimensional varaibles in `n.vars[c].pnl`. For example:
+
     * nominal capacity variables for generators are stored in
       `n.vars.Generator.df.p_nom`
     * operational variables for generators are stored in
@@ -430,10 +436,11 @@ def set_varref(n, variables, c, attr, spec=''):
 
 def set_conref(n, constraints, c, attr, spec=''):
     """
-    Sets variable references to the network.
-    One-dimensional constraint references will be collected at n.cons[c].df,
-    two-dimensional in n.cons[c].pnl
+    Sets constraint references to the network.
+    One-dimensional constraint references will be collected at `n.cons[c].df`,
+    two-dimensional in `n.cons[c].pnl`
     For example:
+
     * constraints for nominal capacity variables for generators are stored in
       `n.cons.Generator.df.mu_upper`
     * operational capacity limits for generators are stored in
@@ -450,7 +457,7 @@ def set_conref(n, constraints, c, attr, spec=''):
         _add_reference(n.cons[c], constraints, attr, pnl=pnl)
 
 def get_var(n, c, attr, pop=False):
-    '''
+    """
     Retrieves variable references for a given static or time-depending
     attribute of a given component. The function looks into n.variables to
     detect whether the variable is a time-dependent or static.
@@ -467,7 +474,7 @@ def get_var(n, c, attr, pop=False):
     -------
     >>> get_var(n, 'Generator', 'p')
 
-    '''
+    """
     vvars = n.vars[c].pnl if n.variables.pnl[c, attr] else n.vars[c].df
     return vvars.pop(attr) if pop else vvars[attr]
 
@@ -573,13 +580,17 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
         n.basis_fn = solution_fn.replace('.sol', '.bas')
         command += f'-basisO {n.basis_fn} '
 
-    result = subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    if not os.path.exists(solution_fn):
+        os.mknod(solution_fn)
+
+    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
     if solver_logfile is not None:
         print(result.stdout.decode('utf-8'), file=open(solver_logfile, 'w'))
+    result.wait()
 
-    f = open(solution_fn,"r")
-    data = f.readline()
-    f.close()
+    with open(solution_fn, "r") as f:
+        data = f.readline()
+
 
     if data.startswith("Optimal - objective value"):
         status = "ok"
@@ -604,7 +615,6 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     variables_b = sol.index.str[0] == 'x'
     variables_sol = sol[variables_b][2].pipe(set_int_index)
     constraints_dual = sol[~variables_b][3].pipe(set_int_index)
-
     return (status, termination_condition, variables_sol,
             constraints_dual, objective)
 
@@ -631,7 +641,8 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
 
-    subprocess.run(command.split(' '), stdout=subprocess.PIPE)
+    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
+    result.wait()
 
     f = open(solution_fn)
     def read_until_break(f):
@@ -689,8 +700,13 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
            "Install via 'conda install -c ibmdecisionoptimization cplex' "
            "or 'pip install cplex'")
     import cplex
+    _version = LooseVersion(cplex.__version__)
     m = cplex.Cplex()
-    out = m.set_log_stream(solver_logfile)
+    if _version >= "12.10":
+        log_file_or_path = open(solver_logfile, "w")
+    else:
+        log_file_or_path = solver_logfile
+    out = m.set_log_stream(log_file_or_path)
     if solver_options is not None:
         for key, value in solver_options.items():
             param = m.parameters
@@ -702,6 +718,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
+    if isinstance(log_file_or_path, io.IOBase): logfile.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:

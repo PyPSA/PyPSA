@@ -21,20 +21,20 @@ setup(
     license='GPLv3',
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
-    python_requires='>=3',
+    python_requires='>=3.6',
     install_requires=[
-        'six>=1.13.0',
         'numpy',
         'scipy',
         'pandas>=0.24.0',
         'tables',
         'pyomo>=5.7',
         'matplotlib',
-        'networkx>=1.10'
+        'networkx>=1.10',
+        'deprecation'
     ],
     extras_require = {
         "cartopy": ['cartopy>=0.16'],
-        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme"],
+        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link"],
         'gurobipy':['gurobipy']
     },
     classifiers=[

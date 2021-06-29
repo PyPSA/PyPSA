@@ -40,7 +40,6 @@ from pyomo.core.expr.numeric_expr import LinearExpression
 
 import pyomo
 from contextlib import contextmanager
-from six import iteritems
 from six.moves import cPickle as pickle
 import gc, os, tempfile
 
@@ -307,10 +306,10 @@ def empty_model(model):
     os.remove(fn)
     model.__setstate__(state)
 
-    for n, rule in iteritems(rules):
+    for n, rule in rules.items():
         getattr(model, n).rule = rule
 
-    for n, bound in iteritems(bounds):
+    for n, bound in bounds.items():
         getattr(model, n)._bounds_init_rule = bound
 
     logger.debug("Reloaded pyomo model")
@@ -338,7 +337,7 @@ def empty_network(network):
     with open(fn, 'rb') as f:
         panels = pickle.load(f)
     os.remove(fn)
-    for attr, pnl in iteritems(panels):
+    for attr, pnl in panels.items():
         setattr(network, attr, pnl)
 
 def patch_optsolver_free_model_before_solving(opt, model):

@@ -17,7 +17,7 @@ def test_opf():
 
     target_path = os.path.join(csv_folder_name,"results","generators-p.csv")
 
-    target_gen_p = pd.read_csv(target_path, index_col=0)
+    target_gen_p = pd.read_csv(target_path, index_col=0, parse_dates=True)
 
     #test results were generated with GLPK and other solvers may differ
     for solver_name in solvers:
