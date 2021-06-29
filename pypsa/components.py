@@ -868,8 +868,6 @@ class Network(Basic):
                 for k in component.pnl.keys():
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
-        else:
-            network.snapshot_weightings = self.snapshot_weightings.copy()
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:

@@ -35,6 +35,8 @@ Upcoming Release
 
 * Bugfix in ``network.ilopf()`` where previously all links were fixed in the final iteration when it should only be the DC links.
 
+* ``n.snapshot_weightings`` is no longer copied for ``n.copy(with_time=False)``.
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
