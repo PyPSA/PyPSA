@@ -633,7 +633,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         network.set_snapshots(df.index)
 
         if investment_periods is not None:
-            network._investment_period_weightings = (
+            network.investment_period_weightings = (
                 investment_periods.reindex(network.investment_period_weightings.index))
 
     imported_components = []

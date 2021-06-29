@@ -471,7 +471,7 @@ class Network(Basic):
         if isinstance(self.snapshots, pd.MultiIndex):
             assert df.index.equals(self.snapshots.levels[0]), "Weightings not defined for all investment periods."
             assert (all(isinstance(x, int) for x in df.index)
-                    and all(sorted(df.get_level_values(0).unique()) == df.index.get_level_values(0).unique())), "Investment periods should be integer and increasing."
+                    and all(sorted(df.index.get_level_values(0).unique()) == df.index.get_level_values(0).unique())), "Investment periods should be integer and increasing."
             if isinstance(df, pd.Series):
                 logger.info('Applying weightings to all columns of `investment_period_weightings`')
                 df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
@@ -1027,6 +1027,12 @@ class Network(Basic):
     def determine_network_topology(self, investment_period=None):
         """
         Build sub_networks from topology.
+
+        For the default case investment_period=None, it is not taken into
+        account whether the branch components are active
+        (based on build_year and lifetime).
+        If the investment_period is specified, the network topology is
+        determined on the basis of the active branches.
         """
 
         adjacency_matrix = self.adjacency_matrix(branch_components=self.passive_branch_components,
