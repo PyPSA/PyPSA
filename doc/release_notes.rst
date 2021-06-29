@@ -33,6 +33,8 @@ Upcoming Release
 
 * A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project. 
 
+* Bugfix in ``network.ilopf()`` where previously all links were fixed in the final iteration when it should only be the DC links.
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
