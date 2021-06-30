@@ -394,12 +394,7 @@ class Network(Basic):
         """
         if isinstance(value, pd.MultiIndex):
             assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            assert (all(isinstance(x, int) for x in value.levels[0])
-                    and all(sorted(value.get_level_values(0).unique()) == value.get_level_values(0).unique())), "Investment periods should be integer and increasing."
             self._snapshots = value.rename(['period', 'snapshot'])
-            self._investment_period_weightings = (self._investment_period_weightings
-                                                 .reindex(value.levels[0],
-                                                          fill_value=1.))
         else:
             self._snapshots = pd.Index(value, name='snapshot')
 
@@ -417,6 +412,7 @@ class Network(Basic):
 
     snapshots = property(lambda self: self._snapshots, set_snapshots,
                          doc="Time steps of the network")
+        
 
     @property
     def snapshot_weightings(self):
@@ -443,9 +439,62 @@ class Network(Basic):
         if isinstance(df, pd.Series):
             logger.info('Applying weightings to all columns of `snapshot_weightings`')
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
-            self._snapshot_weightings = df
+        self._snapshot_weightings = df
+
+
+
+    def set_investment_periods(self, periods):
+        """
+        Set the investment periods of the network.
+
+        If the network snapshots are a pandas.MultiIndex, the investment periods
+        have to be a subset of the first level. If snapshots are a single index,
+        they and all time-series are repeated for all periods. This changes
+        the network snapshots to be a MultiIndex (inplace operation) with the first
+        level being the investment periods and the second level the snapshots.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+        periods : list
+            List of periods to be selected/initialized.
+
+        Returns
+        -------
+        None.
+
+        """
+        periods = pd.Index(periods)
+        if not (periods.is_integer() and periods.is_unique and periods.is_monotonic_increasing):
+            logger.warn("Investment periods are not strictly increasing integers, "
+                        "which is required for multi-period investment optimisation.")
+        if isinstance(self.snapshots, pd.MultiIndex):
+            assert periods.isin(self.snapshots.unique('period')).all(), (
+                "Not all investment periods are in level `period` of snapshots.")
         else:
-            self._snapshot_weightings = df
+            # Convenience case:
+            logger.info("Repeating time-series for each investment period and "
+                        "converting snapshots to a pandas.MultiIndex.")
+            for component in self.all_components:
+                pnl = self.pnl(component)
+                attrs = self.components[component]["attrs"]
+
+                for k,default in attrs.default[attrs.varying].iteritems():
+                    pnl[k] = pd.concat({p: pnl[k] for p in periods})
+
+            self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
+                                                      names=['period', 'snaphots'])
+            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods})
+
+        self._investment_periods = periods
+        self.investment_period_weightings = (
+            self.investment_period_weightings.reindex(periods, fill_value=1.))
+
+
+
+    investment_periods = property(lambda self: self._investment_periods,
+                                  set_investment_periods,
+                                  doc="Investment steps during the optimization.")
 
 
     @property
@@ -467,20 +516,13 @@ class Network(Basic):
 
     @investment_period_weightings.setter
     def investment_period_weightings(self, df):
-        # if multiindex snapshots
-        if isinstance(self.snapshots, pd.MultiIndex):
-            assert df.index.equals(self.snapshots.levels[0]), "Weightings not defined for all investment periods."
-            assert (all(isinstance(x, int) for x in df.index)
-                    and all(sorted(df.get_level_values(0).unique()) == df.index.get_level_values(0).unique())), "Investment periods should be integer and increasing."
-            if isinstance(df, pd.Series):
-                logger.info('Applying weightings to all columns of `investment_period_weightings`')
-                df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
-                self._snapshot_weightings = df
-            else:
-                self._investment_period_weightings = df
-        # for single optimisation return df
-        else:
-            self._investment_period_weightings = df
+        assert df.index.equals(self.investment_periods), (
+                "Weightings not defined for all investment periods.")
+        if isinstance(df, pd.Series):
+            logger.info('Applying weightings to all columns of `investment_period_weightings`')
+            df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
+        self._investment_period_weightings = df
+
 
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
