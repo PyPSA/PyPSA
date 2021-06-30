@@ -36,8 +36,8 @@ n = pypsa.examples.storage_hvdc()
 print(n.snapshot_weightings)
 
 # snapshots can be set as a multiindex
-# a convenience functionality is provided: when setting the investment periods 
-# directly, the all time-series are repeated for each period. 
+# a convenience functionality is provided: when setting the investment periods
+# directly, the all time-series are repeated for each period.
 single_snapshots = n.snapshots
 n.investment_periods = [2020, 2030]
 print(n.snapshots)
@@ -187,11 +187,11 @@ n.determine_network_topology()
 print(n.buses.sub_network)
 
 # determines network topolgy in first investment period (bus 2 isolated)
-n.determine_network_topology(n.investment_period_weightings.index[0])
+n.determine_network_topology(n.investment_periods[0])
 print(n.buses.sub_network)
 
 # determines network topology in third investment period (all lines are build)
-n.determine_network_topology(n.investment_period_weightings.index[2])
+n.determine_network_topology(n.investment_periods[2])
 print(n.buses.sub_network)
 
 

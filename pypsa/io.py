@@ -612,8 +612,6 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
-    # read in investment period weightings
-    investment_periods = importer.get_investment_periods()
 
     if df is not None:
 
@@ -632,9 +630,15 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         network.set_snapshots(df.index)
 
-        if investment_periods is not None:
-            network._investment_period_weightings = (
-                investment_periods.reindex(network.investment_period_weightings.index))
+    # read in investment period weightings
+    periods = importer.get_investment_periods()
+
+    if periods is not None:
+        network.set_investment_periods(periods.index)
+
+        network._investment_period_weightings = (
+            periods.reindex(network.investment_periods))
+
 
     imported_components = []
 
