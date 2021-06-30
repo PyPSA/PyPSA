@@ -36,7 +36,7 @@ enable:
 electricity:
   voltages: [220., 300., 380.]
   co2limit: 7.75e+7 # 0.05 * 3.1e9*0.5
-  co2base: 3.1e+9 # 1 * 3.1e9*0.5
+  co2base: 1.487e+9
   agg_p_nom_limits: data/agg_p_nom_minmax.csv
 
   extendable_carriers:
@@ -62,18 +62,28 @@ electricity:
 atlite:
   nprocesses: 4
   cutouts:
+    # use 'base' to determine geographical bounds and time span from config
+    # base: 
+      # module: era5  
     europe-2013-era5:
-      module: era5
-      xs: [-12., 35.]
-      ys: [72., 33.]
-      years: [2013, 2013]
+      module: era5 # in priority order 
+      x: [-12., 35.]
+      y: [33., 72]
+      dx: 0.3
+      dy: 0.3
+      time: ['2013', '2013']
     europe-2013-sarah:
-      module: sarah
-      resolution: 0.2
-      xs: [-12., 42.]
-      ys: [65., 33.]
-      years: [2013, 2013]
+      module: [sarah, era5] # in priority order 
+      x: [-12., 45.]
+      y: [33., 65]
+      dx: 0.2
+      dy: 0.2
+      time: ['2013', '2013']
+      sarah_interpolate: false
+      sarah_dir: 
+      features: [influx, temperature]
 
+      
 renewable:
   onwind:
     cutout: europe-2013-era5
@@ -179,13 +189,16 @@ costs:
   year: 2030
   discountrate: 0.07 # From a Lion Hirth paper, also reflects average of Noothout et al 2016
   USD2013_to_EUR2013: 0.7532 # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html
-  marginal_cost:
+  marginal_cost: # EUR/MWh
     solar: 0.01
     onwind: 0.015
     offwind: 0.015
     hydro: 0.
     H2: 0.
+    electrolysis: 0.
+    fuel cell: 0.
     battery: 0.
+    battery inverter: 0.
   emission_prices: # in currency per tonne emission, only used with the option Ep
     co2: 0.
 

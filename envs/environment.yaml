@@ -8,17 +8,17 @@ channels:
   - bioconda
   - http://conda.anaconda.org/gurobi
 dependencies:
-  - python
+  - python>=3.8
   - pip
   - mamba # esp for windows build
 
-  - pypsa>=0.17.1
-  - atlite=0.0.3
+  - pypsa>=0.17.1 
+  - atlite>=0.2.4
+  - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
 
   # Dependencies of the workflow itself
   - xlrd
   - openpyxl
-  - scikit-learn
   - pycountry
   - seaborn
   - snakemake-minimal
@@ -27,34 +27,32 @@ dependencies:
   - pytables
   - lxml
   - powerplantmatching>=0.4.8
-  - numpy<=1.19.0 # otherwise macos fails
-
-  # Second order dependencies which should really be deps of atlite
+  - numpy<=1.19 # until new PyPSA after 27-06-21
+  - pandas
+  - geopandas
   - xarray
   - netcdf4
-  - bottleneck
-  - toolz
-  - dask
+  - networkx
+  - scipy
+  - shapely
   - progressbar2
-  - pyyaml>=5.1.0
+  - pyomo
+  - matplotlib
 
   # Keep in conda environment when calling ipython
   - ipython
 
   # GIS dependencies:
   - cartopy
-  - fiona
-  - proj
-  - pyshp
-  - geopandas
-  - rasterio
-  - shapely
-  - libgdal<=3.0.4
   - descartes
+  - rasterio
+
+  # PyPSA-Eur-Sec Dependencies
+  - geopy
+  - tqdm
+  - pytz
+  - country_converter
 
   - pip:
     - vresutils==0.3.1
     - tsam>=1.1.0
-    - git+https://github.com/PyPSA/glaes.git#egg=glaes
-    - git+https://github.com/PyPSA/geokit.git#egg=geokit
-    - cdsapi

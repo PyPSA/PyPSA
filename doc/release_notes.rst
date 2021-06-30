@@ -1,5 +1,5 @@
 ..
-  SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+  SPDX-FileCopyrightText: 2019-2021 The PyPSA-Eur Authors
 
   SPDX-License-Identifier: CC-BY-4.0
 
@@ -11,6 +11,19 @@ Release Notes
 Upcoming Release
 ================
 
+* Switch to new major release, ``>=v0.2.1`` of ``atlite``.  The version upgrade comes along with significant speed up for the rule ``build_renewable_profiles.py`` (~factor 2). A lot of the code which calculated the landuse availability is now outsourced and does not rely on ``glaes``, ``geokit`` anymore. This facilitates the environment building and version compatibility of ``gdal``, ``libgdal`` with other packages. 
+* The minimum python version was set to ``3.8``.
+* The rule and script ``build_country_flh`` are removed as they're no longer used or maintained.
+* The flag ``keep_all_available_areas`` in the configuration for renewable potentials (config.yaml -> renewable -> {technology}) was deprecated and now defaults to ``True``. 
+* The tutorial cutout was renamed from ``cutouts/europe-2013-era5.nc`` to ``cutouts/europe-2013-era5-tutorial.nc`` to accomodate tutorial and productive cutouts side-by-side.
+* Fix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq (from 3.1e9 t CO2-eq). The new value represents emissions related to the electricity sector for EU+UK. The old value was ~2x too high and used when the emissions wildcard in ``{opts}`` was used.
+* Add option to include marginal costs of links representing fuel cells, electrolysis, and battery inverters 
+  [`#232 <https://github.com/PyPSA/pypsa-eur/pull/232>`_].
+* Fix: Add escape in :mod:`base_network` if all TYNDP links are already contained in the network [`#246 <https://github.com/PyPSA/pypsa-eur/pull/246>`_].
+* Bugfix in :mod:`solve_operations_network`: optimised capacities are now fixed for all extendable links, not only HVDC links [`#244 <https://github.com/PyPSA/pypsa-eur/pull/244>`_].
+* The ``focus_weights`` are now also considered when pre-clustering in the :mod:`simplify_network` rule [`#241 <https://github.com/PyPSA/pypsa-eur/pull/241>`_].
+* Continuous integration testing switches to Github Actions from Travis CI [`#252 <https://github.com/PyPSA/pypsa-eur/pull/252>`_].
+* Bugfix in :mod:`build_renewable_profile` where offshore wind profiles could no longer be created [`#249 <https://github.com/PyPSA/pypsa-eur/pull/249>`_].
 
 PyPSA-Eur 0.3.0 (7th December 2020)
 ==================================
@@ -35,6 +48,7 @@ Using the ``{opts}`` wildcard for scenarios:
   This feature is an alternative to downsampling the temporal resolution by simply averaging and
   uses the `tsam <https://tsam.readthedocs.io/en/latest/index.html>`_ package
   [`#186 <https://github.com/PyPSA/pypsa-eur/pull/186>`_].
+
 
 More OPSD integration:
 

@@ -25,7 +25,6 @@ from _helpers import (load_network_for_plots, aggregate_p, aggregate_costs,
 
 import pandas as pd
 import numpy as np
-from six.moves import zip
 
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
@@ -164,7 +163,7 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
                 handler_map=make_handler_map_to_scale_circles_as_in(ax))
     ax.add_artist(l2)
 
-    techs =  (bus_sizes.index.levels[1]) & pd.Index(opts['vre_techs'] + opts['conv_techs'] + opts['storage_techs'])
+    techs =  (bus_sizes.index.levels[1]).intersection(pd.Index(opts['vre_techs'] + opts['conv_techs'] + opts['storage_techs']))
     handles = []
     labels = []
     for t in techs:

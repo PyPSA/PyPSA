@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: : 2021 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 5
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.1.1 
+      with: # checks out environment 'test' by default
+          mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
+
+    - name: Install dependencies  
+      run: |
+        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
+        echo -e "  - glpk\n  - ipopt<3.13.3" >> envs/environment.yaml
+        mamba env update -f envs/environment.yaml --name test
+        
+    - name: Test snakemake workflow
+      run: |
+        conda list
+        cp test/config.test1.yaml config.yaml
+        snakemake --cores all solve_all_networks
+        rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results

@@ -54,16 +54,15 @@ electricity:
 atlite:
   nprocesses: 4
   cutouts:
-    europe-2013-era5:
+    europe-2013-era5-tutorial:
       module: era5
-      xs: [4., 15.]
-      ys: [56., 46.]
-      months: [3, 3]
-      years: [2013, 2013]
+      x: [4., 15.]
+      y: [46., 56.]
+      time: ["2013-03", "2013-03"]
 
 renewable:
   onwind:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: Vestas_V112_3MW
@@ -80,7 +79,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-ac:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
@@ -92,7 +91,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-dc:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
@@ -105,7 +104,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   solar:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: pv
       panel: CSi

@@ -20,7 +20,7 @@ countries: ['DE']
 
 snapshots:
   start: "2013-03-01"
-  end: "2014-04-01"
+  end: "2013-03-08"
   closed: 'left' # end is not inclusive
 
 enable:
@@ -53,16 +53,15 @@ electricity:
 atlite:
   nprocesses: 4
   cutouts:
-    europe-2013-era5:
+    europe-2013-era5-tutorial:
       module: era5
-      xs: [4., 15.]
-      ys: [56., 46.]
-      months: [3, 3]
-      years: [2013, 2013]
+      x: [4., 15.]
+      y: [46., 56.]
+      time: ["2013-03-01", "2013-03-08"]
 
 renewable:
   onwind:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: Vestas_V112_3MW
@@ -79,7 +78,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-ac:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
@@ -91,7 +90,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   offwind-dc:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
@@ -104,7 +103,7 @@ renewable:
     potential: simple # or conservative
     clip_p_max_pu: 1.e-2
   solar:
-    cutout: europe-2013-era5
+    cutout: europe-2013-era5-tutorial
     resource:
       method: pv
       panel: CSi
@@ -147,9 +146,9 @@ transformers:
 
 load:
   url: https://data.open-power-system-data.org/time_series/2019-06-05/time_series_60min_singleindex.csv
-  power_statistics: True # only for files from <2019; set false in order to get ENTSOE transparency data 
+  power_statistics: True # only for files from <2019; set false in order to get ENTSOE transparency data
   interpolate_limit: 3 # data gaps up until this size are interpolated linearly
-  time_shift_for_large_gaps: 1w # data gaps up until this size are copied by copying from 
+  time_shift_for_large_gaps: 1w # data gaps up until this size are copied by copying from
   manual_adjustments: true # false
   scaling_factor: 1.0
 

@@ -93,8 +93,7 @@ import numpy as np
 import scipy as sp
 from scipy.sparse.csgraph import connected_components, dijkstra
 
-from six import iteritems
-from six.moves import reduce
+from functools import reduce
 
 import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
@@ -193,7 +192,7 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
         n.mremove(c, n.df(c).index)
 
         import_components_from_dataframe(n, df, c)
-        for attr, df in iteritems(pnl):
+        for attr, df in pnl.items():
             if not df.empty:
                 import_series_from_dataframe(n, df, c, attr)
 
@@ -237,7 +236,7 @@ def simplify_links(n):
                       if len(G.adj[m]) > 2 or (set(G.adj[m]) - nodes)}
 
         for u in supernodes:
-            for m, ls in iteritems(G.adj[u]):
+            for m, ls in G.adj[u].items():
                 if m not in nodes or m in seen: continue
 
                 buses = [u, m]
@@ -245,7 +244,7 @@ def simplify_links(n):
 
                 while m not in (supernodes | seen):
                     seen.add(m)
-                    for m2, ls in iteritems(G.adj[m]):
+                    for m2, ls in G.adj[m].items():
                         if m2 in seen or m2 == u: continue
                         buses.append(m2)
                         links.append(list(ls)) # [name for name in ls])
@@ -324,6 +323,8 @@ def remove_stubs(n):
 def cluster(n, n_clusters):
     logger.info(f"Clustering to {n_clusters} buses")
 
+    focus_weights = snakemake.config.get('focus_weights', None)
+    
     renewable_carriers = pd.Index([tech
                                     for tech in n.generators.carrier.unique()
                                     if tech.split('-', 2)[0] in snakemake.config['renewable']])
@@ -337,7 +338,8 @@ def cluster(n, n_clusters):
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
     clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap=False, potential_mode=potential_mode,
-                                           solver_name=snakemake.config['solving']['solver']['name'])
+                                           solver_name=snakemake.config['solving']['solver']['name'],
+                                           focus_weights=focus_weights)
 
     return clustering.network, clustering.busmap
 

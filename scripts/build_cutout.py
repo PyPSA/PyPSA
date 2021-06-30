@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2021 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -92,10 +92,11 @@ Description
 """
 
 import logging
+import atlite
+import geopandas as gpd
+import pandas as pd
 from _helpers import configure_logging
 
-import os
-import atlite
 
 logger = logging.getLogger(__name__)
 
@@ -106,14 +107,24 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     cutout_params = snakemake.config['atlite']['cutouts'][snakemake.wildcards.cutout]
-    for p in ('xs', 'ys', 'years', 'months'):
-        if p in cutout_params:
-            cutout_params[p] = slice(*cutout_params[p])
 
-    cutout = atlite.Cutout(snakemake.wildcards.cutout,
-                        cutout_dir=os.path.dirname(snakemake.output[0]),
-                        **cutout_params)
+    snapshots = pd.date_range(freq='h', **snakemake.config['snapshots'])
+    time = [snapshots[0], snapshots[-1]]
+    cutout_params['time'] = slice(*cutout_params.get('time', time))
 
-    nprocesses = snakemake.config['atlite'].get('nprocesses', 4)
+    if {'x', 'y', 'bounds'}.isdisjoint(cutout_params):
+        # Determine the bounds from bus regions with a buffer of two grid cells
+        onshore = gpd.read_file(snakemake.input.regions_onshore)
+        offshore = gpd.read_file(snakemake.input.regions_offshore)
+        regions =  onshore.append(offshore)
+        d = max(cutout_params.get('dx', 0.25), cutout_params.get('dy', 0.25))*2
+        cutout_params['bounds'] = regions.total_bounds + [-d, -d, d, d]
+    elif {'x', 'y'}.issubset(cutout_params):
+        cutout_params['x'] = slice(*cutout_params['x'])
+        cutout_params['y'] = slice(*cutout_params['y'])
 
-    cutout.prepare(nprocesses=nprocesses)
+
+    logging.info(f"Preparing cutout with parameters {cutout_params}.")
+    features = cutout_params.pop('features', None)
+    cutout = atlite.Cutout(snakemake.output[0], **cutout_params)
+    cutout.prepare(features=features)

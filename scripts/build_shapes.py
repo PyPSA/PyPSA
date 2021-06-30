@@ -73,7 +73,7 @@ from _helpers import configure_logging
 import os
 import numpy as np
 from operator import attrgetter
-from six.moves import reduce
+from functools import reduce
 from itertools import takewhile
 
 import pandas as pd
