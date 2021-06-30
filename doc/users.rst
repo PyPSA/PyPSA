@@ -13,13 +13,13 @@ Universities and Research Institutes
 
 * `Karlsruhe Institute of Technology <https://www.kit.edu/>`_ (KIT, where PyPSA development continues): multiple research papers, for example: `doi:10.1016/j.energy.2018.06.222 <https://doi.org/10.1016/j.energy.2018.06.222)>`_, `doi:10.1109/EEM.2019.8916411 <https://www.doi.org/10.1109/EEM.2019.8916411>`_, `doi:10.1016/j.esr.2018.08.012 <https://doi.org/10.1016/j.esr.2018.08.012>`_, `doi:10.1016/j.epsr.2020.106690 <https://doi.org/10.1016/j.epsr.2020.106690>`_, `doi:10.1145/3396851.3397688 <https://doi.org/10.1145/3396851.3397688>`_, `doi:10.1016/j.apenergy.2021.116726 <https://doi.org/10.1016/j.apenergy.2021.116726>`_
 
-* `Technische Universität Berlin <https://www.ensys.tu-berlin.de/>`_ (TUB, where PyPSA development continues): multiple research papers, for example: `doi.org:10.1016/j.eneco.2021.105354 <https://doi.org/10.1016/j.eneco.2021.105354>`_, `doi:10.1016/j.energy.2021.120784 <https://doi.org/10.1016/j.energy.2021.120784`_
+* `Technische Universität Berlin <https://www.ensys.tu-berlin.de/>`_ (TUB, where PyPSA development continues): multiple research papers, for example: `doi.org:10.1016/j.eneco.2021.105354 <https://doi.org/10.1016/j.eneco.2021.105354>`_, `doi:10.1016/j.energy.2021.120784 <https://doi.org/10.1016/j.energy.2021.120784>`_
 
 * `Aarhus University <https://www.au.dk/>`_ in Denmark: multiple research papers, for example: `doi:10.1016/j.apenergy.2019.02.009 <https://doi.org/10.1016/j.apenergy.2019.02.009>`_, `doi:10.1016/j.apenergy.2018.12.016 <https://doi.org/10.1016/j.apenergy.2018.12.016>`_, `doi:10.1002/pip.3198 <https://doi.org/10.1002/pip.3198>`_, `doi:10.1016/j.enconman.2019.111977 <https://doi.org/10.1016/j.enconman.2019.111977>`_, `doi:10.1038/s41467-020-20015-4 <https://doi.org/10.1038/s41467-020-20015-4>`_
 
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
-* `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_
+* `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_, `doi:10.1016/j.apenergy.2021.116936 <https://doi.org/10.1016/j.apenergy.2021.116936>`_
 
 * `University of Geneva <https://www.unige.ch/>`_ in Switzerland: research paper `doi:10.1038/s41467-020-18812-y <https://doi.org/10.1038/s41467-020-18812-y>`_
 
