@@ -71,7 +71,7 @@ def set_parameters_from_optimized(n, n_optim):
             n_optim.lines[attr].reindex(lines_untyped_i, fill_value=0.)
     n.lines['s_nom_extendable'] = False
 
-    links_dc_i = n.links.index[n.links.carrier == 'DC']
+    links_dc_i = n.links.index[n.links.p_nom_extendable]
     n.links.loc[links_dc_i, 'p_nom'] = \
         n_optim.links['p_nom_opt'].reindex(links_dc_i, fill_value=0.)
     n.links.loc[links_dc_i, 'p_nom_extendable'] = False
@@ -111,8 +111,9 @@ if __name__ == "__main__":
     fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
         n = prepare_network(n, solve_opts=snakemake.config['solving']['options'])
-        n = solve_network(n, config, solver_dir=tmpdir,
-                          solver_log=snakemake.log.solver, opts=opts)
+        n = solve_network(n, config=config, opts=opts,
+                          solver_dir=tmpdir,
+                          solver_logfile=snakemake.log.solver)
         n.export_to_netcdf(snakemake.output[0])
 
     logger.info("Maximum memory usage: {}".format(mem.mem_usage))

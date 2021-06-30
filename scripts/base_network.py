@@ -74,7 +74,6 @@ import scipy as sp
 import networkx as nx
 
 from scipy.sparse import csgraph
-from six import iteritems
 from itertools import product
 
 from shapely.geometry import Point, LineString
@@ -213,6 +212,7 @@ def _add_links_from_tyndp(buses, links):
     if links_tyndp["j"].notnull().any():
         logger.info("TYNDP links already in the dataset (skipping): " + ", ".join(links_tyndp.loc[links_tyndp["j"].notnull(), "Name"]))
         links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
+        if links_tyndp.empty: return buses, links
 
     tree = sp.spatial.KDTree(buses[['x', 'y']])
     _, ind0 = tree.query(links_tyndp[["x1", "y1"]])
@@ -268,13 +268,13 @@ def _apply_parameter_corrections(n):
 
     if corrections is None: return
 
-    for component, attrs in iteritems(corrections):
+    for component, attrs in corrections.items():
         df = n.df(component)
         oid = _get_oid(df)
         if attrs is None: continue
 
-        for attr, repls in iteritems(attrs):
-            for i, r in iteritems(repls):
+        for attr, repls in attrs.items():
+            for i, r in repls.items():
                 if i == 'oid':
                     r = oid.map(repls["oid"]).dropna()
                 elif i == 'index':
