@@ -54,6 +54,9 @@ Companies and Non-Governmental Organisations
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
+
+* `Energynautics GmbH <https://energynautics.com/>`_, a grid integration consultancy in Germany: used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: `Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen <https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf>`_
+
 * `Saudi Aramco <https://www.aramco.com/>`_: used PyPSA for an assessment of renewables integration in 2019, see `arXiv:1709.03761 <https://arxiv.org/abs/1709.03761>`_
 
 * `Shell <https://www.shell.com/>`_: uses PyPSA for electricity market simulations in Europe
