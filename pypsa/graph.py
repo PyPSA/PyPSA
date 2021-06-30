@@ -144,7 +144,7 @@ def adjacency_matrix(network, branch_components=None, investment_period=None,
                 sel = c.ind
             else:
                 active = get_active_assets(network, c.name, investment_period, network.snapshots)
-                sel = c.ind  & c.df.loc[active].index
+                sel = c.ind & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))

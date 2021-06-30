@@ -323,8 +323,8 @@ def get_non_extendable_i(n, c):
 def get_active_assets(n, c, investment_period, snapshots):
     """
     Getter function. Get the index of elements which are active of a given
-    component c, depending on lifetime and build year for a investment_period
-    investment_period (assuming that component is already used in build year)
+    component c, depending on lifetime and build year for an investment_period
+    (assuming that component is already used in build year).
     """
     # component only active during lifetime
     df = n.df(c).copy()
@@ -375,8 +375,9 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     # set to zero if not active
     if isinstance(sns, pd.MultiIndex):
         for inv_p in sns.levels[0]:
-            max_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
-            min_pu.loc[inv_p][max_pu.columns[~get_active_assets(n,c,inv_p,sns)]] = 0
+            inactive = ~get_active_assets(n, c, inv_p, sns)
+            max_pu.loc[inv_p, inactive] = 0
+            min_pu.loc[inv_p, inactive] = 0
 
     return min_pu[index], max_pu[index]
 
