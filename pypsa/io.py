@@ -634,7 +634,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     periods = importer.get_investment_periods()
 
     if periods is not None:
-        network.set_investment_periods(periods.index)
+        network._investment_periods = periods.index
 
         network._investment_period_weightings = (
             periods.reindex(network.investment_periods))

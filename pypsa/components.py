@@ -234,6 +234,8 @@ class Network(Basic):
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
+        self._investment_periods = pd.Index([])
+
         cols = ["objective", "time"]
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
@@ -412,7 +414,7 @@ class Network(Basic):
 
     snapshots = property(lambda self: self._snapshots, set_snapshots,
                          doc="Time steps of the network")
-        
+
 
     @property
     def snapshot_weightings(self):
@@ -1069,6 +1071,12 @@ class Network(Basic):
     def determine_network_topology(self, investment_period=None):
         """
         Build sub_networks from topology.
+
+        For the default case investment_period=None, it is not taken into
+        account whether the branch components are active
+        (based on build_year and lifetime).
+        If the investment_period is specified, the network topology is
+        determined on the basis of the active branches.
         """
 
         adjacency_matrix = self.adjacency_matrix(branch_components=self.passive_branch_components,
