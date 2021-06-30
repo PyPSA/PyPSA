@@ -131,8 +131,7 @@ def update_p_nom_max(n):
     # the installed capacity might exceed the expansion limit.
     # Hence, we update the assumptions.
     
-    n.generators.p_nom_max = (n.generators
-                              .apply(lambda b: b[['p_nom_min','p_nom_max']].max(), axis=1))
+    n.generators.p_nom_max = n.generators[['p_nom_min', 'p_nom_max']].max(1)
 
 def aggregate_p_nom(n):
     return pd.concat([
