@@ -700,19 +700,6 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     pypsa.Network.madd
     """
 
-    if cls_name == "Generator" and "source" in dataframe.columns:
-        logger.warning("'source' for generators is deprecated, use 'carrier' instead.")
-    if cls_name == "Generator" and "dispatch" in dataframe.columns:
-        logger.warning("'dispatch' for generators is deprecated, use time-varing 'p_max_pu' for 'variable' and static 'p_max_pu' for 'flexible'.")
-    if cls_name in ["Generator","StorageUnit"] and "p_max_pu_fixed" in dataframe.columns:
-        logger.warning("'p_max_pu_fixed' for generators is deprecated, use static 'p_max_pu' instead.")
-    if cls_name in ["Generator","StorageUnit"] and "p_min_pu_fixed" in dataframe.columns:
-        logger.warning("'p_min_pu_fixed' for generators is deprecated, use static 'p_min_pu' instead.")
-    if cls_name == "Bus" and "current_type" in dataframe.columns:
-        logger.warning("'current_type' for buses is deprecated, use 'carrier' instead.")
-    if cls_name == "Link" and "s_nom" in dataframe.columns:
-        logger.warning("'s_nom*' for links is deprecated, use 'p_nom*' instead.")
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
