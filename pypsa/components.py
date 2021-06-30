@@ -214,11 +214,6 @@ class Network(Basic):
                  override_components=None, override_component_attrs=None,
                  **kwargs):
 
-        if 'csv_folder_name' in kwargs:
-            logger.warning("The argument csv_folder_name for initiating Network() "
-                           "is deprecated, please use import_name instead.")
-            import_name = kwargs.pop('csv_folder_name')
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
