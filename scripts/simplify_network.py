@@ -83,7 +83,7 @@ The rule :mod:`simplify_network` does up to four things:
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, update_p_nom_max
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
@@ -198,7 +198,7 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
 
     _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus)
 
-    generators, generators_pnl = aggregategenerators(n, busmap)
+    generators, generators_pnl = aggregategenerators(n, busmap, custom_strategies={'p_nom_min': np.sum})
     replace_components(n, "Generator", generators, generators_pnl)
 
     for one_port in aggregate_one_ports:
@@ -363,6 +363,8 @@ if __name__ == "__main__":
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
         busmaps.append(cluster_map)
+
+    update_p_nom_max(n)
 
     n.export_to_netcdf(snakemake.output.network)
 
