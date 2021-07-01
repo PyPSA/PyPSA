@@ -366,6 +366,9 @@ if __name__ == "__main__":
 
     update_p_nom_max(n)
 
+    else:
+        n.buses = n.buses.drop(['symbol', 'tags', 'under_construction', 'substation_lv', 'substation_off'], axis=1)
+        
     n.export_to_netcdf(snakemake.output.network)
 
     busmap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
