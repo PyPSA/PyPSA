@@ -360,13 +360,13 @@ def define_kirchhoff_constraints(n, sns):
     if len(comps) == 0: return
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
-    def cycle_flow(ds):
+    def cycle_flow(ds, sns):
         ds = ds[lambda ds: ds!=0.].dropna()
-        vals = linexpr((ds, branch_vars[ds.index]), as_pandas=False)
+        vals = linexpr((ds, branch_vars.loc[sns, ds.index]), as_pandas=False)
         return vals.sum(1)
 
     constraints = []
-    investment_periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else [None]
+    investment_periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else slice(None)
     for period in investment_periods:
         n.determine_network_topology(investment_period=period)
         for sub in n.sub_networks.obj:
@@ -377,10 +377,9 @@ def define_kirchhoff_constraints(n, sns):
             carrier = n.sub_networks.carrier[sub.name]
             weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
             C_weighted = 1e5 * C.mul(weightings, axis=0)
-            cycle_sum = C_weighted.apply(cycle_flow)
-            cycle_sum.set_index(sns, inplace=True)
-            if period!=None:
-                cycle_sum = cycle_sum.loc[period]
+            cycle_sum = C_weighted.apply(cycle_flow, sns=period)
+            snapshots = sns if period == slice(None) else sns[sns.get_loc(period)]
+            cycle_sum.set_index(snapshots, inplace=True)
             con = write_constraint(n, cycle_sum, '=', 0)
             constraints.append(con)
     if len(constraints) == 0: return
