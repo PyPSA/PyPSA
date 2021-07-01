@@ -137,7 +137,7 @@ def adjacency_matrix(network, branch_components=None, investment_period=None,
             if investment_period is None:
                 sel = slice(None)
             else:
-                active = get_active_assets(network, c.name, investment_period, network.snapshots)
+                active = get_active_assets(network, c.name, investment_period)
                 sel = c.df.loc[active].index
         else:
             if investment_period is None:

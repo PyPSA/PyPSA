@@ -1115,7 +1115,7 @@ class Network(Basic):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
 
             if investment_period is not None:
-                active = get_active_assets(self, c.name, investment_period, self.snapshots)
+                active = get_active_assets(self, c.name, investment_period)
                 # set non active assets to NaN
                 c.df.loc[~active, "sub_network"] = np.nan
 

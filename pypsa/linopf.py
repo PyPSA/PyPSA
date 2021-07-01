@@ -367,8 +367,8 @@ def define_kirchhoff_constraints(n, sns):
 
     constraints = []
     investment_periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else [None]
-    for inv_p in investment_periods:
-        n.determine_network_topology(investment_period=inv_p)
+    for period in investment_periods:
+        n.determine_network_topology(investment_period=period)
         for sub in n.sub_networks.obj:
             branches = sub.branches()
             C = pd.DataFrame(sub.C.todense(), index=branches.index)
@@ -379,8 +379,8 @@ def define_kirchhoff_constraints(n, sns):
             C_weighted = 1e5 * C.mul(weightings, axis=0)
             cycle_sum = C_weighted.apply(cycle_flow)
             cycle_sum.set_index(sns, inplace=True)
-            if inv_p!=None:
-                cycle_sum = cycle_sum.loc[inv_p]
+            if period!=None:
+                cycle_sum = cycle_sum.loc[period]
             con = write_constraint(n, cycle_sum, '=', 0)
             constraints.append(con)
     if len(constraints) == 0: return
@@ -406,34 +406,33 @@ def define_storage_unit_constraints(n, sns):
 
     # create multiindex [time of investment, snapshots]
     if isinstance(sns, pd.MultiIndex):
-        sns_with_inv = sns
+        sns_multi = sns
     else:
-        sns_with_inv = pd.MultiIndex.from_product([[0], sns])
+        sns_multi = pd.MultiIndex.from_product([[0], sns])
 
     # elapsed hours
     eh = (expand_series(n.snapshot_weightings.loc[sns, "stores"], sus_i)
-         .reindex(sns_with_inv, level=1))
+         .reindex(sns_multi, level=1))
     # efficiencies
-    eff_stand = expand_series(1-n.df(c).standing_loss, sns_with_inv).T.pow(eh)
-    eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns_with_inv).T
-    eff_store = expand_series(n.df(c).efficiency_store, sns_with_inv).T
+    eff_stand = expand_series(1-n.df(c).standing_loss, sns_multi).T.pow(eh)
+    eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns_multi).T
+    eff_store = expand_series(n.df(c).efficiency_store, sns_multi).T
 
-    soc = get_var(n, c, 'state_of_charge').reindex(sns_with_inv, level=1)
+    soc = get_var(n, c, 'state_of_charge').reindex(sns_multi, level=1)
 
     # storage unit index
     cyclic_i = n.df(c).query('cyclic_state_of_charge').index
-    noncyclic_i = n.df(c).query('~cyclic_state_of_charge & ~state_of_charge_period').index
-    period_i = n.df(c).query("~cyclic_state_of_charge & state_of_charge_period").index
+    noncyclic_i = n.df(c).query('~cyclic_state_of_charge & ~state_of_charge_initial_per_period').index
+    periodically_i = n.df(c).query("~cyclic_state_of_charge & state_of_charge_initial_per_period").index
 
     # active assets
-    active = pd.concat([get_active_assets(n,c,inv_p,sns_with_inv).rename(inv_p)
-                             for inv_p in sns_with_inv.levels[0]], axis=1).T
-    active_i = active.astype(int)[period_i]
+    _ = [get_active_assets(n, c, period) for period in sns_multi.levels[0]]
+    active = pd.concat(_, axis=1).T.astype(int)
 
     # state of charge at the beginning of each investment period (soc_first_inv)
     # shoud be the same during the lifetime of the storage
-    eff_stand_periodic = ((eff_stand.mul(active_i, level=0)).groupby(level=0)
-                          .shift().apply(lambda x: x.dropna()))
+    eff_stand_periodic = ((eff_stand.mul(active, level=0)).groupby(level=0)
+                          .shift().dropna())
     previous_soc_periodic = soc.groupby(level=0).shift().dropna()
 
     # cyclic constraint for soc - shift each investment period
@@ -455,22 +454,23 @@ def define_storage_unit_constraints(n, sns):
 
     if ('StorageUnit', 'spill') in n.variables.index:
         lhs += masked_term(-eh,
-                           get_var(n, c, 'spill').reindex(sns_with_inv, level=1),
+                           get_var(n, c, 'spill').reindex(sns_multi, level=1),
                            spill.columns)
 
     lhs += masked_term(eff_stand, previous_soc_cyclic, cyclic_i)
-    lhs += masked_term(eff_stand.loc[sns_with_inv[1:]], soc.shift().loc[sns_with_inv[1:]], noncyclic_i)
-    lhs += masked_term(eff_stand_periodic, previous_soc_periodic, period_i)
+    lhs += masked_term(eff_stand.loc[sns_multi[1:]], soc.shift().loc[sns_multi[1:]], noncyclic_i)
+    lhs += masked_term(eff_stand_periodic, previous_soc_periodic, periodically_i)
 
     # rhs consider inflow and initial state of charge
-    rhs = -get_as_dense(n, c, 'inflow', sns).reindex(sns_with_inv, level=1).mul(eh)
-    rhs.loc[sns_with_inv[:1], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
+    rhs = -get_as_dense(n, c, 'inflow', sns).reindex(sns_multi, level=1).mul(eh)
+    rhs.loc[sns_multi[:1], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
 
     # set state of charge at the beginning of each investment period to soc_initial
-    soc_initial_period = expand_series(n.df(c).state_of_charge_initial, sns_with_inv).T
-    exclude = ~(rhs.groupby(level=0).shift().isna() & active.reindex(sns_with_inv, level=0))
+    soc_initial_period = expand_series(n.df(c).state_of_charge_initial, sns_multi).T
+    exclude = ~(rhs.groupby(level=0).shift().isna() &
+                active.reindex(sns_multi, level=0).astype(bool))
     soc_initial_period[exclude] = 0
-    rhs[period_i] -= soc_initial_period[period_i]
+    rhs[periodically_i] -= soc_initial_period[periodically_i]
 
     define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
@@ -489,26 +489,27 @@ def define_store_constraints(n, sns):
     set_varref(n, variables, c, 'p')
 
     if isinstance(sns, pd.MultiIndex):
-        sns_with_inv = sns
+        sns_multi = sns
     else:
-        sns_with_inv = pd.MultiIndex.from_product([[0], sns])
+        sns_multi = pd.MultiIndex.from_product([[0], sns])
 
     # elapsed hours
     eh = (expand_series(n.snapshot_weightings.loc[sns, "stores"], stores_i)
-         .reindex(sns_with_inv, level=1))
-    eff_stand = expand_series(1-n.df(c).standing_loss, sns_with_inv).T.pow(eh)
+         .reindex(sns_multi, level=1))
+    eff_stand = expand_series(1-n.df(c).standing_loss, sns_multi).T.pow(eh)
 
-    e = get_var(n, c, 'e').reindex(sns_with_inv, level=1)
+    e = get_var(n, c, 'e').reindex(sns_multi, level=1)
     cyclic_i = n.df(c).query('e_cyclic').index
-    noncyclic_i = n.df(c).query('~e_cyclic & ~e_period').index
-    period_i = n.df(c).query("~e_cyclic & e_period").index
-    active =  pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                         for inv_p in sns_with_inv.levels[0]], axis=1).T
-    active_i =  active.astype(int)[period_i]
+    noncyclic_i = n.df(c).query('~e_cyclic & ~e_initial_per_period').index
+    periodically_i = n.df(c).query("~e_cyclic & e_initial_per_period").index
+
+    # active assets
+    _ = [get_active_assets(n, c, period) for period in sns_multi.levels[0]]
+    active = pd.concat(_, axis=1).T.astype(int)
 
     # e at the beginning of each investment period (e_first_inv) should be the
-    # same during the lifetime of the storage for e_period=True
-    eff_stand_periodic = ((eff_stand.mul(active_i, level=0)).groupby(level=0).shift()
+    # same during the lifetime of the storage for e_initial_per_period=True
+    eff_stand_periodic = ((eff_stand.mul(active, level=0)).groupby(level=0).shift()
                           .apply(lambda x: x.dropna()))
     previous_e_periodic = e.groupby(level=0).shift().dropna()
 
@@ -527,15 +528,16 @@ def define_store_constraints(n, sns):
                .reindex(index=axes[0], columns=axes[1], fill_value='').values
 
     lhs += masked_term(eff_stand, previous_e_cyclic, cyclic_i)
-    lhs += masked_term(eff_stand.loc[sns_with_inv[1:]], e.shift().loc[sns_with_inv[1:]], noncyclic_i)
-    lhs += masked_term(eff_stand_periodic, previous_e_periodic, period_i)
+    lhs += masked_term(eff_stand.loc[sns_multi[1:]], e.shift().loc[sns_multi[1:]], noncyclic_i)
+    lhs += masked_term(eff_stand_periodic, previous_e_periodic, periodically_i)
 
-    rhs = pd.DataFrame(0, sns_with_inv, stores_i)
-    rhs.loc[sns_with_inv[:1], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
-    e_initial_period = expand_series(n.df(c).e_initial, sns_with_inv).T
-    exclude = ~(rhs.groupby(level=0).shift().isna() & active.reindex(sns_with_inv, level=0))
+    rhs = pd.DataFrame(0, sns_multi, stores_i)
+    rhs.loc[sns_multi[:1], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
+    e_initial_period = expand_series(n.df(c).e_initial, sns_multi).T
+    exclude = ~(rhs.groupby(level=0).shift().isna() &
+                active.astype(bool).reindex(sns_multi, level=0))
     e_initial_period[exclude] = 0
-    rhs[period_i] -= e_initial_period[period_i]
+    rhs[periodically_i] -= e_initial_period[periodically_i]
 
     define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
@@ -687,8 +689,8 @@ def define_global_constraints(n, sns):
             time_valid = (inv_valid if glc["investment_period"]=='' else
                           pd.DatetimeIndex([glc["investment_period"]]))
             # get active assets during time valid
-            active_i = pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                              for inv_p in time_valid], axis=1).astype(int)
+            active_i = pd.concat([get_active_assets(n, c, period)
+                              for period in time_valid], axis=1).astype(int)
             ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
             v = linexpr((n.df(c).loc[ext_and_active.columns, "length"].mul(ext_and_active),
                          get_var(n, c, attr)[ext_and_active.columns]),
@@ -714,8 +716,8 @@ def define_global_constraints(n, sns):
                           pd.DatetimeIndex([glc["investment_period"]]))
 
              # get active assets during time valid
-            active_i = pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                              for inv_p in time_valid], axis=1).astype(int)
+            active_i = pd.concat([get_active_assets(n, c, period)
+                              for period in time_valid], axis=1).astype(int)
             ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
 
             if ext_and_active.empty: continue
@@ -743,8 +745,8 @@ def define_global_constraints(n, sns):
         inv_valid = sns.levels[0] if isinstance(sns, pd.MultiIndex) else [0.]
         time_valid = (inv_valid if glc["investment_period"]=='' else
               pd.DatetimeIndex([glc["investment_period"]]))
-        active_i = pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                              for inv_p in time_valid], axis=1).astype(int)
+        active_i = pd.concat([get_active_assets(n,c,period)
+                              for period in time_valid], axis=1).astype(int)
 
         ext_and_active = active_i.T[active_i.index.intersection(ext_i)]
 
@@ -767,8 +769,8 @@ def define_objective(n, sns):
 
     """
 
-    investments = sns.levels[0] if isinstance(sns, pd.MultiIndex) else [0.]
-
+    # TODO check if investment_periods can be taken here.
+    investments = [0.] if n.investment_periods.empty else n.investment_periods
 
     objective_w_investment = (n.investment_period_weightings["objective"]
                              .reindex(investments).fillna(1.))
@@ -783,12 +785,12 @@ def define_objective(n, sns):
     constant = 0
     for c, attr in nom_attr:
         ext_i = get_extendable_i(n, c)
-        active = pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                          for inv_p in investments], axis=1).astype(int).loc[ext_i]
-        active_i = active.index
-        constant += (n.df(c)[attr][active_i] @
-                    (active.mul(n.df(c).capital_cost[active_i], axis=0)
-                     .mul(objective_w_investment))).sum()
+        active = pd.concat({period: get_active_assets(n, c, period)
+                            for period in investments}, axis=1).astype(int).loc[ext_i]
+
+        constant += (n.df(c)[attr][ext_i] @
+                    (active.mul(n.df(c).capital_cost[ext_i], axis=0) @
+                     objective_w_investment))
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
     n.objective_constant = constant
@@ -807,11 +809,11 @@ def define_objective(n, sns):
         ext_i = get_extendable_i(n, c)
         cost = n.df(c)['capital_cost'][ext_i]
         if cost.empty: continue
-        active = pd.concat([get_active_assets(n,c,inv_p,sns).rename(inv_p)
-                          for inv_p in investments], axis=1).astype(int).loc[ext_i]
+        active = pd.concat({period: get_active_assets(n, c, period)
+                            for period in investments}, axis=1).astype(int).loc[ext_i]
 
-        caps = expand_series(get_var(n, c, attr).loc[cost.index], investments).loc[cost.index]
-        cost_weighted = active.mul(cost, axis=0).mul(objective_w_investment)
+        caps = get_var(n, c, attr).loc[ext_i]
+        cost_weighted = active.mul(cost, axis=0) @ objective_w_investment
         terms = linexpr((cost_weighted, caps))
         write_objective(n, terms)
 

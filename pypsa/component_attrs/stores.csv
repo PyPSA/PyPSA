@@ -9,7 +9,7 @@ e_nom_max,float,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e
 e_min_pu,static or series,per unit,0,Minimal value of e relative to e_nom for the OPF.,Input (optional)
 e_max_pu,static or series,per unit,1,Maximal value of e relative to e_nom for the OPF.,Input (optional)
 e_initial,float,MWh,0,Energy before the snapshots in the OPF.,Input (optional)
-e_period,boolean,n/a,True,"Switch: if True, then e at the beginning of an investment period is set to e_initial ",Input (optional)
+e_initial_per_period,boolean,n/a,False,"Switch: if True, then e at the beginning of an investment period is set to e_initial ",Input (optional)
 e_cyclic,boolean,n/a,False,"Switch: if True, then e_initial is ignored and the initial energy is set to the final energy for the group of snapshots in the OPF.",Input (optional)
 p_set,static or series,MW,0,active power set point (for PF),Input (optional)
 q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
