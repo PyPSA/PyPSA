@@ -369,6 +369,7 @@ def define_kirchhoff_constraints(n, sns):
     investment_periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else slice(None)
     for period in investment_periods:
         n.determine_network_topology(investment_period=period)
+        subconstraints = []
         for sub in n.sub_networks.obj:
             branches = sub.branches()
             C = pd.DataFrame(sub.C.todense(), index=branches.index)
@@ -381,9 +382,11 @@ def define_kirchhoff_constraints(n, sns):
             snapshots = sns if period == slice(None) else sns[sns.get_loc(period)]
             cycle_sum.set_index(snapshots, inplace=True)
             con = write_constraint(n, cycle_sum, '=', 0)
-            constraints.append(con)
-    if len(constraints) == 0: return
-    constraints = pd.concat(constraints, axis=1, ignore_index=True)
+            subconstraints.append(con)
+        if len(subconstraints) == 0:
+            continue
+        constraints.append(pd.concat(subconstraints, axis=1, ignore_index=True))
+    constraints = pd.concat(constraints).rename_axis(columns='cycle')
     set_conref(n, constraints, 'SubNetwork', 'mu_kirchhoff_voltage_law')
 
 
