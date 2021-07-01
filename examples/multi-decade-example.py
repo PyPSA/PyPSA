@@ -32,16 +32,17 @@ print(n.snapshots)
 
 # when a pypsa network from an older version is imported, the old snapshot weightings
 # are set row-wise and a warning is given
-n = pypsa.Network("opf-storage-hvdc/opf-storage-data")
+n = pypsa.examples.storage_hvdc()
 print(n.snapshot_weightings)
 
 # snapshots can be set as a multiindex
-# CAUTION time-dependent data is lost from changing single to multiindex
+# a convenience functionality is provided: when setting the investment periods
+# directly, the all time-series are repeated for each period.
 single_snapshots = n.snapshots
-snapshots_multiindex = pd.MultiIndex.from_product([[2020, 2030], single_snapshots])
-n.set_snapshots(snapshots_multiindex)
+n.investment_periods = [2020, 2030]
 print(n.snapshots)
 print(n.investment_period_weightings)
+assert all(n.snapshots == pd.MultiIndex.from_product([[2020, 2030], single_snapshots]))
 
 # investment_periods have to be integer and increasing, otherwise there will be an
 # error message
@@ -106,41 +107,29 @@ def get_investment_weighting(energy_weighting, r=0.01):
 n = pypsa.Network()
 
 # ## How to set snapshots and investment periods
-# First set some parameters
-# years of investment
+# First set some parameters as years and temporal resolution
 years = [2020, 2030, 2040, 2050]
-investment = pd.DatetimeIndex(['{}-01-01 00:00'.format(year) for year in years])
-# temporal resolution
 freq = "24"
-# snapshots (format -> DatetimeIndex)
+
+# init snapshots (format -> DatetimeIndex)
 snapshots = pd.DatetimeIndex([])
-snapshots = snapshots.append([(pd.date_range(start ='{}-01-01 00:00'.format(year),
-                                               freq ='{}H'.format(freq),
-                                               periods=8760/float(freq))) for year in years])
+for year in years:
+    period = pd.date_range(start ='{}-01-01 00:00'.format(year), freq ='{}H'.format(freq),
+                           periods=8760/float(freq))
+    snapshots = snapshots.append(period)
 
+# convert to multiindex and assign to network
+n.snapshots = pd.MultiIndex.from_arrays([snapshots.year, snapshots])
+n.investment_periods = years
 
-# to the first level of the pd.MultiIndex
-investment_helper = investment.union(pd.Index([snapshots[-1] + pd.Timedelta(days=1)]))
-map_dict = {years[period] :
-            snapshots[(snapshots>=investment_helper[period]) &
-                      (snapshots<investment_helper[period+1])]
-            for period in range(len(investment))}
-
-multiindex = pd.MultiIndex.from_tuples([(name, l) for name, levels in
-                                        map_dict.items() for l in levels])
-
-
-n.set_snapshots(multiindex)
 print(n.snapshots)
+print(n.investment_periods)
 
-
-# (c) you can also **set the investment_periods** analog to snapshots with a
-# **list/single Index** or with a **pd.MultiIndex**, both ways change the snapshots as well, e.g.
 
 
 r = 0.01 # social discountrate
 # set energy weighting -> last year is weighted by 1
-n.investment_period_weightings.loc[:, 'time'] = n.investment_period_weightings.index.to_series().diff().shift(-1).fillna(10)
+n.investment_period_weightings.loc[:, 'time'] = n.investment_periods.to_series().diff().shift(-1).fillna(10)
 
 # set investment_weighting
 n.investment_period_weightings.loc[:, "objective"] = get_investment_weighting(n.investment_period_weightings["time"], r)
@@ -198,11 +187,11 @@ n.determine_network_topology()
 print(n.buses.sub_network)
 
 # determines network topolgy in first investment period (bus 2 isolated)
-n.determine_network_topology(n.investment_period_weightings.index[0])
+n.determine_network_topology(n.investment_periods[0])
 print(n.buses.sub_network)
 
 # determines network topology in third investment period (all lines are build)
-n.determine_network_topology(n.investment_period_weightings.index[2])
+n.determine_network_topology(n.investment_periods[2])
 print(n.buses.sub_network)
 
 

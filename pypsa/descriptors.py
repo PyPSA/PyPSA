@@ -409,10 +409,10 @@ def snapshot_consistency(n, snapshots, multi_investment_periods):
 
     # check if all snapshots are in investment period weightings
     elif multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
-        if not n.snapshots.levels[0].difference(n.investment_period_weightings.index).empty:
+        if not n.snapshots.levels[0].difference(n.investment_periods).empty:
             raise TypeError(" Not all snapshots on level[0] in investment_period_weightings index.")
-        if not (all([isinstance(x, int) for x in n.investment_period_weightings.index])
-           and all(sorted(n.investment_period_weightings.index)==n.investment_period_weightings.index)):
+        if not (all([isinstance(x, int) for x in n.investment_periods])
+           and all(sorted(n.investment_periods)==n.investment_periods)):
                 raise TypeError(" Investment periods should be integer and increasing.")
         return snapshots
 
