@@ -363,7 +363,9 @@ if __name__ == "__main__":
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
         busmaps.append(cluster_map)
-
+    else:
+        n.buses = n.buses.drop(['symbol', 'tags', 'under_construction', 'substation_lv', 'substation_off'], axis=1)
+        
     n.export_to_netcdf(snakemake.output.network)
 
     busmap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
