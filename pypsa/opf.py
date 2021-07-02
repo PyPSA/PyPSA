@@ -1236,7 +1236,8 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
 
     model = network.model
 
-    duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())))
+    duals = pd.Series(list(model.dual.values()), index=pd.Index(list(model.dual.keys())),
+                      dtype=float)
 
     if free_pyomo:
         model.dual.clear()
@@ -1255,7 +1256,7 @@ def extract_optimisation_results(network, snapshots, formulation="angles", free_
         df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
 
     def get_shadows(constraint, multiind=True):
-        if len(constraint) == 0: return pd.Series()
+        if len(constraint) == 0: return pd.Series(dtype=float)
 
         index = list(constraint.keys())
         if multiind:

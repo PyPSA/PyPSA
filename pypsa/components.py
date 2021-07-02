@@ -214,11 +214,6 @@ class Network(Basic):
                  override_components=None, override_component_attrs=None,
                  **kwargs):
 
-        if 'csv_folder_name' in kwargs:
-            logger.warning("The argument csv_folder_name for initiating Network() "
-                           "is deprecated, please use import_name instead.")
-            import_name = kwargs.pop('csv_folder_name')
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -958,15 +953,14 @@ class Network(Basic):
             if investment_periods is None:
                 investment_periods = self.investment_period_weightings.index
             network.set_snapshots(snapshots)
+            network.set_investment_periods(self.investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in component.pnl.keys():
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
-            network._investment_period_weightings = self.investment_period_weightings.loc[investment_periods].copy()
-        else:
-            network.snapshot_weightings = self.snapshot_weightings.copy()
             network.investment_period_weightings = self.investment_period_weightings.loc[investment_periods].copy()
+
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:

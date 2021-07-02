@@ -1,13 +1,7 @@
 import pypsa
-
 import numpy as np
-
 import pandapower as pp
-
-import sys
-
-import pytest
-
+from numpy.testing import assert_array_almost_equal as equal
 
 def test_pandapower_case():
 
@@ -51,42 +45,42 @@ def test_pandapower_case():
     net.res_line.index = net.line.name.values
 
     # compare bus angles
-    np.testing.assert_array_almost_equal(
+    equal(
         n.buses_t.v_ang.loc["now"] * 180 / np.pi, net.res_bus.va_degree
     )
 
     # compare bus voltage magnitudes
-    np.testing.assert_array_almost_equal(
+    equal(
         n.buses_t.v_mag_pu.loc["now"], net.res_bus.vm_pu
     )
 
     # compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.p.loc["now"], -net.res_bus.p_mw)
+    equal(n.buses_t.p.loc["now"], -net.res_bus.p_mw)
 
     # compare bus active power (NB: pandapower uses load signs)
-    np.testing.assert_array_almost_equal(n.buses_t.q.loc["now"], -net.res_bus.q_mvar)
+    equal(n.buses_t.q.loc["now"], -net.res_bus.q_mvar)
 
     # compare branch flows
-    np.testing.assert_array_almost_equal(
+    equal(
         n.lines_t.p0.loc["now"], net.res_line.p_from_mw
     )
-    np.testing.assert_array_almost_equal(n.lines_t.p1.loc["now"], net.res_line.p_to_mw)
-    np.testing.assert_array_almost_equal(
+    equal(n.lines_t.p1.loc["now"], net.res_line.p_to_mw)
+    equal(
         n.lines_t.q0.loc["now"], net.res_line.q_from_mvar
     )
-    np.testing.assert_array_almost_equal(
+    equal(
         n.lines_t.q1.loc["now"], net.res_line.q_to_mvar
     )
 
-    np.testing.assert_array_almost_equal(
+    equal(
         n.transformers_t.p0.loc["now"], net.res_trafo.p_hv_mw
     )
-    np.testing.assert_array_almost_equal(
+    equal(
         n.transformers_t.p1.loc["now"], net.res_trafo.p_lv_mw
     )
-    np.testing.assert_array_almost_equal(
+    equal(
         n.transformers_t.q0.loc["now"], net.res_trafo.q_hv_mvar
     )
-    np.testing.assert_array_almost_equal(
+    equal(
         n.transformers_t.q1.loc["now"], net.res_trafo.q_lv_mvar
     )
