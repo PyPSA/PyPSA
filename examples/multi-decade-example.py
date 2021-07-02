@@ -14,7 +14,7 @@ import numpy as np
 
 n = pypsa.Network()
 
-# snapshot weightings are now seperated between weightings for
+# snapshot weightings are now separated between weightings for
 # (i) the objective function (objective)
 # (ii) elapsed time in the filling of Store and StorageUnit components (stores)
 # (ii) for the contribution of generators to GlobalConstraint components for e.g. CO2 budgets (generators)
@@ -57,10 +57,10 @@ print(n.generators[["build_year", "lifetime"]])
 
 # store/storage unit behaviour
 # cyclic (e_cyclic/cyclic_state_of_charge) means now: cyclic within each investment period
-# there is a new attribute (bool) called for stores "e_period" and for storage units 'state_of_charge_period'
+# there is a new attribute (bool) called for stores "e_initial_per_period" and for storage units 'state_of_charge_initial_per_period'
 # default is true, which sets the state of charge at the beginning of each investment period to the same value
-print(n.storage_units.state_of_charge_period)
-print(n.stores.e_period)
+print(n.storage_units.state_of_charge_initial_per_period)
+print(n.stores.e_initial_per_period)
 
 
 # there is a new attribute "investment_period" for global constraints where the investment period can
