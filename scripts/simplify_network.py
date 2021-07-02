@@ -363,11 +363,10 @@ if __name__ == "__main__":
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
         busmaps.append(cluster_map)
-
-    update_p_nom_max(n)
-
     else:
         n.buses = n.buses.drop(['symbol', 'tags', 'under_construction', 'substation_lv', 'substation_off'], axis=1)
+
+    update_p_nom_max(n)
         
     n.export_to_netcdf(snakemake.output.network)
 
