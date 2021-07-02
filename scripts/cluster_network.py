@@ -122,7 +122,7 @@ Exemplary unsolved network clustered to 37 nodes:
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, update_p_nom_max
 
 import pypsa
 import os
@@ -282,7 +282,7 @@ def clustering_for_n_clusters(n, n_clusters, custom_busmap=False, aggregate_carr
         aggregate_generators_carriers=aggregate_carriers,
         aggregate_one_ports=["Load", "StorageUnit"],
         line_length_factor=line_length_factor,
-        generator_strategies={'p_nom_max': p_nom_max_strategy},
+        generator_strategies={'p_nom_max': p_nom_max_strategy, 'p_nom_min': np.sum},
         scale_link_capital_costs=False)
 
     if not n.links.empty:
@@ -379,6 +379,8 @@ if __name__ == "__main__":
                                                extended_link_costs=hvac_overhead_cost,
                                                focus_weights=focus_weights)
 
+    update_p_nom_max(n)
+    
     clustering.network.export_to_netcdf(snakemake.output.network)
     for attr in ('busmap', 'linemap'): #also available: linemap_positive, linemap_negative
         getattr(clustering, attr).to_csv(snakemake.output[attr])
