@@ -34,7 +34,8 @@ from collections import namedtuple
 import os
 
 
-from .descriptors import Dict, get_switchable_as_dense, get_active_assets
+from .descriptors import (Dict, get_switchable_as_dense, get_active_assets,
+                          get_extendable_i, get_non_extendable_i)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -208,6 +209,15 @@ class Network(Basic):
     incidence_matrix = incidence_matrix
 
     adjacency_matrix = adjacency_matrix
+
+    get_switchable_as_dense = get_switchable_as_dense
+
+    get_extendable_i = get_extendable_i
+
+    get_non_extendable_i = get_non_extendable_i
+
+    get_active_assets = get_active_assets
+
 
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
