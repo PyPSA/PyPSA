@@ -205,7 +205,7 @@ def write_bound(n, lower, upper, axes=None):
     Return a series or frame with variable references.
     """
     axes, shape, size = _get_handlers(axes, lower, upper)
-    if not size: return pd.Series()
+    if not size: return pd.Series(dtype=float)
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
@@ -609,7 +609,7 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
         return status, termination_condition, None, None, None
 
     f = open(solution_fn,"rb")
-    trimed_sol_fn = re.sub(b'\*\*\s+', b'', f.read())
+    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
     f.close()
 
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=None, skiprows=[0],
@@ -657,7 +657,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     info = io.StringIO(''.join(read_until_break(f))[:-2])
     info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
     termination_condition = info.Status.lower().strip()
-    objective = float(re.sub('[^0-9\.\+\-e]+', '', info.Objective))
+    objective = float(re.sub(r'[^0-9\.\+\-e]+', '', info.Objective))
 
     if termination_condition in ["optimal","integer optimal"]:
         status = "ok"
@@ -678,7 +678,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                               .fillna(0).pipe(set_int_index)
     else:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=duals.index)
+        constraints_dual = pd.Series(index=duals.index, dtype=float)
 
     sol = io.StringIO(''.join(read_until_break(f))[:-2])
     variables_sol = (pd.read_fwf(sol)[1:].set_index('Column name')

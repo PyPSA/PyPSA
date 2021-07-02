@@ -35,6 +35,12 @@ Upcoming Release
 
 * Bugfix in ``network.ilopf()`` where previously all links were fixed in the final iteration when it should only be the DC links.
 
+* ``n.snapshot_weightings`` is no longer copied for ``n.copy(with_time=False)``.
+
+* The deprecated argument "csv_folder_name" in ``pypsa.Network`` was removed.
+
+* The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
