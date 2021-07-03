@@ -585,9 +585,8 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     if not os.path.exists(solution_fn):
         os.mknod(solution_fn)
 
-    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
-    if solver_logfile is not None:
-        print(result.stdout.decode('utf-8'), file=open(solver_logfile, 'w'))
+    log = open(solver_logfile, 'w') if solver_logfile is not None else subprocess.PIPE
+    result = subprocess.Popen(command.split(' '), stdout=log)
     result.wait()
 
     with open(solution_fn, "r") as f:
