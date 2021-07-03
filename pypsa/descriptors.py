@@ -329,8 +329,8 @@ def get_active_assets(n, c, investment_period, snapshots):
     # component only active during lifetime
     df = n.df(c).copy()
 
-    index_active = ((df["build_year"]<= investment_period) &
-                   (investment_period<df[["build_year", "lifetime"]].sum(axis=1)))
+    index_active = ((df["build_year"] <= investment_period) &
+                   (investment_period < df[["build_year", "lifetime"]].sum(axis=1)))
 
     return index_active
 
