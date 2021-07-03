@@ -1,0 +1,25 @@
+name: Build and publish Python 🐍 distributions 📦 to PyPI and TestPyPI
+
+on: push
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Build distribution
+      run: |
+        python setup.py sdist
+    - name: Publish distribution 📦 to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
+    # - name: Publish distribution 📦 to PyPI
+    #   if: startsWith(github.ref, 'refs/tags')
+    #   uses: pypa/gh-action-pypi-publish@master
+    #   with:
+    #     password: ${{ secrets.PYPI_API_TOKEN }}
