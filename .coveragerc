@@ -1,0 +1,7 @@
+[run]
+branch = True
+source = pypsa
+omit =
+    test/*
+    pypsa/plot.py
+    setup.py

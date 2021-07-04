@@ -47,4 +47,8 @@ jobs:
         
     - name: Test with pytest
       run: |
-        pytest
+        pytest --cov=./
+
+    - name: Upload code coverage report
+      if: matrix.os == 'ubuntu-latest' and matrix.python-version == '3.9'
+      uses: codecov/codecov-action@v1
