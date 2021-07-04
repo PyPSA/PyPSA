@@ -52,5 +52,3 @@ jobs:
     - name: Upload code coverage report
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.8'
       uses: codecov/codecov-action@v1
-      with:
-        verbose: true
