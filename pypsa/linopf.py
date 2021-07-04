@@ -342,7 +342,7 @@ def define_nodal_balance_constraints(n, sns):
         eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
         args.append(['Link', 'p', f'bus{i}', eff])
 
-    kwargs = dict(numeric_only=False) if pd_version < "1.3" else {}
+    kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
            .sum(**kwargs)
