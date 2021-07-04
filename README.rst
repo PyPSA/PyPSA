@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
+|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
 
 -----
 
@@ -267,9 +267,11 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
     :target: License
 
-.. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
-    :target: https://travis-ci.org/PyPSA/PyPSA
-    :alt: Build status on Linux
+.. |ci_badge_conda| image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+
+.. |ci_badge| image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI.yml
 
 .. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
@@ -286,3 +288,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |binder| image:: https://mybinder.org/badge_logo.svg
     :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks
     :alt: Examples of use
+
+.. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
+    :target: https://codecov.io/gh/PyPSA/PyPSA
