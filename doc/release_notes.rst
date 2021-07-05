@@ -41,6 +41,8 @@ Upcoming Release
 
 * The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
 
+* Automated upload of code coverage reports.
+
 * Add support for ``pandas`` up to version 1.3.
 
 
