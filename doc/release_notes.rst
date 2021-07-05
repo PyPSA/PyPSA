@@ -43,6 +43,8 @@ Upcoming Release
 
 * Automated upload of code coverage reports.
 
+* Add support for ``pandas`` up to version 1.3.
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
