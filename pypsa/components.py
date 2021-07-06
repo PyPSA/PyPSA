@@ -490,7 +490,7 @@ class Network(Basic):
                     pnl[k] = pd.concat({p: pnl[k] for p in periods})
 
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
-                                                      names=['period', 'snaphot'])
+                                                      names=['period', 'snapshot'])
             self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods})
 
         self._investment_periods = periods
