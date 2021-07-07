@@ -473,11 +473,15 @@ class Network(Basic):
         """
         periods = pd.Index(periods)
         if not (periods.is_integer() and periods.is_unique and periods.is_monotonic_increasing):
-            logger.warn("Investment periods are not strictly increasing integers, "
+            raise ValueError("Investment periods are not strictly increasing integers, "
                         "which is required for multi-period investment optimisation.")
         if isinstance(self.snapshots, pd.MultiIndex):
-            assert periods.isin(self.snapshots.unique('period')).all(), (
-                "Not all investment periods are in level `period` of snapshots.")
+            if not periods.isin(self.snapshots.unique('period')).all():
+                raise ValueError("Not all investment periods are in level `period` "
+                                 "of snapshots.")
+            if len(periods) < len(self.snapshots.levels[0]):
+                raise NotImplementedError("Investment periods do not equal first level "
+                                          "values of snapshots.")
         else:
             # Convenience case:
             logger.info("Repeating time-series for each investment period and "
