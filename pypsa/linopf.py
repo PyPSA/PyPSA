@@ -361,13 +361,15 @@ def define_kirchhoff_constraints(n, sns):
     branch_vars = pd.concat({c:get_var(n, c, 's') for c in comps}, axis=1)
 
     def cycle_flow(ds, sns):
+        if sns is None:
+            sns = slice(None)
         ds = ds[lambda ds: ds!=0.].dropna()
         vals = linexpr((ds, branch_vars.loc[sns, ds.index]), as_pandas=False)
         return vals.sum(1)
 
     constraints = []
-    investment_periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else slice(None)
-    for period in investment_periods:
+    periods = sns.levels[0] if isinstance(sns, pd.MultiIndex) else [None]
+    for period in periods:
         n.determine_network_topology(investment_period=period)
         subconstraints = []
         for sub in n.sub_networks.obj:
@@ -379,8 +381,9 @@ def define_kirchhoff_constraints(n, sns):
             weightings = branches.x_pu_eff if carrier == 'AC' else branches.r_pu_eff
             C_weighted = 1e5 * C.mul(weightings, axis=0)
             cycle_sum = C_weighted.apply(cycle_flow, sns=period)
-            snapshots = sns if period == slice(None) else sns[sns.get_loc(period)]
+            snapshots = sns if period == None else sns[sns.get_loc(period)]
             cycle_sum.set_index(snapshots, inplace=True)
+
             con = write_constraint(n, cycle_sum, '=', 0)
             subconstraints.append(con)
         if len(subconstraints) == 0:
@@ -409,8 +412,11 @@ def define_storage_unit_constraints(n, sns):
     # create multiindex [time of investment, snapshots]
     if isinstance(sns, pd.MultiIndex):
         sns_multi = sns
+        _ = {period: get_active_assets(n, c, period) for period in sns_multi.levels[0]}
+        active = pd.concat(_, axis=1).T.astype(int).reindex(sns_multi, level=0)
     else:
         sns_multi = pd.MultiIndex.from_product([[0], sns])
+        active = 1
 
     # elapsed hours
     eh = (expand_series(n.snapshot_weightings.loc[sns, "stores"], sus_i)
@@ -427,21 +433,18 @@ def define_storage_unit_constraints(n, sns):
     noncyclic_i = n.df(c).query('~cyclic_state_of_charge & ~state_of_charge_initial_per_period').index
     periodically_i = n.df(c).query("~cyclic_state_of_charge & state_of_charge_initial_per_period").index
 
-    # active assets
-    _ = [get_active_assets(n, c, period) for period in sns_multi.levels[0]]
-    active = pd.concat(_, axis=1).T.astype(int)
-
-    # state of charge at the beginning of each investment period (soc_first_inv)
-    # shoud be the same during the lifetime of the storage
-    eff_stand_periodic = ((eff_stand.mul(active, level=0)).groupby(level=0)
-                          .shift().dropna())
-    previous_soc_periodic = soc.groupby(level=0).shift().dropna()
-
-    # cyclic constraint for soc - shift each investment period
+    # cyclic constraint for soc - cyclic soc within each inestment period
     previous_soc_cyclic = soc.groupby(level=0).shift()
     fill_with_last = soc.groupby(level=0).last()
     previous_soc_cyclic = previous_soc_cyclic.combine_first(
                           previous_soc_cyclic.add(fill_with_last, level=0, fill_value=0))
+
+
+    # periodic constraint for soc - state of charge at the beginning of each
+    # investment period should be the same during the lifetime of the storage
+    eff_stand_periodic = ((eff_stand * active).groupby(level=0).shift().dropna())
+    previous_soc_periodic = soc.groupby(level=0).shift().dropna()
+
 
     coeff_var = [(-1, soc),
                  (-1/eff_dispatch * eh, get_var(n, c, 'p_dispatch')),
@@ -463,16 +466,16 @@ def define_storage_unit_constraints(n, sns):
     lhs += masked_term(eff_stand.loc[sns_multi[1:]], soc.shift().loc[sns_multi[1:]], noncyclic_i)
     lhs += masked_term(eff_stand_periodic, previous_soc_periodic, periodically_i)
 
-    # rhs consider inflow and initial state of charge
+    # rhs consider inflow
     rhs = -get_as_dense(n, c, 'inflow', sns).reindex(sns_multi, level=1).mul(eh)
-    rhs.loc[sns_multi[:1], noncyclic_i] -= n.df(c).state_of_charge_initial[noncyclic_i]
 
-    # set state of charge at the beginning of each investment period to soc_initial
-    soc_initial_period = expand_series(n.df(c).state_of_charge_initial, sns_multi).T
-    exclude = ~(rhs.groupby(level=0).shift().isna() &
-                active.reindex(sns_multi, level=0).astype(bool))
-    soc_initial_period[exclude] = 0
-    rhs[periodically_i] -= soc_initial_period[periodically_i]
+    # rhs set initial state of charge at beginning of optimization horizon for
+    # noncyclic and at the beginning of each period for periodic
+    include_b = active.cumsum() == 1
+    rhs[include_b[noncyclic_i]] -= n.df(c).state_of_charge_initial[noncyclic_i]
+
+    include_b = active.reindex(sns_multi, level=0).groupby(level=0).transform('cumsum') == 1
+    rhs[include_b[periodically_i]] -= n.df(c).state_of_charge_initial[periodically_i]
 
     define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
@@ -490,10 +493,14 @@ def define_store_constraints(n, sns):
     variables = write_bound(n, -inf, inf, axes=[sns, stores_i])
     set_varref(n, variables, c, 'p')
 
+    # create multiindex [time of investment, snapshots]
     if isinstance(sns, pd.MultiIndex):
         sns_multi = sns
+        _ = {period: get_active_assets(n, c, period) for period in sns_multi.levels[0]}
+        active = pd.concat(_, axis=1).T.astype(int).reindex(sns_multi, level=0)
     else:
         sns_multi = pd.MultiIndex.from_product([[0], sns])
+        active = 1
 
     # elapsed hours
     eh = (expand_series(n.snapshot_weightings.loc[sns, "stores"], stores_i)
@@ -501,25 +508,23 @@ def define_store_constraints(n, sns):
     eff_stand = expand_series(1-n.df(c).standing_loss, sns_multi).T.pow(eh)
 
     e = get_var(n, c, 'e').reindex(sns_multi, level=1)
+
     cyclic_i = n.df(c).query('e_cyclic').index
     noncyclic_i = n.df(c).query('~e_cyclic & ~e_initial_per_period').index
     periodically_i = n.df(c).query("~e_cyclic & e_initial_per_period").index
 
-    # active assets
-    _ = [get_active_assets(n, c, period) for period in sns_multi.levels[0]]
-    active = pd.concat(_, axis=1).T.astype(int)
-
-    # e at the beginning of each investment period (e_first_inv) should be the
-    # same during the lifetime of the storage for e_initial_per_period=True
-    eff_stand_periodic = ((eff_stand.mul(active, level=0)).groupby(level=0).shift()
-                          .apply(lambda x: x.dropna()))
-    previous_e_periodic = e.groupby(level=0).shift().dropna()
-
-    # cyclic constraint
+    # cyclic constraint for soc - cyclic soc within each inestment period
     previous_e_cyclic = e.groupby(level=0).shift()
     fill_with_last = e.groupby(level=0).last()
     previous_e_cyclic = previous_e_cyclic.combine_first(
                           previous_e_cyclic.add(fill_with_last, level=0, fill_value=0))
+
+    # periodic constraint for soc - state of charge at the beginning of each
+    # investment period should be the same during the lifetime of the storage
+    eff_stand_periodic = ((eff_stand.mul(active, level=0)).groupby(level=0).shift()
+                          .apply(lambda x: x.dropna()))
+    previous_e_periodic = e.groupby(level=0).shift().dropna()
+
 
     coeff_var = [(-eh, get_var(n, c, 'p')), (-1, e)]
 
@@ -533,13 +538,15 @@ def define_store_constraints(n, sns):
     lhs += masked_term(eff_stand.loc[sns_multi[1:]], e.shift().loc[sns_multi[1:]], noncyclic_i)
     lhs += masked_term(eff_stand_periodic, previous_e_periodic, periodically_i)
 
+    # rhs set e at beginning of optimization horizon for noncyclic and
+    # at the beginning of each period for periodic
     rhs = pd.DataFrame(0, sns_multi, stores_i)
-    rhs.loc[sns_multi[:1], noncyclic_i] -= n.df(c)['e_initial'][noncyclic_i]
-    e_initial_period = expand_series(n.df(c).e_initial, sns_multi).T
-    exclude = ~(rhs.groupby(level=0).shift().isna() &
-                active.astype(bool).reindex(sns_multi, level=0))
-    e_initial_period[exclude] = 0
-    rhs[periodically_i] -= e_initial_period[periodically_i]
+
+    include_b = active.cumsum() == 1
+    rhs[include_b[noncyclic_i]] -= n.df(c).e_initial[noncyclic_i]
+
+    include_b = active.reindex(sns_multi, level=0).groupby(level=0).transform('cumsum') == 1
+    rhs[include_b[periodically_i]] -= n.df(c).e_initial[periodically_i]
 
     define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge')
 
@@ -678,7 +685,7 @@ def define_global_constraints(n, sns):
     # (2) transmission_volume_expansion_limit
     glcs = n.global_constraints.query('type == '
                                       '"transmission_volume_expansion_limit"')
-    substr = lambda s: re.sub('[\[\]\(\)]', '', s)
+    substr = lambda s: re.sub(r'[\[\]\(\)]', '', s)
     for name, glc in glcs.iterrows():
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(',')]
         lhs = ''
@@ -735,7 +742,7 @@ def define_global_constraints(n, sns):
 
 
     # (4) tech_capacity_expansion_limit
-    substr = lambda s: re.sub('[\[\]\(\)]', '', s)
+    substr = lambda s: re.sub(r'[\[\]\(\)]', '', s)
     glcs = n.global_constraints.query('type == '
                                       '"tech_capacity_expansion_limit"')
     c, attr = 'Generator', 'p_nom'
@@ -1160,6 +1167,8 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
     snapshots = _as_snapshots(n, snapshots)
     # check snapshots have right form for single or multiindex optimisation
     snapshots = snapshot_consistency(n, snapshots, multi_investment_periods)
+    n._multi_invests = multi_investment_periods
+
 
     if not skip_pre:
         n.calculate_dependent_values()
