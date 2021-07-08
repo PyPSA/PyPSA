@@ -3,7 +3,15 @@
 
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+  schedule:
+    - cron: "0 5 * * TUE"
 
 jobs:
   build:
