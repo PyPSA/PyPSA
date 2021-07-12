@@ -499,7 +499,7 @@ class Network(Basic):
 
         self._investment_periods = periods
         self.investment_period_weightings = (
-            self.investment_period_weightings.reindex(periods, fill_value=1.))
+            self.investment_period_weightings.reindex(periods, fill_value=1.).astype(float))
 
 
 

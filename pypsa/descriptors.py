@@ -331,6 +331,23 @@ def get_active_assets(n, c, investment_period):
     return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
 
 
+def get_activity_mask(n, c, sns=None):
+    """
+    Getter function. Get a boolean array with True values for elements of
+    component c which are active at a specific snapshot. If the network is
+    in multi_investment_period mode (given by n._multi_investment_period),
+    these are calculated from lifetime and the build year. Otherwise all
+    values are set to True.
+    """
+    if sns is None:
+        sns = n.snapshots
+    if n._multi_investment_periods:
+        _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
+        return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+    else:
+        return pd.DataFrame(True, sns, n.df(c).index)
+
+
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     """
     Getter function to retrieve the per unit bounds of a given compoent for
@@ -381,36 +398,3 @@ def additional_linkports(n):
     return [i[3:] for i in n.links.columns if i.startswith('bus')
             and i not in ['bus0', 'bus1']]
 
-
-def snapshot_consistency(n, snapshots, multi_investment_periods):
-    """Check if snapshot format fits to wished optimisation.
-
-    Check if snapshots types are correctly set regarding wished optimisation
-    form (multi-index and multi-decade or single index and single investment)
-    if single investment but snapshots do have the format pandas MultiIndex,
-    snapshots are changed to single Index and the switch "to_single" is changed
-    to True
-    """
-    # check if snapshots are in network snapshots
-    if not snapshots.difference(n.snapshots).empty:
-        raise TypeError(" In function lopf() called snapshots are not defined "
-                        "in the network.")
-    # check if snapshots are multiindex for multiinvestment optimisation
-    if  multi_investment_periods and not isinstance(snapshots,pd.MultiIndex):
-        raise TypeError(" Snapshots have to be pd.MultiIndex for multi investment"
-                       " multi_investment_periods=True.")
-    # print warning if MultiIndex but multi _investment_periods=False
-    elif not multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
-            raise TypeError(" Snapshots are MultiIndex but multi_investment_periods=False.")
-
-    # check if all snapshots are in investment period weightings
-    elif multi_investment_periods and isinstance(snapshots, pd.MultiIndex):
-        if not n.snapshots.levels[0].difference(n.investment_periods).empty:
-            raise TypeError(" Not all snapshots on level[0] in investment_period_weightings index.")
-        if not (all([isinstance(x, int) for x in n.investment_periods])
-           and all(sorted(n.investment_periods)==n.investment_periods)):
-                raise TypeError(" Investment periods should be integer and increasing.")
-        return snapshots
-
-    else:
-        return snapshots
