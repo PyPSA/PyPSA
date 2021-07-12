@@ -270,6 +270,7 @@ def test_simple_network_store_periodically(n_sts):
 def test_simple_network_store_cyclic(n_sts):
 
     n_sts.stores["e_cyclic"] = True
+    n_sts.stores["e_cyclic_per_period"] = True
 
     status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
     assert status == "ok"
