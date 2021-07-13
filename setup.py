@@ -26,6 +26,8 @@ setup(
         'numpy',
         'scipy',
         'pandas>=0.24.0',
+        'xarray',
+        'netcdf4',
         'tables',
         'pyomo>=5.7',
         'matplotlib',
@@ -33,6 +35,7 @@ setup(
         'deprecation'
     ],
     extras_require = {
+        "dev": ["pytest", "pypower", "pandapower"],
         "cartopy": ['cartopy>=0.16'],
         "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link"],
         'gurobipy':['gurobipy']

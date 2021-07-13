@@ -1,6 +1,7 @@
 import os
-import numpy as np
 import pypsa
+from numpy.testing import assert_array_almost_equal as equal
+
 
 def normed(s): return s/s.sum()
 
@@ -32,7 +33,7 @@ def test_pf_distributed_slack():
     # by dispatch
     network.pf(distribute_slack=True, slack_weights='p_set')
 
-    np.testing.assert_array_almost_equal(
+    equal(
         network.generators_t.p_set.apply(normed, axis=1),
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
     )
@@ -43,7 +44,7 @@ def test_pf_distributed_slack():
     slack_shares_by_capacity = (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
 
     for index, row in slack_shares_by_capacity.iterrows():
-        np.testing.assert_array_almost_equal(
+        equal(
             network.generators.p_nom.pipe(normed).fillna(0),
             row
         )
@@ -56,7 +57,7 @@ def test_pf_distributed_slack():
 
     network.pf(distribute_slack=True, slack_weights=custom_weights)
 
-    np.testing.assert_array_almost_equal(
+    equal(
         slack_shares_by_capacity,
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
     )
@@ -68,10 +69,8 @@ def test_pf_distributed_slack():
 
     network.pf(distribute_slack=True, slack_weights=custom_weights)
 
-    np.testing.assert_array_almost_equal(
+    equal(
         slack_shares_by_capacity,
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1)
     )
 
-if __name__ == "__main__":
-    test_pf_distributed_slack()

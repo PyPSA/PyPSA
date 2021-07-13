@@ -1,26 +1,25 @@
 import os
 import numpy as np
 import pypsa
-import sys
+import pytest
 
 from numpy.testing import assert_array_almost_equal as arr_equal
 from numpy.testing import assert_almost_equal as equal
 
-solver_name = "glpk" if sys.platform == "win32" else "cbc"
+solver_name = "glpk"
 
-
-def test_sclopf():
-    csv_folder_name = os.path.join(
+@pytest.fixture
+def n():
+    csv_folder = os.path.join(
         os.path.dirname(__file__),
         "..",
         "examples",
         "scigrid-de",
         "scigrid-with-load-gen-trafos",
     )
+    return pypsa.Network(csv_folder)
 
-    n = pypsa.Network(csv_folder_name)
-
-    # test results were generated with GLPK and other solvers may differ
+def test_sclopf(n):
 
     # There are some infeasibilities without line extensions
     for line_name in ["316", "527", "602"]:
@@ -63,5 +62,3 @@ def test_sclopf():
 
     equal(*objectives, decimal=1)
 
-if __name__ == "__main__":
-    test_sclopf()

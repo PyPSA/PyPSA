@@ -8,6 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
+* Add new descriptive attribute 'unit' to 'bus' component.
 
 * Bump minimum ``pandas`` requirement to version 1.1.0.
 * When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.  
@@ -31,6 +32,18 @@ Upcoming Release
 * All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
 
 * A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project. 
+
+* Bugfix in ``network.ilopf()`` where previously all links were fixed in the final iteration when it should only be the DC links.
+
+* ``n.snapshot_weightings`` is no longer copied for ``n.copy(with_time=False)``.
+
+* The deprecated argument "csv_folder_name" in ``pypsa.Network`` was removed.
+
+* The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
+
+* Automated upload of code coverage reports.
+
+* Add support for ``pandas`` up to version 1.3.
 
 
 PyPSA 0.17.1 (15th July 2020)
