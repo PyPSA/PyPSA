@@ -41,6 +41,10 @@ Upcoming Release
 
 * The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
 
+* Automated upload of code coverage reports.
+
+* Add support for ``pandas`` up to version 1.3.
+
 * ``PyPSA`` now supports the optimization of multiple investment periods, also known as pathway optimization. With this feature, snapshots can span over multiple years or decades which are divided into investment periods. Within each investment period, assets can be added to the network. The optimization only works with ``pyomo=False``. For more information see the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.       
 
 

@@ -36,6 +36,9 @@ import pandas as pd
 import numpy as np
 from numpy import inf
 
+from distutils.version import LooseVersion
+pd_version = LooseVersion(pd.__version__)
+
 import gc, time, os, re, shutil
 from tempfile import mkstemp
 
@@ -364,9 +367,10 @@ def define_nodal_balance_constraints(n, sns):
         eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
         args.append(['Link', 'p', f'bus{i}', eff])
 
+    kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
-           .sum()
+           .sum(**kwargs)
            .reindex(columns=n.buses.index, fill_value=''))
 
     if (lhs == '').any().any():

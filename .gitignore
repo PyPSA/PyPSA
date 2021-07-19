@@ -45,3 +45,5 @@ website/examples/*.py
 *.html
 
 .vscode
+
+.coverage
