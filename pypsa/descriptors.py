@@ -335,13 +335,13 @@ def get_activity_mask(n, c, sns=None):
     """
     Getter function. Get a boolean array with True values for elements of
     component c which are active at a specific snapshot. If the network is
-    in multi_investment_period mode (given by n._multi_investment_period),
+    in multi_investment_period mode (given by n._multi_invest),
     these are calculated from lifetime and the build year. Otherwise all
     values are set to True.
     """
     if sns is None:
         sns = n.snapshots
-    if n._multi_investment_periods:
+    if getattr(n, '_multi_invest', False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
         return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
     else:
@@ -384,13 +384,6 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
-
-    # set to zero if not active
-    if isinstance(sns, pd.MultiIndex):
-        for period in n.investment_periods:
-            inactive = ~get_active_assets(n, c, period)
-            max_pu.loc[period, inactive] = 0
-            min_pu.loc[period, inactive] = 0
 
     return min_pu[index], max_pu[index]
 
