@@ -245,7 +245,7 @@ def define_ramp_limit_constraints(n, sns):
     com_i = n.df(c).query('committable').index.difference(ext_i)
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
-    active = get_activity_mask(n, c, sns)
+    active = get_activity_mask(n, c, sns[1:])
 
     # fix up
     gens_i = rup_i.intersection(fix_i)
