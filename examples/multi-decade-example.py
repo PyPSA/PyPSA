@@ -44,11 +44,6 @@ print(n.snapshots)
 print(n.investment_period_weightings)
 assert all(n.snapshots == pd.MultiIndex.from_product([[2020, 2030], single_snapshots]))
 
-# investment_periods have to be integer and increasing, otherwise there will be an
-# error message
-snapshots_multiindex = pd.MultiIndex.from_product([[2030, 2020], single_snapshots])
-n.set_snapshots(snapshots_multiindex)
-
 # new attributes for generators/store/storage/links/lines/transformers used to
 #  calculate when an asset is active:
 # "build_year": indicating when an asset is built (integer, default: 0)
@@ -75,13 +70,17 @@ print(n.global_constraints.columns)
 # PYOMO = True
 # single investment as before if snapshots single Index
 # if snapshots are pd.MultiIndex or multi_investment_periods=True returns a not implemented error
-n.lopf(pyomo=True, multi_investment_periods=False)
-# this returns a not implemented error
-n.lopf(pyomo=True, multi_investment_periods=True)
 
-# PYOMO = False
-# if snapshots are multiindex raise an error
-n.lopf(pyomo=False, multi_investment_periods=False)
+try:
+    n.lopf(pyomo=True, multi_investment_periods=False)
+except Exception as e:
+    print(e)
+
+# this returns a not implemented error
+try:
+    n.lopf(pyomo=True, multi_investment_periods=True)
+except Exception as e:
+    print(e)
 
 # this returns multi investment optimisation if the snapshots are pd.MultiIndex
 # otherwise returns a typeError
