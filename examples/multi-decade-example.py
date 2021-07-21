@@ -20,8 +20,10 @@ n = pypsa.Network()
 # (ii) for the contribution of generators to GlobalConstraint components for e.g. CO2 budgets (generators)
 print(n.snapshot_weightings)
 
-# there is a new component investment period weightings
-# split  by weighting for the objective function (objective)
+# there is a new component investment period analog to n.snapshots
+n.investment_periods
+# along with corresponding weightings split  by weighting
+# for the objective function (objective)
 # and weightings for the elapsed time between the investment periods (time)
 # to calculate CO2 emissions or assets lifetime
 # default is an empty pd.DataFrame
@@ -32,7 +34,8 @@ print(n.snapshots)
 
 # when a pypsa network from an older version is imported, the old snapshot weightings
 # are set row-wise and a warning is given
-n = pypsa.examples.storage_hvdc()
+# n = pypsa.examples.storage_hvdc()  -> "HTTPError: Not Found"
+n = pypsa.Network("opf-storage-hvdc/opf-storage-data")
 print(n.snapshot_weightings)
 
 # snapshots can be set as a multiindex
@@ -51,9 +54,14 @@ assert all(n.snapshots == pd.MultiIndex.from_product([[2020, 2030], single_snaps
 print(n.generators[["build_year", "lifetime"]])
 
 # store/storage unit behaviour
-# cyclic (e_cyclic/cyclic_state_of_charge) means now: cyclic within each investment period
-# there is a new attribute (bool) called for stores "e_initial_per_period" and for storage units 'state_of_charge_initial_per_period'
-# default is true, which sets the state of charge at the beginning of each investment period to the same value
+# cyclic ('e_cyclic_per_period'/'cyclic_state_of_charge_per_period') means now:
+# cyclic within each investment period -> default: True
+print(n.storage_units['cyclic_state_of_charge_per_period'])
+print(n.stores.e_initial_per_period)
+# there is a new attribute (bool) called for stores "e_initial_per_period" and
+# for storage units 'state_of_charge_initial_per_period'
+# default is true, which sets the state of charge at the beginning of each
+# investment period to the same value
 print(n.storage_units.state_of_charge_initial_per_period)
 print(n.stores.e_initial_per_period)
 
@@ -89,12 +97,14 @@ n.lopf(pyomo=False, multi_investment_periods=True)
 #%% small test network
 
 def get_social_discount(t, r=0.01):
+    """Calaculate social discount rate."""
     return (1/(1+r)**t)
 
 def get_investment_weighting(energy_weighting, r=0.01):
-    """
-    returns cost weightings depending on the the energy_weighting (pd.Series)
-    and the social discountrate r
+    """Return cost weightings.
+
+    Weightings depend on the the energy_weighting (pd.Series) and the social
+    discountrate r.
     """
     end = energy_weighting.cumsum()
     start = energy_weighting.cumsum().shift().fillna(0)
@@ -127,7 +137,7 @@ print(n.investment_periods)
 
 
 r = 0.01 # social discountrate
-# set energy weighting -> last year is weighted by 1
+# set energy weighting -> last year is weighted by 10
 n.investment_period_weightings.loc[:, 'time'] = n.investment_periods.to_series().diff().shift(-1).fillna(10)
 
 # set investment_weighting
