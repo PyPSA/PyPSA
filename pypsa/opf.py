@@ -1650,8 +1650,11 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     -------
     None
     """
-    if multi_investment_periods or (type(network.snapshots)==pd.MultiIndex):
-                raise NotImplementedError("Multi period invesmtent is only supported for pyomo=False")
+    if multi_investment_periods:
+        raise NotImplementedError("Multi period invesmtent is only supported for pyomo=False")
+    if (type(network.snapshots)==pd.MultiIndex):
+        raise NotImplementedError("Multi indexed snapshots is only supported for pyomo=False")
+
 
     snapshots = _as_snapshots(network, snapshots)
 
