@@ -317,7 +317,7 @@ def align_with_static_component(n, c, attr):
     """
     Alignment of time-dependent variables with static components. If c is a
     pypsa.component name, it will sort the columns of the variable according
-    to the statid component.
+    to the static component.
     """
     if c in n.all_components and (c, attr) in n.variables.index:
         if not n.variables.pnl[c, attr]: return
