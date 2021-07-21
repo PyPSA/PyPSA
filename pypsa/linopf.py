@@ -47,6 +47,39 @@ logger = logging.getLogger(__name__)
 
 lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
+#%%
+def define_growth_limit(n, sns, c, attr):
+    """Constraint new installed capacity per investment period.
+
+    Parameters
+    ----------
+    n    : pypsa.Network
+    c    : str
+           network component of which the nominal capacity should be defined
+    attr : str
+           name of the variable, e.g. 'p_nom'
+    """
+    if not n._multi_invest: return
+
+    ext_i = get_extendable_i(n, c)
+    if "carrier" not in n.df(c) or n.df(c).empty: return
+    with_limit = n.carriers[n.carriers.max_growth!=np.inf].index
+    limit_i = n.df(c).loc[ext_i][n.df(c).loc[ext_i,"carrier"].isin(with_limit)].index
+    if limit_i.empty: return
+
+    periods = sns.unique('period')
+
+    active = get_activity_mask(n, c, sns)
+    new_build = (active.cumsum()[ext_i] == 1).groupby(level=0).first()[limit_i]
+
+    caps = expand_series(get_var(n, c, attr).loc[limit_i], periods).T
+
+    lhs = linexpr((new_build, caps)).groupby(n.df(c)["carrier"], axis=1).sum()
+    max_growth = n.carriers["max_growth"].reindex(lhs.columns).fillna(np.inf)
+    rhs = (expand_series(max_growth, periods).T)
+
+    define_constraints(n, lhs, '<=', rhs, 'Carrier', 'growth_limit_{}'.format(c))
+
 
 def define_nominal_for_extendable_variables(n, c, attr):
     """
@@ -861,6 +894,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
 
     for c, attr in lookup.query('nominal and not handle_separately').index:
         define_nominal_for_extendable_variables(n, c, attr)
+        # define constraint for newly installed capacity per investment period
+        define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query('not nominal and not handle_separately').index:
         define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
