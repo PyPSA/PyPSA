@@ -38,6 +38,7 @@ from numpy import inf
 
 from distutils.version import LooseVersion
 pd_version = LooseVersion(pd.__version__)
+agg_group_kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
 
 import gc, time, os, re, shutil
 from tempfile import mkstemp
@@ -45,40 +46,9 @@ from tempfile import mkstemp
 import logging
 logger = logging.getLogger(__name__)
 
+
 lookup = pd.read_csv(os.path.join(os.path.dirname(__file__), 'variables.csv'),
                      index_col=['component', 'variable'])
-#%%
-def define_growth_limit(n, sns, c, attr):
-    """Constraint new installed capacity per investment period.
-
-    Parameters
-    ----------
-    n    : pypsa.Network
-    c    : str
-           network component of which the nominal capacity should be defined
-    attr : str
-           name of the variable, e.g. 'p_nom'
-    """
-    if not n._multi_invest: return
-
-    ext_i = get_extendable_i(n, c)
-    if "carrier" not in n.df(c) or n.df(c).empty: return
-    with_limit = n.carriers[n.carriers.max_growth!=np.inf].index
-    limit_i = n.df(c).loc[ext_i][n.df(c).loc[ext_i,"carrier"].isin(with_limit)].index
-    if limit_i.empty: return
-
-    periods = sns.unique('period')
-
-    active = get_activity_mask(n, c, sns)
-    new_build = (active.cumsum()[ext_i] == 1).groupby(level=0).first()[limit_i]
-
-    caps = expand_series(get_var(n, c, attr).loc[limit_i], periods).T
-
-    lhs = linexpr((new_build, caps)).groupby(n.df(c)["carrier"], axis=1).sum()
-    max_growth = n.carriers["max_growth"].reindex(lhs.columns).fillna(np.inf)
-    rhs = (expand_series(max_growth, periods).T)
-
-    define_constraints(n, lhs, '<=', rhs, 'Carrier', 'growth_limit_{}'.format(c))
 
 
 def define_nominal_for_extendable_variables(n, c, attr):
@@ -359,7 +329,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
                 if (c, attr) not in n.variables.index: continue
                 nominals = get_var(n, c, attr)[n.df(c).carrier == carrier]
                 if nominals.empty: continue
-                per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum()
+                per_bus = linexpr((1, nominals)).groupby(n.df(c).bus).sum(**agg_group_kwargs)
                 lhs += per_bus.reindex(lhs.index, fill_value='')
 
             if bound == 'max':
@@ -400,10 +370,9 @@ def define_nodal_balance_constraints(n, sns):
         eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
         args.append(['Link', 'p', f'bus{i}', eff])
 
-    kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
-           .sum(**kwargs)
+           .sum(**agg_group_kwargs)
            .reindex(columns=n.buses.index, fill_value=''))
 
     if (lhs == '').any().any():
@@ -624,6 +593,37 @@ def define_store_constraints(n, sns):
             rhs[noncyclic_pp_i].where(~first_active_snapshot_pp, -n.df(c).e_initial, axis=1))
 
     define_constraints(n, lhs, '==', rhs, c, 'mu_state_of_charge', mask=active)
+
+
+def define_growth_limit(n, sns, c, attr):
+    """Constraint new installed capacity per investment period.
+
+    Parameters
+    ----------
+    n    : pypsa.Network
+    c    : str
+           network component of which the nominal capacity should be defined
+    attr : str
+           name of the variable, e.g. 'p_nom'
+    """
+    if not n._multi_invest: return
+
+    ext_i = get_extendable_i(n, c)
+    if "carrier" not in n.df(c) or n.df(c).empty: return
+    with_limit = n.carriers.query("max_growth != inf").index
+    limit_i = n.df(c).query("carrier in @with_limit").index.intersection(ext_i)
+    if limit_i.empty: return
+
+    periods = sns.unique('period')
+
+    v = get_var(n, c, attr)
+    carriers = n.df(c).loc[limit_i, "carrier"]
+    caps = pd.concat({period: linexpr((1, v)).where(n.get_active_assets(c, period), '')
+                     for period in periods}, axis=1).T[limit_i]
+    lhs = caps.groupby(carriers, axis=1).sum(**agg_group_kwargs)
+    rhs = n.carriers.max_growth[with_limit]
+
+    define_constraints(n, lhs, '<=', rhs, 'Carrier', 'growth_limit_{}'.format(c))
 
 
 def define_global_constraints(n, sns):
