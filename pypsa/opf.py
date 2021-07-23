@@ -1595,9 +1595,11 @@ def network_lopf_solve(network, snapshots=None, formulation="angles", solver_opt
     return status, termination_condition
 
 def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
-                 skip_pre=False, extra_functionality=None, solver_logfile=None, solver_options={},
-                 keep_files=False, formulation="angles", ptdf_tolerance=0.,
-                 free_memory={},extra_postprocessing=None):
+                 skip_pre=False, extra_functionality=None,
+                 multi_investment_periods=False, solver_logfile=None,
+                 solver_options={}, keep_files=False, formulation="angles",
+                 ptdf_tolerance=0., free_memory={},
+                 extra_postprocessing=None):
     """
     Linear optimal power flow for a group of snapshots.
 
@@ -1648,6 +1650,11 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
     -------
     None
     """
+    if multi_investment_periods:
+        raise NotImplementedError("Multi period invesmtent is only supported for pyomo=False")
+    if (type(network.snapshots)==pd.MultiIndex):
+        raise NotImplementedError("Multi indexed snapshots is only supported for pyomo=False")
+
 
     snapshots = _as_snapshots(network, snapshots)
 
