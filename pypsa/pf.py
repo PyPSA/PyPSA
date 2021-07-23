@@ -737,6 +737,8 @@ def calculate_dependent_values(network):
     apply_transformer_types(network)
 
     network.lines["v_nom"] = network.lines.bus0.map(network.buses.v_nom)
+    network.lines.loc[network.lines.carrier == "", "carrier"] = (
+        network.lines.bus0.map(network.buses.carrier))
 
     network.lines["x_pu"] = network.lines.x/(network.lines.v_nom**2)
     network.lines["r_pu"] = network.lines.r/(network.lines.v_nom**2)
@@ -759,6 +761,13 @@ def calculate_dependent_values(network):
     network.shunt_impedances["v_nom"] = network.shunt_impedances["bus"].map(network.buses.v_nom)
     network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
     network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
+
+    network.links.loc[network.links.carrier == "", "carrier"] = (
+        network.links.bus0.map(network.buses.carrier))
+
+    network.stores.loc[network.stores.carrier == "", "carrier"] = (
+        network.stores.bus.map(network.buses.carrier))
+
 
 
 def find_slack_bus(sub_network):
