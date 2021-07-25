@@ -31,12 +31,12 @@ def test_mremove(network):
     THEN    the generator dataframe and the time-dependent generator dataframe
                 should not contain the removed elements.
     """
-    generators = ['Manchester Wind', 'Frankfurt Wind']
+    generators = {'Manchester Wind', 'Frankfurt Wind'}
 
     network.mremove('Generator', generators)
 
-    assert generators not in network.generators.index.tolist()
-    assert generators not in network.generators_t.p_max_pu.columns.tolist()
+    assert not generators.issubset(network.generators.index)
+    assert not generators.issubset(network.generators_t.p_max_pu.columns)
 
 
 def test_mremove_misspelled_component(network, caplog):
