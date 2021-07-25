@@ -140,7 +140,7 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     )
 
 
-def test_madd_same_generator(empty_network_5_buses, caplog):
+def test_madd_duplicated_index(empty_network_5_buses, caplog):
     """
     GIVEN   an empty PyPSA network with 5 buses
 
