@@ -69,10 +69,10 @@ def test_madd_static(empty_network_5_buses):
                 value greater than 0.
     """
 
-    buses = empty_network_5_buses.buses.index.tolist()
+    buses = empty_network_5_buses.buses.index
 
     # Add load components at every bus with attribute p_set.
-    load_names = "load_" + empty_network_5_buses.buses.index
+    load_names = "load_" + buses
     empty_network_5_buses.madd(
         "Load",
         load_names,
@@ -99,10 +99,10 @@ def test_madd_t(empty_network_5_buses):
     # Set up empty network with 5 buses and 7 snapshots.
     snapshots = range(7)
     empty_network_5_buses.set_snapshots(snapshots)
-    buses = empty_network_5_buses.buses.index.tolist()
+    buses = empty_network_5_buses.buses.index
 
     # Add load component at every bus with time-dependent attribute p_set.
-    load_names = "load_" + empty_network_5_buses.buses.index
+    load_names = "load_" + buses
     empty_network_5_buses.madd(
         "Load",
         load_names,
