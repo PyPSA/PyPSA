@@ -77,11 +77,11 @@ def test_madd_static(empty_network_5_buses):
         "Load",
         load_names,
         bus=buses,
-        p_set=np.random.rand(len(buses)),
+        p_set=3,
     )
 
     assert load_names.equals(empty_network_5_buses.loads.index)
-    assert any(empty_network_5_buses.loads.p_set > 0)
+    assert (empty_network_5_buses.loads.p_set == 3).all()
 
 
 def test_madd_t(empty_network_5_buses):
