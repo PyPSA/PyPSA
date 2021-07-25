@@ -57,22 +57,6 @@ def test_mremove_misspelled_component(network, caplog):
     assert caplog.records[-1].levelname == 'ERROR'
 
 
-def test_mremove_non_component(network, caplog):
-    """
-    GIVEN   the AC DC exemplary pypsa network
-
-    WHEN    a non-existing component is removed with mremove
-
-    THEN    an error should be logged.
-    """
-
-    network = pypsa.examples.ac_dc_meshed(from_master=True)
-
-    network.mremove('ABC', ['0', '1'])
-
-    assert caplog.records[-1].levelname == 'ERROR'
-
-
 def test_madd_static(empty_network_5_buses):
     """
     GIVEN   an empty PyPSA network with 5 buses
