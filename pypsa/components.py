@@ -34,7 +34,8 @@ from collections import namedtuple
 import os
 
 
-from .descriptors import Dict, get_switchable_as_dense
+from .descriptors import (Dict, get_switchable_as_dense, get_active_assets,
+                          get_extendable_i, get_non_extendable_i)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -209,6 +210,15 @@ class Network(Basic):
 
     adjacency_matrix = adjacency_matrix
 
+    get_switchable_as_dense = get_switchable_as_dense
+
+    get_extendable_i = get_extendable_i
+
+    get_non_extendable_i = get_non_extendable_i
+
+    get_active_assets = get_active_assets
+
+
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
@@ -228,6 +238,11 @@ class Network(Basic):
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
+
+        self._investment_periods = pd.Index([])
+
+        cols = ["objective", "time"]
+        self._investment_period_weightings = pd.DataFrame(columns=cols)
 
         if override_components is None:
             self.components = components
@@ -405,6 +420,7 @@ class Network(Basic):
     snapshots = property(lambda self: self._snapshots, set_snapshots,
                          doc="Time steps of the network")
 
+
     @property
     def snapshot_weightings(self):
         """
@@ -430,14 +446,100 @@ class Network(Basic):
         if isinstance(df, pd.Series):
             logger.info('Applying weightings to all columns of `snapshot_weightings`')
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
-            self._snapshot_weightings = df
+        self._snapshot_weightings = df
+
+
+
+    def set_investment_periods(self, periods):
+        """
+        Set the investment periods of the network.
+
+        If the network snapshots are a pandas.MultiIndex, the investment periods
+        have to be a subset of the first level. If snapshots are a single index,
+        they and all time-series are repeated for all periods. This changes
+        the network snapshots to be a MultiIndex (inplace operation) with the first
+        level being the investment periods and the second level the snapshots.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+        periods : list
+            List of periods to be selected/initialized.
+
+        Returns
+        -------
+        None.
+
+        """
+        periods = pd.Index(periods)
+        if not (periods.is_integer() and periods.is_unique and periods.is_monotonic_increasing):
+            raise ValueError("Investment periods are not strictly increasing integers, "
+                        "which is required for multi-period investment optimisation.")
+        if isinstance(self.snapshots, pd.MultiIndex):
+            if not periods.isin(self.snapshots.unique('period')).all():
+                raise ValueError("Not all investment periods are in level `period` "
+                                 "of snapshots.")
+            if len(periods) < len(self.snapshots.levels[0]):
+                raise NotImplementedError("Investment periods do not equal first level "
+                                          "values of snapshots.")
         else:
-            self._snapshot_weightings = df
+            # Convenience case:
+            logger.info("Repeating time-series for each investment period and "
+                        "converting snapshots to a pandas.MultiIndex.")
+            for component in self.all_components:
+                pnl = self.pnl(component)
+                attrs = self.components[component]["attrs"]
+
+                for k,default in attrs.default[attrs.varying].iteritems():
+                    pnl[k] = pd.concat({p: pnl[k] for p in periods})
+
+            self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
+                                                      names=['period', 'snapshot'])
+            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods})
+
+        self._investment_periods = periods
+        self.investment_period_weightings = (
+            self.investment_period_weightings.reindex(periods, fill_value=1.).astype(float))
+
+
+
+    investment_periods = property(lambda self: self._investment_periods,
+                                  set_investment_periods,
+                                  doc="Investment steps during the optimization.")
+
+
+    @property
+    def investment_period_weightings(self):
+        """
+        Weightings applied to each investment period during the optimization
+        (LOPF).
+
+        * Objective weightings are multiplied with all cost coefficients in the
+          objective function of the respective investment period
+          (e.g. to include a social discount rate).
+
+        * Time weightings denote the elapsed time until the subsequent investment period
+          (e.g. used for global constraints CO2 emissions).
+
+        """
+        return self._investment_period_weightings
+
+
+    @investment_period_weightings.setter
+    def investment_period_weightings(self, df):
+        assert df.index.equals(self.investment_periods), (
+                "Weightings not defined for all investment periods.")
+        if isinstance(df, pd.Series):
+            logger.info('Applying weightings to all columns of `investment_period_weightings`')
+            df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
+        self._investment_period_weightings = df
+
 
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
              solver_options={}, solver_logfile=None, formulation="kirchhoff",
-             keep_files=False, extra_functionality=None,  **kwargs):
+             keep_files=False, extra_functionality=None,
+             multi_investment_periods=False,  **kwargs):
         """
         Linear optimal power flow for a group of snapshots.
 
@@ -469,6 +571,9 @@ class Network(Basic):
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
+        multi_investment_periods : bool, default False
+            Whether to optimise as a single investment period or to optimise in multiple
+            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
 
         Other Parameters
         ----------------
@@ -540,6 +645,7 @@ class Network(Basic):
         args = {'snapshots': snapshots, 'keep_files': keep_files,
                 'solver_options': solver_options, 'formulation': formulation,
                 'extra_functionality': extra_functionality,
+                'multi_investment_periods': multi_investment_periods,
                 'solver_name': solver_name, 'solver_logfile': solver_logfile}
         args.update(kwargs)
 
@@ -614,7 +720,7 @@ class Network(Basic):
             typ = attrs.at[k, "typ"]
             if not attrs.at[k,"varying"]:
                 new_df.at[name,k] = typ(v)
-            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, np.ndarray, list)):
+            elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray, list)):
                 new_df.at[name,k] = typ(v)
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
@@ -814,7 +920,8 @@ class Network(Basic):
         return override_components, override_component_attrs
 
 
-    def copy(self, with_time=True, snapshots=None, ignore_standard_types=False):
+    def copy(self, with_time=True, snapshots=None, investment_periods=None,
+             ignore_standard_types=False):
         """
         Returns a deep copy of the Network object with all components and
         time-dependent data.
@@ -857,12 +964,17 @@ class Network(Basic):
         if with_time:
             if snapshots is None:
                 snapshots = self.snapshots
+            if investment_periods is None:
+                investment_periods = self.investment_period_weightings.index
             network.set_snapshots(snapshots)
+            network.set_investment_periods(self.investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in component.pnl.keys():
                     pnl[k] = component.pnl[k].loc[snapshots].copy()
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
+            network.investment_period_weightings = self.investment_period_weightings.loc[investment_periods].copy()
+
 
         #catch all remaining attributes of network
         for attr in ["name", "srid"]:
@@ -964,12 +1076,19 @@ class Network(Basic):
         return pd.concat((self.df(c) for c in self.controllable_branch_components),
                          keys=self.controllable_branch_components, sort=True)
 
-    def determine_network_topology(self):
+    def determine_network_topology(self, investment_period=None):
         """
         Build sub_networks from topology.
+
+        For the default case investment_period=None, it is not taken into
+        account whether the branch components are active
+        (based on build_year and lifetime).
+        If the investment_period is specified, the network topology is
+        determined on the basis of the active branches.
         """
 
-        adjacency_matrix = self.adjacency_matrix(self.passive_branch_components)
+        adjacency_matrix = self.adjacency_matrix(branch_components=self.passive_branch_components,
+                                                 investment_period=investment_period)
         n_components, labels = csgraph.connected_components(adjacency_matrix, directed=False)
 
         # remove all old sub_networks
@@ -1002,6 +1121,11 @@ class Network(Basic):
 
         for c in self.iterate_components(self.passive_branch_components):
             c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+
+            if investment_period is not None:
+                active = get_active_assets(self, c.name, investment_period)
+                # set non active assets to NaN
+                c.df.loc[~active, "sub_network"] = np.nan
 
         for sub in self.sub_networks.obj:
             find_cycles(sub)
