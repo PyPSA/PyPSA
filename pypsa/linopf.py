@@ -713,14 +713,6 @@ def define_global_constraints(n, sns):
                            axes=pd.Index([name]), spec=name)
 
 
-
-    # TODO: Carrier should be an official column in line, link, assignment should
-    # be in calculated_dependant_values
-    if any(n.global_constraints.type.isin(["transmission_volume_expansion_limit",
-                                           "transmission_expansion_cost_limit"])):
-        n.lines['carrier'] = n.lines.bus0.map(n.buses.carrier)
-        n.links['carrier'] = n.links.get('carrier', pd.Series(index=n.links.index, dtype=str))
-
     # (2) transmission_volume_expansion_limit
     glcs = n.global_constraints.query('type == '
                                       '"transmission_volume_expansion_limit"')

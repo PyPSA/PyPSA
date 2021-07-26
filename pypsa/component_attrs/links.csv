@@ -3,6 +3,7 @@ name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of first bus to which link is attached.,Input (required)
 bus1,string,n/a,n/a,Name of second bus to which link is attached.,Input (required)
 type,string,n/a,n/a,Placeholder for link type. Not yet implemented.,Input (optional)
+carrier,"string","n/a","","Energy carrier transported by the link: can be ""DC"" for electrical HVDC links, or ""heat"" or ""gas"" etc.","Input (optional)"
 efficiency,static or series,per unit,1,Efficiency of power transfer from bus0 to bus1. (Can be time-dependent to represent temperature-dependent Coefficient of Performance of a heat pump from an electric to a heat bus.),Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)

@@ -47,6 +47,8 @@ Upcoming Release
 
 * ``PyPSA`` now supports the optimization of multiple investment periods, also known as pathway optimization. With this feature, snapshots can span over multiple years or decades which are divided into investment periods. Within each investment period, assets can be added to the network. The optimization only works with ``pyomo=False``. For more information see the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.       
 
+* A new attribute (column) "carrier" was added to the components ``Line``, ``Link`` and ``Store``, defining the energy carrier of the components. It's default is an empty string. When calling ``network.calculate_dependant_values``, empty carriers are replaced by the carriers of the buses to which the components are attached. 
+
 
 PyPSA 0.17.1 (15th July 2020)
 =============================
