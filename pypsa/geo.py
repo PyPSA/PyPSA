@@ -1,26 +1,20 @@
-## Copyright 2016-2017 Tom Brown (FIAS)
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
+## Copyright 2015-2021 PyPSA Developers
 
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Functionality to help with georeferencing and calculate
 distances/areas.
 
 """
 
-
-__author__ = "Tom Brown (FIAS)"
-__copyright__ = "Copyright 2016-2017 Tom Brown (FIAS), GNU GPL 3"
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import numpy as np
 from deprecation import deprecated
@@ -106,7 +100,7 @@ def area_from_lon_lat_poly(geometry):
     """
     Compute the area in km^2 of a shapely geometry, whose points are in
     longitude and latitude.
-    
+
     This function follows http://toblerity.org/shapely/manual.html
 
     Parameters
