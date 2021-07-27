@@ -56,6 +56,7 @@ Companies and Non-Governmental Organisations
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
+* `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 
 * `Energynautics GmbH <https://energynautics.com/>`_, a grid integration consultancy in Germany: used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: `Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen <https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf>`_ (`summary in English <https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/>`_)
 
