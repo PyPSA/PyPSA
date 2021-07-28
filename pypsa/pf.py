@@ -16,8 +16,9 @@
 """Power flow functionality.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
+__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT), Tobias Dess (elena international)"
+__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), Copyright 2020 Tobias Dess (elena international) GNU GPL 3"
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -676,7 +677,7 @@ def apply_transformer_types(network):
 
     # Get a copy of the transformers data
     # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
-    t = (network.transformers.loc[trafos_with_types_b, ["type", "tap_position", "num_parallel"]]
+    t = (network.transformers.loc[trafos_with_types_b, ["bus0", "bus1", "type", "tap_position", "num_parallel"]]
          .join(network.transformer_types, on='type'))
 
     t["r"] = t["vscr"] /100.
@@ -695,11 +696,23 @@ def apply_transformer_types(network):
         t[attr] *= t["num_parallel"]
 
     #deal with tap positions
+    t["tap_ratio"] = (1. + (t["tap_position"] - t["tap_neutral"]) * (t["tap_step"]/100.))
 
-    t["tap_ratio"] = 1. + (t["tap_position"] - t["tap_neutral"]) * (t["tap_step"]/100.)
+    #determine off-nominal tab ratio
+    t = t.merge(network.buses.loc[:, "v_nom"], how='left', left_on="bus0", right_index=True)
+    t = t.merge(network.buses.loc[:, "v_nom"], how='left', left_on="bus1", right_index=True, suffixes=('_bus_0', '_bus_1'))
+    t["off_nominal_tap_ratio"] = (t["v_nom_0"] / t["v_nom_bus_0"]) / (t["v_nom_1"] / t["v_nom_bus_1"])
 
+    #correct the admitance with the off nominal voltage level of winding 1 (secondary side)
+    #(the implementation delivers testcase results consistent with NEPLAN 10.8.2.4 and pandapower 2.4.0, but the method is questionable)
+    t["off_nominal_voltage_level_winding_1"] = t["v_nom_1"] / t["v_nom_bus_1"]
+    t["r"] = t["r"]*t["off_nominal_voltage_level_winding_1"]**2
+    t["x"] = t["x"]*t["off_nominal_voltage_level_winding_1"]**2
+    t["g"] = t["g"]/t["off_nominal_voltage_level_winding_1"]**2
+    t["b"] = t["b"]/t["off_nominal_voltage_level_winding_1"]**2
+#
     # now set calculated values on live transformers
-    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]:
+    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio", "off_nominal_tap_ratio"]:
         network.transformers.loc[trafos_with_types_b, attr] = t[attr]
 
     #TODO: status, rate_A
@@ -746,7 +759,6 @@ def calculate_dependent_values(network):
     network.lines["g_pu"] = network.lines.g*network.lines.v_nom**2
     network.lines["x_pu_eff"] = network.lines["x_pu"]
     network.lines["r_pu_eff"] = network.lines["r_pu"]
-
 
     #convert transformer impedances from base power s_nom to base = 1 MVA
     network.transformers["x_pu"] = network.transformers.x/network.transformers.s_nom
@@ -942,7 +954,6 @@ def calculate_Y(sub_network,skip_pre=False):
     num_buses = len(buses_o)
 
     y_se = 1/(branches["r_pu"] + 1.j*branches["x_pu"])
-
     y_sh = branches["g_pu"]+ 1.j*branches["b_pu"]
 
     tau = branches["tap_ratio"].fillna(1.)
@@ -951,13 +962,18 @@ def calculate_Y(sub_network,skip_pre=False):
     tau[tau==0] = 1.
 
     #define the HV tap ratios
-    tau_hv = pd.Series(1.,branches.index)
+    tau_hv = pd.Series(1., branches.index)
     tau_hv[branches.tap_side==0] = tau[branches.tap_side==0]
 
-    #define the LV tap ratios
-    tau_lv = pd.Series(1.,branches.index)
-    tau_lv[branches.tap_side==1] = tau[branches.tap_side==1]
+    #take off nominal tap ratio into account (the key "off_nominal_tap_ratio" is determined in apply_transformer_types())
+    if "off_nominal_tap_ratio" in branches.keys():
+        off_nom_tap_ratio = branches["off_nominal_tap_ratio"].fillna(1.)
+        tau_hv = tau_hv*off_nom_tap_ratio
+        # The key "off_nominal_tap_ratio" is determined by transformer type. Does not exist on trafos without a trasformer type given
 
+    #define the LV tap ratios
+    tau_lv = pd.Series(1., branches.index)
+    tau_lv[branches.tap_side==1] = tau[branches.tap_side==1]
 
     phase_shift = np.exp(1.j*branches["phase_shift"].fillna(0.)*np.pi/180.)
 
