@@ -28,7 +28,7 @@ dependencies:
   - lxml
   - powerplantmatching>=0.4.8
   - numpy<=1.19 # until new PyPSA after 27-06-21
-  - pandas
+  - pandas<1.3 # until new PyPSA after 2-7-21, https://github.com/PyPSA/pypsa-eur/pull/261
   - geopandas
   - xarray
   - netcdf4

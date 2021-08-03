@@ -84,7 +84,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, update_p_nom_max
 
 import pypsa
 import pandas as pd
@@ -501,6 +501,7 @@ def attach_OPSD_renewables(n):
         caps = caps / gens_per_bus.reindex(caps.index, fill_value=1)
 
         n.generators.p_nom.update(gens.bus.map(caps).dropna())
+        n.generators.p_nom_min.update(gens.bus.map(caps).dropna())
 
 
 
@@ -536,6 +537,7 @@ def estimate_renewable_capacities(n, tech_map=None):
              .groupby(n.generators.bus.map(n.buses.country))
              .transform(lambda s: normed(s) * tech_capacities.at[s.name])
              .where(lambda s: s>0.1, 0.))  # only capacities above 100kW
+        n.generators.loc[tech_i, 'p_nom_min'] = n.generators.loc[tech_i, 'p_nom']
 
 
 def add_nice_carrier_names(n, config=None):
@@ -575,6 +577,7 @@ if __name__ == "__main__":
 
     estimate_renewable_capacities(n)
     attach_OPSD_renewables(n)
+    update_p_nom_max(n)
 
     add_nice_carrier_names(n)
 
