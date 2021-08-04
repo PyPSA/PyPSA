@@ -114,7 +114,7 @@ def _find_closest_links(links, new_links, distance_upper_bound=1.5):
 
 def _load_buses_from_eg():
     buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
-                         true_values='t', false_values='f',
+                         true_values=['t'], false_values=['f'],
                          dtype=dict(bus_id="str"))
             .set_index("bus_id")
             .drop(['station_id'], axis=1)
@@ -136,7 +136,7 @@ def _load_buses_from_eg():
 
 def _load_transformers_from_eg(buses):
     transformers = (pd.read_csv(snakemake.input.eg_transformers, quotechar="'",
-                                true_values='t', false_values='f',
+                                true_values=['t'], false_values=['f'],
                                 dtype=dict(transformer_id='str', bus0='str', bus1='str'))
                     .set_index('transformer_id'))
 
@@ -147,7 +147,7 @@ def _load_transformers_from_eg(buses):
 
 def _load_converters_from_eg(buses):
     converters = (pd.read_csv(snakemake.input.eg_converters, quotechar="'",
-                              true_values='t', false_values='f',
+                              true_values=['t'], false_values=['f'],
                               dtype=dict(converter_id='str', bus0='str', bus1='str'))
                   .set_index('converter_id'))
 
@@ -159,7 +159,7 @@ def _load_converters_from_eg(buses):
 
 
 def _load_links_from_eg(buses):
-    links = (pd.read_csv(snakemake.input.eg_links, quotechar="'", true_values='t', false_values='f',
+    links = (pd.read_csv(snakemake.input.eg_links, quotechar="'", true_values=['t'], false_values=['f'],
                          dtype=dict(link_id='str', bus0='str', bus1='str', under_construction="bool"))
              .set_index('link_id'))
 
@@ -249,7 +249,7 @@ def _add_links_from_tyndp(buses, links):
 
 
 def _load_lines_from_eg(buses):
-    lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values='t', false_values='f',
+    lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values=['t'], false_values=['f'],
                          dtype=dict(line_id='str', bus0='str', bus1='str',
                                     underground="bool", under_construction="bool"))
              .set_index('line_id')

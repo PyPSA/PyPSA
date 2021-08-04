@@ -178,6 +178,7 @@ def _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link=None, 
 
 
 def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
+    connection_costs = {}
     for tech in connection_costs_to_bus:
         tech_b = n.generators.carrier == tech
         costs = n.generators.loc[tech_b, "bus"].map(connection_costs_to_bus[tech]).loc[lambda s: s>0]
@@ -185,6 +186,9 @@ def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
             n.generators.loc[costs.index, "capital_cost"] += costs
             logger.info("Displacing {} generator(s) and adding connection costs to capital_costs: {} "
                         .format(tech, ", ".join("{:.0f} Eur/MW/a for `{}`".format(d, b) for b, d in costs.iteritems())))
+            connection_costs[tech] = costs
+    pd.DataFrame(connection_costs).to_csv(snakemake.output.connection_costs) 
+            
 
 
 def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
