@@ -1185,7 +1185,7 @@ def network_lopf(n, snapshots=None, solver_name="cbc",
         assert not n.investment_periods.empty, "No investment periods defined."
         assert n.snapshots.levels[0].difference(n.investment_periods).empty, (
             "Not all first-level snapshots values in investment periods.")
-    n._multi_invest = multi_investment_periods
+    n._multi_invest = int(multi_investment_periods)
 
 
     if not skip_pre:
