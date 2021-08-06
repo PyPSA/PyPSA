@@ -7,6 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* With this release, we change the license from copyleft GPLv3 to the more liberal MIT license with the consent of all contributors.
+
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
 * Add new descriptive attribute 'unit' to 'bus' component.
 
