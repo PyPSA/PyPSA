@@ -150,6 +150,7 @@ def average_every_nhours(n, offset):
 
     return m
 
+
 def apply_time_segmentation(n, segments):
     logger.info(f"Aggregating time series to {segments} segments.")
     try:
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     opts = snakemake.wildcards.opts.split('-')
 
     n = pypsa.Network(snakemake.input[0])
-    Nyears = n.snapshot_weightings.sum() / 8760.
+    Nyears = n.snapshot_weightings.objective.sum() / 8760.
 
     set_line_s_max_pu(n)
 

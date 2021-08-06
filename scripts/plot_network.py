@@ -196,7 +196,7 @@ def plot_total_energy_pie(n, ax=None):
 def plot_total_cost_bar(n, ax=None):
     if ax is None: ax = plt.gca()
 
-    total_load = (n.snapshot_weightings * n.loads_t.p.sum(axis=1)).sum()
+    total_load = (n.snapshot_weightings.generators * n.loads_t.p.sum(axis=1)).sum()
     tech_colors = opts['tech_colors']
 
     def split_costs(n):

@@ -141,7 +141,8 @@ def simplify_network_to_380(n):
 def _prepare_connection_costs_per_link(n):
     if n.links.empty: return {}
 
-    costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
+    Nyears = n.snapshot_weightings.objective.sum() / 8760
+    costs = load_costs(Nyears, snakemake.input.tech_costs,
                        snakemake.config['costs'], snakemake.config['electricity'])
 
     connection_costs_per_link = {}

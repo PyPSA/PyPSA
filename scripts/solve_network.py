@@ -127,7 +127,7 @@ def prepare_network(n, solve_opts):
     if solve_opts.get('nhours'):
         nhours = solve_opts['nhours']
         n.set_snapshots(n.snapshots[:nhours])
-        n.snapshot_weightings[:] = 8760./nhours
+        n.snapshot_weightings[:] = 8760. / nhours
 
     return n
 
@@ -174,16 +174,16 @@ def add_EQ_constraints(n, o, scaling=1e-1):
         ggrouper = n.generators.bus
         lgrouper = n.loads.bus
         sgrouper = n.storage_units.bus
-    load = n.snapshot_weightings @ \
+    load = n.snapshot_weightings.generators @ \
            n.loads_t.p_set.groupby(lgrouper, axis=1).sum()
-    inflow = n.snapshot_weightings @ \
+    inflow = n.snapshot_weightings.stores @ \
              n.storage_units_t.inflow.groupby(sgrouper, axis=1).sum()
     inflow = inflow.reindex(load.index).fillna(0.)
     rhs = scaling * ( level * load - inflow )
-    lhs_gen = linexpr((n.snapshot_weightings * scaling,
+    lhs_gen = linexpr((n.snapshot_weightings.generators * scaling,
                        get_var(n, "Generator", "p").T)
               ).T.groupby(ggrouper, axis=1).apply(join_exprs)
-    lhs_spill = linexpr((-n.snapshot_weightings * scaling,
+    lhs_spill = linexpr((-n.snapshot_weightings.stores * scaling,
                          get_var(n, "StorageUnit", "spill").T)
                 ).T.groupby(sgrouper, axis=1).apply(join_exprs)
     lhs_spill = lhs_spill.reindex(lhs_gen.index).fillna("")

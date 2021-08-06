@@ -12,7 +12,7 @@ dependencies:
   - pip
   - mamba # esp for windows build
 
-  - pypsa>=0.17.1 
+  #- pypsa>=0.17.1 
   - atlite>=0.2.4
   - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
 
@@ -54,5 +54,6 @@ dependencies:
   - country_converter
 
   - pip:
+    - git+https://github.com/pypsa/pypsa.git#egg=pypsa
     - vresutils==0.3.1
     - tsam>=1.1.0
