@@ -259,19 +259,23 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 
 .. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
     :target: https://doi.org/10.5281/zenodo.3946412
+    :alt: Zenodo
 
 .. |badge_pypi| image:: https://img.shields.io/pypi/v/pypsa.svg
     :target: https://pypi.python.org/pypi/pypsa
     :alt: PyPI version
 
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: License
+    :target: LICENSE.txt
+    :alt: License
 
 .. |ci_badge_conda| image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+    :alt: CI with conda
 
 .. |ci_badge| image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/CI.yml
+    :alt: CI
 
 .. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
@@ -291,3 +295,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 
 .. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
+    :alt: Code coverage
