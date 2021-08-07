@@ -12,13 +12,13 @@ with open('README.rst', encoding='utf-8') as f:
 setup(
     name='pypsa',
     version='0.17.1',
-    author='Tom Brown (FIAS, KIT), Jonas Hoersch (FIAS, KIT), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)',
-    author_email='tom.brown@kit.edu',
+    author='PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html',
+    author_email='t.brown@tu-berlin.de',
     description='Python for Power Systems Analysis',
     long_description=long_description,
     long_description_content_type='text/x-rst',
     url='https://github.com/PyPSA/PyPSA',
-    license='GPLv3',
+    license='MIT',
     packages=find_packages(exclude=['doc', 'test']),
     include_package_data=True,
     python_requires='>=3.6',
@@ -41,10 +41,10 @@ setup(
         'gurobipy':['gurobipy']
     },
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
     ])

@@ -1,35 +1,22 @@
 
+## Copyright 2015-2021 PyPSA Developers
 
-## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
-
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """
 Tools for fast Pyomo linear problem building.
 
 Essentially this library replaces Pyomo expressions with more strict
 objects with a pre-defined affine structure.
-
-This code is also available as a gist
-
-https://gist.github.com/nworbmot/db3d446fa3b5c388519390e46fd5d8c3
-
-under a more permissive Apache 2.0 licence to allow sharing with other
-projects.
-
 """
 
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import logging
 logger = logging.getLogger(__name__)
@@ -42,9 +29,6 @@ import pyomo
 from contextlib import contextmanager
 from six.moves import cPickle as pickle
 import gc, os, tempfile
-
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
 
 
 # =============================================================================
@@ -365,6 +349,3 @@ def patch_optsolver_record_memusage_before_solving(opt, network):
 # =============================================================================
 # Helpers for opf_lowmemory
 # =============================================================================
-
-
-
