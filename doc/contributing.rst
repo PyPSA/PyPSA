@@ -9,3 +9,5 @@ Submit pull requests / issues to the `github repository <https://github.com/PyPS
 
 Join the `mailing list
 <https://groups.google.com/group/pypsa>`_.
+
+See the list of :doc:`developers`.

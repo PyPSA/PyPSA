@@ -157,5 +157,6 @@ analysis. PyPSA is free software and can be arbitrarily extended.
 Licence
 =======
 
-PyPSA is released under the `GPLv3
-<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
+Copyright 2015-2021 :doc:`developers`
+
+PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.

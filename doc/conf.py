@@ -63,8 +63,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PyPSA'
-copyright = u'2015-2020 Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)'
-author = u'Tom Brown (KIT, FIAS), Jonas Hoersch (KIT, FIAS), Fabian Hofmann (FIAS), Fabian Neumann (KIT), David Schlachtberger (FIAS)'
+copyright = u'2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html'
+author = u'PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -263,7 +263,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   (master_doc, 'PyPSA.tex', u'PyPSA Documentation',
-   u'Tom Brown (FIAS)', 'manual'),
+   u'PyPSA Developers', 'manual'),
 ]
 
 
@@ -271,7 +271,7 @@ latex_documents = [
 rinoh_documents = [(master_doc,            # top-level file (index.rst)
                     'PyPSA',           # output (target.pdf)
                     'PyPSA Documentation',   # document title
-                    'Tom Brown (FIAS)')]   # document author
+                    'PyPSA Developers')]   # document author
 
 
 # The name of an image file (relative to this directory) to place at the top of

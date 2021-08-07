@@ -1,26 +1,18 @@
 
+## Copyright 2015-2021 PyPSA Developers
 
-## Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS), David
-## Schlachtberger (FIAS)
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
-
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Optimal Power Flow functions.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), David Schlachtberger (FIAS), GNU GPL 3"
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import numpy as np
 import pandas as pd
