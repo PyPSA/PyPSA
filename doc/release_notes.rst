@@ -7,6 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* With this release, we change the license from copyleft GPLv3 to the more liberal MIT license with the consent of all contributors.
+
 * When using iterative LOPF with ``n.ilopf()`` for impedance updates of lines, the attributes ``p_nom`` and ``s_nom`` of lines and links are reset to their original values after final iteration.
 * Add new descriptive attribute 'unit' to 'bus' component.
 
@@ -40,6 +42,14 @@ Upcoming Release
 * The deprecated argument "csv_folder_name" in ``pypsa.Network`` was removed.
 
 * The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
+
+* Automated upload of code coverage reports.
+
+* Add support for ``pandas`` up to version 1.3.
+
+* ``PyPSA`` now supports the optimization of multiple investment periods, also known as pathway optimization. With this feature, snapshots can span over multiple years or decades which are divided into investment periods. Within each investment period, assets can be added to the network. The optimization only works with ``pyomo=False``. For more information see the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.       
+
+* A new attribute (column) "carrier" was added to the components ``Line``, ``Link`` and ``Store``, defining the energy carrier of the components. It's default is an empty string. When calling ``network.calculate_dependant_values``, empty carriers are replaced by the carriers of the buses to which the components are attached. 
 
 
 PyPSA 0.17.1 (15th July 2020)

@@ -14,9 +14,14 @@ PyPSA: Python for Power System Analysis
     :target: https://anaconda.org/conda-forge/pypsa
     :alt: Conda version
 
-.. image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
-    :target: https://travis-ci.org/PyPSA/PyPSA
-    :alt: Build status on Linux
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
+
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+
+.. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
+    :target: https://codecov.io/gh/PyPSA/PyPSA
 
 .. image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
@@ -34,8 +39,7 @@ PyPSA: Python for Power System Analysis
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
-PyPSA is a `free software
-<http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
+PyPSA is an open source toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
@@ -118,7 +122,7 @@ Documentation
    contingency_analysis
    plotting
 
-   
+
 
 
 **Help & References**
@@ -132,6 +136,7 @@ Documentation
 * :doc:`unit_testing`
 * :doc:`mailing_list`
 * :doc:`users`
+* :doc:`developers`
 
 .. toctree::
    :hidden:
@@ -147,3 +152,4 @@ Documentation
    unit_testing
    mailing_list
    users
+   developers

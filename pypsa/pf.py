@@ -1,23 +1,18 @@
-## Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
+## Copyright 2015-2021 PyPSA Developers
 
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Power flow functionality.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS), Fabian Neumann (KIT)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), Copyright 2019 Fabian Neumann (KIT), GNU GPL 3"
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import logging
 logger = logging.getLogger(__name__)
@@ -46,15 +41,16 @@ def real(X): return np.real(X.to_numpy())
 
 def imag(X): return np.imag(X.to_numpy())
 
+
 def _as_snapshots(network, snapshots):
     if snapshots is None:
         snapshots = network.snapshots
-    if isinstance(snapshots, pd.MultiIndex):
-        return snapshots
     if not is_list_like(snapshots):
-        return pd.Index([snapshots])
-    else:
-        return pd.Index(snapshots)
+        snapshots = pd.Index([snapshots])
+    if not isinstance(snapshots, pd.MultiIndex):
+        snapshots = pd.Index(snapshots)
+    assert snapshots.isin(network.snapshots).all()
+    return snapshots
 
 
 def _allocate_pf_outputs(network, linear=False):
@@ -736,6 +732,8 @@ def calculate_dependent_values(network):
     apply_transformer_types(network)
 
     network.lines["v_nom"] = network.lines.bus0.map(network.buses.v_nom)
+    network.lines.loc[network.lines.carrier == "", "carrier"] = (
+        network.lines.bus0.map(network.buses.carrier))
 
     network.lines["x_pu"] = network.lines.x/(network.lines.v_nom**2)
     network.lines["r_pu"] = network.lines.r/(network.lines.v_nom**2)
@@ -758,6 +756,13 @@ def calculate_dependent_values(network):
     network.shunt_impedances["v_nom"] = network.shunt_impedances["bus"].map(network.buses.v_nom)
     network.shunt_impedances["b_pu"] = network.shunt_impedances.b*network.shunt_impedances.v_nom**2
     network.shunt_impedances["g_pu"] = network.shunt_impedances.g*network.shunt_impedances.v_nom**2
+
+    network.links.loc[network.links.carrier == "", "carrier"] = (
+        network.links.bus0.map(network.buses.carrier))
+
+    network.stores.loc[network.stores.carrier == "", "carrier"] = (
+        network.stores.bus.map(network.buses.carrier))
+
 
 
 def find_slack_bus(sub_network):

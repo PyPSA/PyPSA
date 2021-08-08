@@ -1,23 +1,18 @@
-## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
+## Copyright 2015-2021 PyPSA Developers
 
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Functions for importing and exporting data.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import logging
 logger = logging.getLogger(__name__)
@@ -276,7 +271,7 @@ if has_xarray:
                 self.ds['snapshots_' + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.name = 'investment_periods'
+            investment_periods.index.rename("investment_periods", inplace=True)
             for attr in investment_periods.columns:
                 self.ds['investment_periods_' + attr] = investment_periods[attr]
 
@@ -339,9 +334,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_snapshots(snapshots)
 
     # export investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = network.investment_period_weightings
-    # exporter.save_investment_periods(investment_periods)
+    investment_periods = network.investment_period_weightings
+    exporter.save_investment_periods(investment_periods)
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
@@ -613,9 +607,6 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
-    # read in investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = importer.get_investment_periods()
 
     if df is not None:
 
@@ -634,10 +625,15 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         network.set_snapshots(df.index)
 
-        # TODO: uncomment as soon as merge multi-decade branch
-        # if investment_periods is not None:
-        #     network.investment_period_weightings = (
-        #         investment_periods.reindex(network.investment_period_weightings.index))
+    # read in investment period weightings
+    periods = importer.get_investment_periods()
+
+    if periods is not None:
+        network._investment_periods = periods.index
+
+        network._investment_period_weightings = (
+            periods.reindex(network.investment_periods))
+
 
     imported_components = []
 

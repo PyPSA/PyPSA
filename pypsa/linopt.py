@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+## Copyright 2015-2021 PyPSA Developers
+
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
+
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
+
 """
 Tools for fast Linear Problem file writing. This module contains
 
@@ -12,6 +21,11 @@ Tools for fast Linear Problem file writing. This module contains
 This module supports the linear optimal power flow calculation without using
 pyomo (see module linopt.py)
 """
+
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
+
 
 from .descriptors import Dict
 import pandas as pd
@@ -28,7 +42,7 @@ logger = logging.getLogger(__name__)
 # Front end functions
 # =============================================================================
 
-def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
+def define_variables(n, lower, upper, name, attr='', axes=None, spec='', mask=None):
     """
     Defines variable(s) for pypsa-network with given lower bound(s) and upper
     bound(s). The variables are stored in the network object under n.vars with
@@ -59,6 +73,9 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
         Specifies the axes and therefore the shape of the variables if bounds
         are single strings or floats. This is helpful when multiple variables
         have the same upper and lower bound.
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for variables which are skipped.
+        The shape of the mask has to match the shape the added variables.
 
 
     Example
@@ -79,12 +96,12 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
 
     Note that this is usefull for the `extra_functionality` argument.
     """
-    var = write_bound(n, lower, upper, axes)
+    var = write_bound(n, lower, upper, axes, mask)
     set_varref(n, var, name, attr, spec=spec)
     return var
 
 
-def define_binaries(n, axes, name, attr='',  spec=''):
+def define_binaries(n, axes, name, attr='',  spec='', mask=None):
     """
     Defines binary-variable(s) for pypsa-network. The variables are stored
     in the network object under n.vars with key of the variable name.
@@ -107,6 +124,9 @@ def define_binaries(n, axes, name, attr='',  spec=''):
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
         if one-dimensional
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for variables which are skipped.
+        The shape of the mask has to match the shape given by axes.
 
     See also
     ---------
@@ -118,7 +138,8 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     return var
 
 
-def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
+def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec='',
+                       mask=None):
     """
     Defines constraint(s) for pypsa-network with given left hand side (lhs),
     sense and right hand side (rhs). The constraints are stored in the network
@@ -152,6 +173,10 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     axes: pd.Index or tuple of pd.Index objects, default None
         Specifies the axes if all of lhs, sense and rhs are np.arrays or single
         strings or floats.
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for constraints which are skipped.
+        The shape of the mask has to match the shape of the array that come out
+        when combining lhs, sense and rhs.
 
 
     Example
@@ -179,7 +204,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     Note that this is useful for the `extra_functionality` argument.
 
     """
-    con = write_constraint(n, lhs, sense, rhs, axes)
+    con = write_constraint(n, lhs, sense, rhs, axes, mask)
     set_conref(n, con, name, attr, spec=spec)
     return con
 
@@ -197,7 +222,7 @@ def _get_handlers(axes, *maybearrays):
     return axes, shape, size
 
 
-def write_bound(n, lower, upper, axes=None):
+def write_bound(n, lower, upper, axes=None, mask=None):
     """
     Writer function for writing out multiple variables at a time. If lower and
     upper are floats it demands to give pass axes, a tuple of (index, columns)
@@ -209,11 +234,14 @@ def write_bound(n, lower, upper, axes=None):
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-    n.bounds_f.write(join_exprs(lower + ' <= x' + _str_array(variables, True)
-                                + ' <= '+ upper + '\n'))
+    exprs = lower + ' <= x' + _str_array(variables, True) + ' <= '+ upper + '\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        variables = np.where(mask, variables, -1)
+    n.bounds_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
-def write_constraint(n, lhs, sense, rhs, axes=None):
+def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     """
     Writer function for writing out multiple constraints to the corresponding
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
@@ -227,11 +255,14 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    n.constraints_f.write(join_exprs('c' + _str_array(cons, True) + ':\n' +
-                                     lhs + sense + ' ' + rhs + '\n\n'))
+    exprs = 'c' + _str_array(cons, True) + ':\n' + lhs + sense + ' ' + rhs + '\n\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        cons = np.where(mask, cons, -1)
+    n.constraints_f.write(join_exprs(exprs))
     return to_pandas(cons, *axes)
 
-def write_binary(n, axes):
+def write_binary(n, axes, mask=None):
     """
     Writer function for writing out multiple binary-variables at a time.
     According to the axes it writes out binaries for each entry the pd.Series
@@ -241,7 +272,11 @@ def write_binary(n, axes):
     axes, shape, size = _get_handlers(axes)
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
-    n.binaries_f.write(join_exprs('x' + _str_array(variables, True) + '\n'))
+    exprs = 'x' + _str_array(variables, True) + '\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        variables = np.where(mask, variables, -1)
+    n.binaries_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
 
@@ -296,7 +331,7 @@ def align_with_static_component(n, c, attr):
     """
     Alignment of time-dependent variables with static components. If c is a
     pypsa.component name, it will sort the columns of the variable according
-    to the statid component.
+    to the static component.
     """
     if c in n.all_components and (c, attr) in n.variables.index:
         if not n.variables.pnl[c, attr]: return
@@ -356,6 +391,9 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     if np.prod(shape):
         for coeff, var in tuples:
             expr = expr + _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
+            if isinstance(expr, np.ndarray):
+                isna = np.isnan(coeff) | np.isnan(var) | (var == -1)
+                expr = np.where(isna, '', expr)
     if return_axes:
         return (expr, *axes)
     if as_pandas:
@@ -386,8 +424,9 @@ def _str_array(array, integer_string=False):
         array = np.asarray(array, dtype=object)
     if array.dtype < str and array.size:
         if integer_string:
-            return _v_to_int_str(np.asarray(array))
-        return _v_to_float_str(np.asarray(array))
+            array = np.nan_to_num(array, False, -1)
+            return _v_to_int_str(array)
+        return _v_to_float_str(array)
     else:
         return array
 

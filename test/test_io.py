@@ -26,7 +26,7 @@ def network_mi():
         "ac-dc-data",
     )
     n = pypsa.Network(csv_folder_name)
-    n.snapshots = pd.MultiIndex.from_product([['first'], n.snapshots])
+    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.generators_t.p.loc[:,:] = np.random.rand(*n.generators_t.p.shape)
     return n
 

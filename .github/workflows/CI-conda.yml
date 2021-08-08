@@ -1,6 +1,14 @@
 name: CI with conda
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+  schedule:
+    - cron: "0 5 * * TUE"
 
 jobs:
   build:
@@ -47,4 +55,8 @@ jobs:
         
     - name: Test with pytest
       run: |
-        pytest
+        pytest --cov=./ --cov-report=xml
+
+    - name: Upload code coverage report
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.8'
+      uses: codecov/codecov-action@v1

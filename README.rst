@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |badge_travis| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
+|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
 
 -----
 
@@ -16,8 +16,7 @@ About
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
-PyPSA is a `free software
-<http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
+PyPSA is an open source toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
@@ -244,32 +243,29 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 Licence
 =======
 
-Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
-David Schlachtberger (FIAS)
+Copyright 2015-2021 `PyPSA Developers <https://pypsa.readthedocs.io/en/latest/developers.html>`_
 
-This program is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as
-published by the Free Software Foundation; either `version 3 of the
-License <LICENSE.txt>`_, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-`GNU General Public License <LICENSE.txt>`_ for more details.
+PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.
 
 .. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
     :target: https://doi.org/10.5281/zenodo.3946412
+    :alt: Zenodo
 
 .. |badge_pypi| image:: https://img.shields.io/pypi/v/pypsa.svg
     :target: https://pypi.python.org/pypi/pypsa
     :alt: PyPI version
 
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: License
+    :target: LICENSE.txt
+    :alt: License
 
-.. |badge_travis| image:: https://img.shields.io/travis/PyPSA/PyPSA/master.svg
-    :target: https://travis-ci.org/PyPSA/PyPSA
-    :alt: Build status on Linux
+.. |ci_badge_conda| image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+    :alt: CI with conda
+
+.. |ci_badge| image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI.yml
+    :alt: CI
 
 .. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
@@ -286,3 +282,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .. |binder| image:: https://mybinder.org/badge_logo.svg
     :target: https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks
     :alt: Examples of use
+
+.. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
+    :target: https://codecov.io/gh/PyPSA/PyPSA
+    :alt: Code coverage
