@@ -39,8 +39,7 @@ PyPSA: Python for Power System Analysis
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
-PyPSA is a `free software
-<http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
+PyPSA is an open source toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
@@ -123,7 +122,7 @@ Documentation
    contingency_analysis
    plotting
 
-   
+
 
 
 **Help & References**
@@ -137,6 +136,7 @@ Documentation
 * :doc:`unit_testing`
 * :doc:`mailing_list`
 * :doc:`users`
+* :doc:`developers`
 
 .. toctree::
    :hidden:
@@ -152,3 +152,4 @@ Documentation
    unit_testing
    mailing_list
    users
+   developers

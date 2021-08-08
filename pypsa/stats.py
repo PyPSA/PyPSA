@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+## Copyright 2015-2021 PyPSA Developers
+
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
+
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
+
 """
 Post-solving statistics of network. This module contains functions to anaylize
 an optimized network. Basic information of network can be summarized as well as
 constraint gaps can be double-checked.
 """
+
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 from .descriptors import (expand_series, get_switchable_as_dense as get_as_dense,
                           nominal_attrs)
@@ -213,7 +226,3 @@ def check_constraints(n, tol=1e-3):
     condition = stats.T[['Min', 'Max']].query('Min < -@tol | Max > @tol').T
     assert condition.empty, (f'The following constraint(s) are exceeding the '
                              f'given tolerance of {tol}: \n{condition}')
-
-
-
-
