@@ -1046,10 +1046,16 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
-    # correct prices for snapshot weightings
-    n.buses_t.marginal_price.loc[sns] = (
-        n.buses_t.marginal_price.loc[sns].divide(
-            n.snapshot_weightings.objective.loc[sns],axis=0))
+    # correct prices with objective weightings
+    if n._multi_invest:
+        period_weighting =  n.investment_period_weightings.objective
+        weightings = n.snapshot_weightings.objective.mul(
+                     period_weighting, level=0, axis=0).loc[sns]
+    else:
+        weightings = n.snapshot_weightings.objective.loc[sns]
+
+    n.buses_t.marginal_price.loc[sns] = (n.buses_t.marginal_price.loc[sns]
+                                         .divide(weightings,axis=0))
 
     # discard remaining if wanted
     if not keep_references:
