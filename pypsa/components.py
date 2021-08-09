@@ -935,7 +935,6 @@ class Network(Basic):
         >>> network_copy = network.copy()
 
         """
-
         override_components, override_component_attrs = self._retrieve_overridden_components()
 
         network = self.__class__(ignore_standard_types=ignore_standard_types,
@@ -957,7 +956,8 @@ class Network(Basic):
             if investment_periods is None:
                 investment_periods = self.investment_period_weightings.index
             network.set_snapshots(snapshots)
-            network.set_investment_periods(self.investment_periods)
+            if not investment_periods.empty:
+                network.set_investment_periods(self.investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name+"_t")
                 for k in component.pnl.keys():
