@@ -653,7 +653,7 @@ def define_global_constraints(n, sns):
 
     def get_period(n, glc, sns):
         period = slice(None)
-        if n._multi_invest and (glc["investment_period"] != ''):
+        if n._multi_invest and (~np.isnan(glc["investment_period"])):
             period = int(glc["investment_period"])
             if period not in sns.unique('period'):
                 logger.warning("Optimized snapshots do not contain the investment "
