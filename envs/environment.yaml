@@ -52,6 +52,7 @@ dependencies:
   - tqdm
   - pytz
   - country_converter
+  - tabula-py
 
   - pip:
     - git+https://github.com/pypsa/pypsa.git#egg=pypsa
