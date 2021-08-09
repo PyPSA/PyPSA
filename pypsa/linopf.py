@@ -646,7 +646,7 @@ def define_global_constraints(n, sns):
     """
 
     if n._multi_invest:
-        period_weighting = n.investment_period_weightings["time"]
+        period_weighting = n.investment_period_weightings["years"]
         weightings = n.snapshot_weightings.mul(period_weighting, level=0, axis=0).loc[sns]
     else:
         weightings = n.snapshot_weightings.loc[sns]

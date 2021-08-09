@@ -231,7 +231,7 @@ class Network(Basic):
 
         self._investment_periods = pd.Index([])
 
-        cols = ["objective", "time"]
+        cols = ["objective", "years"]
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
         if override_components is None:
@@ -508,7 +508,7 @@ class Network(Basic):
           objective function of the respective investment period
           (e.g. to include a social discount rate).
 
-        * Time weightings denote the elapsed time until the subsequent investment period
+        * Years weightings denote the elapsed time until the subsequent investment period
           (e.g. used for global constraints CO2 emissions).
 
         """

@@ -24,7 +24,7 @@ print(n.snapshot_weightings)
 n.investment_periods
 # along with corresponding weightings split  by weighting
 # for the objective function (objective)
-# and weightings for the elapsed time between the investment periods (time)
+# and weightings for the elapsed time between the investment periods (years)
 # to calculate CO2 emissions or assets lifetime
 # default is an empty pd.DataFrame
 print(n.investment_period_weightings)
@@ -138,10 +138,10 @@ print(n.investment_periods)
 
 r = 0.01 # social discountrate
 # set energy weighting -> last year is weighted by 10
-n.investment_period_weightings.loc[:, 'time'] = n.investment_periods.to_series().diff().shift(-1).fillna(10)
+n.investment_period_weightings.loc[:, 'years'] = n.investment_periods.to_series().diff().shift(-1).fillna(10)
 
 # set investment_weighting
-n.investment_period_weightings.loc[:, "objective"] = get_investment_weighting(n.investment_period_weightings["time"], r)
+n.investment_period_weightings.loc[:, "objective"] = get_investment_weighting(n.investment_period_weightings["years"], r)
 print(n.investment_period_weightings)
 
 # add three buses
