@@ -675,8 +675,8 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = weightings["generators"].to_frame('weightings') @\
-                    em_pu.to_frame('weightings').T.loc[period]
+            em_pu = (weightings["generators"].to_frame('weightings') @\
+                    em_pu.to_frame('weightings').T).loc[period]
             p = get_var(n, 'Generator', 'p').loc[sns, gens.index].loc[period]
 
             vals = linexpr((em_pu, p), as_pandas=False)
