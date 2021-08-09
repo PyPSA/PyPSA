@@ -13,27 +13,27 @@ Upcoming Release
 * Add new descriptive attribute 'unit' to 'bus' component.
 
 * Bump minimum ``pandas`` requirement to version 1.1.0.
-* When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.  
+* When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and upper capacity bounds per bus and carrier. These are specified in the columns ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']`` respectively. For example, if multiple generators of carrier "wind" are at bus "bus1", the combined capacity is limited to 1000 MW by setting ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components ``Store`` can be limited.
 
-* Fix setting ``margin`` and ``boundaries`` when plotting a network with ``geomap=False``. 
+* Fix setting ``margin`` and ``boundaries`` when plotting a network with ``geomap=False``.
 
 * Adjust log file creation for CPLEX version 12.10 and higher.
 
-* ``network.snapshots`` are now a property, hence assigning values with ``network.snapshots = values `` is the same as ``network.set_snapshots(values)`` 
+* ``network.snapshots`` are now a property, hence assigning values with ``network.snapshots = values `` is the same as ``network.set_snapshots(values)``
 
 * ``network.snapshot_weightings`` are now subdivided into weightings for the objective function, generators and stores/storage units.
 
-  * Objective weightings determine the multiplier of the marginal costs in the objective function of the LOPF. 
-  * Generator weightings specify the impact of generators in a ``GlobalConstraint``. 
+  * Objective weightings determine the multiplier of the marginal costs in the objective function of the LOPF.
+  * Generator weightings specify the impact of generators in a ``GlobalConstraint``.
   * Store weightings define the elapsed hours for the charge, discharge, standing loss and spillage of storage units and stores in order to determine the current state of charge.
- 
+
   PyPSA still supports setting ``snapshot_weightings`` with a ``pandas.Series``. In this case, the weightings are uniformly applied to all columns of the new ``snapshot_weightings`` ``pandas.DataFrame``.
 
 * The function ``geo.area_from_lon_lat_poly`` was deprecated and will be removed in v0.19.
 
 * All ``pypsa`` functionalities except for optimization with ``pyomo`` work now with multi-indexed snapshots.
 
-* A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project. 
+* A new module `examples` was added which contains frontend functions for retrieving/loading example networks provided by the PyPSA project.
 
 * Bugfix in ``network.ilopf()`` where previously all links were fixed in the final iteration when it should only be the DC links.
 
@@ -41,15 +41,15 @@ Upcoming Release
 
 * The deprecated argument "csv_folder_name" in ``pypsa.Network`` was removed.
 
-* The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed. 
+* The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed', 'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class ``Bus`` and 's_nom' for the class ``Link`` were removed.
 
 * Automated upload of code coverage reports.
 
 * Add support for ``pandas`` up to version 1.3.
 
-* ``PyPSA`` now supports the optimization of multiple investment periods, also known as pathway optimization. With this feature, snapshots can span over multiple years or decades which are divided into investment periods. Within each investment period, assets can be added to the network. The optimization only works with ``pyomo=False``. For more information see the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.       
+* ``PyPSA`` now supports the optimization of multiple investment periods, also known as pathway optimization. With this feature, snapshots can span over multiple years or decades which are divided into investment periods. Within each investment period, assets can be added to the network. The optimization only works with ``pyomo=False``. For more information see the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.
 
-* A new attribute (column) "carrier" was added to the components ``Line``, ``Link`` and ``Store``, defining the energy carrier of the components. It's default is an empty string. When calling ``network.calculate_dependant_values``, empty carriers are replaced by the carriers of the buses to which the components are attached. 
+* A new attribute (column) "carrier" was added to the components ``Line``, ``Link``,``Store`` and ``Load``, defining the energy carrier of the components. It's default is an empty string. When calling ``network.calculate_dependant_values``, empty carriers are replaced by the carriers of the buses to which the components are attached. 
 
 
 PyPSA 0.17.1 (15th July 2020)
