@@ -1016,9 +1016,10 @@ Release process
 * ``git commit`` and put release notes in commit message
 * ``git tag v0.x.0``
 * ``git push`` and  ``git push --tags``
-* To upload to `PyPI <https://pypi.org/>`_, run ``python setup.py
-  sdist``, then ``twine check dist/pypsa-0.x.0.tar.gz`` and ``twine
-  upload dist/pypsa-0.x.0.tar.gz``
+* The upload to `PyPI <https://pypi.org/>`_ is automated in the Github Action ``deploy.yml``.
+  To upload manually, run ``python setup.py sdist``,
+  then ``twine check dist/pypsa-0.x.0.tar.gz`` and
+  ``twine upload dist/pypsa-0.x.0.tar.gz``
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
 * Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
