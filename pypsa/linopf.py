@@ -646,14 +646,14 @@ def define_global_constraints(n, sns):
     """
 
     if n._multi_invest:
-        period_weighting = n.investment_period_weightings["time"]
+        period_weighting = n.investment_period_weightings["years"]
         weightings = n.snapshot_weightings.mul(period_weighting, level=0, axis=0).loc[sns]
     else:
         weightings = n.snapshot_weightings.loc[sns]
 
     def get_period(n, glc, sns):
         period = slice(None)
-        if n._multi_invest and (glc["investment_period"] != ''):
+        if n._multi_invest and not np.isnan(glc["investment_period"]):
             period = int(glc["investment_period"])
             if period not in sns.unique('period'):
                 logger.warning("Optimized snapshots do not contain the investment "
@@ -675,8 +675,8 @@ def define_global_constraints(n, sns):
         gens = n.generators.query('carrier in @emissions.index')
         if not gens.empty:
             em_pu = gens.carrier.map(emissions)/gens.efficiency
-            em_pu = weightings["generators"].to_frame('weightings') @\
-                    em_pu.to_frame('weightings').T.loc[period]
+            em_pu = (weightings["generators"].to_frame('weightings') @\
+                    em_pu.to_frame('weightings').T).loc[period]
             p = get_var(n, 'Generator', 'p').loc[sns, gens.index].loc[period]
 
             vals = linexpr((em_pu, p), as_pandas=False)
@@ -1046,10 +1046,16 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
     for c, attr in sp:
         map_dual(c, attr)
 
-    # correct prices for snapshot weightings
-    n.buses_t.marginal_price.loc[sns] = (
-        n.buses_t.marginal_price.loc[sns].divide(
-            n.snapshot_weightings.objective.loc[sns],axis=0))
+    # correct prices with objective weightings
+    if n._multi_invest:
+        period_weighting =  n.investment_period_weightings.objective
+        weightings = n.snapshot_weightings.objective.mul(
+                     period_weighting, level=0, axis=0).loc[sns]
+    else:
+        weightings = n.snapshot_weightings.objective.loc[sns]
+
+    n.buses_t.marginal_price.loc[sns] = (n.buses_t.marginal_price.loc[sns]
+                                         .divide(weightings,axis=0))
 
     # discard remaining if wanted
     if not keep_references:
