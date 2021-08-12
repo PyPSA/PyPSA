@@ -551,6 +551,8 @@ i.e. the CO2 price in this case. :math:`\mu` is an output of the
 optimisation stored in ``network.global_constraints.mu``.
 
 
+.. _multi-horizon:
+
 Optimising investment and operation over multiple investment periods
 --------------------------------------------------------------------
 
