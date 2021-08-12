@@ -18,8 +18,10 @@ documentation's examples section as well as compatibility and bug fixes.
 
 **Licensing**
 
-* With this release, we change the license from copyleft GPLv3 to the more
-  liberal MIT license with the consent of all contributors.
+* With this release, we have changed the licence from the copyleft GPLv3
+  to the more liberal MIT licence with the consent of all contributors
+  (for the reasoning why, see the `pull request
+  <https://github.com/PyPSA/PyPSA/pull/274>`_).
 
 **New features**
 
@@ -27,18 +29,23 @@ documentation's examples section as well as compatibility and bug fixes.
   as pathway optimization. With this feature, snapshots can span over multiple
   years or decades which are divided into investment periods. Within each
   investment period, assets can be added to the network. The optimization only
-  works with ``pyomo=False``. For more information see the `example notebook
-  <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_.
+  works with ``pyomo=False``. For more information see the documentation at :ref:`multi-horizon` and the `example notebook
+  <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_. Endogenous learning curves can be applied as ``extra_functionality``.
 
-* ``n.snapshot_weightings`` are now subdivided into weightings for the objective
-  function, generators and stores/storage units.
+* ``n.snapshot_weightings`` is now a ``pandas.DataFrame`` rather than
+  a ``pandas.Series`` with weightings now subdivided into weightings
+  for the objective function, generators and stores/storage
+  units. This separation of weightings is relevant for temporal
+  snapshot clustering, where the weight in the objective function may
+  differ from the number of hours represented by each snapshot for
+  storage purposes.
 
   * Objective weightings determine the multiplier of the marginal costs in the
     objective function of the LOPF.
-  
+
   * Generator weightings specify the impact of generators in a
-    ``GlobalConstraint``.
-  
+    ``GlobalConstraint`` (e.g. in a carbon dioxide emission constraint).
+
   * Store weightings define the elapsed hours for the charge, discharge,
     standing loss and spillage of storage units and stores in order to determine
     the current state of charge.
@@ -47,10 +54,13 @@ documentation's examples section as well as compatibility and bug fixes.
   In this case, the weightings are uniformly applied to all columns of the new
   ``n.snapshot_weightings`` ``pandas.DataFrame``.
 
-* All functionalities except for optimisation with ``pyomo`` now work
+* All functionalities except for optimisation with ``pyomo=True`` now work
   with multi-indexed snapshots.
 
-* Many example notebooks are now also integrated in the documentation.
+* Many example notebooks are now also integrated in the
+  documentation. See :doc:`examples-basic`, :doc:`examples-lopf`,
+  :doc:`examples-sector_coupling` and :doc:`examples-other`.
+
 
 * A new module ``examples`` was added which contains frontend functions for
   retrieving/loading example networks provided by the PyPSA project.
@@ -58,19 +68,19 @@ documentation's examples section as well as compatibility and bug fixes.
 * When solving ``n.lopf(pyomo=False)``, PyPSA now supports setting lower and
   upper capacity bounds per bus and carrier. These are specified in the columns
   ``n.buses['nom_min_{carrier}']`` and ``n.buses['nom_max_{carrier}']``
-  respectively. For example, if multiple generators of carrier 'wind' are at bus
-  'bus1', the combined capacity is limited to 1000 MW by setting
+  respectively. For example, if multiple generators of carrier ``wind`` are at bus
+  ``bus1``, the combined capacity is limited to 1000 MW by setting
   ``n.buses.loc['bus1', 'nom_max_wind'] = 1000`` (a minimal capacity is forced by
   setting ``n.buses.loc['bus1', 'nom_min_wind']``). In the same manner the
   combined ``p_nom`` of components ``StorageUnit`` and ``e_nom`` of components
   ``Store`` can be limited.
 
-* Add new attribute 'carrier' to the components ``Line``, ``Link``, ``Store``
+* Add new attribute ``carrier`` to the components ``Line``, ``Link``, ``Store``
   and ``Load``, defining the energy carrier of the components. Its default is an
   empty string. When calling ``n.calculate_dependent_values()``, empty carriers
-  are replaced by the carriers of the buses to which the components are attached. 
+  are replaced by the carriers of the buses to which the components are attached.
 
-* Add new descriptive attribute 'unit' to 'bus' component.
+* Add new descriptive attribute ``unit`` to ``bus`` component.
 
 * Automated upload of code coverage reports for pull requests.
 
@@ -81,17 +91,17 @@ documentation's examples section as well as compatibility and bug fixes.
   and links are reset to their original values after final iteration.
 
 * ``n.snapshots`` are now a property, hence assigning values with
-  ``n.snapshots = values `` is the same as ``n.set_snapshots(values)``
+  ``n.snapshots = values`` is the same as ``n.set_snapshots(values)``.
 
 **Deprecations**
 
 * The function ``geo.area_from_lon_lat_poly()`` was deprecated and will be removed in v0.19.
 
-* The deprecated argument 'csv_folder_name' in ``pypsa.Network`` was removed.
+* The deprecated argument ``csv_folder_name`` in ``pypsa.Network`` was removed.
 
-* The deprecated column names 'source', 'dispatch', 'p_max_pu_fixed',
-  'p_min_pu_fixed' for the class ``Generator``, 'current_type' for the class
-  ``Bus`` and 's_nom' for the class ``Link`` were removed.
+* The deprecated column names ``source``, ``dispatch``, ``p_max_pu_fixed``,
+  ``p_min_pu_fixed`` for the class ``Generator``, ``current_type`` for the class
+  ``Bus`` and ``s_nom`` for the class ``Link`` were removed.
 
 **Bugs and Compatibility**
 
