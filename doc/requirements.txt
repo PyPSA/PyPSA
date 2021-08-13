@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: : 2019-2021 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
 sphinx
 sphinx_rtd_theme
 
