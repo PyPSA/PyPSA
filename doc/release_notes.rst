@@ -26,6 +26,8 @@ Upcoming Release
 * Bugfix in :mod:`build_renewable_profile` where offshore wind profiles could no longer be created [`#249 <https://github.com/PyPSA/pypsa-eur/pull/249>`_].
 * Implements changes to ``n.snapshot_weightings`` in upcoming PyPSA version (cf. `PyPSA/PyPSA/#227 <https://github.com/PyPSA/PyPSA/pull/227>`_) [`#259 <https://github.com/PyPSA/pypsa-eur/pull/259>`_].
 * Bugfix: Lower expansion limit of extendable carriers is now set to the existing capacity, i.e. ``p_nom_min = p_nom`` (0 before). Simultaneously, the upper limit (``p_nom_max``) is now the maximum of the installed capacity (``p_nom``) and the previous estimate based on land availability (``p_nom_max``) [`#260 <https://github.com/PyPSA/pypsa-eur/pull/260>`_].
+* Bugfix: Solving an operations network now includes optimized store capacities as well. Before only lines, links, generators and storage units were considered.
+* Bugfix: With ``load_shedding: true`` in the solving options of ``config.yaml`` load shedding generators are only added at the AC buses, excluding buses for H2 and battery stores.
 
 PyPSA-Eur 0.3.0 (7th December 2020)
 ==================================
