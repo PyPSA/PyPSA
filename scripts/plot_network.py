@@ -88,36 +88,43 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
         # bus_sizes = n.generators_t.p.sum().loc[n.generators.carrier == "load"].groupby(n.generators.bus).sum()
         bus_sizes = pd.concat((n.generators.query('carrier != "load"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
                                n.storage_units.groupby(['bus', 'carrier']).p_nom_opt.sum()))
-        line_widths_exp = dict(Line=n.lines.s_nom_opt, Link=n.links.p_nom_opt)
-        line_widths_cur = dict(Line=n.lines.s_nom_min, Link=n.links.p_nom_min)
+        line_widths_exp = n.lines.s_nom_opt
+        line_widths_cur = n.lines.s_nom_min
+        link_widths_exp = n.links.p_nom_opt
+        link_widths_cur = n.links.p_nom_min
     else:
         raise 'plotting of {} has not been implemented yet'.format(attribute)
 
 
     line_colors_with_alpha = \
-    dict(Line=(line_widths_cur['Line'] / n.lines.s_nom > 1e-3)
-        .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}),
-        Link=(line_widths_cur['Link'] / n.links.p_nom > 1e-3)
+        ((line_widths_cur / n.lines.s_nom > 1e-3)
+         .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}))
+    link_colors_with_alpha = \
+        ((link_widths_cur / n.links.p_nom > 1e-3)
         .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}))
+    
 
     ## FORMAT
     linewidth_factor = opts['map'][attribute]['linewidth_factor']
     bus_size_factor  = opts['map'][attribute]['bus_size_factor']
 
     ## PLOT
-    n.plot(line_widths=pd.concat(line_widths_exp)/linewidth_factor,
-           line_colors=dict(Line=line_colors['exp'], Link=line_colors['exp']),
+    n.plot(line_widths=line_widths_exp/linewidth_factor,
+           link_widths=link_widths_exp/linewidth_factor,
+           line_colors=line_colors['exp'],
+           link_colors=line_colors['exp'],
            bus_sizes=bus_sizes/bus_size_factor,
            bus_colors=tech_colors,
            boundaries=map_boundaries,
-           geomap=True,
+           color_geomap=True, geomap=True,
            ax=ax)
-    n.plot(line_widths=pd.concat(line_widths_cur)/linewidth_factor,
-           line_colors=pd.concat(line_colors_with_alpha),
+    n.plot(line_widths=line_widths_cur/linewidth_factor,
+           link_widths=link_widths_cur/linewidth_factor,
+           line_colors=line_colors_with_alpha,
+           link_colors=link_colors_with_alpha,
            bus_sizes=0,
-           bus_colors=tech_colors,
            boundaries=map_boundaries,
-           geomap=False,
+           color_geomap=True, geomap=False,
            ax=ax)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -138,7 +145,7 @@ def plot_map(n, ax=None, attribute='p_nom', opts={}):
                      loc="upper left", bbox_to_anchor=(0.24, 1.01),
                      frameon=False,
                      labelspacing=0.8, handletextpad=1.5,
-                     title='Transmission Exist./Exp.             ')
+                     title='Transmission Exp./Exist.             ')
     ax.add_artist(l1_1)
 
     handles = []

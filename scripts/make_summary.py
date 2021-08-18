@@ -444,7 +444,7 @@ if __name__ == "__main__":
         ll = [snakemake.wildcards.ll]
 
     networks_dict = {(simpl,clusters,l,opts) :
-        os.path.join(network_dir, f'{snakemake.wildcards.network}_s{simpl}_'
+        os.path.join(network_dir, f'elec_s{simpl}_'
                                   f'{clusters}_ec_l{l}_{opts}.nc')
                      for simpl in expand_from_wildcard("simpl")
                      for clusters in expand_from_wildcard("clusters")
