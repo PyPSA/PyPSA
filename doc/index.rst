@@ -47,7 +47,7 @@ and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
 
 This project is maintained by the `Energy System Modelling
-group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for
+group <https://www.iai.kit.edu/english/esm.php>`_ at the `Institute for
 Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
