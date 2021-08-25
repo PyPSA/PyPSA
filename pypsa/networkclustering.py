@@ -39,7 +39,7 @@ def _normed(s):
 def _flatten_multiindex(m, join=' '):
     if m.nlevels <= 1: return m
     levels = map(m.get_level_values, range(m.nlevels))
-    return reduce(lambda x, y: x+join+y, levels, next(levels))
+    return reduce(lambda x, y: x+join+y, levels, next(levels)).str.rstrip()
 
 def _make_consense(component, attr):
     def consense(x):
@@ -124,7 +124,6 @@ def aggregateoneport(network, busmap, component, with_time=True, custom_strategi
                 pnl_df = df.groupby(grouper, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pnl_df
-
     return new_df, new_pnl
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
