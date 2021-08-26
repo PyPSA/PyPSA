@@ -331,28 +331,22 @@ def aggregate_to_substations(n, buses_i=None):
         logger.info("Aggregating buses that are no substations or have no valid offshore connection")
         buses_i = list(set(n.buses.index)-set(n.generators.bus)-set(n.loads.bus))
 
-    busmap = n.buses.index.to_series()
-
-    index = [np.append(["Line" for c in range(len(n.lines))],
-                       ["Link" for c in range(len(n.links))]),
-             np.append(n.lines.index, n.links.index)]
-    #under_construction lines should be last choice, but weight should be < inf in case no other node is reachable, hence 1e-3
-    weight = pd.Series(np.append((n.lines.length/n.lines.s_nom.apply(lambda b: b if b>0 else 1e-3)).values,
-                                 (n.links.length/n.links.p_nom.apply(lambda b: b if b>0 else 1e-3)).values),
-                       index=index)
+    weight = pd.concat({'Line': n.lines.length/n.lines.s_nom.clip(1e-3),
+                        'Link': n.links.length/n.links.p_nom.clip(1e-3)})
 
     adj = n.adjacency_matrix(branch_components=['Line', 'Link'], weights=weight)
 
-    dist = dijkstra(adj, directed=False, indices=n.buses.index.get_indexer(buses_i))
-    dist[:, n.buses.index.get_indexer(buses_i)] = np.inf #bus in buses_i should not be assigned to different bus in buses_i
+    bus_indexer = n.buses.index.get_indexer(buses_i)
+    dist = pd.DataFrame(dijkstra(adj, directed=False, indices=bus_indexer), buses_i, n.buses.index)
 
-    #restrict to same country:
-    for bus in buses_i:
-        country_buses =  n.buses[~n.buses.country.isin([n.buses.loc[bus].country])].index
-        dist[n.buses.loc[buses_i].index.get_indexer([bus]),n.buses.index.get_indexer(country_buses)] = np.inf
-        
-    assign_to = dist.argmin(axis=1)
-    busmap.loc[buses_i] = n.buses.iloc[assign_to].index
+    dist[buses_i] = np.inf # bus in buses_i should not be assigned to different bus in buses_i
+
+    for c in n.buses.country.unique():
+        incountry_b = n.buses.country == c
+        dist.loc[incountry_b, ~incountry_b] = np.inf
+
+    busmap = n.buses.index.to_series()
+    busmap.loc[buses_i] = dist.idxmin(1)
 
     clustering = get_clustering_from_busmap(n, busmap,
                                             bus_strategies=dict(country=_make_consense("Bus", "country")),
