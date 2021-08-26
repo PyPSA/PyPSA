@@ -239,7 +239,8 @@ rule simplify_network:
         network='networks/elec_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_elec_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_elec_s{simpl}.geojson",
-        busmap='resources/busmap_elec_s{simpl}.csv'
+        busmap='resources/busmap_elec_s{simpl}.csv',
+        connection_costs='resources/connection_costs_s{simpl}.csv'
     log: "logs/simplify_network/elec_s{simpl}.log"
     benchmark: "benchmarks/simplify_network/elec_s{simpl}"
     threads: 1
@@ -360,7 +361,6 @@ def input_make_summary(w):
         ll = w.ll
     return ([COSTS] +
             expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
-                   network=w.network,
                    ll=ll,
                    **{k: config["scenario"][k] if getattr(w, k) == "all" else getattr(w, k)
                       for k in ["simpl", "clusters", "opts"]}))

@@ -141,7 +141,8 @@ def simplify_network_to_380(n):
 def _prepare_connection_costs_per_link(n):
     if n.links.empty: return {}
 
-    costs = load_costs(n.snapshot_weightings.sum() / 8760, snakemake.input.tech_costs,
+    Nyears = n.snapshot_weightings.objective.sum() / 8760
+    costs = load_costs(Nyears, snakemake.input.tech_costs,
                        snakemake.config['costs'], snakemake.config['electricity'])
 
     connection_costs_per_link = {}
@@ -178,6 +179,7 @@ def _compute_connection_costs_to_bus(n, busmap, connection_costs_per_link=None, 
 
 
 def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
+    connection_costs = {}
     for tech in connection_costs_to_bus:
         tech_b = n.generators.carrier == tech
         costs = n.generators.loc[tech_b, "bus"].map(connection_costs_to_bus[tech]).loc[lambda s: s>0]
@@ -185,6 +187,9 @@ def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
             n.generators.loc[costs.index, "capital_cost"] += costs
             logger.info("Displacing {} generator(s) and adding connection costs to capital_costs: {} "
                         .format(tech, ", ".join("{:.0f} Eur/MW/a for `{}`".format(d, b) for b, d in costs.iteritems())))
+            connection_costs[tech] = costs
+    pd.DataFrame(connection_costs).to_csv(snakemake.output.connection_costs) 
+            
 
 
 def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
