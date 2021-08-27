@@ -8,9 +8,9 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * Functions ``busmap_by_linemask()``, ``busmap_by_length()``, ``length_clustering()``,
-  ``busmap_by_louvain()``, ``louvain_clustering()``, ``busmap_by_rectangular_grid()``,
-  ``rectangular_grid_clustering()`` and ``stubs_clustering()`` were deprecated and
-  will be removed in v0.20.
+  ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
+  ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
+  and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
   were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``).
 * add new features here
