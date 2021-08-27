@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize
 from pyomo.core.expr.numeric_expr import LinearExpression
+from pyomo.core.expr.logical_expr import inequality
+from pyomo.core.base.constraint import _GeneralConstraintData
 
 import pyomo
 from contextlib import contextmanager
@@ -189,26 +191,22 @@ def l_constraint(model,name,constraints,*args):
             sense = c[1]
             constant = c[2]
 
-        v._data[i] = pyomo.core.base.constraint._GeneralConstraintData(None,v)
-        v._data[i]._body = _build_sum_expression(variables)
-
+        sum_expr = _build_sum_expression(variables)
+        
         if sense == "==":
-            v._data[i]._equality = True
-            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
-            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant)
+            constr_expr = sum_expr == constant
         elif sense == "<=":
-            v._data[i]._equality = False
-            v._data[i]._lower = None
-            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant)
+            constr_expr = sum_expr <= constant
         elif sense == ">=":
-            v._data[i]._equality = False
-            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant)
-            v._data[i]._upper = None
+            constr_expr = sum_expr >= constant
         elif sense == "><":
-            v._data[i]._equality = False
-            v._data[i]._lower = pyomo.core.base.numvalue.NumericConstant(constant[0])
-            v._data[i]._upper = pyomo.core.base.numvalue.NumericConstant(constant[1])
-        else: raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
+            lo, hi = constant
+            constr_expr = inequality(lo, sum_expr, hi)
+        else:
+            raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
+
+        v._data[i] = _GeneralConstraintData(constr_expr, v)
+
 
 def l_objective(model,objective=None, sense=minimize):
     """

@@ -29,7 +29,7 @@ setup(
         'xarray',
         'netcdf4',
         'tables',
-        'pyomo>=5.7,<6.1',
+        'pyomo>=5.7',
         'matplotlib',
         'networkx>=1.10',
         'deprecation'
