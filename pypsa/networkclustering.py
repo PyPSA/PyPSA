@@ -351,8 +351,8 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
 
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
-    weight = {"Line": network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x),
-              "Link": network.links.p_max_pu*network.links.p_nom}
+    weight = {"Line": network.lines.s_max_pu*network.lines.s_nom.clip(.1)/abs(network.lines.r+1j*network.lines.x),
+              "Link": network.links.p_max_pu*network.links.p_nom.clip(.1)}
 
     A = network.adjacency_matrix(branch_components=["Line", "Link"], weights=weight)
 
