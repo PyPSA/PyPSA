@@ -359,7 +359,7 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
     weight = {"Line": network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x),
-              "Link": network.links.p_nom}
+              "Link": network.links.p_max_pu*network.links.p_nom}
 
     A = network.adjacency_matrix(branch_components=["Line", "Link"], weights=weight)
 
@@ -391,7 +391,7 @@ def busmap_by_louvain(network):
             .assign(weight=network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x))
             .set_index(['bus0','bus1']))
     lines = lines.append(network.links.loc[:, ['bus0', 'bus1']]
-                         .assign(weight=network.links.p_nom).set_index(['bus0','bus1']))
+                         .assign(weight=network.links.p_max_pu*network.links.p_nom).set_index(['bus0','bus1']))
 
     G = nx.Graph()
     G.add_nodes_from(network.buses.index)
