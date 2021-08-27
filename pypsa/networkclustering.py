@@ -379,10 +379,10 @@ def busmap_by_louvain(network):
     import community
 
     lines = (network.lines[['bus0', 'bus1']]
-            .assign(weight=network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x))
+            .assign(weight=network.lines.s_max_pu*network.lines.s_nom.clip(.1)/abs(network.lines.r+1j*network.lines.x))
             .set_index(['bus0','bus1']))
     lines = lines.append(network.links.loc[:, ['bus0', 'bus1']]
-                         .assign(weight=network.links.p_max_pu*network.links.p_nom).set_index(['bus0','bus1']))
+                         .assign(weight=network.links.p_max_pu*network.links.p_nom.clip(.1)).set_index(['bus0','bus1']))
 
     G = nx.Graph()
     G.add_nodes_from(network.buses.index)
