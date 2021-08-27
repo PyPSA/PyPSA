@@ -18,6 +18,10 @@ scenario:
 
 countries: ['DE']
 
+clustering:
+  simplify:
+    to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
+
 snapshots:
   start: "2013-03-01"
   end: "2013-03-08"

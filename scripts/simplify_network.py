@@ -97,7 +97,7 @@ from functools import reduce
 
 import pypsa
 from pypsa.io import import_components_from_dataframe, import_series_from_dataframe
-from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport
+from pypsa.networkclustering import busmap_by_stubs, aggregategenerators, aggregateoneport, get_clustering_from_busmap, _make_consense
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +312,6 @@ def simplify_links(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
     return n, busmap
 
-
 def remove_stubs(n):
     logger.info("Removing stubs")
 
@@ -323,6 +322,42 @@ def remove_stubs(n):
     _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
 
     return n, busmap
+
+def aggregate_to_substations(n, buses_i=None):
+    # can be used to aggregate a selection of buses to electrically closest neighbors
+    # if no buses are given, nodes that are no substations or without offshore connection are aggregated
+    
+    if buses_i is None:
+        logger.info("Aggregating buses that are no substations or have no valid offshore connection")
+        buses_i = list(set(n.buses.index)-set(n.generators.bus)-set(n.loads.bus))
+
+    weight = pd.concat({'Line': n.lines.length/n.lines.s_nom.clip(1e-3),
+                        'Link': n.links.length/n.links.p_nom.clip(1e-3)})
+
+    adj = n.adjacency_matrix(branch_components=['Line', 'Link'], weights=weight)
+
+    bus_indexer = n.buses.index.get_indexer(buses_i)
+    dist = pd.DataFrame(dijkstra(adj, directed=False, indices=bus_indexer), buses_i, n.buses.index)
+
+    dist[buses_i] = np.inf # bus in buses_i should not be assigned to different bus in buses_i
+
+    for c in n.buses.country.unique():
+        incountry_b = n.buses.country == c
+        dist.loc[incountry_b, ~incountry_b] = np.inf
+
+    busmap = n.buses.index.to_series()
+    busmap.loc[buses_i] = dist.idxmin(1)
+
+    clustering = get_clustering_from_busmap(n, busmap,
+                                            bus_strategies=dict(country=_make_consense("Bus", "country")),
+                                            aggregate_generators_weighted=True,
+                                            aggregate_generators_carriers=None,
+                                            aggregate_one_ports=["Load", "StorageUnit"],
+                                            line_length_factor=1.0,
+                                            generator_strategies={'p_nom_max': 'sum'},
+                                            scale_link_capital_costs=False)
+        
+    return clustering.network, busmap
 
 
 def cluster(n, n_clusters):
@@ -364,6 +399,10 @@ if __name__ == "__main__":
     n, stub_map = remove_stubs(n)
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
+
+    if snakemake.config.get('clustering', {}).get('simplify', {}).get('to_substations', False):
+        n, substation_map = aggregate_to_substations(n)
+        busmaps.append(substation_map)
 
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
