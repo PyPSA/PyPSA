@@ -1,19 +1,19 @@
-,Unit,Values,Description,
-voltages,kV,"Any subset of {220., 300., 380.}",Voltage levels to consider when,
-co2limit,:math:`t_{CO_2-eq}/a`,float,Cap on total annual system carbon dioxide emissions,
-co2base,:math:`t_{CO_2-eq}/a`,float,Reference value of total annual system carbon dioxide emissions if relative emission reduction target is specified in ``{opts}`` wildcard.,
+,Unit,Values,Description
+voltages,kV,"Any subset of {220., 300., 380.}",Voltage levels to consider when
+co2limit,:math:`t_{CO_2-eq}/a`,float,Cap on total annual system carbon dioxide emissions
+co2base,:math:`t_{CO_2-eq}/a`,float,Reference value of total annual system carbon dioxide emissions if relative emission reduction target is specified in ``{opts}`` wildcard.
 agg_p_nom_limits,file,path,Reference to ``.csv`` file specifying per carrier generator nominal capacity constraints for individual countries if ``'CCL'`` is in ``{opts}`` wildcard. Defaults to ``data/agg_p_nom_minmax.csv``.
-extendable_carriers,,,,
+extendable_carriers,,,
 -- Generator,--,"Any subset  of {'OCGT','CCGT'}",Places extendable conventional power plants (OCGT and/or CCGT) where gas power plants are located today without capacity limits.
 -- StorageUnit,--,"Any subset of {'battery','H2'}",Adds extendable storage units (battery and/or hydrogen) at every node/bus after clustering without capacity limits and with zero initial capacity.
 -- Store,--,"Any subset of {'battery','H2'}",Adds extendable storage units (battery and/or hydrogen) at every node/bus after clustering without capacity limits and with zero initial capacity.
 -- Link,--,Any subset of {'H2 pipeline'},Adds extendable links (H2 pipelines only) at every connection where there are lines or HVDC links without capacity limits and with zero initial capacity. Hydrogen pipelines require hydrogen storage to be modelled as ``Store``.
-max_hours,,,,
+max_hours,,,
 -- battery,h,float,Maximum state of charge capacity of the battery in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_.
 -- H2,h,float,Maximum state of charge capacity of the hydrogen storage in terms of hours at full output capacity ``p_nom``. Cf. `PyPSA documentation <https://pypsa.readthedocs.io/en/latest/components.html#storage-unit>`_.
-powerplants_filter,--,"use `pandas.query <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html>`_ strings here, e.g. Country not in ['Germany']",Filter query for the default powerplant database.,
-custom_powerplants,--,"use `pandas.query <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html>`_ strings here, e.g. Country in ['Germany']",Filter query for the custom powerplant database.,
-conventional_carriers,--,"Any subset of {nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass}",List of conventional power plants to include in the model from ``resources/powerplants.csv``.,
-renewable_capacities_from_OPSD,,"[solar, onwind, offwind]",List of carriers (offwind-ac and offwind-dc are included in offwind) whose capacities 'p_nom' are aligned to the `OPSD renewable power plant list <https://data.open-power-system-data.org/renewable_power_plants/>`_,
-estimate_renewable_capacities_from_capacitiy_stats,,,,
-"-- Fueltype [ppm], e.g. Wind",,"list of fueltypes strings in PyPSA-Eur, e.g. [onwind, offwind-ac, offwind-dc]",converts ppm Fueltype to PyPSA-EUR Fueltype,
+powerplants_filter,--,"use `pandas.query <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html>`_ strings here, e.g. Country not in ['Germany']",Filter query for the default powerplant database.
+custom_powerplants,--,"use `pandas.query <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.query.html>`_ strings here, e.g. Country in ['Germany']",Filter query for the custom powerplant database.
+conventional_carriers,--,"Any subset of {nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass}",List of conventional power plants to include in the model from ``resources/powerplants.csv``.
+renewable_capacities_from_OPSD,,"[solar, onwind, offwind]",List of carriers (offwind-ac and offwind-dc are included in offwind) whose capacities 'p_nom' are aligned to the `OPSD renewable power plant list <https://data.open-power-system-data.org/renewable_power_plants/>`_
+estimate_renewable_capacities_from_capacitiy_stats,,,
+"-- Fueltype [ppm], e.g. Wind",,"list of fueltypes strings in PyPSA-Eur, e.g. [onwind, offwind-ac, offwind-dc]",converts ppm Fueltype to PyPSA-EUR Fueltype

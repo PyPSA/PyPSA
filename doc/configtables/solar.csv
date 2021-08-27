@@ -2,7 +2,7 @@
 cutout,--,"Should be a folder listed in the configuration ``atlite: cutouts:`` (e.g. 'europe-2013-era5') or reference an existing folder in the directory ``cutouts``. Source module can be ERA5 or SARAH-2.","Specifies the directory where the relevant weather data ist stored that is specified at ``atlite/cutouts`` configuration. Both ``sarah`` and ``era5`` work."
 resource,,,
 -- method,--,"Must be 'pv'","A superordinate technology type."
--- panel,--,"One of {'Csi', 'CdTe', 'KANENA'} as defined in `atlite <https://github.com/PyPSA/atlite/tree/master/atlite/resources/solarpanel>`_","Specifies the solar panel technology and its characteristic attributes."
+-- panel,--,"One of {'Csi', 'CdTe', 'KANENA'} as defined in `atlite <https://github.com/PyPSA/atlite/tree/master/atlite/resources/solarpanel>`__","Specifies the solar panel technology and its characteristic attributes."
 -- orientation,,,
 -- -- slope,°,"Realistically any angle in [0., 90.]","Specifies the tilt angle (or slope) of the solar panel. A slope of zero corresponds to the face of the panel aiming directly overhead. A positive tilt angle steers the panel towards the equator."
 -- -- azimuth,°,"Any angle in [0., 360.]","Specifies the `azimuth <https://en.wikipedia.org/wiki/Azimuth>`_ orientation of the solar panel. South corresponds to 180.°."

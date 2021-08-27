@@ -25,7 +25,7 @@ Rule ``retrieve_cutout``
    :target: https://doi.org/10.5281/zenodo.3517949
 
 Cutouts are spatio-temporal subsets of the European weather data from the `ECMWF ERA5 <https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation>`_ reanalysis dataset and the `CMSAF SARAH-2 <https://wui.cmsaf.eu/safira/action/viewDoiDetails?acronym=SARAH_V002>`_ solar surface radiation dataset for the year 2013.
-They have been prepared by and are for use with the `atlite <https://github.com/PyPSA/atlite>`_ tool. You can either generate them yourself using the ``build_cutouts`` rule or retrieve them directly from `zenodo <https://doi.org/10.5281/zenodo.3517949>`_ through the rule ``retrieve_cutout``.
+They have been prepared by and are for use with the `atlite <https://github.com/PyPSA/atlite>`_ tool. You can either generate them yourself using the ``build_cutouts`` rule or retrieve them directly from `zenodo <https://doi.org/10.5281/zenodo.3517949>`__ through the rule ``retrieve_cutout``.
 The :ref:`tutorial` uses a smaller cutout than required for the full model (30 MB), which is also automatically downloaded.
 
 .. note::

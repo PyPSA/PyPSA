@@ -84,8 +84,8 @@ Rule ``make_summary``
 Rule ``plot_summary``
 ========================
 
-.. graphviz::
-    :align: center
+.. .. graphviz::
+..     :align: center
 
 
 

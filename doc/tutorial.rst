@@ -14,7 +14,7 @@ Tutorial
     <iframe width="832" height="468" src="https://www.youtube.com/embed/mAwhQnNRIvs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Before getting started with **PyPSA-Eur** it makes sense to be familiar
-with its general modelling framework `PyPSA <https://pypsa.readthedocs.io>`_.
+with its general modelling framework `PyPSA <https://pypsa.readthedocs.io>`__.
 
 Running the tutorial requires limited computational resources compared to the full model,
 which allows the user to explore most of its functionalities on a local machine.

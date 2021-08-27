@@ -141,7 +141,7 @@ If you are (relatively) new to energy system modelling and optimisation
 and plan to use PyPSA-Eur, the following resources are *one way* to get started
 in addition to reading this documentation.
 
-- Documentation of `PyPSA <https://pypsa.readthedocs.io>`_, the package for
+- Documentation of `PyPSA <https://pypsa.readthedocs.io>`__, the package for
   simulating and optimising modern power systems which PyPSA-Eur uses under the hood.
 - Course on `Energy System Modelling <https://nworbmot.org/courses/esm-2019/>`_,
   Karlsruhe Institute of Technology (KIT), `Dr. Tom Brown <https://nworbmot.org>`_
