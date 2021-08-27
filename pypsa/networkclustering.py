@@ -312,6 +312,12 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 # Length
 
 def busmap_by_linemask(network, mask):
+
+    logger.warning(
+        "Function ``busmap_by_linemask`` is deprecated and will not work a future release. "
+        "Use ``busmap_by_kmeans`` or ``busmap_by_spectral_clustering`` instead."
+    )
+
     mask = network.lines.loc[:,['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
     G = nx.OrderedGraph()
     G.add_nodes_from(network.buses.index)
@@ -322,9 +328,21 @@ def busmap_by_linemask(network, mask):
                      name='name')
 
 def busmap_by_length(network, length):
+
+    logger.warning(
+        "Function ``busmap_by_length`` is deprecated and will not work a future release. "
+        "Use ``busmap_by_kmeans`` or ``busmap_by_spectral_clustering`` instead."
+    )
+
     return busmap_by_linemask(network, network.lines.length < length)
 
 def length_clustering(network, length):
+
+    logger.warning(
+        "Function ``length_clustering`` is deprecated and will not work a future release. "
+        "Use ``kmeans_clustering`` or ``spectral_clustering`` instead."
+    )
+
     busmap = busmap_by_length(network, length=length)
     return get_clustering_from_busmap(network, busmap)
 
@@ -340,13 +358,13 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
 
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
-    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-    lines.weight+=0.1
-    G = nx.Graph()
-    G.add_nodes_from(network.buses.index)
-    G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-    return pd.Series(list(map(str,sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1)),
-                        index=network.buses.index)
+    weight = {"Line": network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x),
+              "Link": network.links.p_nom}
+
+    A = network.adjacency_matrix(branch_components=["Line", "Link"], weights=weight)
+
+    # input arg for spectral clustering must be symmetric, but A is directed. use A+A.T:
+    return pd.Series(sk_spectral_clustering(A+A.T, n_clusters=50).astype(str), index=network.buses.index)
 
 def spectral_clustering(network, n_clusters=8, **kwds):
     busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
@@ -357,6 +375,11 @@ def spectral_clustering(network, n_clusters=8, **kwds):
 
 def busmap_by_louvain(network):
 
+    logger.warning(
+        "Function ``busmap_by_louvain`` is deprecated and will not work a future release. "
+        "Use ``busmap_by_kmeans`` or ``busmap_by_spectral_clustering`` instead."
+    )
+
     if find_spec('community') is None:
         raise ModuleNotFoundError("Optional dependency 'community' not found."
             "Install via 'conda install -c conda-forge python-louvain' "
@@ -364,18 +387,29 @@ def busmap_by_louvain(network):
 
     import community
 
-    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-    lines.weight+=0.1
+    lines = (network.lines.loc[:, ['bus0', 'bus1']]
+            .assign(weight=network.lines.s_max_pu*network.lines.s_nom/abs(network.lines.r+1j*network.lines.x))
+            .set_index(['bus0','bus1']))
+    lines = lines.append(network.links.loc[:, ['bus0', 'bus1']]
+                         .assign(weight=network.links.p_nom).set_index(['bus0','bus1']))
+
     G = nx.Graph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-    b=community.best_partition(G)
-    list_cluster=[]
+
+    b = community.best_partition(G)
+    list_cluster = []
     for i in b:
         list_cluster.append(str(b[i]))
-    return pd.Series(list_cluster,index=network.buses.index)
+    return pd.Series(list_cluster, index=network.buses.index)
 
 def louvain_clustering(network, **kwds):
+
+    logger.warning(
+        "Function ``louvain_clustering`` is deprecated and will not work a future release. "
+        "Use ``kmeans_clustering`` or ``spectral_clustering`` instead."
+    )
+
     busmap = busmap_by_louvain(network)
     return get_clustering_from_busmap(network, busmap)
 
@@ -472,6 +506,12 @@ def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.
 # Rectangular grid clustering
 
 def busmap_by_rectangular_grid(buses, divisions=10):
+
+    logger.warning(
+        "Function ``busmap_by_rectangular_grid`` is deprecated and will not work a future release. "
+        "Use ``busmap_by_kmeans`` or ``busmap_by_spectral_clustering`` instead."
+    )
+
     busmap = pd.Series(0, index=buses.index)
     if isinstance(divisions, tuple):
         divisions_x, divisions_y = divisions
@@ -483,6 +523,12 @@ def busmap_by_rectangular_grid(buses, divisions=10):
     return busmap
 
 def rectangular_grid_clustering(network, divisions):
+
+    logger.warning(
+        "Function ``rectangular_grid_clustering`` is deprecated and will not work a future release. "
+        "Use ``kmeans_clustering`` or ``spectral_clustering`` instead."
+    )
+
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
     return get_clustering_from_busmap(network, busmap)
 
@@ -549,6 +595,11 @@ def stubs_clustering(network,use_reduced_coordinates=True, line_length_factor=1.
     Clustering : named tuple
         A named tuple containing network, busmap and linemap
     """
+
+    logger.warning(
+        "Function ``stubs_clustering`` is deprecated and will not work a future release. "
+        "Use ``kmeans`` or ``spectral`` instead."
+    )
 
     busmap = busmap_by_stubs(network)
 
