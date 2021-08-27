@@ -18,7 +18,8 @@ Top-level configuration
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :lines: 5-12,20,27-34
+   :lines: 5-12,20,31-38
+
 
 .. csv-table::
    :header-rows: 1
@@ -96,7 +97,7 @@ Specifies the temporal range to build an energy system model for as arguments to
 .. _atlite_cf:
 
 ``atlite``
-=============
+==========
 
 Define and specify the ``atlite.Cutout`` used for calculating renewable potentials and time-series. All options except for ``features`` are directly used as `cutout parameters <https://atlite.readthedocs.io/en/latest/ref_api.html#cutout>`_.
 

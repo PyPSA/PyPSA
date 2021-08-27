@@ -108,6 +108,7 @@ Make sure that your instance is operating for the next steps.
 - Option 1. Click on the Tools button and "Install Public Key into Server..". Somewhere in your folder structure must be a public key. I found it with the following folder syntax on my local windows computer -> :\Users\...\.ssh (there should be a PKK file).
 - Option 2. Click on the Tools button and "Generate new key pair...". Save the private key at a folder you remember and add it to the "private key file" field in WinSCP. Upload the public key to the metadeta of your instance.
 - Click ok and save. Then click Login. If successfull WinSCP will open on the left side your local computer folder structure and on the right side the folder strucutre of your VM. (If you followed Option 2 and its not initially working. Stop your instance, refresh the website, reopen the WinSCP field. Afterwards your your Login should be successfull)
+
 If you had struggle with the above steps, you could also try `this video <https://www.youtube.com/watch?v=lYx1oQkEF0E>`_.
 
 .. note::

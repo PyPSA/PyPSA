@@ -31,7 +31,7 @@ Upcoming Release
 * Bugfix: With ``load_shedding: true`` in the solving options of ``config.yaml`` load shedding generators are only added at the AC buses, excluding buses for H2 and battery stores.
 
 PyPSA-Eur 0.3.0 (7th December 2020)
-==================================
+===================================
 
 **New Features**
 
