@@ -407,8 +407,11 @@ if __name__ == "__main__":
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
         busmaps.append(cluster_map)
-    else:
-        n.buses = n.buses.drop(['symbol', 'tags', 'under_construction', 'substation_lv', 'substation_off'], axis=1)
+
+    # some entries in n.buses are not updated in previous functions, therefore can be wrong. as they are not needed
+    # and are lost when clustering (for example with the simpl wildcard), we remove them for consistency:
+    buses_c = {'symbol', 'tags', 'under_construction', 'substation_lv', 'substation_off'}.intersection(n.buses.columns)
+    n.buses = n.buses.drop(buses_c, axis=1)
 
     update_p_nom_max(n)
         
