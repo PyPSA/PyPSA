@@ -19,6 +19,7 @@ import networkx as nx
 from collections import OrderedDict, namedtuple
 from functools import reduce
 from importlib.util import find_spec
+from deprecation import deprecated
 
 import logging
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 from .components import Network
 from .geo import haversine_pts
+from .__init__ import __version__ as pypsa_version
 
 from . import io
 
@@ -310,8 +312,10 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 ################
 # Length
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``busmap_by_kmeans`` instead.")
 def busmap_by_linemask(network, mask):
-    mask = network.lines.loc[:,['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
+    mask = network.lines[['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
     G = nx.OrderedGraph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from(mask.index[mask])
@@ -320,9 +324,14 @@ def busmap_by_linemask(network, mask):
                                  for n in g),
                      name='name')
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``busmap_by_kmeans`` instead.")
 def busmap_by_length(network, length):
     return busmap_by_linemask(network, network.lines.length < length)
 
+
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``kmeans_clustering`` instead.")
 def length_clustering(network, length):
     busmap = busmap_by_length(network, length=length)
     return get_clustering_from_busmap(network, busmap)
@@ -330,6 +339,8 @@ def length_clustering(network, length):
 ################
 # SpectralClustering
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``busmap_by_kmeans`` instead.")
 def busmap_by_spectral_clustering(network, n_clusters, **kwds):
 
     if find_spec('sklearn') is None:
@@ -339,14 +350,16 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
 
     from sklearn.cluster import spectral_clustering as sk_spectral_clustering
 
-    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-    lines.weight+=0.1
-    G = nx.Graph()
-    G.add_nodes_from(network.buses.index)
-    G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-    return pd.Series(list(map(str,sk_spectral_clustering(nx.adjacency_matrix(G), n_clusters, **kwds) + 1)),
-                        index=network.buses.index)
+    weight = {"Line": network.lines.s_max_pu*network.lines.s_nom.clip(.1)/abs(network.lines.r+1j*network.lines.x),
+              "Link": network.links.p_max_pu*network.links.p_nom.clip(.1)}
 
+    A = network.adjacency_matrix(branch_components=["Line", "Link"], weights=weight)
+
+    # input arg for spectral clustering must be symmetric, but A is directed. use A+A.T:
+    return pd.Series(sk_spectral_clustering(A+A.T, n_clusters=50).astype(str), index=network.buses.index)
+
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``kmeans_clustering`` instead.")
 def spectral_clustering(network, n_clusters=8, **kwds):
     busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
     return get_clustering_from_busmap(network, busmap)
@@ -354,6 +367,8 @@ def spectral_clustering(network, n_clusters=8, **kwds):
 ################
 # Louvain
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``busmap_by_kmeans`` instead.")
 def busmap_by_louvain(network):
 
     if find_spec('community') is None:
@@ -363,17 +378,25 @@ def busmap_by_louvain(network):
 
     import community
 
-    lines = network.lines.loc[:,['bus0', 'bus1']].assign(weight=network.lines.num_parallel).set_index(['bus0','bus1'])
-    lines.weight+=0.1
+    lines = (network.lines[['bus0', 'bus1']]
+            .assign(weight=network.lines.s_max_pu*network.lines.s_nom.clip(.1)/abs(network.lines.r+1j*network.lines.x))
+            .set_index(['bus0','bus1']))
+    lines = lines.append(network.links.loc[:, ['bus0', 'bus1']]
+                         .assign(weight=network.links.p_max_pu*network.links.p_nom.clip(.1)).set_index(['bus0','bus1']))
+
     G = nx.Graph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from((u,v,dict(weight=w)) for (u,v),w in lines.itertuples())
-    b=community.best_partition(G)
-    list_cluster=[]
+
+    b = community.best_partition(G)
+    list_cluster = []
     for i in b:
         list_cluster.append(str(b[i]))
-    return pd.Series(list_cluster,index=network.buses.index)
+    return pd.Series(list_cluster, index=network.buses.index)
 
+
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``kmeans_clustering`` instead.")
 def louvain_clustering(network, **kwds):
     busmap = busmap_by_louvain(network)
     return get_clustering_from_busmap(network, busmap)
@@ -470,7 +493,10 @@ def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.
 ################
 # Rectangular grid clustering
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``busmap_by_kmeans`` instead.")
 def busmap_by_rectangular_grid(buses, divisions=10):
+
     busmap = pd.Series(0, index=buses.index)
     if isinstance(divisions, tuple):
         divisions_x, divisions_y = divisions
@@ -481,6 +507,8 @@ def busmap_by_rectangular_grid(buses, divisions=10):
         busmap.loc[oks] = nk
     return busmap
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``kmeans_clustering`` instead.")
 def rectangular_grid_clustering(network, divisions):
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
     return get_clustering_from_busmap(network, busmap)
@@ -530,6 +558,8 @@ def busmap_by_stubs(network, matching_attrs=None):
             break
     return busmap
 
+@deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
+            details="Use ``kmeans_clustering`` instead.")
 def stubs_clustering(network,use_reduced_coordinates=True, line_length_factor=1.0):
     """Cluster network by reducing stubs and stubby trees
     (i.e. sequentially reducing dead-ends).
