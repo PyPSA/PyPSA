@@ -16,6 +16,7 @@ __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readth
 import numpy as np
 import pandas as pd
 import networkx as nx
+import scipy as sp
 from collections import OrderedDict, namedtuple
 from functools import reduce
 from importlib.util import find_spec
