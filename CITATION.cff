@@ -1,0 +1,30 @@
+cff-version: 1.1.0
+message: "If you use this package, please cite the corresponding manuscript in Energy Strategy Reviews."
+title: "PyPSA-Eur: An open optimisation model of the European transmission system"
+repository: https://github.com/pypsa/pypsa-eur
+version: 0.3.0
+license: GPLv3
+journal: Energy Strategy Reviews
+doi: 10.1016/j.esr.2018.08.012
+authors:
+  - family-names: Hörsch
+    given-names: Jonas
+    orcid: https://orcid.org/0000-0001-9438-767X
+  - family-names: Brown
+    given-names: Tom
+    orcid: https://orcid.org/0000-0001-5898-1911
+  - family-names: Hofmann
+    given-names: Fabian
+    orcid: https://orcid.org/0000-0002-6604-5450
+  - family-names: Neumann
+    given-names: Fabian
+    orcid: https://orcid.org/0000-0001-8551-1480
+  - family-names: Frysztacki
+    given-names: Martha
+    orcid: https://orcid.org/0000-0002-0788-1328
+  - family-names: Hampp
+    given-names: Johannes
+    orcid: https://orcid.org/0000-0002-1776-116X
+  - family-names: Schlachtberger
+    given-names: David
+    orcid: https://orcid.org/0000-0002-8167-8213
