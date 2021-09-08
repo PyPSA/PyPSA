@@ -356,7 +356,7 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
     A = network.adjacency_matrix(branch_components=["Line", "Link"], weights=weight)
 
     # input arg for spectral clustering must be symmetric, but A is directed. use A+A.T:
-    return pd.Series(sk_spectral_clustering(A+A.T, n_clusters=50).astype(str), index=network.buses.index)
+    return pd.Series(sk_spectral_clustering(A+A.T, n_clusters=n_clusters).astype(str), index=network.buses.index)
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
             details="Use ``kmeans_clustering`` instead.")
@@ -512,6 +512,85 @@ def busmap_by_rectangular_grid(buses, divisions=10):
 def rectangular_grid_clustering(network, divisions):
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
     return get_clustering_from_busmap(network, busmap)
+
+################
+# Hierarchical Clustering
+def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None):
+    """
+    Create a busmap accroding to Hierarchical Agglomerative Clustering.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i: None|pandas.Index
+        Subset of buses to cluster. If None, all buses are considered.
+    branch_components: List
+        Subset of all branch_components in the network. Defaults to ["Line", "Link"].
+    feature: None | pandas.DataFrame
+        Feature to be considered for the clustering.
+        The DataFrame must be indexed with buses_i.
+        If None, all buses have the same similarity.
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of network.buses to k-means clusters (indexed by
+        non-negative integers).
+    """
+
+    if find_spec('sklearn') is None:
+        raise ModuleNotFoundError("Optional dependency 'sklearn' not found."
+            "Install via 'conda install -c conda-forge scikit-learn' "
+            "or 'pip install scikit-learn'")
+
+    from sklearn.cluster import AgglomerativeClustering as HAC
+
+    if buses_i is None:
+        buses_i = network.buses.index
+
+    if feature is None:
+        logger.warning(
+            "No feature is specified for Hierarchical Clustering. "
+            "Falling back to default, where all buses have equal similarity. "
+            "You can specify a feature as pandas.DataFrame indexed with buses_i."
+        )
+
+        feature = pd.DataFrame(index=buses_i, columns=[""], data=0)
+
+    buses_x = network.buses.index.get_indexer(buses_i)
+
+    A = network.adjacency_matrix(branch_components=branch_components).todense()
+    A = sp.sparse.coo_matrix(A[buses_x].T[buses_x].T)
+
+    labels = HAC(n_clusters=n_clusters,
+                 connectivity=A,
+                 affinity='euclidean',
+                 linkage='ward').fit_predict(feature)
+
+    busmap = pd.Series(data=labels, index=buses_i, dtype='str')
+
+    return busmap
+
+def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None, line_length_factor=1.0):
+    """
+    Cluster then network using Hierarchical Agglomerative Clustering.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        The buses must have coordinates x,y.
+
+    Returns
+    -------
+    Clustering : named tuple
+        A named tuple containing network, busmap and linemap
+    """
+
+    busmap = busmap_by_hac(network, n_clusters, buses_i, branch_components, feature)
+
+    return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
 ################
 # Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
