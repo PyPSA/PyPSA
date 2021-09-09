@@ -16,7 +16,6 @@ __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readth
 import numpy as np
 import pandas as pd
 import networkx as nx
-import scipy as sp
 from collections import OrderedDict, namedtuple
 from functools import reduce
 from importlib.util import find_spec
@@ -314,7 +313,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
 # Length
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``busmap_by_kmeans`` instead.")
+            details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_linemask(network, mask):
     mask = network.lines[['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
     G = nx.OrderedGraph()
@@ -326,13 +325,13 @@ def busmap_by_linemask(network, mask):
                      name='name')
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``busmap_by_kmeans`` instead.")
+            details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_length(network, length):
     return busmap_by_linemask(network, network.lines.length < length)
 
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``kmeans_clustering`` instead.")
+            details="Use ``kmeans_clustering`` or ``hac_clustering`` instead.")
 def length_clustering(network, length):
     busmap = busmap_by_length(network, length=length)
     return get_clustering_from_busmap(network, busmap)
@@ -341,7 +340,7 @@ def length_clustering(network, length):
 # SpectralClustering
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``busmap_by_kmeans`` instead.")
+            details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_spectral_clustering(network, n_clusters, **kwds):
 
     if find_spec('sklearn') is None:
@@ -360,7 +359,7 @@ def busmap_by_spectral_clustering(network, n_clusters, **kwds):
     return pd.Series(sk_spectral_clustering(A+A.T, n_clusters=n_clusters).astype(str), index=network.buses.index)
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``kmeans_clustering`` instead.")
+            details="Use ``kmeans_clustering`` or ``hac_clustering`` instead.")
 def spectral_clustering(network, n_clusters=8, **kwds):
     busmap = busmap_by_spectral_clustering(network, n_clusters=n_clusters, **kwds)
     return get_clustering_from_busmap(network, busmap)
@@ -369,7 +368,7 @@ def spectral_clustering(network, n_clusters=8, **kwds):
 # Louvain
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``busmap_by_kmeans`` instead.")
+            details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_louvain(network):
 
     if find_spec('community') is None:
@@ -397,7 +396,7 @@ def busmap_by_louvain(network):
 
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``kmeans_clustering`` instead.")
+            details="Use ``kmeans_clustering`` or ``hac_clustering`` instead.")
 def louvain_clustering(network, **kwds):
     busmap = busmap_by_louvain(network)
     return get_clustering_from_busmap(network, busmap)
@@ -407,8 +406,7 @@ def louvain_clustering(network, **kwds):
 
 def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwargs):
     """
-    Create a bus map from the clustering of buses in space with a
-    weighting.
+    Create a bus map from the clustering of buses in space with a weighting.
 
     Parameters
     ----------
@@ -421,8 +419,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwarg
     buses_i : None|pandas.Index
         If not None (default), subset of buses to cluster.
     kwargs
-        Any remaining arguments to be passed to KMeans (e.g. n_init,
-        n_jobs).
+        Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs).
 
     Returns
     -------
@@ -458,14 +455,11 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwarg
 
 def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.0, ** kwargs):
     """
-    Cluster then network according to k-means clustering of the
-    buses.
+    Cluster the network according to k-means clustering of the buses.
 
-    Buses can be weighted by an integer in the series
-    `bus_weightings`.
+    Buses can be weighted by an integer in the series `bus_weightings`.
 
-    Note that this clustering method completely ignores the
-    branches of the network.
+    Note that this clustering method completely ignores the branches of the network.
 
     Parameters
     ----------
@@ -476,11 +470,10 @@ def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.
     n_clusters : int
         Final number of clusters desired.
     line_length_factor : float
-        Factor to multiply the crow-flies distance between new buses in order to get new
+        Factor to multiply the spherical distance between new buses in order to get new
         line lengths.
     kwargs
         Any remaining arguments to be passed to KMeans (e.g. n_init, n_jobs)
-
 
     Returns
     -------
@@ -489,13 +482,14 @@ def kmeans_clustering(network, bus_weightings, n_clusters, line_length_factor=1.
     """
 
     busmap = busmap_by_kmeans(network, bus_weightings, n_clusters, ** kwargs)
+
     return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
 ################
 # Rectangular grid clustering
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``busmap_by_kmeans`` instead.")
+            details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_rectangular_grid(buses, divisions=10):
 
     busmap = pd.Series(0, index=buses.index)
@@ -509,30 +503,46 @@ def busmap_by_rectangular_grid(buses, divisions=10):
     return busmap
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``kmeans_clustering`` instead.")
+            details="Use ``kmeans_clustering`` or ``hac_clustering`` instead.")
 def rectangular_grid_clustering(network, divisions):
     busmap = busmap_by_rectangular_grid(network.buses, divisions)
     return get_clustering_from_busmap(network, busmap)
 
 ################
 # Hierarchical Clustering
-def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None):
+def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None,
+                  affinity='euclidean', linkage='ward', **kwargs):
     """
-    Create a busmap accroding to Hierarchical Agglomerative Clustering.
+    Create a busmap according to Hierarchical Agglomerative Clustering.
 
     Parameters
     ----------
     network : pypsa.Network
     n_clusters : int
         Final number of clusters desired.
-    buses_i: None|pandas.Index
+    buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
-    branch_components: List
-        Subset of all branch_components in the network. Defaults to ["Line", "Link"].
-    feature: None | pandas.DataFrame
+    branch_components: List, default=["Line", "Link"]
+        Subset of all branch_components in the network.
+    feature: None | pandas.DataFrame, default=None
         Feature to be considered for the clustering.
         The DataFrame must be indexed with buses_i.
         If None, all buses have the same similarity.
+    affinity: str or callable, default=’euclidean’
+        Metric used to compute the linkage.
+        Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
+        If linkage is “ward”, only “euclidean” is accepted.
+        If “precomputed”, a distance matrix (instead of a similarity matrix) is needed as input for the fit method.
+    linkage: ‘ward’, ‘complete’, ‘average’ or ‘single’, default=’ward’
+        Which linkage criterion to use.
+        The linkage criterion determines which distance to use between sets of observation.
+        The algorithm will merge the pairs of cluster that minimize this criterion.
+        - ‘ward’ minimizes the variance of the clusters being merged.
+        - ‘average’ uses the average of the distances of each observation of the two sets.
+        - ‘complete’ or ‘maximum’ linkage uses the maximum distances between all observations of the two sets.
+        - ‘single’ uses the minimum of the distances between all observations of the two sets.
+    kwargs:
+        Any remaining arguments to be passed to Hierarchical Clustering (e.g. memory, connectivity).
 
     Returns
     -------
@@ -562,26 +572,52 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", 
 
     buses_x = network.buses.index.get_indexer(buses_i)
 
-    A = network.adjacency_matrix(branch_components=branch_components).todense()
-    A = sp.sparse.coo_matrix(A[buses_x].T[buses_x].T)
+    A = network.adjacency_matrix(branch_components=["Line", "Link"]).tocsc()[buses_x][:, buses_x]
 
     labels = HAC(n_clusters=n_clusters,
                  connectivity=A,
-                 affinity='euclidean',
-                 linkage='ward').fit_predict(feature)
+                 affinity=affinity,
+                 linkage=linkage).fit_predict(feature)
 
-    busmap = pd.Series(data=labels, index=buses_i, dtype='str')
+    busmap = pd.Series(labels, index=buses_i, dtype=str)
 
     return busmap
 
-def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None, line_length_factor=1.0):
+def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None,
+                   affinity='euclidean', linkage='ward', line_length_factor=1.0, **kwargs):
     """
-    Cluster then network using Hierarchical Agglomerative Clustering.
+    Cluster the network using Hierarchical Agglomerative Clustering.
 
     Parameters
     ----------
     network : pypsa.Network
         The buses must have coordinates x,y.
+    buses_i: None | pandas.Index, default=None
+        Subset of buses to cluster. If None, all buses are considered.
+    branch_components: List, default=["Line", "Link"]
+        Subset of all branch_components in the network.
+    feature: None | pandas.DataFrame, default=None
+        Feature to be considered for the clustering.
+        The DataFrame must be indexed with buses_i.
+        If None, all buses have the same similarity.
+    affinity: str or callable, default=’euclidean’
+        Metric used to compute the linkage.
+        Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
+        If linkage is “ward”, only “euclidean” is accepted.
+        If “precomputed”, a distance matrix (instead of a similarity matrix) is needed as input for the fit method.
+    linkage: ‘ward’, ‘complete’, ‘average’ or ‘single’, default=’ward’
+        Which linkage criterion to use.
+        The linkage criterion determines which distance to use between sets of observation.
+        The algorithm will merge the pairs of cluster that minimize this criterion.
+        - ‘ward’ minimizes the variance of the clusters being merged.
+        - ‘average’ uses the average of the distances of each observation of the two sets.
+        - ‘complete’ or ‘maximum’ linkage uses the maximum distances between all observations of the two sets.
+        - ‘single’ uses the minimum of the distances between all observations of the two sets.
+    line_length_factor: float, default=1.0
+        Factor to multiply the spherical distance between two new buses in order to get new line lengths.
+    kwargs:
+        Any remaining arguments to be passed to Hierarchical Clustering (e.g. memory, connectivity).
+
 
     Returns
     -------
@@ -639,7 +675,7 @@ def busmap_by_stubs(network, matching_attrs=None):
     return busmap
 
 @deprecated(deprecated_in="0.19", removed_in="0.20", current_version = pypsa_version,
-            details="Use ``kmeans_clustering`` instead.")
+            details="Use ``kmeans_clustering`` or ``hac_clustering`` instead.")
 def stubs_clustering(network,use_reduced_coordinates=True, line_length_factor=1.0):
     """Cluster network by reducing stubs and stubby trees
     (i.e. sequentially reducing dead-ends).
@@ -650,7 +686,7 @@ def stubs_clustering(network,use_reduced_coordinates=True, line_length_factor=1.
     use_reduced_coordinates : boolean
         If True, do not average clusters, but take from busmap.
     line_length_factor : float
-        Factor to multiply the crow-flies distance between new buses in order to get new
+        Factor to multiply the spherical distance between new buses in order to get new
         line lengths.
 
     Returns
