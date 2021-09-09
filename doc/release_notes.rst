@@ -10,9 +10,10 @@ Upcoming Release
 * Functions ``busmap_by_linemask()``, ``busmap_by_length()``, ``length_clustering()``,
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
-  and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
+  and ``stubs_clustering()`` were deprecated and will be removed in v0.20. [`#287 <https://github.com/PyPSA/PyPSA/pull/287>`_].
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
-  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``).
+  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``). [`#287 <https://github.com/PyPSA/PyPSA/pull/287>`_].
+* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method. [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
 * add new features here
 
 
