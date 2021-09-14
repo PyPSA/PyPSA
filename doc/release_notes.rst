@@ -19,6 +19,8 @@ PyPSA-Eur 0.4.0 (15th September 2021)
 
 **New Features and Changes**
 
+* With this release, we change the license from copyleft GPLv3 to the more
+  liberal MIT license with the consent of all contributors.
 
 * Switch to the new major ``atlite`` release v0.2.  The version upgrade comes
   along with significant speed up for the rule ``build_renewable_profiles.py``
