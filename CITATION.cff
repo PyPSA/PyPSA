@@ -2,7 +2,7 @@ cff-version: 1.1.0
 message: "If you use this package, please cite the corresponding manuscript in Energy Strategy Reviews."
 title: "PyPSA-Eur: An open optimisation model of the European transmission system"
 repository: https://github.com/pypsa/pypsa-eur
-version: 0.3.0
+version: 0.4.0
 license: GPLv3
 journal: Energy Strategy Reviews
 doi: 10.1016/j.esr.2018.08.012
