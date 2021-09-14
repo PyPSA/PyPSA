@@ -403,8 +403,8 @@ def make_summaries(networks_dict, country='all'):
             n = n[n.buses.country == country]
 
         Nyears = n.snapshot_weightings.objective.sum() / 8760.
-        costs = load_costs(Nyears, snakemake.input[0],
-                           snakemake.config['costs'], snakemake.config['electricity'])
+        costs = load_costs(tech_costs = snakemake.input[0], config = snakemake.config['costs'],
+                           elec_config = snakemake.config['electricity'], Nyears = Nyears)
         update_transmission_costs(n, costs, simple_hvdc_costs=False)
 
         assign_carriers(n)
@@ -415,8 +415,7 @@ def make_summaries(networks_dict, country='all'):
     return dfs
 
 
-def to_csv(dfs):
-    dir = snakemake.output[0]
+def to_csv(dfs, dir):
     os.makedirs(dir, exist_ok=True)
     for key, df in dfs.items():
         df.to_csv(os.path.join(dir, f"{key}.csv"))
@@ -453,4 +452,4 @@ if __name__ == "__main__":
 
     dfs = make_summaries(networks_dict, country=snakemake.wildcards.country)
 
-    to_csv(dfs)
+    to_csv(dfs, snakemake.output[0])
