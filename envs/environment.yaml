@@ -12,8 +12,8 @@ dependencies:
   - pip
   - mamba # esp for windows build
 
-  #- pypsa>=0.17.1 
-  - atlite>=0.2.4
+  - pypsa>=0.18
+  - atlite>=0.2.5
   - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
 
   # Dependencies of the workflow itself
@@ -27,8 +27,8 @@ dependencies:
   - pytables
   - lxml
   - powerplantmatching>=0.4.8
-  - numpy<=1.19 # until new PyPSA after 27-06-21
-  - pandas<1.3 # until new PyPSA after 2-7-21, https://github.com/PyPSA/pypsa-eur/pull/261
+  - numpy
+  - pandas<1.3
   - geopandas
   - xarray
   - netcdf4
@@ -55,6 +55,5 @@ dependencies:
   - tabula-py
 
   - pip:
-    - git+https://github.com/pypsa/pypsa.git#egg=pypsa
     - vresutils==0.3.1
     - tsam>=1.1.0
