@@ -153,7 +153,7 @@ if config['enable'].get('build_cutout', False):
 
 if config['enable'].get('retrieve_cutout', True):
     rule retrieve_cutout:
-        input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True)
+        input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True, static=True)
         output: "cutouts/{cutout}.nc"
         shell: "mv {input} {output}"
 
@@ -170,7 +170,7 @@ if config['enable'].get('build_natura_raster', False):
 
 if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
-        input: HTTP.remote("zenodo.org/record/4706686/files/natura.tiff", keep_local=True)
+        input: HTTP.remote("zenodo.org/record/4706686/files/natura.tiff", keep_local=True, static=True)
         output: "resources/natura.tiff"
         shell: "mv {input} {output}"
 
