@@ -1,7 +1,7 @@
 # Copyright 2019-2020 Fabian Hofmann (FIAS)
 # SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 
 """
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3517935.svg

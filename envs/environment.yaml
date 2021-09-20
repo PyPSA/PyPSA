@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 
 name: pypsa-eur
 channels:
@@ -38,6 +38,7 @@ dependencies:
   - progressbar2
   - pyomo
   - matplotlib
+  - proj<8
 
   # Keep in conda environment when calling ipython
   - ipython

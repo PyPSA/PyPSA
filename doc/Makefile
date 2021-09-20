@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2017-2020 The PyPSA-Eur Authors
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 
 # Makefile for Sphinx documentation
 #

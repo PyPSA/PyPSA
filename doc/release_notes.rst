@@ -19,6 +19,8 @@ PyPSA-Eur 0.4.0 (15th September 2021)
 
 **New Features and Changes**
 
+* With this release, we change the license from copyleft GPLv3 to the more
+  liberal MIT license with the consent of all contributors.
 
 * Switch to the new major ``atlite`` release v0.2.  The version upgrade comes
   along with significant speed up for the rule ``build_renewable_profiles.py``
@@ -309,7 +311,7 @@ Release Process
 
 * Tag a release on Github via ``git tag v0.x.x``, ``git push``, ``git push --tags``. Include release notes in the tag message.
 
-* Upload code to `zenodo code repository <https://doi.org/10.5281/zenodo.3520874>`_ with `GNU GPL 3.0 <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ license.
+* Upload code to `zenodo code repository <https://doi.org/10.5281/zenodo.3520874>`_ with `MIT license <https://opensource.org/licenses/MIT>`_.
 
 * Create pre-built networks for ``config.default.yaml`` by running ``snakemake -j 1 extra_components_all_networks``.
 
