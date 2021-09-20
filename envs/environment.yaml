@@ -38,7 +38,7 @@ dependencies:
   - progressbar2
   - pyomo
   - matplotlib
-  - pyproj<=3.2.0
+  - pyproj<=3.1.0
 
   # Keep in conda environment when calling ipython
   - ipython
