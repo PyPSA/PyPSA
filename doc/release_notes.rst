@@ -11,7 +11,9 @@ Release Notes
 Upcoming Release
 ================
 
-* add new features and bugfixes here
+* Add an efficiency factor of 88.55% to offshore wind capacity factors
+  as a proxy for wake losses. More rigorous modelling is `planned <https://github.com/PyPSA/pypsa-eur/issues/153>`_
+  [`#277 <https://github.com/PyPSA/pypsa-eur/pull/277>`_].
 
 
 PyPSA-Eur 0.4.0 (22th September 2021)
