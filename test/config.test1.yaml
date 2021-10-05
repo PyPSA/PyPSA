@@ -195,8 +195,8 @@ solving:
   #   threads: 4
   #   lpmethod: 4 # barrier
   #   solutiontype: 2 # non basic solution, ie no crossover
-  #   barrier_convergetol: 1.e-5
-  #   feasopt_tolerance: 1.e-6
+  #   barrier.convergetol: 1.e-5
+  #   feasopt.tolerance: 1.e-6
 
 plotting:
   map:
