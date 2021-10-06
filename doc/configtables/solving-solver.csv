@@ -1,3 +1,3 @@
 ,Unit,Values,Description
 name,--,"One of {'gurobi', 'cplex', 'cbc', 'glpk', 'ipopt'}; potentially more possible","Solver to use for optimisation problems in the workflow; e.g. clustering and linear optimal power flow."
-opts,--,"Parameter list for `Gurobi <https://www.gurobi.com/documentation/8.1/refman/parameters.html>`_ and `CPLEX <https://www.ibm.com/support/knowledgecenter/SSSA5P_12.5.1/ilog.odms.cplex.help/CPLEX/Parameters/topics/introListAlpha.html>`_","Solver specific parameter settings."
+opts,--,"Parameter list for `Gurobi <https://www.gurobi.com/documentation/8.1/refman/parameters.html>`_ and `CPLEX <https://www.ibm.com/docs/en/icos/20.1.0?topic=cplex-topical-list-parameters>`_","Solver specific parameter settings."
