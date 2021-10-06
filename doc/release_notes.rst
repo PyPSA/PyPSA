@@ -15,6 +15,9 @@ Upcoming Release
   as a proxy for wake losses. More rigorous modelling is `planned <https://github.com/PyPSA/pypsa-eur/issues/153>`_
   [`#277 <https://github.com/PyPSA/pypsa-eur/pull/277>`_].
 
+* The default deployment density of AC- and DC-connected offshore wind capacity is reduced from 3 MW/sqkm
+  to a more conservative estimate of 2 MW/sqkm [`#280 <https://github.com/PyPSA/pypsa-eur/pull/280>`_].
+
 
 PyPSA-Eur 0.4.0 (22th September 2021)
 =====================================
