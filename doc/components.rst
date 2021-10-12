@@ -1,7 +1,25 @@
-###########
- Components
-###########
 
+
+
+#######################
+ Network and Components
+#######################
+
+
+Network
+=======
+
+The ``Network`` is the overall container for all components. It also
+has the major functions as methods, such as ``network.lopf()`` and
+``network.pf()``.
+
+.. csv-table::
+   :header-rows: 1
+   :file: ../pypsa/component_attrs/networks.csv
+
+
+Components
+==========
 
 PyPSA represents the power system using the following components:
 
@@ -43,17 +61,6 @@ gives no input.
 
 For functions such as :doc:`power_flow` and :doc:`optimal_power_flow` the inputs used and outputs given are listed in their documentation.
 
-
-Network
-=======
-
-The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.lopf()`` and
-``network.pf()``.
-
-.. csv-table::
-   :header-rows: 1
-   :file: ../pypsa/component_attrs/networks.csv
 
 
 Sub-Network

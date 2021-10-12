@@ -1,4 +1,3 @@
-
 ## Copyright 2015-2021 PyPSA Developers
 
 ## You can find the list of PyPSA Developers at
@@ -10,26 +9,28 @@
 """Power system components.
 """
 
-from weakref import ref
-
 __author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
                  "MIT License")
 
+from collections import namedtuple
+import logging
 import numpy as np
+import os
 import pandas as pd
 from scipy.sparse import csgraph
-from collections import namedtuple
-import os
+import sys
+from weakref import ref
+
+logger = logging.getLogger(__name__)
+Component = namedtuple("Component",
+                       ['name', 'list_name', 'attrs', 'df', 'pnl', 'ind'])
 
 from .descriptors import (Dict, get_switchable_as_dense, get_active_assets,
                           get_extendable_i, get_non_extendable_i)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
-                 export_to_hdf5, import_from_hdf5,
-                 export_to_netcdf, import_from_netcdf,
-                 import_from_pypower_ppc, import_components_from_dataframe,
-                 import_series_from_dataframe, import_from_pandapower_net)
+                 import_components_from_dataframe, import_series_from_dataframe)
 
 from .pf import (network_lpf, sub_network_lpf, network_pf,
                  sub_network_pf, find_bus_controls, find_slack_bus, find_cycles,
@@ -39,60 +40,44 @@ from .pf import (network_lpf, sub_network_lpf, network_pf,
 from .contingency import (calculate_BODF, network_lpf_contingency,
                           network_sclopf)
 
-
 from .opf import network_lopf, network_opf
 
 from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
 
-import sys
-
 if sys.version_info.major >= 3:
     from .linopf import network_lopf as network_lopf_lowmem
 
-import logging
-logger = logging.getLogger(__name__)
-
-
-
 dir_name = os.path.dirname(__file__)
 component_attrs_dir_name = "component_attrs"
-
 standard_types_dir_name = "standard_types"
 
+inf = float("inf") # infinity
 
-inf = float("inf")
+# Renamed this from simply "components", but imported / used by other modules outside of a call on Network object??
+components = pd.read_csv(os.path.join(dir_name, "components.csv"), index_col="c_class_label") # Col 0 header modified from 'components' in original code
 
-
-components = pd.read_csv(os.path.join(dir_name,
-                                      "components.csv"),
-                         index_col=0)
-
+# Default initialization of component_attrs
 component_attrs = Dict()
-
-for component in components.index:
+for c_class_label in components.index:
     file_name = os.path.join(dir_name,
                              component_attrs_dir_name,
-                             components.at[component,"list_name"] + ".csv")
-    component_attrs[component] = pd.read_csv(file_name, index_col=0, na_values="n/a")
+                             components.at[c_class_label, "list_name"] + ".csv")
+    component_attrs[c_class_label] = pd.read_csv(file_name, index_col=0, na_values="n/a")
 
-del component
+del c_class_label # Deleting single / last instance of string variable?
 
 class Basic(object):
     """Common to every object."""
 
     name = ""
 
-
     def __init__(self, name=""):
         self.name = name
 
     def __repr__(self):
         return "%s %s" % (self.__class__.__name__, self.name)
-
-
-
 
 class Common(Basic):
     """Common to all objects inside Network object."""
@@ -105,10 +90,6 @@ class Common(Basic):
     @property
     def network(self):
         return self._network()
-
-
-Component = namedtuple("Component",
-                       ['name', 'list_name', 'attrs', 'df', 'pnl', 'ind'])
 
 class Network(Basic):
     """
@@ -153,60 +134,30 @@ class Network(Basic):
     srid = 4326
 
     #methods imported from other sub-modules
-
     import_from_csv_folder = import_from_csv_folder
-
     export_to_csv_folder = export_to_csv_folder
 
-    import_from_hdf5 = import_from_hdf5
-
-    export_to_hdf5 = export_to_hdf5
-
-    import_from_netcdf = import_from_netcdf
-
-    export_to_netcdf = export_to_netcdf
-
-    import_from_pypower_ppc = import_from_pypower_ppc
-
-    import_from_pandapower_net = import_from_pandapower_net
-
     import_components_from_dataframe = import_components_from_dataframe
-
     import_series_from_dataframe = import_series_from_dataframe
 
     lpf = network_lpf
-
     pf = network_pf
-
 #    lopf = network_lopf
-
     opf = network_opf
 
     plot = plot
-
     iplot = iplot
-
     calculate_dependent_values = calculate_dependent_values
-
     lpf_contingency = network_lpf_contingency
-
     sclopf = network_sclopf
-
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
     get_switchable_as_dense = get_switchable_as_dense
-
     get_extendable_i = get_extendable_i
-
     get_non_extendable_i = get_non_extendable_i
-
     get_active_assets = get_active_assets
-
-
 
     def __init__(self, import_name=None, name="", ignore_standard_types=False,
                  override_components=None, override_component_attrs=None,
@@ -216,11 +167,8 @@ class Network(Basic):
         logging.basicConfig(level=logging.INFO)
 
         from . import __version__ as pypsa_version
-
-        Basic.__init__(self, name)
-
-        #this will be saved on export
-        self.pypsa_version = pypsa_version
+        Basic.__init__(self, name)  # Inheriting Basic does not execute __init__
+        self.pypsa_version = pypsa_version # this will be saved on export
 
         self._snapshots = pd.Index(["now"])
 
@@ -242,10 +190,15 @@ class Network(Basic):
         else:
             self.component_attrs = override_component_attrs
 
-        for c_type in set(self.components.type.unique()):
-            if not isinstance(c_type, float):
+        for c_type in set(self.components['type'].unique()): # If forcing to a set anyway, not sure unique() is efficient
+            # if not isinstance(c_type, float): # Presuming this means to skip empty values that will be nan/float
+            if isinstance(c_type, str): # Presuming this means to skip empty values that will be nan/float
                 setattr(self, c_type + "_components",
                         set(self.components.index[self.components.type == c_type]))
+
+# ========================================
+# Documentation drafting ended here -- v01b
+# ========================================
 
         self.one_port_components = self.passive_one_port_components|self.controllable_one_port_components
 
@@ -253,8 +206,7 @@ class Network(Basic):
 
         self.all_components = set(self.components.index) - {"Network"}
 
-        self.components = Dict(self.components.T.to_dict())
-
+        self.components = Dict(self.components.T.to_dict()) # Not sure I get the Dict constructor AND _to_dict()
         for component in self.components:
             #make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
@@ -265,6 +217,7 @@ class Network(Basic):
             attrs['dtype'] = attrs['type'].map({'boolean': np.dtype(bool), 'int': np.dtype(int),
                                                 'string': np.dtype('O')}).fillna(np.dtype(float))
 
+            # No idea (yet) what this is quite achieving
             bool_b = attrs.type == 'boolean'
             attrs.loc[bool_b, 'default'] = attrs.loc[bool_b].isin({True, 'True'})
 
@@ -294,7 +247,6 @@ class Network(Basic):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-
     def _build_dataframes(self):
         """Function called when network is created to build component pandas.DataFrames."""
 
@@ -319,7 +271,6 @@ class Network(Basic):
                         for k in attrs.index[attrs.varying]})
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
-
 
     def read_in_default_standard_types(self):
 
@@ -368,7 +319,6 @@ class Network(Basic):
         dict of pandas.DataFrame
         """
         return getattr(self, self.components[component_name]["list_name"]+"_t")
-
 
 
     def set_snapshots(self, value):

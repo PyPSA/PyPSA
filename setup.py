@@ -1,10 +1,7 @@
 from __future__ import absolute_import
 
-
-
 from setuptools import setup, find_packages
 from codecs import open
-
 
 with open('README.rst', encoding='utf-8') as f:
     long_description = f.read()
