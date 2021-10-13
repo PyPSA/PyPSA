@@ -13,10 +13,56 @@ The ``Network`` is the overall container for all components.  The table
 below lists its primary data attributes.  See notes below the table 
 for an explanation of some of the syntax used.  For a full list of its methods,
 e.g. ``network.lopf()`` and ``network.pf()``, see Network API reference.
+Additional attributes, e.g. ``results`` and ``objective``, are pre-cursors
+or defined by some of these methods.
+
+To understand the data structures its useful to understand two different terms
+that can seem confusingly similar: "Component" and "device".  A "Component" is a quasi-class
+(not actual Python class) representation of a group of devices that share the
+same attribute schema.  These attributes are defined by the relevant csv in the component_attrs
+sub-directory of the package folder.
+
+Each Component class is associated with a "list_name" that is generally used for both the csv
+filename stem and dictionary keys where data for each device (of the component class) is stored.
+In this context, there is a clear distinction between "Component", a 'class' defining devices
+of a similar attribute profile, and a "device" which is a specific asset within the network,
+belonging to a particular Component class, and whose data will be identifiable via a
+unique value for its "name" attribute.
 
 .. csv-table::
    :header-rows: 1
    :file: ../doc//tables/network_doc.csv
+
+Static Data: Network.{list_name}
+For each class of components, the static data describing the components is
+stored in a ``pandas.DataFrame`` corresponding to the
+``list_name``. For example, all static data for buses is stored in
+``network.buses``. In this ``pandas.DataFrame`` the index corresponds
+to the unique string names of the components, while the columns
+correspond to the component static attributes. For example,
+``network.buses.v_nom`` gives the nominal voltages of each bus.
+
+Time-varying Data: Network.{list_name}_t
+Time-varying series attributes are stored in a dictionary of
+``pandas.DataFrame`` based on the ``list_name`` followed by ``_t``,
+e.g. ``network.buses_t``. For example, the set points for the per unit
+voltage magnitude at each bus for each snapshot can be found in
+``network.buses_t.v_mag_pu_set``. Please also read :ref:`time-varying`.
+
+Components Schema Dictionary: Network.components
+For each component class their attributes, their types
+(float/boolean/string/int/series), their defaults, their descriptions
+and their statuses are stored in a ``pandas.DataFrame`` in the
+dictionary ``network.components`` as
+e.g. ``network.components["Bus"]["attrs"]``. This data is reproduced
+as tables for each component below.
+
+Their status is either "Input" for those which the user specifies or
+"Output" for those results which PyPSA calculates.
+
+The inputs can be either "required", if the user *must* give the
+input, or "optional", if PyPSA will use a sensible default if the user
+gives no input.
 
 
 Components
@@ -29,36 +75,9 @@ PyPSA represents the power system using the following components:
    :file: ../pypsa/components.csv
 
 This table is also available as a dictionary within each network
-object as ``network.components``.
-
-For each class of components, the data describing the components is
-stored in a ``pandas.DataFrame`` corresponding to the
-``list_name``. For example, all static data for buses is stored in
-``network.buses``. In this ``pandas.DataFrame`` the index corresponds
-to the unique string names of the components, while the columns
-correspond to the component static attributes. For example,
-``network.buses.v_nom`` gives the nominal voltages of each bus.
-
-Time-varying series attributes are stored in a dictionary of
-``pandas.DataFrame`` based on the ``list_name`` followed by ``_t``,
-e.g. ``network.buses_t``. For example, the set points for the per unit
-voltage magnitude at each bus for each snapshot can be found in
-``network.buses_t.v_mag_pu_set``. Please also read :ref:`time-varying`.
-
-For each component class their attributes, their types
-(float/boolean/string/int/series), their defaults, their descriptions
-and their statuses are stored in a ``pandas.DataFrame`` in the
-dictionary ``network.components`` as
-e.g. ``network.components["Bus"]["attrs"]``. This data is reproduced
-as tables for each component below.
+object as ``network.components``.  [NO LONGER HOW THAT IS STRUCTURED??]
 
 
-Their status is either "Input" for those which the user specifies or
-"Output" for those results which PyPSA calculates.
-
-The inputs can be either "required", if the user *must* give the
-input, or "optional", if PyPSA will use a sensible default if the user
-gives no input.
 
 For functions such as :doc:`power_flow` and :doc:`optimal_power_flow` the inputs used and outputs given are listed in their documentation.
 
