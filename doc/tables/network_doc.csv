@@ -1,7 +1,7 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
 now,any,n/a,"""now""","The current snapshot/time/scenario, relevant e.g. when ``network.pf()`` is called without a snapshot argument.",Input (optional)
-pypsa_version,string,n/a,n/a,"Fetched from __version__ variable in package __init__.py.  Must be dot-separated, integer recognized string sequences.",
+pypsa_version,string,n/a,n/a,"Fetched from __version__ variable in package __init__.py.  Must be dot-separated, integer recognized string sequences.",Output
 srid,integer,n/a,4326,"Spatial Reference System Indentifier for x,y coordinates of buses. It defaults to standard longitude and latitude.",Input (optional)
 snapshots,list or pandas.Index,n/a,"[""now""]","List of snapshots or time steps. All time-dependent series quantities are indexed by ``network.snapshots``. To reset the snapshots, call ``network.set_snapshots(new)``.",Input (optional)
 snapshot_weightings,pandas.DataFrame, hours ,1,"The weightings applied to each snapshot, so that snapshots can represent more than one hour or fractions of one hour. The objective weightings are used to weight snapshots in the LOPF objective function. The store weightings determine the state of charge change for stores and storage units. The generator weightings are used when calculating global constraints.",Input (optional)
