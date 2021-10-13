@@ -15,7 +15,7 @@ has the major functions as methods, such as ``network.lopf()`` and
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/component_attrs/networks.csv
+   :file: ../doc/tables/network_doc.csv
 
 
 Components
