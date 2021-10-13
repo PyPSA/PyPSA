@@ -82,12 +82,10 @@ e.g. ``network.components["Bus"]["attrs"]``.
 Network components cannot exist without a network to hold them.
 
 
-
 .. _time-varying:
 
 Time-varying data
 =================
-
 Some quantities, such as generator ``p_set`` (generator active power
 set point), generator ``p`` (generator calculated active power), line
 ``p0`` (line active power at ``bus0``) and line ``p1`` (line active
