@@ -9,9 +9,10 @@
 Network
 =======
 
-The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.lopf()`` and
-``network.pf()``.
+The ``Network`` is the overall container for all components.  The table
+below lists its primary data attributes.  See notes below the table 
+for an explanation of some of the syntax used.  For a full list of its methods,
+e.g. ``network.lopf()`` and ``network.pf()`, see Network API reference.
 
 .. csv-table::
    :header-rows: 1
