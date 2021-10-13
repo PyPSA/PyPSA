@@ -251,8 +251,9 @@ class Network(Basic):
 
         self.branch_components = self.passive_branch_components|self.controllable_branch_components
 
-        self.all_components = set(self.components.index) - {"Network"}
-
+        # self.all_components = set(self.components.index) - {"Network"}
+        self.all_components = set(self.components.index) # Exclusion no longer required if "Network" row removed from components.csv
+        
         self.components = Dict(self.components.T.to_dict())
 
         for component in self.components:
