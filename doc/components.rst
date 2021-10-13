@@ -16,7 +16,7 @@ e.g. ``network.lopf()`` and ``network.pf()``, see Network API reference.
 
 .. csv-table::
    :header-rows: 1
-   :file: ../doc/network_doc.csv
+   :file: ../doc//tables/network_doc.csv
 
 
 Components
