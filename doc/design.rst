@@ -84,7 +84,6 @@ Network components cannot exist without a network to hold them.
 
 
 .. _time-varying:
-
 Time-varying data
 =================
 
