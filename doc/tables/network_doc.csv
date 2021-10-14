@@ -13,9 +13,7 @@ _weightings","pandas
 "investment
 _periods","pandas
 .Index",years,[],"Time periods of investment. Only used for multi investment optimisation. Years have to be integer and increasing (e.g. [2025,2030,2035]). Default is an empty pd.Index([]).",Input (optional)
-"investment
-_period
-_weightings","pandas
+investment _period _weightings,"pandas
 .DataFrame",n/a,1,Weightings applied to each investment period. Objective weightings are multiplied with all cost coefficients in the objective function of the respective investment period (e.g. used to include social discount rate). Years weighting denote the elapsed time until the subsequent investment period (e.g. used for global constraints CO2 emissions).,Input (optional)
 "all
 _components","set
