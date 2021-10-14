@@ -31,6 +31,7 @@ unique value for its "name" attribute.
 
 .. csv-table::
    :header-rows: 1
+   :widths: 20, 10, 10, 10, 40, 10
    :file: ../doc//tables/network_doc.csv
 
 Static Data: Network.{list_name}
