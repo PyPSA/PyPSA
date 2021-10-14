@@ -22,23 +22,23 @@ the examples to indicate an instantiation of a Network object.
 .. csv-table::
    :header-rows: 1
    :widths: 20, 10, 10, 10, 40, 10
-   :file: ../doc//tables/network_doc.csv
+   :file: ../doc/tables/network_doc.csv
 
 Table terminology and conventions
 ---------------------------
-To understand ``Network` class object data structures it's useful to understand two different terms
-that may seem confusingly similar: "Component" and "device".  A "Component" is a quasi-class
+To understand the ``Network`` class object data structures it's useful to understand two different terms
+that may sound confusingly similar: "Component" and "device".  A "Component" is a quasi-class
 (not actual Python class) representation of a group of devices that share the
 same attribute schema.  These attributes are defined by the relevant csv in the ``component_attrs``
 sub-directory of the package folder.  (Each of the Component-specific sections that follow on this page
 are essentially a summary and explicit embed of these csv tables.)
 
-Each Component class is associated with a "list_name" that is generally used for both the associated csv
-filename stem and dictionary keys where data for each device (of the Component class) is stored.
+Each Component class is associated with a ``list_name`` that is generally used for both the associated csv
+filename stem and dictionary keys where device-level data (for data of each Component class) are stored.
 In this context, there is a clear distinction between "Component", a 'class' defining devices
-of a similar attribute profile, and a "device" which is a specific asset within the network,
-belonging to a particular Component class, and whose data will be identifiable via a
-unique value for its "name" attribute.
+of a similar attribute profile/schema, and a "device" which is a specific asset within the network,
+belonging to a particular Component class.  Each device is identifiable via a mandatory (and unique)
+"name" attribute.
 
 Static Data: Network.{list_name}
 --------------------------------
@@ -57,7 +57,7 @@ voltage magnitude at each bus for each snapshot can be found in
 ``network.buses_t.v_mag_pu_set``. Please also read :ref:`time-varying`.
 
 
-network.components dictionary: Components Schema
+Components Schema: network.components dictionary 
 ================================================
 The schema data for each Component class is stored in a nested dictionary accessed by the
 ``Component`` string accesserors, e.g. ``network.components.Bus`` or ``network.components["Bus"]``
