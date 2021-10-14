@@ -76,6 +76,8 @@ expanded by the Pypsa code yielding columns and their meaning as described in th
 				in progress.  Once sorted it out, needs a re-write into more succinct form that simply
 				summarizes the outcome
 
+Structure of pandas.DataFrame available from ``network.components[Component]["attrs"]``:
+
 .. csv-table::
    :header-rows: 1
    :file: ../pypsa/doc/tables/component_attrs.csv
