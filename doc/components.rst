@@ -2,7 +2,7 @@
 
 
 ##############################
- Network and Components v.0.02
+ Network and Components v.0.03
 ##############################
 
 
@@ -12,7 +12,7 @@ Network
 The ``Network`` is the overall container for all components (and is defined as a 
 formal Python Class object).  The table below lists its primary data attributes.
 For a full list of its methods, e.g. ``network.lopf()`` and ``network.pf()``,
-see `Network API reference`_.  Additional attributes, e.g. ``results`` and ``objective``,
+see the `Network API reference`_.  Additional attributes, e.g. ``results`` and ``objective``,
 are pre-cursors or defined by some of these methods.  See notes below the table 
 for an explanation of some of the syntax used.  The variable ``network`` is used in
 the examples to indicate an instantiation of a Network object.
