@@ -35,24 +35,24 @@ are essentially a summary and explicit embed of these csv tables.)
 
 Each Component class is associated with a ``list_name`` that is generally used for both the associated csv
 filename stem and dictionary keys where device-level data (for data of each Component class) are stored.
-In this context, there is a clear distinction between "Component", a 'class' defining devices
+There is a clear distinction between "Component", a 'class' defining devices
 of a similar attribute profile/schema, and a "device" which is a specific asset within the network,
 belonging to a particular Component class.  Each device is identifiable via a mandatory (and unique)
-"name" attribute.
+``name`` attribute.
 
 Static Data: network.{list_name}
 --------------------------------
-For each Component the static data describing the components is stored in a ``pandas.DataFrame``
-corresponding to the ``list_name``. For example, all static data for buses is stored in
-``network.buses``. In this ``pandas.DataFrame`` the index corresponds to the unique string names
-for each device, while the columns correspond to the Component class static attributes. For example,
+For each Component the static data describing the components are stored in a ``pandas.DataFrame``
+corresponding to the ``list_name``. For example, all static data for devices in the Bus class is stored in
+``network.buses``. In this ``pandas.DataFrame`` the index corresponds to the unique ``name`` attribute
+for each device, while the columns correspond to the Component class **static** attributes. For example,
 ``network.buses.v_nom`` gives the nominal voltages of each Bus device.
 
 Time-varying Data: network.{list_name}_t
 ----------------------------------------
 Time-varying series attributes are stored in a dictionary of
-``pandas.DataFrame`` based on the ``list_name`` followed by ``_t``,
-e.g. ``network.buses_t``. For example, the set points for the per unit
+``pandas.DataFrame`` based on the ``list_name`` concatenated with ``_t``,
+e.g. ``network.buses_t`` returns a Python dictionary. For example, the set points for the per unit
 voltage magnitude at each bus for each snapshot can be found in
 ``network.buses_t.v_mag_pu_set``. Please also read :ref:`time-varying`.
 

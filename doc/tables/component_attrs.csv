@@ -1,16 +1,3 @@
 ﻿column,dtype,origin,description
 attribute ,string,csv,The name of the attribute loaded from ``list_name`` csv file in ``component_attrs`` sub-directory.
 type,string,csv,"Strings indicating the structural type the data must conform to, e.g. ""string"", ""int[eger]"", ""float"", ""boolean"", ""series"", ""static"", 'static or series"", etc."
-unit,string,csv,"The attribute's units of measure, if applicable.  [ed. Good opportunity to lift from old pdf docs from Tom Brown re: 'standard system of units'.]"
-description,string,csv,A short description of what the attribute is/describes.  [ed.  These themselves could use a review / upgrade perhaps.]
-status,string,csv,"""Input"" for those which the user specifies or ""Output"" for those results which PyPSA calculates.  In are further specified as either ""required"", if the user *must* give the
-input, or ""optional"", if PyPSA will use a sensible default if the user gives no input."
-static,Boolean,derived,"True for all type not in {""series""}; only ""series"" value is False.  So ""type"" = ""static or series"" is considered (potentially) static = True, which is correct.  It is also included within Boolean test for ""varying"", so this ""type"" designation will create a structure for the attribute in both static and time-varying data structures."
-varying,Boolean,derived,"True for ""type"" in {""series"", ""static or series""}"
-typ,Standard Python data types,derived,"Decipher: ``attrs['type'].map({'boolean': bool, 'int':[4] int, 'string': str}).fillna(float)`` and describe."
-dtype,Numpy data types,derived,"Decipher: ``attrs['type'].map({'boolean': np.dtype(bool), 'int': np.dtype(int),
-                                                'string': np.dtype('O')}).fillna(np.dtype(float))``"
-default,varies (see description),"csv, dtype modified by code","Unless specified otherwise by user, the default values that will be assigned to each attribute (if optional).  The data type for these defaults will be dependent on the string values assigned in the ""type"" column, applied as follows (in order indicated):
-* All attributes assigned ""type"" == ""boolean"", change default value 'True' to Python boolean ``True``.  [ed. there is no equivalent force to ``False`` for all other values]
-* All rows with attrs.typ == str, replace np.nan with nullstring.  This is to ensure that ""type"" == ""string"" attributes with nullstring defaults to not get intermpreted as ``float``, which is pandas default behavior for pandas_read_csv.  (Note ""typ"" column not the same as original ""type"" designation -- see above.)
-* Then cycle through data types, ``str``, ``float``, ``int`` as typ, and ensure each of the default value is replaced via .astype() method with the corresponding type found in attrs.typ column."
