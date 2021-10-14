@@ -40,6 +40,7 @@ belonging to a particular Component class.  Each device is identifiable via a ma
 ``name`` attribute.
 
 .. _static_data:
+
 Static Data: network.{list_name}
 --------------------------------
 For each Component the static data describing the components are stored in a ``pandas.DataFrame``
