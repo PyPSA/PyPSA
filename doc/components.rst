@@ -21,7 +21,7 @@ the examples to indicate an instantiation of a Network object.
 
 .. csv-table::
    :header-rows: 1
-   :width: 156
+   :width: length
    :widths: 20, 14, 14, 14, 80, 14
    :file: ../doc/tables/network_doc.csv
 
