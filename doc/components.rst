@@ -21,6 +21,7 @@ the examples to indicate an instantiation of a Network object.
 
 .. csv-table::
    :header-rows: 1
+   :widths: auto
    :file: ../doc/tables/network_doc.csv
 
 Table terminology and conventions
