@@ -1,3 +1,3 @@
 ﻿column,dtype,origin,description
-attribute ,string,csv,The name of the attribute loaded from ``list_name`` csv file in ``component_attrs`` sub-directory.
-type,string,csv,"Strings indicating the structural type the data must conform to, e.g. ""string"", ""int[eger]"", ""float"", ""boolean"", ""series"", ""static"", 'static or series"", etc."
+attribute ,string,csv,Simple words
+type,string,csv,Simple string
