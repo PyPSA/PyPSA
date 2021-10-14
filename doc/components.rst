@@ -80,7 +80,8 @@ Structure of pandas.DataFrame available from ``network.components[Component]["at
 
 .. csv-table::
    :header-rows: 1
-   :file: ../pypsa/doc/tables/component_attrs.csv
+   :widths: 20, 10, 10, 10, 40, 10
+   :file: ../doc/tables/component_attrs.csv
 
 				
 Components
