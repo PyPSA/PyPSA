@@ -20,7 +20,7 @@ the examples to indicate an instantiation of a Network object.
 .. _Network API reference: https://pypsa-docs-staging.readthedocs.io/en/latest/api_reference.html
 
 .. csv-table::
-   :widths: 20, 10, 10, 10, 40, 10
+   :widths: 10, 5, 5, 5, 20, 5
    :header-rows: 1
    :file: ../doc/tables/network_doc.csv
 
