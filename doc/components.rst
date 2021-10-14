@@ -40,7 +40,7 @@ of a similar attribute profile/schema, and a "device" which is a specific asset 
 belonging to a particular Component class.  Each device is identifiable via a mandatory (and unique)
 "name" attribute.
 
-Static Data: Network.{list_name}
+Static Data: network.{list_name}
 --------------------------------
 For each Component the static data describing the components is stored in a ``pandas.DataFrame``
 corresponding to the ``list_name``. For example, all static data for buses is stored in
@@ -48,7 +48,7 @@ corresponding to the ``list_name``. For example, all static data for buses is st
 for each device, while the columns correspond to the Component class static attributes. For example,
 ``network.buses.v_nom`` gives the nominal voltages of each Bus device.
 
-Time-varying Data: Network.{list_name}_t
+Time-varying Data: network.{list_name}_t
 ----------------------------------------
 Time-varying series attributes are stored in a dictionary of
 ``pandas.DataFrame`` based on the ``list_name`` followed by ``_t``,

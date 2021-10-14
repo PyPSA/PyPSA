@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\pypsa",
-    "\\pypsa\\component_attrs"
+    "\\doc\\tables",
+    "\\pypsa"
   ],
-  "SelectedNode": "\\pypsa\\components.csv",
+  "SelectedNode": "\\pypsa\\components.py",
   "PreviewInSolutionExplorer": false
 }
