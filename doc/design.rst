@@ -1,29 +1,74 @@
+.. include:: globals.rst
+
 #######
  Design
 #######
+|doc_version|
 
+.. note::	Hyperlinks in the text that follows are commonly used PyPSA terminology
+            and link to a short definition in the project's :ref:`Glossary<glossary>`.
+            
+.. _design-network:
 
-Network object is the overall container
+The Network is the overall container
+====================================
+
+The :term:`network` is the overall container for all electrical system :term:`devices`,
+the data that defines them, and their connections and interactions.
+A network is instantiated via the Python Class constructor ``pypsa.Network()``.
+
+All devices belong to single :term:`component` 'group' that allows definition of devices with similar
+behavior and data structures.  Hence, in this documentation, component is **NOT** a synonym for :term:`device`.
+When we reference component, or sometimes Component, or component class, we are referring to
+a group (or groups) of devices.  Each device must be assigned a unique ``name`` attribute to 
+allow its data to be retrieved from within its Component container.
+
+All devices must belong to a Component class; components cannot exist without a Network; and therefore
+all data is held within the :term:`Network` container.  The Network is also the object
+on which calculations, such as power flow and optimal power flow, are performed.
+
+Those data that are organized by component are accessed by two different labels.  The Component's label,
+for which PyPSA adopts Python CapWords convention normally reserved for formal classes,
+is used to access data that describes the structure of the component class, i.e. the Component's metadata.
+To access data that relates to the devices *within* a particular component class, PyPSA uses
+the variable :term:`list_name`, which is formatted in standard snake_case convention.
+list_name can be thought of as "data for the list of devices within the Component class".
+Each component has a specific ``list_name`` and each ``list_name`` refers to devices in a single,
+specific component class, i.e. 1-to-1 mapping between the two labelling designations.
+
+A complete list of :term:`components` is discussed in :ref:`Network and components<components>`,
+but to provide a sense of Component label vs. list_name, here are some examples:
+
+.. csv-table:: Component Examples
+    :header: "Component", "list_name"
+    :widths: 20, 30
+
+    "Bus", "buses"
+    "Generator", "generators"
+    "Load", "loads"
+    "Line", "lines"
+    "Transformer", "transformers"
+    "StorageUnit", "storage_units"
+
+.. note::   Unlike :term:`Network` objects, Components are *not* formal Python classes.
+            The CapWords convention indicated in the table above, and that PyPSA applies,
+            is intended to indicate a grouping, or quasi class-like usage only.
+            In this documentaiton the capitalization of "component" itself is not significant;
+            "component" and "Component" refer to the same thing.  However, we will be clear
+            when we need to indicate which specific string accessor must be used,
+            or in what combination, to retrieve data, e.g. "Bus" or "buses".
+            
+
+Buses are the fundamental network nodes
 =======================================
 
-The ``pypsa.Network`` is an overall container for all network
-components; components cannot exist without a network.
+The bus is the fundamental node to which all ``loads``, ``generators``,
+``storage_units``, ``lines``, ``transformers``, ``links``, etc. attach.
+You can attach as many :term:`devices` -- of as many different non-Bus :term:`component`
+classes -- to a bus as you want.
 
-It is also the object on which calculations, such as power flow and
-optimal power flow, are performed.
-
-
-Buses are the fundamental nodes
-===============================
-
-The bus is the fundamental node to which all loads, generators,
-storage units, lines, transformers and links attach.
-
-You can have as many components attached to a bus as you want.
-
-The bus's role is to enforce energy conservation for all elements
+A ``Bus`` device's role is to enforce energy conservation for all other devices
 feeding in and out of it (i.e. like Kirchhoff's Current Law).
-
 
 .. image:: img/buses.png
 
@@ -31,114 +76,111 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 Energy flow in the model
 ========================
 
-Energy enters the model in generators, storage units or stores with
-higher energy before than after the simulation, and any components
-with efficiency greater than 1 (e.g. heat pumps).
+Energy enters the network model (at a specific Bus-class device) from certain :term:`devices`,
+e.g. typically all ``generators``, ``storage_units`` or ``stores`` with higher energy before than after the simulation,
+and any devices defined with an efficiency greater than 1, e.g. heat pumps.
 
-Energy leaves the model in loads, storage units or stores with higher
-energy after than before the simulation, and in lines, links or
-storage units with efficiency less than 1.
-
+Energy leaves the model in other devices, e.g. typically all ``loads``, ``storage_units`` or ``stores`` with higher
+energy after than before the simulation, and in ``lines``, ``links`` or other devices with efficiency less than 1.
 
 
 Data is stored in pandas DataFrames
 ===================================
 
 To enable efficient calculations on the different dimensions of the
-data, data is stored in memory using pandas DataFrames.
+data, data is stored in memory using ``pandas.DataFrames``, accessible
+either directly as an attribute of the :term:`Network` object, or within certain
+nested dictionary constructs that are themselves attributes of an instantiated ``network`` object.
 
-Other power system toolboxes use databases for data storage; given
-modern RAM availability and speed considerations, pandas DataFrames
-were felt to be preferable and simpler.
+Other power system toolboxes use databases for data storage.  However, given
+modern RAM availability and speed considerations, ``pandas.DataFrames``
+provide advantages in simplicity, interoperability with extensions to PyPSA,
+and general ease of access for most researchers and analysts in the field.
 
-
-To see which data is stored for each component, see :doc:`components`.
-
-
-Static component data
-=====================
-
-For each component type (line, transformer, generator, etc.), which
-must be uniquely named for each network, its basic static data is
-stored in a pandas DataFrame, which is an attribute of the network
-object, with names that follow the component names:
-
-* network.buses
-* network.generators
-* network.loads
-* network.lines
-* network.transformers
-
-These are all pandas DataFrames, indexed by the unique name of the
-component.
-
-The columns contain data such as impedance, capacity and the buses to
-which components are attached. All attributes for each component type
-are listed with their properties (defaults, etc.) in :doc:`components`
-and are accessible from the network object in
-e.g. ``network.components["Bus"]["attrs"]``.
+To see full details on what data are stored for each component, see :doc:`components`.
 
 
-Network components cannot exist without a network to hold them.
+.. _static-data:
+
+Static component data: ``network.{list_name}``
+==============================================
+
+For each :term:`Component`, e.g. Line, Transformer, Generator, etc.,
+the **static** data defining all :term:`devices` within the component class
+are stored in a ``pandas.DataFrame`` accessible as an attribute of the Network object via its
+:term:`list_name`.  All components and their ``list_names`` are defined in the
+``components.csv`` file in the main package directory.
+
+For example, all static data for devices in the Bus class is stored in ``network.buses``.
+In this ``pandas.DataFrame`` the index corresponds to the unique ``name`` attribute
+for each :term:`device`, while the columns correspond to the :term:`Component` class's **static** attributes.
+Such data might include impedance, nominal capacity rating, and the buses to which a device might be attached,
+values that a given network model would likely presume are constant for a device over time.
+As an example, ``network.buses.v_nom`` gives the nominal voltages of each Bus device.
+
+Whether an attribute is static (or not) is defined by the appropriate component-level csv file
+in the ``component_attrs`` sub-directory; the only attributes that will NOT have a static
+designation are those marked "series" in the ``type`` column.
+See :ref:`component-attrs` for further details.
 
 
-.. _time-varying:
+.. _time-varying-data:
 
-Time-varying data
-=================
-Some quantities, such as generator ``p_set`` (generator active power
-set point), generator ``p`` (generator calculated active power), line
-``p0`` (line active power at ``bus0``) and line ``p1`` (line active
-power at ``bus1``) may vary over time, so PyPSA offers the possibility
-to store different values of these attributes for the different
-snapshots in ``network.snapshots`` in the following attributes of the
-network object:
+Time-varying data: ``network.{list_name}_t``
+============================================
 
-* network.buses_t
-* network.generators_t
-* network.loads_t
-* network.lines_t
-* network.transformers_t
+Some quantities, e.g. generator ``p_set`` (generator active power set point),
+generator ``p`` (generator calculated active power), line ``p0`` (line active power at ``bus0``),
+and line ``p1`` (line active power at ``bus1``), may vary over time.  PyPSA offers the possibility
+to store different values of these attributes for the different :term:`snapshots` assigned to ``network.snapshots`` 
 
-These are all dictionaries of pandas DataFrames, so that for example
-``network.generators_t["p_set"]`` is a DataFrame with columns
-corresponding to generator names and index corresponding to
-``network.snapshots``. You can also access the dictionary like an
-attribute ``network.generators_t.p_set``.
+Which attributes, for a given component class, have the option (or requirement) to be available
+as a time-varying quantity is defined in the relevant csv in the ``component_attrs`` sub-directory.
+Any attribute with type defined as ``"series"`` or ``"static or series"`` will have this capability and the 
+datatype for its values will be automatically set to Python ``float``.
 
-Time-varying data are defined as ``series`` in the listings in  :doc:`components`.
+All time-varying, a.k.a time-series, attributes are stored in a dictionary of ``pandas.DataFrames`` based on
+the ``list_name`` concatenated with ``_t``, e.g. ``network.buses_t`` will return a Python ``dictionary``.
+The time-varying attribute labels are then the keys to this dictionary and return a ``pandas.DataFrame``
+that holds all values over :term:`snapshots` for those devices in the ``list_name`` :term:`component`
+class for which time-varying data has been defined for this attribute.
+For example, the set points for the per unit voltage magnitude at each bus for each :term:`snapshot` can be found in
+the DataFrame retreived from ``network.buses_t["v_mag_pu_set"]``
+(or ``network.buses_t.v_mag_pu_set`` if you prefer dot notation).
 
+The structure of these attribute-specific DataFrames are columns for each :term:`device` ``name``
+and an index of ``network.snapshots``.  For example, ``network.generators_t["p_set"]`` is a DataFrame
+with columns corresponding to generator names and index corresponding to ``network.snapshots``.
+As with all Python dictionaries, you can also access the data like an attribute with "dot notation",
+e.g. ``network.generators_t.p_set``.
 
-For **input data** such as ``p_set`` of a generator you can store the
-value statically in ``network.generators`` if the value does not
-change over ``network.snapshots`` **or** you can define it to be
-time-varying by adding a column to ``network.generators_t.p_set``. If
-the name of the generator is in the columns of
-``network.generators_t.p_set``, then the static value in
-``network.generators`` will be ignored. Some example definitions of
-input data:
-
+Any attribute with type "static or series" indicates that you have a choice, and you can vary this choice
+for each device in the component class.  So, for example, **input data** such as ``p_set`` of a generator
+can be stored statically in ``network.generators`` if the value does not change over ``network.snapshots``
+**or** you can define it to be time-varying by adding a column to ``network.generators_t.p_set``.
+If the ``name`` of the generator is in the columns of ``network.generators_t.p_set``, then the static value in
+``network.generators`` will be ignored.  Some example definitions of input data:
 
 .. code:: python
 
-    #four snapshots are defined by integers
+    # Four snapshots are defined as integers
     network.set_snapshots(range(4))
 
     network.add("Bus", "my bus")
 
-    #add a generator whose output does not change over time
+    # Add a generator whose output does not change over time
     network.add("Generator", "Coal", bus="my bus", p_set=100)
 
-    #add a generator whose output does change over time
-    network.add("Generator", "Wind", bus="my bus", p_set=[10,50,20,30])
+    # Add a generator whose output does change over time
+    network.add("Generator", "Wind", bus="my bus", p_set=[10, 50, 20, 30])
 
 In this case only the generator "Wind" will appear in the columns of
 ``network.generators_t.p_set``.
 
-For **output data**, all time-varying data is stored in the
-``network.components_t`` dictionaries, but it is only defined once a
-simulation has been run.
+For **output data**, all time-varying data is stored in the ``network.components_t`` dictionaries,
+but it is only defined once a simulation has been run.
 
+.. attention::  End point on this .rst file of review and intervention for provisional |doc_version|
 
 
 No GUI: Use Jupyter notebooks
@@ -155,6 +197,7 @@ Internal use of per unit
 Per unit values of voltage and impedance are used internally for
 network calculations. It is assumed internally that the base power is
 1 MVA. The base voltage depends on the component.
+
 
 .. _unit-conventions:
 
@@ -181,11 +224,16 @@ Impedance: Ohm, except transformers which are pu, using transformer.s_nom for th
 
 CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of energy carrier
 
+Per unit values of voltage and impedance are used interally for network calculations.
+It is assumed internally that the base power is 1 MVA.
+The base voltage depends on the :term:`component`
+
+
+
 .. _sign-conventions:
 
 Sign Conventions
 ================
-
 
 The sign convention in PyPSA follows other major software packages,
 such as MATPOWER, PYPOWER and DIgSILENT PowerFactory.

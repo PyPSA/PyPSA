@@ -91,12 +91,10 @@ Documentation
    :maxdepth: 2
    :caption: Examples
 
-
    examples-basic
    examples-lopf
    examples-sector_coupling
    examples-other
-
 
 
 **User Guide**
@@ -108,6 +106,7 @@ Documentation
 * :doc:`optimal_power_flow`
 * :doc:`contingency_analysis`
 * :doc:`plotting`
+* :doc:`glossary`
 
 .. toctree::
    :hidden:
@@ -121,8 +120,7 @@ Documentation
    optimal_power_flow
    contingency_analysis
    plotting
-
-
+   glossary
 
 
 **Help & References**

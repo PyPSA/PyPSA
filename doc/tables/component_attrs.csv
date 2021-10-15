@@ -1,11 +1,10 @@
 ﻿column,dtype,origin,description
 attribute ,string,csv,The name of the attribute loaded from ``list_name`` csv file in ``component_attrs`` sub-directory.
-type,string,csv,"Strings indicating the structural type the data must conform to, e.g. ""string"", ""int[eger]"", ""float"", ""boolean"", ""series"", ""static"", 'static or series"", etc."
-unit,string,csv,"The attribute's units of measure, if applicable.  [ed. Good opportunity to lift from old pdf docs from Tom Brown re: 'standard system of units'.]"
+type,string,csv,"Strings indicating the structural type the data must conform to, e.g. ""string"", ""int[eger]"", ""float"", ""boolean"", ""series"", ""static"", 'static or series"", etc.  These strings are then used in conditional operations to set both a) data structures, e.g. ``{list_name}_t`` attributes for those attributes with a time-varying structure, and b) native Python data types (held in ``typ`` attribute) and Numpy data types (held in ``dtype`` attribute)."
+unit,string,csv,"The attribute's units of measure, if applicable.  See :ref:`unit-conventions` for further details."
 description,string,csv,A short description of what the attribute is/describes.  [ed.  These themselves could use a review / upgrade perhaps.]
-status,string,csv,"""Input"" for those which the user specifies or ""Output"" for those results which PyPSA calculates.  In are further specified as either ""required"", if the user *must* give the
-input, or ""optional"", if PyPSA will use a sensible default if the user gives no input."
-static,Boolean,derived,"True for all type not in {""series""}; only ""series"" value is False.  So ""type"" = ""static or series"" is considered (potentially) static = True, which is correct.  It is also included within Boolean test for ""varying"", so this ""type"" designation will create a structure for the attribute in both static and time-varying data structures."
+status,string,csv,"""Input"" for those which the user specifies or ""Output"" for those values that PyPSA calculates.  Inputs are further specified as either ""required"", if the user *must* give the input, or ""optional"", if PyPSA will use a sensible default if the user gives no input."
+static,Boolean,derived,"True for all type **not** in {""series""}; only ""series"" value is False.  So ""type"" = ""static or series"" is considered (potentially) static = True, which is correct.  It is also included within Boolean test for ""varying"", so this ""type"" designation will create a structure for the attribute in both static and time-varying data structures."
 varying,Boolean,derived,"True for ""type"" in {""series"", ""static or series""}"
 typ,Standard Python data types,derived,"Decipher: ``attrs['type'].map({'boolean': bool, 'int':[4] int, 'string': str}).fillna(float)`` and describe."
 dtype,Numpy data types,derived,"Decipher: ``attrs['type'].map({'boolean': np.dtype(bool), 'int': np.dtype(int),
