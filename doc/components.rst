@@ -2,9 +2,10 @@
 
 
 ##############################
- Network and Components v.0.03
+ Network and Components
 ##############################
 
+doc ver 00.04
 
 Network
 =======
