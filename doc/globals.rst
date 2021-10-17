@@ -7,7 +7,7 @@
 	.. include:: globals.rst
 
 
-.. |doc_version| replace:: staging docs v0.13
+.. |doc_version| replace:: staging docs v0.14
 
 
 .. Terminology Synonums
