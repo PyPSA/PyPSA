@@ -1,13 +1,14 @@
 name: pypsa-doc
-# channels:
-  # - conda-forge
+channels:
+  - conda-forge   # I think "excess memory" problem I have start from/with conda
+
 dependencies:
   - python<=3.7
   - pip
   - python
   - six
   - numpy
-  # - pyomo>=5.7.0
+  - pyomo>=5.7.0,<6.1 # Issue with pyomo flagged up in first build efforts
   - scipy
   - pandas>=1.1.0
   - xarray
@@ -15,9 +16,9 @@ dependencies:
   - pytables
   - matplotlib
   - networkx>=1.10
-  # - pyomo
+  - pyomo  # Is this not redundant with pyomo dependency declared above?
   - cartopy>=0.16
-  # - coincbc
+  - coincbc # Also got a build error here
   - glpk
   - deprecation
   - seaborn
