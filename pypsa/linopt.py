@@ -247,6 +247,9 @@ def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
+
+    Input constraints will be also rewritten to avoid solver issues. For example: 
+    '==' to '=', '>' to '>=', '<' to '<='
     """
     axes, shape, size = _get_handlers(axes, lhs, sense, rhs)
     if not size: return pd.Series()
