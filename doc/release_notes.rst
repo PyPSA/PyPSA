@@ -11,6 +11,8 @@ Upcoming Release
 PyPSA 0.18.1 (15th October 2021)
 ================================
 
+* Bugfix: CBC solver works now with '>' and '<' constraint
+
 * Compatibility with ``pyomo>=6.1``.
 
 * Bugfix: specifying the ``solver_logfile`` is no longer mandatory with CPLEX for
