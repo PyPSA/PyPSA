@@ -254,6 +254,8 @@ def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     cons = np.arange(n._cCounter - size, n._cCounter).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
+        sense = '>=' if sense == '>' else sense
+        sense = '<=' if sense == '<' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
     exprs = 'c' + _str_array(cons, True) + ':\n' + lhs + sense + ' ' + rhs + '\n\n'
     if mask is not None:
