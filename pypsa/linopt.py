@@ -248,7 +248,7 @@ def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
 
-    Input constraints will be also rewritten to avoid solver issues. For example: 
+    Input constraints are rewritten to avoid solver issues. For example: 
     '==' to '=', '>' to '>=', '<' to '<='
     """
     axes, shape, size = _get_handlers(axes, lhs, sense, rhs)
