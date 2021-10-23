@@ -1,4 +1,5 @@
 # matplotlib==3.2.2
+ipykernel
 nbsphinx
 nbsphinx_link
 # networkx==2.4
