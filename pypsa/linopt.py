@@ -247,9 +247,6 @@ def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
     None but a tuple of (index, columns) or (index).
     Return a series or frame with constraint references.
-
-    Input constraints are rewritten to avoid solver issues. For example: 
-    '==' to '=', '>' to '>=', '<' to '<='
     """
     axes, shape, size = _get_handlers(axes, lhs, sense, rhs)
     if not size: return pd.Series()
@@ -257,8 +254,6 @@ def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     cons = np.arange(n._cCounter - size, n._cCounter).reshape(shape)
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
-        sense = '>=' if sense == '>' else sense
-        sense = '<=' if sense == '<' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
     exprs = 'c' + _str_array(cons, True) + ':\n' + lhs + sense + ' ' + rhs + '\n\n'
     if mask is not None:
@@ -610,11 +605,15 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the solver options, run 'cbc' in your shell
     """
+    with open(problem_fn, 'rb') as f:
+        assert (">" and "<" in f.readlines()) != False, ("< and >, must be" 
+                "changed to <= and >=")
+
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
@@ -668,7 +667,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the glpk solver options:
@@ -736,7 +735,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cplex
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Cplex must be installed for using this function
 
     """
@@ -802,7 +801,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function
 
     For more information on solver options:

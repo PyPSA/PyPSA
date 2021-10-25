@@ -11,7 +11,7 @@ Upcoming Release
 PyPSA 0.18.1 (15th October 2021)
 ================================
 
-* Bugfix: CBC solver works now with '>' and '<' constraint
+* Add assert: CBC solver does not work with '>' and '<'
 
 * Compatibility with ``pyomo>=6.1``.
 
