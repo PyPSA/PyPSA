@@ -611,8 +611,11 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
     For more information on the solver options, run 'cbc' in your shell
     """
     with open(problem_fn, 'rb') as f:
-        assert (">" and "<" in f.readlines()) != False, ("< and >, must be" 
-                "changed to <= and >=")
+        for str in f.readlines():
+            assert (("> " in str.decode('utf-8')) == False), (">, must be"
+                    "changed to >=")
+            assert (("< " in str.decode('utf-8')) == False), ("<, must be"
+                    "changed to <=")
 
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
