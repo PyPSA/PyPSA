@@ -308,8 +308,7 @@ class Network(Basic):
 
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_dtypes.iteritems()},
                               columns=static_dtypes.index)
-
-            df.index.name = "name"
+            df.index.name = component
 
             setattr(self,self.components[component]["list_name"],df)
 
@@ -318,6 +317,7 @@ class Network(Basic):
             pnl = Dict({k : pd.DataFrame(index=self.snapshots,
                                          columns=[],
                                          dtype=np.dtype(float))
+                            .rename_axis(component, axis=1)
                         for k in attrs.index[attrs.varying]})
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
