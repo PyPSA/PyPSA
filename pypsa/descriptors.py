@@ -302,14 +302,17 @@ def get_extendable_i(n, c):
     """
     Getter function. Get the index of extendable elements of a given component.
     """
-    return n.df(c)[lambda ds: ds[nominal_attrs[c] + '_extendable']].index
+    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + '_extendable']].index
+    return idx.rename(f'{c}-ext')
+
 
 def get_non_extendable_i(n, c):
     """
     Getter function. Get the index of non-extendable elements of a given
     component.
     """
-    return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
+    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
+    return idx.rename(f'{c}-fix')
 
 
 def get_active_assets(n, c, investment_period):
@@ -323,7 +326,7 @@ def get_active_assets(n, c, investment_period):
     return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
 
 
-def get_activity_mask(n, c, sns=None):
+def get_activity_mask(n, c, sns, index=None):
     """
     Getter function. Get a boolean array with True values for elements of
     component c which are active at a specific snapshot. If the network is
@@ -331,16 +334,18 @@ def get_activity_mask(n, c, sns=None):
     these are calculated from lifetime and the build year. Otherwise all
     values are set to True.
     """
-    if sns is None:
-        sns = n.snapshots
     if getattr(n, '_multi_invest', False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
-        return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+        res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
     else:
-        return pd.DataFrame(True, sns, n.df(c).index)
+        res = pd.DataFrame(True, sns, n.df(c).index)
+    if index is None:
+        return res
+    else:
+        res.reindex(index)
 
 
-def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
+def get_bounds_pu(n, c, sns, index=None, attr=None):
     """
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
@@ -377,7 +382,11 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
-    return min_pu[index], max_pu[index]
+    if index is None:
+        return min_pu, max_pu
+    else:
+        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+
 
 def additional_linkports(n):
     return [i[3:] for i in n.links.columns if i.startswith('bus')
