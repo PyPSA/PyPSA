@@ -13,6 +13,7 @@ Upcoming Release
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
+* Add "highs" solver.
 
 * Compatibility with ``pyomo>=6.1``.
 

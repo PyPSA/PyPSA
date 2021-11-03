@@ -601,6 +601,142 @@ def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
+
+def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
+                        solver_options, warmstart=None, store_basis=True):
+    """
+    Highs solver function. Reads a linear problem file and passes it to the highs
+    solver. If the solution is feasible the function returns the objective,
+    solution and dual constraint variables. Highs must be installed for usage.
+
+    Installation
+    -------------
+    Installation manual: https://www.maths.ed.ac.uk/hall/HiGHS/
+    After the "make" run, the 'highs' executables are in highs/build/bin/run/highs
+    Once the "ctest" runs make sure you set the path. Path setting notes:
+    >>> highs lib folder must be in "LD_LIBRARY_PATH" environment variable
+    >>> To do this, insert the below path at .bashrc (which is hidden in the home folder)
+    >>> LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/<your_path>/HiGHS/build/lib
+
+    Architecture
+    -------------
+    The function reads and execute (i.e. subprocess.Popen,...) terminal
+    commands of the solver. Meaning the command can be also executed at your
+    command window/terminal if HiGHs is installed. Executing the commands on
+    your local terminal helps to identify the raw outputs that are useful for
+    developing the interface further.
+
+    All functions below the "process = ..." do only read and saves the outputs
+    generated from the HiGHS solver. These parts needs are solver specific and
+    depends on the solver output.
+
+    Solver options
+    ---------------
+    Solver options are read by the 1) command window and the 2) option_file.
+
+    1) Full list of solver options (executable by command window) is given here:
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.html
+    Examples:
+    --model_file arg 	File of model to solve.
+    --presolve arg 	    Presolve: "choose" by default - "on"/"off" are alternatives.
+    --solver arg 	    Solver: "choose" by default - "simplex"/"ipm" are alternatives.
+    --parallel arg 	    Parallel solve: "choose" by default - "on"/"off" are alternatives.
+    --time_limit arg 	Run time limit (double).
+    --options_file arg 	File containing HiGHS options.
+    -h, --help 	        Print help.
+
+    2) The options_file is directly written in this function. Note, if you want
+    to make adjustments you need to change the pypsa library in the environment
+    of interest (for instance pypsa in the pypsa-eur needs to be changed in case
+    you want to model smt. with pypsa-eur)
+
+    Output
+    ------
+    status : string,
+        "ok" or "warning"
+    termination_condition : string,
+        Contains "optimal", "infeasible", 
+    variables_sol : series
+    constraints_dual : series
+    objective : float
+    """
+    import logging, re, io, subprocess, sys, os
+
+    # write option file
+    if not os.path.exists(solution_fn):
+        os.mknod(solution_fn)
+    f1 = open("highs_options.txt","w")
+    f1.write(
+        "solution_file = " + solution_fn +"\n"
+        "write_solution_to_file = true \n"
+        "write_solution_pretty = true \n"
+        "primal_feasibility_tolerance = 1e-05 \n"
+        "dual_feasibility_tolerance = 1e-06 \n"
+    )
+    f1.close()
+
+    # write (terminal) commands
+    command = f"highs --model_file {problem_fn} "
+    if warmstart:
+        logger.warning("Warmstart, probably not available at HiGHS yet")
+    if (solver_options is not None) and (solver_options != {}):
+        command += solver_options
+    command += "--solver ipm --options_file " + os.getcwd() + "/highs_options.txt"
+    logger.info("command: ",command)
+    # execute command and store command window output
+    process = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE, universal_newlines=True)
+
+    def read_until_break():
+        # Function that reads line by line the command window
+        while True:
+            out = process.stdout.readline(1)
+            if out == '' and process.poll() != None:
+                break
+            if out != '':
+                yield out
+
+    # converts stdout (standard terminal output) to pandas dataframe
+    info = io.StringIO(''.join(read_until_break())[:])
+    info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
+
+    # save raw solver output (info) as log
+    with open(solver_logfile, 'w') as f:
+        pd.options.display.max_colwidth = 100  # Otherwise trunctunated
+        info_as_txt = info.to_string(header=False, index=True)
+        f.write(info_as_txt)
+
+    # read out termination_condition from `info`
+    model_status = info[-15].lstrip()  # string with model_status
+    if "optimal" in model_status:
+        status = "ok"
+        termination_condition = model_status
+    elif "infeasible" in model_status:
+        status = "warning"
+        termination_condition = model_status
+    else:
+        status = 'warning'
+        termination_condition = model_status
+    objective = float(re.sub(r'[^0-9\.\+\-e]+', '', info[-2].lstrip()))
+
+    # read out solution file (.sol)
+    f = open(solution_fn,"rb")
+    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
+    f.close()
+    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=None, skiprows=[0],
+                      sep=r'\s+', usecols=[0,1,2])
+    sol = sol.rename(columns={0: "primal", 1: "dual", 2: "basis"})
+    # filter primal and dual variables for "Rows" and "Columns"
+    col_no = sol[(sol["primal"] == "Columns")].index[0]
+    row_no = sol[(sol["primal"] == "Rows")].index[0]
+    sol_rows = sol[sol.index > row_no]
+    sol_cols = sol[(sol.index > col_no)&(sol.index < row_no)]
+    constraints_dual = pd.to_numeric(sol_rows["dual"], errors="raise")
+    variables_sol = pd.to_numeric(sol_cols["primal"], errors="raise")
+
+    return(status, termination_condition, variables_sol,
+        constraints_dual, objective)
+
+
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
