@@ -599,7 +599,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         logger.warning(dedent("""
                 Importing PyPSA from older version of PyPSA than current version.
                 Please read the release notes at https://pypsa.org/doc/release_notes.html
-                carefully to prepare your network for import. 
+                carefully to prepare your network for import.
                 Currently used PyPSA version {}, imported network file PyPSA version {}.
         """).format(current_pypsa_version, pypsa_version))
 
@@ -704,7 +704,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
-    dataframe.index = dataframe.index.astype(str)
+    dataframe.index = dataframe.index.astype(str).rename(cls_name)
 
     for k in static_attrs.index:
         if k not in dataframe.columns:
@@ -782,6 +782,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     pnl = network.pnl(cls_name)
     list_name = network.components[cls_name]["list_name"]
 
+    dataframe.columns.name = cls_name
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
         logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "
