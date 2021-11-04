@@ -682,7 +682,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
     command += "--solver ipm --options_file " + os.getcwd() + "/highs_options.txt"
-    logger.info("command: ",command)
+    logger.info(f"Solver command: \"{command}\"")
     # execute command and store command window output
     process = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE, universal_newlines=True)
 
