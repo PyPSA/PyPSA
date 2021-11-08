@@ -70,9 +70,9 @@ import yaml
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-import scipy as sp
 import networkx as nx
 
+from scipy import spatial
 from scipy.sparse import csgraph
 from itertools import product
 
@@ -101,7 +101,7 @@ def _find_closest_links(links, new_links, distance_upper_bound=1.5):
                               for s in links.geometry])
     querycoords = np.vstack([new_links[['x1', 'y1', 'x2', 'y2']],
                             new_links[['x2', 'y2', 'x1', 'y1']]])
-    tree = sp.spatial.KDTree(treecoords)
+    tree = spatial.KDTree(treecoords)
     dist, ind = tree.query(querycoords, distance_upper_bound=distance_upper_bound)
     found_b = ind < len(links)
     found_i = np.arange(len(new_links)*2)[found_b] % len(new_links)
@@ -214,7 +214,7 @@ def _add_links_from_tyndp(buses, links):
         links_tyndp = links_tyndp.loc[links_tyndp["j"].isnull()]
         if links_tyndp.empty: return buses, links
 
-    tree = sp.spatial.KDTree(buses[['x', 'y']])
+    tree = spatial.KDTree(buses[['x', 'y']])
     _, ind0 = tree.query(links_tyndp[["x1", "y1"]])
     ind0_b = ind0 < len(buses)
     links_tyndp.loc[ind0_b, "bus0"] = buses.index[ind0[ind0_b]]
