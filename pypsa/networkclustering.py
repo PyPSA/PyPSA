@@ -510,7 +510,7 @@ def rectangular_grid_clustering(network, divisions):
 
 ################
 # Hierarchical Clustering
-def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None,
+def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=None, feature=None,
                   affinity='euclidean', linkage='ward', **kwargs):
     """
     Create a busmap according to Hierarchical Agglomerative Clustering.
@@ -522,8 +522,8 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", 
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
-    branch_components: List, default=["Line", "Link"]
-        Subset of all branch_components in the network.
+    branch_components: List, default=None
+        Subset of all branch_components in the network. If None, all branch_components are considered.
     feature: None | pandas.DataFrame, default=None
         Feature to be considered for the clustering.
         The DataFrame must be indexed with buses_i.
@@ -561,6 +561,9 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", 
     if buses_i is None:
         buses_i = network.buses.index
 
+    if branch_components is None:
+        branch_components = network.branch_components
+
     if feature is None:
         logger.warning(
             "No feature is specified for Hierarchical Clustering. "
@@ -577,7 +580,7 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=["Line", 
     labels = HAC(n_clusters=n_clusters,
                  connectivity=A,
                  affinity=affinity,
-                 linkage=linkage).fit_predict(feature)
+                 linkage=linkage, **kwargs).fit_predict(feature)
 
     busmap = pd.Series(labels, index=buses_i, dtype=str)
 
@@ -625,7 +628,7 @@ def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line",
         A named tuple containing network, busmap and linemap
     """
 
-    busmap = busmap_by_hac(network, n_clusters, buses_i, branch_components, feature)
+    busmap = busmap_by_hac(network, n_clusters, buses_i, branch_components, feature, **kwargs)
 
     return get_clustering_from_busmap(network, busmap, line_length_factor=line_length_factor)
 
