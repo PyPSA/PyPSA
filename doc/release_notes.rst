@@ -7,14 +7,41 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Functions ``busmap_by_linemask()``, ``busmap_by_length()``, ``length_clustering()``,
+* The names of the indexes in static dataframes are now set to the component names. So, the index of ``n.generators`` has the name 'Generator'. The same accounts for the columns of the timeseries.  
+
+
+* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
+
+* add new features here
+
+
+PyPSA 0.18.1 (15th October 2021)
+================================
+
+* Add assert: CBC solver does not work with '>' and '<'
+
+* Compatibility with ``pyomo>=6.1``.
+
+* Bugfix: specifying the ``solver_logfile`` is no longer mandatory with CPLEX for
+  ``n.lopf(pyomo=False)``.
+
+* The distance measures for the network clustering functions ``busmap_by_spectral()``
+  and ``busmap_by_louvain()`` were adapted to use electrical distance
+  (``s_nom/|r+i*x|``) (before: ``num_parallel``).
+
+* Deprecations: The functions ``busmap_by_linemask()``, ``busmap_by_length()``, ``length_clustering()``,
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
-  and ``stubs_clustering()`` were deprecated and will be removed in v0.20. [`#287 <https://github.com/PyPSA/PyPSA/pull/287>`_].
+  and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
+  
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
-  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``). [`#287 <https://github.com/PyPSA/PyPSA/pull/287>`_].
-* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method. [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
-* add new features here
+  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
+
+* In ``pypsa.networkclustering``, strip the string of the clustered
+  component name. Not doing this had caused troubles for components with an
+  empty carrier column.
+
+* Various documentation updates.
 
 
 PyPSA 0.18.0 (12th August 2021)

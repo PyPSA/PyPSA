@@ -605,11 +605,18 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the solver options, run 'cbc' in your shell
     """
+    with open(problem_fn, 'rb') as f:
+        for str in f.readlines():
+            assert (("> " in str.decode('utf-8')) == False), (">, must be"
+                    "changed to >=")
+            assert (("< " in str.decode('utf-8')) == False), ("<, must be"
+                    "changed to <=")
+
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
@@ -663,7 +670,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the glpk solver options:
@@ -731,7 +738,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cplex
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Cplex must be installed for using this function
 
     """
@@ -742,11 +749,12 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
     import cplex
     _version = LooseVersion(cplex.__version__)
     m = cplex.Cplex()
-    if _version >= "12.10":
-        log_file_or_path = open(solver_logfile, "w")
-    else:
-        log_file_or_path = solver_logfile
-    out = m.set_log_stream(log_file_or_path)
+    if solver_logfile is not None:
+        if _version >= "12.10":
+            log_file_or_path = open(solver_logfile, "w")
+        else:
+            log_file_or_path = solver_logfile
+        m.set_log_stream(log_file_or_path)
     if solver_options is not None:
         for key, value in solver_options.items():
             param = m.parameters
@@ -758,7 +766,9 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
-    if isinstance(log_file_or_path, io.IOBase): log_file_or_path.close()
+    if solver_logfile is not None:
+        if isinstance(log_file_or_path, io.IOBase):
+            log_file_or_path.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:
@@ -794,7 +804,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function
 
     For more information on solver options:

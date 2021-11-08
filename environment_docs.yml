@@ -7,7 +7,7 @@ dependencies:
   - python
   - six
   - numpy
-  - pyomo>=5.7.0
+  - pyomo>=5.7.0,<6.1
   - scipy
   - pandas>=1.1.0
   - xarray
