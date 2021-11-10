@@ -15,6 +15,8 @@ PyPSA 0.18.1 (15th October 2021)
 ================================
 * Add "highs" solver.
 
+* Add assert: CBC solver does not work with '>' and '<'
+
 * Compatibility with ``pyomo>=6.1``.
 
 * Bugfix: specifying the ``solver_logfile`` is no longer mandatory with CPLEX for
