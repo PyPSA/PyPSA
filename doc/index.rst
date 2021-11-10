@@ -50,7 +50,7 @@ The restriction to freely available and open data encourages the open exchange o
 PyPSA-Eur is designed to be imported into the open toolbox `PyPSA <https://www.pypsa.org>`_ for which `documentation <https://pypsa.org/doc>`_ is available as well.
 
 This project is currently maintained by the `Department of Digital
-Transformation in Energy Systems` <https:/www.ensys.tu-berlin.de>`_ at the
+Transformation in Energy Systems <https:/www.ensys.tu-berlin.de>`_ at the
 `Technische Universität Berlin <https://www.tu.berlin>`_. Previous versions were
 developed within the `IAI <http://www.iai.kit.edu>`_ at the `Karlsruhe Institute of
 Technology (KIT) <http://www.kit.edu/english/index.php>`_ and by the `Renewable

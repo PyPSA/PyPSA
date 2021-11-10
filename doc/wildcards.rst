@@ -126,7 +126,7 @@ The ``{technology}`` wildcard
 The ``{technology}`` wildcard specifies for which renewable energy technology to produce availablity time
 series and potentials using the rule :mod:`build_renewable_profiles`.
 It can take the values ``onwind``, ``offwind-ac``, ``offwind-dc``, and ``solar`` but **not** ``hydro``
-(since hydroelectric plant profiles are created by a different rule.
+(since hydroelectric plant profiles are created by a different rule).
 
 The wildcard can moreover be used to create technology specific figures and summaries.
 For instance ``{technology}`` can be used to plot regionally disaggregated potentials
