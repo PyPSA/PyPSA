@@ -111,8 +111,11 @@ renewable:
     resource:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
-    capacity_per_sqkm: 3
-    # correction_factor: 0.93
+    capacity_per_sqkm: 2
+    correction_factor: 0.8855
+    # proxy for wake losses
+    # from 10.1016/j.energy.2018.08.153
+    # until done more rigorously in #153
     corine: [44, 255]
     natura: true
     max_depth: 50
@@ -125,8 +128,11 @@ renewable:
       method: wind
       turbine: NREL_ReferenceTurbine_5MW_offshore
     # ScholzPhd Tab 4.3.1: 10MW/km^2
-    capacity_per_sqkm: 3
-    # correction_factor: 0.93
+    capacity_per_sqkm: 2
+    correction_factor: 0.8855
+    # proxy for wake losses
+    # from 10.1016/j.energy.2018.08.153
+    # until done more rigorously in #153
     corine: [44, 255]
     natura: true
     max_depth: 50
@@ -232,8 +238,8 @@ solving:
   #   threads: 4
   #   lpmethod: 4 # barrier
   #   solutiontype: 2 # non basic solution, ie no crossover
-  #   barrier_convergetol: 1.e-5
-  #   feasopt_tolerance: 1.e-6
+  #   barrier.convergetol: 1.e-5
+  #   feasopt.tolerance: 1.e-6
 
 plotting:
   map:

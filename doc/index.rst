@@ -49,7 +49,18 @@ The restriction to freely available and open data encourages the open exchange o
 
 PyPSA-Eur is designed to be imported into the open toolbox `PyPSA <https://www.pypsa.org>`_ for which `documentation <https://pypsa.org/doc>`_ is available as well.
 
-This project is maintained by the `Energy System Modelling group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for Automation and Applied Informatics <https://www.iai.kit.edu/english/index.php>`_ at the `Karlsruhe Institute of Technology <http://www.kit.edu/english/index.php>`_. The group is funded by the `Helmholtz Association <https://www.helmholtz.de/en/>`_ until 2024. Previous versions were developed by the `Renewable Energy Group <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_ at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations for the `CoNDyNet project <http://condynet.de/>`_, financed by the `German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
+This project is currently maintained by the `Department of Digital
+Transformation in Energy Systems` <https:/www.ensys.tu-berlin.de>`_ at the
+`Technische Universität Berlin <https://www.tu.berlin>`_. Previous versions were
+developed within the `IAI <http://www.iai.kit.edu>`_ at the `Karlsruhe Institute of
+Technology (KIT) <http://www.kit.edu/english/index.php>`_ and by the `Renewable
+Energy Group
+<https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
+at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations for the
+`CoNDyNet project <http://condynet.de/>`_, financed by the `German Federal
+Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_
+as part of the `Stromnetze Research Initiative
+<http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
 A version of the model that adds building heating, transport and industry sectors to the model,
 as well as gas networks, is currently being developed in the `PyPSA-Eur-Sec repository <https://github.com/pypsa/pypsa-eur-sec>`_.
@@ -196,7 +207,7 @@ Licence
 
 PyPSA-Eur work is released under multiple licenses:
 
-* All original source code is licensed as free software under `GPL-3.0-or-later <LICENSES/GPL-3.0-or-later.txt>`_.
+* All original source code is licensed as free software under `MIT <LICENSES/MIT.txt>`_.
 * The documentation is licensed under `CC-BY-4.0 <LICENSES/CC-BY-4.0.txt>`_.
 * Configuration files are mostly licensed under `CC0-1.0 <LICENSES/CC0-1.0.txt>`_.
 * Data files are licensed under `CC-BY-4.0 <LICENSES/CC-BY-4.0.txt>`_.

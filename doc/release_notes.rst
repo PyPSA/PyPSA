@@ -11,14 +11,22 @@ Release Notes
 Upcoming Release
 ================
 
-* add new features and bugfixes here
+* Add an efficiency factor of 88.55% to offshore wind capacity factors
+  as a proxy for wake losses. More rigorous modelling is `planned <https://github.com/PyPSA/pypsa-eur/issues/153>`_
+  [`#277 <https://github.com/PyPSA/pypsa-eur/pull/277>`_].
+
+* The default deployment density of AC- and DC-connected offshore wind capacity is reduced from 3 MW/sqkm
+  to a more conservative estimate of 2 MW/sqkm [`#280 <https://github.com/PyPSA/pypsa-eur/pull/280>`_].
 
 
-PyPSA-Eur 0.4.0 (15th September 2021)
+PyPSA-Eur 0.4.0 (22th September 2021)
 =====================================
 
 **New Features and Changes**
 
+* With this release, we change the license from copyleft GPLv3 to the more
+  liberal MIT license with the consent of all contributors
+  [`#276 <https://github.com/PyPSA/pypsa-eur/pull/276>`_].
 
 * Switch to the new major ``atlite`` release v0.2.  The version upgrade comes
   along with significant speed up for the rule ``build_renewable_profiles.py``
@@ -81,48 +89,48 @@ PyPSA-Eur 0.4.0 (15th September 2021)
 * Update :mod:`plot_network` and :mod:`make_summary` rules to latest PyPSA
   versions  [`#270 <https://github.com/PyPSA/pypsa-eur/pull/270>`_].
 
-* Bugfix: Keep converter links to store components when using the ``ATK``
+* Keep converter links to store components when using the ``ATK``
   wildcard and only remove DC links [`#214 <https://github.com/PyPSA/pypsa-eur/pull/214>`_].
 
-* Bugfix: Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq
+* Value for ``co2base`` in ``config.yaml`` adjusted to 1.487e9 t CO2-eq
   (from 3.1e9 t CO2-eq). The new value represents emissions related to the
   electricity sector for EU+UK+Balkan. The old value was too high and used when
   the emissions wildcard in ``{opts}`` was used 
   [`#233 <https://github.com/PyPSA/pypsa-eur/pull/233>`_].
 
-* Bugfix: Add escape in :mod:`base_network` if all TYNDP links are already
+* Add escape in :mod:`base_network` if all TYNDP links are already
   contained in the network
   [`#246 <https://github.com/PyPSA/pypsa-eur/pull/246>`_].
 
-* Bugfix: In :mod:`solve_operations_network` the optimised capacities are now
+* In :mod:`solve_operations_network` the optimised capacities are now
   fixed for all extendable links, not only HVDC links 
   [`#244 <https://github.com/PyPSA/pypsa-eur/pull/244>`_].
 
-* Bugfix: The ``focus_weights`` are now also considered when pre-clustering in
+* The ``focus_weights`` are now also considered when pre-clustering in
   the :mod:`simplify_network` rule 
   [`#241 <https://github.com/PyPSA/pypsa-eur/pull/241>`_].
 
-* Bugfix: in :mod:`build_renewable_profile` where offshore wind profiles could
+* in :mod:`build_renewable_profile` where offshore wind profiles could
   no longer be created [`#249 <https://github.com/PyPSA/pypsa-eur/pull/249>`_].
 
-* Bugfix: Lower expansion limit of extendable carriers is now set to the
+* Lower expansion limit of extendable carriers is now set to the
   existing capacity, i.e. ``p_nom_min = p_nom`` (0 before). Simultaneously, the
   upper limit (``p_nom_max``) is now the maximum of the installed capacity
   (``p_nom``) and the previous estimate based on land availability (``p_nom_max``)
   [`#260 <https://github.com/PyPSA/pypsa-eur/pull/260>`_].
 
-* Bugfix: Solving an operations network now includes optimized store capacities
+* Solving an operations network now includes optimized store capacities
   as well. Before only lines, links, generators and storage units were considered
   [`#269 <https://github.com/PyPSA/pypsa-eur/pull/269>`_].
 
-* Bugfix: With ``load_shedding: true`` in the solving options of ``config.yaml``
+* With ``load_shedding: true`` in the solving options of ``config.yaml``
   load shedding generators are only added at the AC buses, excluding buses for H2
   and battery stores [`#269 <https://github.com/PyPSA/pypsa-eur/pull/269>`_].
 
-* Bugfix: Delete duplicated capital costs at battery discharge link 
+* Delete duplicated capital costs at battery discharge link 
   [`#240 <https://github.com/PyPSA/pypsa-eur/pull/240>`_].
 
-* Bugfix: Propagate the solver log file name to the solver. Previously, the
+* Propagate the solver log file name to the solver. Previously, the
   PyPSA network solving functions were not told about the solver logfile specified
   in the Snakemake file [`#247 <https://github.com/PyPSA/pypsa-eur/pull/247>`_]
 
@@ -309,7 +317,7 @@ Release Process
 
 * Tag a release on Github via ``git tag v0.x.x``, ``git push``, ``git push --tags``. Include release notes in the tag message.
 
-* Upload code to `zenodo code repository <https://doi.org/10.5281/zenodo.3520874>`_ with `GNU GPL 3.0 <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ license.
+* Upload code to `zenodo code repository <https://doi.org/10.5281/zenodo.3520874>`_ with `MIT license <https://opensource.org/licenses/MIT>`_.
 
 * Create pre-built networks for ``config.default.yaml`` by running ``snakemake -j 1 extra_components_all_networks``.
 

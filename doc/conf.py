@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 20017-2020 The PyPSA-Eur Authors
 #
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 
 # -*- coding: utf-8 -*-
 #
@@ -157,16 +157,12 @@ html_theme_options = {
 # pixels large.
 #html_favicon = None
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# These folders are copied to the documentation's HTML output
+html_static_path = ["_static"]
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
-}
+# These paths are either relative to html_static_path
+# or fully qualified paths (eg. https://...)
+html_css_files = ["theme_overrides.css"]
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
