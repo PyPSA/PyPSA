@@ -67,7 +67,14 @@ if config['enable'].get('retrieve_databundle', True):
         script: 'scripts/retrieve_databundle.py'
 
 
+rule retrieve_load_data:
+    input: HTTP.remote("data.open-power-system-data.org/time_series/2019-06-05/time_series_60min_singleindex.csv", keep_local=True, static=True)
+    output: "data/load_raw.csv"
+    shell: "mv {input} {output}"
+
+
 rule build_load_data:
+    input: "data/load_raw.csv"
     output: "resources/load.csv"
     log: "logs/build_load_data.log"
     script: 'scripts/build_load_data.py'
