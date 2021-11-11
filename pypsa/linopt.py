@@ -635,7 +635,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     Solver options are read by the 1) command window and the 2) option_file.
 
     1) Full list of solver options (executable by command window) is given here:
-    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.html
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set
     Examples:
     --model_file arg 	File of model to solve.
     --presolve arg 	    Presolve: "choose" by default - "on"/"off" are alternatives.
@@ -662,16 +662,28 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     """
     import logging, re, io, subprocess, sys, os
 
-    # write option file
-    if not os.path.exists(solution_fn):
-        os.mknod(solution_fn)
+    default_dict = {
+    "method" : "ipm",
+    "primal_feasibility_tolerance" : 1e-04,
+    "dual_feasibility_tolerance" : 1e-05,
+    "ipm_optimality_tolerance" : 1e-6,
+    "presolve" : "on",
+    "run_crossover" : True,
+    "parallel" : "off",
+    "highs_min_threads" : 1,
+    "highs_max_threads" : 8,
+    "solution_file" : solution_fn,
+    "write_solution_to_file" : True,
+    "write_solution_pretty" : True,
+    }
+    # update default_dict by solver_dic (i.e. from PyPSA-Eur config.yaml)
+    default_dict.update(solver_options)
+    method = str(default_dict.pop("method", "ipm"))
+    logger.info(f"Options: \"{default_dict}\". More at: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set")
     f1 = open("highs_options.txt","w")
+    # write dict to a text file with options in each row
     f1.write(
-        "solution_file = " + solution_fn +"\n"
-        "write_solution_to_file = true \n"
-        "write_solution_pretty = true \n"
-        "primal_feasibility_tolerance = 1e-05 \n"
-        "dual_feasibility_tolerance = 1e-06 \n"
+        ' \n '.join([f"{str(k)} = {str(v)}" for k, v in default_dict.items()])
     )
     f1.close()
 
@@ -679,9 +691,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     command = f"highs --model_file {problem_fn} "
     if warmstart:
         logger.warning("Warmstart, probably not available at HiGHS yet")
-    if (solver_options is not None) and (solver_options != {}):
-        command += solver_options
-    command += "--solver ipm --options_file " + os.getcwd() + "/highs_options.txt"
+    command += f"--solver {method} --options_file {os.getcwd()}/highs_options.txt"
     logger.info(f"Solver command: \"{command}\"")
     # execute command and store command window output
     process = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE, universal_newlines=True)
@@ -698,6 +708,8 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     # converts stdout (standard terminal output) to pandas dataframe
     info = io.StringIO(''.join(read_until_break())[:])
     info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
+    # remove options.txt
+    os.remove("highs_options.txt")
 
     # save raw solver output (info) as log
     with open(solver_logfile, 'w') as f:
