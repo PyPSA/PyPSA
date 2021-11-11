@@ -615,7 +615,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     After the "make" run, the 'highs' executables are in highs/build/bin/run/highs
     Once the "ctest" runs make sure you set the path. Path setting notes:
     >>> highs lib folder must be in "LD_LIBRARY_PATH" environment variable
-    >>> To do this, insert the below path at .bashrc (which is hidden in the home folder)
+    >>> To do this, insert the below path in the .bashrc (hidden in the home folder in Linux/Ubuntu)
     >>> LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/<your_path>/HiGHS/build/lib
 
     Architecture
@@ -626,16 +626,15 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     your local terminal helps to identify the raw outputs that are useful for
     developing the interface further.
 
-    All functions below the "process = ..." do only read and saves the outputs
-    generated from the HiGHS solver. These parts needs are solver specific and
+    All functions below the "process = ..." do only read and save the outputs
+    generated from the HiGHS solver. These parts are solver specific and
     depends on the solver output.
 
     Solver options
     ---------------
-    Solver options are read by the 1) command window and the 2) option_file.
+    Solver options are read by the 1) command window and the 2) option_file.txt
 
-    1) Full list of solver options (executable by command window) is given here:
-    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set
+    1) An example list of solver options executable by the command window is given here:
     Examples:
     --model_file arg 	File of model to solve.
     --presolve arg 	    Presolve: "choose" by default - "on"/"off" are alternatives.
@@ -645,10 +644,22 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     --options_file arg 	File containing HiGHS options.
     -h, --help 	        Print help.
 
-    2) The options_file is directly written in this function. Note, if you want
-    to make adjustments you need to change the pypsa library in the environment
-    of interest (for instance pypsa in the pypsa-eur needs to be changed in case
-    you want to model smt. with pypsa-eur)
+    2) The options_file.txt gives some more options, see a full list here: 
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
+    By default, we insert a couple of options for the ipm solver. The dictionary
+    can be overwritten by simply giving the new values. For instance in PyPSA-Eur,
+    you could write a dictionary replacing some of the default values or adding new
+    options:
+    ```
+    solving:
+        solver:
+            name: highs,
+            method: ipm,
+            parallel: "on",
+            <option_name>: <value>,
+    ```
+    Note, the <option_name> and <value> must be equivalent to the name convention
+    of HiGHS.
 
     Output
     ------
@@ -679,7 +690,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     # update default_dict by solver_dic (i.e. from PyPSA-Eur config.yaml)
     default_dict.update(solver_options)
     method = str(default_dict.pop("method", "ipm"))
-    logger.info(f"Options: \"{default_dict}\". More at: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set")
+    logger.info(f"Options: \"{default_dict}\". Docstring of function explains how to add/change options.")
     f1 = open("highs_options.txt","w")
     # write dict to a text file with options in each row
     f1.write(
