@@ -9,6 +9,9 @@ Upcoming Release
 
 * The names of the indexes in static dataframes are now set to the component names. So, the index of ``n.generators`` has the name 'Generator'. The same accounts for the columns of the timeseries.  
 
+* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
+
+* add new features here
 
 
 PyPSA 0.18.1 (15th October 2021)
@@ -29,6 +32,9 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
+  
+* Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
+  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 
 * In ``pypsa.networkclustering``, strip the string of the clustered
   component name. Not doing this had caused troubles for components with an
