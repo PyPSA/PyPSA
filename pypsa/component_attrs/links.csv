@@ -18,6 +18,8 @@ capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input 
 marginal_cost,static or series,currency/MWh,0,Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense in OPF if p_max_pu >= 0.,Input (optional)
 length,float,km,0,"Length of line, useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Input (optional)
+ramp_limit_up,float,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
+ramp_limit_down,float,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
 p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MVA,0,Optimised capacity for active power.,Output

@@ -233,19 +233,20 @@ def define_committable_generator_constraints(n, sns):
 
 
 
-def define_ramp_limit_constraints(n, sns):
+def define_ramp_limit_constraints(n, sns, c='Generator', commitable=True):
     """
-    Defines ramp limits for generators with valid ramplimit
+    Defines ramp limits for generators and links with valid ramplimit.
 
     """
-    c = 'Generator'
+    test_components = ['Generator', 'Link']
+    assert c in test_components, 'Ramp limit constraints were only tested for Generator and Link.'
+
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
     if rup_i.empty & rdown_i.empty:
         return
     fix_i = get_non_extendable_i(n, c)
     ext_i = get_extendable_i(n, c)
-    com_i = n.df(c).query('committable').index.difference(ext_i)
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
     active = get_activity_mask(n, c, sns[1:])
@@ -267,19 +268,6 @@ def define_ramp_limit_constraints(n, sns):
         kwargs = dict(spec='ext.', mask=active[gens_i])
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
 
-    # com up
-    gens_i = rup_i.intersection(com_i)
-    if not gens_i.empty:
-        limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
-        limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
-        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_start - limit_up, status_prev),
-                      (- limit_start, status))
-        kwargs = dict(spec='com.', mask=active[gens_i])
-        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
-
     # fix down
     gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
@@ -297,18 +285,36 @@ def define_ramp_limit_constraints(n, sns):
         kwargs = dict(spec='ext.', mask=active[gens_i])
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
 
-    # com down
-    gens_i = rdown_i.intersection(com_i)
-    if not gens_i.empty:
-        limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
-        limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
-        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
-        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_down - limit_shut, status),
-                      (limit_shut, status_prev))
-        kwargs = dict(spec='com.', mask=active[gens_i])
-        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
+    if commitable:
+        assert c=='Generator', 'Commitable contraints were only tested for Generator.'
+
+        com_i = n.df(c).query('committable').index.difference(ext_i)
+
+        # com up
+        gens_i = rup_i.intersection(com_i)
+        if not gens_i.empty:
+            limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
+            limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+            status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+            status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+            lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                        (limit_start - limit_up, status_prev),
+                        (- limit_start, status))
+            kwargs = dict(spec='com.', mask=active[gens_i])
+            define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
+
+        # com down
+        gens_i = rdown_i.intersection(com_i)
+        if not gens_i.empty:
+            limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
+            limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
+            status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+            status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+            lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                        (limit_down - limit_shut, status),
+                        (limit_shut, status_prev))
+            kwargs = dict(spec='com.', mask=active[gens_i])
+            define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
@@ -900,7 +906,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
     define_committable_generator_constraints(n, snapshots)
-    define_ramp_limit_constraints(n, snapshots)
+    define_ramp_limit_constraints(n, snapshots, c='Generator', commitable=True)
+    define_ramp_limit_constraints(n, snapshots, c='Link', commitable=False)
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
