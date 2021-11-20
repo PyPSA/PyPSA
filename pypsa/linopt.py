@@ -660,20 +660,19 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     2) The options_file.txt gives some more options, see a full list here: 
     https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
     By default, we insert a couple of options for the ipm solver. The dictionary
-    can be overwritten by simply giving the new values. For instance in PyPSA-Eur,
-    you could write a dictionary replacing some of the default values or adding new
-    options:
+    can be overwritten by simply giving the new values. For instance, you could
+    write a dictionary replacing some of the default values or adding new options:
     ```
-    solving:
-        solver:
-            name: highs,
-            method: ipm,
-            parallel: "on",
-            <option_name>: <value>,
+    solver_options = {
+        name: highs,
+        method: ipm,
+        parallel: "on",
+        <option_name>: <value>,
+    }
     ```
     Note, the <option_name> and <value> must be equivalent to the name convention
     of HiGHS. Some function exist that are not documented, check their GitHub file:
-    \HighsOptions.h
+    https://github.com/ERGO-Code/HiGHS/blob/master/src/lp_data/HighsOptions.h
 
     Output
     ------
@@ -691,7 +690,6 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
         "primal_feasibility_tolerance": 1e-04,
         "dual_feasibility_tolerance": 1e-05,
         "ipm_optimality_tolerance": 1e-6,
-        # "ipm_iteration_limit": 100,
         "presolve": "on",
         "run_crossover": True,
         "parallel": "off",

@@ -16,7 +16,9 @@ Upcoming Release
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
-* Add "highs" solver.
+* Add open source "HiGHS" solver: https://github.com/ERGO-Code/HiGHS. See
+  simple performance analysis for HiGHS, cbc, glpk and gurobi here:
+  https://github.com/PyPSA/PyPSA/pull/308#issue-772907717.
 
 * Add assert: CBC solver does not work with '>' and '<'
 
