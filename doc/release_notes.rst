@@ -7,6 +7,10 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The snapshot levels of a multi-indexed snapshot were renamed to ['period', 'timestep'], the name of the index was set to 'snapshot'. This makes the snapshot name coherent for single and multi-indexed snapshots.
+* A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.    
+
+
 
 PyPSA 0.18.1 (15th October 2021)
 ================================

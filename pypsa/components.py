@@ -25,7 +25,7 @@ import os
 
 
 from .descriptors import (Dict, get_switchable_as_dense, get_active_assets,
-                          get_extendable_i, get_non_extendable_i)
+                          get_extendable_i, get_non_extendable_i, get_committable_i)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -205,6 +205,8 @@ class Network(Basic):
     get_extendable_i = get_extendable_i
 
     get_non_extendable_i = get_non_extendable_i
+
+    get_committable_i = get_committable_i
 
     get_active_assets = get_active_assets
 
@@ -391,7 +393,9 @@ class Network(Basic):
         """
         if isinstance(value, pd.MultiIndex):
             assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            self._snapshots = value.rename(['period', 'snapshot'])
+            value = value.rename(['period', 'timestep'])
+            value.name = 'snapshot'
+            self._snapshots = value
         else:
             self._snapshots = pd.Index(value, name='snapshot')
 
@@ -483,9 +487,13 @@ class Network(Basic):
                 for k,default in attrs.default[attrs.varying].iteritems():
                     pnl[k] = pd.concat({p: pnl[k] for p in periods})
 
+            names = ['period', 'timestep']
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
-                                                      names=['period', 'snapshot'])
-            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods})
+                                                      names=names)
+            self._snapshots.name = 'snapshot'
+            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods},
+                                                  names=names)
+            self._snapshot_weightings.index.name = 'snapshot'
 
         self._investment_periods = periods
         self.investment_period_weightings = (
