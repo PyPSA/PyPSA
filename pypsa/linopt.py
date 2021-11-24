@@ -603,7 +603,7 @@ def set_int_index(ser):
 
 
 def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, warmstart=None, store_basis=True):
+                        solver_options={}, warmstart=None, store_basis=True):
     """
    Highs solver function. Reads a linear problem file and passes it to the highs
     solver. If the solution is feasible the function returns the objective,
@@ -684,6 +684,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     constraints_dual : series
     objective : float
     """
+    logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
     options_fn = "highs_options.txt"
     default_dict = {
         "method": "ipm",
