@@ -218,7 +218,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
     results = opt.solve(m)
     assert results['Solver'][0]['Status'] == 'ok', f"Solver returned non-optimally: {results}"
 
-    return pd.Series(m.n.get_values(), index=L.index).astype(int)
+    return pd.Series(m.n.get_values(), index=L.index).round().astype(int)
 
 
 def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algorithm="kmeans", **algorithm_kwds):
