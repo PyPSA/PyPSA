@@ -312,6 +312,18 @@ def get_non_extendable_i(n, c):
     return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
 
+def get_committable_i(n, c):
+    """
+    Getter function. Get the index of commitable elements of a given
+    component.
+    """
+    if "committable" not in n.df(c):
+        idx = pd.Index([])
+    else:
+        idx = n.df(c)[lambda ds: ds['committable']].index
+    return idx.rename(f'{c}-com')
+
+
 def get_active_assets(n, c, investment_period):
     """
     Getter function. Get True values for elements of component c which are active
