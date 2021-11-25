@@ -726,7 +726,6 @@ class Network(Basic):
                 new_df.at[name,k] = typ(v)
             else:
                 ser = pd.Series(data=v, index=self.snapshots, dtype=typ)
-                ser.columns.name = class_name
                 cls_pnl[k][name] = ser
 
 
