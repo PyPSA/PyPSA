@@ -12,7 +12,7 @@
 Grid calculation library.
 """
 
-from . import components, descriptors
+from . import components, descriptors, optimization
 from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo,
                stats, linopf, linopt, examples)
 
