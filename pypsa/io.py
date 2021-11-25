@@ -704,7 +704,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
-    dataframe.index = dataframe.index.astype(str).rename(cls_name)
+    dataframe.index = dataframe.index.astype(str)
 
     for k in static_attrs.index:
         if k not in dataframe.columns:
@@ -733,6 +733,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
+    new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
@@ -783,6 +784,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     list_name = network.components[cls_name]["list_name"]
 
     dataframe.columns.name = cls_name
+    dataframe.index.name = 'snapshot'
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
         logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "

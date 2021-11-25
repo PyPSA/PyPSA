@@ -311,16 +311,19 @@ class Network(Basic):
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_dtypes.iteritems()},
                               columns=static_dtypes.index)
 
-            df.index.name = "name"
+            df.index.name = component
 
             setattr(self,self.components[component]["list_name"],df)
 
             #it's currently hard to imagine non-float series,
             # but this could be generalised
-            pnl = Dict({k : pd.DataFrame(index=self.snapshots,
-                                         columns=[],
-                                         dtype=np.dtype(float))
-                        for k in attrs.index[attrs.varying]})
+            pnl = Dict()
+            for k in attrs.index[attrs.varying]:
+                dtype = np.dtype(float)
+                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=dtype)
+                df.index.name = 'snapshot'
+                df.columns.name = component
+                pnl[k] = df
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
@@ -708,6 +711,7 @@ class Network(Basic):
                               columns=static_attrs.index)
         new_df = cls_df.append(obj_df, sort=False)
 
+        new_df.index.name = class_name
         setattr(self, self.components[class_name]["list_name"], new_df)
 
         for k,v in kwargs.items():
@@ -721,7 +725,9 @@ class Network(Basic):
             elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray, list)):
                 new_df.at[name,k] = typ(v)
             else:
-                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                ser = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                ser.columns.name = class_name
+                cls_pnl[k][name] = ser
 
 
         for attr in ["bus","bus0","bus1"]:
