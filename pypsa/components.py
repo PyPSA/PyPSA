@@ -482,14 +482,15 @@ class Network(Basic):
             # Convenience case:
             logger.info("Repeating time-series for each investment period and "
                         "converting snapshots to a pandas.MultiIndex.")
+            names = ['period', 'timestep']
             for component in self.all_components:
                 pnl = self.pnl(component)
                 attrs = self.components[component]["attrs"]
 
-                for k,default in attrs.default[attrs.varying].iteritems():
-                    pnl[k] = pd.concat({p: pnl[k] for p in periods})
+                for k, default in attrs.default[attrs.varying].iteritems():
+                    pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
+                    pnl[k].index.name = 'snapshot'
 
-            names = ['period', 'timestep']
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
                                                       names=names)
             self._snapshots.name = 'snapshot'
