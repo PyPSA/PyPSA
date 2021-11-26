@@ -318,8 +318,7 @@ class Network(Basic):
             # but this could be generalised
             pnl = Dict()
             for k in attrs.index[attrs.varying]:
-                dtype = np.dtype(float)
-                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=dtype)
+                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
                 df.index.name = 'snapshot'
                 df.columns.name = component
                 pnl[k] = df
@@ -725,9 +724,7 @@ class Network(Basic):
             elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray, list)):
                 new_df.at[name,k] = typ(v)
             else:
-                ser = pd.Series(data=v, index=self.snapshots, dtype=typ)
-                cls_pnl[k][name] = ser
-
+                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:

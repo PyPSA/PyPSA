@@ -616,7 +616,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         # check if imported snapshots have MultiIndex
         # backwards-compatibility: level "snapshot" was rename to "timestep"
         snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(df.columns)
-        if len(snapshot_levels) == 2:
+        if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
 
         cols = ['objective', 'generators', 'stores']

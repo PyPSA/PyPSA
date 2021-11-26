@@ -172,7 +172,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     return (pd.concat([
         pd.DataFrame(np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
                      index=snapshots, columns=fixed_i),
-        pnl[attr].reindex(index=snapshots, columns=varying_i)
+        pnl[attr].loc[snapshots, varying_i]
     ], axis=1, sort=False).reindex(index=snapshots, columns=index))
 
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
