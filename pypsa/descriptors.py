@@ -338,7 +338,7 @@ def get_active_assets(n, c, investment_period):
     return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
 
 
-def get_activity_mask(n, c, sns, index=None):
+def get_activity_mask(n, c, sns=None, index=None):
     """
     Getter function. Get a boolean array with True values for elements of
     component c which are active at a specific snapshot. If the network is
@@ -346,6 +346,8 @@ def get_activity_mask(n, c, sns, index=None):
     these are calculated from lifetime and the build year. Otherwise all
     values are set to True.
     """
+    if sns is None:
+        sns = n.snapshots
     if getattr(n, '_multi_invest', False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
         res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
