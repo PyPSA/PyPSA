@@ -7,13 +7,24 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The names of the indexes in static dataframes are now set to the component names. So, the index of ``n.generators`` has the name 'Generator'. The same accounts for the columns of the timeseries.  
+
+* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
+
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period', 'timestep'], the name of the index was set to 'snapshot'. This makes the snapshot name coherent for single and multi-indexed snapshots.
+
 * A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.    
 
+* add new features here
 
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
+* Add open source "HiGHS" solver: https://github.com/ERGO-Code/HiGHS. See
+  simple performance analysis for HiGHS, cbc, glpk and gurobi here:
+  https://github.com/PyPSA/PyPSA/pull/308#issue-772907717.
+
+* Add assert: CBC solver does not work with '>' and '<'
 
 * Compatibility with ``pyomo>=6.1``.
 
@@ -28,6 +39,9 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
+  
+* Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
+  were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 
 * In ``pypsa.networkclustering``, strip the string of the clustered
   component name. Not doing this had caused troubles for components with an

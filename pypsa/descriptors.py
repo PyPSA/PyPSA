@@ -172,7 +172,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     return (pd.concat([
         pd.DataFrame(np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
                      index=snapshots, columns=fixed_i),
-        pnl[attr].reindex(index=snapshots, columns=varying_i)
+        pnl[attr].loc[snapshots, varying_i]
     ], axis=1, sort=False).reindex(index=snapshots, columns=index))
 
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
@@ -313,6 +313,18 @@ def get_non_extendable_i(n, c):
     """
     idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
     return idx.rename(f'{c}-fix')
+
+
+def get_committable_i(n, c):
+    """
+    Getter function. Get the index of commitable elements of a given
+    component.
+    """
+    if "committable" not in n.df(c):
+        idx = pd.Index([])
+    else:
+        idx = n.df(c)[lambda ds: ds['committable']].index
+    return idx.rename(f'{c}-com')
 
 
 def get_committable_i(n, c):

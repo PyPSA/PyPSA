@@ -312,15 +312,13 @@ class Network(Basic):
                               columns=static_dtypes.index)
 
             df.index.name = component
-
             setattr(self,self.components[component]["list_name"],df)
 
             #it's currently hard to imagine non-float series,
             # but this could be generalised
             pnl = Dict()
             for k in attrs.index[attrs.varying]:
-                dtype = np.dtype(float)
-                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=dtype)
+                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
                 df.index.name = 'snapshot'
                 df.columns.name = component
                 pnl[k] = df
@@ -483,12 +481,14 @@ class Network(Basic):
             # Convenience case:
             logger.info("Repeating time-series for each investment period and "
                         "converting snapshots to a pandas.MultiIndex.")
+            names = ['period', 'timestep']
             for component in self.all_components:
                 pnl = self.pnl(component)
                 attrs = self.components[component]["attrs"]
 
-                for k,default in attrs.default[attrs.varying].iteritems():
-                    pnl[k] = pd.concat({p: pnl[k] for p in periods})
+                for k, default in attrs.default[attrs.varying].iteritems():
+                    pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
+                    pnl[k].index.name = 'snapshot'
 
             names = ['period', 'timestep']
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
@@ -728,7 +728,6 @@ class Network(Basic):
                 ser = pd.Series(data=v, index=self.snapshots, dtype=typ)
                 ser.columns.name = class_name
                 cls_pnl[k][name] = ser
-
 
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:

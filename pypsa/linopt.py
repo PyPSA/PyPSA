@@ -601,15 +601,190 @@ def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
+
+def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
+                        solver_options={}, warmstart=None, store_basis=True):
+    """
+   Highs solver function. Reads a linear problem file and passes it to the highs
+    solver. If the solution is feasible the function returns the objective,
+    solution and dual constraint variables. Highs must be installed for usage.
+    Documentation: https://www.maths.ed.ac.uk/hall/HiGHS/
+
+    Installation
+    -------------
+    The script might only work for version HiGHS 1.1.1. Installation steps::
+        sudo apt-get install cmake  # if not installed
+        git clone git@github.com:ERGO-Code/HiGHS.git
+        cd HiGHS
+        git checkout 95342daa73543cc21e5b27db3e0fbf7330007541 # moves to HiGHS 1.1.1
+        mkdir build
+        cd build
+        cmake ..
+        make
+        ctest
+
+    Then in .bashrc add paths of executables and library ::
+        export PATH="${PATH}:/foo/HiGHS/build/bin"
+        export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/foo/HiGHS/build/lib"
+        source .bashrc
+
+    Now when typing ``highs`` in the terminal you should see something like ::
+        Running HiGHS 1.1.1 [date: 2021-11-14, git hash: 95342daa]
+
+    Architecture
+    -------------
+    The function reads and execute (i.e. subprocess.Popen,...) terminal
+    commands of the solver. Meaning the command can be also executed at your
+    command window/terminal if HiGHs is installed. Executing the commands on
+    your local terminal helps to identify the raw outputs that are useful for
+    developing the interface further.
+
+    All functions below the "process = ..." do only read and save the outputs
+    generated from the HiGHS solver. These parts are solver specific and
+    depends on the solver output.
+
+    Solver options
+    ---------------
+    Solver options are read by the 1) command window and the 2) option_file.txt
+
+    1) An example list of solver options executable by the command window is given here:
+    Examples:
+    --model_file arg 	File of model to solve.
+    --presolve arg 	    Presolve: "choose" by default - "on"/"off" are alternatives.
+    --solver arg 	    Solver: "choose" by default - "simplex"/"ipm" are alternatives.
+    --parallel arg 	    Parallel solve: "choose" by default - "on"/"off" are alternatives.
+    --time_limit arg 	Run time limit (double).
+    --options_file arg 	File containing HiGHS options.
+    -h, --help 	        Print help.
+
+    2) The options_file.txt gives some more options, see a full list here: 
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
+    By default, we insert a couple of options for the ipm solver. The dictionary
+    can be overwritten by simply giving the new values. For instance, you could
+    write a dictionary replacing some of the default values or adding new options:
+    ```
+    solver_options = {
+        name: highs,
+        method: ipm,
+        parallel: "on",
+        <option_name>: <value>,
+    }
+    ```
+    Note, the <option_name> and <value> must be equivalent to the name convention
+    of HiGHS. Some function exist that are not documented, check their GitHub file:
+    https://github.com/ERGO-Code/HiGHS/blob/master/src/lp_data/HighsOptions.h
+
+    Output
+    ------
+    status : string,
+        "ok" or "warning"
+    termination_condition : string,
+        Contains "optimal", "infeasible", 
+    variables_sol : series
+    constraints_dual : series
+    objective : float
+    """
+    logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
+    options_fn = "highs_options.txt"
+    default_dict = {
+        "method": "ipm",
+        "primal_feasibility_tolerance": 1e-04,
+        "dual_feasibility_tolerance": 1e-05,
+        "ipm_optimality_tolerance": 1e-6,
+        "presolve": "on",
+        "run_crossover": True,
+        "parallel": "off",
+        "threads": 4,
+        "solution_file": solution_fn,
+        "write_solution_to_file": True,
+        "write_solution_style": 1,
+        "log_to_console": True,
+    }
+    # update default_dict through solver_options and write to file
+    default_dict.update(solver_options)
+    method = default_dict.pop("method", "ipm")
+    logger.info(f"Options: \"{default_dict}\". List of options: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set")
+    f1 = open(options_fn, "w")
+    f1.write('\n'.join([f"{k} = {v}" for k, v in default_dict.items()]))
+    f1.close()
+
+    # write (terminal) commands
+    command = f"highs --model_file {problem_fn} "
+    if warmstart:
+        logger.warning("Warmstart, not available in HiGHS. Will be ignored.")
+    command += f"--solver {method} --options_file {options_fn}"
+    logger.info(f"Solver command: \"{command}\"")
+    # execute command and store command window output
+    process = subprocess.Popen(
+        command.split(' '),
+        stdout=subprocess.PIPE,
+        universal_newlines=True
+    )
+
+    def read_until_break():
+        # Function that reads line by line the command window
+        while True:
+            out = process.stdout.readline(1)
+            if out == '' and process.poll() != None:
+                break
+            if out != '':
+                yield out
+
+    # converts stdout (standard terminal output) to pandas dataframe
+    log = io.StringIO(''.join(read_until_break())[:])
+    log = pd.read_csv(log, sep=':', index_col=0, header=None)[1].squeeze()
+    if solver_logfile is not None:
+        log.to_csv(solver_logfile, sep="\t")
+    log.index = log.index.str.strip()
+    os.remove(options_fn)
+
+    # read out termination_condition from `info`
+    model_status = log["Model   status"].strip().lower()
+    if "optimal" in model_status:
+        status = "ok"
+        termination_condition = model_status
+    elif "infeasible" in model_status:
+        status = "warning"
+        termination_condition = model_status
+    else:
+        status = 'warning'
+        termination_condition = model_status
+    objective = float(log["Objective value"])
+
+    # read out solution file (.sol)
+    f = open(solution_fn, "rb")
+    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
+    f.close()
+    
+    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r'\s+')
+    row_no = sol[sol["Index"] == 'Rows'].index[0]
+    sol = sol.drop(row_no+1)  # Removes header line after "Rows"
+    sol_rows = sol[(sol.index > row_no)]
+    sol_cols = sol[(sol.index < row_no)].set_index("Name").pipe(set_int_index)
+    variables_sol = pd.to_numeric(sol_cols["Primal"], errors="raise")
+    constraints_dual = pd.to_numeric(sol_rows["Dual"], errors="raise").reset_index(drop=True)
+    constraints_dual.index += 1
+
+    return (status, termination_condition, variables_sol,
+            constraints_dual, objective)
+
+
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the solver options, run 'cbc' in your shell
     """
+    with open(problem_fn, 'rb') as f:
+        for str in f.readlines():
+            assert (("> " in str.decode('utf-8')) == False), (">, must be"
+                    "changed to >=")
+            assert (("< " in str.decode('utf-8')) == False), ("<, must be"
+                    "changed to <=")
+
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
@@ -663,7 +838,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the glpk solver options:
@@ -731,7 +906,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cplex
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Cplex must be installed for using this function
 
     """
@@ -797,7 +972,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function
 
     For more information on solver options:
