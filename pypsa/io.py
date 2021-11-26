@@ -618,6 +618,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(df.columns)
         if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
+        network.set_snapshots(df.index)
 
         cols = ['objective', 'generators', 'stores']
         if not df.columns.intersection(cols).empty:
