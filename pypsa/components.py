@@ -490,7 +490,6 @@ class Network(Basic):
                     pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
                     pnl[k].index.name = 'snapshot'
 
-            names = ['period', 'timestep']
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
                                                       names=names)
             self._snapshots.name = 'snapshot'
@@ -725,9 +724,7 @@ class Network(Basic):
             elif attrs.at[k,"static"] and not isinstance(v, (pd.Series, pd.DataFrame, np.ndarray, list)):
                 new_df.at[name,k] = typ(v)
             else:
-                ser = pd.Series(data=v, index=self.snapshots, dtype=typ)
-                ser.columns.name = class_name
-                cls_pnl[k][name] = ser
+                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:
