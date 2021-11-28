@@ -547,7 +547,7 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=None, fea
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to k-means clusters (indexed by
+        Mapping of network.buses to clusters (indexed by
         non-negative integers).
     """
 
