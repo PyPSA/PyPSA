@@ -575,7 +575,7 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=None, fea
 
     buses_x = network.buses.index.get_indexer(buses_i)
 
-    A = network.adjacency_matrix(branch_components=["Line", "Link"]).tocsc()[buses_x][:, buses_x]
+    A = network.adjacency_matrix(branch_components=branch_components).tocsc()[buses_x][:, buses_x]
 
     labels = HAC(n_clusters=n_clusters,
                  connectivity=A,
