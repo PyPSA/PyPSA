@@ -75,8 +75,11 @@ class ImporterCSV(Importer):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn): return None
         df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        # backwards-compatibility: level "snapshot" was rename to "timestep"
         if "snapshot" in df:
             df["snapshot"] = pd.to_datetime(df.snapshot)
+        if "timestep" in df:
+            df["timestep"] = pd.to_datetime(df.timestep)
         return df
 
     def get_investment_periods(self):
@@ -327,7 +330,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #now export snapshots
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
-        network.snapshot_weightings.index.rename(["period", "snapshot"], inplace=True)
+        network.snapshot_weightings.index.rename(["period", "timestep"], inplace=True)
     else:
         network.snapshot_weightings.index.rename("snapshot", inplace=True)
     snapshots = network.snapshot_weightings.reset_index()
@@ -610,9 +613,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     df = importer.get_snapshots()
 
     if df is not None:
-
         # check if imported snapshots have MultiIndex
-        snapshot_levels = set(["period", "snapshot"]).intersection(df.columns)
+        # backwards-compatibility: level "snapshot" was rename to "timestep"
+        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(df.columns)
         if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
@@ -704,7 +707,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
-    dataframe.index = dataframe.index.astype(str).rename(cls_name)
+    dataframe.index = dataframe.index.astype(str)
 
     for k in static_attrs.index:
         if k not in dataframe.columns:
@@ -733,6 +736,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
+    new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
@@ -783,6 +787,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     list_name = network.components[cls_name]["list_name"]
 
     dataframe.columns.name = cls_name
+    dataframe.index.name = 'snapshot'
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
         logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "

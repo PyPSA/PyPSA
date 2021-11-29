@@ -25,7 +25,7 @@ import os
 
 
 from .descriptors import (Dict, get_switchable_as_dense, get_active_assets,
-                          get_extendable_i, get_non_extendable_i)
+                          get_extendable_i, get_non_extendable_i, get_committable_i)
 
 from .io import (export_to_csv_folder, import_from_csv_folder,
                  export_to_hdf5, import_from_hdf5,
@@ -206,6 +206,8 @@ class Network(Basic):
 
     get_non_extendable_i = get_non_extendable_i
 
+    get_committable_i = get_committable_i
+
     get_active_assets = get_active_assets
 
 
@@ -308,17 +310,18 @@ class Network(Basic):
 
             df = pd.DataFrame({k: pd.Series(dtype=d) for k, d in static_dtypes.iteritems()},
                               columns=static_dtypes.index)
-            df.index.name = component
 
+            df.index.name = component
             setattr(self,self.components[component]["list_name"],df)
 
             #it's currently hard to imagine non-float series,
             # but this could be generalised
-            pnl = Dict({k : pd.DataFrame(index=self.snapshots,
-                                         columns=[],
-                                         dtype=np.dtype(float))
-                            .rename_axis(component, axis=1)
-                        for k in attrs.index[attrs.varying]})
+            pnl = Dict()
+            for k in attrs.index[attrs.varying]:
+                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
+                df.index.name = 'snapshot'
+                df.columns.name = component
+                pnl[k] = df
 
             setattr(self,self.components[component]["list_name"]+"_t",pnl)
 
@@ -391,7 +394,9 @@ class Network(Basic):
         """
         if isinstance(value, pd.MultiIndex):
             assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            self._snapshots = value.rename(['period', 'snapshot'])
+            value = value.rename(['period', 'timestep'])
+            value.name = 'snapshot'
+            self._snapshots = value
         else:
             self._snapshots = pd.Index(value, name='snapshot')
 
@@ -476,16 +481,21 @@ class Network(Basic):
             # Convenience case:
             logger.info("Repeating time-series for each investment period and "
                         "converting snapshots to a pandas.MultiIndex.")
+            names = ['period', 'timestep']
             for component in self.all_components:
                 pnl = self.pnl(component)
                 attrs = self.components[component]["attrs"]
 
-                for k,default in attrs.default[attrs.varying].iteritems():
-                    pnl[k] = pd.concat({p: pnl[k] for p in periods})
+                for k, default in attrs.default[attrs.varying].iteritems():
+                    pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
+                    pnl[k].index.name = 'snapshot'
 
             self._snapshots = pd.MultiIndex.from_product([periods, self.snapshots],
-                                                      names=['period', 'snapshot'])
-            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods})
+                                                      names=names)
+            self._snapshots.name = 'snapshot'
+            self._snapshot_weightings = pd.concat({p: self.snapshot_weightings for p in periods},
+                                                  names=names)
+            self._snapshot_weightings.index.name = 'snapshot'
 
         self._investment_periods = periods
         self.investment_period_weightings = (
@@ -700,6 +710,7 @@ class Network(Basic):
                               columns=static_attrs.index)
         new_df = cls_df.append(obj_df, sort=False)
 
+        new_df.index.name = class_name
         setattr(self, self.components[class_name]["list_name"], new_df)
 
         for k,v in kwargs.items():
@@ -714,7 +725,6 @@ class Network(Basic):
                 new_df.at[name,k] = typ(v)
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
-
 
         for attr in ["bus","bus0","bus1"]:
             if attr in new_df.columns:
