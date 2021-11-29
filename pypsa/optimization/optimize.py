@@ -19,6 +19,7 @@ from .variables import (
     define_nominal_variables,
     define_operational_variables,
     define_status_variables,
+    define_spillage_variables,
 )
 from .constraints import (
     define_operational_constraints_for_non_extendables,
@@ -30,6 +31,7 @@ from .constraints import (
     define_ramp_limit_constraints,
     define_nodal_balance_constraints,
     define_kirchhoff_constraints,
+    define_storage_unit_constraints,
 )
 
 # from .constraints import
@@ -85,7 +87,7 @@ def define_objective(n, sns):
 
     if constant != 0:
         object_const = m.add_variables(constant, constant, name="objective_constant")
-        m.objective = m.objective + 1 * object_const
+        m.objective = m.objective - 1 * object_const
         n.objective_constant = constant
 
     # marginal cost
@@ -150,31 +152,29 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
         define_operational_variables(n, sns, c, attr)
         define_status_variables(n, sns, c)
 
+    define_spillage_variables(n, sns)
+
     # Define constraints
-    for c, attr in lookup.query("nominal and not handle_separately").index:
+    for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
 
-    for c, attr in lookup.query("not nominal and not handle_separately").index:
+    for c, attr in lookup.index:
         define_operational_constraints_for_non_extendables(n, sns, c, attr)
         define_operational_constraints_for_extendables(n, sns, c, attr)
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c)
         define_fixed_operation_constraints(n, sns, c, attr)
+        # define_growth_limit(n, snapshots, c, attr)
 
     define_nodal_balance_constraints(n, sns)
     define_kirchhoff_constraints(n, sns)
-
-    # define_storage_unit_constraints(n, sns)
+    define_storage_unit_constraints(n, sns)
     # define_store_constraints(n, sns)
 
-    # for c, attr in lookup.query("nominal and not handle_separately").index:
-    # define constraint for newly installed capacity per investment period
-    # define_growth_limit(n, snapshots, c, attr)
+    # define_global_constraints(n, sns)
     # define_nominal_constraints_per_bus_carrier(n, sns)
 
-    # define_committable_generator_constraints(n, sns)
-    # define_global_constraints(n, sns)
     define_objective(n, sns)
 
     return n.model

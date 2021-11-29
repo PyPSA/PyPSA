@@ -25,3 +25,8 @@ def reindex(ds, dim, index):
 
     """
     return ds.sel({dim: index}).rename({dim: index.name})
+
+
+def get_var(n, c, key):
+    """Get variables directly from network"""
+    return n.model[f"{c}-{key}"]

@@ -7,7 +7,7 @@ Created on Mon Nov 22 10:29:16 2021
 """
 import logging
 
-from ..descriptors import get_activity_mask
+from ..descriptors import get_activity_mask, get_switchable_as_dense as get_as_dense
 
 logger = logging.getLogger(__name__)
 
@@ -64,3 +64,19 @@ def define_nominal_variables(n, c, attr):
         return
 
     n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
+
+
+def define_spillage_variables(n, sns):
+    """
+    Defines the spillage variables for storage units.
+    """
+    c = "StorageUnit"
+    if n.df(c).empty:
+        return
+
+    upper = get_as_dense(n, c, "inflow", sns)
+    if (upper.max() > 0).all():
+        return
+
+    active = get_activity_mask(n, c, sns).where(upper > 0, False)
+    n.model.add_variables(0, upper, name="StorageUnit-spill", mask=active)

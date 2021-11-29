@@ -8,10 +8,10 @@ Created on Mon Nov 22 10:30:57 2021
 import logging
 import pandas as pd
 from linopy import LinearExpression
-from numpy import inf, nan
+from numpy import inf, nan, roll, cumsum
 from xarray import DataArray, concat
 
-from .common import reindex
+from .common import reindex, get_var
 from ..descriptors import (
     get_bounds_pu,
     get_activity_mask,
@@ -33,6 +33,8 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr):
     Parameters
     ----------
     n : pypsa.Network
+    sns : pd.Index
+        Snapshots of the constraint.
     c : str
         name of the network component
     attr : str
@@ -65,6 +67,8 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
     Parameters
     ----------
     n : pypsa.Network
+    sns : pd.Index
+        Snapshots of the constraint.
     c : str
         name of the network component
     attr : str
@@ -91,6 +95,19 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 
 
 def define_operational_constraints_for_committables(n, sns, c):
+    """
+    Sets power dispatch constraints for commitable devices for a given
+    component and a given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : pd.Index
+        Snapshots of the constraint.
+    c : str
+        name of the network component
+
+    """
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -103,13 +120,13 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     status = n.model[f"{c}-status"]
     p = reindex(n.model[f"{c}-p"], c, com_i)
-    mask = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
 
     lhs = (lower, status), (-1, p)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-lower", mask=mask)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-lower", active)
 
     lhs = (upper, status), (-1, p)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-upper", mask=mask)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-upper", active)
 
 
 def define_nominal_constraints_for_extendables(n, c, attr):
@@ -132,8 +149,8 @@ def define_nominal_constraints_for_extendables(n, c, attr):
         return
 
     capacity = n.model[f"{c}-{attr}"]
-    lower = n.df(c)[attr + "_min"]
-    upper = n.df(c)[attr + "_max"]
+    lower = n.df(c)[attr + "_min"].reindex(ext_i)
+    upper = n.df(c)[attr + "_max"].reindex(ext_i)
     n.model.add_constraints(capacity, ">=", lower, f"{c}-fix-{attr}-lower")
     n.model.add_constraints(capacity, "<=", upper, f"{c}-fix-{attr}-upper")
 
@@ -141,6 +158,12 @@ def define_nominal_constraints_for_extendables(n, c, attr):
 def define_ramp_limit_constraints(n, sns, c):
     """
     Defines ramp limits for assets with valid ramplimit.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
 
     """
     m = n.model
@@ -150,49 +173,48 @@ def define_ramp_limit_constraints(n, sns, c):
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
         return
 
-    def p(idx):
-        return reindex(m[f"{c}-p"].sel(snapshot=sns[1:]), c, idx)
-
-    def p_prev(idx):
-        return reindex(m[f"{c}-p"].shift(snapshot=1).sel(snapshot=sns[1:]), c, idx)
+    p = lambda idx: reindex(m[f"{c}-p"].sel(snapshot=sns[1:]), c, idx)
+    p_prev = lambda idx: reindex(
+        m[f"{c}-p"].shift(snapshot=1).sel(snapshot=sns[1:]), c, idx
+    )
 
     fix_i = n.get_non_extendable_i(c)
     assets = n.df(c).reindex(fix_i)
-    mask = get_activity_mask(n, c, sns[1:], fix_i)
+    active = get_activity_mask(n, c, sns[1:], fix_i)
 
     # fix up
     if not assets.ramp_limit_up.isnull().all():
         lhs = p(fix_i) - p_prev(fix_i)
         rhs = assets.eval("ramp_limit_up * p_nom")
-        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-p-ramp_limit_up", mask)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-p-ramp_limit_up", active)
 
     # fix down
     if not assets.ramp_limit_down.isnull().all():
         lhs = p(fix_i) - p_prev(fix_i)
         rhs = assets.eval("-1 * ramp_limit_down * p_nom")
-        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-p-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-p-ramp_limit_down", active)
 
     ext_i = n.get_extendable_i(c)
     assets = n.df(c).reindex(ext_i)
-    mask = get_activity_mask(n, c, sns[1:], ext_i)
+    active = get_activity_mask(n, c, sns[1:], ext_i)
 
     # ext up
     if not assets.ramp_limit_up.isnull().all():
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_up.to_xarray()
         lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (-limit_pu, p_nom)
-        m.add_constraints(lhs, "<=", 0, f"{c}-ext-p-ramp_limit_up", mask)
+        m.add_constraints(lhs, "<=", 0, f"{c}-ext-p-ramp_limit_up", active)
 
     # ext down
     if not assets.ramp_limit_down.isnull().all():
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_down.to_xarray()
         lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (limit_pu, p_nom)
-        m.add_constraints(lhs, ">=", 0, f"{c}-ext-p-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", 0, f"{c}-ext-p-ramp_limit_down", active)
 
     com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
-    mask = get_activity_mask(n, c, sns[1:], com_i)
+    active = get_activity_mask(n, c, sns[1:], com_i)
 
     # com up
     if not assets.ramp_limit_up.isnull().all():
@@ -208,7 +230,7 @@ def define_ramp_limit_constraints(n, sns, c):
             (limit_start - limit_up, status_prev),
             (-limit_start, status),
         )
-        m.add_constraints(lhs, "<=", 0, f"{c}-com-p-ramp_limit_down", mask)
+        m.add_constraints(lhs, "<=", 0, f"{c}-com-p-ramp_limit_down", active)
 
     # com down
     if not assets.ramp_limit_down.isnull().all():
@@ -224,12 +246,12 @@ def define_ramp_limit_constraints(n, sns, c):
             (limit_down - limit_shut, status),
             (limit_shut, status_prev),
         )
-        m.add_constraints(n, lhs, ">=", 0, f"{c}-com-p-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", 0, f"{c}-com-p-ramp_limit_up", active)
 
 
 def define_nodal_balance_constraints(n, sns):
     """
-    Defines nodal balance constraint.
+    Defines nodal balance constraints.
 
     """
     m = n.model
@@ -259,8 +281,6 @@ def define_nodal_balance_constraints(n, sns):
         if n.df(c).empty:
             continue
 
-        col = n.df(c)[column]
-
         if "sign" in n.df(c):
             # additional sign only necessary for branches in reverse direction
             sign = sign * n.df(c).sign
@@ -268,7 +288,7 @@ def define_nodal_balance_constraints(n, sns):
         # TODO: drop empty bus2, bus3 if multiline link
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        expr = expr.group_terms(n.df(c)[column].rename("bus").to_xarray())
+        expr = expr.group_terms(n.df(c)[column].rename("Bus").to_xarray())
         exprs.append(expr)
 
     if not len(exprs):
@@ -391,19 +411,165 @@ def define_fixed_operation_constraints(n, sns, c, attr):
     if attr + "_set" not in n.pnl(c):
         return
 
-    df = n.pnl(c)[attr + "_set"].loc[sns]
+    dim = f"{c}-{attr}_set_i"
+    fix = n.pnl(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
+    fix.index.name = "snapshot"  # still necessary: reindex looses the index name
 
-    if df.empty:
+    if fix.empty:
         return
 
-    dims = ["snapshot", f"{c}-{attr}_set_i"]
-
     if n._multi_invest:
-        mask = get_activity_mask(n, c, sns)
-        mask = DataArray(mask, dims=dims)
+        active = get_activity_mask(n, c, sns, index=fix.columns)
     else:
-        mask = None
+        active = None
 
-    fix = DataArray(df, dims=dims)
-    var = n.model[f"{c}-{attr}"].rename({c: dims[1]}).reindex_like(fix)
-    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask)
+    var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
+    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", active)
+
+
+def define_storage_unit_constraints(n, sns):
+    """
+    Defines energy balance constraints for storage units. In principal
+    the constraints states:
+
+        previous_soc + p_store - p_dispatch + inflow - spill == soc
+
+    """
+
+    m = n.model
+    c = "StorageUnit"
+    dim = "snapshot"
+    assets = n.df(c)
+    active = DataArray(get_activity_mask(n, c, sns))
+
+    if assets.empty:
+        return
+
+    # elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
+    # efficiencies
+    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
+    eff_dispatch = expand_series(assets.efficiency_dispatch, sns).T
+    eff_store = expand_series(assets.efficiency_store, sns).T
+
+    soc = m[f"{c}-state_of_charge"]
+
+    lhs = [
+        (-1, soc),
+        (-1 / eff_dispatch * eh, m[c + "-p_dispatch"]),
+        (eff_store * eh, m[c + "-p_store"]),
+    ]
+
+    if f"{c}-spill" in m.variables:
+        lhs += [(-eh, m[c + "-spill"])]
+
+    # We create a mask `include_previous_soc` which exludes the first snapshot
+    # for non-cyclic assets.
+    noncyclic_b = ~assets.cyclic_state_of_charge.to_xarray()
+    include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
+
+    kwargs = dict(snapshot=1, roll_coords=False)
+    previous_soc = soc.where(active).ffill(dim).roll(**kwargs).ffill(dim)
+    previous_soc = previous_soc.where(include_previous_soc, -1)
+
+    # We add inflow and initial soc for for noncyclic assets to rhs
+    soc_init = assets.state_of_charge_initial.to_xarray()
+    rhs = DataArray(-get_as_dense(n, c, "inflow", sns).mul(eh))
+    rhs = rhs.where(include_previous_soc, rhs - soc_init)
+
+    if isinstance(sns, pd.MultiIndex):
+        # If multi-horizon optimizing, we update the previous_soc and the rhs
+        # for all assets which are cyclid/non-cyclid per period.
+        periods = soc.period
+        per_period = (
+            assets.cyclic_state_of_charge_per_period.to_xarray()
+            | assets.state_of_charge_initial_per_period.to_xarray()
+        )
+
+        # We calculate the previous soc per period while cycling within a period
+        kwargs = dict(shortcut=True, shift=1, axis=list(soc.dims).index(dim))
+        previous_soc_pp = soc.groupby(periods).map(roll, **kwargs)
+
+        # We create a mask `include_previous_soc_pp` which exludes the first
+        # snapshot of each period for non-cyclic assets.
+        kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
+        include_previous_soc_pp = active.groupby(periods).map(cumsum, **kwargs) != 1
+        include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
+        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp, -1)
+
+        # update the previous_soc variables and right hand side
+        previous_soc = previous_soc_pp.where(per_period, previous_soc)
+        rhs = (rhs - soc_init).where(per_period, rhs)
+
+    lhs += [(eff_stand, previous_soc)]
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+
+
+def define_store_constraints(n, sns):
+    """
+    Defines energy balance constraints for stores. In principal
+    the constraints states:
+
+        previous_e - p == e
+
+    """
+
+    m = n.model
+    c = "Store"
+    dim = "snapshot"
+    assets = n.df(c)
+    active = DataArray(get_activity_mask(n, c, sns))
+
+    if assets.empty:
+        return
+
+    # elapsed hours
+    eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
+    # efficiencies
+    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
+
+    e = m[f"{c}-e"]
+    p = m[c + "-p_dispatch"]
+
+    lhs = [(-1, e), (-eh, p)]
+
+    # We create a mask `include_previous_e` which exludes the first snapshot
+    # for non-cyclic assets.
+    noncyclic_b = ~assets.cyclic_e.to_xarray()
+    include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
+
+    kwargs = dict(snapshot=1, roll_coords=False)
+    previous_e = e.where(active).ffill(dim).roll(**kwargs).ffill(dim)
+    previous_e = previous_e.where(include_previous_e, -1)
+
+    # We add inflow and initial e for for noncyclic assets to rhs
+    e_init = assets.e_initial.to_xarray()
+    rhs = DataArray(-get_as_dense(n, c, "inflow", sns).mul(eh))
+    rhs = rhs.where(include_previous_e, rhs - e_init)
+
+    if isinstance(sns, pd.MultiIndex):
+        # If multi-horizon optimizing, we update the previous_e and the rhs
+        # for all assets which are cyclid/non-cyclid per period.
+        periods = e.period
+        per_period = (
+            assets.cyclic_e_per_period.to_xarray()
+            | assets.e_initial_per_period.to_xarray()
+        )
+
+        # We calculate the previous e per period while cycling within a period
+        kwargs = dict(shortcut=True, shift=1, axis=list(e.dims).index(dim))
+        previous_e_pp = e.groupby(periods).map(roll, **kwargs)
+
+        # We create a mask `include_previous_e_pp` which exludes the first
+        # snapshot of each period for non-cyclic assets.
+        kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
+        include_previous_e_pp = active.groupby(periods).map(cumsum, **kwargs) != 1
+        include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
+        previous_e_pp = previous_e_pp.where(include_previous_e_pp, -1)
+
+        # update the previous_e variables and right hand side
+        previous_e = previous_e_pp.where(per_period, previous_e)
+        rhs = (rhs - e_init).where(per_period, rhs)
+
+    lhs += [(eff_stand, previous_e)]
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
