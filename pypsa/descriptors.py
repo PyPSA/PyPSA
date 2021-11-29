@@ -169,11 +169,15 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
         fixed_i = fixed_i.intersection(inds)
     if snapshots is None:
         snapshots = network.snapshots
-    return (pd.concat([
-        pd.DataFrame(np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
-                     index=snapshots, columns=fixed_i),
-        pnl[attr].loc[snapshots, varying_i]
-    ], axis=1, sort=False).reindex(index=snapshots, columns=index))
+
+    vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
+    static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
+    varying = pnl[attr].loc[snapshots, varying_i]
+
+    res = pd.concat([static, varying], axis=1, sort=False).reindex(columns=index)
+    res.index.name = "snapshot" # reindex with multiindex does not preserve name
+
+    return res
 
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     """
@@ -353,10 +357,10 @@ def get_activity_mask(n, c, sns=None, index=None):
         res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
     else:
         res = pd.DataFrame(True, sns, n.df(c).index)
-    if index is None:
-        return res
-    else:
-        res.reindex(index)
+    if index is not None:
+        res = res.reindex(columns=index)
+    res.index.name = 'snapshot'
+    return res
 
 
 def get_bounds_pu(n, c, sns, index=None, attr=None):
