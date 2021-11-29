@@ -222,7 +222,7 @@ you should use a fundamental ``Store`` component (see below) attached
 with two ``Link`` components, one for charging and one for
 discharging. See also the `example that replaces generators and
 storage units with fundamental links and stores
-<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_.
 
 
 For storage units, if :math:`p>0` the storage unit is supplying active
@@ -252,7 +252,7 @@ The Store has controls and optimisation on the size of its energy
 capacity, but not it's power output; to control the power output, you
 must put a link in front of it, see the `example that replaces
 generators and storage units with fundamental links and stores
-<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_.
 
 
 
@@ -437,7 +437,7 @@ associated columns for the efficiencies ``efficiency2``,
 the input multiplied by the corresponding efficiency; see :ref:`opf-links` for how
 these are used in the LOPF and the `example of a CHP with a fixed
 power-heat ratio
-<https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
 
 To define the new columns ``bus2``, ``efficiency2``, ``bus3``,
 ``efficiency3``, etc. in ``network.links`` you need to override the
@@ -445,7 +445,7 @@ standard component attributes by passing ``pypsa.Network()`` an
 ``override_component_attrs`` argument. See the section
 :ref:`custom_components` and the `example of a CHP with a fixed
 power-heat ratio
-<https://www.pypsa.org/examples/chp-fixed-heat-power-ratio.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
 
 
 If the column ``bus2`` exists, values in the column are not compulsory
@@ -465,7 +465,7 @@ with ``efficiency=-0.5`` (since 0.5 units of carbon dioxide is taken
 for each unit of hydrogen), ``bus2`` connects to methane with
 ``efficiency2=0.8`` and ``bus3`` to heat with ``efficiency3=0.2``.
 
-The Jupyter notebook `Biomass, synthetic fuels and carbon management <https://github.com/PyPSA/PyPSA/blob/master/examples/notebooks/biomass-synthetic-fuels-carbon-management.ipynb>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
+The Jupyter notebook `Biomass, synthetic fuels and carbon management <https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
 
 Groups of Components
 ====================

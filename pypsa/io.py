@@ -601,7 +601,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     if pypsa_version is None or pypsa_version < current_pypsa_version:
         logger.warning(dedent("""
                 Importing PyPSA from older version of PyPSA than current version.
-                Please read the release notes at https://pypsa.org/doc/release_notes.html
+                Please read the release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html
                 carefully to prepare your network for import.
                 Currently used PyPSA version {}, imported network file PyPSA version {}.
         """).format(current_pypsa_version, pypsa_version))

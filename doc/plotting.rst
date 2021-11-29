@@ -19,7 +19,7 @@ To plot a network with matplotlib run
 ``network.plot()``, see :py:meth:`pypsa.Network.plot` for details.
 
 See also the `SciGRID matplotlib example
-<https://pypsa.org/examples/scigrid-lopf-then-pf.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_.
 
 
 Interactive plotting with plotly
@@ -32,6 +32,4 @@ meant for use with `Jupyter notebooks <https://jupyter.org/>`_.
 To plot a network with plotly run
 ``network.iplot()``, see :py:meth:`pypsa.Network.iplot` for details. 
 
-See also the `SciGRID plotly example
-<https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_.
 

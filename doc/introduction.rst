@@ -34,7 +34,7 @@ Functionality
   Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
   (BEVs), Fischer-Tropsch, direct air capture (DAC), etc.; each of
   these is demonstrated in the `examples
-  <http://www.pypsa.org/examples/>`_
+  <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 
 **Other complementary libraries:**
@@ -59,7 +59,7 @@ Screenshots
     :width: 700px
 
 
-*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_
+*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_
 
 .. image:: img/stacked-gen_and_storage-scigrid.png
     :align: center
@@ -81,8 +81,7 @@ Screenshots
 
 All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
-<https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
-example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
+<https://github.com/PyPSA/PyPSA-animation>`_.
 
 
 
