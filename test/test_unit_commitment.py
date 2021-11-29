@@ -10,7 +10,7 @@ solver_name = "glpk"
 @pytest.mark.parametrize("pyomo", [True, False])
 def test_part_load(pyomo):
     """This test is based on
-    https://pypsa.org/examples/unit-commitment.html
+    https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html
     and is not very comprehensive."""
 
     nu = pypsa.Network()
@@ -52,7 +52,7 @@ def test_part_load(pyomo):
 
 def test_minimum_up_time():
     """This test is based on
-    https://pypsa.org/examples/unit-commitment.html
+    https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html
     and is not very comprehensive."""
 
     nu = pypsa.Network()
@@ -96,7 +96,7 @@ def test_minimum_up_time():
 
 def test_minimum_down_time():
     """This test is based on
-    https://pypsa.org/examples/unit-commitment.html
+    https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html
     and is not very comprehensive."""
 
 

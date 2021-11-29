@@ -1,6 +1,6 @@
 ## Demonstration of Link with multiple outputs: Combined-Heat-and-Power (CHP) with fixed heat-power ratio
 #
-#For a CHP with a more complicated heat-power feasible operational area, see https://www.pypsa.org/examples/power-to-gas-boiler-chp.html.
+#For a CHP with a more complicated heat-power feasible operational area, see https://pypsa.readthedocs.io/en/latest/examples/power-to-gas-boiler-chp.html.
 #
 #This example demonstrates a Link component with more than one bus output ("bus2" in this case). In general links can have many output buses.
 #

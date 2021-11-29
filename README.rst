@@ -44,7 +44,7 @@ Documentation
 
 `Quick start <https://pypsa.readthedocs.io/en/latest/quick_start.html>`_
 
-`Examples <http://www.pypsa.org/examples/>`_
+`Examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 `Known users of PyPSA <https://pypsa.readthedocs.io/en/latest/users.html>`_
 
@@ -86,7 +86,7 @@ It has models for:
   Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
   (BEVs), Fischer-Tropsch, direct air capture (DAC), etc.; each of
   these is demonstrated in the `examples
-  <http://www.pypsa.org/examples/>`_
+  <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 
 Other complementary libraries:
@@ -103,7 +103,7 @@ Other complementary libraries:
 Example scripts as Jupyter notebooks
 ====================================
 
-There are `extensive examples <http://www.pypsa.org/examples/>`_
+There are `extensive examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 available as `Jupyter notebooks <https://jupyter.org/>`_. They are
 also described in the `doc/examples.rst <doc/examples.rst>`_ and are
 available as Python scripts in `examples/ <examples/>`_.
@@ -119,7 +119,7 @@ Screenshots
     :width: 700px
 
 
-*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_
+*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_
 
 .. image:: doc/img/stacked-gen_and_storage-scigrid.png
     :align: center
@@ -141,8 +141,7 @@ Screenshots
 
 All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
-<https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
-example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
+<https://github.com/PyPSA/PyPSA-animation>`_.
 
 
 

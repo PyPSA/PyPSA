@@ -2,13 +2,13 @@
 #
 #This Jupyter notebook is meant for teaching purposes. To use it, you need to install a Python environment with Jupyter notebooks, and the Python for Power System Analysis (PyPSA) library. See
 #
-#https://pypsa.org/doc/installation.html
+#https://pypsa.readthedocs.io/en/latest/installation.html
 #
 #for tips on installation.
 #
 #It gradually builds up more and more complicated energy-only electricity markets in PyPSA, starting from a single bidding zone, going up to multiple bidding zones connected with transmission (NTCs) along with variable renewables and storage.
 #
-#Available as a Jupyter notebook at http://www.pypsa.org/examples/simple-electricity-market-examples.ipynb.
+#Available as a Jupyter notebook at https://pypsa.readthedocs.io/en/latest/examples/simple-electricity-market-examples.ipynb.
 
 ### Preliminaries
 #
