@@ -8,8 +8,9 @@ Created on Mon Nov 22 10:30:57 2021
 import logging
 import pandas as pd
 from linopy import LinearExpression
+from linopy.expressions import merge
 from numpy import inf, nan, roll, cumsum
-from xarray import DataArray, concat
+from xarray import DataArray
 
 from .common import reindex, get_var
 from ..descriptors import (
@@ -282,7 +283,7 @@ def define_nodal_balance_constraints(n, sns):
             continue
 
         if "sign" in n.df(c):
-            # additional sign only necessary for branches in reverse direction
+            # additional sign necessary for branches in reverse direction
             sign = sign * n.df(c).sign
 
         # TODO: drop empty bus2, bus3 if multiline link
@@ -294,9 +295,7 @@ def define_nodal_balance_constraints(n, sns):
     if not len(exprs):
         raise ValueError("Empty LHS in nodal balance constraint.")
 
-    # a bit faster than sum
-    fill_value = LinearExpression.fill_value
-    lhs = LinearExpression(concat(exprs, "_term", fill_value=fill_value))
+    lhs = merge(exprs)
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
@@ -321,7 +320,7 @@ def define_kirchhoff_constraints(n, sns):
     if len(comps) == 0:
         return
 
-    lhs = []
+    exprs = []
 
     periods = sns.unique("period") if n._multi_invest else [None]
 
@@ -347,7 +346,7 @@ def define_kirchhoff_constraints(n, sns):
 
         snapshots = sns if period is None else sns[sns.get_loc(period)]
 
-        lhs_period = []
+        exprs_period = []
 
         for c in comps:
             idx = n.df(c).index
@@ -355,12 +354,11 @@ def define_kirchhoff_constraints(n, sns):
             coeff = pd.concat(dfs, axis=1, ignore_index=True)
             coeff = DataArray(coeff.rename_axis(columns="cycle"))
             s = m[c + "-s"].sel(snapshot=snapshots)
-            lhs_period.append((coeff * s).sum(c, drop_zeros=True))
+            exprs_period.append((coeff * s).sum(c, drop_zeros=True))
 
-        lhs.append(sum(lhs_period))
+        exprs.append(sum(exprs_period))
 
-    fill_value = LinearExpression.fill_value
-    lhs = LinearExpression(concat(lhs, "snapshot", fill_value=fill_value))
+    lhs = merge(exprs, dim="snapshot")
     m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
@@ -528,14 +526,14 @@ def define_store_constraints(n, sns):
     # efficiencies
     eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
 
-    e = m[f"{c}-e"]
-    p = m[c + "-p_dispatch"]
+    e = m[c + "-e"]
+    p = m[c + "-p"]
 
     lhs = [(-1, e), (-eh, p)]
 
     # We create a mask `include_previous_e` which exludes the first snapshot
     # for non-cyclic assets.
-    noncyclic_b = ~assets.cyclic_e.to_xarray()
+    noncyclic_b = ~assets.e_cyclic.to_xarray()
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     kwargs = dict(snapshot=1, roll_coords=False)
@@ -544,15 +542,14 @@ def define_store_constraints(n, sns):
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
-    rhs = DataArray(-get_as_dense(n, c, "inflow", sns).mul(eh))
-    rhs = rhs.where(include_previous_e, rhs - e_init)
+    rhs = e_init.where(~include_previous_e, 0)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
         periods = e.period
         per_period = (
-            assets.cyclic_e_per_period.to_xarray()
+            assets.e_cyclic_per_period.to_xarray()
             | assets.e_initial_per_period.to_xarray()
         )
 

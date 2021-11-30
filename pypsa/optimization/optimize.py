@@ -32,6 +32,12 @@ from .constraints import (
     define_nodal_balance_constraints,
     define_kirchhoff_constraints,
     define_storage_unit_constraints,
+    define_store_constraints,
+)
+
+from .global_constraints import (
+    define_growth_limit,
+    define_nominal_constraints_per_bus_carrier,
 )
 
 # from .constraints import
@@ -145,7 +151,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     n._multi_invest = int(multi_investment_periods)
 
     # Define variables
-    for c, attr in lookup.query("nominal and not handle_separately").index:
+    for c, attr in lookup.query("nominal").index:
         define_nominal_variables(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
@@ -153,27 +159,29 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
         define_status_variables(n, sns, c)
 
     define_spillage_variables(n, sns)
+    define_operational_variables(n, sns, "Store", "p")
 
     # Define constraints
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
 
-    for c, attr in lookup.index:
+    for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_constraints_for_non_extendables(n, sns, c, attr)
         define_operational_constraints_for_extendables(n, sns, c, attr)
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c)
         define_fixed_operation_constraints(n, sns, c, attr)
-        # define_growth_limit(n, snapshots, c, attr)
 
     define_nodal_balance_constraints(n, sns)
     define_kirchhoff_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
-    # define_store_constraints(n, sns)
+    define_store_constraints(n, sns)
 
+    # Define global constraints
+    define_nominal_constraints_per_bus_carrier(n, sns)
+    define_growth_limit(n, sns)
     # define_global_constraints(n, sns)
-    # define_nominal_constraints_per_bus_carrier(n, sns)
 
     define_objective(n, sns)
 
