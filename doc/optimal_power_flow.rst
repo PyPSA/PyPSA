@@ -597,7 +597,7 @@ the temporal weightings (including snapshot objective weightings and investment
 period temporal weightings).
 
 `Example jupyter notebook for multi-investment
-<https://pypsa.org/examples/multi-investment-optimisation.html>`_ and python
+<https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_ and python
 script ``examples/multi-decade-example.py``.
 
 
@@ -623,10 +623,10 @@ extend the optimisation problem constructed by PyPSA using the usual
 pyomo syntax.
 
 The `CHP example
-<https://pypsa.org/examples/power-to-gas-boiler-chp.html>`_ and the
+<https://pypsa.readthedocs.io/en/latest/examples/power-to-gas-boiler-chp.html>`_ and the
 `example that replaces generators and storage units with fundamental links
 and stores
-<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_
+<https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_
 both pass an ``extra_functionality`` argument to the LOPF to add
 functionality.
 

@@ -9,7 +9,7 @@
 #All numbers/costs/efficiencies are fictitious to allow easy analysis.
 #
 #
-#This Jupyter Notebook is also available to download at: http://www.pypsa.org/examples/biomass-synthetic-fuels-carbon-management.ipynb.
+#This Jupyter Notebook is also available to download at: https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.ipynb.
 #
 #It demonstrates features of the energy system modelling tool PyPSA : https://github.com/PyPSA/PyPSA.
 
@@ -19,7 +19,7 @@ import numpy as np
 #First tell PyPSA that links can have multiple outputs by
 #overriding the component_attrs. This can be done for
 #as many buses as you need with format busi for i = 2,3,4,5,....
-#See https://pypsa.org/doc/components.html#link-with-multiple-outputs-or-inputs
+#See https://pypsa.readthedocs.io/en/latest/components.html#link-with-multiple-outputs-or-inputs
 
 override_component_attrs = pypsa.descriptors.Dict({k : v.copy() for k,v in pypsa.components.component_attrs.items()})
 override_component_attrs["Link"].loc["bus2"] = ["string",np.nan,np.nan,"2nd bus","Input (optional)"]

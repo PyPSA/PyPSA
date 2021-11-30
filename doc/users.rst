@@ -9,17 +9,19 @@ Research publications that cite the `PyPSA research paper <https://doi.org/10.53
 Universities and Research Institutes
 ====================================
 
-* `Frankfurt Institute of Advanced Studies <https://fias.science/>`_ (FIAS, where PyPSA was initially developed): multiple research papers, for example: `doi:10.1016/j.energy.2017.06.004 <https://doi.org/10.1016/j.energy.2017.06.004>`_, `doi:10.1109/EEM.2017.7982024 <https://doi.org/10.1109/EEM.2017.7982024>`_, `doi:10.1016/j.energy.2018.08.070 <https://doi.org/10.1016/j.energy.2018.08.070>`_, `doi:10.1016/j.apenergy.2018.09.084 <https://doi.org/10.1016/j.apenergy.2018.09.084>`_, `doi:10.1016/j.epsr.2017.12.034 <https://doi.org/10.1016/j.epsr.2017.12.034>`_
+* `Technische Universität Berlin <https://www.ensys.tu-berlin.de/>`_ (TUB, where PyPSA development continues): multiple research papers, for example: `doi.org:10.1016/j.eneco.2021.105354 <https://doi.org/10.1016/j.eneco.2021.105354>`_, `doi:10.1016/j.energy.2021.120784 <https://doi.org/10.1016/j.energy.2021.120784>`_
 
 * `Karlsruhe Institute of Technology <https://www.kit.edu/>`_ (KIT, where PyPSA development continues): multiple research papers, for example: `doi:10.1016/j.energy.2018.06.222 <https://doi.org/10.1016/j.energy.2018.06.222)>`_, `doi:10.1109/EEM.2019.8916411 <https://www.doi.org/10.1109/EEM.2019.8916411>`_, `doi:10.1016/j.esr.2018.08.012 <https://doi.org/10.1016/j.esr.2018.08.012>`_, `doi:10.1016/j.epsr.2020.106690 <https://doi.org/10.1016/j.epsr.2020.106690>`_, `doi:10.1145/3396851.3397688 <https://doi.org/10.1145/3396851.3397688>`_, `doi:10.1016/j.apenergy.2021.116726 <https://doi.org/10.1016/j.apenergy.2021.116726>`_
 
-* `Technische Universität Berlin <https://www.ensys.tu-berlin.de/>`_ (TUB, where PyPSA development continues): multiple research papers, for example: `doi.org:10.1016/j.eneco.2021.105354 <https://doi.org/10.1016/j.eneco.2021.105354>`_, `doi:10.1016/j.energy.2021.120784 <https://doi.org/10.1016/j.energy.2021.120784>`_
-
 * `Aarhus University <https://www.au.dk/>`_ in Denmark: multiple research papers, for example: `doi:10.1016/j.apenergy.2019.02.009 <https://doi.org/10.1016/j.apenergy.2019.02.009>`_, `doi:10.1016/j.apenergy.2018.12.016 <https://doi.org/10.1016/j.apenergy.2018.12.016>`_, `doi:10.1002/pip.3198 <https://doi.org/10.1002/pip.3198>`_, `doi:10.1016/j.enconman.2019.111977 <https://doi.org/10.1016/j.enconman.2019.111977>`_, `doi:10.1038/s41467-020-20015-4 <https://doi.org/10.1038/s41467-020-20015-4>`_
+
+* `Frankfurt Institute of Advanced Studies <https://fias.science/>`_ (FIAS, where PyPSA was initially developed): multiple research papers, for example: `doi:10.1016/j.energy.2017.06.004 <https://doi.org/10.1016/j.energy.2017.06.004>`_, `doi:10.1109/EEM.2017.7982024 <https://doi.org/10.1109/EEM.2017.7982024>`_, `doi:10.1016/j.energy.2018.08.070 <https://doi.org/10.1016/j.energy.2018.08.070>`_, `doi:10.1016/j.apenergy.2018.09.084 <https://doi.org/10.1016/j.apenergy.2018.09.084>`_, `doi:10.1016/j.epsr.2017.12.034 <https://doi.org/10.1016/j.epsr.2017.12.034>`_
 
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
 * `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_, `doi:10.1016/j.apenergy.2021.116936 <https://doi.org/10.1016/j.apenergy.2021.116936>`_
+
+* `Kyoto University <https://www.kyoto-u.ac.jp/en>`_ in Japan: uses PyPSA to model several high PV penetration scenarios in Kyushu, the southernmost region of Japan, where PV capacity has been rapidly growing since 2012 and PV curtailment started in 2018: `doi:10.3390/en14092389 <https://doi.org/10.3390/en14092389>`_,  `doi:10.3390/en14154496 <https://doi.org/10.3390/en14154496>`_
 
 * `University of Geneva <https://www.unige.ch/>`_ in Switzerland: research paper `doi:10.1038/s41467-020-18812-y <https://doi.org/10.1038/s41467-020-18812-y>`_
 
@@ -41,8 +43,6 @@ Universities and Research Institutes
 
 * `Institut für Energiesystemtechnik <https://www.ines.hs-offenburg.de/>`_  at `Hochschule Offenburg <https://www.hs-offenburg.de/>`_
 
-* `TU Berlin <https://www.tu.berlin/>`_ for an MA thesis
-
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
 
@@ -55,6 +55,8 @@ Companies and Non-Governmental Organisations
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, and for a study in 2021 `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
+
+* `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
 * `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example this study from 2021: `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_
 

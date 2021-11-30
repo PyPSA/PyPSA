@@ -50,6 +50,7 @@ def _as_snapshots(network, snapshots):
     if not isinstance(snapshots, pd.MultiIndex):
         snapshots = pd.Index(snapshots)
     assert snapshots.isin(network.snapshots).all()
+    snapshots.name = 'snapshot'
     return snapshots
 
 
