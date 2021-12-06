@@ -7,9 +7,10 @@ Created on Mon Nov 22 10:30:57 2021
 """
 import logging
 import pandas as pd
-from linopy.expressions import merge
+from linopy.expressions import merge, LinearExpression
 from numpy import roll, cumsum, nan
-from xarray import DataArray
+from xarray import DataArray, Dataset
+from scipy import sparse
 
 from .common import reindex
 from ..descriptors import (
@@ -95,7 +96,7 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 
 def define_operational_constraints_for_committables(n, sns, c):
     """
-    Sets power dispatch constraints for commitable devices for a given
+    Sets power dispatch constraints for committable devices for a given
     component and a given attribute.
 
     Parameters
@@ -318,45 +319,47 @@ def define_kirchhoff_constraints(n, sns):
     if len(comps) == 0:
         return
 
-    exprs = []
+    names = ["component", "name"]
+    s = pd.concat({c: m[f"{c}-s"].to_pandas() for c in comps}, axis=1, names=names)
+
+    lhs = []
 
     periods = sns.unique("period") if n._multi_invest else [None]
 
     for period in periods:
         n.determine_network_topology(investment_period=period)
 
-        coeffs = {c: [] for c in comps}
+        snapshots = sns if period is None else sns[sns.get_loc(period)]
 
+        exprs = []
         for sub in n.sub_networks.obj:
             branches = sub.branches()
-            C = pd.DataFrame(sub.C.todense(), index=branches.index)
 
-            if C.empty:
+            if not sub.C.size:
                 continue
 
             carrier = n.sub_networks.carrier[sub.name]
-
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            cycles = 1e5 * C.mul(weightings, axis=0)
+            C = 1e5 * sparse.diags(weightings) * sub.C
+            ssub = s.loc[snapshots, branches.index].values
 
-            for c in coeffs:
-                coeffs[c].append(cycles.loc[c])
+            ncycles = C.shape[1]
 
-        snapshots = sns if period is None else sns[sns.get_loc(period)]
+            for j in range(ncycles):
+                c = C.getcol(j).tocoo()
+                coeffs = DataArray(c.data, dims="_term")
+                vars = DataArray(
+                    ssub[:, c.row],
+                    dims=("snapshot", "_term"),
+                    coords={"snapshot": snapshots},
+                )
+                ds = Dataset({"coeffs": coeffs, "vars": vars})
+                exprs.append(LinearExpression(ds))
 
-        exprs_period = []
+        exprs = merge(exprs, dim="cycles")
+        lhs.append(exprs)
 
-        for c in comps:
-            idx = n.df(c).index
-            dfs = [df.reindex(idx, fill_value=0) for df in coeffs[c]]
-            coeff = pd.concat(dfs, axis=1, ignore_index=True)
-            coeff = DataArray(coeff.rename_axis(columns="cycle"))
-            s = m[c + "-s"].sel(snapshot=snapshots)
-            exprs_period.append((coeff * s).sum(c, drop_zeros=True))
-
-        exprs.append(sum(exprs_period))
-
-    lhs = merge(exprs, dim="snapshot")
+    lhs = merge(lhs, dim="snapshot")
     m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
@@ -459,7 +462,7 @@ def define_storage_unit_constraints(n, sns):
     if f"{c}-spill" in m.variables:
         lhs += [(-eh, m[c + "-spill"])]
 
-    # We create a mask `include_previous_soc` which exludes the first snapshot
+    # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets.
     noncyclic_b = ~assets.cyclic_state_of_charge.to_xarray()
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
@@ -486,7 +489,7 @@ def define_storage_unit_constraints(n, sns):
         kwargs = dict(shortcut=True, shift=1, axis=list(soc.dims).index(dim))
         previous_soc_pp = soc.groupby(periods).map(roll, **kwargs)
 
-        # We create a mask `include_previous_soc_pp` which exludes the first
+        # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
         include_previous_soc_pp = active.groupby(periods).map(cumsum, **kwargs) != 1
@@ -529,7 +532,7 @@ def define_store_constraints(n, sns):
 
     lhs = [(-1, e), (-eh, p)]
 
-    # We create a mask `include_previous_e` which exludes the first snapshot
+    # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets.
     noncyclic_b = ~assets.e_cyclic.to_xarray()
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
@@ -555,7 +558,7 @@ def define_store_constraints(n, sns):
         kwargs = dict(shortcut=True, shift=1, axis=list(e.dims).index(dim))
         previous_e_pp = e.groupby(periods).map(roll, **kwargs)
 
-        # We create a mask `include_previous_e_pp` which exludes the first
+        # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
         include_previous_e_pp = active.groupby(periods).map(cumsum, **kwargs) != 1

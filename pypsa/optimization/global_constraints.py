@@ -24,7 +24,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
     same bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
     `buses` dataframe matching the pattern "nom_{min/max}_{carrier}".
     In case the constraint should only be defined for one investment period,
-    the column name can be stuctured according to
+    the column name can be constructed according to
     "nom_{min/max}_{carrier}_{period}" where period must be in
     `n.investment_periods`.
 
@@ -53,15 +53,15 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             sense = "<="
         else:
             logger.warn(msg)
-        remainer = col[len("nom_max_") :]
-        if remainer in n.carriers.index:
-            carrier = remainer
+        remainder = col[len("nom_max_") :]
+        if remainder in n.carriers.index:
+            carrier = remainder
             period = None
         elif not isinstance(n.snapshots, pd.MultiIndex):
             logger.warn(msg)
             continue
         else:
-            carrier, period = remainer.rsplit("_", 1)
+            carrier, period = remainder.rsplit("_", 1)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
                 logger.warn(msg)
                 continue

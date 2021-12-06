@@ -44,6 +44,8 @@ from .contingency import (calculate_BODF, network_lpf_contingency,
 
 from .opf import network_lopf, network_opf
 
+from .optimization.optimize import OptimizationAccessor
+
 from .plot import plot, iplot
 
 from .graph import graph, incidence_matrix, adjacency_matrix
@@ -235,6 +237,8 @@ class Network(Basic):
 
         cols = ["objective", "years"]
         self._investment_period_weightings = pd.DataFrame(columns=cols)
+
+        self.optimize = OptimizationAccessor(self)
 
         if override_components is None:
             self.components = components
@@ -533,8 +537,6 @@ class Network(Basic):
             logger.info('Applying weightings to all columns of `investment_period_weightings`')
             df = pd.DataFrame({c: df for c in self._investment_period_weightings.columns})
         self._investment_period_weightings = df
-
-
 
     def lopf(self, snapshots=None, pyomo=True, solver_name="glpk",
              solver_options={}, solver_logfile=None, formulation="kirchhoff",

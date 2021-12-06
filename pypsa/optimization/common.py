@@ -30,3 +30,12 @@ def reindex(ds, dim, index):
 def get_var(n, c, key):
     """Get variables directly from network"""
     return n.model[f"{c}-{key}"]
+
+
+def set_from_frame(n, c, attr, df):
+    """Update values in time-dependent attribute from new dataframe."""
+    pnl = n.pnl(c)
+    if pnl[attr].empty:
+        pnl[attr] = df.reindex(n.snapshots, fill_value=0)
+    else:
+        pnl[attr].update(df)
