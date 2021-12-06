@@ -7,12 +7,11 @@ Created on Mon Nov 22 10:30:57 2021
 """
 import logging
 import pandas as pd
-from linopy import LinearExpression
 from linopy.expressions import merge
-from numpy import inf, nan, roll, cumsum
+from numpy import roll, cumsum, nan
 from xarray import DataArray
 
-from .common import reindex, get_var
+from .common import reindex
 from ..descriptors import (
     get_bounds_pu,
     get_activity_mask,
@@ -20,7 +19,6 @@ from ..descriptors import (
     expand_series,
     nominal_attrs,
     additional_linkports,
-    Dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -339,7 +337,7 @@ def define_kirchhoff_constraints(n, sns):
             carrier = n.sub_networks.carrier[sub.name]
 
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            cycles = 1e5 * C.mul(weightings, axis=0).rename_axis(columns="cycle")
+            cycles = 1e5 * C.mul(weightings, axis=0)
 
             for c in coeffs:
                 coeffs[c].append(cycles.loc[c])
@@ -467,8 +465,8 @@ def define_storage_unit_constraints(n, sns):
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     kwargs = dict(snapshot=1, roll_coords=False)
-    previous_soc = soc.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_soc = previous_soc.where(include_previous_soc, -1)
+    previous_soc = soc.where(active, nan).ffill(dim).roll(**kwargs).ffill(dim)
+    previous_soc = previous_soc.sanitize().where(include_previous_soc)
 
     # We add inflow and initial soc for for noncyclic assets to rhs
     soc_init = assets.state_of_charge_initial.to_xarray()
@@ -538,7 +536,7 @@ def define_store_constraints(n, sns):
 
     kwargs = dict(snapshot=1, roll_coords=False)
     previous_e = e.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_e = previous_e.where(include_previous_e, -1)
+    previous_e = previous_e.sanitize().where(include_previous_e)
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()

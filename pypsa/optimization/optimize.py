@@ -7,13 +7,11 @@ Created on Mon Nov 22 12:56:06 2021
 """
 import os
 
-from linopy import Model, LinearExpression
+from linopy import Model
 import pandas as pd
 
 from ..descriptors import nominal_attrs, get_switchable_as_dense as get_as_dense
 from ..pf import _as_snapshots
-
-from .common import reindex
 
 from .variables import (
     define_nominal_variables,
@@ -38,6 +36,9 @@ from .constraints import (
 from .global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
+    define_primary_energy_limit,
+    define_transmission_expansion_cost_limit,
+    define_transmission_volume_expansion_limit,
 )
 
 # from .constraints import
@@ -181,7 +182,9 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     # Define global constraints
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
-    # define_global_constraints(n, sns)
+    define_transmission_expansion_cost_limit(n, sns)
+    define_transmission_volume_expansion_limit(n, sns)
+    define_primary_energy_limit(n, sns)
 
     define_objective(n, sns)
 

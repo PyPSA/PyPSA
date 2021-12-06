@@ -7,44 +7,67 @@ Created on Mon Nov 29 14:31:18 2021
 """
 
 import logging
+import re
 import pandas as pd
-from numpy import inf, nan, roll, cumsum, isnan
-from xarray import DataArray, concat
-from linopy import LinearExpression, Variable
+from numpy import isnan, nan
+from xarray import DataArray
 from linopy.expressions import merge
 
-from .common import reindex, get_var
-from ..descriptors import (
-    get_bounds_pu,
-    get_activity_mask,
-    get_switchable_as_dense as get_as_dense,
-    expand_series,
-    nominal_attrs,
-    additional_linkports,
-    Dict,
-)
+from ..descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
+    """
+    Set an capacity expansion limit for assets of the same carrier at the
+    same bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
+    `buses` dataframe matching the pattern "nom_{min/max}_{carrier}".
+    In case the constraint should only be defined for one investment period,
+    the column name can be stuctured according to
+    "nom_{min/max}_{carrier}_{period}" where period must be in
+    `n.investment_periods`.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
 
     for col in cols:
-        if col.startswith("nom_min"):
+        msg = (
+            f"Bus column '{col}' has invalid specifaction and cannot be "
+            "interpreted as constraint, must match the pattern "
+            "`nom_{min/max}_{carrier}` or `nom_{min/max}_{carrier}_{period}`"
+        )
+        if col.startswith("nom_min_"):
             sense = ">="
-        elif col.startswith("nom_max"):
+        elif col.startswith("nom_max_"):
             sense = "<="
         else:
+            logger.warn(msg)
+        remainer = col[len("nom_max_") :]
+        if remainer in n.carriers.index:
+            carrier = remainer
+            period = None
+        elif not isinstance(n.snapshots, pd.MultiIndex):
+            logger.warn(msg)
             continue
-
-        carrier = col.split("_", 2)[-1]
-        if carrier not in n.carriers.index:
-            logger.warn(f"Column {col} has non-defined carrier.")
+        else:
+            carrier, period = remainer.rsplit("_", 1)
+            if carrier not in n.carriers.index or period not in sns.unique("period"):
+                logger.warn(msg)
+                continue
 
         rhs = n.buses[col]
-        exprs = []
+        lhs = []
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
@@ -54,15 +77,17 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             if c not in n.one_port_components or ext_i.empty:
                 continue
 
-            buses = n.df(c)["bus"][ext_i].rename("Bus").rename_axis(dim).to_xarray()
-            expr = m[var].group_terms(buses)
-            exprs.append(expr)
+            if period is not None:
+                ext_i = ext_i[n.get_active_assets(c, 1)[ext_i]]
 
-        # a bit faster than sum
-        lhs = merge(exprs)
+            buses = n.df(c)["bus"][ext_i].rename("Bus").rename_axis(dim).to_xarray()
+            expr = m[var].loc[ext_i].group_terms(buses)
+            lhs.append(expr)
+
+        lhs = merge(lhs)
         rhs = rhs[lhs.Bus.data]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sense, rhs, "Bus-{col}", mask)
+        n.model.add_constraints(lhs, sense, rhs, f"Bus-{col}", mask)
 
 
 def define_growth_limit(n, sns):
@@ -72,7 +97,7 @@ def define_growth_limit(n, sns):
     ----------
     n : pypsa.Network
     sns : list-like
-        Set of snapshots where the constraint should be applied.
+        Set of snapshots to which the constraint should be applied.
     """
     if not n._multi_invest:
         return
@@ -81,7 +106,10 @@ def define_growth_limit(n, sns):
     periods = sns.unique("period")
     carrier_i = n.carriers.query("max_growth != inf").index
 
-    exprs = []
+    if carrier_i.empty:
+        return
+
+    lhs = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
@@ -101,54 +129,51 @@ def define_growth_limit(n, sns):
         assets = n.df(c).reindex(limited_i)
 
         carriers = assets.carrier.to_xarray().rename("Carrier")
-        vars = Variable(m[var].sel({dim: limited_i}).where(first_active, -1))
+        vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.group_terms(carriers)
-        exprs.append(expr)
+        lhs.append(expr)
 
-    lhs = merge(exprs)
+    lhs = merge(lhs)
     rhs = n.carriers.max_growth[carrier_i].rename_axis("Carrier")
 
     m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit_{}".format(c))
 
 
-def define_global_constraints(n, sns):
+def define_primary_energy_limit(n, sns):
     """
-    Defines global constraints for the optimization. Possible types are
+    Defines primary energy constraints. It limits the byproducts of primary
+    energy sources (defined by carriers) such as CO2.
 
-        1. primary_energy
-            Use this to constraint the byproducts of primary energy sources as
-            CO2
-        2. transmission_volume_expansion_limit
-            Use this to set a limit for line volume expansion. Possible carriers
-            are 'AC' and 'DC'
-        3. transmission_expansion_cost_limit
-            Use this to set a limit for line expansion costs. Possible carriers
-            are 'AC' and 'DC'
-        4. tech_capacity_expansion_limit
-            Use this to se a limit for the summed capacitiy of a carrier (e.g.
-            'onwind') for each investment period at choosen nodes. This limit
-            could e.g. represent land resource/ building restrictions for a
-            technology in a certain region. Currently, only the
-            capacities of extendable generators have to be below the set limit.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
 
     """
+    m = n.model
+    weightings = n.snapshot_weightings.loc[sns]
+    glcs = n.global_constraints.query('type == "primary_energy"')
 
     if n._multi_invest:
-        period_weighting = n.investment_period_weightings["years"]
-        weightings = n.snapshot_weightings.mul(period_weighting, level=0, axis=0).loc[
-            sns
-        ]
-    else:
-        weightings = n.snapshot_weightings.loc[sns]
+        period_weighting = n.investment_period_weightings.years[sns.unique("period")]
+        weightings = weightings.mul(period_weighting, level=0, axis=0)
 
-    # (1) primary_energy
-    glcs = n.global_constraints.query('type == "primary_energy"')
     for name, glc in glcs.iterrows():
+
+        if isnan(glc.investment_period):
+            snapshots = sns
+        else:
+            snapshots = sns[sns.get_loc(glc.investment_period)]
+
+        lhs = []
         rhs = glc.constant
-        lhs = ""
-        carattr = glc.carrier_attribute
-        emissions = n.carriers.query(f"{carattr} != 0")[carattr]
-        period = get_period(n, glc, sns)
+        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds > 0]
 
         if emissions.empty:
             continue
@@ -156,29 +181,22 @@ def define_global_constraints(n, sns):
         # generators
         gens = n.generators.query("carrier in @emissions.index")
         if not gens.empty:
-            em_pu = gens.carrier.map(emissions) / gens.efficiency
-            em_pu = (
-                weightings["generators"].to_frame("weightings")
-                @ em_pu.to_frame("weightings").T
-            ).loc[period]
-            p = get_var(n, "Generator", "p").loc[sns, gens.index].loc[period]
-
-            vals = linexpr((em_pu, p), as_pandas=False)
-            lhs += join_exprs(vals)
+            w = weightings["generators"].to_frame("weight")
+            em_pu = (gens.carrier.map(emissions) / gens.efficiency).to_frame("weight")
+            em_pu = w @ em_pu.T
+            p = m["Generator-p"].loc[snapshots, gens.index]
+            expr = (p * em_pu).sum()
+            lhs.append(expr)
 
         # storage units
-        sus = n.storage_units.query(
-            "carrier in @emissions.index and " "not cyclic_state_of_charge"
-        )
+        cond = "carrier in @emissions.index and not cyclic_state_of_charge"
+        sus = n.storage_units.query(cond)
         sus_i = sus.index
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
-            soc = (
-                get_var(n, "StorageUnit", "state_of_charge").loc[sns, sus_i].loc[period]
-            )
-            soc = soc.where(soc != -1).ffill().iloc[-1]
-            vals = linexpr((-em_pu, soc), as_pandas=False)
-            lhs = lhs + "\n" + join_exprs(vals)
+            soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
+            soc = soc.where(soc != -1, nan).ffill("snapshot").isel(snapshot=-1)
+            lhs.append(m.linexpr((-em_pu, soc)).sum())
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
@@ -186,169 +204,104 @@ def define_global_constraints(n, sns):
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
-            e = get_var(n, "Store", "e").loc[sns, stores.index].loc[period]
-            e = e.where(e != -1).ffill().iloc[-1]
-            vals = linexpr((-em_pu, e), as_pandas=False)
-            lhs = lhs + "\n" + join_exprs(vals)
-            rhs -= stores.carrier.map(emissions) @ stores.e_initial
+            e = m["Store-e"].loc[snapshots, stores.index]
+            e = e.where(e != -1, nan).ffill("snapshot").isel(snapshots=-1)
+            lhs.append(m.linexpr((-em_pu, e)).sum())
+            rhs -= em_pu @ stores.e_initial
 
-        define_constraints(
-            n,
-            lhs,
-            glc.sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
+        lhs = merge(lhs)
+        m.add_constraints(lhs, glc.sense, rhs, f"GlobalConstraint-{name}")
 
-    # (2) transmission_volume_expansion_limit
-    glcs = n.global_constraints.query(
-        "type == " '"transmission_volume_expansion_limit"'
-    )
+
+def define_transmission_volume_expansion_limit(n, sns):
+    """
+    Set a limit for line volume expansion. For the capacity expansion only the
+    carriers 'AC' and 'DC' are considered.
+
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+
+    """
+    m = n.model
+    glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
+
     substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+
+    lhs = []
     for name, glc in glcs.iterrows():
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
-        lhs = ""
-        period = get_period(n, glc, sns)
-        for c, attr in (("Line", "s_nom"), ("Link", "p_nom")):
-            if n.df(c).empty:
-                continue
-            ext_i = n.df(c).query(f"carrier in @car and {attr}_extendable").index
-            ext_i = ext_i[get_activity_mask(n, c, sns)[ext_i].loc[period].any()]
+        period = glc.investment_period
 
-            if ext_i.empty:
-                continue
-            v = linexpr(
-                (n.df(c).length[ext_i], get_var(n, c, attr)[ext_i]), as_pandas=False
-            )
-            lhs += "\n" + join_exprs(v)
-        if lhs == "":
-            continue
-        sense = glc.sense
-        rhs = glc.constant
-        define_constraints(
-            n,
-            lhs,
-            sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
+        for c in ["Line", "Link"]:
+            attr = nominal_attrs[c]
 
-    # (3) transmission_expansion_cost_limit
-    glcs = n.global_constraints.query("type == " '"transmission_expansion_cost_limit"')
-    for name, glc in glcs.iterrows():
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
-        lhs = ""
-        period = get_period(n, glc, sns)
-        for c, attr in (("Line", "s_nom"), ("Link", "p_nom")):
-            ext_i = n.df(c).query(f"carrier in @car and {attr}_extendable").index
-            ext_i = ext_i[get_activity_mask(n, c, sns)[ext_i].loc[period].any()]
-
+            ext_i = n.get_extendable_i(c)
             if ext_i.empty:
                 continue
 
-            v = linexpr(
-                (n.df(c).capital_cost[ext_i], get_var(n, c, attr)[ext_i]),
-                as_pandas=False,
-            )
-            lhs += "\n" + join_exprs(v)
-        if lhs == "":
-            continue
-        sense = glc.sense
-        rhs = glc.constant
-        define_constraints(
-            n,
-            lhs,
-            sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index)
 
-    # (4) tech_capacity_expansion_limit
-    # TODO: Generalize to carrier capacity expansion limit (i.e. also for stores etc.)
+            if not isnan(period):
+                ext_i = ext_i[n.get_active_assets(c, period)]
+
+            length = n.df(c).length[ext_i]
+            vars = m[f"{c}-{attr}"].loc[ext_i]
+            lhs.append(m.linexpr((length, vars)).sum())
+
+        lhs = merge(lhs)
+        m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")
+
+
+def define_transmission_expansion_cost_limit(n, sns):
+    """
+    Set a limit for line expansion costs. For the capacity expansion only the
+    carriers 'AC' and 'DC' are considered.
+
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+
+    """
+    m = n.model
+    glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
+
     substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
-    glcs = n.global_constraints.query("type == " '"tech_capacity_expansion_limit"')
-    c, attr = "Generator", "p_nom"
 
+    lhs = []
     for name, glc in glcs.iterrows():
-        period = get_period(n, glc, sns)
-        car = glc["carrier_attribute"]
-        bus = str(glc.get("bus", ""))  # in pypsa buses are always strings
-        ext_i = n.df(c).query("carrier == @car and p_nom_extendable").index
-        if bus:
-            ext_i = n.df(c).loc[ext_i].query("bus == @bus").index
-        ext_i = ext_i[get_activity_mask(n, c, sns)[ext_i].loc[period].any()]
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+        period = glc.investment_period
 
-        if ext_i.empty:
-            continue
+        for c in ["Line", "Link"]:
+            attr = nominal_attrs[c]
 
-        cap_vars = get_var(n, c, attr)[ext_i]
+            ext_i = n.get_extendable_i(c)
+            if ext_i.empty:
+                continue
 
-        lhs = join_exprs(linexpr((1, cap_vars)))
-        rhs = glc.constant
-        sense = glc.sense
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index)
 
-        define_constraints(
-            n,
-            lhs,
-            sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
-        rhs = glc.constant
-        define_constraints(
-            n,
-            lhs,
-            sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
+            if not isnan(period):
+                ext_i = ext_i[n.get_active_assets(c, period)]
 
-    # (4) tech_capacity_expansion_limit
-    # TODO: Generalize to carrier capacity expansion limit (i.e. also for stores etc.)
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
-    glcs = n.global_constraints.query("type == " '"tech_capacity_expansion_limit"')
-    c, attr = "Generator", "p_nom"
+            cost = n.df(c).capital_cost[ext_i]
+            vars = m[f"{c}-{attr}"].loc[ext_i]
+            lhs.append(m.linexpr((cost, vars)).sum())
 
-    for name, glc in glcs.iterrows():
-        period = get_period(n, glc, sns)
-        car = glc["carrier_attribute"]
-        bus = str(glc.get("bus", ""))  # in pypsa buses are always strings
-        ext_i = n.df(c).query("carrier == @car and p_nom_extendable").index
-        if bus:
-            ext_i = n.df(c).loc[ext_i].query("bus == @bus").index
-        ext_i = ext_i[get_activity_mask(n, c, sns)[ext_i].loc[period].any()]
-
-        if ext_i.empty:
-            continue
-
-        cap_vars = get_var(n, c, attr)[ext_i]
-
-        lhs = join_exprs(linexpr((1, cap_vars)))
-        rhs = glc.constant
-        sense = glc.sense
-
-        define_constraints(
-            n,
-            lhs,
-            sense,
-            rhs,
-            "GlobalConstraint",
-            "mu",
-            axes=pd.Index([name]),
-            spec=name,
-        )
+        lhs = merge(lhs)
+        m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")
