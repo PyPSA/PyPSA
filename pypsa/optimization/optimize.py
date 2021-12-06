@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 22 12:56:06 2021
-
-@author: fabian
+Build optimisation problems from PyPSA networks with Linopy.
 """
 import os
+import logging
 
 from linopy import Model
 import numpy as np
@@ -47,6 +46,11 @@ from .global_constraints import (
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
+
+from .abstract import iterative_transmission_capacity_expansion
+
+logger = logging.getLogger(__name__)
+
 
 lookup = pd.read_csv(
     os.path.join(os.path.dirname(__file__), "..", "variables.csv"),
@@ -242,19 +246,23 @@ def assign_solution(n, sns):
             else:
                 set_from_frame(n, c, attr, df)
         else:
-            non_ext = n.df(c)[attr]
-            n.df(c)[attr + "_opt"] = df.reindex(non_ext.index).fillna(non_ext)
+            n.df(c)[attr + "_opt"].update(df)
 
-            # if nominal capacity was no variable set optimal value to nominal
-            if (c, attr) not in lookup.query("nominal").index:
-                n.df(c)[attr + "_opt"] = n.df(c)[attr]
+    # if nominal capacity was no variable set optimal value to nominal
+    for (c, attr) in lookup.query("nominal").index:
+        if f"{c}-{attr}" not in m.variables:
+            n.df(c)[attr + "_opt"] = n.df(c)[attr]
 
     # recalculate storageunit net dispatch
     if not n.df("StorageUnit").empty:
         c = "StorageUnit"
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
+    n.objective = m.objective_value
+    n.objective_constant = m.solution["objective_constant"].item()
 
+
+# TODO
 # def assign_duals(n, sns):
 #     """
 #     Map dual values i.e. shadow prices to network components.
@@ -388,11 +396,13 @@ def optimize(
 
     sanity_check(n)
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)
-    m.solve(**solve_kwargs)
+    status, condition = m.solve(**solve_kwargs)
 
-    if "optimal" in m.status:
+    if status == "ok":
         assign_solution(n, sns)
         post_processing(n, sns)
+
+    return status, condition
 
 
 def is_documented_by(original):
@@ -425,6 +435,10 @@ class OptimizationAccessor:
     @is_documented_by(post_processing)
     def post_processing(self, **kwargs):
         return post_processing(self._parent, **kwargs)
+
+    @is_documented_by(iterative_transmission_capacity_expansion)
+    def iterative_transmission_capacity_expansion(self, **kwargs):
+        iterative_transmission_capacity_expansion(self._parent, **kwargs)
 
     def fix_optimal_capacities(self):
         n = self._parent

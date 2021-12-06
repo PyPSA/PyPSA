@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 29 14:31:18 2021
-
-@author: fabian
+Define global constraints for optimisation problems with Linopy.
 """
 
 import logging
@@ -84,6 +82,9 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             expr = m[var].loc[ext_i].group_terms(buses)
             lhs.append(expr)
 
+        if not lhs:
+            continue
+
         lhs = merge(lhs)
         rhs = rhs[lhs.Bus.data]
         mask = rhs.notnull()
@@ -132,6 +133,9 @@ def define_growth_limit(n, sns):
         vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.group_terms(carriers)
         lhs.append(expr)
+
+    if not lhs:
+        return
 
     lhs = merge(lhs)
     rhs = n.carriers.max_growth[carrier_i].rename_axis("Carrier")
@@ -209,6 +213,9 @@ def define_primary_energy_limit(n, sns):
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
 
+        if not lhs:
+            continue
+
         lhs = merge(lhs)
         m.add_constraints(lhs, glc.sense, rhs, f"GlobalConstraint-{name}")
 
@@ -256,6 +263,9 @@ def define_transmission_volume_expansion_limit(n, sns):
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((length, vars)).sum())
 
+        if not lhs:
+            continue
+
         lhs = merge(lhs)
         m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")
 
@@ -302,6 +312,9 @@ def define_transmission_expansion_cost_limit(n, sns):
             cost = n.df(c).capital_cost[ext_i]
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
+
+        if not lhs:
+            continue
 
         lhs = merge(lhs)
         m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")

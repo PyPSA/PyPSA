@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 22 10:29:16 2021
-
-@author: fabian
+Define optimisation variables from PyPSA networks with Linopy.
 """
 import logging
 

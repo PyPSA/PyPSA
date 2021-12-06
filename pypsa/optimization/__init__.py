@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 22 10:40:46 2021
-
-@author: fabian
+Build optimisation problems from PyPSA networks with Linopy.
 """
 
-from . import variables, constraints
+from . import variables, constraints, abstract, optimize
 from .optimize import create_model

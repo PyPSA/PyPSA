@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 22 10:30:57 2021
-
-@author: fabian
+Define optimisation constraints from PyPSA networks with Linopy.
 """
 import logging
 import pandas as pd
