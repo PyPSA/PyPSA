@@ -147,12 +147,20 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
 
 def aggregatelines(network, buses, interlines, line_length_factor=1.0):
 
+    # Make sure network component contents start with "Input" for r and x to avoid missing data in the clustered network before call aggregatelines.
+    network.components["Line"]["attrs"].at['x','status']='Input (required)'
+    network.components["Line"]["attrs"].at['r','status']='Input (required)'
+  
     #make sure all lines have same bus ordering
     positive_order = interlines.bus0_s < interlines.bus1_s
     interlines_p = interlines[positive_order]
     interlines_n = interlines[~ positive_order].rename(columns={"bus0_s":"bus1_s", "bus1_s":"bus0_s"})
     interlines_c = pd.concat((interlines_p,interlines_n), sort=False)
 
+    # line length is an optional input when type is not set so original network may or may not contain this information. If not, line length factor below won't work.
+    if network.lines.length.sum() == 0:
+        interlines_c['length']=haversine_pts(network.buses.loc[interlines_c.bus0, ['x', 'y']], network.buses.loc[interlines_c.bus1, ['x', 'y']])
+    
     attrs = network.components["Line"]["attrs"]
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
 
@@ -172,7 +180,14 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
         v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
-        length_factor = (length_s/l['length'])
+        
+        # Could be lines (not transformer) that is 0 distance before and after clustering, but also with non-0 original r, x, g, b values, due to GIS resolution or other reasons.
+        if np.asarray(l['length']).min() == 0 and np.asarray(l['x']).prod() != 0:
+            length_factor = 1
+        else:
+            length_factor = (length_s/l['length'])
+        
+        # length_factor = (length_s/l['length'])
 
         data = dict(
             r=1./(voltage_factor/(length_factor * l['r'])).sum(),
@@ -225,7 +240,7 @@ def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_str
 Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
                                        'linemap_positive', 'linemap_negative'])
 
-def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
+def get_clustering_from_busmap(network, busmap, with_time=True, global_constraints=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
                                aggregate_generators_carriers=None,
                                scale_link_capital_costs=True,
@@ -239,6 +254,10 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, buses, "Bus")
     io.import_components_from_dataframe(network_c, lines, "Line")
 
+    # Carry forward global constraints to clustered network.
+    if global_constraints:
+        network_c.global_constraints = network.global_constraints
+    
     if with_time:
         network_c.set_snapshots(network.snapshots)
         network_c.snapshot_weightings = network.snapshot_weightings.copy()
