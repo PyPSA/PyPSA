@@ -6,7 +6,7 @@ Build optimisation problems from PyPSA networks with Linopy.
 import os
 import logging
 
-from linopy import Model
+from linopy import Model, merge
 import numpy as np
 import pandas as pd
 
@@ -67,6 +67,7 @@ def sanity_check(n):
                 f"assets in component {c} which are both:"
                 f"\n\n\t{', '.join(intersection)}"
             )
+    # Check for bidirectional links with efficiency < 1.
 
 
 def define_objective(n, sns):
@@ -75,6 +76,7 @@ def define_objective(n, sns):
 
     """
     m = n.model
+    objective = []
 
     if n._multi_invest:
         periods = sns.unique("period")
@@ -99,12 +101,12 @@ def define_objective(n, sns):
             )
             cost = active @ period_weighting * cost
 
-        constant += cost @ n.df(c)[attr][ext_i]
+        constant += (cost * n.df(c)[attr][ext_i]).sum()
 
     if constant != 0:
-        object_const = m.add_variables(constant, constant, name="objective_constant")
-        m.objective = m.objective - 1 * object_const
         n.objective_constant = constant
+        object_const = m.add_variables(constant, constant, name="objective_constant")
+        objective.append(-1 * object_const)
 
     # marginal cost
     weighting = n.snapshot_weightings.objective
@@ -122,7 +124,7 @@ def define_objective(n, sns):
         if cost.empty:
             continue
         operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-        m.objective = m.objective + (operation * cost).sum()
+        objective.append((operation * cost).sum())
 
     # investment
     for c, attr in nominal_attrs.items():
@@ -142,7 +144,9 @@ def define_objective(n, sns):
             cost = active @ period_weighting * cost
 
         caps = m[f"{c}-{attr}"]
-        m.objective = m.objective + (caps * cost).sum()
+        objective.append((caps * cost).sum())
+
+    m.objective = merge(objective)
 
 
 def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
