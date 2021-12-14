@@ -2,7 +2,7 @@
 #
 #In this example three locations are optimised, each with an electric bus and a heating bus and corresponding loads. At each location the electric and heating buses are connected with heat pumps; heat can also be supplied to the heat bus with a boiler. The electric buses are connected with transmission lines and there are electrical generators at two of the nodes.
 #
-#Available as a Jupyter notebook at <http://www.pypsa.org/examples/lopf-with-heating.ipynb>.
+#Available as a Jupyter notebook at <https://pypsa.readthedocs.io/en/latest/examples/lopf-with-heating.ipynb>.
 
 import pypsa
 

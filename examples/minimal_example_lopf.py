@@ -1,6 +1,6 @@
 ## Minimal 3-node example of PyPSA linear optimal power flow
 #
-#Available as a Jupyter notebook at <http://www.pypsa.org/examples/minimal_example_lopf.ipynb>.
+#Available as a Jupyter notebook at <https://pypsa.readthedocs.io/en/latest/examples/minimal_example_lopf.ipynb>.
 
 import pypsa
 import numpy as np

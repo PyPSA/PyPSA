@@ -1,6 +1,6 @@
 ## LOPF then non-linear power flow with SciGRID
 #
-#This Jupyter Notebook is also available to download at: <http://www.pypsa.org/examples/scigrid-lopf-then-pf.ipynb> and can be viewed as an HTML page at: <http://pypsa.org/examples/scigrid-lopf-then-pf.html>.
+#This Jupyter Notebook is also available to download at: <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.ipynb> and can be viewed as an HTML page at: <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>.
 #
 #In this example, the dispatch of generators is optimised using the linear OPF, then a non-linear power flow is run on the resulting dispatch.
 #
@@ -40,7 +40,7 @@
 #
 #iii) Attaching power plants to the nearest high voltage substation may not reflect reality.
 #
-#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket e.g. 70% reduction in thermal limits (as done here) or a proper security constrained OPF (see e.g.  <http://www.pypsa.org/examples/scigrid-sclopf.ipynb>).
+#iv) There is no proper n-1 security in the calculations - this can either be simulated with a blanket e.g. 70% reduction in thermal limits (as done here) or a proper security constrained OPF (see e.g.  <https://pypsa.readthedocs.io/en/latest/examples/scigrid-sclopf.ipynb>).
 #
 #v) The borders and neighbouring countries are not represented.
 #
@@ -48,7 +48,7 @@
 #
 #viii) The marginal costs are illustrative, not accurate.
 #
-#ix) Only the first day of 2011 is in the github dataset, which is not representative. The full year of 2011 can be downloaded at <http://www.pypsa.org/examples/scigrid-with-load-gen-trafos-2011.zip>.
+#ix) Only the first day of 2011 is in the github dataset, which is not representative. The full year of 2011 can be downloaded at <https://pypsa.readthedocs.io/en/latest/examples/scigrid-with-load-gen-trafos-2011.zip>.
 #
 #x) The ENTSO-E total load for Germany may not be scaled correctly; it is scaled up uniformly by factor 1.12 (a simplification of the methodology in Schumacher, Hirth (2015), which suggests monthly factors).
 #
