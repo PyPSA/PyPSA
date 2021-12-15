@@ -47,7 +47,7 @@ The same counts for lines, generators and loads, see the list of all components 
     #add a load at bus 1
     network.add("Load", "My load",
 		bus="My bus 1",
-		p_set=100
+		p_set=100,
 		q_set=100)
 
 

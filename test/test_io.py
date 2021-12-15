@@ -26,8 +26,9 @@ def network_mi():
         "ac-dc-data",
     )
     n = pypsa.Network(csv_folder_name)
-    n.snapshots = pd.MultiIndex.from_product([['first'], n.snapshots])
-    n.generators_t.p.loc[:,:] = np.random.rand(*n.generators_t.p.shape)
+    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
+    gens_i = n.generators.index
+    n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
     return n
 
 
@@ -56,14 +57,14 @@ def test_netcdf_io_multiindexed(network_mi, tmpdir):
     pd.testing.assert_frame_equal(m.generators_t.p, network_mi.generators_t.p)
 
 
-def test_csv_io(network_mi, tmpdir):
+def test_csv_io_multiindexed(network_mi, tmpdir):
     fn = os.path.join(tmpdir, "csv_export")
     network_mi.export_to_csv_folder(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(m.generators_t.p, network_mi.generators_t.p)
 
 
-def test_hdf5_io(network_mi, tmpdir):
+def test_hdf5_io_multiindexed(network_mi, tmpdir):
     fn = os.path.join(tmpdir, "hdf5_export.h5")
     network_mi.export_to_hdf5(fn)
     m = pypsa.Network(fn)

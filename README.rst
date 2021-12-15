@@ -16,8 +16,7 @@ About
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
-PyPSA is a `free software
-<http://www.gnu.org/philosophy/free-sw.en.html>`_ toolbox for
+PyPSA is an open source toolbox for
 simulating and optimising modern power systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
@@ -45,7 +44,7 @@ Documentation
 
 `Quick start <https://pypsa.readthedocs.io/en/latest/quick_start.html>`_
 
-`Examples <http://www.pypsa.org/examples/>`_
+`Examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 `Known users of PyPSA <https://pypsa.readthedocs.io/en/latest/users.html>`_
 
@@ -87,7 +86,7 @@ It has models for:
   Power-to-Heat (P2H), Power-to-Gas (P2G), battery electric vehicles
   (BEVs), Fischer-Tropsch, direct air capture (DAC), etc.; each of
   these is demonstrated in the `examples
-  <http://www.pypsa.org/examples/>`_
+  <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 
 Other complementary libraries:
@@ -104,7 +103,7 @@ Other complementary libraries:
 Example scripts as Jupyter notebooks
 ====================================
 
-There are `extensive examples <http://www.pypsa.org/examples/>`_
+There are `extensive examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 available as `Jupyter notebooks <https://jupyter.org/>`_. They are
 also described in the `doc/examples.rst <doc/examples.rst>`_ and are
 available as Python scripts in `examples/ <examples/>`_.
@@ -120,7 +119,7 @@ Screenshots
     :width: 700px
 
 
-*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.org/examples/scigrid-lopf-then-pf-plotly.html>`_
+*  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_
 
 .. image:: doc/img/stacked-gen_and_storage-scigrid.png
     :align: center
@@ -142,8 +141,7 @@ Screenshots
 
 All results from a PyPSA simulation can be converted into an interactive
 online animation using `PyPSA-animation
-<https://github.com/PyPSA/PyPSA-animation>`_, for an example see the `PyPSA-Eur-30
-example <https://www.pypsa.org/animations/pypsa-eur-30/>`_.
+<https://github.com/PyPSA/PyPSA-animation>`_.
 
 
 
@@ -244,34 +242,29 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 Licence
 =======
 
-Copyright 2015-2020 Tom Brown (KIT, FIAS), Jonas Hörsch (KIT, FIAS),
-David Schlachtberger (FIAS)
+Copyright 2015-2021 `PyPSA Developers <https://pypsa.readthedocs.io/en/latest/developers.html>`_
 
-This program is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as
-published by the Free Software Foundation; either `version 3 of the
-License <LICENSE.txt>`_, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-`GNU General Public License <LICENSE.txt>`_ for more details.
+PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.
 
 .. |link-latest-doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
     :target: https://doi.org/10.5281/zenodo.3946412
+    :alt: Zenodo
 
 .. |badge_pypi| image:: https://img.shields.io/pypi/v/pypsa.svg
     :target: https://pypi.python.org/pypi/pypsa
     :alt: PyPI version
 
 .. |badge_license| image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: License
+    :target: LICENSE.txt
+    :alt: License
 
 .. |ci_badge_conda| image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+    :alt: CI with conda
 
 .. |ci_badge| image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/CI.yml
+    :alt: CI
 
 .. |badge_docs| image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
@@ -291,3 +284,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 
 .. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
+    :alt: Code coverage

@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+## Copyright 2015-2021 PyPSA Developers
+
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
+
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
+
 """
 Tools for fast Linear Problem file writing. This module contains
 
@@ -12,6 +21,11 @@ Tools for fast Linear Problem file writing. This module contains
 This module supports the linear optimal power flow calculation without using
 pyomo (see module linopt.py)
 """
+
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
+
 
 from .descriptors import Dict
 import pandas as pd
@@ -28,7 +42,7 @@ logger = logging.getLogger(__name__)
 # Front end functions
 # =============================================================================
 
-def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
+def define_variables(n, lower, upper, name, attr='', axes=None, spec='', mask=None):
     """
     Defines variable(s) for pypsa-network with given lower bound(s) and upper
     bound(s). The variables are stored in the network object under n.vars with
@@ -59,6 +73,9 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
         Specifies the axes and therefore the shape of the variables if bounds
         are single strings or floats. This is helpful when multiple variables
         have the same upper and lower bound.
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for variables which are skipped.
+        The shape of the mask has to match the shape the added variables.
 
 
     Example
@@ -79,12 +96,12 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec=''):
 
     Note that this is usefull for the `extra_functionality` argument.
     """
-    var = write_bound(n, lower, upper, axes)
+    var = write_bound(n, lower, upper, axes, mask)
     set_varref(n, var, name, attr, spec=spec)
     return var
 
 
-def define_binaries(n, axes, name, attr='',  spec=''):
+def define_binaries(n, axes, name, attr='',  spec='', mask=None):
     """
     Defines binary-variable(s) for pypsa-network. The variables are stored
     in the network object under n.vars with key of the variable name.
@@ -107,6 +124,9 @@ def define_binaries(n, axes, name, attr='',  spec=''):
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
         if one-dimensional
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for variables which are skipped.
+        The shape of the mask has to match the shape given by axes.
 
     See also
     ---------
@@ -118,7 +138,8 @@ def define_binaries(n, axes, name, attr='',  spec=''):
     return var
 
 
-def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
+def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec='',
+                       mask=None):
     """
     Defines constraint(s) for pypsa-network with given left hand side (lhs),
     sense and right hand side (rhs). The constraints are stored in the network
@@ -152,6 +173,10 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     axes: pd.Index or tuple of pd.Index objects, default None
         Specifies the axes if all of lhs, sense and rhs are np.arrays or single
         strings or floats.
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for constraints which are skipped.
+        The shape of the mask has to match the shape of the array that come out
+        when combining lhs, sense and rhs.
 
 
     Example
@@ -179,7 +204,7 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec=''):
     Note that this is useful for the `extra_functionality` argument.
 
     """
-    con = write_constraint(n, lhs, sense, rhs, axes)
+    con = write_constraint(n, lhs, sense, rhs, axes, mask)
     set_conref(n, con, name, attr, spec=spec)
     return con
 
@@ -197,7 +222,7 @@ def _get_handlers(axes, *maybearrays):
     return axes, shape, size
 
 
-def write_bound(n, lower, upper, axes=None):
+def write_bound(n, lower, upper, axes=None, mask=None):
     """
     Writer function for writing out multiple variables at a time. If lower and
     upper are floats it demands to give pass axes, a tuple of (index, columns)
@@ -209,11 +234,14 @@ def write_bound(n, lower, upper, axes=None):
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-    n.bounds_f.write(join_exprs(lower + ' <= x' + _str_array(variables, True)
-                                + ' <= '+ upper + '\n'))
+    exprs = lower + ' <= x' + _str_array(variables, True) + ' <= '+ upper + '\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        variables = np.where(mask, variables, -1)
+    n.bounds_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
-def write_constraint(n, lhs, sense, rhs, axes=None):
+def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     """
     Writer function for writing out multiple constraints to the corresponding
     constraints file. If lower and upper are numpy.ndarrays it axes must not be
@@ -227,11 +255,14 @@ def write_constraint(n, lhs, sense, rhs, axes=None):
     if isinstance(sense, str):
         sense = '=' if sense == '==' else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    n.constraints_f.write(join_exprs('c' + _str_array(cons, True) + ':\n' +
-                                     lhs + sense + ' ' + rhs + '\n\n'))
+    exprs = 'c' + _str_array(cons, True) + ':\n' + lhs + sense + ' ' + rhs + '\n\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        cons = np.where(mask, cons, -1)
+    n.constraints_f.write(join_exprs(exprs))
     return to_pandas(cons, *axes)
 
-def write_binary(n, axes):
+def write_binary(n, axes, mask=None):
     """
     Writer function for writing out multiple binary-variables at a time.
     According to the axes it writes out binaries for each entry the pd.Series
@@ -241,7 +272,11 @@ def write_binary(n, axes):
     axes, shape, size = _get_handlers(axes)
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
-    n.binaries_f.write(join_exprs('x' + _str_array(variables, True) + '\n'))
+    exprs = 'x' + _str_array(variables, True) + '\n'
+    if mask is not None:
+        exprs = np.where(mask, exprs, '')
+        variables = np.where(mask, variables, -1)
+    n.binaries_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
 
@@ -296,7 +331,7 @@ def align_with_static_component(n, c, attr):
     """
     Alignment of time-dependent variables with static components. If c is a
     pypsa.component name, it will sort the columns of the variable according
-    to the statid component.
+    to the static component.
     """
     if c in n.all_components and (c, attr) in n.variables.index:
         if not n.variables.pnl[c, attr]: return
@@ -356,6 +391,9 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     if np.prod(shape):
         for coeff, var in tuples:
             expr = expr + _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
+            if isinstance(expr, np.ndarray):
+                isna = np.isnan(coeff) | np.isnan(var) | (var == -1)
+                expr = np.where(isna, '', expr)
     if return_axes:
         return (expr, *axes)
     if as_pandas:
@@ -386,8 +424,9 @@ def _str_array(array, integer_string=False):
         array = np.asarray(array, dtype=object)
     if array.dtype < str and array.size:
         if integer_string:
-            return _v_to_int_str(np.asarray(array))
-        return _v_to_float_str(np.asarray(array))
+            array = np.nan_to_num(array, False, -1)
+            return _v_to_int_str(array)
+        return _v_to_float_str(array)
     else:
         return array
 
@@ -562,15 +601,190 @@ def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
+
+def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
+                        solver_options={}, warmstart=None, store_basis=True):
+    """
+   Highs solver function. Reads a linear problem file and passes it to the highs
+    solver. If the solution is feasible the function returns the objective,
+    solution and dual constraint variables. Highs must be installed for usage.
+    Documentation: https://www.maths.ed.ac.uk/hall/HiGHS/
+
+    Installation
+    -------------
+    The script might only work for version HiGHS 1.1.1. Installation steps::
+        sudo apt-get install cmake  # if not installed
+        git clone git@github.com:ERGO-Code/HiGHS.git
+        cd HiGHS
+        git checkout 95342daa73543cc21e5b27db3e0fbf7330007541 # moves to HiGHS 1.1.1
+        mkdir build
+        cd build
+        cmake ..
+        make
+        ctest
+
+    Then in .bashrc add paths of executables and library ::
+        export PATH="${PATH}:/foo/HiGHS/build/bin"
+        export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/foo/HiGHS/build/lib"
+        source .bashrc
+
+    Now when typing ``highs`` in the terminal you should see something like ::
+        Running HiGHS 1.1.1 [date: 2021-11-14, git hash: 95342daa]
+
+    Architecture
+    -------------
+    The function reads and execute (i.e. subprocess.Popen,...) terminal
+    commands of the solver. Meaning the command can be also executed at your
+    command window/terminal if HiGHs is installed. Executing the commands on
+    your local terminal helps to identify the raw outputs that are useful for
+    developing the interface further.
+
+    All functions below the "process = ..." do only read and save the outputs
+    generated from the HiGHS solver. These parts are solver specific and
+    depends on the solver output.
+
+    Solver options
+    ---------------
+    Solver options are read by the 1) command window and the 2) option_file.txt
+
+    1) An example list of solver options executable by the command window is given here:
+    Examples:
+    --model_file arg 	File of model to solve.
+    --presolve arg 	    Presolve: "choose" by default - "on"/"off" are alternatives.
+    --solver arg 	    Solver: "choose" by default - "simplex"/"ipm" are alternatives.
+    --parallel arg 	    Parallel solve: "choose" by default - "on"/"off" are alternatives.
+    --time_limit arg 	Run time limit (double).
+    --options_file arg 	File containing HiGHS options.
+    -h, --help 	        Print help.
+
+    2) The options_file.txt gives some more options, see a full list here: 
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
+    By default, we insert a couple of options for the ipm solver. The dictionary
+    can be overwritten by simply giving the new values. For instance, you could
+    write a dictionary replacing some of the default values or adding new options:
+    ```
+    solver_options = {
+        name: highs,
+        method: ipm,
+        parallel: "on",
+        <option_name>: <value>,
+    }
+    ```
+    Note, the <option_name> and <value> must be equivalent to the name convention
+    of HiGHS. Some function exist that are not documented, check their GitHub file:
+    https://github.com/ERGO-Code/HiGHS/blob/master/src/lp_data/HighsOptions.h
+
+    Output
+    ------
+    status : string,
+        "ok" or "warning"
+    termination_condition : string,
+        Contains "optimal", "infeasible", 
+    variables_sol : series
+    constraints_dual : series
+    objective : float
+    """
+    logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
+    options_fn = "highs_options.txt"
+    default_dict = {
+        "method": "ipm",
+        "primal_feasibility_tolerance": 1e-04,
+        "dual_feasibility_tolerance": 1e-05,
+        "ipm_optimality_tolerance": 1e-6,
+        "presolve": "on",
+        "run_crossover": True,
+        "parallel": "off",
+        "threads": 4,
+        "solution_file": solution_fn,
+        "write_solution_to_file": True,
+        "write_solution_style": 1,
+        "log_to_console": True,
+    }
+    # update default_dict through solver_options and write to file
+    default_dict.update(solver_options)
+    method = default_dict.pop("method", "ipm")
+    logger.info(f"Options: \"{default_dict}\". List of options: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set")
+    f1 = open(options_fn, "w")
+    f1.write('\n'.join([f"{k} = {v}" for k, v in default_dict.items()]))
+    f1.close()
+
+    # write (terminal) commands
+    command = f"highs --model_file {problem_fn} "
+    if warmstart:
+        logger.warning("Warmstart, not available in HiGHS. Will be ignored.")
+    command += f"--solver {method} --options_file {options_fn}"
+    logger.info(f"Solver command: \"{command}\"")
+    # execute command and store command window output
+    process = subprocess.Popen(
+        command.split(' '),
+        stdout=subprocess.PIPE,
+        universal_newlines=True
+    )
+
+    def read_until_break():
+        # Function that reads line by line the command window
+        while True:
+            out = process.stdout.readline(1)
+            if out == '' and process.poll() != None:
+                break
+            if out != '':
+                yield out
+
+    # converts stdout (standard terminal output) to pandas dataframe
+    log = io.StringIO(''.join(read_until_break())[:])
+    log = pd.read_csv(log, sep=':', index_col=0, header=None)[1].squeeze()
+    if solver_logfile is not None:
+        log.to_csv(solver_logfile, sep="\t")
+    log.index = log.index.str.strip()
+    os.remove(options_fn)
+
+    # read out termination_condition from `info`
+    model_status = log["Model   status"].strip().lower()
+    if "optimal" in model_status:
+        status = "ok"
+        termination_condition = model_status
+    elif "infeasible" in model_status:
+        status = "warning"
+        termination_condition = model_status
+    else:
+        status = 'warning'
+        termination_condition = model_status
+    objective = float(log["Objective value"])
+
+    # read out solution file (.sol)
+    f = open(solution_fn, "rb")
+    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
+    f.close()
+    
+    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r'\s+')
+    row_no = sol[sol["Index"] == 'Rows'].index[0]
+    sol = sol.drop(row_no+1)  # Removes header line after "Rows"
+    sol_rows = sol[(sol.index > row_no)]
+    sol_cols = sol[(sol.index < row_no)].set_index("Name").pipe(set_int_index)
+    variables_sol = pd.to_numeric(sol_cols["Primal"], errors="raise")
+    constraints_dual = pd.to_numeric(sol_rows["Dual"], errors="raise").reset_index(drop=True)
+    constraints_dual.index += 1
+
+    return (status, termination_condition, variables_sol,
+            constraints_dual, objective)
+
+
 def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the solver options, run 'cbc' in your shell
     """
+    with open(problem_fn, 'rb') as f:
+        for str in f.readlines():
+            assert (("> " in str.decode('utf-8')) == False), (">, must be"
+                    "changed to >=")
+            assert (("< " in str.decode('utf-8')) == False), ("<, must be"
+                    "changed to <=")
+
     #printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
@@ -624,7 +838,7 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
                      solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values.
 
     For more information on the glpk solver options:
@@ -692,7 +906,7 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the cplex
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Cplex must be installed for using this function
 
     """
@@ -703,11 +917,12 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
     import cplex
     _version = LooseVersion(cplex.__version__)
     m = cplex.Cplex()
-    if _version >= "12.10":
-        log_file_or_path = open(solver_logfile, "w")
-    else:
-        log_file_or_path = solver_logfile
-    out = m.set_log_stream(log_file_or_path)
+    if solver_logfile is not None:
+        if _version >= "12.10":
+            log_file_or_path = open(solver_logfile, "w")
+        else:
+            log_file_or_path = solver_logfile
+        m.set_log_stream(log_file_or_path)
     if solver_options is not None:
         for key, value in solver_options.items():
             param = m.parameters
@@ -719,7 +934,9 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
         m.start.read_basis(warmstart)
     m.solve()
     is_lp = m.problem_type[m.get_problem_type()] == 'LP'
-    if isinstance(log_file_or_path, io.IOBase): log_file_or_path.close()
+    if solver_logfile is not None:
+        if isinstance(log_file_or_path, io.IOBase):
+            log_file_or_path.close()
 
     termination_condition = m.solution.get_status_string()
     if 'optimal' in termination_condition:
@@ -755,7 +972,7 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
                         solver_options, warmstart=None, store_basis=True):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
-    solver. If the solution is sucessful it returns variable solutions and
+    solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function
 
     For more information on solver options:

@@ -53,7 +53,7 @@ the solver, ``keep_files`` means that the ``.lp`` file is saved and
 ``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
 for more details).
 
-See :py:meth:`pypsa.Network.lopf` for the documentation. 
+See :py:meth:`pypsa.Network.lopf` for the documentation.
 
 
 
@@ -99,7 +99,6 @@ For the very simplest stochastic optimisation you can use the
 weightings ``w_t`` as probabilities for the snapshots, which can
 represent different load/weather conditions. More sophisticated
 functionality is planned.
-
 
 
 Variables and notation summary
@@ -552,6 +551,56 @@ i.e. the CO2 price in this case. :math:`\mu` is an output of the
 optimisation stored in ``network.global_constraints.mu``.
 
 
+.. _multi-horizon:
+
+Optimising investment and operation over multiple investment periods
+--------------------------------------------------------------------
+
+In general, there are two different methods of pathway optimisation with perfect
+foresight. These differ in the way of accounting the investment costs:
+
+* In the first case (type I), the complete overnight investment costs are applied.
+* In the second case (type II), the investment costs are annualised over the years, in which an asset is active (depending on the build year and lifetime).
+
+Method II is used in PyPSA since it allows a separation of the discounting over
+different years and the end-of-horizon effects are smaller compared to method I.
+For a more detailed comparison of the two methods and a reference to other energy
+system models see `<https://nworbmot.org/energy/multihorizon.pdf>`_.
+
+.. note::
+ Be aware, that the attribute ``capital_cost`` represents the annualised investment costs
+ NOT the overnight investment costs for the multi-investment.
+
+Multi-year investment instead of investing a single time is currently only
+implemented without pyomo. It can be passed by setting the argument
+``multi_investment_periods`` when calling the
+``network.lopf(multi_investment_periods=True, pyomo=False)``. For the pathway
+optimisation ``snapshots`` have to be a pandas.MultiIndex, with the first level
+as a subset of the investment periods.
+
+The investment periods are defined in the component ``investment_periods``.
+They have to be integer and increasing (e.g. [2020, 2030, 2040, 2050]).
+The investment periods can be weighted both in time called ``years``
+(e.g. for global constraints such as CO2 emissions) and in the objective function
+``objective`` (e.g. for a social discount rate) using the
+``investment_period_weightings``.
+
+The objective function is then expressed by
+
+.. math::
+   \min \sum_{a \in A} w^o_a [\sum_{s | b_s<=a<b_s+L_s} (c_{s,a} G_s + \sum_t w^\tau_{a,t} o_{s,a,t}g_{s,a,t})]  .
+
+Where :math:`A` are the investment periods, :math:`w^o_a` the objective weighting of the investment period, :math:`b_s` is the build year of an
+asset :math:`s` with lifetime :math:`L_s`, :math:`c_{s,a}` the annualised
+investment costs, :math:`o_{s,a, t}` the operational cots and :math:`w^\tau_{s,a}`
+the temporal weightings (including snapshot objective weightings and investment
+period temporal weightings).
+
+`Example jupyter notebook for multi-investment
+<https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_ and python
+script ``examples/multi-decade-example.py``.
+
+
 Custom constraints and other functionality
 ------------------------------------------
 
@@ -574,10 +623,10 @@ extend the optimisation problem constructed by PyPSA using the usual
 pyomo syntax.
 
 The `CHP example
-<https://pypsa.org/examples/power-to-gas-boiler-chp.html>`_ and the
+<https://pypsa.readthedocs.io/en/latest/examples/power-to-gas-boiler-chp.html>`_ and the
 `example that replaces generators and storage units with fundamental links
 and stores
-<https://pypsa.org/examples/replace-generator-storage-units-with-store.html>`_
+<https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_
 both pass an ``extra_functionality`` argument to the LOPF to add
 functionality.
 
@@ -669,4 +718,3 @@ Outputs
 * link.{p0, p1, p_nom_opt, mu_lower, mu_upper}
 
 * global_constraint.{mu}
-

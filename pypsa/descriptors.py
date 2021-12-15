@@ -1,26 +1,18 @@
 
+## Copyright 2015-2021 PyPSA Developers
 
-## Copyright 2015-2018 Tom Brown (FIAS), Jonas Hoersch (FIAS)
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
-
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Descriptors for component attributes.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
-
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 from collections import OrderedDict
 from itertools import repeat
@@ -181,7 +173,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
         pd.DataFrame(np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
                      index=snapshots, columns=fixed_i),
         pnl[attr].loc[snapshots, varying_i]
-    ], axis=1, sort=False).reindex(columns=index))
+    ], axis=1, sort=False).reindex(index=snapshots, columns=index))
 
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     """
@@ -319,6 +311,47 @@ def get_non_extendable_i(n, c):
     """
     return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
+
+def get_committable_i(n, c):
+    """
+    Getter function. Get the index of commitable elements of a given
+    component.
+    """
+    if "committable" not in n.df(c):
+        idx = pd.Index([])
+    else:
+        idx = n.df(c)[lambda ds: ds['committable']].index
+    return idx.rename(f'{c}-com')
+
+
+def get_active_assets(n, c, investment_period):
+    """
+    Getter function. Get True values for elements of component c which are active
+    at a given investment period. These are calculated from lifetime and the
+    build year.
+    """
+    if investment_period not in n.investment_periods:
+        raise ValueError("Investment period not in `network.investment_periods`")
+    return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
+
+
+def get_activity_mask(n, c, sns=None):
+    """
+    Getter function. Get a boolean array with True values for elements of
+    component c which are active at a specific snapshot. If the network is
+    in multi_investment_period mode (given by n._multi_invest),
+    these are calculated from lifetime and the build year. Otherwise all
+    values are set to True.
+    """
+    if sns is None:
+        sns = n.snapshots
+    if getattr(n, '_multi_invest', False):
+        _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
+        return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+    else:
+        return pd.DataFrame(True, sns, n.df(c).index)
+
+
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     """
     Getter function to retrieve the per unit bounds of a given compoent for
@@ -355,11 +388,9 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
+
     return min_pu[index], max_pu[index]
 
 def additional_linkports(n):
     return [i[3:] for i in n.links.columns if i.startswith('bus')
             and i not in ['bus0', 'bus1']]
-
-
-

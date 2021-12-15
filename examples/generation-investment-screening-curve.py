@@ -2,7 +2,7 @@
 #
 #Compute the long-term equilibrium power plant investment for a given load duration curve (1000-1000z for z \in [0,1]) and a given set of generator investment options.
 #
-#Available as a Jupyter notebook at http://www.pypsa.org/examples/generation-investment-screening-curve.ipynb.
+#Available as a Jupyter notebook at https://pypsa.readthedocs.io/en/latest/examples/generation-investment-screening-curve.ipynb.
 
 import pypsa
 import numpy as np

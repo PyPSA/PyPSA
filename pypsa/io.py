@@ -1,23 +1,18 @@
-## Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS)
 
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; either version 3 of the
-## License, or (at your option) any later version.
+## Copyright 2015-2021 PyPSA Developers
 
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## You can find the list of PyPSA Developers at
+## https://pypsa.readthedocs.io/en/latest/developers.html
 
-## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## PyPSA is released under the open source MIT License, see
+## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """Functions for importing and exporting data.
 """
 
-__author__ = "Tom Brown (FIAS), Jonas Hoersch (FIAS)"
-__copyright__ = "Copyright 2015-2017 Tom Brown (FIAS), Jonas Hoersch (FIAS), GNU GPL 3"
+__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+                 "MIT License")
 
 import logging
 logger = logging.getLogger(__name__)
@@ -80,8 +75,11 @@ class ImporterCSV(Importer):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn): return None
         df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        # backwards-compatibility: level "snapshot" was rename to "timestep"
         if "snapshot" in df:
             df["snapshot"] = pd.to_datetime(df.snapshot)
+        if "timestep" in df:
+            df["timestep"] = pd.to_datetime(df.timestep)
         return df
 
     def get_investment_periods(self):
@@ -276,7 +274,7 @@ if has_xarray:
                 self.ds['snapshots_' + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.name = 'investment_periods'
+            investment_periods.index.rename("investment_periods", inplace=True)
             for attr in investment_periods.columns:
                 self.ds['investment_periods_' + attr] = investment_periods[attr]
 
@@ -332,16 +330,15 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     #now export snapshots
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
-        network.snapshot_weightings.index.rename(["period", "snapshot"], inplace=True)
+        network.snapshot_weightings.index.rename(["period", "timestep"], inplace=True)
     else:
         network.snapshot_weightings.index.rename("snapshot", inplace=True)
     snapshots = network.snapshot_weightings.reset_index()
     exporter.save_snapshots(snapshots)
 
     # export investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = network.investment_period_weightings
-    # exporter.save_investment_periods(investment_periods)
+    investment_periods = network.investment_period_weightings
+    exporter.save_investment_periods(investment_periods)
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
@@ -603,24 +600,22 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
         logger.warning(dedent("""
-                Importing PyPSA from older version of PyPSA than current version {}.
-                Please read the release notes at https://pypsa.org/doc/release_notes.html
+                Importing PyPSA from older version of PyPSA than current version.
+                Please read the release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html
                 carefully to prepare your network for import.
-        """).format(network.pypsa_version))
+                Currently used PyPSA version {}, imported network file PyPSA version {}.
+        """).format(current_pypsa_version, pypsa_version))
 
     importer.pypsa_version = pypsa_version
     importer.current_pypsa_version = current_pypsa_version
 
     # if there is snapshots.csv, read in snapshot data
     df = importer.get_snapshots()
-    # read in investment period weightings
-    # TODO: uncomment as soon as merge multi-decade branch
-    # investment_periods = importer.get_investment_periods()
 
     if df is not None:
-
         # check if imported snapshots have MultiIndex
-        snapshot_levels = set(["period", "snapshot"]).intersection(df.columns)
+        # backwards-compatibility: level "snapshot" was rename to "timestep"
+        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(df.columns)
         if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
@@ -634,10 +629,15 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
         network.set_snapshots(df.index)
 
-        # TODO: uncomment as soon as merge multi-decade branch
-        # if investment_periods is not None:
-        #     network.investment_period_weightings = (
-        #         investment_periods.reindex(network.investment_period_weightings.index))
+    # read in investment period weightings
+    periods = importer.get_investment_periods()
+
+    if periods is not None:
+        network._investment_periods = periods.index
+
+        network._investment_period_weightings = (
+            periods.reindex(network.investment_periods))
+
 
     imported_components = []
 
@@ -736,6 +736,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         logger.error("Error, new components for {} are not unique".format(cls_name))
         return
 
+    new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
 
     #now deal with time-dependent properties
@@ -785,6 +786,8 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     pnl = network.pnl(cls_name)
     list_name = network.components[cls_name]["list_name"]
 
+    dataframe.columns.name = cls_name
+    dataframe.index.name = 'snapshot'
     diff = dataframe.columns.difference(df.index)
     if len(diff) > 0:
         logger.warning(f"Components {diff} for attribute {attr} of {cls_name} "

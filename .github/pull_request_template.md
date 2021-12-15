@@ -9,3 +9,4 @@ Closes # (if applicable).
 - [ ] Unit tests for new features were added (if applicable).
 - [ ] Newly introduced dependencies are added to `environment.yaml`, `environment_docs.yaml` and `setup.py` (if applicable).
 - [ ] A note for the release notes `doc/release_notes.rst` of the upcoming release is included.
+- [ ] I consent to the release of this PR's code under the MIT license.

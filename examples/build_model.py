@@ -4,7 +4,7 @@
 #To enable unit commitment on a generator, set its attribute committable = True.
 #
 #
-#Available as a Jupyter notebook at http://www.pypsa.org/examples/unit-commitment.ipynb.
+#Available as a Jupyter notebook at https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.ipynb.
 
 import pypsa
 
