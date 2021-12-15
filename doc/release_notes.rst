@@ -15,6 +15,8 @@ Upcoming Release
 
 * A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.    
 
+* Clustering networks now also supports the clustering of time-series associated to lines.  
+
 * add new features here
 
 
