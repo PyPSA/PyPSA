@@ -255,8 +255,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, lines, "Line")
 
     # Carry forward global constraints to clustered network.
-    if global_constraints:
-        network_c.global_constraints = network.global_constraints
+    network_c.global_constraints = network.global_constraints
     
     if with_time:
         network_c.set_snapshots(network.snapshots)
