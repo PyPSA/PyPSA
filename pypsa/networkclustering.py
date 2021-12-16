@@ -240,7 +240,7 @@ def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_str
 Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
                                        'linemap_positive', 'linemap_negative'])
 
-def get_clustering_from_busmap(network, busmap, with_time=True, global_constraints=True, line_length_factor=1.0,
+def get_clustering_from_busmap(network, busmap, with_time=True, line_length_factor=1.0,
                                aggregate_generators_weighted=False, aggregate_one_ports={},
                                aggregate_generators_carriers=None,
                                scale_link_capital_costs=True,
