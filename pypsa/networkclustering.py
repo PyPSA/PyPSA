@@ -210,7 +210,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
             df_agg = df.loc[:, lines_agg_b.index]
             if not df_agg.empty:
                 if (attr == 's_max_pu') or (attr == "s_min_pu"):
-                    weighting = network.lines.groupby(linemap).s_nom.transform(_normed)
+                    weighting = network.lines.groupby(linemap).s_nom.apply(_normed)
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
                 pnl_df = df_agg.groupby(linemap, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
