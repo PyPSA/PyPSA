@@ -144,6 +144,9 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
     if geomap:
         if projection is None:
             projection = get_projection_from_crs(n.srid)
+        else:
+            assert isinstance(projection, cartopy.crs.Projection), (
+                    'The passed projection is not a cartopy.crs.Projection')
 
         if ax is None:
             ax = plt.gca(projection=projection)
