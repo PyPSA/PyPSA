@@ -142,8 +142,9 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         geomap = False
 
     if geomap:
+        transform = get_projection_from_crs(n.srid)
         if projection is None:
-            projection = get_projection_from_crs(n.srid)
+            projection = transform
         else:
             assert isinstance(projection, cartopy.crs.Projection), (
                     'The passed projection is not a cartopy.crs.Projection')
@@ -156,7 +157,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
+        draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
         if boundaries is not None:
@@ -379,7 +380,6 @@ def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
-    axis_transformation = get_projection_from_crs(n.srid)
 
     if color_geomap is None:
         color_geomap = {'ocean': 'w', 'land': 'w'}
@@ -395,7 +395,7 @@ def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
     border = cartopy.feature.BORDERS.with_scale(resolution)
     ax.add_feature(border, linewidth=0.3)
 
-    return axis_transformation
+    return
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
