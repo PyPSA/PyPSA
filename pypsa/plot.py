@@ -137,11 +137,11 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
     if boundaries is None and margin:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
-    if geomap:
-        if not cartopy_present:
-            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
+    if geomap and not cartopy_present:
+        logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+        geomap = False
 
+    if geomap:
         if projection is None:
             projection = get_projection_from_crs(n.srid)
 
