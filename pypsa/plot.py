@@ -157,7 +157,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
+        draw_map_cartopy(ax, geomap, color_geomap)
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
         if boundaries is not None:
@@ -375,7 +375,7 @@ def projected_area_factor(ax, original_crs=4326):
                    /abs((pbounds[0] - pbounds[1])[:2].prod()))
 
 
-def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
+def draw_map_cartopy(ax, geomap=True, color_geomap=None):
 
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
