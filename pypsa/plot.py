@@ -386,15 +386,18 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
 
-    if color_geomap is None:
-        color_geomap = {'ocean': 'w', 'land': 'w'}
-    elif color_geomap and not isinstance(color_geomap, dict):
+    if not color_geomap:
+        color_geomap = {}
+    elif not isinstance(color_geomap, dict):
         color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
-    ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
-                    facecolor=color_geomap['land'])
-    ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
-                    facecolor=color_geomap['ocean'])
+    if 'land' in color_geomap:
+        ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
+                        facecolor=color_geomap['land'])
+
+    if 'ocean' in color_geomap:
+        ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
+                        facecolor=color_geomap['ocean'])
 
     ax.coastlines(linewidth=0.4, zorder=2, resolution=resolution)
     border = cartopy.feature.BORDERS.with_scale(resolution)
