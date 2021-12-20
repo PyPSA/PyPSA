@@ -127,6 +127,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         Specify colors to paint land and sea areas in.
         If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
         If no dictionary is provided, colors are white.
+        If False, no geographical features are plotted.
 
     Returns
     -------
@@ -157,9 +158,13 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        draw_map_cartopy(ax, geomap, color_geomap)
+
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+
+        if color_geomap is not False:
+            draw_map_cartopy(ax, geomap, color_geomap)
+
         if boundaries is not None:
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
