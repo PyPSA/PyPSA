@@ -15,6 +15,8 @@ Upcoming Release
 
 * A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.    
 
+* A warning message is shown if a network contains one or more links with an :code:`efficiency` smaller than 1 and a negative value for :code:`p_min_pu` [`#320 <https://github.com/PyPSA/PyPSA/pull/320>`_].
+
 * add new features here
 
 
