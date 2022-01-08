@@ -978,7 +978,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
 
 
-def import_from_pandapower_net(network, net, extra_line_data=False):
+def import_from_pandapower_net(network, net, extra_line_data=False, use_pandapower_index=False):
     """
     Import network from pandapower net.
 
@@ -1010,7 +1010,14 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     >>> network.import_from_pandapower_net(net, extra_line_data=True)
     """
     logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers.")
-
+    
+    if use_pandapower_index:
+        for element in ["bus", "line", "gen", "load", "shunt", "trafo", "switch"]:
+            net[element].name = net[element].index.values
+        
+        net.sgen.name = net.sgen.index.values + (net.gen.index.max() + 1 if len(net.gen) else 0)
+        net.ext_grid.name = net.ext_grid.index.values + (net.gen.index.max() + 1 if len(net.gen) else 0) + (net.sgen.index.max() + 1 if len(net.sgen) else 0)
+    
     d = {}
 
     d["Bus"] = pd.DataFrame({"v_nom" : net.bus.vn_kv.values,
@@ -1019,38 +1026,38 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_mw).values,
                               "q_set" : (net.load.scaling*net.load.q_mvar).values,
-                              "bus" : net.bus.name.loc[net.load.bus].values},
+                              "bus" : net.bus.name.loc[net.load.bus.values].values},
                              index=net.load.name)
 
     #deal with PV generators
-    d["Generator"] = pd.DataFrame({"p_set" : -(net.gen.scaling*net.gen.p_mw).values,
+    d["Generator"] = pd.DataFrame({"p_set" : (net.gen.scaling*net.gen.p_mw).values,
                                    "q_set" : 0.,
-                                   "bus" : net.bus.name.loc[net.gen.bus].values,
+                                   "bus" : net.bus.name.loc[net.gen.bus.values].values,
                                    "control" : "PV"},
                                   index=net.gen.name)
 
-    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values,"v_mag_pu_set"] = net.gen.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus.values].values,"v_mag_pu_set"] = net.gen.vm_pu.values
 
 
     #deal with PQ "static" generators
-    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : -(net.sgen.scaling*net.sgen.p_mw).values,
-                                                             "q_set" : -(net.sgen.scaling*net.sgen.q_mvar).values,
-                                                             "bus" : net.bus.name.loc[net.sgen.bus].values,
+    d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"p_set" : (net.sgen.scaling*net.sgen.p_mw).values,
+                                                             "q_set" : (net.sgen.scaling*net.sgen.q_mvar).values,
+                                                             "bus" : net.bus.name.loc[net.sgen.bus.values].values,
                                                              "control" : "PQ"},
                                                             index=net.sgen.name)), sort=False)
 
     d["Generator"] = pd.concat((d["Generator"],pd.DataFrame({"control" : "Slack",
                                                              "p_set" : 0.,
                                                              "q_set" : 0.,
-                                                             "bus" : net.bus.name.loc[net.ext_grid.bus].values},
+                                                             "bus" : net.bus.name.loc[net.ext_grid.bus.values].values},
                                                             index=net.ext_grid.name.fillna("External Grid"))), sort=False)
 
-    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus.values].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
 
     if extra_line_data == False:
         d["Line"] = pd.DataFrame({"type": net.line.std_type.values,
-                                  "bus0": net.bus.name.loc[net.line.from_bus].values,
-                                  "bus1": net.bus.name.loc[net.line.to_bus].values,
+                                  "bus0": net.bus.name.loc[net.line.from_bus.values].values,
+                                  "bus1": net.bus.name.loc[net.line.to_bus.values].values,
                                   "length": net.line.length_km.values,
                                   "num_parallel": net.line.parallel.values},
                                  index=net.line.name)
@@ -1069,8 +1076,8 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
                                   "x" : x,
                                   "b" : b,
                                   "s_nom" : s_nom,
-                                  "bus0" : net.bus.name.loc[net.line.from_bus].values,
-                                  "bus1" : net.bus.name.loc[net.line.to_bus].values,
+                                  "bus0" : net.bus.name.loc[net.line.from_bus.values].values,
+                                  "bus1" : net.bus.name.loc[net.line.to_bus.values].values,
                                   "length" : net.line.length_km.values,
                                   "num_parallel" : net.line.parallel.values},
                                  index=net.line.name)
@@ -1078,8 +1085,8 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     # check, if the trafo is based on a standard-type:
     if net.trafo.std_type.any():
         d["Transformer"] = pd.DataFrame({"type" : net.trafo.std_type.values,
-                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
-                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus.values].values,
+                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus.values].values,
                                          "tap_position" : net.trafo.tap_pos.values},
                                         index=net.trafo.name)
         d["Transformer"] = d["Transformer"].fillna(0)
@@ -1088,18 +1095,19 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     else:
         s_nom = net.trafo.sn_mva.values/1000.
 
-        r = net.trafo.vkr_percent.values/100.
-        x = np.sqrt((net.trafo.vk_percent.values/100.)**2 - r**2)
-        # NB: b and g are per unit of s_nom
-        g = net.trafo.pfe_kw.values/(1000. * s_nom)
+        # documented at https://pandapower.readthedocs.io/en/develop/elements/trafo.html?highlight=transformer#impedance-values
+        z = net.trafo.vk_percent.values/100. * 1. / net.trafo.sn_mva.values
+        r = net.trafo.vkr_percent.values/100. * 1. / net.trafo.sn_mva.values
+        x = np.sqrt(z**2 - r**2)
 
-        # for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
-        b = - np.sqrt(((net.trafo.i0_percent.values/100.)**2 - g**2).clip(min=0))
+        y = net.trafo.i0_percent.values / 100.
+        g = net.trafo.pfe_kw.values/net.trafo.sn_mva.values/1000 * 1. / net.trafo.sn_mva.values
+        b = np.sqrt(y**2 - g**2)
 
         d["Transformer"] = pd.DataFrame({"phase_shift" : net.trafo.shift_degree.values,
                                          "s_nom" : s_nom,
-                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus].values,
-                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus].values,
+                                         "bus0" : net.bus.name.loc[net.trafo.hv_bus.values].values,
+                                         "bus1" : net.bus.name.loc[net.trafo.lv_bus.values].values,
                                          "r" : r,
                                          "x" : x,
                                          "g" : g,
@@ -1108,7 +1116,17 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
                                         index=net.trafo.name)
         d["Transformer"] = d["Transformer"].fillna(0)
 
-    for c in ["Bus","Load","Generator","Line","Transformer"]:
+    g_shunt = net.shunt.p_mw.values/ net.shunt.vn_kv.values**2
+    b_shunt = net.shunt.q_mvar.values/ net.shunt.vn_kv.values**2
+
+    d["ShuntImpedance"] = pd.DataFrame({ "bus" : net.bus.name.loc[net.shunt.bus.values].values,
+                                "g" : g_shunt,
+                                "b" : b_shunt,},
+                                index=net.shunt.name)
+    d["ShuntImpedance"] = d["ShuntImpedance"].fillna(0)
+
+
+    for c in ["Bus","Load","Generator","Line","Transformer", "ShuntImpedance"]:
         network.import_components_from_dataframe(d[c],c)
 
     #amalgamate buses connected by closed switches
@@ -1123,7 +1141,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     for i in to_replace.index:
         network.remove("Bus",i)
 
-    for c in network.iterate_components({"Load","Generator"}):
+    for c in network.iterate_components({"Load","Generator","ShuntImpedance"}):
         c.df.bus.replace(to_replace,inplace=True)
 
     for c in network.iterate_components({"Line","Transformer"}):
