@@ -180,14 +180,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
         v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
-        
-        # Could be lines (not transformer) that is 0 distance before and after clustering, but also with non-0 original r, x, g, b values, due to GIS resolution or other reasons.
-        if np.asarray(l['length']).min() == 0 and np.asarray(l['x']).prod() != 0:
-            length_factor = 1
-        else:
-            length_factor = (length_s/l['length'])
-        
-        # length_factor = (length_s/l['length'])
+        non_zero_len = l.length != 0
+        length_factor = (length_s[non_zero_len]/l.length[non_zero_len]).reindex_like(l, fill_value=1)
 
         data = dict(
             r=1./(voltage_factor/(length_factor * l['r'])).sum(),
