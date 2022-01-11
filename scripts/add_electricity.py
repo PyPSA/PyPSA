@@ -529,17 +529,16 @@ def estimate_renewable_capacities(n, tech_map):
         n.generators.loc[tech_i, 'p_nom_min'] = n.generators.loc[tech_i, 'p_nom']
 
 
-def add_nice_carrier_names(n, nice_names, tech_colors):
+def add_nice_carrier_names(n, config):
     carrier_i = n.carriers.index
-    nice_names = (pd.Series(nice_names)
+    nice_names = (pd.Series(config['plotting']['nice_names'])
                   .reindex(carrier_i).fillna(carrier_i.to_series().str.title()))
     n.carriers['nice_name'] = nice_names
-    colors = pd.Series(tech_colors).reindex(carrier_i)
+    colors = pd.Series(config['plotting']['tech_colors']).reindex(carrier_i)
     if colors.isna().any():
         missing_i = list(colors.index[colors.isna()])
-        logger.warning(f'tech_colors for carriers {missing_i} not defined.')
+        logger.warning(f'tech_colors for carriers {missing_i} not defined in config.')
     n.carriers['color'] = colors
-
 
 if __name__ == "__main__":
     if 'snakemake' not in globals():
@@ -582,7 +581,6 @@ if __name__ == "__main__":
 
     update_p_nom_max(n)
 
-    plot_config = config['plotting']
-    add_nice_carrier_names(n, plot_config['nice_names'], plot_config['tech_colors'])
+    add_nice_carrier_names(n, config)
 
     n.export_to_netcdf(snakemake.output[0])
