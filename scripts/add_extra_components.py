@@ -64,7 +64,7 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def attach_storageunits(n, costs, elec_opts = {'extendable_carriers': {'StorageUnit': []}, 'max_hours': {'battery': 6, 'H2': 168}}):
+def attach_storageunits(n, costs, elec_opts):
     carriers = elec_opts['extendable_carriers']['StorageUnit']
     max_hours = elec_opts['max_hours']
 
@@ -88,7 +88,7 @@ def attach_storageunits(n, costs, elec_opts = {'extendable_carriers': {'StorageU
                cyclic_state_of_charge=True)
 
 
-def attach_stores(n, costs, elec_opts = {'extendable_carriers': {'Store': ['battery', 'H2']}}):
+def attach_stores(n, costs, elec_opts):
     carriers = elec_opts['extendable_carriers']['Store']
 
     _add_missing_carriers_from_costs(n, costs, carriers)
@@ -154,7 +154,7 @@ def attach_stores(n, costs, elec_opts = {'extendable_carriers': {'Store': ['batt
                marginal_cost=costs.at["battery inverter", "marginal_cost"])
 
 
-def attach_hydrogen_pipelines(n, costs, elec_opts = {'extendable_carriers': {'Store': ['H2', 'battery']}}):
+def attach_hydrogen_pipelines(n, costs, elec_opts):
     ext_carriers = elec_opts['extendable_carriers']
     as_stores = ext_carriers.get('Store', [])
 
@@ -192,17 +192,18 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('add_extra_components', network='elec',
                                   simpl='', clusters=5)
     configure_logging(snakemake)
+    paths = snakemake.input
 
-    n = pypsa.Network(snakemake.input.network)
+    n = pypsa.Network(paths.network)
+    elec_config = snakemake.config['electricity']
+    
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(tech_costs = snakemake.input.tech_costs,
-                       config = snakemake.config['costs'],
-                       elec_config = snakemake.config['electricity'], Nyears = Nyears)
+    costs = load_costs(paths.tech_costs, snakemake.config['costs'], elec_config, Nyears=Nyears)
 
-    attach_storageunits(n, costs, elec_opts = snakemake.config['electricity'])
-    attach_stores(n, costs, elec_opts = snakemake.config['electricity'])
-    attach_hydrogen_pipelines(n, costs, elec_opts = snakemake.config['electricity'])
+    attach_storageunits(n, costs, elec_config)
+    attach_stores(n, costs, elec_config)
+    attach_hydrogen_pipelines(n, costs, elec_config)
 
-    add_nice_carrier_names(n, config=snakemake.config)
+    add_nice_carrier_names(n, snakemake.config)
 
     n.export_to_netcdf(snakemake.output[0])
