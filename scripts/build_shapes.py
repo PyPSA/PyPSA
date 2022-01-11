@@ -123,9 +123,9 @@ def countries(naturalearth, country_list):
     return s
 
 
-def eez(country_shapes, eez, countries):
+def eez(country_shapes, eez, country_list):
     df = gpd.read_file(eez)
-    df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in countries])]
+    df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in country_list])]
     df['name'] = df['ISO_3digit'].map(lambda c: _get_country('alpha_2', alpha_3=c))
     s = df.set_index('name').geometry.map(lambda s: _simplify_polys(s, filterremote=False))
     s = gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
