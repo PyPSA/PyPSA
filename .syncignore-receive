@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: : 2021 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
 .snakemake
 .git
 .pytest_cache
