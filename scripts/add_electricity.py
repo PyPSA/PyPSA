@@ -190,12 +190,13 @@ def load_powerplants(ppl_fn):
             .replace({'carrier': carrier_dict}))
 
 
-def attach_load(n, regions, load, nuts3_shapes, cntries = [], scaling = 1.):
+def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1.):
+
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = (gpd.read_file(regions).set_index('name')
                .reindex(substation_lv_i))
     opsd_load = (pd.read_csv(load, index_col=0, parse_dates=True)
-                .filter(items=cntries))
+                .filter(items=countries))
 
     logger.info(f"Load data scaled with scalling factor {scaling}.")
     opsd_load *= scaling
@@ -229,6 +230,9 @@ def attach_load(n, regions, load, nuts3_shapes, cntries = [], scaling = 1.):
 
 
 def update_transmission_costs(n, costs, length_factor=1.0, simple_hvdc_costs=False):
+    # TODO: line length factor of lines is applied to lines and links.
+    # Separate the function to distinguish.
+
     n.lines['capital_cost'] = (n.lines['length'] * length_factor *
                                costs.at['HVAC overhead', 'capital_cost'])
 
@@ -253,9 +257,9 @@ def update_transmission_costs(n, costs, length_factor=1.0, simple_hvdc_costs=Fal
     n.links.loc[dc_b, 'capital_cost'] = costs
 
 
-def attach_wind_and_solar(n, costs, input_profiles,
-                          technologies = ['onwind', 'offwind-ac', 'offwind-dc', 'solar'],
-                          line_length_factor = 1.):
+def attach_wind_and_solar(n, costs, input_profiles, technologies, line_length_factor=1):
+    # TODO: rename tech -> carrier, technologies -> carriers
+    
     for tech in technologies:
         if tech == 'hydro': continue
 
@@ -292,8 +296,7 @@ def attach_wind_and_solar(n, costs, input_profiles,
                    p_max_pu=ds['profile'].transpose('time', 'bus').to_pandas())
 
 
-def attach_conventional_generators(n, costs, ppl, carriers=['nuclear', 'oil', 'OCGT', 'CCGT',
-                                                            'coal', 'lignite', 'geothermal', 'biomass']):
+def attach_conventional_generators(n, costs, ppl, carriers):
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
@@ -314,9 +317,7 @@ def attach_conventional_generators(n, costs, ppl, carriers=['nuclear', 'oil', 'O
     logger.warning(f'Capital costs for conventional generators put to 0 EUR/MW.')
 
 
-def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities,
-                 config_hydro = {'carriers': {'ror', 'PHS', 'hydro'}}):
-    carriers = config_hydro.get('carriers', ['ror', 'PHS', 'hydro'])
+def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities, carriers, **config):
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
@@ -361,7 +362,8 @@ def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities,
     if 'PHS' in carriers and not phs.empty:
         # fill missing max hours to config value and
         # assume no natural inflow due to lack of data
-        phs = phs.replace({'max_hours': {0: config_hydro['PHS_max_hours']}})
+        max_hours = config.get('PHS_max_hours', 6)
+        phs = phs.replace({'max_hours': {0: max_hours}})
         n.madd('StorageUnit', phs.index,
                carrier='PHS',
                bus=phs['bus'],
@@ -373,7 +375,10 @@ def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities,
                cyclic_state_of_charge=True)
 
     if 'hydro' in carriers and not hydro.empty:
-        hydro_max_hours = config_hydro.get('hydro_max_hours')
+        hydro_max_hours = config.get('hydro_max_hours')
+
+        assert hydro_max_hours is not None, "No path for hydro capacities given."
+
         hydro_stats = pd.read_csv(hydro_capacities,
                                    comment="#", na_values='-', index_col=0)
         e_target = hydro_stats["E_store[TWh]"].clip(lower=0.2) * 1e6
@@ -402,8 +407,7 @@ def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities,
                bus=hydro['bus'],
                p_nom=hydro['p_nom'],
                max_hours=hydro_max_hours,
-               capital_cost=(costs.at['hydro', 'capital_cost']
-                             if config_hydro.get('hydro_capital_cost') else 0.),
+               capital_cost=costs.at['hydro', 'capital_cost'],
                marginal_cost=costs.at['hydro', 'marginal_cost'],
                p_max_pu=1.,  # dispatch
                p_min_pu=0.,  # store
@@ -413,8 +417,7 @@ def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities,
                inflow=inflow_t.loc[:, hydro.index])
 
 
-def attach_extendable_generators(n, costs, ppl, elec_opts = {'extendable_carriers': {'Generator': []}}):
-    carriers = pd.Index(elec_opts['extendable_carriers']['Generator'])
+def attach_extendable_generators(n, costs, ppl, carriers):
 
     _add_missing_carriers_from_costs(n, costs, carriers)
 
@@ -462,7 +465,7 @@ def attach_extendable_generators(n, costs, ppl, elec_opts = {'extendable_carrier
 
 
 
-def attach_OPSD_renewables(n, techs=[]):
+def attach_OPSD_renewables(n, techs):
 
     available = ['DE', 'FR', 'PL', 'CH', 'DK', 'CZ', 'SE', 'GB']
     tech_map = {'Onshore': 'onwind', 'Offshore': 'offwind', 'Solar': 'solar'}
@@ -494,7 +497,7 @@ def attach_OPSD_renewables(n, techs=[]):
 
 
 
-def estimate_renewable_capacities(n, tech_map={}):
+def estimate_renewable_capacities(n, tech_map):
 
     if len(tech_map) == 0: return
 
@@ -526,16 +529,15 @@ def estimate_renewable_capacities(n, tech_map={}):
         n.generators.loc[tech_i, 'p_nom_min'] = n.generators.loc[tech_i, 'p_nom']
 
 
-def add_nice_carrier_names(n, config):
+def add_nice_carrier_names(n, nice_names, tech_colors):
     carrier_i = n.carriers.index
-    nice_names = (pd.Series(config['plotting']['nice_names'])
+    nice_names = (pd.Series(nice_names)
                   .reindex(carrier_i).fillna(carrier_i.to_series().str.title()))
     n.carriers['nice_name'] = nice_names
-    colors = pd.Series(config['plotting']['tech_colors']).reindex(carrier_i)
+    colors = pd.Series(tech_colors).reindex(carrier_i)
     if colors.isna().any():
         missing_i = list(colors.index[colors.isna()])
-        logger.warning(f'tech_colors for carriers {missing_i} not defined '
-                       'in config.')
+        logger.warning(f'tech_colors for carriers {missing_i} not defined.')
     n.carriers['color'] = colors
 
 
@@ -545,35 +547,42 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('add_electricity')
     configure_logging(snakemake)
 
-    n = pypsa.Network(snakemake.input.base_network)
+    config = snakemake.config
+    paths = snakemake.input
+
+    n = pypsa.Network(paths.base_network)
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
 
-    costs = load_costs(tech_costs = snakemake.input.tech_costs, config = snakemake.config['costs'],
-                       elec_config = snakemake.config['electricity'], Nyears = Nyears)
-    ppl = load_powerplants(snakemake.input.powerplants)
+    costs = load_costs(paths.tech_costs, config['costs'], config['electricity'], Nyears=Nyears)
+    ppl = load_powerplants(paths.powerplants)
 
-    attach_load(n, regions = snakemake.input.regions, load = snakemake.input.load,
-                nuts3_shapes = snakemake.input.nuts3_shapes,
-                cntries = snakemake.config['countries'],
-                scaling = snakemake.config.get('load', {}).get('scaling_factor', 1.0))
+    attach_load(n, paths.regions, paths.load, paths.nuts3_shapes, config['countries'],
+                scaling=config['load']['scaling_factor'])
 
-    update_transmission_costs(n, costs)
+    update_transmission_costs(n, costs, config['lines']['length_factor'])
 
-    attach_conventional_generators(n, costs, ppl, carriers = snakemake.config['electricity']['conventional_carriers'])
-    attach_wind_and_solar(n, costs, snakemake.input, technologies = snakemake.config['renewable'],
-                          line_length_factor = snakemake.config['lines']['length_factor'])
+    carriers = config['electricity']['conventional_carriers']
+    attach_conventional_generators(n, costs, ppl, carriers)
 
-    if 'hydro' in snakemake.config['renewable']:
-        attach_hydro(n, costs, ppl, snakemake.input.profile_hydro, snakemake.input.hydro_capacities,
-                     config_hydro = snakemake.config['renewable']['hydro'])
+    carriers = config['renewable']
+    attach_wind_and_solar(n, costs, paths, carriers, config['lines']['length_factor'])
 
-    attach_extendable_generators(n, costs, ppl, elec_opts = snakemake.config['electricity'])
+    if 'hydro' in config['renewable']:
+        carriers = config['renewable']['hydro'].pop('carriers', [])
+        attach_hydro(n, costs, ppl, paths.profile_hydro, paths.hydro_capacities,
+                     carriers, **config['renewable']['hydro'])
 
-    estimate_renewable_capacities(n, tech_map = (snakemake.config['electricity']
-                                                 .get('estimate_renewable_capacities_from_capacity_stats', {})))
-    attach_OPSD_renewables(n, techs = snakemake.config['electricity'].get('renewable_capacities_from_OPSD', []))
+    carriers = config['electricity']['extendable_carriers']['Generator']
+    attach_extendable_generators(n, costs, ppl, carriers)
+
+    tech_map = config['electricity'].get('estimate_renewable_capacities_from_capacity_stats', {})
+    estimate_renewable_capacities(n, tech_map)
+    techs = config['electricity'].get('renewable_capacities_from_OPSD', [])
+    attach_OPSD_renewables(n, techs)
+
     update_p_nom_max(n)
 
-    add_nice_carrier_names(n, config = snakemake.config)
+    plot_config = config['plotting']
+    add_nice_carrier_names(n, plot_config['nice_names'], plot_config['tech_colors'])
 
     n.export_to_netcdf(snakemake.output[0])
