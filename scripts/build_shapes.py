@@ -107,8 +107,8 @@ def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
     return polys.simplify(tolerance=tolerance)
 
 
-def countries(naturalearth, cntries=[]):
-    if 'RS' in cntries: cntries.append('KV')
+def countries(naturalearth, country_list):
+    if 'RS' in country_list: country_list.append('KV')
 
     df = gpd.read_file(naturalearth)
 
@@ -116,16 +116,16 @@ def countries(naturalearth, cntries=[]):
     fieldnames = (df[x].where(lambda s: s!='-99') for x in ('ISO_A2', 'WB_A2', 'ADM0_A3'))
     df['name'] = reduce(lambda x,y: x.fillna(y), fieldnames, next(fieldnames)).str[0:2]
 
-    df = df.loc[df.name.isin(cntries) & ((df['scalerank'] == 0) | (df['scalerank'] == 5))]
+    df = df.loc[df.name.isin(country_list) & ((df['scalerank'] == 0) | (df['scalerank'] == 5))]
     s = df.set_index('name')['geometry'].map(_simplify_polys)
-    if 'RS' in cntries: s['RS'] = s['RS'].union(s.pop('KV'))
+    if 'RS' in country_list: s['RS'] = s['RS'].union(s.pop('KV'))
 
     return s
 
 
-def eez(country_shapes, eez, cntries=[]):
+def eez(country_shapes, eez, countries):
     df = gpd.read_file(eez)
-    df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in cntries])]
+    df = df.loc[df['ISO_3digit'].isin([_get_country('alpha_3', alpha_2=c) for c in countries])]
     df['name'] = df['ISO_3digit'].map(lambda c: _get_country('alpha_2', alpha_3=c))
     s = df.set_index('name').geometry.map(lambda s: _simplify_polys(s, filterremote=False))
     s = gpd.GeoSeries({k:v for k,v in s.iteritems() if v.distance(country_shapes[k]) < 1e-3})
@@ -217,18 +217,19 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_shapes')
     configure_logging(snakemake)
 
+    paths = snakemake.input
     out = snakemake.output
 
-    country_shapes = countries(snakemake.input.naturalearth, snakemake.config['countries'])
+    country_shapes = countries(paths.naturalearth, snakemake.config['countries'])
     save_to_geojson(country_shapes, out.country_shapes)
 
-    offshore_shapes = eez(country_shapes, snakemake.input.eez, cntries=snakemake.config['countries'])
+    offshore_shapes = eez(country_shapes, paths.eez, snakemake.config['countries'])
     save_to_geojson(offshore_shapes, out.offshore_shapes)
 
     europe_shape = country_cover(country_shapes, offshore_shapes)
     save_to_geojson(gpd.GeoSeries(europe_shape), out.europe_shape)
 
-    nuts3_shapes = nuts3(country_shapes, snakemake.input.nuts3, snakemake.input.nuts3pop,
-                         snakemake.input.nuts3gdp, snakemake.input.ch_cantons, snakemake.input.ch_popgdp)
+    nuts3_shapes = nuts3(country_shapes, paths.nuts3, paths.nuts3pop,
+                         paths.nuts3gdp, paths.ch_cantons, paths.ch_popgdp)
 
     save_to_geojson(nuts3_shapes, out.nuts3_shapes)
