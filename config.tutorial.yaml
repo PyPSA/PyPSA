@@ -150,7 +150,6 @@ transformers:
   type: ''
 
 load:
-  url: https://data.open-power-system-data.org/time_series/2019-06-05/time_series_60min_singleindex.csv
   power_statistics: True # only for files from <2019; set false in order to get ENTSOE transparency data 
   interpolate_limit: 3 # data gaps up until this size are interpolated linearly
   time_shift_for_large_gaps: 1w # data gaps up until this size are copied by copying from 
