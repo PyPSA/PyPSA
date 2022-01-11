@@ -99,8 +99,9 @@ if __name__ == "__main__":
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('build_powerplants')
     configure_logging(snakemake)
+    paths = snakemake.input
 
-    n = pypsa.Network(snakemake.input.base_network)
+    n = pypsa.Network(paths.base_network)
     countries = n.buses.country.unique()
 
     ppl = (pm.powerplants(from_url=True)
@@ -119,8 +120,8 @@ if __name__ == "__main__":
         ppl.query(ppl_query, inplace=True)
 
     # add carriers from own powerplant files:
-    ppl = add_custom_powerplants(ppl, custom_powerplants = snakemake.input.custom_powerplants,
-                                 custom_ppl_query = snakemake.config['electricity']['custom_powerplants'])
+    custom_ppl_query = snakemake.config['electricity']['custom_powerplants']
+    ppl = add_custom_powerplants(ppl, paths.custom_powerplants, custom_ppl_query)
 
     cntries_without_ppl = [c for c in countries if c not in ppl.Country.unique()]
 
