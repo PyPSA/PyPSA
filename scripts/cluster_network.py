@@ -265,7 +265,7 @@ def clustering_for_n_clusters(n, n_clusters, custom_busmap=False, aggregate_carr
     else:
         raise AttributeError(f"potential_mode should be one of 'simple' or 'conservative' but is '{potential_mode}'")
 
-    if custom_busmap is False:
+    if not custom_busmap:
         busmap = busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights, algorithm)
     else:
         busmap = custom_busmap
