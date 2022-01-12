@@ -17,9 +17,12 @@ from pypsa.descriptors import get_activity_mask
 
 def optimize(n, use_linopy, *args, **kwargs):
     if use_linopy:
-        return n.optimize(*args, **kwargs, multi_investment_periods=True)
+        return n.optimize(
+            *args, **kwargs, multi_investment_periods=True, solver_name="glpk"
+        )
     else:
         return n.lopf(*args, **kwargs, pyomo=False, multi_investment_periods=True)
+
 
 @pytest.fixture
 def n():
@@ -38,7 +41,7 @@ def n():
             capital_cost=[100 / factor, 100 * factor],
             marginal_cost=[i + 2, i + 1],
             p_nom_extendable=True,
-            carrier='gencarrier'
+            carrier="gencarrier",
         )
 
     for i, period in enumerate(n.investment_periods):
@@ -58,10 +61,7 @@ def n():
     load = range(100, 100 + len(n.snapshots))
     load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
     n.madd(
-        "Load",
-        ["load1", "load2"],
-        bus=[1, 2],
-        p_set=load,
+        "Load", ["load1", "load2"], bus=[1, 2], p_set=load,
     )
 
     return n
@@ -157,8 +157,17 @@ def test_active_assets(n):
     assert (active_gens == ["gen1-2020", "gen2-2020", "gen1-2030", "gen2-2030"]).all()
 
     active_gens = n.get_active_assets("Generator", 2050)[lambda ds: ds].index
-    assert (active_gens == ["gen1-2030", "gen2-2030", "gen1-2040", "gen2-2040",
-                            "gen1-2050", "gen2-2050"]).all()
+    assert (
+        active_gens
+        == [
+            "gen1-2030",
+            "gen2-2030",
+            "gen1-2040",
+            "gen2-2040",
+            "gen1-2050",
+            "gen2-2050",
+        ]
+    ).all()
 
 
 @pytest.mark.parametrize("use_linopy", [True, False])
@@ -169,8 +178,9 @@ def test_tiny_with_default(use_linopy):
     n.add("Generator", 1, bus=1, p_nom_extendable=True, capital_cost=10)
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = optimize(n, use_linopy)
-    assert status == 'ok'
+    assert status == "ok"
     assert n.generators.p_nom_opt.item() == 100
+
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_tiny_with_build_year(use_linopy):
@@ -182,8 +192,9 @@ def test_tiny_with_build_year(use_linopy):
     )
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = optimize(n, use_linopy)
-    assert status == 'ok'
+    assert status == "ok"
     assert n.generators.p_nom_opt.item() == 100
+
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_tiny_infeasible(use_linopy):
@@ -197,6 +208,7 @@ def test_tiny_infeasible(use_linopy):
     with pytest.raises(ValueError):
         status, cond = optimize(n, use_linopy)
 
+
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_simple_network(n, use_linopy):
     status, cond = optimize(n, use_linopy)
@@ -208,6 +220,7 @@ def test_simple_network(n, use_linopy):
 
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
+
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_simple_network_snapshot_subset(n, use_linopy):
     status, cond = optimize(n, use_linopy, n.snapshots[:20])
@@ -218,6 +231,7 @@ def test_simple_network_snapshot_subset(n, use_linopy):
     assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
 
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_simple_network_storage_noncyclic(n_sus, use_linopy):
@@ -368,17 +382,16 @@ def test_simple_network_store_cyclic_per_period(n_sts, use_linopy):
     assert e.loc[idx[2020, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
-
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_global_constraint_primary_energy(n_sus, use_linopy):
-    c = 'StorageUnit'
-    n_sus.add('Carrier', 'emitting_carrier', co2_emissions=100)
+    c = "StorageUnit"
+    n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sus.df(c)["state_of_charge_initial"] = 200
     n_sus.df(c)["cyclic_state_of_charge"] = False
     n_sus.df(c)["state_of_charge_initial_per_period"] = False
-    n_sus.df(c)["carrier"] = 'emitting_carrier'
+    n_sus.df(c)["carrier"] = "emitting_carrier"
 
-    n_sus.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
+    n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = optimize(n_sus, use_linopy)
 
@@ -391,15 +404,15 @@ def test_global_constraint_primary_energy(n_sus, use_linopy):
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_global_constraint_primary_energy(n_sts, use_linopy):
-    c = 'Store'
-    n_sts.add('Carrier', 'emitting_carrier', co2_emissions=100)
+    c = "Store"
+    n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sts.df(c)["e_initial"] = 200
     n_sts.df(c)["e_cyclic"] = False
     n_sts.df(c)["e_initial_per_period"] = False
 
-    n_sts.buses.loc["1 battery", "carrier"] = 'emitting_carrier'
+    n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
 
-    n_sts.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
+    n_sts.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = optimize(n_sts, use_linopy)
 
@@ -412,9 +425,14 @@ def test_global_constraint_primary_energy(n_sts, use_linopy):
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_global_constraint_transmission_expansion_limit(n, use_linopy):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='transmission_volume_expansion_limit', constant=100, sense='==',
-          carrier_attribute='AC')
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="transmission_volume_expansion_limit",
+        constant=100,
+        sense="==",
+        carrier_attribute="AC",
+    )
 
     status, cond = optimize(n, use_linopy)
     assert n.lines.s_nom_opt.sum() == 100
@@ -422,59 +440,67 @@ def test_global_constraint_transmission_expansion_limit(n, use_linopy):
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = optimize(n, use_linopy, n.snapshots[:10])
-    assert n.lines.loc['line-2020', 's_nom_opt'] == 100
+    assert n.lines.loc["line-2020", "s_nom_opt"] == 100
 
-
-    n.global_constraints['investment_period'] = 2030
+    n.global_constraints["investment_period"] = 2030
     status, cond = optimize(n, use_linopy)
-    assert n.lines.s_nom_opt[['line-2020', 'line-2030']].sum() == 100
+    assert n.lines.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
 
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_global_constraint_transmission_cost_limit(n, use_linopy):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='transmission_expansion_cost_limit', constant=1000, sense='==',
-          carrier_attribute='AC')
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="transmission_expansion_cost_limit",
+        constant=1000,
+        sense="==",
+        carrier_attribute="AC",
+    )
 
     status, cond = optimize(n, use_linopy)
-    assert round(n.lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
+    assert round(n.lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = optimize(n, use_linopy, n.snapshots[:10])
-    assert round(n.lines.eval('s_nom_opt * capital_cost')['line-2020'].sum(), 2) == 1000
+    assert round(n.lines.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2) == 1000
 
-    n.global_constraints['investment_period'] = 2030
+    n.global_constraints["investment_period"] = 2030
     status, cond = optimize(n, use_linopy)
-    lines = n.lines.loc[['line-2020', 'line-2030']]
-    assert round(lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
+    lines = n.lines.loc[["line-2020", "line-2030"]]
+    assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
 @pytest.mark.parametrize("use_linopy", [False])
 def test_global_constraint_bus_tech_limit(n, use_linopy):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='tech_capacity_expansion_limit', constant=300, sense='==',
-          carrier_attribute='gencarrier', investment_period=2020)
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="tech_capacity_expansion_limit",
+        constant=300,
+        sense="==",
+        carrier_attribute="gencarrier",
+        investment_period=2020,
+    )
 
     status, cond = optimize(n, use_linopy)
-    assert round(n.generators.p_nom_opt[['gen1-2020', 'gen2-2020']], 1).sum() == 300
+    assert round(n.generators.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum() == 300
 
-    n.global_constraints['bus'] = 1
+    n.global_constraints["bus"] = 1
     status, cond = optimize(n, use_linopy)
-    assert n.generators.at['gen1-2020', 'p_nom_opt']== 300
+    assert n.generators.at["gen1-2020", "p_nom_opt"] == 300
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.global_constraints.sense = '<='
+    n.global_constraints.sense = "<="
     status, cond = optimize(n, use_linopy)
-    assert n.global_constraints.at['expansion_limit', 'mu'] == 0
+    assert n.global_constraints.at["expansion_limit", "mu"] == 0
 
 
 @pytest.mark.parametrize("use_linopy", [True, False])
 def test_max_growth_constraint(n, use_linopy):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]
-    n.add("Carrier",
-          name="gencarrier",
-          max_growth=218)
+    n.add("Carrier", name="gencarrier", max_growth=218)
     status, cond = optimize(n, use_linopy)
-    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum()<=218)
+    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
