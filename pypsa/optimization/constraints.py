@@ -6,7 +6,7 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 import pandas as pd
 from linopy.expressions import merge, LinearExpression
-from numpy import roll, cumsum, nan
+from numpy import roll, cumsum, nan, inf
 from xarray import DataArray, Dataset
 from scipy import sparse
 
@@ -132,6 +132,8 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     Sets capacity expansion constraints for extendable
     assets for a given component and a given attribute.
 
+    Note: As GLPK does not like inf values on the right-hand-side we as masking these out. 
+    
     Parameters
     ----------
     n : pypsa.Network
@@ -149,8 +151,8 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     capacity = n.model[f"{c}-{attr}"]
     lower = n.df(c)[attr + "_min"].reindex(ext_i)
     upper = n.df(c)[attr + "_max"].reindex(ext_i)
-    n.model.add_constraints(capacity, ">=", lower, f"{c}-fix-{attr}-lower")
-    n.model.add_constraints(capacity, "<=", upper, f"{c}-fix-{attr}-upper")
+    n.model.add_constraints(capacity, ">=", lower, f"{c}-ext-{attr}-lower")
+    n.model.add_constraints(capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=upper != inf)
 
 
 def define_ramp_limit_constraints(n, sns, c):
