@@ -291,10 +291,10 @@ def define_nodal_balance_constraints(n, sns):
         expr = expr.group_terms(n.df(c)[column].rename("Bus").to_xarray())
         exprs.append(expr)
 
-    if not len(exprs):
+    lhs = merge(exprs)
+    if (lhs.vars == -1).all("_term").any():
         raise ValueError("Empty LHS in nodal balance constraint.")
 
-    lhs = merge(exprs)
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
@@ -356,11 +356,14 @@ def define_kirchhoff_constraints(n, sns):
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
                 exprs.append(LinearExpression(ds))
 
-        exprs = merge(exprs, dim="cycles")
-        lhs.append(exprs)
+        if len(exprs):
+            exprs = merge(exprs, dim="cycles")
+            exprs = exprs.assign_coords(cycles=range(len(exprs.cycles)))
+            lhs.append(exprs)
 
-    lhs = merge(lhs, dim="snapshot")
-    m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
+    if len(lhs):    
+        lhs = merge(lhs, dim="snapshot")
+        m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
 def define_fixed_nominal_constraints(n, c, attr):
@@ -471,10 +474,9 @@ def define_storage_unit_constraints(n, sns):
     previous_soc = soc.where(active, nan).ffill(dim).roll(**kwargs).ffill(dim)
     previous_soc = previous_soc.sanitize().where(include_previous_soc)
 
-    # We add inflow and initial soc for for noncyclic assets to rhs
+    # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = assets.state_of_charge_initial.to_xarray()
     rhs = DataArray(-get_as_dense(n, c, "inflow", sns).mul(eh))
-    rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
@@ -498,9 +500,10 @@ def define_storage_unit_constraints(n, sns):
 
         # update the previous_soc variables and right hand side
         previous_soc = previous_soc_pp.where(per_period, previous_soc)
-        rhs = (rhs - soc_init).where(per_period, rhs)
+        include_previous_soc = include_previous_soc_pp.where(per_period, include_previous_soc)
 
     lhs += [(eff_stand, previous_soc)]
+    rhs = rhs.where(include_previous_soc, rhs - soc_init)
     m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
 
 
@@ -543,8 +546,7 @@ def define_store_constraints(n, sns):
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
-    rhs = e_init.where(~include_previous_e, 0)
-
+    
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
@@ -567,7 +569,9 @@ def define_store_constraints(n, sns):
 
         # update the previous_e variables and right hand side
         previous_e = previous_e_pp.where(per_period, previous_e)
-        rhs = (rhs - e_init).where(per_period, rhs)
+        include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]
+    rhs = -e_init.where(~include_previous_e, 0)
+    
     m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
