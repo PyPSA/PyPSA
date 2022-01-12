@@ -13,18 +13,19 @@ Upcoming Release
 
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period', 'timestep'], the name of the index was set to 'snapshot'. This makes the snapshot name coherent for single and multi-indexed snapshots.
 
-* A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.    
+* A new convenience function ``Network.get_committable_i`` was added. This returns an index containing all committable assets of component ``c``. In case that component ``c`` does not support committable assets, it returns an empty dataframe.    
 
-* add new features here
+* Clustering networks now also supports the clustering of time-series associated to lines.
+
+* New example for spatial clustering.
+
+* Add open source `HiGHS solver <https://github.com/ERGO-Code/HiGHS>`_.
+
+* Add assert: CBC solver does not work with '>' and '<'.
 
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
-* Add open source "HiGHS" solver: https://github.com/ERGO-Code/HiGHS. See
-  simple performance analysis for HiGHS, cbc, glpk and gurobi here:
-  https://github.com/PyPSA/PyPSA/pull/308#issue-772907717.
-
-* Add assert: CBC solver does not work with '>' and '<'
 
 * Compatibility with ``pyomo>=6.1``.
 
