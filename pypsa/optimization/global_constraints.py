@@ -46,9 +46,9 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             "`nom_{min/max}_{carrier}` or `nom_{min/max}_{carrier}_{period}`"
         )
         if col.startswith("nom_min_"):
-            sense = ">="
+            sign = ">="
         elif col.startswith("nom_max_"):
-            sense = "<="
+            sign = "<="
         else:
             logger.warn(msg)
         remainder = col[len("nom_max_") :]
@@ -88,7 +88,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         lhs = merge(lhs)
         rhs = rhs[lhs.Bus.data]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sense, rhs, f"Bus-{col}", mask)
+        n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask)
 
 
 def define_growth_limit(n, sns):
@@ -209,7 +209,7 @@ def define_primary_energy_limit(n, sns):
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
             e = m["Store-e"].loc[snapshots, stores.index]
-            e = e.where(e != -1, nan).ffill("snapshot").isel(snapshots=-1)
+            e = e.where(e != -1, nan).ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
 
@@ -217,7 +217,8 @@ def define_primary_energy_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        m.add_constraints(lhs, glc.sense, rhs, f"GlobalConstraint-{name}")
+        sign = '=' if glc.sense == '==' else glc.sense 
+        m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
 
 
 def define_transmission_volume_expansion_limit(n, sns):
@@ -254,12 +255,14 @@ def define_transmission_volume_expansion_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index)
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(ext_i.name)
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)]
+                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+            elif isinstance(sns, pd.MultiIndex):
+                ext_i = ext_i[n.get_active_assets(c, sns.unique('period'))].rename(ext_i.name)
 
-            length = n.df(c).length[ext_i]
+            length = n.df(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((length, vars)).sum())
 
@@ -267,7 +270,8 @@ def define_transmission_volume_expansion_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")
+        sign = '=' if glc.sense == '==' else glc.sense 
+        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
 
 
 def define_transmission_expansion_cost_limit(n, sns):
@@ -304,12 +308,14 @@ def define_transmission_expansion_cost_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index)
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(ext_i.name)
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)]
+                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+            elif isinstance(sns, pd.MultiIndex):
+                ext_i = ext_i[n.get_active_assets(c, sns.unique('period'))].rename(ext_i.name)
 
-            cost = n.df(c).capital_cost[ext_i]
+            cost = n.df(c).capital_cost.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
@@ -317,4 +323,5 @@ def define_transmission_expansion_cost_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        m.add_constraints(lhs, glc.sense, glc.constant, f"GlobalConstraint-{name}")
+        sign = '=' if glc.sense == '==' else glc.sense 
+        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")

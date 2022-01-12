@@ -58,7 +58,7 @@ lookup = pd.read_csv(
 )
 
 
-def sanity_check(n):
+def sanity_check(n, sns):
     for c in {"Generator", "Link"}:
         intersection = n.get_committable_i(c).intersection(n.get_extendable_i(c))
         if not intersection.empty:
@@ -67,7 +67,22 @@ def sanity_check(n):
                 f"assets in component {c} which are both:"
                 f"\n\n\t{', '.join(intersection)}"
             )
-    # Check for bidirectional links with efficiency < 1.
+
+    constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
+    if isinstance(sns, pd.MultiIndex):
+        if not constraint_periods.issubset(sns.unique("period")):
+            raise ValueError(
+                "The global constraints contain investment periods which are "
+                "not in the set of optimized snapshots."
+            )
+    else:
+        if constraint_periods:
+            raise ValueError(
+                "The global constraints contain investment periods but snapshots are "
+                "not multi-indexed."
+            )
+
+    # TODO: Check for bidirectional links with efficiency < 1.
 
 
 def define_objective(n, sns):
@@ -153,6 +168,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     """
     Create a linopy.Model instance from a pypsa network.
 
+    The model is stored at `n.model`.
 
     Parameters
     ----------
@@ -172,9 +188,11 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     """
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
+    sanity_check(n, sns)
 
     kwargs.setdefault("force_dim_names", True)
     n.model = Model(**kwargs)
+    n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
     # Define variables
     for c, attr in lookup.query("nominal").index:
@@ -216,11 +234,12 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     return n.model
 
 
-def assign_solution(n, sns):
+def assign_solution(n):
     """
     Map solution to network components.
     """
     m = n.model
+    sns = n.model.parameters.snapshots
 
     for name, sol in m.solution.items():
 
@@ -263,7 +282,6 @@ def assign_solution(n, sns):
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
     n.objective = m.objective_value
-    n.objective_constant = m.solution["objective_constant"].item()
 
 
 # TODO
@@ -305,7 +323,7 @@ def assign_solution(n, sns):
 #         map_dual(c, attr)
 
 
-def post_processing(n, sns):
+def post_processing(n):
     """
     Post-process the optimzed network.
 
@@ -313,6 +331,8 @@ def post_processing(n, sns):
     power injection per bus and snapshot, voltage angle.
 
     """
+    sns = n.model.parameters.snapshots
+
     # correct prices with objective weightings
     if n._multi_invest:
         period_weighting = n.investment_period_weightings.objective
@@ -365,17 +385,23 @@ def post_processing(n, sns):
         Z -= Z[sub.slack_bus]
         return n.buses_t.p.reindex(columns=buses_i) @ Z
 
-    n.buses_t.v_ang = pd.concat(
-        [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-    ).reindex(columns=n.buses.index, fill_value=0)
+    # TODO: if multi investment optimization, the network topology is not the necessarily the same,
+    # i.e. one has to iterate over the periods in order to get the correct angles.
+    # Determine_network_topology is not necessarily called (only if KVL was assigned)
+    if "obj" in n.sub_networks:
+        n.buses_t.v_ang = pd.concat(
+            [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+        ).reindex(columns=n.buses.index, fill_value=0)
 
 
 def optimize(
-    n, snapshots=None, multi_investment_periods=False, model_kwargs={}, **solve_kwargs
+    n, snapshots=None, multi_investment_periods=False, model_kwargs={}, **kwargs
 ):
     """
-    Optimize the pypsa network.
+    Optimize the pypsa network using linopy.
 
+    Parameters
+    ----------
     n : pypsa.Network
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
@@ -398,13 +424,13 @@ def optimize(
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
 
-    sanity_check(n)
+    sanity_check(n, sns)
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)
-    status, condition = m.solve(**solve_kwargs)
+    status, condition = m.solve(**kwargs)
 
     if status == "ok":
-        assign_solution(n, sns)
-        post_processing(n, sns)
+        assign_solution(n)
+        post_processing(n)
 
     return status, condition
 
@@ -431,6 +457,27 @@ class OptimizationAccessor:
     @is_documented_by(create_model)
     def create_model(self, **kwargs):
         return create_model(self._parent, **kwargs)
+
+    def solve_model(self, **kwargs):
+        """
+        Solve an already created model and assign its solution to the network.
+
+        Parameters
+        ----------
+        **kwargs:
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+            `problem_fn` or solver options directly passed to the solver.
+
+        """
+        n = self._parent
+        m = n.model
+        status, condition = m.solve(**kwargs)
+
+        if status == "ok":
+            assign_solution(n)
+            post_processing(n)
+
+        return status, condition
 
     @is_documented_by(assign_solution)
     def assign_solution(self, **kwargs):

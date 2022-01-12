@@ -14,6 +14,13 @@ from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 from pypsa.descriptors import get_activity_mask
 
+
+def optimize(n, use_linopy, *args, **kwargs):
+    if use_linopy:
+        return n.optimize(*args, **kwargs, multi_investment_periods=True)
+    else:
+        return n.lopf(*args, **kwargs, pyomo=False, multi_investment_periods=True)
+
 @pytest.fixture
 def n():
     n = pypsa.Network(snapshots=range(10))
@@ -154,17 +161,19 @@ def test_active_assets(n):
                             "gen1-2050", "gen2-2050"]).all()
 
 
-def test_tiny_with_default():
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_tiny_with_default(use_linopy):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
     n.add("Bus", 1)
     n.add("Generator", 1, bus=1, p_nom_extendable=True, capital_cost=10)
     n.add("Load", 1, bus=1, p_set=100)
-    n.lopf(pyomo=False, multi_investment_periods=True)
+    status, _ = optimize(n, use_linopy)
+    assert status == 'ok'
     assert n.generators.p_nom_opt.item() == 100
 
-
-def test_tiny_with_build_year():
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_tiny_with_build_year(use_linopy):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
     n.add("Bus", 1)
@@ -172,11 +181,12 @@ def test_tiny_with_build_year():
         "Generator", 1, bus=1, p_nom_extendable=True, capital_cost=10, build_year=2020
     )
     n.add("Load", 1, bus=1, p_set=100)
-    n.lopf(pyomo=False, multi_investment_periods=True)
+    status, _ = optimize(n, use_linopy)
+    assert status == 'ok'
     assert n.generators.p_nom_opt.item() == 100
 
-
-def test_tiny_infeasible():
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_tiny_infeasible(use_linopy):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
     n.add("Bus", 1)
@@ -185,11 +195,11 @@ def test_tiny_infeasible():
     )
     n.add("Load", 1, bus=1, p_set=100)
     with pytest.raises(ValueError):
-        status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+        status, cond = optimize(n, use_linopy)
 
-
-def test_simple_network(n):
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network(n, use_linopy):
+    status, cond = optimize(n, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -198,9 +208,9 @@ def test_simple_network(n):
 
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
-
-def test_simple_network_snapshot_subset(n):
-    status, cond = n.lopf(n.snapshots[:20], pyomo=False, multi_investment_periods=True)
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_snapshot_subset(n, use_linopy):
+    status, cond = optimize(n, use_linopy, n.snapshots[:20])
     assert status == "ok"
     assert cond == "optimal"
 
@@ -209,14 +219,14 @@ def test_simple_network_snapshot_subset(n):
 
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
-
-def test_simple_network_storage_noncyclic(n_sus):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_storage_noncyclic(n_sus, use_linopy):
 
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
     n_sus.storage_units["state_of_charge_initial_per_period"] = False
 
-    status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sus, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -226,13 +236,14 @@ def test_simple_network_storage_noncyclic(n_sus):
     assert soc.loc[idx[2040, 9], "sto1-2020"] == 0
 
 
-def test_simple_network_storage_noncyclic_per_period(n_sus):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_storage_noncyclic_per_period(n_sus, use_linopy):
 
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
     n_sus.storage_units["state_of_charge_initial_per_period"] = True
 
-    status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sus, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -248,12 +259,13 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
     assert soc_initial.loc[2040, "sto1-2040"] == 200
 
 
-def test_simple_network_storage_cyclic(n_sus):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_storage_cyclic(n_sus, use_linopy):
 
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = False
 
-    status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sus, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -267,12 +279,13 @@ def test_simple_network_storage_cyclic(n_sus):
     )
 
 
-def test_simple_network_storage_cyclic_per_period(n_sus):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_storage_cyclic_per_period(n_sus, use_linopy):
 
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = True
 
-    status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sus, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -283,12 +296,13 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
     )
 
 
-def test_simple_network_store_noncyclic(n_sts):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_store_noncyclic(n_sts, use_linopy):
 
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = False
 
-    status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sts, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -299,12 +313,13 @@ def test_simple_network_store_noncyclic(n_sts):
     assert e_initial.loc[2020, "sto1-2020"] == 20
 
 
-def test_simple_network_store_noncyclic_per_period(n_sts):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_store_noncyclic_per_period(n_sts, use_linopy):
 
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = True
 
-    status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sts, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -319,12 +334,13 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
     assert e_initial.loc[2050, "sto1-2020"] == 0
 
 
-def test_simple_network_store_cyclic(n_sts):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_store_cyclic(n_sts, use_linopy):
 
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = False
 
-    status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sts, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -335,12 +351,13 @@ def test_simple_network_store_cyclic(n_sts):
     assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
-def test_simple_network_store_cyclic_per_period(n_sts):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_simple_network_store_cyclic_per_period(n_sts, use_linopy):
 
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = True
 
-    status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sts, use_linopy)
     assert status == "ok"
     assert cond == "optimal"
 
@@ -352,7 +369,8 @@ def test_simple_network_store_cyclic_per_period(n_sts):
 
 
 
-def test_global_constraint_primary_energy(n_sus):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_global_constraint_primary_energy(n_sus, use_linopy):
     c = 'StorageUnit'
     n_sus.add('Carrier', 'emitting_carrier', co2_emissions=100)
     n_sus.df(c)["state_of_charge_initial"] = 200
@@ -362,7 +380,7 @@ def test_global_constraint_primary_energy(n_sus):
 
     n_sus.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
 
-    status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sus, use_linopy)
 
     active = get_activity_mask(n_sus, c)
     soc_end = n_sus.pnl(c).state_of_charge.where(active).ffill().iloc[-1]
@@ -371,7 +389,8 @@ def test_global_constraint_primary_energy(n_sus):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
-def test_global_constraint_primary_energy(n_sts):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_global_constraint_primary_energy(n_sts, use_linopy):
     c = 'Store'
     n_sts.add('Carrier', 'emitting_carrier', co2_emissions=100)
     n_sts.df(c)["e_initial"] = 200
@@ -382,7 +401,7 @@ def test_global_constraint_primary_energy(n_sts):
 
     n_sts.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
 
-    status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n_sts, use_linopy)
 
     active = get_activity_mask(n_sts, c)
     soc_end = n_sts.pnl(c).e.where(active).ffill().iloc[-1]
@@ -391,67 +410,71 @@ def test_global_constraint_primary_energy(n_sts):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
-def test_global_constraint_transmission_expansion_limit(n):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_global_constraint_transmission_expansion_limit(n, use_linopy):
     n.add('GlobalConstraint', 'expansion_limit',
           type='transmission_volume_expansion_limit', constant=100, sense='==',
           carrier_attribute='AC')
 
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert n.lines.s_nom_opt.sum() == 100
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
-    status, cond = n.lopf(n.snapshots[:10], pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy, n.snapshots[:10])
     assert n.lines.loc['line-2020', 's_nom_opt'] == 100
 
 
     n.global_constraints['investment_period'] = 2030
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert n.lines.s_nom_opt[['line-2020', 'line-2030']].sum() == 100
 
 
-def test_global_constraint_transmission_cost_limit(n):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_global_constraint_transmission_cost_limit(n, use_linopy):
     n.add('GlobalConstraint', 'expansion_limit',
           type='transmission_expansion_cost_limit', constant=1000, sense='==',
           carrier_attribute='AC')
 
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert round(n.lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
-    status, cond = n.lopf(n.snapshots[:10], pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy, n.snapshots[:10])
     assert round(n.lines.eval('s_nom_opt * capital_cost')['line-2020'].sum(), 2) == 1000
 
     n.global_constraints['investment_period'] = 2030
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     lines = n.lines.loc[['line-2020', 'line-2030']]
     assert round(lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
 
 
-def test_global_constraint_bus_tech_limit(n):
+@pytest.mark.parametrize("use_linopy", [False])
+def test_global_constraint_bus_tech_limit(n, use_linopy):
     n.add('GlobalConstraint', 'expansion_limit',
           type='tech_capacity_expansion_limit', constant=300, sense='==',
           carrier_attribute='gencarrier', investment_period=2020)
 
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert round(n.generators.p_nom_opt[['gen1-2020', 'gen2-2020']], 1).sum() == 300
 
     n.global_constraints['bus'] = 1
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert n.generators.at['gen1-2020', 'p_nom_opt']== 300
 
     # make the constraint non-binding and check that the shadow price is zero
     n.global_constraints.sense = '<='
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert n.global_constraints.at['expansion_limit', 'mu'] == 0
 
 
-def test_max_growth_constraint(n):
+@pytest.mark.parametrize("use_linopy", [True, False])
+def test_max_growth_constraint(n, use_linopy):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]
     n.add("Carrier",
           name="gencarrier",
           max_growth=218)
-    status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
+    status, cond = optimize(n, use_linopy)
     assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum()<=218)
