@@ -17,3 +17,6 @@ dependencies:
   - deprecation
 #  - coincbc
 #  - gurobi::gurobi
+
+  - pip:
+    - linopy
