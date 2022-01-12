@@ -337,9 +337,13 @@ def get_active_assets(n, c, investment_period):
     at a given investment period. These are calculated from lifetime and the
     build year.
     """
-    if investment_period not in n.investment_periods:
-        raise ValueError("Investment period not in `network.investment_periods`")
-    return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
+    periods = np.atleast_1d(investment_period)
+    active = {}
+    for period in periods:
+        if period not in n.investment_periods:
+            raise ValueError("Investment period not in `network.investment_periods`")
+        active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
+    return pd.DataFrame(active).any(1)
 
 
 def get_activity_mask(n, c, sns=None, index=None):
