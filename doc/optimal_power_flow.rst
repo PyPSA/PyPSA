@@ -655,6 +655,7 @@ All variable and constraint references are stored in the network object itself, 
 * :py:meth:`pypsa.linopt.join_expr` for summing linear expressions.
 * :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
 
+Once the problem has been built, all names of variable sets are stored in ``n.variables`` and all names of constraint sets in ``n.constraints``.
 
 The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
 
@@ -662,7 +663,7 @@ The function ``extra_postprocessing`` is not necessary when pyomo is deactivated
 get_var
 ^^^^^^^
 
-The function ``linopt.get_var`` is used to access the variables attached to a component.
+The function ``linopt.get_var`` is used to access the variables attached to a component. To find out which variables are available, look inside ``n.variables`` once the ``n.lopf(pyomo=False)`` has run.
 
 For example, to access the the dispatch variable of ``network.generators_t.p`` attached to the component ``Generator`` use
 
