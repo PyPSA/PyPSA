@@ -12,7 +12,10 @@ def n():
         "ac-dc-meshed",
         "ac-dc-data"
     )
-    return pypsa.Network(csv_folder)
+    n = pypsa.Network(csv_folder)
+    # The linopy optimization considers the p_set of all components as an input
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True) 
+    return n
 
 
 @pytest.fixture
@@ -25,7 +28,7 @@ def n_r():
         "ac-dc-data",
         "results-lopf"
     )
-    n = pypsa.Network(csv_folder)
+    return pypsa.Network(csv_folder)
 
 
 def test_optimization(n, n_r):
