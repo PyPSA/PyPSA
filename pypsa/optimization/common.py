@@ -34,6 +34,7 @@ def set_from_frame(n, c, attr, df):
     """Update values in time-dependent attribute from new dataframe."""
     pnl = n.pnl(c)
     if pnl[attr].empty:
-        pnl[attr] = df.reindex(n.snapshots, fill_value=0)
+        pnl[attr] = df.reindex(n.snapshots).fillna(0)
     else:
-        pnl[attr].update(df)
+        pnl[attr].loc[df.index, df.columns] = df
+        pnl[attr] = pnl[attr].fillna(0)
