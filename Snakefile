@@ -232,7 +232,7 @@ rule add_electricity:
     log: "logs/add_electricity.log"
     benchmark: "benchmarks/add_electricity"
     threads: 1
-    resources: mem=3000
+    resources: mem=5000
     script: "scripts/add_electricity.py"
 
 
@@ -273,7 +273,7 @@ rule cluster_network:
     log: "logs/cluster_network/elec_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/cluster_network/elec_s{simpl}_{clusters}"
     threads: 1
-    resources: mem=3000
+    resources: mem=6000
     script: "scripts/cluster_network.py"
 
 
