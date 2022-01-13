@@ -147,10 +147,6 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
 
 def aggregatelines(network, buses, interlines, line_length_factor=1.0):
 
-    # Make sure network component contents start with "Input" for r and x to avoid missing data in the clustered network before call aggregatelines.
-    network.components["Line"]["attrs"].at['x','status']='Input (required)'
-    network.components["Line"]["attrs"].at['r','status']='Input (required)'
-  
     #make sure all lines have same bus ordering
     positive_order = interlines.bus0_s < interlines.bus1_s
     interlines_p = interlines[positive_order]
