@@ -18,6 +18,10 @@ Upcoming Release
 * The default deployment density of AC- and DC-connected offshore wind capacity is reduced from 3 MW/sqkm
   to a more conservative estimate of 2 MW/sqkm [`#280 <https://github.com/PyPSA/pypsa-eur/pull/280>`_].
 
+* Following discussion in `#285 <https://github.com/PyPSA/pypsa-eur/issues/285>`_ we have disabled the
+  correction factor for solar PV capacity factors by default while satellite data is used.
+  A correction factor of 0.854337 is recommended if reanalysis data like ERA5 is used.
+
 
 PyPSA-Eur 0.4.0 (22th September 2021)
 =====================================

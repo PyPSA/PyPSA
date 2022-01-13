@@ -148,12 +148,13 @@ renewable:
         slope: 35.
         azimuth: 180.
     capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
-    # Determined by comparing uncorrected area-weighted full-load hours to those
+    # Correction factor determined by comparing uncorrected area-weighted full-load hours to those
     # published in Supplementary Data to
     # Pietzcker, Robert Carl, et al. "Using the sun to decarbonize the power
     # sector: The economic potential of photovoltaics and concentrating solar
     # power." Applied Energy 135 (2014): 704-720.
-    correction_factor: 0.854337
+    # This correction factor of 0.854337 may be in order if using reanalysis data.
+    # correction_factor: 0.854337
     corine: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
              14, 15, 16, 17, 18, 19, 20, 26, 31, 32]
     natura: true
