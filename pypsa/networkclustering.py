@@ -145,7 +145,7 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
                               for f in network.buses.columns
                               if f in columns or f in custom_strategies])
 
-def aggregatelines(network, buses, interlines, line_length_factor=1.0):
+def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time=True):
 
     #make sure all lines have same bus ordering
     positive_order = interlines.bus0_s < interlines.bus1_s
@@ -203,9 +203,23 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     linemap_n = interlines_n.join(lines['name'], on=['bus0_s', 'bus1_s'])['name']
     linemap = pd.concat((linemap_p,linemap_n), sort=False)
 
-    return lines, linemap_p, linemap_n, linemap
+    lines_t = dict()
 
-def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_strategies=dict()):
+    if with_time:
+        for attr, df in network.lines_t.items():
+            lines_agg_b = df.columns.to_series().map(linemap).dropna()
+            df_agg = df.loc[:, lines_agg_b.index]
+            if not df_agg.empty:
+                if (attr == 's_max_pu') or (attr == "s_min_pu"):
+                    weighting = network.lines.groupby(linemap).s_nom.apply(_normed)
+                    df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
+                pnl_df = df_agg.groupby(linemap, axis=1).sum()
+                pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
+                lines_t[attr] = pnl_df
+
+    return lines, linemap_p, linemap_n, linemap, lines_t
+
+def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_strategies=dict(), with_time=True):
     # compute new buses
     buses = aggregatebuses(network, busmap, bus_strategies)
 
@@ -214,14 +228,15 @@ def get_buses_linemap_and_lines(network, busmap, line_length_factor=1.0, bus_str
 
     # lines between different clusters
     interlines = lines.loc[lines['bus0_s'] != lines['bus1_s']]
-    lines, linemap_p, linemap_n, linemap = aggregatelines(network, buses, interlines, line_length_factor)
+    lines, linemap_p, linemap_n, linemap, lines_t = aggregatelines(network, buses, interlines, line_length_factor, with_time)
     return (buses,
             linemap,
             linemap_p,
             linemap_n,
             lines.reset_index()
                  .rename(columns={'bus0_s': 'bus0', 'bus1_s': 'bus1'}, copy=False)
-                 .set_index('name'))
+                 .set_index('name'),
+            lines_t)
 
 Clustering = namedtuple('Clustering', ['network', 'busmap', 'linemap',
                                        'linemap_positive', 'linemap_negative'])
@@ -233,7 +248,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
                                bus_strategies=dict(), one_port_strategies=dict(),
                                generator_strategies=dict()):
 
-    buses, linemap, linemap_p, linemap_n, lines = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies)
+    buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(network, busmap, line_length_factor, bus_strategies, with_time)
 
     network_c = Network()
 
@@ -246,6 +261,9 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     if with_time:
         network_c.set_snapshots(network.snapshots)
         network_c.snapshot_weightings = network.snapshot_weightings.copy()
+        for attr, df in lines_t.items():
+            if not df.empty:
+                io.import_series_from_dataframe(network_c, df, "Line", attr)
 
     one_port_components = network.one_port_components.copy()
 
