@@ -127,6 +127,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         Specify colors to paint land and sea areas in.
         If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
         If no dictionary is provided, colors are white.
+        If False, no geographical features are plotted.
 
     Returns
     -------
@@ -137,13 +138,17 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
     if boundaries is None and margin:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
-    if geomap:
-        if not cartopy_present:
-            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
+    if geomap and not cartopy_present:
+        logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+        geomap = False
 
+    if geomap:
+        transform = get_projection_from_crs(n.srid)
         if projection is None:
-            projection = get_projection_from_crs(n.srid)
+            projection = transform
+        else:
+            assert isinstance(projection, cartopy.crs.Projection), (
+                    'The passed projection is not a cartopy.crs.Projection')
 
         if ax is None:
             ax = plt.gca(projection=projection)
@@ -153,9 +158,13 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
                     'create one with: \nimport cartopy.crs as ccrs \n'
                     'fig, ax = plt.subplots('
                     'subplot_kw={"projection":ccrs.PlateCarree()})')
-        transform = draw_map_cartopy(n, x, y, ax, geomap, color_geomap)
+
         x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+
+        if color_geomap is not False:
+            draw_map_cartopy(ax, geomap, color_geomap)
+
         if boundaries is not None:
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
@@ -371,28 +380,30 @@ def projected_area_factor(ax, original_crs=4326):
                    /abs((pbounds[0] - pbounds[1])[:2].prod()))
 
 
-def draw_map_cartopy(n, x, y, ax, geomap=True, color_geomap=None):
+def draw_map_cartopy(ax, geomap=True, color_geomap=None):
 
     resolution = '50m' if isinstance(geomap, bool) else geomap
     assert resolution in ['10m', '50m', '110m'], (
             "Resolution has to be one of '10m', '50m', '110m'")
-    axis_transformation = get_projection_from_crs(n.srid)
 
-    if color_geomap is None:
-        color_geomap = {'ocean': 'w', 'land': 'w'}
-    elif color_geomap and not isinstance(color_geomap, dict):
+    if not color_geomap:
+        color_geomap = {}
+    elif not isinstance(color_geomap, dict):
         color_geomap = {'ocean': 'lightblue', 'land': 'whitesmoke'}
 
-    ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
-                    facecolor=color_geomap['land'])
-    ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
-                    facecolor=color_geomap['ocean'])
+    if 'land' in color_geomap:
+        ax.add_feature(cartopy.feature.LAND.with_scale(resolution),
+                        facecolor=color_geomap['land'])
+
+    if 'ocean' in color_geomap:
+        ax.add_feature(cartopy.feature.OCEAN.with_scale(resolution),
+                        facecolor=color_geomap['ocean'])
 
     ax.coastlines(linewidth=0.4, zorder=2, resolution=resolution)
     border = cartopy.feature.BORDERS.with_scale(resolution)
     ax.add_feature(border, linewidth=0.3)
 
-    return axis_transformation
+    return
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
