@@ -4,6 +4,10 @@
 
 name: CI
 
+# Caching method based on and described by:
+# epassaro (2021): https://dev.to/epassaro/caching-anaconda-environments-in-github-actions-5hde
+# and code in GitHub repo: https://github.com/epassaro/cache-conda-envs
+
 on:
   push:
     branches:
@@ -14,42 +18,73 @@ on:
   schedule:
     - cron: "0 5 * * TUE"
 
+env:
+  CACHE_NUMBER: 1 # Change this value to manually reset the environment cache
+
 jobs:
   build:
 
-    runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 5
       matrix:
-        os:
-        - ubuntu-latest
-        - macos-latest
-        - windows-latest
+        include:
+          # Matrix required to handle caching with Mambaforge
+          - os: ubuntu-latest
+            label: ubuntu-latest
+            prefix: /usr/share/miniconda3/envs/pypsa-eur
 
+          - os: macos-latest
+            label: macos-latest
+            prefix: /Users/runner/miniconda3/envs/pypsa-eur
+
+          - os: windows-latest
+            label: windows-latest
+            prefix: C:\Miniconda3\envs\pypsa-eur
+
+    name: ${{ matrix.label }}
+
+    runs-on: ${{ matrix.os }}
+    
     defaults:
       run:
         shell: bash -l {0}
-
-    steps:
-
-    - uses: actions/checkout@v2
-
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.1.1 
-      with: # checks out environment 'test' by default
-          mamba-version: "*"
-          channels: conda-forge,defaults
-          channel-priority: true
-
-    - name: Install dependencies  
-      run: |
-        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
-        echo -e "  - glpk\n  - ipopt<3.13.3" >> envs/environment.yaml
-        mamba env update -f envs/environment.yaml --name test
         
-    - name: Test snakemake workflow
-      run: |
-        conda list
-        cp test/config.test1.yaml config.yaml
-        snakemake --cores all solve_all_networks
-        rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup secrets
+        run: |
+          echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
+
+      - name: Add solver to environment
+        run: |
+          echo -e "  - glpk\n  - ipopt<3.13.3" >> envs/environment.yaml
+
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            miniforge-variant: Mambaforge
+            miniforge-version: latest
+            activate-environment: pypsa-eur
+            use-mamba: true
+            
+      - name: Set cache date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+
+      - name: Create environment cache
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ${{ matrix.prefix }}
+          key: ${{ matrix.label }}-conda-${{ hashFiles('envs/environment.yaml') }}-${{ env.DATE }}-${{ env.CACHE_NUMBER }}
+
+      - name: Update environment due to outdated or unavailable cache
+        run: mamba env update -n pypsa-eur -f envs/environment.yaml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Test snakemake workflow
+        run: |
+          conda activate pypsa-eur
+          conda list
+          cp test/config.test1.yaml config.yaml
+          snakemake --cores all solve_all_networks
+          rm -rf resources/*.nc resources/*.geojson resources/*.h5 networks results
