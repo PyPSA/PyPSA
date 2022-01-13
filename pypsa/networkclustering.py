@@ -153,10 +153,6 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0):
     interlines_n = interlines[~ positive_order].rename(columns={"bus0_s":"bus1_s", "bus1_s":"bus0_s"})
     interlines_c = pd.concat((interlines_p,interlines_n), sort=False)
 
-    # line length is an optional input when type is not set so original network may or may not contain this information. If not, line length factor below won't work.
-    if network.lines.length.sum() == 0:
-        interlines_c['length']=haversine_pts(network.buses.loc[interlines_c.bus0, ['x', 'y']], network.buses.loc[interlines_c.bus1, ['x', 'y']])
-    
     attrs = network.components["Line"]["attrs"]
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]).difference(('name', 'bus0', 'bus1'))
 
