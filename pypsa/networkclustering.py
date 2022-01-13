@@ -470,8 +470,8 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwarg
 
     kmeans.fit(points)
 
-    busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
-                        index=buses_i).astype(str)
+    busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]].values),
+                       index=buses_i).astype(str)
 
     return busmap
 
@@ -608,7 +608,7 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=None, fea
 
     return busmap
 
-def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None,
+def hac_clustering(network, n_clusters, buses_i=None, branch_components=None, feature=None,
                    affinity='euclidean', linkage='ward', line_length_factor=1.0, **kwargs):
     """
     Cluster the network using Hierarchical Agglomerative Clustering.
