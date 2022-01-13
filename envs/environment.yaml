@@ -6,11 +6,9 @@ name: pypsa-eur
 channels:
   - conda-forge
   - bioconda
-  - http://conda.anaconda.org/gurobi
 dependencies:
   - python>=3.8
   - pip
-  - mamba # esp for windows build
 
   - pypsa>=0.18
   - atlite>=0.2.5
