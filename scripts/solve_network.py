@@ -285,8 +285,7 @@ if __name__ == "__main__":
     with memory_logger(filename=fn, interval=30.) as mem:
         n = pypsa.Network(paths[0])
         n = prepare_network(n, solve_opts)
-        n = solve_network(n, config=config, opts=opts,
-                          solver_dir=tmpdir,
+        n = solve_network(n, config, opts, solver_dir=tmpdir,
                           solver_logfile=logs.solver)
         n.export_to_netcdf(out[0])
 

@@ -549,11 +549,11 @@ if __name__ == "__main__":
     n = pypsa.Network(paths.base_network)
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
 
-    costs = load_costs(paths.tech_costs, config['costs'], config['electricity'], Nyears=Nyears)
+    costs = load_costs(paths.tech_costs, config['costs'], config['electricity'], Nyears)
     ppl = load_powerplants(paths.powerplants)
 
     attach_load(n, paths.regions, paths.load, paths.nuts3_shapes, config['countries'],
-                scaling=config['load']['scaling_factor'])
+                config['load']['scaling_factor'])
 
     update_transmission_costs(n, costs, config['lines']['length_factor'])
 

@@ -374,12 +374,10 @@ if __name__ == "__main__":
             custom_busmap = pd.read_csv(paths.custom_busmap, index_col=0, squeeze=True)
             custom_busmap.index = custom_busmap.index.astype(str)
             logger.info(f"Imported custom busmap from {paths.custom_busmap}")
+
         clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap, aggregate_carriers,
-                                               line_length_factor=line_length_factor,
-                                               potential_mode=potential_mode,
-                                               solver_name=config['solving']['solver']['name'],
-                                               extended_link_costs=hvac_overhead_cost,
-                                               focus_weights=focus_weights)
+                                               line_length_factor, potential_mode, config['solving']['solver']['name'],
+                                               "kmeans", hvac_overhead_cost, focus_weights)
 
     update_p_nom_max(n)
     

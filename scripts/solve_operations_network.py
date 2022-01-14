@@ -116,9 +116,8 @@ if __name__ == "__main__":
 
     fn = getattr(logs, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
-        n = prepare_network(n, solve_opts=config['solving']['options'])
-        n = solve_network(n, config=config, opts=opts,
-                          solver_dir=tmpdir,
+        n = prepare_network(n, config['solving']['options'])
+        n = solve_network(n, config, opts, solver_dir=tmpdir,
                           solver_logfile=logs.solver)
         n.export_to_netcdf(out[0])
 

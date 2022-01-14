@@ -140,7 +140,7 @@ def average_every_nhours(n, offset):
     return m
 
 
-def apply_time_segmentation(n, segments, solver_name="cplex"):
+def apply_time_segmentation(n, segments, solver_name="cbc"):
     logger.info(f"Aggregating time series to {segments} segments.")
     try:
         import tsam.timeseriesaggregation as tsam
@@ -212,11 +212,9 @@ if __name__ == "__main__":
 
     n = pypsa.Network(paths[0])
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(tech_costs = paths.tech_costs,
-                       config = config['costs'],
-                       elec_config = config['electricity'], Nyears = Nyears)
+    costs = load_costs(paths.tech_costs, config['costs'], config['electricity'], Nyears)
 
-    set_line_s_max_pu(n, s_max_pu=config['lines']['s_max_pu'])
+    set_line_s_max_pu(n, config['lines']['s_max_pu'])
 
     for o in opts:
         m = re.match(r'^\d+h$', o, re.IGNORECASE)
@@ -228,7 +226,7 @@ if __name__ == "__main__":
         m = re.match(r'^\d+seg$', o, re.IGNORECASE)
         if m is not None:
             solver_name = config["solving"]["solver"]["name"]
-            n = apply_time_segmentation(n, m.group(0)[:-3], solver_name=solver_name)
+            n = apply_time_segmentation(n, m.group(0)[:-3], solver_name)
             break
 
     for o in opts:

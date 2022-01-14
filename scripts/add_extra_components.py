@@ -199,7 +199,7 @@ if __name__ == "__main__":
     elec_config = config['electricity']
     
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(paths.tech_costs, config['costs'], elec_config, Nyears=Nyears)
+    costs = load_costs(paths.tech_costs, config['costs'], elec_config, Nyears)
 
     attach_storageunits(n, costs, elec_config)
     attach_stores(n, costs, elec_config)
