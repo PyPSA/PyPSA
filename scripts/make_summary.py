@@ -54,7 +54,7 @@ Replacing '/summaries/' with '/plots/' creates nice colored maps of the results.
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import os
 import pypsa
@@ -378,7 +378,7 @@ outputs = ["costs",
            ]
 
 
-def make_summaries(networks_dict, country='all'):
+def make_summaries(networks_dict, paths, config, country='all'):
 
     columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["simpl","clusters","ll","opts"])
 
@@ -403,8 +403,8 @@ def make_summaries(networks_dict, country='all'):
             n = n[n.buses.country == country]
 
         Nyears = n.snapshot_weightings.objective.sum() / 8760.
-        costs = load_costs(tech_costs = snakemake.input[0], config = snakemake.config['costs'],
-                           elec_config = snakemake.config['electricity'], Nyears = Nyears)
+        costs = load_costs(tech_costs = paths[0], config = config['costs'],
+                           elec_config = config['electricity'], Nyears)
         update_transmission_costs(n, costs, simple_hvdc_costs=False)
 
         assign_carriers(n)
@@ -431,25 +431,27 @@ if __name__ == "__main__":
         network_dir = os.path.join('results', 'networks')
     configure_logging(snakemake)
 
-    def expand_from_wildcard(key):
-        w = getattr(snakemake.wildcards, key)
-        return snakemake.config["scenario"][key] if w == "all" else [w]
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    if snakemake.wildcards.ll.endswith("all"):
-        ll = snakemake.config["scenario"]["ll"]
-        if len(snakemake.wildcards.ll) == 4:
-            ll = [l for l in ll if l[0] == snakemake.wildcards.ll[0]]
+    def expand_from_wildcard(key, config):
+        w = getattr(wildcards, key)
+        return config["scenario"][key] if w == "all" else [w]
+
+    if wildcards.ll.endswith("all"):
+        ll = config["scenario"]["ll"]
+        if len(wildcards.ll) == 4:
+            ll = [l for l in ll if l[0] == wildcards.ll[0]]
     else:
-        ll = [snakemake.wildcards.ll]
+        ll = [wildcards.ll]
 
     networks_dict = {(simpl,clusters,l,opts) :
         os.path.join(network_dir, f'elec_s{simpl}_'
                                   f'{clusters}_ec_l{l}_{opts}.nc')
-                     for simpl in expand_from_wildcard("simpl")
+                     for simpl in expand_from_wildcard("simpl", config)
                      for clusters in expand_from_wildcard("clusters")
                      for l in ll
                      for opts in expand_from_wildcard("opts")}
 
-    dfs = make_summaries(networks_dict, country=snakemake.wildcards.country)
+    dfs = make_summaries(networks_dict, paths, config, country=wildcards.country)
 
-    to_csv(dfs, snakemake.output[0])
+    to_csv(dfs, out[0])
