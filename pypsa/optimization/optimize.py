@@ -68,6 +68,14 @@ def sanity_check(n, sns):
                 f"\n\n\t{', '.join(intersection)}"
             )
 
+    for c, attr in lookup.query("nominal").index:
+        ext_i = n.get_extendable_i(c)
+        for col in [f"{attr}_min", f"{attr}_max"]:
+            if n.df(c)[col][ext_i].isnull().any():
+                raise ValueError(
+                    f"Encountered nan's in column '{col}' of component '{c}'."
+                )
+
     constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
     if isinstance(sns, pd.MultiIndex):
         if not constraint_periods.issubset(sns.unique("period")):
