@@ -81,15 +81,14 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
     min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
-    rhs = 0
 
     active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
 
-    lhs = (max_pu, capacity), (-1, dispatch)
-    n.model.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-upper", active)
+    lhs = (1, dispatch), (-min_pu, capacity)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-lower", active)
 
-    lhs = (min_pu, capacity), (-1, dispatch)
-    n.model.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-lower", active)
+    lhs = (1, dispatch), (-max_pu, capacity)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-upper", active)
 
 
 def define_operational_constraints_for_committables(n, sns, c):
@@ -120,11 +119,11 @@ def define_operational_constraints_for_committables(n, sns, c):
     p = reindex(n.model[f"{c}-p"], c, com_i)
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
 
-    lhs = (lower, status), (-1, p)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-lower", active)
+    lhs = (1, p), (-lower, status)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", active)
 
-    lhs = (upper, status), (-1, p)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-upper", active)
+    lhs = (1, p), (-upper, status)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
 
 
 def define_nominal_constraints_for_extendables(n, c, attr):
@@ -151,13 +150,12 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     capacity = n.model[f"{c}-{attr}"]
     lower = n.df(c)[attr + "_min"].reindex(ext_i)
     upper = n.df(c)[attr + "_max"].reindex(ext_i)
+    mask = upper != inf
     n.model.add_constraints(capacity, ">=", lower, f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(
-        capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=upper != inf
-    )
+    n.model.add_constraints(capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=mask)
 
 
-def define_ramp_limit_constraints(n, sns, c):
+def define_ramp_limit_constraints(n, sns, c, attr):
     """
     Defines ramp limits for assets with valid ramplimit.
 
@@ -175,10 +173,11 @@ def define_ramp_limit_constraints(n, sns, c):
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
         return
 
-    p = lambda idx: reindex(m[f"{c}-p"].sel(snapshot=sns[1:]), c, idx)
-    p_prev = lambda idx: reindex(
-        m[f"{c}-p"].shift(snapshot=1).sel(snapshot=sns[1:]), c, idx
-    )
+    def p(idx):
+        return reindex(m[f"{c}-{attr}"].sel(snapshot=sns[1:]), c, idx)
+
+    def p_prev(idx):
+        return reindex(m[f"{c}-{attr}"].shift(snapshot=1).sel(snapshot=sns[1:]), c, idx)
 
     fix_i = n.get_non_extendable_i(c)
     assets = n.df(c).reindex(fix_i)
@@ -188,13 +187,13 @@ def define_ramp_limit_constraints(n, sns, c):
     if not assets.ramp_limit_up.isnull().all():
         lhs = p(fix_i) - p_prev(fix_i)
         rhs = assets.eval("ramp_limit_up * p_nom")
-        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-p-ramp_limit_up", active)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", active)
 
     # fix down
     if not assets.ramp_limit_down.isnull().all():
         lhs = p(fix_i) - p_prev(fix_i)
         rhs = assets.eval("-1 * ramp_limit_down * p_nom")
-        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-p-ramp_limit_down", active)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", active)
 
     ext_i = n.get_extendable_i(c)
     assets = n.df(c).reindex(ext_i)
@@ -205,14 +204,14 @@ def define_ramp_limit_constraints(n, sns, c):
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_up.to_xarray()
         lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (-limit_pu, p_nom)
-        m.add_constraints(lhs, "<=", 0, f"{c}-ext-p-ramp_limit_up", active)
+        m.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-ramp_limit_up", active)
 
     # ext down
     if not assets.ramp_limit_down.isnull().all():
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_down.to_xarray()
         lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (limit_pu, p_nom)
-        m.add_constraints(lhs, ">=", 0, f"{c}-ext-p-ramp_limit_down", active)
+        m.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-ramp_limit_down", active)
 
     com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
@@ -232,7 +231,7 @@ def define_ramp_limit_constraints(n, sns, c):
             (limit_start - limit_up, status_prev),
             (-limit_start, status),
         )
-        m.add_constraints(lhs, "<=", 0, f"{c}-com-p-ramp_limit_down", active)
+        m.add_constraints(lhs, "<=", 0, f"{c}-com-{attr}-ramp_limit_up", active)
 
     # com down
     if not assets.ramp_limit_down.isnull().all():
@@ -248,7 +247,7 @@ def define_ramp_limit_constraints(n, sns, c):
             (limit_down - limit_shut, status),
             (limit_shut, status_prev),
         )
-        m.add_constraints(lhs, ">=", 0, f"{c}-com-p-ramp_limit_up", active)
+        m.add_constraints(lhs, ">=", 0, f"{c}-com-{attr}-ramp_limit_down", active)
 
 
 def define_nodal_balance_constraints(n, sns):
@@ -302,7 +301,6 @@ def define_nodal_balance_constraints(n, sns):
     if (lhs.vars == -1).all("_term").any():
         raise ValueError("Empty LHS in nodal balance constraint.")
 
-    sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
         .groupby(n.loads.bus, axis=1)
@@ -310,7 +308,7 @@ def define_nodal_balance_constraints(n, sns):
         .reindex(columns=n.buses.index, fill_value=0)
     )
     rhs.index.name = "snapshot"  # the name for multi-index is getting lost by groupby
-    n.model.add_constraints(lhs, sense, rhs, "Bus-nodal_balance")
+    n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance")
 
 
 def define_kirchhoff_constraints(n, sns):
