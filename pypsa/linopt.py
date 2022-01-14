@@ -316,7 +316,7 @@ def broadcasted_axes(*dfs):
         dfs = sum(dfs, ())
 
     for df in dfs:
-        shape = max(shape, np.asarray(df).shape)
+        shape = np.broadcast_shapes(shape, np.asarray(df).shape)
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
                 assert (axes[-1] == df.axes[-1]).all(), ('Series or DataFrames '
