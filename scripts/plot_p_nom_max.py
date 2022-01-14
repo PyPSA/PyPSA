@@ -19,7 +19,7 @@ Description
 
 """
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import pypsa
 import pandas as pd

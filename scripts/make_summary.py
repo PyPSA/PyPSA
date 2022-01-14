@@ -403,8 +403,7 @@ def make_summaries(networks_dict, paths, config, country='all'):
             n = n[n.buses.country == country]
 
         Nyears = n.snapshot_weightings.objective.sum() / 8760.
-        costs = load_costs(tech_costs = paths[0], config = config['costs'],
-                           elec_config = config['electricity'], Nyears)
+        costs = load_costs(paths[0], config['costs'], config['electricity'], Nyears)
         update_transmission_costs(n, costs, simple_hvdc_costs=False)
 
         assign_carriers(n)
@@ -448,9 +447,9 @@ if __name__ == "__main__":
         os.path.join(network_dir, f'elec_s{simpl}_'
                                   f'{clusters}_ec_l{l}_{opts}.nc')
                      for simpl in expand_from_wildcard("simpl", config)
-                     for clusters in expand_from_wildcard("clusters")
+                     for clusters in expand_from_wildcard("clusters", config)
                      for l in ll
-                     for opts in expand_from_wildcard("opts")}
+                     for opts in expand_from_wildcard("opts", config)}
 
     dfs = make_summaries(networks_dict, paths, config, country=wildcards.country)
 
