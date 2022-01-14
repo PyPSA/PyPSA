@@ -140,6 +140,9 @@ from functools import reduce
 from pypsa.networkclustering import (busmap_by_kmeans, busmap_by_spectral_clustering,
                                      _make_consense, get_clustering_from_busmap)
 
+import warnings
+warnings.filterwarnings(action='ignore', category=UserWarning)
+
 from add_electricity import load_costs
 
 idx = pd.IndexSlice
@@ -215,7 +218,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="cbc"):
     results = opt.solve(m)
     assert results['Solver'][0]['Status'] == 'ok', f"Solver returned non-optimally: {results}"
 
-    return pd.Series(m.n.get_values(), index=L.index).astype(int)
+    return pd.Series(m.n.get_values(), index=L.index).round().astype(int)
 
 
 def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algorithm="kmeans", **algorithm_kwds):

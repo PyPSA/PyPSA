@@ -58,7 +58,7 @@ The dataset consists of:
 - Electrical demand time series from the
   [OPSD project](https://open-power-system-data.org/).
 - Renewable time series based on ERA5 and SARAH, assembled using the [atlite tool](https://github.com/FRESNA/atlite).
-- Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [vresutils library](https://github.com/FRESNA/vresutils) and the [glaes library](https://github.com/FZJ-IEK3-VSA/glaes).
+- Geographical potentials for wind and solar generators based on land use (CORINE) and excluding nature reserves (Natura2000) are computed with the [atlite library](https://github.com/PyPSA/atlite).
 
 Already-built versions of the model can be found in the accompanying [Zenodo
 repository](https://doi.org/10.5281/zenodo.3601881).
