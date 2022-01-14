@@ -97,7 +97,7 @@ def _get_country(df):
 
 
 def _find_closest_links(links, new_links, distance_upper_bound=1.5):
-    treecoords = np.asarray([np.asarray(shapely.wkt.loads(s))[[0, -1]].flatten()
+    treecoords = np.asarray([np.asarray(shapely.wkt.loads(s).coords)[[0, -1]].flatten()
                               for s in links.geometry])
     querycoords = np.vstack([new_links[['x1', 'y1', 'x2', 'y2']],
                             new_links[['x2', 'y2', 'x1', 'y1']]])

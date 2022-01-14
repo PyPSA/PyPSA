@@ -140,6 +140,9 @@ from functools import reduce
 from pypsa.networkclustering import (busmap_by_kmeans, busmap_by_spectral_clustering,
                                      _make_consense, get_clustering_from_busmap)
 
+import warnings
+warnings.filterwarnings(action='ignore', category=UserWarning)
+
 from add_electricity import load_costs
 
 idx = pd.IndexSlice
@@ -313,7 +316,7 @@ def cluster_regions(busmaps, input=None, output=None):
 
     for which in ('regions_onshore', 'regions_offshore'):
         regions = gpd.read_file(getattr(input, which)).set_index('name')
-        geom_c = regions.geometry.groupby(busmap).apply(shapely.ops.cascaded_union)
+        geom_c = regions.geometry.groupby(busmap).apply(shapely.ops.unary_union)
         regions_c = gpd.GeoDataFrame(dict(geometry=geom_c))
         regions_c.index.name = 'name'
         save_to_geojson(regions_c, getattr(output, which))

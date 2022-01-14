@@ -95,7 +95,6 @@ import powerplantmatching as pm
 from powerplantmatching.export import map_country_bus
 
 from vresutils.costdata import annuity
-from vresutils.load import timeseries_opsd
 from vresutils import transfer as vtransfer
 
 idx = pd.IndexSlice
@@ -227,7 +226,6 @@ def attach_load(n):
 
             # relative factors 0.6 and 0.4 have been determined from a linear
             # regression on the country to continent load data
-            # (refer to vresutils.load._upsampling_weights)
             factors = normed(0.6 * normed(gdp_n) + 0.4 * normed(pop_n))
             return pd.DataFrame(factors.values * l.values[:,np.newaxis],
                                 index=l.index, columns=factors.index)

@@ -79,7 +79,7 @@ from itertools import takewhile
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
-from shapely.ops import cascaded_union
+from shapely.ops import unary_union
 import pycountry as pyc
 
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ def _get_country(target, **keys):
 
 def _simplify_polys(polys, minarea=0.1, tolerance=0.01, filterremote=True):
     if isinstance(polys, MultiPolygon):
-        polys = sorted(polys, key=attrgetter('area'), reverse=True)
+        polys = sorted(polys.geoms, key=attrgetter('area'), reverse=True)
         mainpoly = polys[0]
         mainlength = np.sqrt(mainpoly.area/(2.*np.pi))
         if mainpoly.area > minarea:
@@ -139,7 +139,7 @@ def country_cover(country_shapes, eez_shapes=None):
     if eez_shapes is not None:
         shapes += list(eez_shapes)
 
-    europe_shape = cascaded_union(shapes)
+    europe_shape = unary_union(shapes)
     if isinstance(europe_shape, MultiPolygon):
         europe_shape = max(europe_shape, key=attrgetter('area'))
     return Polygon(shell=europe_shape.exterior)

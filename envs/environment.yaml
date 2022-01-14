@@ -10,9 +10,9 @@ dependencies:
   - python>=3.8
   - pip
 
-  - pypsa>=0.18
+  - pypsa>=0.18.1
   - atlite>=0.2.5
-  - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
+  - dask
 
   # Dependencies of the workflow itself
   - xlrd
@@ -36,7 +36,7 @@ dependencies:
   - progressbar2
   - pyomo
   - matplotlib
-  - proj<8
+  - proj
 
   # Keep in conda environment when calling ipython
   - ipython
@@ -54,5 +54,5 @@ dependencies:
   - tabula-py
 
   - pip:
-    - vresutils==0.3.1
+    - vresutils>=0.3.1
     - tsam>=1.1.0
