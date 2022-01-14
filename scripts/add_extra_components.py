@@ -50,7 +50,7 @@ The rule :mod:`add_extra_components` attaches additional extendable components t
 - ``Stores`` of carrier 'H2' and/or 'battery' in combination with ``Links``. If this option is chosen, the script adds extra buses with corresponding carrier where energy ``Stores`` are attached and which are connected to the corresponding power buses via two links, one each for charging and discharging. This leads to three investment variables for the energy capacity, charging and discharging capacity of the storage unit.
 """
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import pypsa
 import pandas as pd
@@ -192,18 +192,19 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('add_extra_components', network='elec',
                                   simpl='', clusters=5)
     configure_logging(snakemake)
-    paths = snakemake.input
+
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
     n = pypsa.Network(paths.network)
-    elec_config = snakemake.config['electricity']
+    elec_config = config['electricity']
     
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(paths.tech_costs, snakemake.config['costs'], elec_config, Nyears=Nyears)
+    costs = load_costs(paths.tech_costs, config['costs'], elec_config, Nyears=Nyears)
 
     attach_storageunits(n, costs, elec_config)
     attach_stores(n, costs, elec_config)
     attach_hydrogen_pipelines(n, costs, elec_config)
 
-    add_nice_carrier_names(n, snakemake.config)
+    add_nice_carrier_names(n, config)
 
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(out[0])

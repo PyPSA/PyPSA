@@ -42,7 +42,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import pypsa
 import os
@@ -67,12 +67,14 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_bus_regions')
     configure_logging(snakemake)
 
-    countries = snakemake.config['countries']
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    n = pypsa.Network(snakemake.input.base_network)
+    countries = config['countries']
 
-    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
-    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
+    n = pypsa.Network(paths.base_network)
+
+    country_shapes = gpd.read_file(paths.country_shapes).set_index('name')['geometry']
+    offshore_shapes = gpd.read_file(paths.offshore_shapes).set_index('name')['geometry']
 
     onshore_regions = []
     offshore_regions = []
@@ -103,6 +105,6 @@ if __name__ == "__main__":
         offshore_regions_c = offshore_regions_c.loc[offshore_regions_c.area > 1e-2]
         offshore_regions.append(offshore_regions_c)
 
-    save_to_geojson(pd.concat(onshore_regions, ignore_index=True), snakemake.output.regions_onshore)
+    save_to_geojson(pd.concat(onshore_regions, ignore_index=True), out.regions_onshore)
 
-    save_to_geojson(pd.concat(offshore_regions, ignore_index=True), snakemake.output.regions_offshore)
+    save_to_geojson(pd.concat(offshore_regions, ignore_index=True), out.regions_offshore)

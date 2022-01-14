@@ -60,7 +60,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import atlite
 import geopandas as gpd
@@ -74,22 +74,24 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_hydro_profile')
     configure_logging(snakemake)
 
-    config = snakemake.config['renewable']['hydro']
-    cutout = atlite.Cutout(snakemake.input.cutout)
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    countries = snakemake.config['countries']
-    country_shapes = (gpd.read_file(snakemake.input.country_shapes)
+    config_hydro = config['renewable']['hydro']
+    cutout = atlite.Cutout(paths.cutout)
+
+    countries = config['countries']
+    country_shapes = (gpd.read_file(paths.country_shapes)
                       .set_index('name')['geometry'].reindex(countries))
     country_shapes.index.name = 'countries'
 
     eia_stats = vhydro.get_eia_annual_hydro_generation(
-        snakemake.input.eia_hydro_generation).reindex(columns=countries)
+        paths.eia_hydro_generation).reindex(columns=countries)
     inflow = cutout.runoff(shapes=country_shapes,
                            smooth=True,
                            lower_threshold_quantile=True,
                            normalize_using_yearly=eia_stats)
 
-    if 'clip_min_inflow' in config:
-        inflow = inflow.where(inflow > config['clip_min_inflow'], 0)
+    if 'clip_min_inflow' in config_hydro:
+        inflow = inflow.where(inflow > config_hydro['clip_min_inflow'], 0)
 
-    inflow.to_netcdf(snakemake.output[0])
+    inflow.to_netcdf(out[0])

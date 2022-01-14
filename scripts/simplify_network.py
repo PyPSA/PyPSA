@@ -83,7 +83,7 @@ The rule :mod:`simplify_network` does up to four things:
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, retrieve_snakemake_keys, update_p_nom_max
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
@@ -386,14 +386,16 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('simplify_network', simpl='', network='elec')
     configure_logging(snakemake)
 
-    n = pypsa.Network(snakemake.input.network)
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+
+    n = pypsa.Network(paths.network)
 
     n, trafo_map = simplify_network_to_380(n)
 
     Nyears = n.snapshot_weightings.objective.sum() / 8760
-    technology_costs = load_costs(tech_costs = snakemake.input.tech_costs,
-                                  config = snakemake.config['costs'],
-                                  elec_config = snakemake.config['electricity'], Nyears = Nyears)
+    technology_costs = load_costs(tech_costs = paths.tech_costs,
+                                  config = config['costs'],
+                                  elec_config = config['electricity'], Nyears = Nyears)
 
     n, simplify_links_map = simplify_links(n, technology_costs)
 
@@ -401,12 +403,12 @@ if __name__ == "__main__":
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
-    if snakemake.config.get('clustering', {}).get('simplify', {}).get('to_substations', False):
+    if config.get('clustering', {}).get('simplify', {}).get('to_substations', False):
         n, substation_map = aggregate_to_substations(n)
         busmaps.append(substation_map)
 
-    if snakemake.wildcards.simpl:
-        n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
+    if wildcards.simpl:
+        n, cluster_map = cluster(n, int(wildcards.simpl))
         busmaps.append(cluster_map)
 
     # some entries in n.buses are not updated in previous functions, therefore can be wrong. as they are not needed
@@ -416,9 +418,9 @@ if __name__ == "__main__":
 
     update_p_nom_max(n)
         
-    n.export_to_netcdf(snakemake.output.network)
+    n.export_to_netcdf(out.network)
 
     busmap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
-    busmap_s.to_csv(snakemake.output.busmap)
+    busmap_s.to_csv(out.busmap)
 
-    cluster_regions(busmaps, snakemake.input, snakemake.output)
+    cluster_regions(busmaps, paths, out)

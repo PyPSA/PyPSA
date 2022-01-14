@@ -95,6 +95,10 @@ def pdbcast(v, h):
     return pd.DataFrame(v.values.reshape((-1, 1)) * h.values,
                         index=v.index, columns=h.index)
 
+def retrieve_snakemake_keys(snakemake):
+    return (snakemake.input, snakemake.config, snakemake.wildcards,
+            snakemake.log, snakemake.output)
+
 
 def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     import pypsa

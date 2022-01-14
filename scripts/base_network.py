@@ -63,7 +63,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import pypsa
 import yaml
@@ -588,11 +588,10 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('base_network')
     configure_logging(snakemake)
 
-    paths = snakemake.input
-    config = snakemake.config
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
     n = base_network(paths.eg_buses, paths.eg_converters, paths.eg_transformers, paths.eg_lines, paths.eg_links,
                      paths.links_p_nom, paths.links_tyndp, paths.europe_shape, paths.country_shapes, paths.offshore_shapes,
                      paths.parameter_corrections, config)
 
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(out[0])

@@ -84,7 +84,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, retrieve_snakemake_keys, update_p_nom_max
 
 import pypsa
 import pandas as pd
@@ -546,8 +546,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('add_electricity')
     configure_logging(snakemake)
 
-    config = snakemake.config
-    paths = snakemake.input
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
     n = pypsa.Network(paths.base_network)
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
@@ -583,4 +582,4 @@ if __name__ == "__main__":
 
     add_nice_carrier_names(n, config)
 
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(out[0])

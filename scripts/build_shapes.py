@@ -68,7 +68,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import os
 import numpy as np
@@ -217,13 +217,12 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_shapes')
     configure_logging(snakemake)
 
-    paths = snakemake.input
-    out = snakemake.output
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    country_shapes = countries(paths.naturalearth, snakemake.config['countries'])
+    country_shapes = countries(paths.naturalearth, config['countries'])
     save_to_geojson(country_shapes, out.country_shapes)
 
-    offshore_shapes = eez(country_shapes, paths.eez, snakemake.config['countries'])
+    offshore_shapes = eez(country_shapes, paths.eez, config['countries'])
     save_to_geojson(offshore_shapes, out.offshore_shapes)
 
     europe_shape = country_cover(country_shapes, offshore_shapes)

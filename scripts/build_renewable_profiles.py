@@ -190,7 +190,7 @@ from pypsa.geo import haversine
 from shapely.geometry import LineString
 import time
 
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 logger = logging.getLogger(__name__)
 
@@ -201,10 +201,12 @@ if __name__ == '__main__':
         snakemake = mock_snakemake('build_renewable_profiles', technology='solar')
     configure_logging(snakemake)
     pgb.streams.wrap_stderr()
-    paths = snakemake.input
-    nprocesses = snakemake.config['atlite'].get('nprocesses')
-    noprogress = not snakemake.config['atlite'].get('show_progress', True)
-    config = snakemake.config['renewable'][snakemake.wildcards.technology]
+
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+
+    nprocesses = config['atlite'].get('nprocesses')
+    noprogress = not config['atlite'].get('show_progress', True)
+    config = config['renewable'][wildcards.technology]
     resource = config['resource'] # pv panel config / wind turbine config
     correction_factor = config.get('correction_factor', 1.)
     capacity_per_sqkm = config['capacity_per_sqkm']
@@ -313,7 +315,7 @@ if __name__ == '__main__':
                     average_distance.rename('average_distance')])
 
 
-    if snakemake.wildcards.technology.startswith("offwind"):
+    if wildcards.technology.startswith("offwind"):
         logger.info('Calculate underwater fraction of connections.')
         offshore_shape = gpd.read_file(paths['offshore_shapes']).unary_union
         underwater_fraction = []
@@ -333,4 +335,4 @@ if __name__ == '__main__':
         min_p_max_pu = config['clip_p_max_pu']
         ds['profile'] = ds['profile'].where(ds['profile'] >= min_p_max_pu, 0)
 
-    ds.to_netcdf(snakemake.output.profile)
+    ds.to_netcdf(out.profile)

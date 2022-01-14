@@ -56,7 +56,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import re
 import pypsa
@@ -206,15 +206,17 @@ if __name__ == "__main__":
                                   clusters='40', ll='v0.3', opts='Co2L-24H')
     configure_logging(snakemake)
 
-    opts = snakemake.wildcards.opts.split('-')
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    n = pypsa.Network(snakemake.input[0])
+    opts = wildcards.opts.split('-')
+
+    n = pypsa.Network(paths[0])
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(tech_costs = snakemake.input.tech_costs,
-                       config = snakemake.config['costs'],
-                       elec_config = snakemake.config['electricity'], Nyears = Nyears)
+    costs = load_costs(tech_costs = paths.tech_costs,
+                       config = config['costs'],
+                       elec_config = config['electricity'], Nyears = Nyears)
 
-    set_line_s_max_pu(n, s_max_pu=snakemake.config['lines']['s_max_pu'])
+    set_line_s_max_pu(n, s_max_pu=config['lines']['s_max_pu'])
 
     for o in opts:
         m = re.match(r'^\d+h$', o, re.IGNORECASE)
@@ -225,7 +227,7 @@ if __name__ == "__main__":
     for o in opts:
         m = re.match(r'^\d+seg$', o, re.IGNORECASE)
         if m is not None:
-            solver_name = snakemake.config["solving"]["solver"]["name"]
+            solver_name = config["solving"]["solver"]["name"]
             n = apply_time_segmentation(n, m.group(0)[:-3], solver_name=solver_name)
             break
 
@@ -233,10 +235,10 @@ if __name__ == "__main__":
         if "Co2L" in o:
             m = re.findall("[0-9]*\.?[0-9]+$", o)
             if len(m) > 0:
-                co2limit = float(m[0]) * snakemake.config['electricity']['co2base']
+                co2limit = float(m[0]) * config['electricity']['co2base']
                 add_co2limit(n, co2limit, Nyears)
             else:
-                add_co2limit(n, snakemake.config['electricity']['co2limit'], Nyears)
+                add_co2limit(n, config['electricity']['co2limit'], Nyears)
             break
 
     for o in opts:
@@ -257,17 +259,17 @@ if __name__ == "__main__":
                     c.df.loc[sel,attr] *= factor
 
     if 'Ep' in opts:
-        add_emission_prices(n, emission_prices=snakemake.config['costs']['emission_prices'])
+        add_emission_prices(n, config['costs']['emission_prices'])
 
-    ll_type, factor = snakemake.wildcards.ll[0], snakemake.wildcards.ll[1:]
+    ll_type, factor = wildcards.ll[0], wildcards.ll[1:]
     set_transmission_limit(n, ll_type, factor, costs, Nyears)
 
-    set_line_nom_max(n, s_nom_max_set=snakemake.config["lines"].get("s_nom_max,", np.inf),
-                     p_nom_max_set=snakemake.config["links"].get("p_nom_max,", np.inf))
+    set_line_nom_max(n, s_nom_max_set=config["lines"].get("s_nom_max,", np.inf),
+                     p_nom_max_set=config["links"].get("p_nom_max,", np.inf))
 
     if "ATK" in opts:
         enforce_autarky(n)
     elif "ATKc" in opts:
         enforce_autarky(n, only_crossborder=True)
 
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(out[0])

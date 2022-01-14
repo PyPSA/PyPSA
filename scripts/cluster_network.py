@@ -122,7 +122,7 @@ Exemplary unsolved network clustered to 37 nodes:
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, retrieve_snakemake_keys, update_p_nom_max
 
 import pypsa
 import os
@@ -306,7 +306,7 @@ def cluster_regions(busmaps, input=None, output=None):
 
     for which in ('regions_onshore', 'regions_offshore'):
         regions = gpd.read_file(getattr(input, which)).set_index('name')
-        geom_c = regions.geometry.groupby(busmap).apply(shapely.ops.cascaded_union)
+        geom_c = regions.geometry.groupby(busmap).apply(shapely.ops.unary_union)
         regions_c = gpd.GeoDataFrame(dict(geometry=geom_c))
         regions_c.index.name = 'name'
         save_to_geojson(regions_c, getattr(output, which))
@@ -328,19 +328,21 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('cluster_network', network='elec', simpl='', clusters='5')
     configure_logging(snakemake)
 
-    n = pypsa.Network(snakemake.input.network)
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    focus_weights = snakemake.config.get('focus_weights', None)
+    n = pypsa.Network(paths.network)
+
+    focus_weights = config.get('focus_weights', None)
 
     renewable_carriers = pd.Index([tech
                                    for tech in n.generators.carrier.unique()
-                                   if tech in snakemake.config['renewable']])
+                                   if tech in config['renewable']])
 
-    if snakemake.wildcards.clusters.endswith('m'):
-        n_clusters = int(snakemake.wildcards.clusters[:-1])
+    if wildcards.clusters.endswith('m'):
+        n_clusters = int(wildcards.clusters[:-1])
         aggregate_carriers = pd.Index(n.generators.carrier.unique()).difference(renewable_carriers)
     else:
-        n_clusters = int(snakemake.wildcards.clusters)
+        n_clusters = int(wildcards.clusters)
         aggregate_carriers = None # All
 
     if n_clusters == len(n.buses):
@@ -349,11 +351,11 @@ if __name__ == "__main__":
         linemap = n.lines.index.to_series()
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
-        line_length_factor = snakemake.config['lines']['length_factor']
+        line_length_factor = config['lines']['length_factor']
         Nyears = n.snapshot_weightings.objective.sum()/8760
-        hvac_overhead_cost = (load_costs(tech_costs = snakemake.input.tech_costs,
-                                         config = snakemake.config['costs'],
-                                         elec_config=snakemake.config['electricity'], Nyears = Nyears)
+        hvac_overhead_cost = (load_costs(tech_costs = paths.tech_costs,
+                                         config = config['costs'],
+                                         elec_config=config['electricity'], Nyears = Nyears)
                               .at['HVAC overhead', 'capital_cost'])
 
         def consense(x):
@@ -362,24 +364,24 @@ if __name__ == "__main__":
                 "The `potential` configuration option must agree for all renewable carriers, for now!"
             )
             return v
-        potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+        potential_mode = consense(pd.Series([config['renewable'][tech]['potential']
                                              for tech in renewable_carriers]))
-        custom_busmap = snakemake.config["enable"].get("custom_busmap", False)
+        custom_busmap = config["enable"].get("custom_busmap", False)
         if custom_busmap:
-            custom_busmap = pd.read_csv(snakemake.input.custom_busmap, index_col=0, squeeze=True)
+            custom_busmap = pd.read_csv(paths.custom_busmap, index_col=0, squeeze=True)
             custom_busmap.index = custom_busmap.index.astype(str)
-            logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
+            logger.info(f"Imported custom busmap from {paths.custom_busmap}")
         clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap, aggregate_carriers,
                                                line_length_factor=line_length_factor,
                                                potential_mode=potential_mode,
-                                               solver_name=snakemake.config['solving']['solver']['name'],
+                                               solver_name=config['solving']['solver']['name'],
                                                extended_link_costs=hvac_overhead_cost,
                                                focus_weights=focus_weights)
 
     update_p_nom_max(n)
     
-    clustering.network.export_to_netcdf(snakemake.output.network)
+    clustering.network.export_to_netcdf(out.network)
     for attr in ('busmap', 'linemap'): #also available: linemap_positive, linemap_negative
-        getattr(clustering, attr).to_csv(snakemake.output[attr])
+        getattr(clustering, attr).to_csv(out[attr])
 
-    cluster_regions((clustering.busmap,), snakemake.input, snakemake.output)
+    cluster_regions((clustering.busmap,), paths, out)
