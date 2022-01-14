@@ -214,7 +214,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
         define_operational_constraints_for_non_extendables(n, sns, c, attr)
         define_operational_constraints_for_extendables(n, sns, c, attr)
         define_operational_constraints_for_committables(n, sns, c)
-        define_ramp_limit_constraints(n, sns, c)
+        define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
     define_nodal_balance_constraints(n, sns)
@@ -284,43 +284,35 @@ def assign_solution(n):
     n.objective = m.objective_value
 
 
-# TODO
-# def assign_duals(n, sns):
-#     """
-#     Map dual values i.e. shadow prices to network components.
-#     """
-#     m = n.model
+def assign_duals(n):
+    """
+    Map dual values i.e. shadow prices to network components.
+    """
+    m = n.model
 
-#         sign = 1 if "upper" in attr or attr == "marginal_price" else -1
-#         n.dualvalues.at[(c, attr), "pnl"] = is_pnl
-#         to_component = c in n.all_components
-#         if is_pnl:
-#             n.dualvalues.at[(c, attr), "in_comp"] = to_component
-#             duals = constraints.applymap(
-#                 lambda x: sign * constraints_dual.loc[x]
-#                 if x in constraints_dual.index
-#                 else np.nan
-#             )
-#             if c not in n.duals and not to_component:
-#                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
-#             pnl = n.pnl(c) if to_component else n.duals[c].pnl
-#             set_from_frame(pnl, attr, duals)
-#         else:
-#             # here to_component can change
-#             duals = constraints.map(sign * constraints_dual)
-#             if to_component:
-#                 to_component = duals.index.isin(n.df(c).index).all()
-#             n.dualvalues.at[(c, attr), "in_comp"] = to_component
-#             if c not in n.duals and not to_component:
-#                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
-#             df = n.df(c) if to_component else n.duals[c].df
-#             df[attr] = duals
+    for name, dual in m.dual.items():
 
-#     n.duals = Dict()
-#     n.dualvalues = pd.DataFrame(index=sp, columns=["in_comp", "pnl"])
-#     # extract shadow prices attached to components
-#     for c, attr in sp:
-#         map_dual(c, attr)
+        c, attr = name.split("-", 1)
+
+        if "snapshot" in dual.dims:
+
+            df = dual.transpose("snapshot", ...).to_pandas()
+            spec = attr.rsplit("-", 1)[-1]
+            assign = [
+                "upper",
+                "lower",
+                "ramp_limit_up",
+                "ramp_limit_down",
+                "p_set",
+                "e_set",
+                "s_set",
+                "state_of_charge_set",
+            ]
+
+            if spec in assign:
+                set_from_frame(n, c, "mu_" + spec, df)
+            elif attr == "nodal_balance":
+                set_from_frame(n, c, "marginal_price", df)
 
 
 def post_processing(n):
@@ -430,6 +422,7 @@ def optimize(
 
     if status == "ok":
         assign_solution(n)
+        assign_duals(n)
         post_processing(n)
 
     return status, condition
@@ -475,6 +468,7 @@ class OptimizationAccessor:
 
         if status == "ok":
             assign_solution(n)
+            assign_duals(n)
             post_processing(n)
 
         return status, condition
@@ -482,6 +476,10 @@ class OptimizationAccessor:
     @is_documented_by(assign_solution)
     def assign_solution(self, **kwargs):
         return assign_solution(self._parent, **kwargs)
+
+    @is_documented_by(assign_duals)
+    def assign_duals(self, **kwargs):
+        return assign_duals(self._parent, **kwargs)
 
     @is_documented_by(post_processing)
     def post_processing(self, **kwargs):

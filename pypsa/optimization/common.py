@@ -33,6 +33,8 @@ def get_var(n, c, key):
 def set_from_frame(n, c, attr, df):
     """Update values in time-dependent attribute from new dataframe."""
     pnl = n.pnl(c)
+    if attr not in pnl:
+        return
     if pnl[attr].empty:
         pnl[attr] = df.reindex(n.snapshots).fillna(0)
     else:
