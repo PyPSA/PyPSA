@@ -152,7 +152,9 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     lower = n.df(c)[attr + "_min"].reindex(ext_i)
     upper = n.df(c)[attr + "_max"].reindex(ext_i)
     n.model.add_constraints(capacity, ">=", lower, f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=upper != inf)
+    n.model.add_constraints(
+        capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=upper != inf
+    )
 
 
 def define_ramp_limit_constraints(n, sns, c):
@@ -285,10 +287,15 @@ def define_nodal_balance_constraints(n, sns):
             # additional sign necessary for branches in reverse direction
             sign = sign * n.df(c).sign
 
-        # TODO: drop empty bus2, bus3 if multiline link
-
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        expr = expr.group_terms(n.df(c)[column].rename("Bus").to_xarray())
+        buses = n.df(c)[column].rename("Bus")
+
+        #  drop non-existent multiport buses which are ''
+        if column in ["bus" + i for i in additional_linkports(n)]:
+            buses = buses[buses != ""]
+            expr = expr.sel({c: buses.index})
+
+        expr = expr.group_terms(buses.to_xarray())
         exprs.append(expr)
 
     lhs = merge(exprs)
@@ -361,7 +368,7 @@ def define_kirchhoff_constraints(n, sns):
             exprs = exprs.assign_coords(cycles=range(len(exprs.cycles)))
             lhs.append(exprs)
 
-    if len(lhs):    
+    if len(lhs):
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
@@ -500,7 +507,9 @@ def define_storage_unit_constraints(n, sns):
 
         # update the previous_soc variables and right hand side
         previous_soc = previous_soc_pp.where(per_period, previous_soc)
-        include_previous_soc = include_previous_soc_pp.where(per_period, include_previous_soc)
+        include_previous_soc = include_previous_soc_pp.where(
+            per_period, include_previous_soc
+        )
 
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
@@ -546,7 +555,7 @@ def define_store_constraints(n, sns):
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
-    
+
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
@@ -573,5 +582,5 @@ def define_store_constraints(n, sns):
 
     lhs += [(eff_stand, previous_e)]
     rhs = -e_init.where(~include_previous_e, 0)
-    
+
     m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
