@@ -324,7 +324,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         branch_collections.append(b_collection)
 
     if boundaries is None:
-        ax.autoscale()
+        ax.autoscale_view()
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
@@ -421,10 +421,10 @@ class HandlerCircle(HandlerPatch):
         fig = legend.get_figure()
         ax = legend.axes
         
-        unit = np.diff(ax.transData.transform([(0, 0), (0, 1)]), axis=0)[0][1]
-        # Note: the factor 56 is derived emprically!
+        unit = np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0][1]
+        # Note: the factor 55 is derived emprically!
         radius = orig_handle.get_radius() * unit * (56 / fig.dpi)
-        center = 0.5 * radius - 0.5 * xdescent, 0.5 * radius - 0.5 * ydescent
+        center = 5 - xdescent, 5 - ydescent
         p = plt.Circle(center, radius)
         self.update_prop(p, orig_handle, legend)
         p.set_transform(trans)
@@ -466,8 +466,25 @@ def add_legend(ax, carriers, size=1, scale=1, **kwargs):
     Example
     -------
     
-    
+    >>> import pandas as pd
+    >>> import pypsa
+    >>> from cartopy import crs as ccrs
+    >>> import matplotlib.pyplot as plt
 
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n.carriers.color = ["red", "blue", "yellow"]
+    >>> fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={"projection": ccrs.PlateCarree()})
+    >>> bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.sum()
+    >>> bus_scale = 1e-6
+    >>> n.plot(bus_sizes=bus_sizes * bus_scale, ax=ax)
+
+    >>> pypsa.plot.add_legend(ax, n.carriers, size=10000, scale=bus_scale)
+    >>> # add reference circle
+    >>> biggest_size = n.generators.groupby("bus").p_nom.sum().max()
+    >>> circ = pd.Series(["white", "k"], index=["color", "edgecolor"])
+    >>> circ = circ.to_frame(f"Biggest circle = {biggest_size} MW").T
+    >>> pypsa.plot.add_legend(ax, circ, size=biggest_size, scale=bus_scale, loc=2)
+    
     """
     
     size = carriers.get("size", size)
