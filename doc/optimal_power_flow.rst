@@ -686,25 +686,31 @@ It takes a tuple of twoples, where the first entry is the coefficients and the s
 
 Beware that the indices and columns of the ``pd.DataFrame`` or  ``pd.Series`` you combine must have aligned indices and columns. This applies both to coefficients and variables.
 
-For example, to subtract the generator capacity from the dispatch do
+For example, to subtract the extendable generator capacities from their dispatch for each snapshot do
 
-  >>> linexpr((1, get_var(n, 'Generator', 'p')), (-1, get_var(n, 'Generator', 'p_nom')))
+  >>> ext_i = n.get_extendable_i('Generator')
+  >>> p = get_var(n, 'Generator', 'p')[ext_i]
+  >>> p_nom = get_var(n, 'Generator', 'p_nom')
+  >>> linexpr((1, p), (-1, p_nom))
 
-TODO: this doesn't work since the indices don't align.
-
-To add the dispatch weighted by the snapshot weightings do
-
-  >>> linexpr((n.snapshot_weightings['weightings'], get_var(n, 'Generator', 'p')), (-1, get_var(n, 'Generator', 'p_nom')))
-
-TODO: this doesn't work since the indices don't align.
+This will return a ``pd.DataFrame`` with index of ``network.snapshots`` and columns of the extendable generators ``ext_i`` with the constraint strings in each entry.
 
 
 To add the dispatch weighted by the generator efficiency do
 
-  >>> linexpr((n.generator["efficiency"], get_var(n, 'Generator', 'p')), (-1, get_var(n, 'Generator', 'p_nom')))
+  >>>  ext_i = n.get_extendable_i('Generator')
+  >>>  p = get_var(n, 'Generator', 'p')[ext_i]
+  >>>  p_nom = get_var(n, 'Generator', 'p_nom')
+  >>>  efficiency = n.generators.efficiency[ext_i]
+  >>>  linexpr((efficiency, p), (-1, p_nom))
 
-TODO: this doesn't work since the indices don't align.
+To add the dispatch weighted by the snapshot weightings do
 
+  >>>  ext_i = n.get_extendable_i('Generator')
+  >>>  p = get_var(n, 'Generator', 'p')[ext_i]
+  >>>  p_nom = get_var(n, 'Generator', 'p_nom')
+  >>>  weightings = pd.DataFrame({gen: n.snapshot_weightings.generators for gen in ext_i})
+  >>>  linexpr((weightings, p), (-1, p_nom))
 
 You may need to rename indices if you're adding components with different names. Consider this example subtracting battery discharging from charging capacities
 
