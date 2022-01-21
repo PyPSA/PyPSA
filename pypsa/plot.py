@@ -18,7 +18,6 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 
-import warnings
 import logging
 logger = logging.getLogger(__name__)
 
@@ -26,6 +25,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Circle
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.patches import FancyArrow
+from matplotlib.legend_handler import HandlerPatch
+
 
 cartopy_present = True
 try:
@@ -135,7 +136,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         Collections for buses and branches.
     """
     x, y = _get_coordinates(n, layouter=layouter)
-    if boundaries is None and margin:
+    if boundaries is None and margin is not None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap and not cartopy_present:
@@ -404,6 +405,89 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     ax.add_feature(border, linewidth=0.3)
 
     return
+
+
+
+class HandlerCircle(HandlerPatch):
+    """
+    Legend Handler used to create circles for legend entries. 
+    
+    This handler resizes the circles in order to match the same dimensional 
+    scaling as in the applied axis.
+    """
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+        
+        unit = np.diff(ax.transData.transform([(0, 0), (0, 1)]), axis=0)[0][1]
+        # Note: the factor 56 is derived emprically!
+        radius = orig_handle.get_radius() * unit * (56 / fig.dpi)
+        center = 0.5 * radius - 0.5 * xdescent, 0.5 * radius - 0.5 * ydescent
+        p = plt.Circle(center, radius)
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
+def add_legend(ax, carriers, size=1, scale=1, **kwargs):
+    """
+    Add a legend to the network plot. 
+    
+    This legend will draw circles with the same dimensional scaling 
+    as in the network plot. 
+
+    Parameters
+    ----------
+    ax : AxesSubplot/GeoAxesSubplot
+        Axis in which to draw the legend.
+    carriers : pandas.DataFrame
+        Dataframe determining the legend entries. 
+        The column `color` is required. 
+        If the column `nice_name` exists, its entries will  be 
+        used as labels. If not, the index will be used as labels.
+        If the column `size` is existent, its entries will 
+        determine the circle sizes. If not the `size` argument 
+        will be used.
+    size: float
+        Size of the legend circles. Will be supersed by the `size`
+        column of `carriers` if existent. 
+    scale : float
+        Factor used to scale the original bus sizes in the network plot.
+    **kwargs : 
+        Keyword aguments passed to `ax.legend`.
+
+    Returns
+    -------
+    legend:
+        Initialized Legend.
+        
+    Example
+    -------
+    
+    
+
+    """
+    
+    size = carriers.get("size", size)
+    radius = (size * scale) ** 0.5
+    empty_ser = pd.Series(index=carriers.index, dtype=object)
+    nice_names = carriers.get("nice_name", empty_ser)
+    circles = carriers.rename(columns={"color": "facecolor"})
+    circles = circles[set(plt.Circle.properties(plt.Circle((0,0)))) & set(circles)]
+
+    rows = circles.iterrows()
+    handles = [plt.Circle((0, 0), radius, **row[1].dropna()) for row in rows]
+
+    notnull = (nice_names != '') & nice_names.notnull()
+    labels = list(nice_names.where(notnull, carriers.index))
+
+    handler_map = {plt.Circle: HandlerCircle()}
+
+    legend = ax.legend(handles, labels, handler_map=handler_map, **kwargs)
+    ax.add_artist(legend)
+    return legend
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
