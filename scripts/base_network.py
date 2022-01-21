@@ -165,9 +165,6 @@ def _load_links_from_eg(buses):
 
     links['length'] /= 1e3
 
-    # hotfix
-    links.loc[links.bus1=='6271', 'bus1'] = '6273'
-
     links = _remove_dangling_branches(links, buses)
 
     # Add DC line parameters

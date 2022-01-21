@@ -1,45 +1,13 @@
 Link:
-  p_nom:
-    oid:
-      "32551": 400  # BorWin 1
-      "32508": 800  # BorWin 2
-      "32513": 900  # DolWin 2
-      "32515": 900  # DolWin 3
-      "32517": 576  # HelWin 1
-      "32526": 250  # GB-IE
-      "32527": 250  # GB-IE
-      "32532": 300  # Links on Corse
-      "32528": 300  # Links on Corse
-      "32521": 300  # Links on Corse
-      "32529": 300  # SACOI (between Sardignia and Corse)
-      "32533": 300  # SACOI (between Sardignia and Corse)
-      "32550": 600  # Baltic
-    index:
-      "14541": 1400 # North-Sea link (NSN Link)
-      "14559": 700  # NO-DK Skagerrak 4
-      "14564": 440  # NO-DK Skagerrak 3
-      "14546": 500  # NO-DK Skagerrak 1-2
-      "11511": 940  # NO-DK Skagerrak joint 1-3
-      "14543": 1440 # SE-SE
-      "14531": 250  # Konti-Skan
-      "14540": 700  # Cobra DK-NL
-      "14537": 1000 # NEMO GB-BE
-      "14538": 1000 # ALEGrO BE-DE
-      "14556": 600  # Storebaelt
-      "12997": 1000 # Sardignia
   bus1:
     index:
-      "11511": "6240" # fix wrong bus allocation from 6241
-      "14559": "6240" # fix wrong bus allocation from 6241
-      "12998": "1333" # combine link 12998 + 12997 in 12998
-      "5627": '2309' # combine link 5627 + 5628 in 5627
-      "8068": "5819" # fix GB location of Anglo-Scottish interconnector
-  length: 
+      "11679": "6353" # fix wrong bus allocation from 6354 (NO, was 6354-6354)
+      "8394": "6386" #fix wrong bus allocation from 6679 (was fully in NO inland, now NO-DK)
+      "8706": "6434" #fix wrong bus allocation to connect with network (GB)
+      "8708": "6434" #fix wrong bus allocation to connect with network (GB)
+
+  bus0:
     index:
-      "12998": 409.0
-      "5627": 26.39
-  bus0: 
-    index: 
-      "14552": "5819" # fix GB location of GB-IE interconnector
-      "5628": "7276" # bus0 == bus1 to remove link in remove_unconnected_components
-      "12997": "7276" # bus0 == bus1 to remove link in remove_unconnected_components
+      "8394": "6354" #fix wrong bus allocation from 6667 (was fully NO inland, now NO-DK)
+      "8708": "6429" #fix wrong bus allocation to connect with network (GB)
+      "8009": "5886" #fix wrong bus allocation to connect with network (GB)
