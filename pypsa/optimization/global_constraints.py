@@ -177,7 +177,7 @@ def define_primary_energy_limit(n, sns):
 
         lhs = []
         rhs = glc.constant
-        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds > 0]
+        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0]
 
         if emissions.empty:
             continue

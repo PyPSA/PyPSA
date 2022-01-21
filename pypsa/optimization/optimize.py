@@ -231,11 +231,11 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     define_store_constraints(n, sns)
 
     # Define global constraints
-    define_nominal_constraints_per_bus_carrier(n, sns)
-    define_growth_limit(n, sns)
+    define_primary_energy_limit(n, sns)
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
-    define_primary_energy_limit(n, sns)
+    define_nominal_constraints_per_bus_carrier(n, sns)
+    define_growth_limit(n, sns)
 
     define_objective(n, sns)
 
