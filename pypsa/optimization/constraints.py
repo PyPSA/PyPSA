@@ -270,9 +270,10 @@ def define_nodal_balance_constraints(n, sns):
         ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
     ]
 
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
-        args.append(["Link", "p", f"bus{i}", eff])
+    if not n.links.empty:
+        for i in additional_linkports(n):
+            eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
+            args.append(["Link", "p", f"bus{i}", eff])
 
     exprs = []
 
@@ -294,10 +295,11 @@ def define_nodal_balance_constraints(n, sns):
             buses = buses[buses != ""]
             expr = expr.sel({c: buses.index})
 
-        expr = expr.group_terms(buses.to_xarray())
-        exprs.append(expr)
+        if expr.size:
+            expr = expr.group_terms(buses.to_xarray())
+            exprs.append(expr)
 
-    lhs = merge(exprs)
+    lhs = merge(exprs).reindex(Bus=n.buses.index, fill_value=LinearExpression.fill_value)
     if (lhs.vars == -1).all("_term").any():
         raise ValueError("Empty LHS in nodal balance constraint.")
 
