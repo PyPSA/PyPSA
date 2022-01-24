@@ -23,6 +23,8 @@ Upcoming Release
 
 * Add assert: CBC solver does not work with '>' and '<'.
 
+* Fix bug when multi-links are defined but the network has no links. 
+
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
