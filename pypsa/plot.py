@@ -418,12 +418,7 @@ class HandlerCircle(HandlerPatch):
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
-        fig = legend.get_figure()
-        ax = legend.axes
-        
-        unit = np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0][1]
-        # Note: the factor 55 is derived emprically!
-        radius = orig_handle.get_radius() * unit * (56 / fig.dpi)
+        radius = orig_handle.get_radius() 
         center = 5 - xdescent, 5 - ydescent
         p = plt.Circle(center, radius)
         self.update_prop(p, orig_handle, legend)
@@ -494,8 +489,15 @@ def add_legend(ax, carriers, size=1, scale=1, **kwargs):
     circles = carriers.rename(columns={"color": "facecolor"})
     circles = circles[set(plt.Circle.properties(plt.Circle((0,0)))) & set(circles)]
 
+    # Scale the legend circles according to the circles drawn in the figure. 
+    # Note: the factor 56 is derived emprically!
+    fig = ax.get_figure()
+    unit = np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0][1]    
+    area_factor = projected_area_factor(ax)
+    figscale = unit * (56 / fig.dpi) * area_factor
+
     rows = circles.iterrows()
-    handles = [plt.Circle((0, 0), radius, **row[1].dropna()) for row in rows]
+    handles = [plt.Circle((0, 0), radius * figscale, **row[1].dropna()) for row in rows]
 
     notnull = (nice_names != '') & nice_names.notnull()
     labels = list(nice_names.where(notnull, carriers.index))
