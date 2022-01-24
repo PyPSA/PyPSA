@@ -363,9 +363,9 @@ def define_nodal_balance_constraints(n, sns):
             ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
-        if not n.links.empty:
+    if not n.links.empty:
+        for i in additional_linkports(n):
+            eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
             args.append(['Link', 'p', f'bus{i}', eff])
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
