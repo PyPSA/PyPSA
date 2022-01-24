@@ -196,17 +196,16 @@ if __name__ == "__main__":
 
     configure_logging(snakemake)
 
-    config = snakemake.config
-    powerstatistics = config['load']['power_statistics']
-    interpolate_limit = config['load']['interpolate_limit']
-    countries = config['countries']
-    snapshots = pd.date_range(freq='h', **config['snapshots'])
+    powerstatistics = snakemake.config['load']['power_statistics']
+    interpolate_limit = snakemake.config['load']['interpolate_limit']
+    countries = snakemake.config['countries']
+    snapshots = pd.date_range(freq='h', **snakemake.config['snapshots'])
     years = slice(snapshots[0], snapshots[-1])
-    time_shift = config['load']['time_shift_for_large_gaps']
+    time_shift = snakemake.config['load']['time_shift_for_large_gaps']
 
     load = load_timeseries(snakemake.input[0], years, countries, powerstatistics)
 
-    if config['load']['manual_adjustments']:
+    if snakemake.config['load']['manual_adjustments']:
         load = manual_adjustment(load, powerstatistics)
 
     logger.info(f"Linearly interpolate gaps of size {interpolate_limit} and less.")

@@ -173,11 +173,8 @@ def weighting_for_country(n, x):
     return (w * (100. / w.max())).clip(lower=1.).astype(int)
 
 
-def distribute_clusters(n, n_clusters, focus_weights=None, solver_name=None):
+def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="cbc"):
     """Determine the number of clusters per country"""
-
-    if solver_name is None:
-        solver_name = snakemake.config['solving']['solver']['name']
 
     L = (n.loads_t.p_set.mean()
          .groupby(n.loads.bus).sum()
@@ -271,12 +268,10 @@ def clustering_for_n_clusters(n, n_clusters, custom_busmap=False, aggregate_carr
     else:
         raise AttributeError(f"potential_mode should be one of 'simple' or 'conservative' but is '{potential_mode}'")
 
-    if custom_busmap:
-        busmap = pd.read_csv(snakemake.input.custom_busmap, index_col=0, squeeze=True)
-        busmap.index = busmap.index.astype(str)
-        logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
-    else:
+    if not custom_busmap:
         busmap = busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights, algorithm)
+    else:
+        busmap = custom_busmap
 
     clustering = get_clustering_from_busmap(
         n, busmap,
@@ -309,8 +304,6 @@ def save_to_geojson(s, fn):
 
 
 def cluster_regions(busmaps, input=None, output=None):
-    if input is None: input = snakemake.input
-    if output is None: output = snakemake.output
 
     busmap = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
 
@@ -361,10 +354,8 @@ if __name__ == "__main__":
     else:
         line_length_factor = snakemake.config['lines']['length_factor']
         Nyears = n.snapshot_weightings.objective.sum()/8760
-        hvac_overhead_cost = (load_costs(Nyears,
-                                   tech_costs=snakemake.input.tech_costs,
-                                   config=snakemake.config['costs'],
-                                   elec_config=snakemake.config['electricity'])
+
+        hvac_overhead_cost = (load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
                               .at['HVAC overhead', 'capital_cost'])
 
         def consense(x):
@@ -376,12 +367,15 @@ if __name__ == "__main__":
         potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
                                              for tech in renewable_carriers]))
         custom_busmap = snakemake.config["enable"].get("custom_busmap", False)
+        if custom_busmap:
+            custom_busmap = pd.read_csv(snakemake.input.custom_busmap, index_col=0, squeeze=True)
+            custom_busmap.index = custom_busmap.index.astype(str)
+            logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
+
         clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap, aggregate_carriers,
-                                               line_length_factor=line_length_factor,
-                                               potential_mode=potential_mode,
-                                               solver_name=snakemake.config['solving']['solver']['name'],
-                                               extended_link_costs=hvac_overhead_cost,
-                                               focus_weights=focus_weights)
+                                               line_length_factor, potential_mode,
+                                               snakemake.config['solving']['solver']['name'],
+                                               "kmeans", hvac_overhead_cost, focus_weights)
 
     update_p_nom_max(n)
     
@@ -389,4 +383,4 @@ if __name__ == "__main__":
     for attr in ('busmap', 'linemap'): #also available: linemap_positive, linemap_negative
         getattr(clustering, attr).to_csv(snakemake.output[attr])
 
-    cluster_regions((clustering.busmap,))
+    cluster_regions((clustering.busmap,), snakemake.input, snakemake.output)

@@ -64,8 +64,7 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def attach_storageunits(n, costs):
-    elec_opts = snakemake.config['electricity']
+def attach_storageunits(n, costs, elec_opts):
     carriers = elec_opts['extendable_carriers']['StorageUnit']
     max_hours = elec_opts['max_hours']
 
@@ -89,8 +88,7 @@ def attach_storageunits(n, costs):
                cyclic_state_of_charge=True)
 
 
-def attach_stores(n, costs):
-    elec_opts = snakemake.config['electricity']
+def attach_stores(n, costs, elec_opts):
     carriers = elec_opts['extendable_carriers']['Store']
 
     _add_missing_carriers_from_costs(n, costs, carriers)
@@ -156,8 +154,7 @@ def attach_stores(n, costs):
                marginal_cost=costs.at["battery inverter", "marginal_cost"])
 
 
-def attach_hydrogen_pipelines(n, costs):
-    elec_opts = snakemake.config['electricity']
+def attach_hydrogen_pipelines(n, costs, elec_opts):
     ext_carriers = elec_opts['extendable_carriers']
     as_stores = ext_carriers.get('Store', [])
 
@@ -197,15 +194,15 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
+    elec_config = snakemake.config['electricity']
+    
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(Nyears, tech_costs=snakemake.input.tech_costs,
-                       config=snakemake.config['costs'],
-                       elec_config=snakemake.config['electricity'])
+    costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], elec_config, Nyears)
 
-    attach_storageunits(n, costs)
-    attach_stores(n, costs)
-    attach_hydrogen_pipelines(n, costs)
+    attach_storageunits(n, costs, elec_config)
+    attach_stores(n, costs, elec_config)
+    attach_hydrogen_pipelines(n, costs, elec_config)
 
-    add_nice_carrier_names(n, config=snakemake.config)
+    add_nice_carrier_names(n, snakemake.config)
 
     n.export_to_netcdf(snakemake.output[0])
