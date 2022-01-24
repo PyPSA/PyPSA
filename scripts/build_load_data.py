@@ -37,7 +37,7 @@ Outputs
 
 import logging
 logger = logging.getLogger(__name__)
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 import pandas as pd
 import numpy as np
@@ -196,18 +196,16 @@ if __name__ == "__main__":
 
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    powerstatistics = config['load']['power_statistics']
-    interpolate_limit = config['load']['interpolate_limit']
-    countries = config['countries']
-    snapshots = pd.date_range(freq='h', **config['snapshots'])
+    powerstatistics = snakemake.config['load']['power_statistics']
+    interpolate_limit = snakemake.config['load']['interpolate_limit']
+    countries = snakemake.config['countries']
+    snapshots = pd.date_range(freq='h', **snakemake.config['snapshots'])
     years = slice(snapshots[0], snapshots[-1])
-    time_shift = config['load']['time_shift_for_large_gaps']
+    time_shift = snakemake.config['load']['time_shift_for_large_gaps']
 
-    load = load_timeseries(paths[0], years, countries, powerstatistics)
+    load = load_timeseries(snakemake.input[0], years, countries, powerstatistics)
 
-    if config['load']['manual_adjustments']:
+    if snakemake.config['load']['manual_adjustments']:
         load = manual_adjustment(load, powerstatistics)
 
     logger.info(f"Linearly interpolate gaps of size {interpolate_limit} and less.")
@@ -222,5 +220,5 @@ if __name__ == "__main__":
         '`time_shift_for_large_gaps` or modify the `manual_adjustment` function '
         'for implementing the needed load data modifications.')
 
-    load.to_csv(out[0])
+    load.to_csv(snakemake.output[0])
 

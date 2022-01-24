@@ -84,7 +84,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys, update_p_nom_max
+from _helpers import configure_logging, update_p_nom_max
 
 import pypsa
 import pandas as pd
@@ -544,40 +544,38 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('add_electricity')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    n = pypsa.Network(paths.base_network)
+    n = pypsa.Network(snakemake.input.base_network)
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
 
-    costs = load_costs(paths.tech_costs, config['costs'], config['electricity'], Nyears)
-    ppl = load_powerplants(paths.powerplants)
+    costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
+    ppl = load_powerplants(snakemake.input.powerplants)
 
-    attach_load(n, paths.regions, paths.load, paths.nuts3_shapes, config['countries'],
-                config['load']['scaling_factor'])
+    attach_load(n, snakemake.input.regions, snakemake.input.load, snakemake.input.nuts3_shapes,
+                snakemake.config['countries'], snakemake.config['load']['scaling_factor'])
 
-    update_transmission_costs(n, costs, config['lines']['length_factor'])
+    update_transmission_costs(n, costs, snakemake.config['lines']['length_factor'])
 
-    carriers = config['electricity']['conventional_carriers']
+    carriers = snakemake.config['electricity']['conventional_carriers']
     attach_conventional_generators(n, costs, ppl, carriers)
 
-    carriers = config['renewable']
-    attach_wind_and_solar(n, costs, paths, carriers, config['lines']['length_factor'])
+    carriers = snakemake.config['renewable']
+    attach_wind_and_solar(n, costs, snakemake.input, carriers, snakemake.config['lines']['length_factor'])
 
-    if 'hydro' in config['renewable']:
-        carriers = config['renewable']['hydro'].pop('carriers', [])
-        attach_hydro(n, costs, ppl, paths.profile_hydro, paths.hydro_capacities,
-                     carriers, **config['renewable']['hydro'])
+    if 'hydro' in snakemake.config['renewable']:
+        carriers = snakemake.config['renewable']['hydro'].pop('carriers', [])
+        attach_hydro(n, costs, ppl, snakemake.input.profile_hydro, snakemake.input.hydro_capacities,
+                     carriers, **snakemake.config['renewable']['hydro'])
 
-    carriers = config['electricity']['extendable_carriers']['Generator']
+    carriers = snakemake.config['electricity']['extendable_carriers']['Generator']
     attach_extendable_generators(n, costs, ppl, carriers)
 
-    tech_map = config['electricity'].get('estimate_renewable_capacities_from_capacity_stats', {})
+    tech_map = snakemake.config['electricity'].get('estimate_renewable_capacities_from_capacity_stats', {})
     estimate_renewable_capacities(n, tech_map)
-    techs = config['electricity'].get('renewable_capacities_from_OPSD', [])
+    techs = snakemake.config['electricity'].get('renewable_capacities_from_OPSD', [])
     attach_OPSD_renewables(n, techs)
 
     update_p_nom_max(n)
 
-    add_nice_carrier_names(n, config)
+    add_nice_carrier_names(n, snakemake.config)
 
-    n.export_to_netcdf(out[0])
+    n.export_to_netcdf(snakemake.output[0])

@@ -68,7 +68,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 import os
 import numpy as np
@@ -217,18 +217,16 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_shapes')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+    country_shapes = countries(snakemake.input.naturalearth, snakemake.config['countries'])
+    save_to_geojson(country_shapes, snakemake.output.country_shapes)
 
-    country_shapes = countries(paths.naturalearth, config['countries'])
-    save_to_geojson(country_shapes, out.country_shapes)
-
-    offshore_shapes = eez(country_shapes, paths.eez, config['countries'])
-    save_to_geojson(offshore_shapes, out.offshore_shapes)
+    offshore_shapes = eez(country_shapes, snakemake.input.eez, snakemake.config['countries'])
+    save_to_geojson(offshore_shapes, snakemake.output.offshore_shapes)
 
     europe_shape = country_cover(country_shapes, offshore_shapes)
-    save_to_geojson(gpd.GeoSeries(europe_shape), out.europe_shape)
+    save_to_geojson(gpd.GeoSeries(europe_shape), snakemake.output.europe_shape)
 
-    nuts3_shapes = nuts3(country_shapes, paths.nuts3, paths.nuts3pop,
-                         paths.nuts3gdp, paths.ch_cantons, paths.ch_popgdp)
+    nuts3_shapes = nuts3(country_shapes, snakemake.input.nuts3, snakemake.input.nuts3pop,
+                         snakemake.input.nuts3gdp, snakemake.input.ch_cantons, snakemake.input.ch_popgdp)
 
-    save_to_geojson(nuts3_shapes, out.nuts3_shapes)
+    save_to_geojson(nuts3_shapes, snakemake.output.nuts3_shapes)

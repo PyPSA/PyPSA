@@ -33,7 +33,7 @@ The :ref:`tutorial` uses a smaller `data bundle <https://zenodo.org/record/35179
 """
 
 import logging
-from _helpers import progress_retrieve, retrieve_snakemake_keys, configure_logging
+from _helpers import progress_retrieve, configure_logging
 
 import tarfile
 from pathlib import Path
@@ -50,9 +50,7 @@ if __name__ == "__main__":
         rootpath = '.'
     configure_logging(snakemake) # TODO Make logging compatible with progressbar (see PR #102)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    if config['tutorial']:
+    if snakemake.config['tutorial']:
         url = "https://zenodo.org/record/3517921/files/pypsa-eur-tutorial-data-bundle.tar.xz"
     else:
         url = "https://zenodo.org/record/3517935/files/pypsa-eur-data-bundle.tar.xz"

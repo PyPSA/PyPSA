@@ -95,7 +95,7 @@ import logging
 import atlite
 import geopandas as gpd
 import pandas as pd
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 
 logger = logging.getLogger(__name__)
@@ -106,18 +106,16 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_cutout', cutout='europe-2013-era5')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+    cutout_params = snakemake.config['atlite']['cutouts'][snakemake.wildcards.cutout]
 
-    cutout_params = config['atlite']['cutouts'][wildcards.cutout]
-
-    snapshots = pd.date_range(freq='h', **config['snapshots'])
+    snapshots = pd.date_range(freq='h', **snakemake.config['snapshots'])
     time = [snapshots[0], snapshots[-1]]
     cutout_params['time'] = slice(*cutout_params.get('time', time))
 
     if {'x', 'y', 'bounds'}.isdisjoint(cutout_params):
         # Determine the bounds from bus regions with a buffer of two grid cells
-        onshore = gpd.read_file(paths.regions_onshore)
-        offshore = gpd.read_file(paths.regions_offshore)
+        onshore = gpd.read_file(snakemake.input.regions_onshore)
+        offshore = gpd.read_file(snakemake.input.regions_offshore)
         regions =  onshore.append(offshore)
         d = max(cutout_params.get('dx', 0.25), cutout_params.get('dy', 0.25))*2
         cutout_params['bounds'] = regions.total_bounds + [-d, -d, d, d]
@@ -128,5 +126,5 @@ if __name__ == "__main__":
 
     logging.info(f"Preparing cutout with parameters {cutout_params}.")
     features = cutout_params.pop('features', None)
-    cutout = atlite.Cutout(out[0], **cutout_params)
+    cutout = atlite.Cutout(snakemake.output[0], **cutout_params)
     cutout.prepare(features=features)

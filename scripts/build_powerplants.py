@@ -72,7 +72,7 @@ The configuration options ``electricity: powerplants_filter`` and ``electricity:
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 import pypsa
 import powerplantmatching as pm
@@ -100,9 +100,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_powerplants')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    n = pypsa.Network(paths.base_network)
+    n = pypsa.Network(snakemake.input.base_network)
     countries = n.buses.country.unique()
 
     ppl = (pm.powerplants(from_url=True)
@@ -116,13 +114,13 @@ if __name__ == "__main__":
                              df.Technology.replace('Steam Turbine',
                                                    'OCGT').fillna('OCGT')))))
 
-    ppl_query = config['electricity']['powerplants_filter']
+    ppl_query = snakemake.config['electricity']['powerplants_filter']
     if isinstance(ppl_query, str):
         ppl.query(ppl_query, inplace=True)
 
     # add carriers from own powerplant files:
-    custom_ppl_query = config['electricity']['custom_powerplants']
-    ppl = add_custom_powerplants(ppl, paths.custom_powerplants, custom_ppl_query)
+    custom_ppl_query = snakemake.config['electricity']['custom_powerplants']
+    ppl = add_custom_powerplants(ppl, snakemake.input.custom_powerplants, custom_ppl_query)
 
     cntries_without_ppl = [c for c in countries if c not in ppl.Country.unique()]
 
@@ -141,4 +139,4 @@ if __name__ == "__main__":
     if bus_null_b.any():
         logging.warning(f"Couldn't find close bus for {bus_null_b.sum()} powerplants")
 
-    ppl.to_csv(out[0])
+    ppl.to_csv(snakemake.output[0])

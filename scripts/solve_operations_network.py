@@ -46,7 +46,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 import pypsa
 import numpy as np
@@ -100,25 +100,23 @@ if __name__ == "__main__":
                                   simpl='', clusters='5', ll='copt', opts='Co2L-BAU-24H')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    tmpdir = config['solving'].get('tmpdir')
+    tmpdir = snakemake.config['solving'].get('tmpdir')
     if tmpdir is not None:
         Path(tmpdir).mkdir(parents=True, exist_ok=True)
 
-    n = pypsa.Network(paths.unprepared)
-    n_optim = pypsa.Network(paths.optimized)
+    n = pypsa.Network(snakemake.input.unprepared)
+    n_optim = pypsa.Network(snakemake.input.optimized)
     n = set_parameters_from_optimized(n, n_optim)
     del n_optim
 
-    opts = wildcards.opts.split('-')
-    config['solving']['options']['skip_iterations'] = False
+    opts = snakemake.wildcards.opts.split('-')
+    snakemake.config['solving']['options']['skip_iterations'] = False
 
-    fn = getattr(logs, 'memory', None)
+    fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
-        n = prepare_network(n, config['solving']['options'])
-        n = solve_network(n, config, opts, solver_dir=tmpdir,
-                          solver_logfile=logs.solver)
-        n.export_to_netcdf(out[0])
+        n = prepare_network(n, snakemake.config['solving']['options'])
+        n = solve_network(n, snakemake.config, opts, solver_dir=tmpdir,
+                          solver_logfile=snakemake.log.solver)
+        n.export_to_netcdf(snakemake.output[0])
 
     logger.info("Maximum memory usage: {}".format(mem.mem_usage))
