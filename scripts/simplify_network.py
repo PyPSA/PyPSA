@@ -83,7 +83,7 @@ The rule :mod:`simplify_network` does up to four things:
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys, update_p_nom_max
+from _helpers import configure_logging, update_p_nom_max
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
@@ -138,15 +138,15 @@ def simplify_network_to_380(n):
     return n, trafo_map
 
 
-def _prepare_connection_costs_per_link(n, costs):
+def _prepare_connection_costs_per_link(n, costs, config):
     if n.links.empty: return {}
 
     connection_costs_per_link = {}
 
-    for tech in snakemake.config['renewable']:
+    for tech in config['renewable']:
         if tech.startswith('offwind'):
             connection_costs_per_link[tech] = (
-                n.links.length * snakemake.config['lines']['length_factor'] *
+                n.links.length * config['lines']['length_factor'] *
                 (n.links.underwater_fraction * costs.at[tech + '-connection-submarine', 'capital_cost'] +
                  (1. - n.links.underwater_fraction) * costs.at[tech + '-connection-underground', 'capital_cost'])
             )
@@ -154,9 +154,9 @@ def _prepare_connection_costs_per_link(n, costs):
     return connection_costs_per_link
 
 
-def _compute_connection_costs_to_bus(n, busmap, costs, connection_costs_per_link=None, buses=None):
+def _compute_connection_costs_to_bus(n, busmap, costs, config, connection_costs_per_link=None, buses=None):
     if connection_costs_per_link is None:
-        connection_costs_per_link = _prepare_connection_costs_per_link(n, costs)
+        connection_costs_per_link = _prepare_connection_costs_per_link(n, costs, config)
 
     if buses is None:
         buses = busmap.index[busmap.index != busmap.values]
@@ -174,7 +174,7 @@ def _compute_connection_costs_to_bus(n, busmap, costs, connection_costs_per_link
     return connection_costs_to_bus
 
 
-def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
+def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus, output):
     connection_costs = {}
     for tech in connection_costs_to_bus:
         tech_b = n.generators.carrier == tech
@@ -184,11 +184,11 @@ def _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus):
             logger.info("Displacing {} generator(s) and adding connection costs to capital_costs: {} "
                         .format(tech, ", ".join("{:.0f} Eur/MW/a for `{}`".format(d, b) for b, d in costs.iteritems())))
             connection_costs[tech] = costs
-    pd.DataFrame(connection_costs).to_csv(snakemake.output.connection_costs) 
+    pd.DataFrame(connection_costs).to_csv(output.connection_costs) 
             
 
 
-def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate_one_ports={"Load", "StorageUnit"}):
+def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, output, aggregate_one_ports={"Load", "StorageUnit"}):
     def replace_components(n, c, df, pnl):
         n.mremove(c, n.df(c).index)
 
@@ -197,7 +197,7 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
             if not df.empty:
                 import_series_from_dataframe(n, df, c, attr)
 
-    _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus)
+    _adjust_capital_costs_using_connection_costs(n, connection_costs_to_bus, output)
 
     generators, generators_pnl = aggregategenerators(n, busmap, custom_strategies={'p_nom_min': np.sum})
     replace_components(n, "Generator", generators, generators_pnl)
@@ -213,7 +213,7 @@ def _aggregate_and_move_components(n, busmap, connection_costs_to_bus, aggregate
         n.mremove(c, df.index[df.bus0.isin(buses_to_del) | df.bus1.isin(buses_to_del)])
 
 
-def simplify_links(n, costs):
+def simplify_links(n, costs, config, output):
     ## Complex multi-node links are folded into end-points
     logger.info("Simplifying connected link components")
 
@@ -260,7 +260,7 @@ def simplify_links(n, costs):
 
     busmap = n.buses.index.to_series()
 
-    connection_costs_per_link = _prepare_connection_costs_per_link(n, costs)
+    connection_costs_per_link = _prepare_connection_costs_per_link(n, costs, config)
     connection_costs_to_bus = pd.DataFrame(0., index=n.buses.index, columns=list(connection_costs_per_link))
 
     for lbl in labels.value_counts().loc[lambda s: s > 2].index:
@@ -274,11 +274,11 @@ def simplify_links(n, costs):
             m = sp.spatial.distance_matrix(n.buses.loc[b, ['x', 'y']],
                                            n.buses.loc[buses[1:-1], ['x', 'y']])
             busmap.loc[buses] = b[np.r_[0, m.argmin(axis=0), 1]]
-            connection_costs_to_bus.loc[buses] += _compute_connection_costs_to_bus(n, busmap, costs, connection_costs_per_link, buses)
+            connection_costs_to_bus.loc[buses] += _compute_connection_costs_to_bus(n, busmap, costs, config, connection_costs_per_link, buses)
 
             all_links = [i for _, i in sum(links, [])]
 
-            p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+            p_max_pu = config['links'].get('p_max_pu', 1.)
             lengths = n.links.loc[all_links, 'length']
             name = lengths.idxmax() + '+{}'.format(len(links) - 1)
             params = dict(
@@ -305,17 +305,17 @@ def simplify_links(n, costs):
 
     logger.debug("Collecting all components using the busmap")
 
-    _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
+    _aggregate_and_move_components(n, busmap, connection_costs_to_bus, output)
     return n, busmap
 
-def remove_stubs(n, costs):
+def remove_stubs(n, costs, config, output):
     logger.info("Removing stubs")
 
     busmap = busmap_by_stubs(n) #  ['country'])
 
-    connection_costs_to_bus = _compute_connection_costs_to_bus(n, busmap, costs)
+    connection_costs_to_bus = _compute_connection_costs_to_bus(n, busmap, costs, config)
 
-    _aggregate_and_move_components(n, busmap, connection_costs_to_bus)
+    _aggregate_and_move_components(n, busmap, connection_costs_to_bus, output)
 
     return n, busmap
 
@@ -356,25 +356,25 @@ def aggregate_to_substations(n, buses_i=None):
     return clustering.network, busmap
 
 
-def cluster(n, n_clusters):
+def cluster(n, n_clusters, config):
     logger.info(f"Clustering to {n_clusters} buses")
 
-    focus_weights = snakemake.config.get('focus_weights', None)
+    focus_weights = config.get('focus_weights', None)
     
     renewable_carriers = pd.Index([tech
                                     for tech in n.generators.carrier.unique()
-                                    if tech.split('-', 2)[0] in snakemake.config['renewable']])
+                                    if tech.split('-', 2)[0] in config['renewable']])
     def consense(x):
         v = x.iat[0]
         assert ((x == v).all() or x.isnull().all()), (
             "The `potential` configuration option must agree for all renewable carriers, for now!"
         )
         return v
-    potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
+    potential_mode = (consense(pd.Series([config['renewable'][tech]['potential']
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
     clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap=False, potential_mode=potential_mode,
-                                           solver_name=snakemake.config['solving']['solver']['name'],
+                                           solver_name=config['solving']['solver']['name'],
                                            focus_weights=focus_weights)
 
     return clustering.network, clustering.busmap
@@ -386,29 +386,26 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('simplify_network', simpl='', network='elec')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
-
-    n = pypsa.Network(paths.network)
+    n = pypsa.Network(snakemake.input.network)
 
     n, trafo_map = simplify_network_to_380(n)
 
     Nyears = n.snapshot_weightings.objective.sum() / 8760
-    technology_costs = load_costs(tech_costs = paths.tech_costs,
-                                  config = config['costs'],
-                                  elec_config = config['electricity'], Nyears = Nyears)
 
-    n, simplify_links_map = simplify_links(n, technology_costs)
+    technology_costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
 
-    n, stub_map = remove_stubs(n, technology_costs)
+    n, simplify_links_map = simplify_links(n, technology_costs, snakemake.config, snakemake.output)
+
+    n, stub_map = remove_stubs(n, technology_costs, snakemake.config, snakemake.output)
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
-    if config.get('clustering', {}).get('simplify', {}).get('to_substations', False):
+    if snakemake.config.get('clustering', {}).get('simplify', {}).get('to_substations', False):
         n, substation_map = aggregate_to_substations(n)
         busmaps.append(substation_map)
 
-    if wildcards.simpl:
-        n, cluster_map = cluster(n, int(wildcards.simpl))
+    if snakemake.wildcards.simpl:
+        n, cluster_map = cluster(n, int(snakemake.wildcards.simpl), snakemake.config)
         busmaps.append(cluster_map)
 
     # some entries in n.buses are not updated in previous functions, therefore can be wrong. as they are not needed
@@ -418,9 +415,9 @@ if __name__ == "__main__":
 
     update_p_nom_max(n)
         
-    n.export_to_netcdf(out.network)
+    n.export_to_netcdf(snakemake.output.network)
 
     busmap_s = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
-    busmap_s.to_csv(out.busmap)
+    busmap_s.to_csv(snakemake.output.busmap)
 
-    cluster_regions(busmaps, paths, out)
+    cluster_regions(busmaps, snakemake.input, snakemake.output)
