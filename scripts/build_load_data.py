@@ -70,7 +70,7 @@ def load_timeseries(fn, years, countries, powerstatistics=True):
     """
     logger.info(f"Retrieving load data from '{fn}'.")
 
-    pattern = 'power_statistics' if powerstatistics else '_transparency'
+    pattern = 'power_statistics' if powerstatistics else 'transparency'
     pattern = f'_load_actual_entsoe_{pattern}'
     rename = lambda s: s[:-len(pattern)]
     date_parser = lambda x: dateutil.parser.parse(x, ignoretz=True)
