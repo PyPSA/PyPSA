@@ -91,6 +91,7 @@ def sanity_check(n, sns):
             )
 
     # TODO: Check for bidirectional links with efficiency < 1.
+    # TODO: Check for unassigned buses in additional link ports.
 
 
 def define_objective(n, sns):
@@ -498,8 +499,53 @@ class OptimizationAccessor:
         iterative_transmission_capacity_expansion(self._parent, **kwargs)
 
     def fix_optimal_capacities(self):
+        """
+        Fix capacities of extendable assets to optimized capacities. 
+
+        Use this function when a capacity expansion optimization was already 
+        performed and a operational optimization should be done afterwards. 
+        """
         n = self._parent
         for c, attr in nominal_attrs.items():
             ext_i = n.get_extendable_i(c)
             n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
             n.df(c)[attr + "_extendable"] = False
+
+    def add_load_shedding(self, suffix=" load shedding", buses=None, sign=1e-3, marginal_cost=1e2, p_nom=1e9):
+        """
+        Add load shedding in form of generators to all or a subset of buses.
+
+        For more information on load shedding see
+        http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
+
+        Parameters
+        ----------
+        buses : pandas.Index, optional
+            Subset of buses where load shedding should be available. 
+            Defaults to all buses.
+        sign : float/Series, optional
+            Scaling of the load shedding. This is used to scale the price of the 
+            load shedding. The default is 1e-3 which translates to a measure in kW instead 
+            of MW.
+        marginal_cost : float/Series, optional
+            Price of the load shedding. The default is 1e2.
+        p_nom : float/Series, optional
+            Maximal load shedding. The default is 1e9 (kW).
+
+        """
+        n = self._parent
+        if "Load" not in n.carriers.index:
+            n.add("Carrier", "Load")
+        if buses is None:
+            buses = n.buses.index
+
+        return n.madd(
+            "Generator",
+            buses,
+            suffix, 
+            bus=buses,
+            carrier="load",
+            sig=sign,
+            marginal_cost=marginal_cost,
+            p_nom=p_nom,
+        )
