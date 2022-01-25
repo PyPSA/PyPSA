@@ -173,7 +173,7 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
         non_zero_len = l.length != 0
-        length_factor = (length_s[non_zero_len]/l.length[non_zero_len]).reindex_like(l, fill_value=1)
+        length_factor = (length_s/l.length[non_zero_len]).reindex(l.index, fill_value=1)
 
         data = dict(
             r=1./(voltage_factor/(length_factor * l['r'])).sum(),
