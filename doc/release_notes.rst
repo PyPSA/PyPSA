@@ -22,6 +22,8 @@ Upcoming Release
   correction factor for solar PV capacity factors by default while satellite data is used.
   A correction factor of 0.854337 is recommended if reanalysis data like ERA5 is used.
 
+* Resource definitions for memory usage now follow [Snakemake standard resource definition](https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#standard-resources) ```mem_mb`` rather than ``mem``.
+
 
 PyPSA-Eur 0.4.0 (22th September 2021)
 =====================================
