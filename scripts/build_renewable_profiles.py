@@ -201,54 +201,54 @@ if __name__ == '__main__':
         snakemake = mock_snakemake('build_renewable_profiles', technology='solar')
     configure_logging(snakemake)
     pgb.streams.wrap_stderr()
-    paths = snakemake.input
+
     nprocesses = snakemake.config['atlite'].get('nprocesses')
     noprogress = not snakemake.config['atlite'].get('show_progress', True)
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
     resource = config['resource'] # pv panel config / wind turbine config
-    correction_factor = config.get('correction_factor', 1.)
+    correction_factor = snakemake.config.get('correction_factor', 1.)
     capacity_per_sqkm = config['capacity_per_sqkm']
-    p_nom_max_meth = config.get('potential', 'conservative')
+    p_nom_max_meth = snakemake.config.get('potential', 'conservative')
 
     if isinstance(config.get("corine", {}), list):
-        config['corine'] = {'grid_codes': config['corine']}
+        snakemake.config['corine'] = {'grid_codes': config['corine']}
 
     if correction_factor != 1.:
         logger.info(f'correction_factor is set as {correction_factor}')
 
 
-    cutout = atlite.Cutout(paths['cutout'])
-    regions = gpd.read_file(paths.regions).set_index('name').rename_axis('bus')
+    cutout = atlite.Cutout(snakemake.input['cutout'])
+    regions = gpd.read_file(snakemake.input.regions).set_index('name').rename_axis('bus')
     buses = regions.index
 
     excluder = atlite.ExclusionContainer(crs=3035, res=100)
 
     if config['natura']:
-        excluder.add_raster(paths.natura, nodata=0, allow_no_overlap=True)
+        excluder.add_raster(snakemake.input.natura, nodata=0, allow_no_overlap=True)
 
-    corine = config.get("corine", {})
+    corine = snakemake.config.get("corine", {})
     if "grid_codes" in corine:
         codes = corine["grid_codes"]
-        excluder.add_raster(paths.corine, codes=codes, invert=True, crs=3035)
+        excluder.add_raster(snakemake.input.corine, codes=codes, invert=True, crs=3035)
     if corine.get("distance", 0.) > 0.:
         codes = corine["distance_grid_codes"]
         buffer = corine["distance"]
-        excluder.add_raster(paths.corine, codes=codes, buffer=buffer, crs=3035)
+        excluder.add_raster(snakemake.input.corine, codes=codes, buffer=buffer, crs=3035)
 
     if "max_depth" in config:
         # lambda not supported for atlite + multiprocessing
         # use named function np.greater with partially frozen argument instead
         # and exclude areas where: -max_depth > grid cell depth
         func = functools.partial(np.greater,-config['max_depth'])
-        excluder.add_raster(paths.gebco, codes=func, crs=4236, nodata=-1000)
+        excluder.add_raster(snakemake.input.gebco, codes=func, crs=4236, nodata=-1000)
 
     if 'min_shore_distance' in config:
         buffer = config['min_shore_distance']
-        excluder.add_geometry(paths.country_shapes, buffer=buffer)
+        excluder.add_geometry(snakemake.input.country_shapes, buffer=buffer)
 
     if 'max_shore_distance' in config:
         buffer = config['max_shore_distance']
-        excluder.add_geometry(paths.country_shapes, buffer=buffer, invert=True)
+        excluder.add_geometry(snakemake.input.country_shapes, buffer=buffer, invert=True)
 
     kwargs = dict(nprocesses=nprocesses, disable_progressbar=noprogress)
     if noprogress:
@@ -315,7 +315,7 @@ if __name__ == '__main__':
 
     if snakemake.wildcards.technology.startswith("offwind"):
         logger.info('Calculate underwater fraction of connections.')
-        offshore_shape = gpd.read_file(paths['offshore_shapes']).unary_union
+        offshore_shape = gpd.read_file(snakemake.input['offshore_shapes']).unary_union
         underwater_fraction = []
         for bus in buses:
             p = centre_of_mass.sel(bus=bus).data
@@ -326,11 +326,11 @@ if __name__ == '__main__':
         ds['underwater_fraction'] = xr.DataArray(underwater_fraction, [buses])
 
     # select only buses with some capacity and minimal capacity factor
-    ds = ds.sel(bus=((ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) &
-                      (ds['p_nom_max'] > config.get('min_p_nom_max', 0.))))
+    ds = ds.sel(bus=((ds['profile'].mean('time') > snakemake.config.get('min_p_max_pu', 0.)) &
+                      (ds['p_nom_max'] > snakemake.config.get('min_p_nom_max', 0.))))
 
-    if 'clip_p_max_pu' in config:
-        min_p_max_pu = config['clip_p_max_pu']
+    if 'clip_p_max_pu' in snakemake.config:
+        min_p_max_pu = snakemake.config['clip_p_max_pu']
         ds['profile'] = ds['profile'].where(ds['profile'] >= min_p_max_pu, 0)
 
     ds.to_netcdf(snakemake.output.profile)

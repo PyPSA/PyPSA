@@ -40,7 +40,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import atlite
 import geopandas as gpd
@@ -73,18 +73,19 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('build_natura_raster')
     configure_logging(snakemake)
 
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
 
-    cutouts = snakemake.input.cutouts
+    cutouts = paths.cutouts
     xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutouts))
     bounds = transform_bounds(4326, 3035, min(xs), min(ys), max(Xs), max(Ys))
     transform, out_shape = get_transform_and_shape(bounds, res=100)
 
     # adjusted boundaries
-    shapes = gpd.read_file(snakemake.input.natura).to_crs(3035)
+    shapes = gpd.read_file(paths.natura).to_crs(3035)
     raster = ~geometry_mask(shapes.geometry, out_shape[::-1], transform)
     raster = raster.astype(rio.uint8)
 
-    with rio.open(snakemake.output[0], 'w', driver='GTiff', dtype=rio.uint8,
+    with rio.open(out[0], 'w', driver='GTiff', dtype=rio.uint8,
                   count=1, transform=transform, crs=3035, compress='lzw',
                   width=raster.shape[1], height=raster.shape[0]) as dst:
         dst.write(raster, indexes=1)

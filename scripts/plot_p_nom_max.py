@@ -19,7 +19,7 @@ Description
 
 """
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, retrieve_snakemake_keys
 
 import pypsa
 import pandas as pd
@@ -53,11 +53,13 @@ if __name__ == "__main__":
                                   clusts= '5,full', country= 'all')
     configure_logging(snakemake)
 
+    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+
     plot_kwds = dict(drawstyle="steps-post")
 
-    clusters = snakemake.wildcards.clusts.split(',')
-    techs = snakemake.wildcards.techs.split(',')
-    country = snakemake.wildcards.country
+    clusters = wildcards.clusts.split(',')
+    techs = wildcards.techs.split(',')
+    country = wildcards.country
     if country == 'all':
         country = None
     else:
@@ -66,7 +68,7 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(1, len(techs))
 
     for j, cluster in enumerate(clusters):
-        net = pypsa.Network(snakemake.input[j])
+        net = pypsa.Network(paths[j])
 
         for i, tech in enumerate(techs):
             cum_p_nom_max(net, tech, country).plot(x="p_max_pu", y="cum_p_nom_max",
@@ -79,4 +81,4 @@ if __name__ == "__main__":
 
     plt.legend(title="Cluster level")
 
-    fig.savefig(snakemake.output[0], transparent=True, bbox_inches='tight')
+    fig.savefig(out[0], transparent=True, bbox_inches='tight')

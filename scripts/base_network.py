@@ -112,8 +112,8 @@ def _find_closest_links(links, new_links, distance_upper_bound=1.5):
                          .sort_index()['i']
 
 
-def _load_buses_from_eg():
-    buses = (pd.read_csv(snakemake.input.eg_buses, quotechar="'",
+def _load_buses_from_eg(eg_buses, europe_shape, config_elec):
+    buses = (pd.read_csv(eg_buses, quotechar="'",
                          true_values=['t'], false_values=['f'],
                          dtype=dict(bus_id="str"))
             .set_index("bus_id")
@@ -124,18 +124,18 @@ def _load_buses_from_eg():
     buses['under_construction'] = buses['under_construction'].fillna(False).astype(bool)
 
     # remove all buses outside of all countries including exclusive economic zones (offshore)
-    europe_shape = gpd.read_file(snakemake.input.europe_shape).loc[0, 'geometry']
+    europe_shape = gpd.read_file(europe_shape).loc[0, 'geometry']
     europe_shape_prepped = shapely.prepared.prep(europe_shape)
     buses_in_europe_b = buses[['x', 'y']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
 
-    buses_with_v_nom_to_keep_b = buses.v_nom.isin(snakemake.config['electricity']['voltages']) | buses.v_nom.isnull()
-    logger.info("Removing buses with voltages {}".format(pd.Index(buses.v_nom.unique()).dropna().difference(snakemake.config['electricity']['voltages'])))
+    buses_with_v_nom_to_keep_b = buses.v_nom.isin(config_elec['voltages']) | buses.v_nom.isnull()
+    logger.info("Removing buses with voltages {}".format(pd.Index(buses.v_nom.unique()).dropna().difference(config_elec['voltages'])))
 
     return pd.DataFrame(buses.loc[buses_in_europe_b & buses_with_v_nom_to_keep_b])
 
 
-def _load_transformers_from_eg(buses):
-    transformers = (pd.read_csv(snakemake.input.eg_transformers, quotechar="'",
+def _load_transformers_from_eg(buses, eg_transformers):
+    transformers = (pd.read_csv(eg_transformers, quotechar="'",
                                 true_values=['t'], false_values=['f'],
                                 dtype=dict(transformer_id='str', bus0='str', bus1='str'))
                     .set_index('transformer_id'))
@@ -145,8 +145,8 @@ def _load_transformers_from_eg(buses):
     return transformers
 
 
-def _load_converters_from_eg(buses):
-    converters = (pd.read_csv(snakemake.input.eg_converters, quotechar="'",
+def _load_converters_from_eg(buses, eg_converters):
+    converters = (pd.read_csv(eg_converters, quotechar="'",
                               true_values=['t'], false_values=['f'],
                               dtype=dict(converter_id='str', bus0='str', bus1='str'))
                   .set_index('converter_id'))
@@ -158,8 +158,8 @@ def _load_converters_from_eg(buses):
     return converters
 
 
-def _load_links_from_eg(buses):
-    links = (pd.read_csv(snakemake.input.eg_links, quotechar="'", true_values=['t'], false_values=['f'],
+def _load_links_from_eg(buses, eg_links):
+    links = (pd.read_csv(eg_links, quotechar="'", true_values=['t'], false_values=['f'],
                          dtype=dict(link_id='str', bus0='str', bus1='str', under_construction="bool"))
              .set_index('link_id'))
 
@@ -173,11 +173,11 @@ def _load_links_from_eg(buses):
     return links
 
 
-def _add_links_from_tyndp(buses, links):
-    links_tyndp = pd.read_csv(snakemake.input.links_tyndp)
+def _add_links_from_tyndp(buses, links, links_tyndp, europe_shape):
+    links_tyndp = pd.read_csv(links_tyndp)
 
     # remove all links from list which lie outside all of the desired countries
-    europe_shape = gpd.read_file(snakemake.input.europe_shape).loc[0, 'geometry']
+    europe_shape = gpd.read_file(europe_shape).loc[0, 'geometry']
     europe_shape_prepped = shapely.prepared.prep(europe_shape)
     x1y1_in_europe_b = links_tyndp[['x1', 'y1']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
     x2y2_in_europe_b = links_tyndp[['x2', 'y2']].apply(lambda p: europe_shape_prepped.contains(Point(p)), axis=1)
@@ -245,8 +245,8 @@ def _add_links_from_tyndp(buses, links):
     return buses, links.append(links_tyndp, sort=True)
 
 
-def _load_lines_from_eg(buses):
-    lines = (pd.read_csv(snakemake.input.eg_lines, quotechar="'", true_values=['t'], false_values=['f'],
+def _load_lines_from_eg(buses, eg_lines):
+    lines = (pd.read_csv(eg_lines, quotechar="'", true_values=['t'], false_values=['f'],
                          dtype=dict(line_id='str', bus0='str', bus1='str',
                                     underground="bool", under_construction="bool"))
              .set_index('line_id')
@@ -259,8 +259,8 @@ def _load_lines_from_eg(buses):
     return lines
 
 
-def _apply_parameter_corrections(n):
-    with open(snakemake.input.parameter_corrections) as f:
+def _apply_parameter_corrections(n, parameter_corrections):
+    with open(parameter_corrections) as f:
         corrections = yaml.safe_load(f)
 
     if corrections is None: return
@@ -282,14 +282,14 @@ def _apply_parameter_corrections(n):
                 df.loc[inds, attr] = r[inds].astype(df[attr].dtype)
 
 
-def _set_electrical_parameters_lines(lines):
-    v_noms = snakemake.config['electricity']['voltages']
-    linetypes = snakemake.config['lines']['types']
+def _set_electrical_parameters_lines(lines, config):
+    v_noms = config['electricity']['voltages']
+    linetypes = config['lines']['types']
 
     for v_nom in v_noms:
         lines.loc[lines["v_nom"] == v_nom, 'type'] = linetypes[v_nom]
 
-    lines['s_max_pu'] = snakemake.config['lines']['s_max_pu']
+    lines['s_max_pu'] = config['lines']['s_max_pu']
 
     return lines
 
@@ -301,14 +301,14 @@ def _set_lines_s_nom_from_linetypes(n):
     )
 
 
-def _set_electrical_parameters_links(links):
+def _set_electrical_parameters_links(links, config, links_p_nom):
     if links.empty: return links
 
-    p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+    p_max_pu = config['links'].get('p_max_pu', 1.)
     links['p_max_pu'] = p_max_pu
     links['p_min_pu'] = -p_max_pu
 
-    links_p_nom = pd.read_csv(snakemake.input.links_p_nom)
+    links_p_nom = pd.read_csv(links_p_nom)
 
     # filter links that are not in operation anymore
     removed_b = links_p_nom.Remarks.str.contains('Shut down|Replaced', na=False)
@@ -328,8 +328,8 @@ def _set_electrical_parameters_links(links):
     return links
 
 
-def _set_electrical_parameters_converters(converters):
-    p_max_pu = snakemake.config['links'].get('p_max_pu', 1.)
+def _set_electrical_parameters_converters(converters, config):
+    p_max_pu = config['links'].get('p_max_pu', 1.)
     converters['p_max_pu'] = p_max_pu
     converters['p_min_pu'] = -p_max_pu
 
@@ -342,8 +342,8 @@ def _set_electrical_parameters_converters(converters):
     return converters
 
 
-def _set_electrical_parameters_transformers(transformers):
-    config = snakemake.config['transformers']
+def _set_electrical_parameters_transformers(transformers, config):
+    config = config['transformers']
 
     ## Add transformer parameters
     transformers["x"] = config.get('x', 0.1)
@@ -370,7 +370,7 @@ def _remove_unconnected_components(network):
     return network[component == component_sizes.index[0]]
 
 
-def _set_countries_and_substations(n):
+def _set_countries_and_substations(n, config, country_shapes, offshore_shapes):
 
     buses = n.buses
 
@@ -383,9 +383,9 @@ def _set_countries_and_substations(n):
             index=buses.index
         )
 
-    countries = snakemake.config['countries']
-    country_shapes = gpd.read_file(snakemake.input.country_shapes).set_index('name')['geometry']
-    offshore_shapes = gpd.read_file(snakemake.input.offshore_shapes).set_index('name')['geometry']
+    countries = config['countries']
+    country_shapes = gpd.read_file(country_shapes).set_index('name')['geometry']
+    offshore_shapes = gpd.read_file(offshore_shapes).set_index('name')['geometry']
     substation_b = buses['symbol'].str.contains('substation|converter station', case=False)
 
     def prefer_voltage(x, which):
@@ -495,19 +495,19 @@ def _replace_b2b_converter_at_country_border_by_link(n):
                         .format(i, b0, line, linkcntry.at[i], buscntry.at[b1]))
 
 
-def _set_links_underwater_fraction(n):
+def _set_links_underwater_fraction(n, offshore_shapes):
     if n.links.empty: return
 
     if not hasattr(n.links, 'geometry'):
         n.links['underwater_fraction'] = 0.
     else:
-        offshore_shape = gpd.read_file(snakemake.input.offshore_shapes).unary_union
+        offshore_shape = gpd.read_file(offshore_shapes).unary_union
         links = gpd.GeoSeries(n.links.geometry.dropna().map(shapely.wkt.loads))
         n.links['underwater_fraction'] = links.intersection(offshore_shape).length / links.length
 
 
-def _adjust_capacities_of_under_construction_branches(n):
-    lines_mode = snakemake.config['lines'].get('under_construction', 'undef')
+def _adjust_capacities_of_under_construction_branches(n, config):
+    lines_mode = config['lines'].get('under_construction', 'undef')
     if lines_mode == 'zero':
         n.lines.loc[n.lines.under_construction, 'num_parallel'] = 0.
         n.lines.loc[n.lines.under_construction, 's_nom'] = 0.
@@ -516,7 +516,7 @@ def _adjust_capacities_of_under_construction_branches(n):
     elif lines_mode != 'keep':
         logger.warning("Unrecognized configuration for `lines: under_construction` = `{}`. Keeping under construction lines.")
 
-    links_mode = snakemake.config['links'].get('under_construction', 'undef')
+    links_mode = config['links'].get('under_construction', 'undef')
     if links_mode == 'zero':
         n.links.loc[n.links.under_construction, "p_nom"] = 0.
     elif links_mode == 'remove':
@@ -531,27 +531,30 @@ def _adjust_capacities_of_under_construction_branches(n):
     return n
 
 
-def base_network():
-    buses = _load_buses_from_eg()
+def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
+                 links_p_nom, links_tyndp, europe_shape, country_shapes, offshore_shapes,
+                 parameter_corrections, config):
 
-    links = _load_links_from_eg(buses)
-    if snakemake.config['links'].get('include_tyndp'):
-        buses, links = _add_links_from_tyndp(buses, links)
+    buses = _load_buses_from_eg(eg_buses, europe_shape, config['electricity'])
 
-    converters = _load_converters_from_eg(buses)
+    links = _load_links_from_eg(buses, eg_links)
+    if config['links'].get('include_tyndp'):
+        buses, links = _add_links_from_tyndp(buses, links, links_tyndp, europe_shape)
 
-    lines = _load_lines_from_eg(buses)
-    transformers = _load_transformers_from_eg(buses)
+    converters = _load_converters_from_eg(buses, eg_converters)
 
-    lines = _set_electrical_parameters_lines(lines)
-    transformers = _set_electrical_parameters_transformers(transformers)
-    links = _set_electrical_parameters_links(links)
-    converters = _set_electrical_parameters_converters(converters)
+    lines = _load_lines_from_eg(buses, eg_lines)
+    transformers = _load_transformers_from_eg(buses, eg_transformers)
+
+    lines = _set_electrical_parameters_lines(lines, config)
+    transformers = _set_electrical_parameters_transformers(transformers, config)
+    links = _set_electrical_parameters_links(links, config, links_p_nom)
+    converters = _set_electrical_parameters_converters(converters, config)
 
     n = pypsa.Network()
     n.name = 'PyPSA-Eur'
 
-    n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
+    n.set_snapshots(pd.date_range(freq='h', **config['snapshots']))
     n.snapshot_weightings[:] *= 8760. / n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
@@ -562,17 +565,17 @@ def base_network():
 
     _set_lines_s_nom_from_linetypes(n)
 
-    _apply_parameter_corrections(n)
+    _apply_parameter_corrections(n, parameter_corrections)
 
     n = _remove_unconnected_components(n)
 
-    _set_countries_and_substations(n)
+    _set_countries_and_substations(n, config, country_shapes, offshore_shapes)
 
-    _set_links_underwater_fraction(n)
+    _set_links_underwater_fraction(n, offshore_shapes)
 
     _replace_b2b_converter_at_country_border_by_link(n)
 
-    n = _adjust_capacities_of_under_construction_branches(n)
+    n = _adjust_capacities_of_under_construction_branches(n, config)
 
     return n
 
@@ -582,6 +585,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('base_network')
     configure_logging(snakemake)
 
-    n = base_network()
+    n = base_network(snakemake.input.eg_buses, snakemake.input.eg_converters, snakemake.input.eg_transformers, snakemake.input.eg_lines, snakemake.input.eg_links,
+                     snakemake.input.links_p_nom, snakemake.input.links_tyndp, snakemake.input.europe_shape, snakemake.input.country_shapes, snakemake.input.offshore_shapes,
+                     snakemake.input.parameter_corrections, snakemake.config)
 
     n.export_to_netcdf(snakemake.output[0])
