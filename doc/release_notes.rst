@@ -23,7 +23,12 @@ Upcoming Release
 
 * Add assert: CBC solver does not work with '>' and '<'.
 
-* Fix bug when multi-links are defined but the network has no links. 
+* Fix bug when multi-links are defined but the network has no links.
+
+* Drop support for Python 3.6 in accordance with its [end-of-life](https://endoflife.date/python).
+
+* Use ``nx.Graph`` instead of ``nx.OrderedGraph`` which guarantees order is preserved for
+  Python 3.7 and above.
 
 
 PyPSA 0.18.1 (15th October 2021)
