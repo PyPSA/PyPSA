@@ -25,6 +25,8 @@ Upcoming Release
 
 * Fix bug when multi-links are defined but the network has no links. 
 
+* Combatibility with pandas 1.4.
+
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
