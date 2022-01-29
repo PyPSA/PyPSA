@@ -98,6 +98,10 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True, custom_strategies=dict()):
+
+    if network.df(component).empty:
+        return network.df(component), network.pnl(component)
+
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
