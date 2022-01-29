@@ -558,7 +558,6 @@ def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
     n.name = 'PyPSA-Eur'
 
     n.set_snapshots(pd.date_range(freq='h', **config['snapshots']))
-    n.snapshot_weightings[:] *= 8760. / n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")
