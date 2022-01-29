@@ -995,6 +995,14 @@ def define_nodal_balances(network,snapshots):
 
     efficiency = get_switchable_as_dense(network, 'Link', 'efficiency', snapshots)
 
+    filter = (
+        (get_switchable_as_dense(network, 'Link', 'p_min_pu', snapshots) < 0) &
+        (efficiency < 1)
+    )
+    links = filter[filter].dropna(how='all', axis=1)
+    if links.size > 0:
+        logger.warning("Some bidirectional links have efficiency values lower than 1: '" + "', '".join(links) + "'.")
+
     for cb in network.links.index:
         bus0 = network.links.at[cb,"bus0"]
         bus1 = network.links.at[cb,"bus1"]
