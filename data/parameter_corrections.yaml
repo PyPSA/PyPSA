@@ -1,13 +1,49 @@
 Link:
-  bus1:
+  p_nom:
+    oid:
+      "32508": 400 #BorWin1
+      "32513": 900  # DolWin 2
+      "32515": 900  # DolWin 3
+      "32517": 576  # HelWin 1
+      "32526": 250  # GB-IE
+      "32528": 300  # Links on Corse
+      "32521": 300  # Links on Corse
+      "32529": 300  # SACOI (between Sardinia and Corse)
+      "32533": 300  # SACOI (between Sardinia and Corse)
+      "32550": 600  # Baltic
+      "115391": 1200 # Caithness Moray HVDC
+      "115000": 1200 # Caithness Moray HVDC
     index:
-      "11679": "6353" # fix wrong bus allocation from 6354 (NO, was 6354-6354)
-      "8394": "6386" #fix wrong bus allocation from 6679 (was fully in NO inland, now NO-DK)
-      "8706": "6434" #fix wrong bus allocation to connect with network (GB)
-      "8708": "6434" #fix wrong bus allocation to connect with network (GB)
-
+      "14804": 1400 # North-Sea link (NSN Link)
+      "11679": 1700 # NO-DK Skagerrak
+      "14806": 1440 # SE-SE
+      "14819": 250 # Hassing-Lindome
+      "14803": 700 # Cobra DK-NL
+      "T6": 1000 # NEMO GB-BE
+      "14801": 1000 # ALEGrO BE-DE
+      "14807": 600 # SwePol
+      "14820": 700 #NordBalt
   bus0:
     index:
-      "8394": "6354" #fix wrong bus allocation from 6667 (was fully NO inland, now NO-DK)
-      "8708": "6429" #fix wrong bus allocation to connect with network (GB)
-      "8009": "5886" #fix wrong bus allocation to connect with network (GB)
+      "8708": "6443" # fix bus-id of substation in GB
+      "8009": "5896" # fix bus-id of substation in GB
+      "11679": "6365" # fix bus-id of substation in NO
+      "12727": "7427" # bus0 == bus1 to remove link in remove_unconnected_components (GB-BE)
+      "5558": "7427" # bus0 == bus1 to remove link in remove_unconnected_components (GB-BE)
+      "5583": "7428" # bus0 == bus1 to remove link in remove_unconnected_components (Sardinia)
+      "13588": "7428" # bus0 == bus1 to remove link in remove_unconnected_components (Sardinia)
+      "T23": "6355" # bus0 == bus1 to remove link in remove_unconnected_components (NordBalt)
+  bus1:
+    index:
+      "12931": "8152" # BorWin3
+      "11679": "6398" #fix bus-id of substation in NO
+      "5582": "2382" # combine link 5583 + 5582 in 5582 (Sardinia)
+      "13589": "1349" # combine link 13589 + 13588 in 13589 (Sardinia)
+  length:
+    index:
+      "5582": 26.39 # new length of combined links (sum)
+      "13589": 509.0 # new length of combined links (sum)
+Line:
+  bus1:
+    index:
+      "14573": "7950" #fix bus-id substation in PT
