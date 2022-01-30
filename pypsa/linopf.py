@@ -504,7 +504,7 @@ def define_storage_unit_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            soc.shift()[~first_active_snapshot_pp],
@@ -581,7 +581,7 @@ def define_store_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            e.shift()[~first_active_snapshot_pp],
