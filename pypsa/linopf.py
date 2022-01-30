@@ -363,9 +363,10 @@ def define_nodal_balance_constraints(n, sns):
             ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
-        args.append(['Link', 'p', f'bus{i}', eff])
+    if not n.links.empty:
+        for i in additional_linkports(n):
+            eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
+            args.append(['Link', 'p', f'bus{i}', eff])
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
@@ -503,7 +504,7 @@ def define_storage_unit_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            soc.shift()[~first_active_snapshot_pp],
@@ -580,7 +581,7 @@ def define_store_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            e.shift()[~first_active_snapshot_pp],
