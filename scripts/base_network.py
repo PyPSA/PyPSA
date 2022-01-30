@@ -245,7 +245,9 @@ def _add_links_from_tyndp(buses, links, links_tyndp, europe_shape):
 
     links_tyndp.index = "T" + links_tyndp.index.astype(str)
 
-    return buses, links.append(links_tyndp, sort=True)
+    links = pd.concat([links, links_tyndp], sort=True)
+
+    return buses, links
 
 
 def _load_lines_from_eg(buses, eg_lines):
