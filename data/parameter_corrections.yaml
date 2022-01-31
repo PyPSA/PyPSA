@@ -15,7 +15,10 @@ Link:
       "115000": 1200 # Caithness Moray HVDC
     index:
       "14804": 1400 # North-Sea link (NSN Link)
-      "11679": 1700 # NO-DK Skagerrak
+      "14822": 700 # NO-DK Skagerrak 4
+      "14827": 440 # NO-DK Skagerrak 3
+      "14810": 500 # NO-DK Skagerrak 1-2
+      "11679": 940 # NO-DK Skagerrak joint 1-3
       "14806": 1440 # SE-SE
       "14819": 250 # Hassing-Lindome
       "14803": 700 # Cobra DK-NL
@@ -36,7 +39,6 @@ Link:
   bus1:
     index:
       "12931": "8152" # BorWin3
-      "11679": "6398" #fix bus-id of substation in NO
       "5582": "2382" # combine link 5583 + 5582 in 5582 (Sardinia)
       "13589": "1349" # combine link 13589 + 13588 in 13589 (Sardinia)
   length:

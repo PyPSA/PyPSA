@@ -163,6 +163,10 @@ def _load_links_from_eg(buses, eg_links):
                          dtype=dict(link_id='str', bus0='str', bus1='str', under_construction="bool"))
              .set_index('link_id'))
 
+    # Skagerrak Link is connected to 132kV bus which is removed in _load_buses_from_eg.
+    # Connect to neighboring 380kV bus
+    links.at[['14822', '14827', '14810'], 'bus1'] = '6398'
+
     links['length'] /= 1e3
 
     links = _remove_dangling_branches(links, buses)
