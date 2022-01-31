@@ -246,7 +246,9 @@ def _add_links_from_tyndp(buses, links, links_tyndp, europe_shape):
 
     links_tyndp.index = "T" + links_tyndp.index.astype(str)
 
-    return buses, links.append(links_tyndp, sort=True)
+    links = pd.concat([links, links_tyndp], sort=True)
+
+    return buses, links
 
 
 def _load_lines_from_eg(buses, eg_lines):
@@ -559,7 +561,6 @@ def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
     n.name = 'PyPSA-Eur'
 
     n.set_snapshots(pd.date_range(freq='h', **config['snapshots']))
-    n.snapshot_weightings[:] *= 8760. / n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")

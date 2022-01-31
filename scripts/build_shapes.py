@@ -169,8 +169,10 @@ def nuts3(country_shapes, nuts3, nuts3pop, nuts3gdp, ch_cantons, ch_popgdp):
     swiss = pd.read_excel(ch_popgdp, skiprows=3, index_col=0)
     swiss.columns = swiss.columns.to_series().map(cantons)
 
-    pop = pop.append(pd.to_numeric(swiss.loc['Residents in 1000', 'CH040':]))
-    gdp = gdp.append(pd.to_numeric(swiss.loc['Gross domestic product per capita in Swiss francs', 'CH040':]))
+    swiss_pop = pd.to_numeric(swiss.loc['Residents in 1000', 'CH040':])
+    pop = pd.concat([pop, swiss_pop])
+    swiss_gdp = pd.to_numeric(swiss.loc['Gross domestic product per capita in Swiss francs', 'CH040':])
+    gdp = pd.concat([gdp, swiss_gdp])
 
     df = df.join(pd.DataFrame(dict(pop=pop, gdp=gdp)))
 
@@ -194,7 +196,7 @@ def nuts3(country_shapes, nuts3, nuts3pop, nuts3gdp, ch_cantons, ch_popgdp):
     manual['geometry'] = manual['country'].map(country_shapes)
     manual = manual.dropna()
 
-    df = df.append(manual, sort=False)
+    df = pd.concat([df, manual], sort=False)
 
     df.loc['ME000', 'pop'] = 650.
 
