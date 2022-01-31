@@ -1087,7 +1087,7 @@ def find_cycles(sub_network, weight='x_pu'):
 
     #reduce to a non-multi-graph for cycles with > 2 edges
     mgraph = sub_network.graph(weight=weight, inf_weight=False)
-    graph = nx.OrderedGraph(mgraph)
+    graph = nx.Graph(mgraph)
 
     cycles = nx.cycle_basis(graph)
 
