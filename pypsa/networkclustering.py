@@ -342,7 +342,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_linemask(network, mask):
     mask = network.lines[['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
-    G = nx.OrderedGraph()
+    G = nx.Graph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from(mask.index[mask])
     return pd.Series(OrderedDict((n, str(i))
