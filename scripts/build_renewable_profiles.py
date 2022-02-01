@@ -206,12 +206,12 @@ if __name__ == '__main__':
     noprogress = not snakemake.config['atlite'].get('show_progress', True)
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
     resource = config['resource'] # pv panel config / wind turbine config
-    correction_factor = snakemake.config.get('correction_factor', 1.)
+    correction_factor = config.get('correction_factor', 1.)
     capacity_per_sqkm = config['capacity_per_sqkm']
-    p_nom_max_meth = snakemake.config.get('potential', 'conservative')
+    p_nom_max_meth = config.get('potential', 'conservative')
 
     if isinstance(config.get("corine", {}), list):
-        snakemake.config['corine'] = {'grid_codes': config['corine']}
+        config['corine'] = {'grid_codes': config['corine']}
 
     if correction_factor != 1.:
         logger.info(f'correction_factor is set as {correction_factor}')
@@ -226,7 +226,7 @@ if __name__ == '__main__':
     if config['natura']:
         excluder.add_raster(snakemake.input.natura, nodata=0, allow_no_overlap=True)
 
-    corine = snakemake.config.get("corine", {})
+    corine = config.get("corine", {})
     if "grid_codes" in corine:
         codes = corine["grid_codes"]
         excluder.add_raster(snakemake.input.corine, codes=codes, invert=True, crs=3035)
@@ -326,11 +326,11 @@ if __name__ == '__main__':
         ds['underwater_fraction'] = xr.DataArray(underwater_fraction, [buses])
 
     # select only buses with some capacity and minimal capacity factor
-    ds = ds.sel(bus=((ds['profile'].mean('time') > snakemake.config.get('min_p_max_pu', 0.)) &
-                      (ds['p_nom_max'] > snakemake.config.get('min_p_nom_max', 0.))))
+    ds = ds.sel(bus=((ds['profile'].mean('time') > config.get('min_p_max_pu', 0.)) &
+                      (ds['p_nom_max'] > config.get('min_p_nom_max', 0.))))
 
-    if 'clip_p_max_pu' in snakemake.config:
-        min_p_max_pu = snakemake.config['clip_p_max_pu']
+    if 'clip_p_max_pu' in config:
+        min_p_max_pu = config['clip_p_max_pu']
         ds['profile'] = ds['profile'].where(ds['profile'] >= min_p_max_pu, 0)
 
     ds.to_netcdf(snakemake.output.profile)
