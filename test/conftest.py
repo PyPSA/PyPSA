@@ -13,7 +13,19 @@ import pypsa
 
 @pytest.fixture(scope="module")
 def scipy_network():
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "..",
+    csv_folder = os.path.join(os.path.dirname(__file__), "..",
                       "examples", "scigrid-de", "scigrid-with-load-gen-trafos")
 
-    return pypsa.Network(csv_folder_name)
+    return pypsa.Network(csv_folder)
+
+
+@pytest.fixture(scope="module")
+def ac_dc_network():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "ac-dc-meshed",
+        "ac-dc-data"
+    )
+    return pypsa.Network(csv_folder)
