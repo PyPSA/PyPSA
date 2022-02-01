@@ -8,8 +8,11 @@ Created on Mon Jan 31 18:11:09 2022
 
 import numpy as np
 import pandas as pd
-from pypsa.networkclustering import (get_clustering_from_busmap, busmap_by_kmeans,
-                                     busmap_by_hac)
+from pypsa.networkclustering import (
+    get_clustering_from_busmap,
+    busmap_by_kmeans,
+    busmap_by_hac,
+)
 
 
 def test_default_clustering_k_means(scipy_network):
