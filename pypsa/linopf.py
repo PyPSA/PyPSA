@@ -950,7 +950,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         elif pnl[attr].empty:
             pnl[attr] = df.reindex(n.snapshots, fill_value=0)
         else:
-            pnl[attr].loc[sns, :] = df.reindex(columns=pnl[attr].columns)
+            pnl[attr].loc[sns, df.columns] = df
 
     pop = not keep_references
     def map_solution(c, attr):
