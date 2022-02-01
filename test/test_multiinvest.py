@@ -14,6 +14,7 @@ from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 from pypsa.descriptors import get_activity_mask
 
+
 @pytest.fixture
 def n():
     n = pypsa.Network(snapshots=range(10))
@@ -31,7 +32,7 @@ def n():
             capital_cost=[100 / factor, 100 * factor],
             marginal_cost=[i + 2, i + 1],
             p_nom_extendable=True,
-            carrier='gencarrier'
+            carrier="gencarrier",
         )
 
     for i, period in enumerate(n.investment_periods):
@@ -150,8 +151,17 @@ def test_active_assets(n):
     assert (active_gens == ["gen1-2020", "gen2-2020", "gen1-2030", "gen2-2030"]).all()
 
     active_gens = n.get_active_assets("Generator", 2050)[lambda ds: ds].index
-    assert (active_gens == ["gen1-2030", "gen2-2030", "gen1-2040", "gen2-2040",
-                            "gen1-2050", "gen2-2050"]).all()
+    assert (
+        active_gens
+        == [
+            "gen1-2030",
+            "gen2-2030",
+            "gen1-2040",
+            "gen2-2040",
+            "gen1-2050",
+            "gen2-2050",
+        ]
+    ).all()
 
 
 def test_tiny_with_default():
@@ -351,16 +361,15 @@ def test_simple_network_store_cyclic_per_period(n_sts):
     assert e.loc[idx[2020, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
-
 def test_global_constraint_primary_energy(n_sus):
-    c = 'StorageUnit'
-    n_sus.add('Carrier', 'emitting_carrier', co2_emissions=100)
+    c = "StorageUnit"
+    n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sus.df(c)["state_of_charge_initial"] = 200
     n_sus.df(c)["cyclic_state_of_charge"] = False
     n_sus.df(c)["state_of_charge_initial_per_period"] = False
-    n_sus.df(c)["carrier"] = 'emitting_carrier'
+    n_sus.df(c)["carrier"] = "emitting_carrier"
 
-    n_sus.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
+    n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sus.lopf(pyomo=False, multi_investment_periods=True)
 
@@ -372,15 +381,15 @@ def test_global_constraint_primary_energy(n_sus):
 
 
 def test_global_constraint_primary_energy(n_sts):
-    c = 'Store'
-    n_sts.add('Carrier', 'emitting_carrier', co2_emissions=100)
+    c = "Store"
+    n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sts.df(c)["e_initial"] = 200
     n_sts.df(c)["e_cyclic"] = False
     n_sts.df(c)["e_initial_per_period"] = False
 
-    n_sts.buses.loc["1 battery", "carrier"] = 'emitting_carrier'
+    n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
 
-    n_sts.add('GlobalConstraint', name='co2limit', type="primary_energy", constant=3000)
+    n_sts.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sts.lopf(pyomo=False, multi_investment_periods=True)
 
@@ -392,9 +401,14 @@ def test_global_constraint_primary_energy(n_sts):
 
 
 def test_global_constraint_transmission_expansion_limit(n):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='transmission_volume_expansion_limit', constant=100, sense='==',
-          carrier_attribute='AC')
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="transmission_volume_expansion_limit",
+        constant=100,
+        sense="==",
+        carrier_attribute="AC",
+    )
 
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
     assert n.lines.s_nom_opt.sum() == 100
@@ -402,56 +416,64 @@ def test_global_constraint_transmission_expansion_limit(n):
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.lopf(n.snapshots[:10], pyomo=False, multi_investment_periods=True)
-    assert n.lines.loc['line-2020', 's_nom_opt'] == 100
+    assert n.lines.loc["line-2020", "s_nom_opt"] == 100
 
-
-    n.global_constraints['investment_period'] = 2030
+    n.global_constraints["investment_period"] = 2030
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert n.lines.s_nom_opt[['line-2020', 'line-2030']].sum() == 100
+    assert n.lines.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
 
 
 def test_global_constraint_transmission_cost_limit(n):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='transmission_expansion_cost_limit', constant=1000, sense='==',
-          carrier_attribute='AC')
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="transmission_expansion_cost_limit",
+        constant=1000,
+        sense="==",
+        carrier_attribute="AC",
+    )
 
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert round(n.lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
+    assert round(n.lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.lopf(n.snapshots[:10], pyomo=False, multi_investment_periods=True)
-    assert round(n.lines.eval('s_nom_opt * capital_cost')['line-2020'].sum(), 2) == 1000
+    assert round(n.lines.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2) == 1000
 
-    n.global_constraints['investment_period'] = 2030
+    n.global_constraints["investment_period"] = 2030
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    lines = n.lines.loc[['line-2020', 'line-2030']]
-    assert round(lines.eval('s_nom_opt * capital_cost').sum(), 2) == 1000
+    lines = n.lines.loc[["line-2020", "line-2030"]]
+    assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
 def test_global_constraint_bus_tech_limit(n):
-    n.add('GlobalConstraint', 'expansion_limit',
-          type='tech_capacity_expansion_limit', constant=300, sense='==',
-          carrier_attribute='gencarrier', investment_period=2020)
+    n.add(
+        "GlobalConstraint",
+        "expansion_limit",
+        type="tech_capacity_expansion_limit",
+        constant=300,
+        sense="==",
+        carrier_attribute="gencarrier",
+        investment_period=2020,
+    )
 
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert round(n.generators.p_nom_opt[['gen1-2020', 'gen2-2020']], 1).sum() == 300
+    assert round(n.generators.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum() == 300
 
-    n.global_constraints['bus'] = 1
+    n.global_constraints["bus"] = 1
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert n.generators.at['gen1-2020', 'p_nom_opt']== 300
+    assert n.generators.at["gen1-2020", "p_nom_opt"] == 300
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.global_constraints.sense = '<='
+    n.global_constraints.sense = "<="
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert n.global_constraints.at['expansion_limit', 'mu'] == 0
+    assert n.global_constraints.at["expansion_limit", "mu"] == 0
 
 
 def test_max_growth_constraint(n):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]
-    n.add("Carrier",
-          name="gencarrier",
-          max_growth=218)
+    n.add("Carrier", name="gencarrier", max_growth=218)
     status, cond = n.lopf(pyomo=False, multi_investment_periods=True)
-    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum()<=218)
+    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
