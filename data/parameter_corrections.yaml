@@ -48,4 +48,10 @@ Link:
 Line:
   bus1:
     index:
-      "14573": "7950" #fix bus-id substation in PT
+      "14573": "7950" #fix bus-id substation in PT (220/380kV issue)
+  bus0:
+    index:
+      "14573": "7179" #fix bus-id substation in PT (220/380kV issue)
+  v_nom:
+    index:
+      "14573": 220 # 220/380kV issue of substation in PT
