@@ -131,8 +131,8 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     Sets capacity expansion constraints for extendable
     assets for a given component and a given attribute.
 
-    Note: As GLPK does not like inf values on the right-hand-side we as masking these out. 
-    
+    Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
+
     Parameters
     ----------
     n : pypsa.Network
@@ -299,7 +299,9 @@ def define_nodal_balance_constraints(n, sns):
             expr = expr.group_terms(buses.to_xarray())
             exprs.append(expr)
 
-    lhs = merge(exprs).reindex(Bus=n.buses.index, fill_value=LinearExpression.fill_value)
+    lhs = merge(exprs).reindex(
+        Bus=n.buses.index, fill_value=LinearExpression.fill_value
+    )
     if (lhs.vars == -1).all("_term").any():
         raise ValueError("Empty LHS in nodal balance constraint.")
 

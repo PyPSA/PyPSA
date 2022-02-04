@@ -217,7 +217,7 @@ def define_primary_energy_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        sign = '=' if glc.sense == '==' else glc.sense 
+        sign = "=" if glc.sense == "==" else glc.sense
         m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
 
 
@@ -255,12 +255,16 @@ def define_transmission_volume_expansion_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(ext_i.name)
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
+                ext_i.name
+            )
 
             if not isnan(period):
                 ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique('period'))].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
+                    ext_i.name
+                )
 
             length = n.df(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
@@ -270,7 +274,7 @@ def define_transmission_volume_expansion_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        sign = '=' if glc.sense == '==' else glc.sense 
+        sign = "=" if glc.sense == "==" else glc.sense
         m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
 
 
@@ -308,12 +312,16 @@ def define_transmission_expansion_cost_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(ext_i.name)
+            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
+                ext_i.name
+            )
 
             if not isnan(period):
                 ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique('period'))].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
+                    ext_i.name
+                )
 
             cost = n.df(c).capital_cost.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
@@ -323,5 +331,5 @@ def define_transmission_expansion_cost_limit(n, sns):
             continue
 
         lhs = merge(lhs)
-        sign = '=' if glc.sense == '==' else glc.sense 
+        sign = "=" if glc.sense == "==" else glc.sense
         m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")

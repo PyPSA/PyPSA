@@ -500,10 +500,10 @@ class OptimizationAccessor:
 
     def fix_optimal_capacities(self):
         """
-        Fix capacities of extendable assets to optimized capacities. 
+        Fix capacities of extendable assets to optimized capacities.
 
-        Use this function when a capacity expansion optimization was already 
-        performed and a operational optimization should be done afterwards. 
+        Use this function when a capacity expansion optimization was already
+        performed and a operational optimization should be done afterwards.
         """
         n = self._parent
         for c, attr in nominal_attrs.items():
@@ -511,7 +511,14 @@ class OptimizationAccessor:
             n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
             n.df(c)[attr + "_extendable"] = False
 
-    def add_load_shedding(self, suffix=" load shedding", buses=None, sign=1e-3, marginal_cost=1e2, p_nom=1e9):
+    def add_load_shedding(
+        self,
+        suffix=" load shedding",
+        buses=None,
+        sign=1e-3,
+        marginal_cost=1e2,
+        p_nom=1e9,
+    ):
         """
         Add load shedding in form of generators to all or a subset of buses.
 
@@ -521,11 +528,11 @@ class OptimizationAccessor:
         Parameters
         ----------
         buses : pandas.Index, optional
-            Subset of buses where load shedding should be available. 
+            Subset of buses where load shedding should be available.
             Defaults to all buses.
         sign : float/Series, optional
-            Scaling of the load shedding. This is used to scale the price of the 
-            load shedding. The default is 1e-3 which translates to a measure in kW instead 
+            Scaling of the load shedding. This is used to scale the price of the
+            load shedding. The default is 1e-3 which translates to a measure in kW instead
             of MW.
         marginal_cost : float/Series, optional
             Price of the load shedding. The default is 1e2.
@@ -542,7 +549,7 @@ class OptimizationAccessor:
         return n.madd(
             "Generator",
             buses,
-            suffix, 
+            suffix,
             bus=buses,
             carrier="load",
             sig=sign,
