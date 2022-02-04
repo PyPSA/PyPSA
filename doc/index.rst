@@ -46,14 +46,16 @@ and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
 
-This project is maintained by the `Energy System Modelling
-group <https://www.iai.kit.edu/english/esm.php>`_ at the `Institute for
+This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`
+at the `Technical University of Berlin <https://www.tu.berlin>`.
+Previous versions were developed by the Energy System Modelling
+group at the `Institute for
 Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
-Technology <http://www.kit.edu/english/index.php>`_. The group is funded by the
-`Helmholtz Association <https://www.helmholtz.de/en/>`_ until 2024.
-Previous versions were developed by the `Renewable Energy Group
+Technology <http://www.kit.edu/english/index.php>`_ funded by the
+`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the 
+`Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
