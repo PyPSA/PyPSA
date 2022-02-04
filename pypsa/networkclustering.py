@@ -98,6 +98,10 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True, custom_strategies=dict()):
+
+    if network.df(component).empty:
+        return network.df(component), network.pnl(component)
+
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
@@ -172,7 +176,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
         v_nom_s = buses.loc[list(l.name),'v_nom'].max()
 
         voltage_factor = (np.asarray(network.buses.loc[l.bus0,'v_nom'])/v_nom_s)**2
-        length_factor = (length_s/l['length'])
+        non_zero_len = l.length != 0
+        length_factor = (length_s/l.length[non_zero_len]).reindex(l.index, fill_value=1)
 
         data = dict(
             r=1./(voltage_factor/(length_factor * l['r'])).sum(),
@@ -254,6 +259,9 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
     io.import_components_from_dataframe(network_c, buses, "Bus")
     io.import_components_from_dataframe(network_c, lines, "Line")
 
+    # Carry forward global constraints to clustered network.
+    network_c.global_constraints = network.global_constraints
+    
     if with_time:
         network_c.set_snapshots(network.snapshots)
         network_c.snapshot_weightings = network.snapshot_weightings.copy()
@@ -334,7 +342,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_linemask(network, mask):
     mask = network.lines[['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
-    G = nx.OrderedGraph()
+    G = nx.Graph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from(mask.index[mask])
     return pd.Series(OrderedDict((n, str(i))
@@ -466,8 +474,8 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, ** kwarg
 
     kmeans.fit(points)
 
-    busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]]),
-                        index=buses_i).astype(str)
+    busmap = pd.Series(data=kmeans.predict(network.buses.loc[buses_i, ["x","y"]].values),
+                       index=buses_i).astype(str)
 
     return busmap
 
@@ -604,7 +612,7 @@ def busmap_by_hac(network, n_clusters, buses_i=None, branch_components=None, fea
 
     return busmap
 
-def hac_clustering(network, n_clusters, buses_i=None, branch_components=["Line", "Link"], feature=None,
+def hac_clustering(network, n_clusters, buses_i=None, branch_components=None, feature=None,
                    affinity='euclidean', linkage='ward', line_length_factor=1.0, **kwargs):
     """
     Cluster the network using Hierarchical Agglomerative Clustering.

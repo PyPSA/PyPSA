@@ -363,9 +363,10 @@ def define_nodal_balance_constraints(n, sns):
             ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
-        args.append(['Link', 'p', f'bus{i}', eff])
+    if not n.links.empty:
+        for i in additional_linkports(n):
+            eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
+            args.append(['Link', 'p', f'bus{i}', eff])
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
@@ -491,7 +492,7 @@ def define_storage_unit_constraints(n, sns):
                        soc.shift()[~first_active_snapshot], noncyclic_i)
 
     # rhs set e at beginning of optimization horizon for noncyclic
-    rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
+    rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh).astype(float)
 
     rhs[noncyclic_i] = rhs[noncyclic_i].where(~first_active_snapshot,
                                               rhs-n.df(c).state_of_charge_initial, axis=1)
@@ -503,7 +504,7 @@ def define_storage_unit_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            soc.shift()[~first_active_snapshot_pp],
@@ -568,7 +569,7 @@ def define_store_constraints(n, sns):
                        e.shift()[~first_active_snapshot], noncyclic_i)
 
     # rhs set e at beginning of optimization horizon for noncyclic
-    rhs = pd.DataFrame(0, sns, stores_i)
+    rhs = pd.DataFrame(0., sns, stores_i)
 
     rhs[noncyclic_i] = rhs[noncyclic_i].where(~first_active_snapshot, -n.df(c).e_initial, axis=1)
 
@@ -580,7 +581,7 @@ def define_store_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            e.shift()[~first_active_snapshot_pp],
@@ -876,7 +877,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     n.bounds_f = open(bounds_fn, mode='w')
     n.binaries_f = open(binaries_fn, mode='w')
 
-    n.objective_f.write('\* LOPF *\n\nmin\nobj:\n')
+    n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")

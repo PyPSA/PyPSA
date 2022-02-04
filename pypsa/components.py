@@ -710,7 +710,7 @@ class Network(Basic):
         #This guarantees that the correct attribute type is maintained
         obj_df = pd.DataFrame(data=[static_attrs.default], index=[name],
                               columns=static_attrs.index)
-        new_df = cls_df.append(obj_df, sort=False)
+        new_df = pd.concat([cls_df, obj_df], sort=False)
 
         new_df.index.name = class_name
         setattr(self, self.components[class_name]["list_name"], new_df)
