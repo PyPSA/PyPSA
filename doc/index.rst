@@ -46,8 +46,8 @@ and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
 
-This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`
-at the `Technical University of Berlin <https://www.tu.berlin>`.
+This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`_
+at the `Technical University of Berlin <https://www.tu.berlin>`_.
 Previous versions were developed by the Energy System Modelling
 group at the `Institute for
 Automation and Applied
