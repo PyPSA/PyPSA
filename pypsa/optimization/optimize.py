@@ -58,7 +58,37 @@ lookup = pd.read_csv(
 )
 
 
-def sanity_check(n, sns):
+def sanity_check(n, sns=None):
+    """
+    Verify that the network fulfills basic requirements for the optimization.
+
+    This functions checks that:
+        1. No network assets are commitable and extendable at the same time.
+        2. No nan's are contained in the nominal bounds of capacities
+        3. Investment period specifications in global constraints are aligned
+           with the set of investment periods of the network and the type of
+           optimization.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    snapshots : list or index slice
+        A list of snapshots to optimise, must be a subset of
+        network.snapshots, defaults to network.snapshots
+
+    Raises
+    ------
+    ValueError
+        - if one of the tests fail.
+
+    Returns
+    -------
+    None.
+
+    """
+    if sns is None:
+        sns = n.snapshots
+
     for c in {"Generator", "Link"}:
         intersection = n.get_committable_i(c).intersection(n.get_extendable_i(c))
         if not intersection.empty:
@@ -90,6 +120,7 @@ def sanity_check(n, sns):
                 "not multi-indexed."
             )
 
+    # TODO: Check for nan in p_min_pu/p_max_pu
     # TODO: Check for bidirectional links with efficiency < 1.
     # TODO: Check for unassigned buses in additional link ports.
 
@@ -482,6 +513,10 @@ class OptimizationAccessor:
 
         return status, condition
 
+    @is_documented_by(sanity_check)
+    def sanity_check(self, **kwargs):
+        return sanity_check(self._parent, **kwargs)
+
     @is_documented_by(assign_solution)
     def assign_solution(self, **kwargs):
         return assign_solution(self._parent, **kwargs)
@@ -556,3 +591,5 @@ class OptimizationAccessor:
             marginal_cost=marginal_cost,
             p_nom=p_nom,
         )
+
+
