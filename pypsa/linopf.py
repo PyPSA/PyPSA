@@ -233,7 +233,7 @@ def define_committable_generator_constraints(n, sns):
 
 
 
-def define_ramp_limit_constraints(n, sns, c='Generator', commitable=True):
+def define_ramp_limit_constraints(n, sns, c):
     """
     Defines ramp limits for generators and links with valid ramplimit.
 
