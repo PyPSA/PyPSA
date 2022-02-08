@@ -269,6 +269,19 @@ def define_ramp_limit_constraints(n, sns, c):
         kwargs = dict(spec='ext.', mask=active[gens_i])
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
 
+    # com up
+    gens_i = rup_i.intersection(com_i)
+    if not gens_i.empty:
+        limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
+        limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
+        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
+                    (limit_start - limit_up, status_prev),
+                    (- limit_start, status))
+        kwargs = dict(spec='com.', mask=active[gens_i])
+        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
+
     # fix down
     gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
@@ -285,21 +298,6 @@ def define_ramp_limit_constraints(n, sns, c):
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
         kwargs = dict(spec='ext.', mask=active[gens_i])
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
-
-
-
-    # com up
-    gens_i = rup_i.intersection(com_i)
-    if not gens_i.empty:
-        limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
-        limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
-        lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                    (limit_start - limit_up, status_prev),
-                    (- limit_start, status))
-        kwargs = dict(spec='com.', mask=active[gens_i])
-        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
 
     # com down
     gens_i = rdown_i.intersection(com_i)
