@@ -902,8 +902,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_fixed_variable_constraints(n, snapshots, 'StorageUnit', 'state_of_charge')
     define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
-    define_ramp_limit_constraints(n, snapshots, c='Generator', commitable=True)
-    define_ramp_limit_constraints(n, snapshots, c='Link', commitable=False)
+    define_ramp_limit_constraints(n, snapshots, c='Generator')
+    define_ramp_limit_constraints(n, snapshots, c='Link')
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
