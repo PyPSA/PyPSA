@@ -15,3 +15,14 @@ def test_344():
     network.add("Generator", "a", bus="a", p_nom=5)
 
     network.lopf(pyomo=False)
+
+
+def test_331():
+    n = pypsa.Network()
+    n.add("Bus", 'bus')
+    n.add('Load', 'load', bus='bus', p_set=10)
+    n.add('Generator', 'generator1', bus='bus', p_nom=15, marginal_cost=10)
+    n.lopf(pyomo=False)
+    n.add('Generator', 'generator2', bus='bus', p_nom=5, marginal_cost=5)
+    n.lopf(pyomo=False)
+    assert 'generator2' in n.generators_t.p
