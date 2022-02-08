@@ -233,19 +233,21 @@ def define_committable_generator_constraints(n, sns):
 
 
 
-def define_ramp_limit_constraints(n, sns):
+def define_ramp_limit_constraints(n, sns, c):
     """
-    Defines ramp limits for generators with valid ramplimit
+    Defines ramp limits for a given component with valid ramplimit.
 
     """
-    c = 'Generator'
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
     if rup_i.empty & rdown_i.empty:
         return
     fix_i = get_non_extendable_i(n, c)
     ext_i = get_extendable_i(n, c)
-    com_i = n.df(c).query('committable').index.difference(ext_i)
+    if "committable" in n.df(c):
+        com_i = n.df(c).query('committable').index.difference(ext_i)
+    else:
+        com_i = []
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
     active = get_activity_mask(n, c, sns[1:])
@@ -275,8 +277,8 @@ def define_ramp_limit_constraints(n, sns):
         status = get_var(n, c, 'status').loc[sns[1:], gens_i]
         status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_start - limit_up, status_prev),
-                      (- limit_start, status))
+                    (limit_start - limit_up, status_prev),
+                    (- limit_start, status))
         kwargs = dict(spec='com.', mask=active[gens_i])
         define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
 
@@ -305,8 +307,8 @@ def define_ramp_limit_constraints(n, sns):
         status = get_var(n, c, 'status').loc[sns[1:], gens_i]
         status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_down - limit_shut, status),
-                      (limit_shut, status_prev))
+                    (limit_down - limit_shut, status),
+                    (limit_shut, status_prev))
         kwargs = dict(spec='com.', mask=active[gens_i])
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
 
@@ -901,7 +903,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
     define_committable_generator_constraints(n, snapshots)
-    define_ramp_limit_constraints(n, snapshots)
+    define_ramp_limit_constraints(n, snapshots, c='Generator')
+    define_ramp_limit_constraints(n, snapshots, c='Link')
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)

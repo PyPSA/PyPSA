@@ -13,7 +13,9 @@ Upcoming Release
 
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period', 'timestep'], the name of the index was set to 'snapshot'. This makes the snapshot name coherent for single and multi-indexed snapshots.
 
-* A new convenience function ``Network.get_committable_i`` was added. This returns an index containing all committable assets of component ``c``. In case that component ``c`` does not support committable assets, it returns an empty dataframe.    
+* A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.  
+
+* The `Link` component has two new attributes, `ramp_limit_up` and `ramp_limit_down`, which limits the marginal power increase equivalent to the implementation for generators. The new attributes are only considered when performing the `lopf` with `pyomo=False`.
 
 * A warning message is shown if a network contains one or more links with an :code:`efficiency` smaller than 1 and a negative value for :code:`p_min_pu` [`#320 <https://github.com/PyPSA/PyPSA/pull/320>`_].
 
