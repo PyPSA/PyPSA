@@ -8,6 +8,8 @@ dependencies:
   - pytest-cov
   - twine
   - flake8
+  - cartopy
+  - scikit-learn
   - pip:
     - pypower
     - pandapower>=2.0
