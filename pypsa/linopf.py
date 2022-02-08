@@ -244,6 +244,10 @@ def define_ramp_limit_constraints(n, sns, c):
         return
     fix_i = get_non_extendable_i(n, c)
     ext_i = get_extendable_i(n, c)
+    if "committable" in n.df(c):
+        com_i = n.df(c).query('committable').index.difference(ext_i)
+    else:
+        com_i = []
     p = get_var(n, c, 'p').loc[sns[1:]]
     p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
     active = get_activity_mask(n, c, sns[1:])
@@ -282,10 +286,7 @@ def define_ramp_limit_constraints(n, sns, c):
         kwargs = dict(spec='ext.', mask=active[gens_i])
         define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
 
-    if "committable" in n.df(c):
-        com_i = n.df(c).query('committable').index.difference(ext_i)
-    else:
-        com_i = []
+
 
     # com up
     gens_i = rup_i.intersection(com_i)
