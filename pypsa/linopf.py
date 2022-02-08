@@ -235,7 +235,7 @@ def define_committable_generator_constraints(n, sns):
 
 def define_ramp_limit_constraints(n, sns, c):
     """
-    Defines ramp limits for generators and links with valid ramplimit.
+    Defines ramp limits for a given component with valid ramplimit.
 
     """
     test_components = ['Generator', 'Link']
