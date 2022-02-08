@@ -1646,6 +1646,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         raise NotImplementedError("Multi period invesmtent is only supported for pyomo=False")
     if (type(network.snapshots)==pd.MultiIndex):
         raise NotImplementedError("Multi indexed snapshots is only supported for pyomo=False")
+    if network.links[['ramp_limit_up', 'ramp_limit_down']].notnull().any().any():
+        logger.warning("Encountered nonzero ramp limits for links. These are ignored when running the optimization with `pyomo=True`.")
 
 
     snapshots = _as_snapshots(network, snapshots)
