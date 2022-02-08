@@ -17,16 +17,28 @@ Upcoming Release
 
 * The `Link` component has two new attributes, `ramp_limit_up` and `ramp_limit_down`, which limits the marginal power increase equivalent to the implementation for generators. The new attributes are only considered when performing the `lopf` with `pyomo=False`.
 
-* add new features here
+* A warning message is shown if a network contains one or more links with an :code:`efficiency` smaller than 1 and a negative value for :code:`p_min_pu` [`#320 <https://github.com/PyPSA/PyPSA/pull/320>`_].
+
+* Clustering networks now also supports the clustering of time-series associated to lines.
+
+* New example for spatial clustering.
+
+* Add open source `HiGHS solver <https://github.com/ERGO-Code/HiGHS>`_.
+
+* Add assert: CBC solver does not work with '>' and '<'.
+
+* Fix bug when multi-links are defined but the network has no links.
+
+* Drop support for Python 3.6 in accordance with its [end-of-life](https://endoflife.date/python).
+
+* Use ``nx.Graph`` instead of ``nx.OrderedGraph`` which guarantees order is preserved for
+  Python 3.7 and above.
+
+* Combatibility with pandas 1.4.
 
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
-* Add open source "HiGHS" solver: https://github.com/ERGO-Code/HiGHS. See
-  simple performance analysis for HiGHS, cbc, glpk and gurobi here:
-  https://github.com/PyPSA/PyPSA/pull/308#issue-772907717.
-
-* Add assert: CBC solver does not work with '>' and '<'
 
 * Compatibility with ``pyomo>=6.1``.
 
