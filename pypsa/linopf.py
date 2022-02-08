@@ -238,9 +238,6 @@ def define_ramp_limit_constraints(n, sns, c):
     Defines ramp limits for a given component with valid ramplimit.
 
     """
-    test_components = ['Generator', 'Link']
-    assert c in test_components, 'Ramp limit constraints were only tested for Generator and Link.'
-
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
     if rup_i.empty & rdown_i.empty:
