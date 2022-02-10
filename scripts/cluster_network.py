@@ -226,6 +226,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algori
         algorithm_kwds.setdefault('n_init', 1000)
         algorithm_kwds.setdefault('max_iter', 30000)
         algorithm_kwds.setdefault('tol', 1e-6)
+        algorithm_kwds.setdefault('random_state', 0)
 
     n.determine_network_topology()
 
