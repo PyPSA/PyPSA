@@ -36,6 +36,7 @@ Upcoming Release
 
 * Combatibility with pandas 1.4.
 
+* When performing a `lopf` with ``pyomo=False``, the ramp limits did not take the time step right before the optimization horizon into account (relevant for rolling horizon optimization). This is now fixed.  
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
