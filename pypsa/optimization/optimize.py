@@ -123,6 +123,7 @@ def sanity_check(n, sns=None):
     # TODO: Check for nan in p_min_pu/p_max_pu
     # TODO: Check for bidirectional links with efficiency < 1.
     # TODO: Check for unassigned buses in additional link ports.
+    # TODO: Warn if any ramp limits are 0.
 
 
 def define_objective(n, sns):

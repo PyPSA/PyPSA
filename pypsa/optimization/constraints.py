@@ -166,6 +166,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         name of the network component
 
     """
+    # TODO: Fix ramping for rolling horizons
     m = n.model
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
