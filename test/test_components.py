@@ -2,11 +2,7 @@ import numpy as np
 import pytest
 
 import pypsa
-
-
-@pytest.fixture
-def network():
-    return pypsa.examples.ac_dc_meshed(from_master=True)
+from pypsa.components import Network
 
 
 @pytest.fixture
@@ -22,7 +18,7 @@ def empty_network_5_buses():
     return network
 
 
-def test_mremove(network):
+def test_mremove(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network
 
@@ -31,6 +27,8 @@ def test_mremove(network):
     THEN    the generator dataframe and the time-dependent generator dataframe
                 should not contain the removed elements.
     """
+    network = ac_dc_network 
+    
     generators = {'Manchester Wind', 'Frankfurt Wind'}
 
     network.mremove('Generator', generators)
@@ -39,7 +37,7 @@ def test_mremove(network):
     assert not generators.issubset(network.generators_t.p_max_pu.columns)
 
 
-def test_mremove_misspelled_component(network, caplog):
+def test_mremove_misspelled_component(ac_dc_network, caplog):
     """
     GIVEN   the AC DC exemplary pypsa network
 
@@ -48,6 +46,7 @@ def test_mremove_misspelled_component(network, caplog):
     THEN    the function should not change anything in the Line component
                 dataframe and an error should be logged.
     """
+    network = ac_dc_network 
 
     len_lines = len(network.lines.index)
 

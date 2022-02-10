@@ -5,11 +5,8 @@ from numpy.testing import assert_array_almost_equal as equal
 
 def normed(s): return s/s.sum()
 
-def test_pf_distributed_slack():
-    csv_folder_name = os.path.join(os.path.dirname(__file__), "..",
-                      "examples", "scigrid-de", "scigrid-with-load-gen-trafos")
-
-    network = pypsa.Network(csv_folder_name)
+def test_pf_distributed_slack(scipy_network):
+    network = scipy_network
     network.set_snapshots(network.snapshots[:2])
 
     #There are some infeasibilities without line extensions
