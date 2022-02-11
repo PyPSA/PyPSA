@@ -17,7 +17,6 @@ __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readth
                  "MIT License")
 
 import numpy as np
-from deprecation import deprecated
 
 import logging
 logger = logging.getLogger(__name__)
@@ -94,38 +93,3 @@ def haversine(a, b):
 
     return haversine_pts(a[np.newaxis,:], b[:,np.newaxis])
 
-
-@deprecated(deprecated_in="0.18", removed_in="0.19")
-def area_from_lon_lat_poly(geometry):
-    """
-    Compute the area in km^2 of a shapely geometry, whose points are in
-    longitude and latitude.
-
-    This function follows http://toblerity.org/shapely/manual.html
-
-    Parameters
-    ----------
-    geometry: shapely geometry
-        Points must be in longitude and latitude.
-
-    Returns
-    -------
-    area:  float
-        Area in km^2.
-
-    """
-
-    import pyproj
-    from shapely.ops import transform
-    from functools import partial
-
-
-    project = partial(
-        pyproj.transform,
-        pyproj.Proj(init='epsg:4326'), # Source: Lon-Lat
-        pyproj.Proj(proj='aea')) # Target: Albers Equal Area Conical https://en.wikipedia.org/wiki/Albers_projection
-
-    new_geometry = transform(project, geometry)
-
-    #default area is in m^2
-    return new_geometry.area/1e6

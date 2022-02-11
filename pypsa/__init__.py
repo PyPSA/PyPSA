@@ -18,7 +18,7 @@ from . import (pf, opf, opt, plot, networkclustering, io, contingency, geo,
 
 from .components import Network, SubNetwork
 
-__version__ = "0.18.1"
+__version__ = "0.19.0"
 
 __author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
