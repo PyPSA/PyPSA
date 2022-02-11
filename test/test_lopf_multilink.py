@@ -1,0 +1,201 @@
+import pypsa
+import numpy as np
+
+
+def test_basic_sector_coupling():
+    override_component_attrs = pypsa.descriptors.Dict(
+        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
+    )
+    override_component_attrs["Link"].loc["bus2"] = [
+        "string",
+        np.nan,
+        np.nan,
+        "2nd bus",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["bus3"] = [
+        "string",
+        np.nan,
+        np.nan,
+        "3rd bus",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["efficiency2"] = [
+        "static or series",
+        "per unit",
+        1.0,
+        "2nd bus efficiency",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["efficiency3"] = [
+        "static or series",
+        "per unit",
+        1.0,
+        "3rd bus efficiency",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["p2"] = [
+        "series",
+        "MW",
+        0.0,
+        "2nd bus output",
+        "Output",
+    ]
+    override_component_attrs["Link"].loc["p3"] = [
+        "series",
+        "MW",
+        0.0,
+        "3rd bus output",
+        "Output",
+    ]
+
+    n = pypsa.Network(override_component_attrs=override_component_attrs)
+    n.set_snapshots(range(10))
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=1.0)
+
+    n.add("Bus", "transport")
+    n.add("Load", "transport", bus="transport", p_set=1.0)
+
+    n.add("Bus", "diesel")
+
+    n.add("Store", "diesel", bus="diesel", e_cyclic=True, e_nom=1000.0)
+
+    n.add("Bus", "hydrogen")
+
+    n.add("Store", "hydrogen", bus="hydrogen", e_cyclic=True, e_nom=1000.0)
+
+    n.add(
+        "Link", "electrolysis", p_nom=2.0, efficiency=0.8, bus0="bus", bus1="hydrogen"
+    )
+
+    n.add(
+        "Link",
+        "FT",
+        p_nom=4,
+        bus0="hydrogen",
+        bus1="diesel",
+        bus2="co2 stored",
+        efficiency=1.0,
+        efficiency2=-1,
+    )
+
+    # minus sign because opposite to how fossil fuels used:
+    # CH4 burning puts CH4 down, atmosphere up
+    n.add("Carrier", "co2", co2_emissions=-1.0)
+
+    # this tracks CO2 in the atmosphere
+    n.add("Bus", "co2 atmosphere", carrier="co2")
+
+    # NB: can also be negative
+    n.add("Store", "co2 atmosphere", e_nom=1000, e_min_pu=-1, bus="co2 atmosphere")
+
+    # this tracks CO2 stored, e.g. underground
+    n.add("Bus", "co2 stored")
+
+    # NB: can also be negative
+    n.add("Store", "co2 stored", e_nom=1000, e_min_pu=-1, bus="co2 stored")
+
+    n.add(
+        "Link",
+        "DAC",
+        bus0="bus",
+        bus1="co2 stored",
+        bus2="co2 atmosphere",
+        efficiency=1,
+        efficiency2=-1,
+        p_nom=5.0,
+    )
+
+    n.add(
+        "Link",
+        "diesel car",
+        bus0="diesel",
+        bus1="transport",
+        bus2="co2 atmosphere",
+        efficiency=1.0,
+        efficiency2=1.0,
+        p_nom=2.0,
+    )
+
+    n.add("Bus", "gas")
+
+    n.add("Store", "gas", e_initial=50, e_nom=50, marginal_cost=20, bus="gas")
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="bus",
+        bus2="co2 atmosphere",
+        p_nom_extendable=True,
+        efficiency=0.5,
+        efficiency2=1,
+    )
+
+    n.add(
+        "Link",
+        "OCGT+CCS",
+        bus0="gas",
+        bus1="bus",
+        bus2="co2 stored",
+        bus3="co2 atmosphere",
+        p_nom_extendable=True,
+        efficiency=0.4,
+        efficiency2=0.9,
+        efficiency3=0.1,
+    )
+
+    # Add a cheap and a expensive biomass generator.
+    biomass_marginal_cost = [20.0, 50.0]
+    biomass_stored = [40.0, 15.0]
+
+    for i in range(2):
+        n.add("Bus", "biomass" + str(i))
+
+        n.add(
+            "Store",
+            "biomass" + str(i),
+            bus="biomass" + str(i),
+            e_nom_extendable=True,
+            marginal_cost=biomass_marginal_cost[i],
+            e_nom=biomass_stored[i],
+            e_initial=biomass_stored[i],
+        )
+
+        # simultaneously empties and refills co2 atmosphere
+        n.add(
+            "Link",
+            "biomass" + str(i),
+            bus0="biomass" + str(i),
+            bus1="bus",
+            p_nom_extendable=True,
+            efficiency=0.5,
+        )
+
+        n.add(
+            "Link",
+            "biomass+CCS" + str(i),
+            bus0="biomass" + str(i),
+            bus1="bus",
+            bus2="co2 stored",
+            bus3="co2 atmosphere",
+            p_nom_extendable=True,
+            efficiency=0.4,
+            efficiency2=1.0,
+            efficiency3=-1,
+        )
+
+    # can go to -50, but at some point can't generate enough electricity for DAC and demand
+    target = -50
+    n.add(
+        "GlobalConstraint",
+        "co2_limit",
+        sense="<=",
+        carrier_attribute="co2_emissions",
+        constant=target,
+    )
+
+    status, condition = n.lopf()
+    assert status == "ok"

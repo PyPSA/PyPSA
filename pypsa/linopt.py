@@ -390,10 +390,11 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
-            expr = expr + _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
+            newexpr = _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
             if isinstance(expr, np.ndarray):
                 isna = np.isnan(coeff) | np.isnan(var) | (var == -1)
-                expr = np.where(isna, '', expr)
+                newexpr = np.where(isna, '', newexpr)
+            expr = expr + newexpr
     if return_axes:
         return (expr, *axes)
     if as_pandas:
@@ -657,8 +658,8 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     --options_file arg 	File containing HiGHS options.
     -h, --help 	        Print help.
 
-    2) The options_file.txt gives some more options, see a full list here: 
-    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
+    2) The options_file.txt gives some more options, see a full list here:
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set
     By default, we insert a couple of options for the ipm solver. The dictionary
     can be overwritten by simply giving the new values. For instance, you could
     write a dictionary replacing some of the default values or adding new options:
@@ -679,7 +680,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     status : string,
         "ok" or "warning"
     termination_condition : string,
-        Contains "optimal", "infeasible", 
+        Contains "optimal", "infeasible",
     variables_sol : series
     constraints_dual : series
     objective : float
@@ -755,7 +756,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     f = open(solution_fn, "rb")
     trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
     f.close()
-    
+
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r'\s+')
     row_no = sol[sol["Index"] == 'Rows'].index[0]
     sol = sol.drop(row_no+1)  # Removes header line after "Rows"

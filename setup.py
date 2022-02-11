@@ -35,7 +35,7 @@ setup(
         'deprecation'
     ],
     extras_require = {
-        "dev": ["pytest", "pypower", "pandapower"],
+        "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
         "cartopy": ['cartopy>=0.16'],
         "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link"],
         'gurobipy':['gurobipy']

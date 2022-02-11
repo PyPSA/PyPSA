@@ -8,18 +8,8 @@ from numpy.testing import assert_almost_equal as equal
 
 solver_name = "glpk"
 
-@pytest.fixture
-def n():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "scigrid-de",
-        "scigrid-with-load-gen-trafos",
-    )
-    return pypsa.Network(csv_folder)
-
-def test_sclopf(n):
+def test_sclopf(scipy_network):
+    n = scipy_network
 
     # There are some infeasibilities without line extensions
     for line_name in ["316", "527", "602"]:

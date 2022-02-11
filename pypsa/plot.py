@@ -231,7 +231,7 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
             c = c.apply(lambda cval: bus_cmap(norm(cval)))
 
         patches = []
-        for b_i in s.index:
+        for b_i in s.index[s != 0]:
             radius = s.at[b_i]**0.5
             patches.append(Circle((x.at[b_i], y.at[b_i]), radius,
                                    facecolor=c.at[b_i], alpha=bus_alpha))

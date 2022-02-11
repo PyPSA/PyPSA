@@ -98,6 +98,10 @@ def aggregategenerators(network, busmap, with_time=True, carriers=None, custom_s
     return new_df, new_pnl
 
 def aggregateoneport(network, busmap, component, with_time=True, custom_strategies=dict()):
+
+    if network.df(component).empty:
+        return network.df(component), network.pnl(component)
+
     attrs = network.components[component]["attrs"]
     old_df = getattr(network, network.components[component]["list_name"]).assign(bus=lambda df: df.bus.map(busmap))
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith('Input')]) & set(old_df.columns)
@@ -338,7 +342,7 @@ def get_clustering_from_busmap(network, busmap, with_time=True, line_length_fact
             details="Use ``busmap_by_kmeans`` or ``busmap_by_hac`` instead.")
 def busmap_by_linemask(network, mask):
     mask = network.lines[['bus0', 'bus1']].assign(mask=mask).set_index(['bus0','bus1'])['mask']
-    G = nx.OrderedGraph()
+    G = nx.Graph()
     G.add_nodes_from(network.buses.index)
     G.add_edges_from(mask.index[mask])
     return pd.Series(OrderedDict((n, str(i))
