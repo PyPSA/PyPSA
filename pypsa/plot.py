@@ -45,7 +45,7 @@ except ImportError:
     pltly_present = False
 
 
-def plot(n, margin=None, ax=None, geomap=True, projection=None,
+def plot(n, margin=0.05, ax=None, geomap=True, projection=None,
          bus_colors='cadetblue', bus_alpha=1, bus_sizes=2e-2, bus_cmap=None,
          line_colors='rosybrown', link_colors='darkseagreen',
          transformer_colors='orange',
@@ -58,8 +58,9 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
 
     Parameters
     ----------
-    margin : float
-        Margin at the sides as proportion of distance between max/min x,y
+    margin : float, defaults to 0.05
+        Margin at the sides as proportion of distance between max/min x,y.
+        Wil be ignored if boundaries are given.
     ax : matplotlib ax, defaults to plt.gca()
         Axis to which to plot the network
     geomap: bool/str, default True
@@ -136,7 +137,14 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         Collections for buses and branches.
     """
     x, y = _get_coordinates(n, layouter=layouter)
-    if boundaries is None and margin is not None:
+
+    if margin is None:
+        logger.warning("The `margin` argument does support None value anymore. "
+                       "Falling back to the default value 0.05. This will raise "
+                       "an error in the future.")
+        margin = 0.05
+
+    if boundaries is None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap and not cartopy_present:
@@ -170,6 +178,9 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
+    elif hasattr(ax, "projection"):
+        raise ValueError("Axis is a geo axis, but `geomap` is set to False")
+
     if not geomap and boundaries:
         ax.axis(boundaries)
 
@@ -323,9 +334,6 @@ def plot(n, margin=None, ax=None, geomap=True, projection=None,
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
 
-    if boundaries is None:
-        ax.autoscale_view()
-
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
 
@@ -410,15 +418,15 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
 
 class HandlerCircle(HandlerPatch):
     """
-    Legend Handler used to create circles for legend entries. 
-    
-    This handler resizes the circles in order to match the same dimensional 
+    Legend Handler used to create circles for legend entries.
+
+    This handler resizes the circles in order to match the same dimensional
     scaling as in the applied axis.
     """
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
-        radius = orig_handle.get_radius() 
+        radius = orig_handle.get_radius()
         center = 5 - xdescent, 5 - ydescent
         p = plt.Circle(center, radius)
         self.update_prop(p, orig_handle, legend)
@@ -426,41 +434,41 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend(ax, carriers, size=1, scale=1, **kwargs):
+def add_carrier_legend(ax, carriers, size=1, scale=1, **kwargs):
     """
-    Add a legend to the network plot. 
-    
-    This legend will draw circles with the same dimensional scaling 
-    as in the network plot. 
+    Add a legend to the network plot.
+
+    This legend will draw circles with the same dimensional scaling
+    as in the network plot.
 
     Parameters
     ----------
     ax : AxesSubplot/GeoAxesSubplot
         Axis in which to draw the legend.
     carriers : pandas.DataFrame
-        Dataframe determining the legend entries. 
-        The column `color` is required. 
-        If the column `nice_name` exists, its entries will  be 
+        Dataframe determining the legend entries.
+        The column `color` is required.
+        If the column `nice_name` exists, its entries will  be
         used as labels. If not, the index will be used as labels.
-        If the column `size` is existent, its entries will 
-        determine the circle sizes. If not the `size` argument 
+        If the column `size` is existent, its entries will
+        determine the circle sizes. If not the `size` argument
         will be used.
     size: float
         Size of the legend circles. Will be supersed by the `size`
-        column of `carriers` if existent. 
+        column of `carriers` if existent.
     scale : float
         Factor used to scale the original bus sizes in the network plot.
-    **kwargs : 
+    **kwargs :
         Keyword aguments passed to `ax.legend`.
 
     Returns
     -------
     legend:
         Initialized Legend.
-        
+
     Example
     -------
-    
+
     >>> import pandas as pd
     >>> import pypsa
     >>> from cartopy import crs as ccrs
@@ -479,9 +487,9 @@ def add_legend(ax, carriers, size=1, scale=1, **kwargs):
     >>> circ = pd.Series(["white", "k"], index=["color", "edgecolor"])
     >>> circ = circ.to_frame(f"Biggest circle = {biggest_size} MW").T
     >>> pypsa.plot.add_legend(ax, circ, size=biggest_size, scale=bus_scale, loc=2)
-    
+
     """
-    
+
     size = carriers.get("size", size)
     radius = (size * scale) ** 0.5
     empty_ser = pd.Series(index=carriers.index, dtype=object)
@@ -489,10 +497,10 @@ def add_legend(ax, carriers, size=1, scale=1, **kwargs):
     circles = carriers.rename(columns={"color": "facecolor"})
     circles = circles[set(plt.Circle.properties(plt.Circle((0,0)))) & set(circles)]
 
-    # Scale the legend circles according to the circles drawn in the figure. 
+    # Scale the legend circles according to the circles drawn in the figure.
     # Note: the factor 56 is derived emprically!
     fig = ax.get_figure()
-    unit = np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0][1]    
+    unit = np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0][1]
     area_factor = projected_area_factor(ax)
     figscale = unit * (56 / fig.dpi) * area_factor
 
