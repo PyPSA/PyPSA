@@ -606,13 +606,14 @@ def set_int_index(ser):
 def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
                         solver_options={}, warmstart=None, store_basis=True):
     """
-   Highs solver function. Reads a linear problem file and passes it to the highs
+    Highs solver function. Reads a linear problem file and passes it to the highs
     solver. If the solution is feasible the function returns the objective,
     solution and dual constraint variables. Highs must be installed for usage.
     Documentation: https://www.maths.ed.ac.uk/hall/HiGHS/
 
-    Installation
-    -------------
+    Notes
+    -----
+    
     The script might only work for version HiGHS 1.1.1. Installation steps::
         sudo apt-get install cmake  # if not installed
         git clone git@github.com:ERGO-Code/HiGHS.git
@@ -632,8 +633,6 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     Now when typing ``highs`` in the terminal you should see something like ::
         Running HiGHS 1.1.1 [date: 2021-11-14, git hash: 95342daa]
 
-    Architecture
-    -------------
     The function reads and execute (i.e. subprocess.Popen,...) terminal
     commands of the solver. Meaning the command can be also executed at your
     command window/terminal if HiGHs is installed. Executing the commands on
@@ -644,8 +643,6 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     generated from the HiGHS solver. These parts are solver specific and
     depends on the solver output.
 
-    Solver options
-    ---------------
     Solver options are read by the 1) command window and the 2) option_file.txt
 
     1) An example list of solver options executable by the command window is given here:
@@ -663,6 +660,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     By default, we insert a couple of options for the ipm solver. The dictionary
     can be overwritten by simply giving the new values. For instance, you could
     write a dictionary replacing some of the default values or adding new options:
+
     ```
     solver_options = {
         name: highs,
@@ -671,12 +669,14 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
         <option_name>: <value>,
     }
     ```
+
     Note, the <option_name> and <value> must be equivalent to the name convention
     of HiGHS. Some function exist that are not documented, check their GitHub file:
     https://github.com/ERGO-Code/HiGHS/blob/master/src/lp_data/HighsOptions.h
 
-    Output
-    ------
+    Returns
+    -------
+
     status : string,
         "ok" or "warning"
     termination_condition : string,
@@ -684,6 +684,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     variables_sol : series
     constraints_dual : series
     objective : float
+
     """
     logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
     options_fn = "highs_options.txt"
