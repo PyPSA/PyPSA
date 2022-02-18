@@ -251,7 +251,10 @@ def define_ramp_limit_constraints(n, sns, c):
 
     # Check if ramping is not at start of n.snapshots
     start_i = n.snapshots.get_loc(sns[0]) - 1
-    p_prev_fix = n.pnl(c)['p'].iloc[start_i]
+    pnl = n.pnl(c)
+    # get dispatch for either one or two ports
+    attr = ({'p', 'p0'} & set(pnl)).pop()
+    p_prev_fix = pnl[attr].iloc[start_i]
     is_rolling_horizon = (sns[0] != n.snapshots[0]) and not p_prev_fix.empty
 
     if is_rolling_horizon:
