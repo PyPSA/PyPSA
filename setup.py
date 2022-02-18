@@ -37,7 +37,7 @@ setup(
     extras_require = {
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
         "cartopy": ['cartopy>=0.16'],
-        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link"],
+        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link", "black"],
         'gurobipy':['gurobipy']
     },
     classifiers=[
