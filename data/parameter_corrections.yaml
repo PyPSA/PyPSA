@@ -41,6 +41,7 @@ Link:
       "12931": "8152" # BorWin3
       "5582": "2382" # combine link 5583 + 5582 in 5582 (Sardinia)
       "13589": "1349" # combine link 13589 + 13588 in 13589 (Sardinia)
+      "14820": "6354" # NordBalt
   length:
     index:
       "5582": 26.39 # new length of combined links (sum)
