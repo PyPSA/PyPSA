@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 from os.path import normpath, exists
-from shutil import copyfile
+from shutil import copyfile, move
 
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
@@ -70,7 +70,7 @@ if config['enable'].get('retrieve_databundle', True):
 rule retrieve_load_data:
     input: HTTP.remote("data.open-power-system-data.org/time_series/2019-06-05/time_series_60min_singleindex.csv", keep_local=True, static=True)
     output: "data/load_raw.csv"
-    shell: "mv {input} {output}"
+    run: move(input[0], output[0])
 
 
 rule build_load_data:
@@ -162,7 +162,7 @@ if config['enable'].get('retrieve_cutout', True):
     rule retrieve_cutout:
         input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True, static=True)
         output: "cutouts/{cutout}.nc"
-        shell: "mv {input} {output}"
+        run: move(input[0], output[0])
 
 
 if config['enable'].get('build_natura_raster', False):
@@ -179,7 +179,7 @@ if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
         input: HTTP.remote("zenodo.org/record/4706686/files/natura.tiff", keep_local=True, static=True)
         output: "resources/natura.tiff"
-        shell: "mv {input} {output}"
+        run: move(input[0], output[0])
 
 
 rule build_renewable_profiles:
