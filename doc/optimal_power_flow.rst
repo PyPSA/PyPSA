@@ -652,7 +652,7 @@ All variable and constraint references are stored in the network object itself, 
 
 * :py:meth:`pypsa.linopt.get_var` for getting the variables which should be included in the constraint.
 * :py:meth:`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-* :py:meth:`pypsa.linopt.join_expr` for summing linear expressions.
+* :py:meth:`pypsa.linopt.join_exprs` for summing linear expressions.
 * :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
 
 Once the problem has been built, all names of variable sets are stored in ``n.variables`` and all names of constraint sets in ``n.constraints``.
