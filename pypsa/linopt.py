@@ -445,7 +445,7 @@ def join_exprs(df):
 def _add_reference(ref_dict, df, attr, pnl=True):
     if pnl:
         if attr in ref_dict.pnl:
-            ref_dict.pnl[attr][df.columns] = df
+            ref_dict.pnl[attr].loc[df.index, df.columns] = df
         else:
             ref_dict.pnl[attr] = df
     else:
@@ -613,7 +613,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
 
     Notes
     -----
-    
+
     The script might only work for version HiGHS 1.1.1. Installation steps::
         sudo apt-get install cmake  # if not installed
         git clone git@github.com:ERGO-Code/HiGHS.git
