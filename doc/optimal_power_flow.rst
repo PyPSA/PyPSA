@@ -720,10 +720,10 @@ You may need to rename indices if you're adding components with different names.
 
 
 
-join_expr
-^^^^^^^^^
+join_exprs
+^^^^^^^^^^
 
-The function ``linopt.join_expr`` is used to sum up variables along different axes.
+The function ``linopt.join_exprs`` is used to sum up variables along different axes.
 
 For example, to sum up all dispatch variables over all generators and times do
 
