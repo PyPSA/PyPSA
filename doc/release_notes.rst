@@ -9,7 +9,7 @@ Upcoming Release
 
 **New Features**
 
-* PyPSA can import pandapower networks. Now, some issues regarding the transformer component and indexing are fixed. Shunts can also be imported. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
+* Restore import of pandapower networks. Now, some issues regarding the transformer component and indexing are fixed. Shunts can now also be imported. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
 
 
 PyPSA 0.19.1 (18th February 2022)
