@@ -313,6 +313,8 @@ def memory(w):
             break
     if w.clusters.endswith('m'):
         return int(factor * (18000 + 180 * int(w.clusters[:-1])))
+    elif w.clusters == "all":
+        return int(factor * (18000 + 180 * 4000))
     else:
         return int(factor * (10000 + 195 * int(w.clusters)))
 
