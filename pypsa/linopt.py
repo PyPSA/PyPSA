@@ -316,7 +316,7 @@ def broadcasted_axes(*dfs):
         dfs = sum(dfs, ())
 
     for df in dfs:
-        shape = max(shape, np.asarray(df).shape)
+        shape = np.broadcast_shapes(shape, np.asarray(df).shape)
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
                 assert (axes[-1] == df.axes[-1]).all(), ('Series or DataFrames '
@@ -390,10 +390,11 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
-            expr = expr + _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
+            newexpr = _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
             if isinstance(expr, np.ndarray):
                 isna = np.isnan(coeff) | np.isnan(var) | (var == -1)
-                expr = np.where(isna, '', expr)
+                newexpr = np.where(isna, '', newexpr)
+            expr = expr + newexpr
     if return_axes:
         return (expr, *axes)
     if as_pandas:
@@ -444,7 +445,7 @@ def join_exprs(df):
 def _add_reference(ref_dict, df, attr, pnl=True):
     if pnl:
         if attr in ref_dict.pnl:
-            ref_dict.pnl[attr][df.columns] = df
+            ref_dict.pnl[attr].loc[df.index, df.columns] = df
         else:
             ref_dict.pnl[attr] = df
     else:
@@ -605,13 +606,14 @@ def set_int_index(ser):
 def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
                         solver_options={}, warmstart=None, store_basis=True):
     """
-   Highs solver function. Reads a linear problem file and passes it to the highs
+    Highs solver function. Reads a linear problem file and passes it to the highs
     solver. If the solution is feasible the function returns the objective,
     solution and dual constraint variables. Highs must be installed for usage.
     Documentation: https://www.maths.ed.ac.uk/hall/HiGHS/
 
-    Installation
-    -------------
+    Notes
+    -----
+
     The script might only work for version HiGHS 1.1.1. Installation steps::
         sudo apt-get install cmake  # if not installed
         git clone git@github.com:ERGO-Code/HiGHS.git
@@ -631,8 +633,6 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     Now when typing ``highs`` in the terminal you should see something like ::
         Running HiGHS 1.1.1 [date: 2021-11-14, git hash: 95342daa]
 
-    Architecture
-    -------------
     The function reads and execute (i.e. subprocess.Popen,...) terminal
     commands of the solver. Meaning the command can be also executed at your
     command window/terminal if HiGHs is installed. Executing the commands on
@@ -643,8 +643,6 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     generated from the HiGHS solver. These parts are solver specific and
     depends on the solver output.
 
-    Solver options
-    ---------------
     Solver options are read by the 1) command window and the 2) option_file.txt
 
     1) An example list of solver options executable by the command window is given here:
@@ -657,11 +655,12 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     --options_file arg 	File containing HiGHS options.
     -h, --help 	        Print help.
 
-    2) The options_file.txt gives some more options, see a full list here: 
-    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set 
+    2) The options_file.txt gives some more options, see a full list here:
+    https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set
     By default, we insert a couple of options for the ipm solver. The dictionary
     can be overwritten by simply giving the new values. For instance, you could
     write a dictionary replacing some of the default values or adding new options:
+
     ```
     solver_options = {
         name: highs,
@@ -670,19 +669,22 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
         <option_name>: <value>,
     }
     ```
+
     Note, the <option_name> and <value> must be equivalent to the name convention
     of HiGHS. Some function exist that are not documented, check their GitHub file:
     https://github.com/ERGO-Code/HiGHS/blob/master/src/lp_data/HighsOptions.h
 
-    Output
-    ------
+    Returns
+    -------
+
     status : string,
         "ok" or "warning"
     termination_condition : string,
-        Contains "optimal", "infeasible", 
+        Contains "optimal", "infeasible",
     variables_sol : series
     constraints_dual : series
     objective : float
+
     """
     logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
     options_fn = "highs_options.txt"
@@ -755,7 +757,7 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     f = open(solution_fn, "rb")
     trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
     f.close()
-    
+
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r'\s+')
     row_no = sol[sol["Index"] == 'Rows'].index[0]
     sol = sol.drop(row_no+1)  # Removes header line after "Rows"

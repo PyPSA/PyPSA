@@ -2,12 +2,14 @@ name: pypsa
 channels:
   - conda-forge
 dependencies:
-  - python>=3.6
+  - python>=3.7
   - pip
   - pytest
   - pytest-cov
   - twine
   - flake8
+  - cartopy
+  - scikit-learn
   - pip:
     - pypower
     - pandapower>=2.0

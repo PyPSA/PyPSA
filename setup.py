@@ -11,7 +11,7 @@ with open('README.rst', encoding='utf-8') as f:
 
 setup(
     name='pypsa',
-    version='0.18.1',
+    version='0.19.1',
     author='PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html',
     author_email='t.brown@tu-berlin.de',
     description='Python for Power Systems Analysis',
@@ -35,9 +35,9 @@ setup(
         'deprecation'
     ],
     extras_require = {
-        "dev": ["pytest", "pypower", "pandapower"],
+        "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
         "cartopy": ['cartopy>=0.16'],
-        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link"],
+        "docs": ["numpydoc", "sphinx", "sphinx_rtd_theme", "nbsphinx", "nbsphinx-link", "black"],
         'gurobipy':['gurobipy']
     },
     classifiers=[

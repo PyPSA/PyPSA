@@ -39,7 +39,8 @@ Execute:
     network.lopf(snapshots, solver_name="glpk", solver_io=None,
                  extra_functionality=None, solver_options={},
                  keep_files=False, formulation="angles",
-                 extra_postprocessing=None)
+                 extra_postprocessing=None,
+		 pyomo=True)
 
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
@@ -48,10 +49,12 @@ string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
 called before the solver (see below), ``extra_postprocessing`` is a
 function of network, snapshots and duals that is called after solving
 (see below), ``solver_options`` is a dictionary of flags to pass to
-the solver, ``keep_files`` means that the ``.lp`` file is saved and
+the solver, ``keep_files`` means that the ``.lp`` file is saved,
 ``formulation`` is a string in
 ``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
-for more details).
+for more details) and ``pyomo`` is a boolean to switch between formulating
+the optimisation problem using ``pyomo`` or PyPSA's custom optimisation
+framework.
 
 See :py:meth:`pypsa.Network.lopf` for the documentation.
 
@@ -606,7 +609,7 @@ Custom constraints and other functionality
 
 
 Since PyPSA v0.16.0, the lopf function is provided by two different modules. The ordinary implementation based on the ``pypsa.opf`` module uses
-`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses a straight-forward approach to write out the ``.lp`` file directly and explicitly running it from a solver's interface. Therefore the application of custom constraints depends on whether pyomo is activated or not.
+`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses PyPSA's own internal optimisation framework that writes out the ``.lp`` file directly and explicitly runs it from a solver's interface. Therefore the application of custom constraints depends on whether pyomo is activated or not. Pyomo is activated by default, but to switch to the internal optimisation framework run ``pypsa.lopf(pyomo=False)``.
 
 In general for a custom constraint, pass the function ``network.lopf`` a
 function ``extra_functionality`` as an argument.  This function must
@@ -622,11 +625,10 @@ You can easily
 extend the optimisation problem constructed by PyPSA using the usual
 pyomo syntax.
 
-The `CHP example
-<https://pypsa.readthedocs.io/en/latest/examples/power-to-gas-boiler-chp.html>`_ and the
-`example that replaces generators and storage units with fundamental links
+The :doc:`CHP example </examples/power-to-gas-boiler-chp>` and the
+:doc:`example that replaces generators and storage units with fundamental links
 and stores
-<https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_
+</examples/replace-generator-storage-units-with-store>`
 both pass an ``extra_functionality`` argument to the LOPF to add
 functionality.
 
@@ -639,18 +641,123 @@ additional shadow prices for constraints.
 2. pyomo is set to False
 ========================
 
-In general when pyomo is disabled, all variable and constraint references are stored in the network object itself. Thus every variable and constraint is attached to a component, e.g. the dispatch variable of network.generators.p is attached to the component 'Generator' and can be easily accessed by
+To use PyPSA's own internal optimisation framework ``linopt`` run ``network.lopf(pyomo=False)``. The ``linopt`` framework uses considerably less memory and time than ``pyomo``, however it is slightly harder to customise.
+
+Several customisations with ``linopt`` are demonstrated in the example :doc:`/examples/lopf_with_pyomo_False`.
+
+``linopt`` works by assigning an integer to each variable and constraint. Constraints are then built as strings by adding variables with coefficients.
+
+All variable and constraint references are stored in the network object itself, attached to the relevant component. By accessing these references inside an ``extra_functionality(network, snapshots)`` function passed to ``network.lopf``, you can select variables and build constraints using the following functions:
+
+
+* :py:meth:`pypsa.linopt.get_var` for getting the variables which should be included in the constraint.
+* :py:meth:`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
+* :py:meth:`pypsa.linopt.join_exprs` for summing linear expressions.
+* :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
+
+Once the problem has been built, all names of variable sets are stored in ``n.variables`` and all names of constraint sets in ``n.constraints``.
+
+The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
+
+
+get_var
+^^^^^^^
+
+The function ``linopt.get_var`` is used to access the variables attached to a component. To find out which variables are available, look inside ``n.variables`` once the ``n.lopf(pyomo=False)`` has run.
+
+For example, to access the the dispatch variable of ``network.generators_t.p`` attached to the component ``Generator`` use
 
   >>> get_var(n, 'Generator', 'p')
 
-An additional constraint can easily be implemented by using the functions
+This will return a ``pd.DataFrame`` with index of ``network.snapshots`` and columns of ``network.generators.index`` with the variable references in each entry.
 
-* :py:meth:`pypsa.linopt.get_var` for getting the variables which should be included in the constraint
-* :py:meth:`pypsa.linopt.linexpr` for creating linear expressions for the left hand side (lhs) of the constraint. Note that only the lhs includes all terms with variables, the rhs is a constant.
-* :py:meth:`pypsa.linopt.define_constraints` for defining a network constraint.
+To access the capacities of extendable generators use
+
+  >>> get_var(n, 'Generator', 'p_nom')
+
+This will return a ``pd.Series`` with index of ``network.generators.index`` with the variable references in each entry.
+
+linexpr
+^^^^^^^
+
+The function ``linopt.linexpr`` is used to build linear combinations of variables.
+
+It takes a tuple of twoples, where the first entry is the coefficients and the second entry is the variables.
+
+Beware that the indices and columns of the ``pd.DataFrame`` or  ``pd.Series`` you combine must have aligned indices and columns. This applies both to coefficients and variables.
+
+For example, to subtract the extendable generator capacities from their dispatch for each snapshot do
+
+  >>> ext_i = n.get_extendable_i('Generator')
+  >>> p = get_var(n, 'Generator', 'p')[ext_i]
+  >>> p_nom = get_var(n, 'Generator', 'p_nom')
+  >>> linexpr((1, p), (-1, p_nom))
+
+This will return a ``pd.DataFrame`` with index of ``network.snapshots`` and columns of the extendable generators ``ext_i`` with the constraint strings in each entry.
 
 
-The function ``extra_postprocessing`` is not necessary when pyomo is deactivated. For retrieving additional shadow prices, just pass the name of the constraint, to which the constraint is attached, to the ``keep_shadowprices`` parameter of the ``lopf`` function.
+To add the dispatch weighted by the generator efficiency do
+
+  >>>  ext_i = n.get_extendable_i('Generator')
+  >>>  p = get_var(n, 'Generator', 'p')[ext_i]
+  >>>  p_nom = get_var(n, 'Generator', 'p_nom')
+  >>>  efficiency = n.generators.efficiency[ext_i]
+  >>>  linexpr((efficiency, p), (-1, p_nom))
+
+To add the dispatch weighted by the snapshot weightings do
+
+  >>>  ext_i = n.get_extendable_i('Generator')
+  >>>  p = get_var(n, 'Generator', 'p')[ext_i]
+  >>>  p_nom = get_var(n, 'Generator', 'p_nom')
+  >>>  weightings = pd.DataFrame({gen: n.snapshot_weightings.generators for gen in ext_i})
+  >>>  linexpr((weightings, p), (-1, p_nom))
+
+You may need to rename indices if you're adding components with different names. Consider this example subtracting battery discharging from charging capacities
+
+  >>> chargers = n.links.index[n.links.index.str.contains('charger')]
+  >>> dischargers = n.links.index[n.links.index.str.contains('discharger')]
+  >>> linexpr((1, get_var(n, 'Link', 'p_nom')[chargers]), (-1, get_var(n, 'Link', 'p_nom')[dischargers].rename(lambda name: name.replace("discharger","charger"))))
+
+
+
+join_exprs
+^^^^^^^^^^
+
+The function ``linopt.join_exprs`` is used to sum up variables along different axes.
+
+For example, to sum up all dispatch variables over all generators and times do
+
+  >>> join_exprs(linexpr((1,get_var(n, "Generator", "p"))))
+
+This returns a string.
+
+To sum up only over the index ``n.snapshots``, i.e. to get for each generator its total dispatch over the period, do
+
+  >>> linexpr((1,get_var(n, "Generator", "p"))).apply(join_exprs)
+
+This returns a ``pd.Series`` of strings indexed by ``n.generators.index``, where each string is a sum over time.
+
+To sum up only over the columns ``n.generators.index``, i.e. to get for each time the sum of generator dispatch, do
+
+  >>> linexpr((1,get_var(n, "Generator", "p"))).apply(join_exprs, axis=1)
+
+This returns a ``pd.Series`` of strings indexed by ``n.snapshots``, where each string is a sum over generators.
+
+
+define_constraints
+^^^^^^^^^^^^^^^^^^
+
+The function ``linopt.define_constraints`` is used to add constraints to the model.
+
+It typically has the form
+
+  >>> define_constraints(n, lhs, "=", rhs, 'Link', 'charger_ratio')
+
+where ``lhs`` is a linear expression ``linexpr``, the sense follows
+(one of ``=``, ``<=`` or ``>=``), ``rhs`` is a constant or linear
+expression ``linexpr``, the next argument tells on which component to
+store the constraints and then the name of the constraints.
+
 
 .. Fixing variables
 .. ----------------

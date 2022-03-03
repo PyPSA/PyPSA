@@ -995,6 +995,14 @@ def define_nodal_balances(network,snapshots):
 
     efficiency = get_switchable_as_dense(network, 'Link', 'efficiency', snapshots)
 
+    filter = (
+        (get_switchable_as_dense(network, 'Link', 'p_min_pu', snapshots) < 0) &
+        (efficiency < 1)
+    )
+    links = filter[filter].dropna(how='all', axis=1)
+    if links.size > 0:
+        logger.warning("Some bidirectional links have efficiency values lower than 1: '" + "', '".join(links) + "'.")
+
     for cb in network.links.index:
         bus0 = network.links.at[cb,"bus0"]
         bus1 = network.links.at[cb,"bus1"]
@@ -1646,6 +1654,8 @@ def network_lopf(network, snapshots=None, solver_name="glpk", solver_io=None,
         raise NotImplementedError("Multi period invesmtent is only supported for pyomo=False")
     if (type(network.snapshots)==pd.MultiIndex):
         raise NotImplementedError("Multi indexed snapshots is only supported for pyomo=False")
+    if network.links[['ramp_limit_up', 'ramp_limit_down']].notnull().any().any():
+        logger.warning("Encountered nonzero ramp limits for links. These are ignored when running the optimization with `pyomo=True`.")
 
 
     snapshots = _as_snapshots(network, snapshots)

@@ -233,28 +233,47 @@ def define_committable_generator_constraints(n, sns):
 
 
 
-def define_ramp_limit_constraints(n, sns):
+def define_ramp_limit_constraints(n, sns, c):
     """
-    Defines ramp limits for generators with valid ramplimit
+    Defines ramp limits for a given component with valid ramplimit.
 
     """
-    c = 'Generator'
     rup_i = n.df(c).query('ramp_limit_up == ramp_limit_up').index
     rdown_i = n.df(c).query('ramp_limit_down == ramp_limit_down').index
     if rup_i.empty & rdown_i.empty:
         return
     fix_i = get_non_extendable_i(n, c)
     ext_i = get_extendable_i(n, c)
-    com_i = n.df(c).query('committable').index.difference(ext_i)
-    p = get_var(n, c, 'p').loc[sns[1:]]
-    p_prev = get_var(n, c, 'p').shift(1).loc[sns[1:]]
-    active = get_activity_mask(n, c, sns[1:])
+    if "committable" in n.df(c):
+        com_i = n.df(c).query('committable').index.difference(ext_i)
+    else:
+        com_i = []
+
+    # Check if ramping is not at start of n.snapshots
+    start_i = n.snapshots.get_loc(sns[0]) - 1
+    pnl = n.pnl(c)
+    # get dispatch for either one or two ports
+    attr = ({'p', 'p0'} & set(pnl)).pop()
+    p_prev_fix = pnl[attr].iloc[start_i]
+    is_rolling_horizon = (sns[0] != n.snapshots[0]) and not p_prev_fix.empty
+
+    if is_rolling_horizon:
+        active = get_activity_mask(n, c, sns)
+        p = get_var(n, c, 'p')
+        p_prev = get_var(n, c, 'p').shift(1, fill_value=-1)
+        rhs_prev = pd.DataFrame(0, *p.axes)
+        rhs_prev.loc[sns[0]] = p_prev_fix
+    else:
+        active = get_activity_mask(n, c, sns[1:])
+        p = get_var(n, c, 'p').loc[sns[1:]]
+        p_prev = get_var(n, c, 'p').shift(1, fill_value=-1).loc[sns[1:]]
+        rhs_prev = pd.DataFrame(0, *p.axes)
 
     # fix up
     gens_i = rup_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-        rhs = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
+        rhs = rhs_prev[gens_i] + n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
         kwargs = dict(spec='nonext.', mask=active[gens_i])
         define_constraints(n, lhs, '<=', rhs,  c, 'mu_ramp_limit_up', **kwargs)
 
@@ -264,27 +283,32 @@ def define_ramp_limit_constraints(n, sns):
         limit_pu = n.df(c)['ramp_limit_up'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (-limit_pu, p_nom))
+        rhs = rhs_prev[gens_i]
         kwargs = dict(spec='ext.', mask=active[gens_i])
-        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
+        define_constraints(n, lhs, '<=', rhs, c, 'mu_ramp_limit_up', **kwargs)
 
     # com up
     gens_i = rup_i.intersection(com_i)
     if not gens_i.empty:
         limit_start = n.df(c).loc[gens_i].eval('ramp_limit_start_up * p_nom')
         limit_up = n.df(c).loc[gens_i].eval('ramp_limit_up * p_nom')
-        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+        status = get_var(n, c, 'status').loc[p.index, gens_i]
+        status_prev = get_var(n, c, 'status').shift(1, fill_value=-1).loc[p.index, gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_start - limit_up, status_prev),
-                      (- limit_start, status))
+                    (limit_start - limit_up, status_prev),
+                    (- limit_start, status))
+        rhs = rhs_prev[gens_i]
+        if is_rolling_horizon:
+            status_prev_fix = n.pnl(c)['status'][com_i].iloc[start_i]
+            rhs.loc[sns[0]] += (limit_up - limit_start) * status_prev_fix
         kwargs = dict(spec='com.', mask=active[gens_i])
-        define_constraints(n, lhs, '<=', 0, c, 'mu_ramp_limit_up', **kwargs)
+        define_constraints(n, lhs, '<=', rhs, c, 'mu_ramp_limit_up', **kwargs)
 
     # fix down
     gens_i = rdown_i.intersection(fix_i)
     if not gens_i.empty:
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]))
-        rhs = n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
+        rhs = rhs_prev[gens_i] + n.df(c).loc[gens_i].eval('-1 * ramp_limit_down * p_nom')
         kwargs = dict(spec='nonext.', mask=active[gens_i])
         define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', **kwargs)
 
@@ -294,21 +318,26 @@ def define_ramp_limit_constraints(n, sns):
         limit_pu = n.df(c)['ramp_limit_down'][gens_i]
         p_nom = get_var(n, c, 'p_nom')[gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]), (limit_pu, p_nom))
+        rhs = rhs_prev[gens_i]
         kwargs = dict(spec='ext.', mask=active[gens_i])
-        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
+        define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', **kwargs)
 
     # com down
     gens_i = rdown_i.intersection(com_i)
     if not gens_i.empty:
         limit_shut = n.df(c).loc[gens_i].eval('ramp_limit_shut_down * p_nom')
         limit_down = n.df(c).loc[gens_i].eval('ramp_limit_down * p_nom')
-        status = get_var(n, c, 'status').loc[sns[1:], gens_i]
-        status_prev = get_var(n, c, 'status').shift(1).loc[sns[1:], gens_i]
+        status = get_var(n, c, 'status').loc[p.index, gens_i]
+        status_prev = get_var(n, c, 'status').shift(1, fill_value=-1).loc[p.index, gens_i]
         lhs = linexpr((1, p[gens_i]), (-1, p_prev[gens_i]),
-                      (limit_down - limit_shut, status),
-                      (limit_shut, status_prev))
+                    (limit_down - limit_shut, status),
+                    (limit_shut, status_prev))
+        rhs = rhs_prev[gens_i]
+        if is_rolling_horizon:
+            status_prev_fix = n.pnl(c)['status'][com_i].iloc[start_i]
+            rhs.loc[sns[0]] += -limit_shut * status_prev_fix
         kwargs = dict(spec='com.', mask=active[gens_i])
-        define_constraints(n, lhs, '>=', 0, c, 'mu_ramp_limit_down', **kwargs)
+        define_constraints(n, lhs, '>=', rhs, c, 'mu_ramp_limit_down', **kwargs)
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
@@ -363,9 +392,10 @@ def define_nodal_balance_constraints(n, sns):
             ['Link', 'p', 'bus1', get_as_dense(n, 'Link', 'efficiency', sns)]]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
-    for i in additional_linkports(n):
-        eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
-        args.append(['Link', 'p', f'bus{i}', eff])
+    if not n.links.empty:
+        for i in additional_linkports(n):
+            eff = get_as_dense(n, 'Link', f'efficiency{i}', sns)
+            args.append(['Link', 'p', f'bus{i}', eff])
 
     lhs = (pd.concat([bus_injection(*arg) for arg in args], axis=1)
            .groupby(axis=1, level=0)
@@ -491,7 +521,7 @@ def define_storage_unit_constraints(n, sns):
                        soc.shift()[~first_active_snapshot], noncyclic_i)
 
     # rhs set e at beginning of optimization horizon for noncyclic
-    rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh)
+    rhs = -get_as_dense(n, c, 'inflow', sns).mul(eh).astype(float)
 
     rhs[noncyclic_i] = rhs[noncyclic_i].where(~first_active_snapshot,
                                               rhs-n.df(c).state_of_charge_initial, axis=1)
@@ -503,7 +533,7 @@ def define_storage_unit_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            soc.shift()[~first_active_snapshot_pp],
@@ -568,7 +598,7 @@ def define_store_constraints(n, sns):
                        e.shift()[~first_active_snapshot], noncyclic_i)
 
     # rhs set e at beginning of optimization horizon for noncyclic
-    rhs = pd.DataFrame(0, sns, stores_i)
+    rhs = pd.DataFrame(0., sns, stores_i)
 
     rhs[noncyclic_i] = rhs[noncyclic_i].where(~first_active_snapshot, -n.df(c).e_initial, axis=1)
 
@@ -580,7 +610,7 @@ def define_store_constraints(n, sns):
 
         # set the initial enery at the beginning of each period
         first_active_snapshot_pp = (
-            active[noncyclic_pp_i].groupby(level=0).transform(pd.Series.cumsum) == 1)
+            active[noncyclic_pp_i].groupby(level=0).cumsum() == 1)
 
         lhs += masked_term(eff_stand[~first_active_snapshot_pp],
                            e.shift()[~first_active_snapshot_pp],
@@ -876,7 +906,7 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     n.bounds_f = open(bounds_fn, mode='w')
     n.binaries_f = open(binaries_fn, mode='w')
 
-    n.objective_f.write('\* LOPF *\n\nmin\nobj:\n')
+    n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
@@ -900,7 +930,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
     define_fixed_variable_constraints(n, snapshots, 'Store', 'e')
 
     define_committable_generator_constraints(n, snapshots)
-    define_ramp_limit_constraints(n, snapshots)
+    define_ramp_limit_constraints(n, snapshots, c='Generator')
+    define_ramp_limit_constraints(n, snapshots, c='Link')
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
@@ -949,7 +980,7 @@ def assign_solution(n, sns, variables_sol, constraints_dual,
         elif pnl[attr].empty:
             pnl[attr] = df.reindex(n.snapshots, fill_value=0)
         else:
-            pnl[attr].loc[sns, :] = df.reindex(columns=pnl[attr].columns)
+            pnl[attr].loc[sns, df.columns] = df
 
     pop = not keep_references
     def map_solution(c, attr):

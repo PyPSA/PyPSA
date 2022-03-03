@@ -2,7 +2,7 @@ name: pypsa
 channels:
   - conda-forge
 dependencies:
-  - python>=3.6
+  - python>=3.7
   - numpy
   - scipy
   - pandas>=0.24.0
