@@ -988,9 +988,8 @@ def import_from_pandapower_net(network, net, extra_line_data=False, use_pandapow
     Unsupported features include:
     - three-winding transformers
     - switches
-    - in_service status,
-    - shunt impedances, and
-    -  tap positions of transformers."
+    - in_service status and
+    - tap positions of transformers."
 
     Parameters
     ----------
