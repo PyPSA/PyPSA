@@ -54,7 +54,7 @@ Replacing '/summaries/' with '/plots/' creates nice colored maps of the results.
 """
 
 import logging
-from _helpers import configure_logging, retrieve_snakemake_keys
+from _helpers import configure_logging
 
 import os
 import pypsa
@@ -430,7 +430,8 @@ if __name__ == "__main__":
         network_dir = os.path.join('results', 'networks')
     configure_logging(snakemake)
 
-    paths, config, wildcards, logs, out = retrieve_snakemake_keys(snakemake)
+    config = snakemake.config
+    wildcards = snakemake.wildcards
 
     def expand_from_wildcard(key, config):
         w = getattr(wildcards, key)
@@ -451,6 +452,6 @@ if __name__ == "__main__":
                      for l in ll
                      for opts in expand_from_wildcard("opts", config)}
 
-    dfs = make_summaries(networks_dict, paths, config, country=wildcards.country)
+    dfs = make_summaries(networks_dict, snakemake.input, config, country=wildcards.country)
 
-    to_csv(dfs, out[0])
+    to_csv(dfs, snakemake.output[0])
