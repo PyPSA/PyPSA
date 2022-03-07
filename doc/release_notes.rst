@@ -14,7 +14,7 @@ PyPSA 0.19.2 (7th March 2022)
 
 * Add standard line type for 750 kV transmission line.
 
-PyPSA 0.19.2 (18th February 2022)
+PyPSA 0.19.1 (18th February 2022)
 =================================
 
 * When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.   
