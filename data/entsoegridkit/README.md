@@ -1,6 +1,6 @@
 # Unofficial ENTSO-E dataset processed by GridKit
 
-This dataset was generated based on a map extract from May 25, 2018.
+This dataset was generated based on a map extract from March 2022.
 This is an _unofficial_ extract of the
 [ENTSO-E interactive map](https://www.entsoe.eu/data/map/)
 of the European power system (including to a limited extent North
