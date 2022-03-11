@@ -6,7 +6,7 @@ logging,,,
 -- format,--,"","Custom format for log messages. See `LogRecord <https://docs.python.org/3/library/logging.html#logging.LogRecord>`_ attributes."
 summary_dir,--,"e.g. 'results'","Directory into which results are written."
 countries,--,"Subset of {'AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK'}","European countries defined by their `Two-letter country codes (ISO 3166-1) <https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2>`_ which should be included in the energy system model."
-focus_weights,--,"Keys should be two-digit country codes (e.g. DE) and values should range between 0 and 1","Ratio of total clusters for particular countries. the remaining weight is distributed according to mean load. An example: ``focus_weights: DE: 0.6 FR: 0.2``."
+focus_weights,--,"Keys should be two-digit country codes (e.g. DE) and values should range between 0 and 1","Ratio of total clusters for particular countries. the remaining weight is distributed according to mean load. An example: ``focus_weights: 'DE': 0.6 'FR': 0.2``."
 enable,,,
 -- prepare_links_p_nom,bool,"{true, false}","Switch to retrieve current HVDC projects from `Wikipedia <https://en.wikipedia.org/wiki/List_of_HVDC_projects>`_"
 -- retrieve_databundle,bool,"{true, false}","Switch to retrieve databundle from zenodo via the rule :mod:`retrieve_databundle` or whether to keep a custom databundle located in the corresponding folder."
