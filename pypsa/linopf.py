@@ -17,8 +17,8 @@ __copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readth
                  "MIT License")
 
 from .pf import (_as_snapshots, get_switchable_as_dense as get_as_dense)
-from .descriptors import (get_bounds_pu, get_extendable_i, get_non_extendable_i,
-                          expand_series, nominal_attrs, additional_linkports,
+from .descriptors import (get_bounds_pu, get_buildable_i, get_extendable_i, get_non_extendable_i,
+                          expand_series, get_retirable_i, nominal_attrs, additional_linkports,
                           Dict, get_active_assets, get_activity_mask)
 
 from .linopt import (linexpr, write_bound, write_constraint, write_objective,
@@ -195,6 +195,82 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
         lhs = linexpr((1, get_var(n, c, attr)[fix.index]), as_pandas=False)
         constraints = write_constraint(n, lhs, '=', fix)
     set_conref(n, constraints, c, f'mu_{attr}_set')
+
+
+def define_generator_built_variables(n, sns):
+    c = 'Generator'
+    bld_i = get_buildable_i(n, c)
+    ext_i = get_extendable_i(n, c)
+    if not (ext_i.intersection(bld_i)).empty:
+        logger.warning("The following generators have both variable and discrete "
+        f"investment optimisation:\n\n\t{', '.join((ext_i.intersection(bld_i)))}\n\n"
+        "Currently PyPSA cannot do both these functions, so PyPSA is choosing "
+        "variable investment optimisation for these generators.")
+        bld_i = bld_i.difference(ext_i)
+    if bld_i.empty: return
+    define_binaries(n, bld_i, c, 'built')
+
+
+def define_generator_nonretired_variables(n, sns):
+    c = 'Generator'
+    ret_i = get_retirable_i(n, c)
+    ext_i = get_extendable_i(n, c)
+    if not (ext_i.intersection(ret_i)).empty:
+        logger.warning("The following generators have both variable investment "
+        " optimisation and are retirable:\n\n\t"
+        f"{', '.join((ext_i.intersection(ret_i)))}\n\n"
+        "Currently PyPSA cannot "
+        "do both these functions, so PyPSA is choosing investment optimisation "
+        "for these generators.")
+        ret_i = ret_i.difference(ext_i)
+    if ret_i.empty: return
+
+    periods = sns.unique("period")
+    active = pd.concat({period: get_active_assets(n, c, period)[ret_i]
+                        for period in periods}, axis=1).T
+    define_binaries(n, (periods, ret_i), 'Generator', 'nonretired', mask=active)
+
+
+def define_generator_discrete_investment_constraints(n, sns):
+    """Constrain positive generator dispatch to built and nonretired periods
+    """
+    c = "Generator"
+    ext_i = get_extendable_i(n, c)
+    bld_i = get_buildable_i(n, c).difference(ext_i)
+    ret_i = get_retirable_i(n, c).difference(ext_i)
+    both_i = bld_i.union(ret_i)
+    periods = sns.unique("period")
+
+    nominal = n.df(c)[nominal_attrs[c]][both_i]
+    _, max_pu = get_bounds_pu(n, c, sns, both_i, 'p')
+    upper = max_pu.mul(nominal)
+    p = get_var(n, c, 'p')[both_i]
+
+    # buildable but not retirable dispatch (or everything unless n._multi_invest)
+    bld_nonret_i = bld_i.difference(ret_i)
+    if not bld_nonret_i.empty:
+        built = get_var(n, c, "built").loc[bld_nonret_i]
+        active = get_activity_mask(n, c, sns)[bld_nonret_i] if n._multi_invest else None
+        lhs = linexpr((upper[bld_nonret_i], built), (-1, p[bld_nonret_i]))
+        define_constraints(n, lhs, '>=', 0, 'Generators', 'buildable_nonretirable_ub', mask=active)
+
+    # buildable and retirable by nonretired <= built
+    bld_ret_i = bld_i.intersection(ret_i)
+    if not bld_ret_i.empty:
+        built = get_var(n, c, "built").loc[bld_ret_i]
+        nonretired = get_var(n, c, "nonretired")[bld_ret_i]
+        active = pd.concat({period: get_active_assets(n, c, period)[bld_ret_i]
+                            for period in periods}, axis=1).T
+        lhs = linexpr((1, nonretired), (-1, built))
+        define_constraints(n, lhs, '<=', 0, 'Generators', 'built_nonretired_bound', mask=active)
+
+    # retirable dispatch
+    if not ret_i.empty:
+        nonretired = get_var(n, c, "nonretired")[ret_i].reindex(index=sns, level="period")
+        active = get_activity_mask(n, c, sns)[ret_i]
+        lhs = linexpr((upper[ret_i], nonretired), (-1, p[ret_i]))
+        define_constraints(n, lhs, '>=', 0, 'Generators', 'retirable_ub', mask=active)
+
 
 
 def define_generator_status_variables(n, sns):
@@ -827,15 +903,28 @@ def define_objective(n, sns):
     constant = 0
     for c, attr in nom_attr:
         ext_i = get_extendable_i(n, c)
-        cost = n.df(c)['capital_cost'][ext_i]
+        bld_i = get_buildable_i(n, c)
+        both_i = ext_i.append(bld_i)
+        cost = n.df(c)['capital_cost'][both_i]
         if cost.empty: continue
 
         if n._multi_invest:
-            active = pd.concat({period: get_active_assets(n, c, period)[ext_i]
+            active = pd.concat({period: get_active_assets(n, c, period)[both_i]
                                 for period in sns.unique('period')}, axis=1)
             cost = active @ period_weighting * cost
 
-        constant += cost @ n.df(c)[attr][ext_i]
+        constant += cost @ n.df(c)[attr][both_i]
+
+    # for retirable assets, remove fom_costs for all active years
+    if n._multi_invest:
+        for c, attr in nom_attr:
+            ret_i = get_retirable_i(n, c)
+            cost = n.df(c).loc[ret_i, 'fom_cost'] * n.df(c).loc[ret_i, attr]
+            if cost.empty: continue
+
+            active = pd.concat({period: get_active_assets(n, c, period)[ret_i]
+                                for period in sns.unique('period')}, axis=1)
+            constant -= active @ period_weighting @ cost
 
     object_const = write_bound(n, constant, constant)
     write_objective(n, linexpr((-1, object_const), as_pandas=False)[0])
@@ -858,7 +947,7 @@ def define_objective(n, sns):
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = get_extendable_i(n, c)
-        cost = n.df(c)['capital_cost'][ext_i]
+        cost = n.df(c).loc[ext_i, 'capital_cost']
         if cost.empty: continue
 
         if n._multi_invest:
@@ -869,7 +958,34 @@ def define_objective(n, sns):
         caps = get_var(n, c, attr).loc[ext_i]
         terms = linexpr((cost, caps))
         write_objective(n, terms)
+    
+    for c, attr in nominal_attrs.items():
+        bld_i = get_buildable_i(n, c)
+        cost = n.df(c).loc[bld_i, 'capital_cost'] * n.df(c).loc[bld_i, attr]
+        if cost.empty: continue
 
+        if n._multi_invest:
+            active = pd.concat({period: get_active_assets(n, c, period)[bld_i]
+                                for period in sns.unique('period')}, axis=1).T
+            cost = active @ period_weighting * cost
+
+        built = get_var(n, c, "built").loc[bld_i]
+        terms = linexpr((cost, built))
+        write_objective(n, terms)
+
+    # early retirements
+    for c, attr in nominal_attrs.items():
+        ret_i = get_retirable_i(n, c)
+        cost = n.df(c).loc[ret_i, 'fom_cost'] * n.df(c).loc[ret_i, attr]
+        if cost.empty: continue
+
+        active = pd.concat({period: get_active_assets(n, c, period)[ret_i]
+                            for period in sns.unique('period')}, axis=1).T
+        cost = (active * period_weighting).multiply(cost, axis=1)
+
+        nonretired = get_var(n, c, "nonretired")[ret_i]
+        terms = linexpr((cost, nonretired))
+        write_objective(n, terms)
 
 
 def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
@@ -923,6 +1039,8 @@ def prepare_lopf(n, snapshots=None, keep_files=False, skip_objective=False,
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_generator_status_variables(n, snapshots)
+    define_generator_built_variables(n, snapshots)
+    define_generator_nonretired_variables(n, snapshots)
     define_nominal_constraints_per_bus_carrier(n, snapshots)
 
     # consider only state_of_charge_set for the moment

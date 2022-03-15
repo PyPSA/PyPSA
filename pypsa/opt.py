@@ -29,7 +29,7 @@ from pyomo.core.base.constraint import _GeneralConstraintData
 
 import pyomo
 from contextlib import contextmanager
-from six.moves import cPickle as pickle
+import pickle
 import gc, os, tempfile
 
 

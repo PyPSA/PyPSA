@@ -1,7 +1,9 @@
 component,variable,marginal_cost,nominal,handle_separately
 Generator,p,True,False,False
-Generator,status,False,False,True
 Generator,p_nom,False,True,False
+Generator,status,False,False,True
+Generator,built,False, False,True
+Generator,nonretired,False,False,True
 Line,s,False,False,False
 Line,s_nom,False,True,False
 Transformer,s,False,False,False
