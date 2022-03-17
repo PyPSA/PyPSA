@@ -7,6 +7,40 @@
 Release Notes
 ##########################################
 
+Synchronisation Release - Ukraine and Moldova (17th March 2022)
+===============================================================
+
+On March 16, 2022, the transmission networks of Ukraine and Moldova have
+successfully been `synchronised with the continental European grid <https://www.entsoe.eu/news/2022/03/16/continental-europe-successful-synchronisation-with-ukraine-and-moldova-power-systems/>`_. We have taken
+this as an opportunity to add the power systems of Ukraine and Moldova to
+PyPSA-Eur. This includes:
+
+.. image:: img/synchronisation.png
+  :width: 500
+
+* the transmission network topology from the `ENTSO-E interactive map <https://www.entsoe.eu/data/map/>`_.
+
+* existing power plants (incl. nuclear, coal, gas and hydro) from the `powerplantmatching <https://github.com/fresna/powerplantmatching>`_ tool
+
+* country-level load time series from ENTSO-E through the `OPSD platform <https://data.open-power-system-data.org/time_series/2020-10-06>`_, which are then distributed heuristically to substations by GDP and population density.
+
+* wind and solar profiles based on ERA5 and SARAH-2 weather data
+
+* hydro profiles based on historical `EIA generation data <https://www.eia.gov/international/data/world>`_
+
+* a simplified calculation of wind and solar potentials based on the `Copernicus Land Cover dataset <https://land.copernicus.eu/global/products/lc>`_.
+
+* electrical characteristics of 750 kV transmission lines
+
+The Crimean power system is currently disconnected from the main Ukrainian grid and, hence, not included.
+
+This release is not on the ``master`` branch. It can be used with
+
+.. code-block:: bash
+
+  git clone https://github.com/pypsa/pypsa-eur
+  git checkout synchronisation-release
+
 
 Upcoming Release
 ================
