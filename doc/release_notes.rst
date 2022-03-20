@@ -69,7 +69,7 @@ open-source HiGHS solver.
 
 **Bugs and Compatibility**
 
-* Combatibility with ``pandas>=1.4``.
+* Compatibility with ``pandas>=1.4``.
 
 * Drop support for Python 3.6 in accordance with its
   [end-of-life](https://endoflife.date/python).

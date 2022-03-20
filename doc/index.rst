@@ -37,6 +37,10 @@ PyPSA: Python for Power System Analysis
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
 
+.. image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
+    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
+    :alt: pre-commit.ci status
+
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is an open source toolbox for

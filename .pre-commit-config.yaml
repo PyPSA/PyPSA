@@ -24,6 +24,7 @@ repos:
   - id: absolufy-imports
 
 # Find common spelling mistakes in comments and docstrings
+<<<<<<< HEAD
 - repo: https://github.com/codespell-project/codespell
   rev: v2.1.0
   hooks:
@@ -32,6 +33,16 @@ repos:
     types_or: [python, rst, markdown]
     files: ^(scripts|doc)/
     
+=======
+# - repo: https://github.com/codespell-project/codespell
+#   rev: v2.1.0
+#   hooks:
+#   - id: codespell
+#     args: ['--ignore-regex="\b[A-Z]+\b"'] # Ignore capital case words, e.g. country codes
+#     types_or: [python, rst, markdown]
+#     files: ^(scripts|doc)/
+
+>>>>>>> c35a945... fix pre-commit compatibility, add badges
 # Make docstrings PEP 257 compliant
 - repo: https://github.com/myint/docformatter
   rev: v1.4

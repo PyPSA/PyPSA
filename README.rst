@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
+|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder| |pre-commit.ci| |black|
 
 -----
 
@@ -288,3 +288,11 @@ PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/P
 .. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
     :alt: Code coverage
+
+.. |pre-commit.ci| image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
+    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
+    :alt: pre-commit.ci status
+
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/psf/black
+   :alt: Code style: black
