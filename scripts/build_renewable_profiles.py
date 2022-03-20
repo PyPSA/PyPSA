@@ -202,7 +202,7 @@ if __name__ == '__main__':
     configure_logging(snakemake)
     pgb.streams.wrap_stderr()
 
-    nprocesses = snakemake.config['atlite'].get('nprocesses')
+    nprocesses = int(snakemake.threads)
     noprogress = not snakemake.config['atlite'].get('show_progress', True)
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
     resource = config['resource'] # pv panel config / wind turbine config
