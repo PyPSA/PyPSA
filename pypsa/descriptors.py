@@ -311,6 +311,25 @@ def get_non_extendable_i(n, c):
     """
     return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
 
+def get_buildable_i(n, c):
+    """
+    Getter function. Get the index of buildable elements of a given component.
+    """
+    if "buildable" not in n.df(c):
+        idx = pd.Index([])
+    else:
+        idx = n.df(c)[lambda ds: ds['buildable']].index
+    return idx.rename(f'{c}-bld')
+
+def get_retirable_i(n, c):
+    """
+    Getter function. Get the index of retirable elements of a given component.
+    """
+    if "retirable" not in n.df(c) or not n._multi_invest:
+        idx = pd.Index([])
+    else:
+        idx = n.df(c)[lambda ds: ds['retirable']].index
+    return idx.rename(f'{c}-ret')
 
 def get_committable_i(n, c):
     """

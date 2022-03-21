@@ -29,6 +29,9 @@ ramp_limit_up,float,per unit,NaN,"Maximum active power increase from one snapsho
 ramp_limit_down,float,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
 ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power.   Only read if committable is True.",Input (optional)
 ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power.   Only read if committable is True.",Input (optional)
+buildable,boolean,n/a,False,"Discrete build decision (only possible if p_nom is not extendable).",Input (optional)
+retirable,boolean,n/a,False,"Can be retired before lifetime (only meaningful for end of multi investment)",Input (optional)
+fom_cost,float,currency/MW,0,"Saved operation and maintenance per year and capacity at early retirement",Input (optional)
 p,series,MW,0,active power at bus (positive if net generation),Output
 q,series,MVar,0,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
