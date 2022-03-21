@@ -1,7 +1,10 @@
-import pypsa
+# -*- coding: utf-8 -*-
 import os
+
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
 
 
 @pytest.fixture

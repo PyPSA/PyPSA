@@ -4,7 +4,7 @@ Sector Coupling
 
 
 This section provides examples related to coupling different energy sectors in a power system optimization:
- 
+
 
 .. toctree::
     :maxdepth: 1

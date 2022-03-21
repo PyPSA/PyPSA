@@ -62,7 +62,7 @@ Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
 Technology <http://www.kit.edu/english/index.php>`_ funded by the
-`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the 
+`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the
 `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations

@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Feb  1 15:20:12 2022
+Created on Tue Feb  1 15:20:12 2022.
 
 @author: fabian
 """
 
-import pytest
 import pandas as pd
-from pypsa.descriptors import (
-    expand_series,
-    get_switchable_as_dense as get_as_dense,
-    nominal_attrs,
-)
+import pytest
 
+from pypsa.descriptors import expand_series
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
 
 def describe_storage_unit_contraints(n):
     """
-    Checks whether all storage units are balanced over time. This function
-    requires the network to contain the separate variables p_store and
-    p_dispatch, since they cannot be reconstructed from p. The latter results
-    from times tau where p_store(tau) > 0 **and** p_dispatch(tau) > 0, which
-    is allowed (even though not economic). Therefor p_store is necessarily
-    equal to negative entries of p, vice versa for p_dispatch.
+    Checks whether all storage units are balanced over time.
+
+    This function requires the network to contain the separate variables
+    p_store and p_dispatch, since they cannot be reconstructed from p.
+    The latter results from times tau where p_store(tau) > 0 **and**
+    p_dispatch(tau) > 0, which is allowed (even though not economic).
+    Therefor p_store is necessarily equal to negative entries of p, vice
+    versa for p_dispatch.
     """
     sus = n.storage_units
     sus_i = sus.index
@@ -72,7 +72,7 @@ def describe_storage_unit_contraints(n):
 
 def describe_nodal_balance_constraint(n):
     """
-    Helper function to double check whether network flow is balanced
+    Helper function to double check whether network flow is balanced.
     """
     network_injection = (
         pd.concat(
@@ -96,7 +96,8 @@ def describe_nodal_balance_constraint(n):
 
 def describe_upper_dispatch_constraints(n):
     """
-    Recalculates the minimum gap between operational status and nominal capacity
+    Recalculates the minimum gap between operational status and nominal
+    capacity.
     """
     description = {}
     key = " Upper Limit"

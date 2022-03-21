@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jan 31 18:11:09 2022
+Created on Mon Jan 31 18:11:09 2022.
 
 @author: fabian
 """
 
 import numpy as np
 import pandas as pd
+
 from pypsa.networkclustering import (
-    get_clustering_from_busmap,
-    busmap_by_kmeans,
     busmap_by_hac,
+    busmap_by_kmeans,
+    get_clustering_from_busmap,
 )
 
 

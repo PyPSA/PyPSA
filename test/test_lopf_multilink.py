@@ -1,5 +1,7 @@
-import pypsa
+# -*- coding: utf-8 -*-
 import numpy as np
+
+import pypsa
 
 
 def test_basic_sector_coupling():

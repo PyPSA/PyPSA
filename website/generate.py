@@ -1,30 +1,33 @@
+# -*- coding: utf-8 -*-
 # make the code as Python 3 compatible as possible
-from __future__ import print_function, division, absolute_import
+from __future__ import absolute_import, division, print_function
 
-import os, sys
+import os
+import sys
 
-
-hierarchy = [["index.html","home"],
-             ["download/index.html","download"],
-             ["examples/index.html","examples"],
-             ["doc/index.html","documentation"],
-             ["publications/index.html","publications"],
-             ["animations/index.html","animations"],
-             ["forum/index.html","forum"],
+hierarchy = [
+    ["index.html", "home"],
+    ["download/index.html", "download"],
+    ["examples/index.html", "examples"],
+    ["doc/index.html", "documentation"],
+    ["publications/index.html", "publications"],
+    ["animations/index.html", "animations"],
+    ["forum/index.html", "forum"],
 ]
 
 
-
 def process_org(org_name):
-    """Build HTML page and write it."""
+    """
+    Build HTML page and write it.
+    """
 
     html_name = org_name[:-4] + ".html"
 
-    root_path = org_name.count("/")*"../"
+    root_path = org_name.count("/") * "../"
 
     hierarchy_path = []
 
-    def find_path(layer,path,hierarchy_path):
+    def find_path(layer, path, hierarchy_path):
         if len(path) > 0 and path[-1] == html_name:
             hierarchy_path += path
         else:
@@ -34,9 +37,9 @@ def process_org(org_name):
                     new_layer = item[2]
                 else:
                     new_layer = []
-                find_path(new_layer,new_path,hierarchy_path)
+                find_path(new_layer, new_path, hierarchy_path)
 
-    find_path(hierarchy,[],hierarchy_path)
+    find_path(hierarchy, [], hierarchy_path)
 
     hierarchy_path.append("")
 
@@ -46,20 +49,29 @@ def process_org(org_name):
 
     menu = ""
 
-    for n,item in enumerate(hierarchy_path):
+    for n, item in enumerate(hierarchy_path):
 
         bare_layer = [i[0] for i in layer]
 
-        filled_layer = [[i[0],i[0][:i[0].rfind(".")]] if len(i) < 2 else i for i in layer]
+        filled_layer = [
+            [i[0], i[0][: i[0].rfind(".")]] if len(i) < 2 else i for i in layer
+        ]
 
-        menu += "<ul id=\"{}menu\">\n".format("sub"*(n+1))
+        menu += '<ul id="{}menu">\n'.format("sub" * (n + 1))
 
-        menu += "".join(["<li><a href=\"{}\">{}</a></li>\n".format(root_path + i[0],i[1]) if i[0] != item and i[0] != html_name else "<li><span class=\"current\">{}</span></li>\n".format(i[1]) for i in filled_layer])
+        menu += "".join(
+            [
+                '<li><a href="{}">{}</a></li>\n'.format(root_path + i[0], i[1])
+                if i[0] != item and i[0] != html_name
+                else '<li><span class="current">{}</span></li>\n'.format(i[1])
+                for i in filled_layer
+            ]
+        )
 
         menu += "</ul>\n"
 
         if item != "":
-            full_item = layer[ bare_layer.index(item)]
+            full_item = layer[bare_layer.index(item)]
             for i in filled_layer:
                 if i[0] == html_name:
                     name = i[1]
@@ -70,7 +82,6 @@ def process_org(org_name):
             break
 
         layer = full_item[2]
-
 
     html = """<!DOCTYPE html
 PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
@@ -86,22 +97,21 @@ PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
 
 {}
 
-""".format(name, root_path + "theme.css", menu)
+""".format(
+        name, root_path + "theme.css", menu
+    )
 
-
-    html += "\n\n</div>\n\n<div id=\"main\">\n\n"
-
+    html += '\n\n</div>\n\n<div id="main">\n\n'
 
     command = "emacs {} --batch -f org-html-export-to-html --kill".format(org_name)
 
     os.system(command)
 
-    f = open(html_name,"r")
+    f = open(html_name, "r")
 
     org_html = f.read()
 
     f.close()
-
 
     if "outer_box" in org_html:
         print("File is already processed, skipping")
@@ -113,18 +123,18 @@ PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
         print("Start string not found, skipping")
         return
 
-
     end_string = '<div id="postamble" class="status">'
     if end_string not in org_html:
         print("End string not found, skipping")
         return
 
-    new = org_html[org_html.find(start_string)+len(start_string):org_html.find(end_string)]
+    new = org_html[
+        org_html.find(start_string) + len(start_string) : org_html.find(end_string)
+    ]
 
+    html = html + new + "\n\n</body>\n</html>\n"
 
-    html  = html + new + "\n\n</body>\n</html>\n"
-
-    f = open(html_name,"w")
+    f = open(html_name, "w")
 
     f.write(html)
 
@@ -140,6 +150,6 @@ for path, sub_dirs, file_names in os.walk("."):
 
     for file_name in file_names:
         if file_name[-4:] == ".org":
-            full_name = os.path.join(path,file_name)[2:]
+            full_name = os.path.join(path, file_name)[2:]
             print(full_name)
             process_org(full_name)
