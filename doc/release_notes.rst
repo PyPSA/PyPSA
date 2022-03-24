@@ -7,7 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new features
+* Greedy Modularity Maximisation was introduced as new spatial
+  clustering method [`#377 <https://github.com/PyPSA/PyPSA/pull/377>`_].
 
 PyPSA 0.19.2 (7th March 2022)
 =============================
