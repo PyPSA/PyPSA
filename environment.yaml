@@ -1,21 +1,21 @@
 name: pypsa
 channels:
-  - conda-forge
+- conda-forge
 dependencies:
-  - python>=3.7
-  - numpy
-  - scipy
-  - pandas>=0.24.0
-  - xarray
-  - netcdf4
-  - pytables
-  - matplotlib
-  - pyomo>=5.7.0
-  - cartopy>=0.16
-  - glpk
-  - deprecation
+- python>=3.7
+- numpy
+- scipy
+- pandas>=0.24.0
+- xarray
+- netcdf4
+- pytables
+- matplotlib
+- pyomo>=5.7.0
+- cartopy>=0.16
+- glpk
+- deprecation
 #  - coincbc
 #  - gurobi::gurobi
 
-  - pip:
-    - git+https://github.com/networkx/networkx.git#egg=networkx
+- pip:
+  - git+https://github.com/networkx/networkx.git#egg=networkx

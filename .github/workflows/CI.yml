@@ -11,7 +11,7 @@ on:
     branches:
     - master
   schedule:
-    - cron: "0 5 * * TUE"
+  - cron: "0 5 * * TUE"
 
 jobs:
   build:
@@ -57,7 +57,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: crazy-max/ghaction-chocolatey@v1
       with:
-          args: -h
+        args: -h
 
     - name: Install windows dependencies
       if: matrix.os == 'windows-latest'

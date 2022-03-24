@@ -31,7 +31,7 @@ repos:
     args: ['--ignore-regex="\b[A-Z]+\b"'] # Ignore capital case words, e.g. country codes
     types_or: [python, rst, markdown]
     files: ^(scripts|doc)/
-    
+
 # Make docstrings PEP 257 compliant
 - repo: https://github.com/myint/docformatter
   rev: v1.4

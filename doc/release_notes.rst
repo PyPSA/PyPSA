@@ -18,7 +18,7 @@ PyPSA 0.19.2 (7th March 2022)
 PyPSA 0.19.1 (18th February 2022)
 =================================
 
-* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.   
+* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.
 
 
 PyPSA 0.19.0 (11th February 2022)
@@ -62,7 +62,7 @@ open-source HiGHS solver.
 
 * The names of the indexes in static dataframes are now set to the component
   names. So, the index of ``n.generators`` has the name 'Generator'. The same
-  accounts for the columns of the timeseries.  
+  accounts for the columns of the timeseries.
 
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period',
   'timestep'], the name of the index was set to 'snapshot'. This makes the
@@ -82,7 +82,7 @@ open-source HiGHS solver.
 
 * When running ``network.lopf(pyomo=False)``, the ramp limits did not take
   the time step right before the optimization horizon into account (relevant for
-  rolling horizon optimization). This is now fixed.  
+  rolling horizon optimization). This is now fixed.
 
 * Fix bug when multi-links are defined but the network has no links.
 
@@ -107,7 +107,7 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
-  
+
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
   were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 
