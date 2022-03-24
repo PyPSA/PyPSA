@@ -10,10 +10,12 @@ dependencies:
   - netcdf4
   - pytables
   - matplotlib
-  - networkx>=1.10
   - pyomo>=5.7.0
   - cartopy>=0.16
   - glpk
   - deprecation
 #  - coincbc
 #  - gurobi::gurobi
+
+  - pip:
+    - git+https://github.com/networkx/networkx.git#egg=networkx
