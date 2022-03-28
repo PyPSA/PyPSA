@@ -7,7 +7,11 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new features
+* Apply pre-commit formats to support development (incl. black formatting,
+  jupyter cleanup, import sorting, preventing large file uploads). This will
+  distort ``git blame`` functionality, which can be fixed by running ``git
+  config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
+  repostory. Run ``pre-commit install`` to set up locally. 
 
 PyPSA 0.19.2 (7th March 2022)
 =============================
