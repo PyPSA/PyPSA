@@ -7,6 +7,12 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Apply pre-commit formats to support development (incl. black formatting,
+  jupyter cleanup, import sorting, preventing large file uploads). This will
+  distort ``git blame`` functionality, which can be fixed by running ``git
+  config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
+  repostory. Run ``pre-commit install`` to set up locally.
+
 * Greedy Modularity Maximisation was introduced as new spatial
   clustering method [`#377 <https://github.com/PyPSA/PyPSA/pull/377>`_].
 
@@ -70,7 +76,7 @@ open-source HiGHS solver.
 
 **Bugs and Compatibility**
 
-* Combatibility with ``pandas>=1.4``.
+* Compatibility with ``pandas>=1.4``.
 
 * Drop support for Python 3.6 in accordance with its
   [end-of-life](https://endoflife.date/python).

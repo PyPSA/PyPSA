@@ -57,8 +57,8 @@ def define_variables(n, lower, upper, name, attr="", axes=None, spec="", mask=No
     Defines variable(s) for pypsa-network with given lower bound(s) and upper
     bound(s). The variables are stored in the network object under n.vars with
     key of the variable name. If multiple variables are defined at ones, at
-    least one of lower and upper has to be an array (including pandas) of shape
-    > (1,) or axes have to define the dimensions of the variables.
+    least one of lower and upper has to be an array (including pandas) of
+    `shape > (1,)` or axes have to define the dimensions of the variables.
 
     Parameters
     ----------
