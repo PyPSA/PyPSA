@@ -11,7 +11,7 @@ Upcoming Release
   jupyter cleanup, import sorting, preventing large file uploads). This will
   distort ``git blame`` functionality, which can be fixed by running ``git
   config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
-  repostory. Run ``pre-commit install`` to set up locally. 
+  repostory. Run ``pre-commit install`` to set up locally.
 
 PyPSA 0.19.2 (7th March 2022)
 =============================
