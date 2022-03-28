@@ -28,10 +28,10 @@ repos:
   rev: v2.1.0
   hooks:
   - id: codespell
-    args: ['--ignore-regex="\b[A-Z]+\b"'] # Ignore capital case words, e.g. country codes
+    args: ['--ignore-regex="(\b[A-Z]+\b)"', '--ignore-words=.codespell.ignore'] # Ignore capital case words, e.g. country codes
     types_or: [python, rst, markdown]
     files: ^(scripts|doc)/
-    
+
 # Make docstrings PEP 257 compliant
 - repo: https://github.com/myint/docformatter
   rev: v1.4

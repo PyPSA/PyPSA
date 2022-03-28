@@ -1,7 +1,10 @@
-import pypsa
+# -*- coding: utf-8 -*-
 import os
+
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
 
 solver_name = "glpk"
 
@@ -23,8 +26,8 @@ def ac_dc_network_r():
 @pytest.mark.parametrize("free_memory", [{}, {"pypsa"}])
 def test_lopf(ac_dc_network, ac_dc_network_r, formulation, free_memory):
     """
-    Test results were generated with GLPK; solution should be unique,
-    so other solvers should not differ (e.g. cbc or gurobi)
+    Test results were generated with GLPK; solution should be unique, so other
+    solvers should not differ (e.g. cbc or gurobi)
     """
     n = ac_dc_network
     n_r = ac_dc_network_r

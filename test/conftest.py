@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jan 31 18:29:48 2022
+Created on Mon Jan 31 18:29:48 2022.
 
 @author: fabian
 """
 
-import pytest
 import os
-import pypsa
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import pytest
+
+import pypsa
 
 
 @pytest.fixture(scope="module")

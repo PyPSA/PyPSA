@@ -6,11 +6,11 @@ by the PyPSA project.
 """
 
 import logging
-from urllib.request import urlretrieve as _retrieve
 import os
-
 from pathlib import Path
-from .components import Network
+from urllib.request import urlretrieve as _retrieve
+
+from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,8 @@ def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
 
 def ac_dc_meshed(update=False, from_master=False):
     """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA repository.
+    Load the meshed AC-DC network example of pypsa stored in the PyPSA
+    repository.
 
     Parameters
     ----------
@@ -64,7 +65,6 @@ def ac_dc_meshed(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "ac-dc-meshed"
     repofile = "examples/ac-dc-meshed/ac-dc-data.nc"
@@ -86,7 +86,6 @@ def storage_hvdc(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "storage-hvdc"
     repofile = "examples/opf-storage-hvdc/storage-hvdc.nc"
@@ -108,7 +107,6 @@ def scigrid_de(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "scigrid-de"
     repofile = "examples/scigrid-de/scigrid-with-load-gen-trafos.nc"

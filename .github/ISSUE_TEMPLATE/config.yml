@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: PyPSA Mailing List
-    url: https://groups.google.com/forum/#!forum/pypsa
-    about: Please ask and answer general usage questions here.
+- name: PyPSA Mailing List
+  url: https://groups.google.com/forum/#!forum/pypsa
+  about: Please ask and answer general usage questions here.

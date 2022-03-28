@@ -1,12 +1,15 @@
+# -*- coding: utf-8 -*-
 import os
-import numpy as np
-import pypsa
-import pytest
 
-from numpy.testing import assert_array_almost_equal as arr_equal
+import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal as equal
+from numpy.testing import assert_array_almost_equal as arr_equal
+
+import pypsa
 
 solver_name = "glpk"
+
 
 def test_sclopf(scipy_network):
     n = scipy_network
@@ -34,9 +37,7 @@ def test_sclopf(scipy_network):
 
         # Check no lines are overloaded with the linear contingency analysis
 
-        p0_test = n.lpf_contingency(
-            n.snapshots[0], branch_outages=branch_outages
-        )
+        p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)
 
         # check loading as per unit of s_nom in each contingency
 
@@ -51,4 +52,3 @@ def test_sclopf(scipy_network):
         objectives.append(n.objective)
 
     equal(*objectives, decimal=1)
-
