@@ -233,7 +233,7 @@ nbsphinx_prolog = """
 .. note::
 
     You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
-    or start it `in interactive mode <https://mybinder.org/v2/gh/PyPSA/pypsa/v{{ env.config.release|e }}?filepath={{ docname|e }}>`_.
+    or start it `in interactive mode <https://mybinder.org/v2/gh/PyPSA/pypsa/v{{ env.config.release|e }}?labpath={{ docname|e }}>`_.
 
 """
 
