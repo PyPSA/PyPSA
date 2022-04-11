@@ -933,7 +933,7 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
 
     lines = network.lines.query("bus0 in @buses_i and bus1 in @buses_i")
     lines = (
-        lines.loc[:, ["bus0", "bus1"]]
+        lines[["bus0", "bus1"]]
         .assign(weight=network.lines.s_nom / abs(lines.r + 1j * lines.x))
         .set_index(["bus0", "bus1"])
     )
