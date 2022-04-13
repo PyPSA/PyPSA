@@ -43,6 +43,7 @@ setup(
             "nbsphinx",
             "nbsphinx-link",
             "black",
+            "scikit-learn",
         ],
         "gurobipy": ["gurobipy"],
     },
