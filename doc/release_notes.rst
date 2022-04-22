@@ -13,6 +13,8 @@ Upcoming Release
   config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
   repostory. Run ``pre-commit install`` to set up locally.
 
+* Change message when exporting and importing networks without a set ``network_name``. Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
+
 PyPSA 0.19.2 (7th March 2022)
 =============================
 
