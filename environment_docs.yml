@@ -23,6 +23,7 @@ dependencies:
 - seaborn
 - pandoc
 - ipykernel   # for executing nbs
+- scikit-learn  # for spatial clustering
 
 - pip:
   - .
