@@ -449,7 +449,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         exported_components.append(list_name)
 
     logger.info(
-        "Exported network {} has {}".format(basename, ", ".join(exported_components))
+        f"Exported network {str(basename or '<unnamed>')} "
+        f"has {', '.join(exported_components)}"
     )
 
 
@@ -751,9 +752,8 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         imported_components.append(list_name)
 
     logger.info(
-        "Imported network{} has {}".format(
-            " " + basename, ", ".join(imported_components)
-        )
+        f"Imported network {str(basename or network.name or '<unnamed>')} "
+        f"has {', '.join(imported_components)}"
     )
 
 
