@@ -622,7 +622,7 @@ class Network(Basic):
             this to False saves a lot of memory and time.
 
             .. deprecated:: 0.20
-  
+
                In PyPSA version 0.21 the default will change to ``pyomo=False``.
 
         solver_name : string
