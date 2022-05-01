@@ -409,6 +409,11 @@ def network_sclopf(
     pyomo : bool, default True
         Whether to use pyomo for building and solving the model, setting
         this to False saves a lot of memory and time.
+
+        .. deprecated:: 0.20
+
+            In PyPSA version 0.21 the default will change to ``pyomo=False``.
+
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
