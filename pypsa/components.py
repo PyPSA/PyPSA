@@ -620,6 +620,11 @@ class Network(Basic):
         pyomo : bool, default True
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
+
+            .. deprecated:: 0.20
+  
+               In PyPSA version 0.21 the default will change to ``pyomo=False``.
+
         solver_name : string
             Must be a solver name that pyomo recognises and that is
             installed, e.g. "glpk", "gurobi"
@@ -730,6 +735,10 @@ class Network(Basic):
             )
 
         if pyomo:
+            logger.warning(
+                "Solving optimisation problem with pyomo."
+                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``"
+            )
             return network_lopf(self, **args)
         else:
             return network_lopf_lowmem(self, **args)
