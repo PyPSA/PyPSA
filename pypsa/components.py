@@ -737,7 +737,8 @@ class Network(Basic):
         if pyomo:
             logger.warning(
                 "Solving optimisation problem with pyomo."
-                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``"
+                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``."
+                "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
             )
             return network_lopf(self, **args)
         else:
