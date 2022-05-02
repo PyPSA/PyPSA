@@ -688,6 +688,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             ).format(current_pypsa_version, pypsa_version)
         )
 
+    if pypsa_version is None or pypsa_version < [0, 18, 0]:
+        network._multi_invest = 0
+
     importer.pypsa_version = pypsa_version
     importer.current_pypsa_version = current_pypsa_version
 
