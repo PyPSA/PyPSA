@@ -6,7 +6,7 @@
 
 import os
 import sys
-from distutils.spawn import find_executable
+from shutil import which
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ solver_executable = {"glpk": "glpsol", "gurobi": "gurobi_cl"}
 solver_name = None
 
 for s in solver_search_order:
-    if find_executable(solver_executable[s]) is not None:
+    if which(solver_executable[s]) is not None:
         solver_name = s
         break
 

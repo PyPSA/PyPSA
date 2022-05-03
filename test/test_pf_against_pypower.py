@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-from distutils.version import StrictVersion
-
+from packaging.version import Version, parse
 from pypower.api import case118 as case
 from pypower.api import ppoption, runpf
 from pypower.ppver import ppver
 
 import pypsa
 
-pypower_version = StrictVersion(ppver()["Version"])
+pypower_version = parse(ppver()["Version"])
 
 import numpy as np
 import pandas as pd
@@ -16,7 +15,7 @@ from numpy.testing import assert_array_almost_equal as equal
 
 
 @pytest.mark.skipif(
-    pypower_version <= "5.0.0",
+    pypower_version <= Version("5.0.0"),
     reason="PyPOWER 5.0.0 is broken with recent numpy and unmaintained since Aug 2017.",
 )
 def test_pypower_case():
