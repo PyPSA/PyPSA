@@ -32,20 +32,15 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-from distutils.version import LooseVersion, StrictVersion
+from packaging.version import Version, parse
 
-try:
-    _nx_version = StrictVersion(nx.__version__)
-except ValueError:
-    _nx_version = LooseVersion(nx.__version__)
-
-if _nx_version >= "1.12":
+if parse(nx.__version__) >= Version("1.12"):
 
     class OrderedGraph(nx.MultiGraph):
         node_dict_factory = OrderedDict
         adjlist_dict_factory = OrderedDict
 
-elif _nx_version >= "1.10":
+elif parse(nx.__version__) >= Version("1.10"):
 
     class OrderedGraph(nx.MultiGraph):
         node_dict_factory = OrderedDict
@@ -82,7 +77,7 @@ else:
         )
     )
 
-if _nx_version >= "2.0":
+if parse(nx.__version__) >= Version("2.0"):
 
     def degree(G):
         return G.degree()

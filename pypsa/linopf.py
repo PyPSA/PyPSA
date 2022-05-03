@@ -22,11 +22,10 @@ __copyright__ = (
     "MIT License"
 )
 
-from distutils.version import LooseVersion
-
 import numpy as np
 import pandas as pd
 from numpy import inf
+from packaging.version import Version, parse
 
 from pypsa.descriptors import (
     Dict,
@@ -63,8 +62,9 @@ from pypsa.linopt import (
 from pypsa.pf import _as_snapshots
 from pypsa.pf import get_switchable_as_dense as get_as_dense
 
-pd_version = LooseVersion(pd.__version__)
-agg_group_kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
+agg_group_kwargs = (
+    dict(numeric_only=False) if parse(pd.__version__) >= Version("1.3") else {}
+)
 
 import gc
 import logging
