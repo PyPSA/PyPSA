@@ -7,6 +7,9 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* When iterating over components of a Subnetwork, only a those assets are included in the dataframes which are included in the subnetwork.
+
+
 PyPSA 0.19.3 (22nd April 2022)
 ==============================
 
