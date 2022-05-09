@@ -1622,6 +1622,24 @@ class SubNetwork(Common):
         return self.network.storage_units.loc[self.storage_units_i()]
 
     def iterate_components(self, components=None, skip_empty=True):
+        """
+        Iterate over components of the subnetwork and extract corresponding
+        data.
+
+        Parameters
+        ----------
+        components : list-like, optional
+            List of components ('Generator', 'Line', etc.) to iterate over,
+            by default None
+        skip_empty : bool, optional
+            Whether to skip a components with no assigned assets,
+            by default True
+
+        Yields
+        ------
+        Component
+            Container for component data. See Component class for details.
+        """
         for c in self.network.iterate_components(
             components=components, skip_empty=False
         ):
