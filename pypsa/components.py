@@ -1167,12 +1167,27 @@ class Network(Basic):
                 logger.warning("The following %s have buses which are not defined:\n%s",
                                c.list_name, missing)
 
+        # check for unknown buses
         for c in self.iterate_components(self.branch_components):
             for attr in ["bus0","bus1"]:
                 missing = c.df.index[~c.df[attr].isin(self.buses.index)]
                 if len(missing) > 0:
                     logger.warning("The following %s have %s which are not defined:\n%s",
                                    c.list_name, attr, missing)
+
+        # check for disconnected buses
+        connected_buses = set()
+        for c in self.iterate_components(self.branch_components):
+            for attr in ["bus0","bus1"]:
+                connected_buses.update(c.df[attr])
+        for c in self.iterate_components(self.one_port_components):
+            for attr in ["bus"]:
+                connected_buses.update(c.df[attr])
+
+        disconnected_buses = list(set(self.buses.index) - connected_buses)
+        if len(disconnected_buses) > 0:
+            logger.warning(f"The following buses are not connected:\n{disconnected_buses}\n - lopf might fail, to be fixed.")
+
 
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:
@@ -1328,6 +1343,7 @@ class Network(Basic):
                                    unmatched.index[unmatched],
                                    c.pnl[attr].dtypes[unmatched],
                                    typ)
+
 
 class SubNetwork(Common):
     """

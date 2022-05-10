@@ -403,7 +403,9 @@ def define_nodal_balance_constraints(n, sns):
            .reindex(columns=n.buses.index, fill_value=''))
 
     if (lhs == '').any().any():
-        raise ValueError("Empty LHS in nodal balance constraint.")
+        logger.warning(f"Empty LHS in nodal balance constraint (unconnected buses?): {lhs[lhs=='']}")
+        lhs = lhs[~(lhs=='')]
+        #raise ValueError("Empty LHS in nodal balance constraint.")
 
     sense = '='
     rhs = ((- get_as_dense(n, 'Load', 'p_set', sns) * n.loads.sign)
