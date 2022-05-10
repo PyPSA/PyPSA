@@ -1186,7 +1186,7 @@ class Network(Basic):
 
         disconnected_buses = set(self.buses.index) - connected_buses
         if disconnected_buses:
-            logger.warning(f"The following buses are not connected:\n{disconnected_buses}\n - lopf might fail, to be fixed.")
+            logger.warning(f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}")
 
 
         def bad_by_type(branch, attr):
