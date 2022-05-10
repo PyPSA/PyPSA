@@ -4,5 +4,5 @@
 Build optimisation problems from PyPSA networks with Linopy.
 """
 
-from . import variables, constraints, abstract, optimize
-from .optimize import create_model
+from pypsa.optimization import abstract, constraints, optimize, variables
+from pypsa.optimization.optimize import create_model

@@ -5,15 +5,16 @@ Define optimisation variables from PyPSA networks with Linopy.
 """
 import logging
 
-from ..descriptors import get_activity_mask, get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_activity_mask
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 logger = logging.getLogger(__name__)
 
 
 def define_operational_variables(n, sns, c, attr):
     """
-    Initializes variables for power dispatch for a given component and a
-    given attribute.
+    Initializes variables for power dispatch for a given component and a given
+    attribute.
 
     Parameters
     ----------
@@ -22,7 +23,6 @@ def define_operational_variables(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
     if n.df(c).empty:
         return
@@ -55,7 +55,6 @@ def define_nominal_variables(n, c, attr):
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable, e.g. 'p_nom'
-
     """
     ext_i = n.get_extendable_i(c)
     if ext_i.empty:

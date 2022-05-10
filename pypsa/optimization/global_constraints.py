@@ -6,25 +6,25 @@ Define global constraints for optimisation problems with Linopy.
 
 import logging
 import re
+
 import pandas as pd
+from linopy.expressions import merge
 from numpy import isnan, nan
 from xarray import DataArray
-from linopy.expressions import merge
 
-from ..descriptors import nominal_attrs
+from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
     """
-    Set an capacity expansion limit for assets of the same carrier at the
-    same bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
-    `buses` dataframe matching the pattern "nom_{min/max}_{carrier}".
-    In case the constraint should only be defined for one investment period,
-    the column name can be constructed according to
-    "nom_{min/max}_{carrier}_{period}" where period must be in
-    `n.investment_periods`.
+    Set an capacity expansion limit for assets of the same carrier at the same
+    bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
+    `buses` dataframe matching the pattern "nom_{min/max}_{carrier}". In case
+    the constraint should only be defined for one investment period, the column
+    name can be constructed according to "nom_{min/max}_{carrier}_{period}"
+    where period must be in `n.investment_periods`.
 
     Parameters
     ----------
@@ -92,7 +92,8 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
 
 
 def define_growth_limit(n, sns):
-    """Constraint new installed capacity per investment period.
+    """
+    Constraint new installed capacity per investment period.
 
     Parameters
     ----------
@@ -148,7 +149,6 @@ def define_primary_energy_limit(n, sns):
     Defines primary energy constraints. It limits the byproducts of primary
     energy sources (defined by carriers) such as CO2.
 
-
     Parameters
     ----------
     n : pypsa.Network
@@ -158,7 +158,6 @@ def define_primary_energy_limit(n, sns):
     Returns
     -------
     None.
-
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -226,7 +225,6 @@ def define_transmission_volume_expansion_limit(n, sns):
     Set a limit for line volume expansion. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
 
-
     Parameters
     ----------
     n : pypsa.Network
@@ -236,7 +234,6 @@ def define_transmission_volume_expansion_limit(n, sns):
     Returns
     -------
     None.
-
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
@@ -283,7 +280,6 @@ def define_transmission_expansion_cost_limit(n, sns):
     Set a limit for line expansion costs. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
 
-
     Parameters
     ----------
     n : pypsa.Network
@@ -293,7 +289,6 @@ def define_transmission_expansion_cost_limit(n, sns):
     Returns
     -------
     None.
-
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
