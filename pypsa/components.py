@@ -1315,7 +1315,7 @@ class Network(Basic):
         # check for disconnected buses
         connected_buses = set()
         for c in self.iterate_components(self.branch_components):
-            for attr in ["bus0","bus1"]:
+            for attr in ["bus0", "bus1"]:
                 connected_buses.update(c.df[attr])
         for c in self.iterate_components(self.one_port_components):
             for attr in ["bus"]:
@@ -1323,8 +1323,9 @@ class Network(Basic):
 
         disconnected_buses = set(self.buses.index) - connected_buses
         if disconnected_buses:
-            logger.warning(f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}")
-
+            logger.warning(
+                f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}"
+            )
 
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:
@@ -1540,7 +1541,6 @@ class Network(Basic):
                         c.pnl[attr].dtypes[unmatched],
                         typ,
                     )
-
 
 
 class SubNetwork(Common):
