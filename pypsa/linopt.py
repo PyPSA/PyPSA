@@ -10,7 +10,7 @@
 ## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """
-Tools for fast Linear Problem file writing. This module contains
+Tools for fast Linear Problem file writing. This module contains.
 
 - io functions for writing out variables, constraints and objective
   into a lp file.
@@ -22,19 +22,28 @@ This module supports the linear optimal power flow calculation without using
 pyomo (see module linopt.py)
 """
 
-__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-                 "MIT License")
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
 
 
-from .descriptors import Dict
-import pandas as pd
+import io
+import logging
 import os
-import logging, re, io, subprocess
-import numpy as np
-from pandas import IndexSlice as idx
+import re
+import subprocess
 from importlib.util import find_spec
-from distutils.version import LooseVersion
+
+import numpy as np
+import pandas as pd
+from packaging.version import Version, parse
+from pandas import IndexSlice as idx
+
+from pypsa.descriptors import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +51,14 @@ logger = logging.getLogger(__name__)
 # Front end functions
 # =============================================================================
 
-def define_variables(n, lower, upper, name, attr='', axes=None, spec='', mask=None):
+
+def define_variables(n, lower, upper, name, attr="", axes=None, spec="", mask=None):
     """
     Defines variable(s) for pypsa-network with given lower bound(s) and upper
     bound(s). The variables are stored in the network object under n.vars with
     key of the variable name. If multiple variables are defined at ones, at
     least one of lower and upper has to be an array (including pandas) of
-    shape > (1,) or axes have to define the dimensions of the variables.
+    `shape > (1,)` or axes have to define the dimensions of the variables.
 
     Parameters
     ----------
@@ -101,12 +111,12 @@ def define_variables(n, lower, upper, name, attr='', axes=None, spec='', mask=No
     return var
 
 
-def define_binaries(n, axes, name, attr='',  spec='', mask=None):
+def define_binaries(n, axes, name, attr="", spec="", mask=None):
     """
-    Defines binary-variable(s) for pypsa-network. The variables are stored
-    in the network object under n.vars with key of the variable name.
-    For each entry for the pd.Series of pd.DataFrame spanned by the axes
-    argument the function defines a binary.
+    Defines binary-variable(s) for pypsa-network. The variables are stored in
+    the network object under n.vars with key of the variable name. For each
+    entry for the pd.Series of pd.DataFrame spanned by the axes argument the
+    function defines a binary.
 
     Parameters
     ----------
@@ -131,23 +141,24 @@ def define_binaries(n, axes, name, attr='',  spec='', mask=None):
     See also
     ---------
     define_variables
-
     """
     var = write_binary(n, axes)
     set_varref(n, var, name, attr, spec=spec)
     return var
 
 
-def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec='',
-                       mask=None):
+def define_constraints(
+    n, lhs, sense, rhs, name, attr="", axes=None, spec="", mask=None
+):
     """
     Defines constraint(s) for pypsa-network with given left hand side (lhs),
     sense and right hand side (rhs). The constraints are stored in the network
-    object under n.cons with key of the constraint name. If multiple constraints
-    are defined at ones, only using np.arrays, then the axes argument can be used
-    for defining the axes for the constraints (this is especially recommended
-    for time-dependent constraints). If one of lhs, sense and rhs is a
-    pd.Series/pd.DataFrame the axes argument is not necessary.
+    object under n.cons with key of the constraint name. If multiple
+    constraints are defined at ones, only using np.arrays, then the axes
+    argument can be used for defining the axes for the constraints (this is
+    especially recommended for time-dependent constraints). If one of lhs,
+    sense and rhs is a pd.Series/pd.DataFrame the axes argument is not
+    necessary.
 
     Parameters
     ----------
@@ -202,15 +213,16 @@ def define_constraints(n, lhs, sense, rhs, name, attr='', axes=None, spec='',
     to the keep_shadowprices argument.
 
     Note that this is useful for the `extra_functionality` argument.
-
     """
     con = write_constraint(n, lhs, sense, rhs, axes, mask)
     set_conref(n, con, name, attr, spec=spec)
     return con
 
+
 # =============================================================================
 # writing functions
 # =============================================================================
+
 
 def _get_handlers(axes, *maybearrays):
     axes = [axes] if isinstance(axes, pd.Index) else axes
@@ -224,57 +236,66 @@ def _get_handlers(axes, *maybearrays):
 
 def write_bound(n, lower, upper, axes=None, mask=None):
     """
-    Writer function for writing out multiple variables at a time. If lower and
-    upper are floats it demands to give pass axes, a tuple of (index, columns)
-    or (index), for creating the variable of same upper and lower bounds.
-    Return a series or frame with variable references.
+    Writer function for writing out multiple variables at a time.
+
+    If lower and upper are floats it demands to give pass axes, a tuple
+    of (index, columns) or (index), for creating the variable of same
+    upper and lower bounds. Return a series or frame with variable
+    references.
     """
     axes, shape, size = _get_handlers(axes, lower, upper)
-    if not size: return pd.Series(dtype=float)
+    if not size:
+        return pd.Series(dtype=float)
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
     lower, upper = _str_array(lower), _str_array(upper)
-    exprs = lower + ' <= x' + _str_array(variables, True) + ' <= '+ upper + '\n'
+    exprs = lower + " <= x" + _str_array(variables, True) + " <= " + upper + "\n"
     if mask is not None:
-        exprs = np.where(mask, exprs, '')
+        exprs = np.where(mask, exprs, "")
         variables = np.where(mask, variables, -1)
     n.bounds_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
+
 def write_constraint(n, lhs, sense, rhs, axes=None, mask=None):
     """
     Writer function for writing out multiple constraints to the corresponding
-    constraints file. If lower and upper are numpy.ndarrays it axes must not be
-    None but a tuple of (index, columns) or (index).
-    Return a series or frame with constraint references.
+    constraints file.
+
+    If lower and upper are numpy.ndarrays it axes must not be None but a
+    tuple of (index, columns) or (index). Return a series or frame with
+    constraint references.
     """
     axes, shape, size = _get_handlers(axes, lhs, sense, rhs)
-    if not size: return pd.Series()
+    if not size:
+        return pd.Series()
     n._cCounter += size
     cons = np.arange(n._cCounter - size, n._cCounter).reshape(shape)
     if isinstance(sense, str):
-        sense = '=' if sense == '==' else sense
+        sense = "=" if sense == "==" else sense
     lhs, sense, rhs = _str_array(lhs), _str_array(sense), _str_array(rhs)
-    exprs = 'c' + _str_array(cons, True) + ':\n' + lhs + sense + ' ' + rhs + '\n\n'
+    exprs = "c" + _str_array(cons, True) + ":\n" + lhs + sense + " " + rhs + "\n\n"
     if mask is not None:
-        exprs = np.where(mask, exprs, '')
+        exprs = np.where(mask, exprs, "")
         cons = np.where(mask, cons, -1)
     n.constraints_f.write(join_exprs(exprs))
     return to_pandas(cons, *axes)
 
+
 def write_binary(n, axes, mask=None):
     """
     Writer function for writing out multiple binary-variables at a time.
-    According to the axes it writes out binaries for each entry the pd.Series
-    or pd.DataFrame spanned by axes. Returns a series or frame with variable
-    references.
+
+    According to the axes it writes out binaries for each entry the
+    pd.Series or pd.DataFrame spanned by axes. Returns a series or frame
+    with variable references.
     """
     axes, shape, size = _get_handlers(axes)
     n._xCounter += size
     variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
-    exprs = 'x' + _str_array(variables, True) + '\n'
+    exprs = "x" + _str_array(variables, True) + "\n"
     if mask is not None:
-        exprs = np.where(mask, exprs, '')
+        exprs = np.where(mask, exprs, "")
         variables = np.where(mask, variables, -1)
     n.binaries_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
@@ -290,7 +311,6 @@ def write_objective(n, terms):
     terms : str/numpy.array/pandas.Series/pandas.DataFrame
         String or array of strings which represent new objective terms, built
         with :func:`linexpr`
-
     """
     n.objective_f.write(join_exprs(terms))
 
@@ -299,15 +319,17 @@ def write_objective(n, terms):
 # helpers, helper functions
 # =============================================================================
 
+
 def broadcasted_axes(*dfs):
     """
-    Helper function which, from a collection of arrays, series, frames and other
-    values, retrieves the axes of series and frames which result from
-    broadcasting operations. It checks whether index and columns of given
-    series and frames, repespectively, are aligned. Using this function allows
-    to subsequently use pure numpy operations and keep the axes in the
-    background.
+    Helper function which, from a collection of arrays, series, frames and
+    other values, retrieves the axes of series and frames which result from
+    broadcasting operations.
 
+    It checks whether index and columns of given series and frames,
+    repespectively, are aligned. Using this function allows to
+    subsequently use pure numpy operations and keep the axes in the
+    background.
     """
     axes = []
     shape = (1,)
@@ -319,23 +341,28 @@ def broadcasted_axes(*dfs):
         shape = np.broadcast_shapes(shape, np.asarray(df).shape)
         if isinstance(df, (pd.Series, pd.DataFrame)):
             if len(axes):
-                assert (axes[-1] == df.axes[-1]).all(), ('Series or DataFrames '
-                       'are not aligned. Please make sure that all indexes and '
-                       'columns of Series and DataFrames going into the linear '
-                       'expression are equally sorted.')
+                assert (axes[-1] == df.axes[-1]).all(), (
+                    "Series or DataFrames "
+                    "are not aligned. Please make sure that all indexes and "
+                    "columns of Series and DataFrames going into the linear "
+                    "expression are equally sorted."
+                )
             axes = df.axes if len(df.axes) > len(axes) else axes
     return axes, shape
 
 
 def align_with_static_component(n, c, attr):
     """
-    Alignment of time-dependent variables with static components. If c is a
-    pypsa.component name, it will sort the columns of the variable according
-    to the static component.
+    Alignment of time-dependent variables with static components.
+
+    If c is a pypsa.component name, it will sort the columns of the
+    variable according to the static component.
     """
     if c in n.all_components and (c, attr) in n.variables.index:
-        if not n.variables.pnl[c, attr]: return
-        if len(n.vars[c].pnl[attr].columns) != len(n.df(c).index): return
+        if not n.variables.pnl[c, attr]:
+            return
+        if len(n.vars[c].pnl[attr].columns) != len(n.df(c).index):
+            return
         n.vars[c].pnl[attr] = n.vars[c].pnl[attr].reindex(columns=n.df(c).index)
 
 
@@ -343,9 +370,10 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     """
     Elementwise concatenation of tuples in the form (coefficient, variables).
     Coefficient and variables can be arrays, series or frames. Per default
-    returns a pandas.Series or pandas.DataFrame of strings. If return_axes
-    is set to True the return value is split into values and axes, where values
-    are the numpy.array and axes a tuple containing index and column if present.
+    returns a pandas.Series or pandas.DataFrame of strings. If return_axes is
+    set to True the return value is split into values and axes, where values
+    are the numpy.array and axes a tuple containing index and column if
+    present.
 
     Parameters
     ----------
@@ -384,16 +412,15 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
 
     >>> linexpr((coeff1, var1), (coeff2, var2), as_pandas=False)
     array(['+1.0 a1 -0.5 b1', '+1.0 a2 -0.3 b2', '+1.0 a3 -1.0 b3'], dtype=object)
-
     """
     axes, shape = broadcasted_axes(*tuples)
-    expr = np.repeat('', np.prod(shape)).reshape(shape).astype(object)
+    expr = np.repeat("", np.prod(shape)).reshape(shape).astype(object)
     if np.prod(shape):
         for coeff, var in tuples:
-            newexpr = _str_array(coeff) + ' x' + _str_array(var, True) + '\n'
+            newexpr = _str_array(coeff) + " x" + _str_array(var, True) + "\n"
             if isinstance(expr, np.ndarray):
                 isna = np.isnan(coeff) | np.isnan(var) | (var == -1)
-                newexpr = np.where(isna, '', newexpr)
+                newexpr = np.where(isna, "", newexpr)
             expr = expr + newexpr
     if return_axes:
         return (expr, *axes)
@@ -405,15 +432,19 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
 def to_pandas(array, *axes):
     """
     Convert a numpy array to pandas.Series if 1-dimensional or to a
-    pandas.DataFrame if 2-dimensional. Provide index and columns if needed
+    pandas.DataFrame if 2-dimensional.
+
+    Provide index and columns if needed
     """
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
-_to_float_str = lambda f: '%+f'%f
+
+_to_float_str = lambda f: "%+f" % f
 _v_to_float_str = np.vectorize(_to_float_str, otypes=[object])
 
-_to_int_str = lambda d: '%d'%d
+_to_int_str = lambda d: "%d" % d
 _v_to_int_str = np.vectorize(_to_int_str, otypes=[object])
+
 
 def _str_array(array, integer_string=False):
     if isinstance(array, (float, int)):
@@ -431,16 +462,18 @@ def _str_array(array, integer_string=False):
     else:
         return array
 
+
 def join_exprs(df):
     """
     Helper function to join arrays, series or frames of strings together.
-
     """
-    return ''.join(np.asarray(df).flatten())
+    return "".join(np.asarray(df).flatten())
+
 
 # =============================================================================
 #  references to vars and cons, rewrite this part to not store every reference
 # =============================================================================
+
 
 def _add_reference(ref_dict, df, attr, pnl=True):
     if pnl:
@@ -455,11 +488,11 @@ def _add_reference(ref_dict, df, attr, pnl=True):
             ref_dict.df[attr] = df
 
 
-def set_varref(n, variables, c, attr, spec=''):
+def set_varref(n, variables, c, attr, spec=""):
     """
-    Sets variable references to the network.
-    One-dimensional variable references will be collected at `n.vars[c].df`,
-    two-dimensional varaibles in `n.vars[c].pnl`. For example:
+    Sets variable references to the network. One-dimensional variable
+    references will be collected at `n.vars[c].df`, two-dimensional varaibles
+    in `n.vars[c].pnl`. For example:
 
     * nominal capacity variables for generators are stored in
       `n.vars.Generator.df.p_nom`
@@ -470,18 +503,18 @@ def set_varref(n, variables, c, attr, spec=''):
         pnl = variables.ndim == 2
         if c not in n.variables.index:
             n.vars[c] = Dict(df=pd.DataFrame(), pnl=Dict())
-        if ((c, attr) in n.variables.index) and (spec != ''):
-            n.variables.at[idx[c, attr], 'specification'] += ', ' + spec
+        if ((c, attr) in n.variables.index) and (spec != ""):
+            n.variables.at[idx[c, attr], "specification"] += ", " + spec
         else:
             n.variables.loc[idx[c, attr], :] = [pnl, spec]
         _add_reference(n.vars[c], variables, attr, pnl=pnl)
 
-def set_conref(n, constraints, c, attr, spec=''):
+
+def set_conref(n, constraints, c, attr, spec=""):
     """
-    Sets constraint references to the network.
-    One-dimensional constraint references will be collected at `n.cons[c].df`,
-    two-dimensional in `n.cons[c].pnl`
-    For example:
+    Sets constraint references to the network. One-dimensional constraint
+    references will be collected at `n.cons[c].df`, two-dimensional in
+    `n.cons[c].pnl` For example:
 
     * constraints for nominal capacity variables for generators are stored in
       `n.cons.Generator.df.mu_upper`
@@ -492,11 +525,12 @@ def set_conref(n, constraints, c, attr, spec=''):
         pnl = constraints.ndim == 2
         if c not in n.constraints.index:
             n.cons[c] = Dict(df=pd.DataFrame(), pnl=Dict())
-        if ((c, attr) in n.constraints.index) and (spec != ''):
-            n.constraints.at[idx[c, attr], 'specification'] += ', ' + spec
+        if ((c, attr) in n.constraints.index) and (spec != ""):
+            n.constraints.at[idx[c, attr], "specification"] += ", " + spec
         else:
             n.constraints.loc[idx[c, attr], :] = [pnl, spec]
         _add_reference(n.cons[c], constraints, attr, pnl=pnl)
+
 
 def get_var(n, c, attr, pop=False):
     """
@@ -515,7 +549,6 @@ def get_var(n, c, attr, pop=False):
     Example
     -------
     >>> get_var(n, 'Generator', 'p')
-
     """
     vvars = n.vars[c].pnl if n.variables.pnl[c, attr] else n.vars[c].df
     return vvars.pop(attr) if pop else vvars[attr]
@@ -542,11 +575,10 @@ def get_con(n, c, attr, pop=False):
     return cons.pop(attr) if pop else cons[attr]
 
 
-def get_sol(n, name, attr=''):
+def get_sol(n, name, attr=""):
     """
     Retrieves solution for a given variable. Note that a lookup of all stored
     solutions is given in n.solutions.
-
 
     Parameters
     ----------
@@ -561,14 +593,14 @@ def get_sol(n, name, attr=''):
     -------
     get_dual(n, 'Generator', 'mu_upper')
     """
-    pnl = n.solutions.at[(name, attr), 'pnl']
-    if n.solutions.at[(name, attr), 'in_comp']:
-        return n.pnl(name)[attr] if pnl else n.df(name)[attr + '_opt']
+    pnl = n.solutions.at[(name, attr), "pnl"]
+    if n.solutions.at[(name, attr), "in_comp"]:
+        return n.pnl(name)[attr] if pnl else n.df(name)[attr + "_opt"]
     else:
         return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
 
 
-def get_dual(n, name, attr=''):
+def get_dual(n, name, attr=""):
     """
     Retrieves shadow price for a given constraint. Note that for retrieving
     shadow prices of a custom constraint, its name has to be passed to
@@ -587,8 +619,8 @@ def get_dual(n, name, attr=''):
     -------
     get_dual(n, 'Generator', 'mu_upper')
     """
-    pnl = n.dualvalues.at[(name, attr), 'pnl']
-    if n.dualvalues.at[(name, attr), 'in_comp']:
+    pnl = n.dualvalues.at[(name, attr), "pnl"]
+    if n.dualvalues.at[(name, attr), "in_comp"]:
         return n.pnl(name)[attr] if pnl else n.df(name)[attr]
     else:
         return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
@@ -598,13 +630,21 @@ def get_dual(n, name, attr=''):
 # solvers
 # =============================================================================
 
+
 def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
 
-def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options={}, warmstart=None, store_basis=True):
+def run_and_read_highs(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options={},
+    warmstart=None,
+    store_basis=True,
+):
     """
     Highs solver function. Reads a linear problem file and passes it to the highs
     solver. If the solution is feasible the function returns the objective,
@@ -686,7 +726,9 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     objective : float
 
     """
-    logger.warning("The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk")
+    logger.warning(
+        "The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk"
+    )
     options_fn = "highs_options.txt"
     default_dict = {
         "method": "ipm",
@@ -705,9 +747,11 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     # update default_dict through solver_options and write to file
     default_dict.update(solver_options)
     method = default_dict.pop("method", "ipm")
-    logger.info(f"Options: \"{default_dict}\". List of options: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set")
+    logger.info(
+        f'Options: "{default_dict}". List of options: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set'
+    )
     f1 = open(options_fn, "w")
-    f1.write('\n'.join([f"{k} = {v}" for k, v in default_dict.items()]))
+    f1.write("\n".join([f"{k} = {v}" for k, v in default_dict.items()]))
     f1.close()
 
     # write (terminal) commands
@@ -715,26 +759,24 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
     if warmstart:
         logger.warning("Warmstart, not available in HiGHS. Will be ignored.")
     command += f"--solver {method} --options_file {options_fn}"
-    logger.info(f"Solver command: \"{command}\"")
+    logger.info(f'Solver command: "{command}"')
     # execute command and store command window output
     process = subprocess.Popen(
-        command.split(' '),
-        stdout=subprocess.PIPE,
-        universal_newlines=True
+        command.split(" "), stdout=subprocess.PIPE, universal_newlines=True
     )
 
     def read_until_break():
         # Function that reads line by line the command window
         while True:
             out = process.stdout.readline(1)
-            if out == '' and process.poll() != None:
+            if out == "" and process.poll() != None:
                 break
-            if out != '':
+            if out != "":
                 yield out
 
     # converts stdout (standard terminal output) to pandas dataframe
-    log = io.StringIO(''.join(read_until_break())[:])
-    log = pd.read_csv(log, sep=':', index_col=0, header=None)[1].squeeze()
+    log = io.StringIO("".join(read_until_break())[:])
+    log = pd.read_csv(log, sep=":", index_col=0, header=None)[1].squeeze()
     if solver_logfile is not None:
         log.to_csv(solver_logfile, sep="\t")
     log.index = log.index.str.strip()
@@ -749,30 +791,38 @@ def run_and_read_highs(n, problem_fn, solution_fn, solver_logfile,
         status = "warning"
         termination_condition = model_status
     else:
-        status = 'warning'
+        status = "warning"
         termination_condition = model_status
     objective = float(log["Objective value"])
 
     # read out solution file (.sol)
     f = open(solution_fn, "rb")
-    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
+    trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     f.close()
 
-    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r'\s+')
-    row_no = sol[sol["Index"] == 'Rows'].index[0]
-    sol = sol.drop(row_no+1)  # Removes header line after "Rows"
+    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
+    row_no = sol[sol["Index"] == "Rows"].index[0]
+    sol = sol.drop(row_no + 1)  # Removes header line after "Rows"
     sol_rows = sol[(sol.index > row_no)]
     sol_cols = sol[(sol.index < row_no)].set_index("Name").pipe(set_int_index)
     variables_sol = pd.to_numeric(sol_cols["Primal"], errors="raise")
-    constraints_dual = pd.to_numeric(sol_rows["Dual"], errors="raise").reset_index(drop=True)
+    constraints_dual = pd.to_numeric(sol_rows["Dual"], errors="raise").reset_index(
+        drop=True
+    )
     constraints_dual.index += 1
 
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)
 
 
-def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
-                     solver_options, warmstart=None, store_basis=True):
+def run_and_read_cbc(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options,
+    warmstart=None,
+    store_basis=True,
+):
     """
     Solving function. Reads the linear problem file and passes it to the cbc
     solver. If the solution is successful it returns variable solutions and
@@ -780,64 +830,73 @@ def run_and_read_cbc(n, problem_fn, solution_fn, solver_logfile,
 
     For more information on the solver options, run 'cbc' in your shell
     """
-    with open(problem_fn, 'rb') as f:
+    with open(problem_fn, "rb") as f:
         for str in f.readlines():
-            assert (("> " in str.decode('utf-8')) == False), (">, must be"
-                    "changed to >=")
-            assert (("< " in str.decode('utf-8')) == False), ("<, must be"
-                    "changed to <=")
+            assert ("> " in str.decode("utf-8")) == False, ">, must be" "changed to >="
+            assert ("< " in str.decode("utf-8")) == False, "<, must be" "changed to <="
 
-    #printingOptions is about what goes in solution file
+    # printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
-        command += f'-basisI {warmstart} '
+        command += f"-basisI {warmstart} "
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
     command += f"-solve -solu {solution_fn} "
     if store_basis:
-        n.basis_fn = solution_fn.replace('.sol', '.bas')
-        command += f'-basisO {n.basis_fn} '
+        n.basis_fn = solution_fn.replace(".sol", ".bas")
+        command += f"-basisO {n.basis_fn} "
 
     if not os.path.exists(solution_fn):
         os.mknod(solution_fn)
 
-    log = open(solver_logfile, 'w') if solver_logfile is not None else subprocess.PIPE
-    result = subprocess.Popen(command.split(' '), stdout=log)
+    log = open(solver_logfile, "w") if solver_logfile is not None else subprocess.PIPE
+    result = subprocess.Popen(command.split(" "), stdout=log)
     result.wait()
 
     with open(solution_fn, "r") as f:
         data = f.readline()
 
-
     if data.startswith("Optimal - objective value"):
         status = "ok"
         termination_condition = "optimal"
-        objective = float(data[len("Optimal - objective value "):])
+        objective = float(data[len("Optimal - objective value ") :])
     elif "Infeasible" in data:
         status = "warning"
         termination_condition = "infeasible"
     else:
-        status = 'warning'
+        status = "warning"
         termination_condition = "other"
 
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    f = open(solution_fn,"rb")
-    trimed_sol_fn = re.sub(rb'\*\*\s+', b'', f.read())
+    f = open(solution_fn, "rb")
+    trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     f.close()
 
-    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=None, skiprows=[0],
-                      sep=r'\s+', usecols=[1,2,3], index_col=0)
-    variables_b = sol.index.str[0] == 'x'
+    sol = pd.read_csv(
+        io.BytesIO(trimed_sol_fn),
+        header=None,
+        skiprows=[0],
+        sep=r"\s+",
+        usecols=[1, 2, 3],
+        index_col=0,
+    )
+    variables_b = sol.index.str[0] == "x"
     variables_sol = sol[variables_b][2].pipe(set_int_index)
     constraints_dual = sol[~variables_b][3].pipe(set_int_index)
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)
 
 
-def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
-                     solver_options, warmstart=None, store_basis=True):
+def run_and_read_glpk(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options,
+    warmstart=None,
+    store_basis=True,
+):
     """
     Solving function. Reads the linear problem file and passes it to the glpk
     solver. If the solution is successful it returns variable solutions and
@@ -847,34 +906,35 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     https://kam.mff.cuni.cz/~elias/glpk.pdf
     """
     # TODO use --nopresol argument for non-optimal solution output
-    command = (f"glpsol --lp {problem_fn} --output {solution_fn}")
+    command = f"glpsol --lp {problem_fn} --output {solution_fn}"
     if solver_logfile is not None:
-        command += f' --log {solver_logfile}'
+        command += f" --log {solver_logfile}"
     if warmstart:
-        command += f' --ini {warmstart}'
+        command += f" --ini {warmstart}"
     if store_basis:
-        n.basis_fn = solution_fn.replace('.sol', '.bas')
-        command += f' -w {n.basis_fn}'
+        n.basis_fn = solution_fn.replace(".sol", ".bas")
+        command += f" -w {n.basis_fn}"
     if (solver_options is not None) and (solver_options != {}):
         command += solver_options
 
-    result = subprocess.Popen(command.split(' '), stdout=subprocess.PIPE)
+    result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
     result.wait()
 
     f = open(solution_fn)
+
     def read_until_break(f):
         linebreak = False
         while not linebreak:
             line = f.readline()
-            linebreak = line == '\n'
+            linebreak = line == "\n"
             yield line
 
-    info = io.StringIO(''.join(read_until_break(f))[:-2])
-    info = pd.read_csv(info, sep=':',  index_col=0, header=None)[1]
+    info = io.StringIO("".join(read_until_break(f))[:-2])
+    info = pd.read_csv(info, sep=":", index_col=0, header=None)[1]
     termination_condition = info.Status.lower().strip()
-    objective = float(re.sub(r'[^0-9\.\+\-e]+', '', info.Objective))
+    objective = float(re.sub(r"[^0-9\.\+\-e]+", "", info.Objective))
 
-    if termination_condition in ["optimal","integer optimal"]:
+    if termination_condition in ["optimal", "integer optimal"]:
         status = "ok"
         termination_condition = "optimal"
     elif termination_condition == "undefined":
@@ -883,44 +943,60 @@ def run_and_read_glpk(n, problem_fn, solution_fn, solver_logfile,
     else:
         status = "warning"
 
-    if termination_condition != 'optimal':
+    if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    duals = io.StringIO(''.join(read_until_break(f))[:-2])
-    duals = pd.read_fwf(duals)[1:].set_index('Row name')
-    if 'Marginal' in duals:
-        constraints_dual = pd.to_numeric(duals['Marginal'], 'coerce')\
-                              .fillna(0).pipe(set_int_index)
+    duals = io.StringIO("".join(read_until_break(f))[:-2])
+    duals = pd.read_fwf(duals)[1:].set_index("Row name")
+    if "Marginal" in duals:
+        constraints_dual = (
+            pd.to_numeric(duals["Marginal"], "coerce").fillna(0).pipe(set_int_index)
+        )
     else:
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=duals.index, dtype=float)
 
-    sol = io.StringIO(''.join(read_until_break(f))[:-2])
-    variables_sol = (pd.read_fwf(sol)[1:].set_index('Column name')
-                     ['Activity'].astype(float).pipe(set_int_index))
+    sol = io.StringIO("".join(read_until_break(f))[:-2])
+    variables_sol = (
+        pd.read_fwf(sol)[1:]
+        .set_index("Column name")["Activity"]
+        .astype(float)
+        .pipe(set_int_index)
+    )
     f.close()
 
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)
 
 
-def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, warmstart=None, store_basis=True):
+def run_and_read_cplex(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options,
+    warmstart=None,
+    store_basis=True,
+):
     """
-    Solving function. Reads the linear problem file and passes it to the cplex
-    solver. If the solution is successful it returns variable solutions and
-    constraint dual values. Cplex must be installed for using this function
+    Solving function.
 
+    Reads the linear problem file and passes it to the cplex solver. If
+    the solution is successful it returns variable solutions and
+    constraint dual values. Cplex must be installed for using this
+    function
     """
-    if find_spec('cplex') is None:
-        raise ModuleNotFoundError("Optional dependency 'cplex' not found."
-           "Install via 'conda install -c ibmdecisionoptimization cplex' "
-           "or 'pip install cplex'")
+    if find_spec("cplex") is None:
+        raise ModuleNotFoundError(
+            "Optional dependency 'cplex' not found."
+            "Install via 'conda install -c ibmdecisionoptimization cplex' "
+            "or 'pip install cplex'"
+        )
     import cplex
-    _version = LooseVersion(cplex.__version__)
+
+    _version = parse(cplex.__version__)
     m = cplex.Cplex()
     if solver_logfile is not None:
-        if _version >= "12.10":
+        if _version >= Version("12.10"):
             log_file_or_path = open(solver_logfile, "w")
         else:
             log_file_or_path = solver_logfile
@@ -935,57 +1011,69 @@ def run_and_read_cplex(n, problem_fn, solution_fn, solver_logfile,
     if warmstart:
         m.start.read_basis(warmstart)
     m.solve()
-    is_lp = m.problem_type[m.get_problem_type()] == 'LP'
+    is_lp = m.problem_type[m.get_problem_type()] == "LP"
     if solver_logfile is not None:
         if isinstance(log_file_or_path, io.IOBase):
             log_file_or_path.close()
 
     termination_condition = m.solution.get_status_string()
-    if 'optimal' in termination_condition:
-        status = 'ok'
-        termination_condition = 'optimal'
+    if "optimal" in termination_condition:
+        status = "ok"
+        termination_condition = "optimal"
     else:
-        status = 'warning'
+        status = "warning"
 
-    if (status == 'ok') and store_basis and is_lp:
-        n.basis_fn = solution_fn.replace('.sol', '.bas')
+    if (status == "ok") and store_basis and is_lp:
+        n.basis_fn = solution_fn.replace(".sol", ".bas")
         try:
             m.solution.basis.write(n.basis_fn)
         except cplex.exceptions.errors.CplexSolverError:
-            logger.info('No model basis stored')
+            logger.info("No model basis stored")
             del n.basis_fn
 
     objective = m.solution.get_objective_value()
-    variables_sol = pd.Series(m.solution.get_values(), m.variables.get_names())\
-                      .pipe(set_int_index)
+    variables_sol = pd.Series(m.solution.get_values(), m.variables.get_names()).pipe(
+        set_int_index
+    )
     if is_lp:
-        constraints_dual = pd.Series(m.solution.get_dual_values(),
-                         m.linear_constraints.get_names()).pipe(set_int_index)
+        constraints_dual = pd.Series(
+            m.solution.get_dual_values(), m.linear_constraints.get_names()
+        ).pipe(set_int_index)
     else:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=m.linear_constraints.get_names())\
-                             .pipe(set_int_index)
+        constraints_dual = pd.Series(index=m.linear_constraints.get_names()).pipe(
+            set_int_index
+        )
     del m
-    return (status, termination_condition, variables_sol, constraints_dual,
-            objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)
 
 
-def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, warmstart=None, store_basis=True):
+def run_and_read_gurobi(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options,
+    warmstart=None,
+    store_basis=True,
+):
     """
     Solving function. Reads the linear problem file and passes it to the gurobi
     solver. If the solution is successful it returns variable solutions and
-    constraint dual values. Gurobipy must be installed for using this function
+    constraint dual values. Gurobipy must be installed for using this function.
 
     For more information on solver options:
     https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
-    if find_spec('gurobipy') is None:
-        raise ModuleNotFoundError("Optional dependency 'gurobipy' not found. "
-           "Install via 'conda install -c gurobi gurobi'  or follow the "
-           "instructions on the documentation page "
-           "https://www.gurobi.com/documentation/")
+    if find_spec("gurobipy") is None:
+        raise ModuleNotFoundError(
+            "Optional dependency 'gurobipy' not found. "
+            "Install via 'conda install -c gurobi gurobi'  or follow the "
+            "instructions on the documentation page "
+            "https://www.gurobi.com/documentation/"
+        )
     import gurobipy
+
     # disable logging for this part, as gurobi output is doubled otherwise
     logging.disable(50)
 
@@ -1002,55 +1090,62 @@ def run_and_read_gurobi(n, problem_fn, solution_fn, solver_logfile,
     logging.disable(1)
 
     if store_basis:
-        n.basis_fn = solution_fn.replace('.sol', '.bas')
+        n.basis_fn = solution_fn.replace(".sol", ".bas")
         try:
             m.write(n.basis_fn)
         except gurobipy.GurobiError:
-            logger.info('No model basis stored')
+            logger.info("No model basis stored")
             del n.basis_fn
 
     Status = gurobipy.GRB.Status
-    statusmap = {getattr(Status, s) : s.lower() for s in Status.__dir__()
-                                                if not s.startswith('_')}
+    statusmap = {
+        getattr(Status, s): s.lower() for s in Status.__dir__() if not s.startswith("_")
+    }
     termination_condition = statusmap[m.status]
 
     if termination_condition == "optimal":
-        status = 'ok'
-    elif termination_condition == 'suboptimal':
-        status = 'warning'
+        status = "ok"
+    elif termination_condition == "suboptimal":
+        status = "warning"
     elif termination_condition == "infeasible":
-        status = 'warning'
+        status = "warning"
     elif termination_condition == "inf_or_unbd":
-        status = 'warning'
+        status = "warning"
         termination_condition = "infeasible or unbounded"
     else:
         status = "warning"
 
-    if termination_condition not in ["optimal","suboptimal"]:
+    if termination_condition not in ["optimal", "suboptimal"]:
         return status, termination_condition, None, None, None
 
-    variables_sol = pd.Series({v.VarName: v.x for v
-                               in m.getVars()}).pipe(set_int_index)
+    variables_sol = pd.Series({v.VarName: v.x for v in m.getVars()}).pipe(set_int_index)
     try:
-        constraints_dual = pd.Series({c.ConstrName: c.Pi for c in
-                                      m.getConstrs()}).pipe(set_int_index)
+        constraints_dual = pd.Series({c.ConstrName: c.Pi for c in m.getConstrs()}).pipe(
+            set_int_index
+        )
     except AttributeError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
         constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
     objective = m.ObjVal
     del m
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)
 
 
-def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
-                        solver_options, keep_files, warmstart=None,
-                        store_basis=True):
+def run_and_read_xpress(
+    n,
+    problem_fn,
+    solution_fn,
+    solver_logfile,
+    solver_options,
+    keep_files,
+    warmstart=None,
+    store_basis=True,
+):
     """
-    Solving function. Reads the linear problem file and passes it to
-    the Xpress solver. If the solution is successful it returns
-    variable solutions and constraint dual values. The xpress module
-    must be installed for using this function.
+    Solving function. Reads the linear problem file and passes it to the Xpress
+    solver. If the solution is successful it returns variable solutions and
+    constraint dual values. The xpress module must be installed for using this
+    function.
 
     For more information on solver options:
     https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html
@@ -1072,26 +1167,27 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
     m.solve()
 
     if store_basis:
-        n.basis_fn = solution_fn.replace('.sol', '.bas')
+        n.basis_fn = solution_fn.replace(".sol", ".bas")
         try:
             m.writebasis(n.basis_fn)
         except:
-            logger.info('No model basis stored')
+            logger.info("No model basis stored")
             del n.basis_fn
 
     termination_condition = m.getProbStatusString()
 
-    if termination_condition == 'mip_optimal' or \
-       termination_condition == 'lp_optimal':
-        status = 'ok'
-        termination_condition = 'optimal'
-    elif termination_condition == 'mip_unbounded' or \
-         termination_condition == 'mip_infeasible' or \
-         termination_condition == 'lp_unbounded' or \
-         termination_condition == 'lp_infeasible':
-        status = 'infeasible or unbounded'
+    if termination_condition == "mip_optimal" or termination_condition == "lp_optimal":
+        status = "ok"
+        termination_condition = "optimal"
+    elif (
+        termination_condition == "mip_unbounded"
+        or termination_condition == "mip_infeasible"
+        or termination_condition == "lp_unbounded"
+        or termination_condition == "lp_infeasible"
+    ):
+        status = "infeasible or unbounded"
     else:
-        status = 'warning'
+        status = "warning"
 
     if termination_condition not in ["optimal"]:
         return status, termination_condition, None, None, None
@@ -1110,5 +1206,4 @@ def run_and_read_xpress(n, problem_fn, solution_fn, solver_logfile,
 
     del m
 
-    return (status, termination_condition, variables_sol,
-            constraints_dual, objective)
+    return (status, termination_condition, variables_sol, constraints_dual, objective)

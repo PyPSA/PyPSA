@@ -1,19 +1,19 @@
 name: pypsa
 channels:
-  - conda-forge
+- conda-forge
 dependencies:
-  - python>=3.7
-  - numpy
-  - scipy
-  - pandas>=0.24.0
-  - xarray
-  - netcdf4
-  - pytables
-  - matplotlib
-  - networkx>=1.10
-  - pyomo>=5.7.0
-  - cartopy>=0.16
-  - glpk
-  - deprecation
+- python>=3.7
+- numpy
+- scipy
+- pandas>=0.24.0
+- xarray
+- netcdf4
+- pytables
+- matplotlib
+- networkx>=1.10
+- pyomo>=5.7.0
+- cartopy>=0.16
+- glpk
+- deprecation
 #  - coincbc
 #  - gurobi::gurobi

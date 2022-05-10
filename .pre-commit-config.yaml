@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.1.0
+  rev: v4.2.0
   hooks:
   - id: check-merge-conflict
   - id: end-of-file-fixer
@@ -28,10 +28,10 @@ repos:
   rev: v2.1.0
   hooks:
   - id: codespell
-    args: ['--ignore-regex="\b[A-Z]+\b"'] # Ignore capital case words, e.g. country codes
+    args: ['--ignore-regex="(\b[A-Z]+\b)"', '--ignore-words=.codespell.ignore'] # Ignore capital case words, e.g. country codes
     types_or: [python, rst, markdown]
     files: ^(scripts|doc)/
-    
+
 # Make docstrings PEP 257 compliant
 - repo: https://github.com/myint/docformatter
   rev: v1.4
@@ -41,7 +41,7 @@ repos:
 
 # Formatting with "black" coding style
 - repo: https://github.com/psf/black
-  rev: 22.1.0
+  rev: 22.3.0
   hooks:
   # Format Python files
   - id: black

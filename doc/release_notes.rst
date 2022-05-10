@@ -7,7 +7,16 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new features
+PyPSA 0.19.3 (22nd April 2022)
+==============================
+
+* Apply pre-commit formats to support development (incl. black formatting,
+  jupyter cleanup, import sorting, preventing large file uploads). This will
+  distort ``git blame`` functionality, which can be fixed by running ``git
+  config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
+  repostory. Run ``pre-commit install`` to set up locally.
+
+* Change message when exporting and importing networks without a set ``network_name``. Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
 
 PyPSA 0.19.2 (7th March 2022)
 =============================
@@ -17,7 +26,7 @@ PyPSA 0.19.2 (7th March 2022)
 PyPSA 0.19.1 (18th February 2022)
 =================================
 
-* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.   
+* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.
 
 
 PyPSA 0.19.0 (11th February 2022)
@@ -61,7 +70,7 @@ open-source HiGHS solver.
 
 * The names of the indexes in static dataframes are now set to the component
   names. So, the index of ``n.generators`` has the name 'Generator'. The same
-  accounts for the columns of the timeseries.  
+  accounts for the columns of the timeseries.
 
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period',
   'timestep'], the name of the index was set to 'snapshot'. This makes the
@@ -69,7 +78,7 @@ open-source HiGHS solver.
 
 **Bugs and Compatibility**
 
-* Combatibility with ``pandas>=1.4``.
+* Compatibility with ``pandas>=1.4``.
 
 * Drop support for Python 3.6 in accordance with its
   [end-of-life](https://endoflife.date/python).
@@ -81,7 +90,7 @@ open-source HiGHS solver.
 
 * When running ``network.lopf(pyomo=False)``, the ramp limits did not take
   the time step right before the optimization horizon into account (relevant for
-  rolling horizon optimization). This is now fixed.  
+  rolling horizon optimization). This is now fixed.
 
 * Fix bug when multi-links are defined but the network has no links.
 
@@ -106,7 +115,7 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
-  
+
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
   were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 

@@ -1,6 +1,9 @@
-import pypsa
+# -*- coding: utf-8 -*-
 import os
+
 import pandas as pd
+
+import pypsa
 
 
 def test_netcdf_io(scipy_network, tmpdir):

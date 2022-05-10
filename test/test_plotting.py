@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Feb  1 13:13:59 2022
+Created on Tue Feb  1 13:13:59 2022.
 
 @author: fabian
 """
 
-import pytest
-import numpy as np
-import networkx as nx
-import pandas as pd
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import pandas as pd
+import pytest
 
 try:
     import cartopy
+
     cartopy_present = True
 except ImportError as e:
     cartopy_present = False
@@ -42,6 +43,7 @@ def test_plot_on_axis_wo_geomap(ac_dc_network):
     n.plot(ax=ax, geomap=False)
     plt.close()
 
+
 @pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
 def test_plot_on_axis_w_geomap(ac_dc_network):
     n = ac_dc_network
@@ -49,6 +51,7 @@ def test_plot_on_axis_w_geomap(ac_dc_network):
     with pytest.raises(AssertionError):
         n.plot(ax=ax, geomap=True)
         plt.close()
+
 
 def test_plot_bus_circles(ac_dc_network):
     n = ac_dc_network
