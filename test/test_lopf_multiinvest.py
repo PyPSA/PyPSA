@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  2 10:21:16 2021
+Created on Fri Jul  2 10:21:16 2021.
 
 @author: fabian
 """
 
-import pypsa
-import pytest
 import os
+
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
+
+import pypsa
 from pypsa.descriptors import get_activity_mask
 
 
 def optimize(n, use_linopy, *args, **kwargs):
+    kwargs.update(dict(multi_investment_periods=True))
     if use_linopy:
-        return n.optimize(
-            *args, **kwargs, multi_investment_periods=True, solver_name="glpk"
-        )
+        return n.optimize(*args, **kwargs, solver_name="glpk")
     else:
-        return n.lopf(*args, **kwargs, pyomo=False, multi_investment_periods=True)
+        return n.lopf(*args, **kwargs, pyomo=False)
 
 
 @pytest.fixture
@@ -61,7 +62,10 @@ def n():
     load = range(100, 100 + len(n.snapshots))
     load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
     n.madd(
-        "Load", ["load1", "load2"], bus=[1, 2], p_set=load,
+        "Load",
+        ["load1", "load2"],
+        bus=[1, 2],
+        p_set=load,
     )
 
     return n

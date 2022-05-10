@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2022 The PyPSA Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# apply pre-commit setup to all files (including black)
+57099450d1df78f9d3571f4515721aa04613d456

@@ -30,6 +30,4 @@ Interactive plots of networks can be created that use the `d3js
 <https://plot.ly/python/>`_ (this uses JavaScript and SVGs). This is
 meant for use with `Jupyter notebooks <https://jupyter.org/>`_.
 To plot a network with plotly run
-``network.iplot()``, see :py:meth:`pypsa.Network.iplot` for details. 
-
-
+``network.iplot()``, see :py:meth:`pypsa.Network.iplot` for details.

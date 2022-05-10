@@ -4,7 +4,7 @@ Other Examples
 
 
 This section provides examples related to different topics:
- 
+
 
 .. toctree::
     :maxdepth: 1

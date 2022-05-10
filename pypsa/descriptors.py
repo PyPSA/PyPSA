@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 ## Copyright 2015-2021 PyPSA Developers
 
@@ -7,36 +8,40 @@
 ## PyPSA is released under the open source MIT License, see
 ## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
-"""Descriptors for component attributes.
+"""
+Descriptors for component attributes.
 """
 
-__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-                 "MIT License")
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
 
+import logging
+import re
 from collections import OrderedDict
 from itertools import repeat
 
 import networkx as nx
-import pandas as pd
 import numpy as np
-import re
+import pandas as pd
 
-import logging
 logger = logging.getLogger(__name__)
 
 
-from distutils.version import StrictVersion, LooseVersion
-try:
-    _nx_version = StrictVersion(nx.__version__)
-except ValueError:
-    _nx_version = LooseVersion(nx.__version__)
+from packaging.version import Version, parse
 
-if _nx_version >= '1.12':
+if parse(nx.__version__) >= Version("1.12"):
+
     class OrderedGraph(nx.MultiGraph):
         node_dict_factory = OrderedDict
         adjlist_dict_factory = OrderedDict
-elif _nx_version >= '1.10':
+
+elif parse(nx.__version__) >= Version("1.10"):
+
     class OrderedGraph(nx.MultiGraph):
         node_dict_factory = OrderedDict
         adjlist_dict_factory = OrderedDict
@@ -46,7 +51,7 @@ elif _nx_version >= '1.10':
             self.adjlist_dict_factory = self.adjlist_dict_factory
             self.edge_attr_dict_factory = self.edge_attr_dict_factory
 
-            self.graph = {}   # dictionary for graph attributes
+            self.graph = {}  # dictionary for graph attributes
             self.node = ndf()  # empty node attribute dict
             self.adj = ndf()  # empty adjacency dict
             # attempt to load graph with data
@@ -56,28 +61,37 @@ elif _nx_version >= '1.10':
                         nx.convert.from_dict_of_dicts(
                             data.adj,
                             create_using=self,
-                            multigraph_input=data.is_multigraph()
+                            multigraph_input=data.is_multigraph(),
                         )
                         self.graph = data.graph.copy()
-                        self.node.update((n,d.copy()) for n,d in data.node.items())
+                        self.node.update((n, d.copy()) for n, d in data.node.items())
                     except:
                         raise nx.NetworkXError("Input is not a correct NetworkX graph.")
                 else:
                     nx.convert.to_networkx_graph(data, create_using=self)
-else:
-    raise ImportError("NetworkX version {} is too old. At least 1.10 is needed.".format(nx.__version__))
 
-if _nx_version >= '2.0':
+else:
+    raise ImportError(
+        "NetworkX version {} is too old. At least 1.10 is needed.".format(
+            nx.__version__
+        )
+    )
+
+if parse(nx.__version__) >= Version("2.0"):
+
     def degree(G):
         return G.degree()
+
 else:
+
     def degree(G):
         return G.degree_iter()
 
+
 class Dict(dict):
     """
-    Dict is a subclass of dict, which allows you to get AND SET
-    items in the dict using the attribute syntax!
+    Dict is a subclass of dict, which allows you to get AND SET items in the
+    dict using the attribute syntax!
 
     Stripped down from addict https://github.com/mewwts/addict/ .
     """
@@ -87,8 +101,9 @@ class Dict(dict):
         setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
-            raise AttributeError("'Dict' object attribute "
-                                 "'{0}' is read-only".format(name))
+            raise AttributeError(
+                "'Dict' object attribute " "'{0}' is read-only".format(name)
+            )
         else:
             self[name] = value
 
@@ -104,7 +119,7 @@ class Dict(dict):
         """
         del self[name]
 
-    _re_pattern = re.compile('[a-zA-Z_][a-zA-Z0-9_]*')
+    _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
 
     def __dir__(self):
         """
@@ -129,8 +144,8 @@ class Dict(dict):
 
 def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
     """
-    Return a Dataframe for a time-varying component attribute with values for all
-    non-time-varying components filled in with the default values for the
+    Return a Dataframe for a time-varying component attribute with values for
+    all non-time-varying components filled in with the default values for the
     attribute.
 
     Parameters
@@ -152,8 +167,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     Examples
     --------
     >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
-
-"""
+    """
 
     df = network.df(component)
     pnl = network.pnl(component)
@@ -175,15 +189,16 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     varying = pnl[attr].loc[snapshots, varying_i]
 
     res = pd.concat([static, varying], axis=1, sort=False).reindex(columns=index)
-    res.index.name = "snapshot" # reindex with multiindex does not preserve name
+    res.index.name = "snapshot"  # reindex with multiindex does not preserve name
 
     return res
 
+
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     """
-    Return an iterator over snapshots for a time-varying component
-    attribute with values for all non-time-varying components filled
-    in with the default values for the attribute.
+    Return an iterator over snapshots for a time-varying component attribute
+    with values for all non-time-varying components filled in with the default
+    values for the attribute.
 
     Parameters
     ----------
@@ -204,8 +219,7 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     Examples
     --------
     >>> get_switchable_as_iter(network, 'Generator', 'p_max_pu', snapshots)
-
-"""
+    """
 
     df = network.df(component)
     pnl = network.pnl(component)
@@ -224,11 +238,18 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     if len(varying_i) == 0:
         return repeat(df.loc[fixed_i, attr], len(snapshots))
 
-    def is_same_indices(i1, i2): return len(i1) == len(i2) and (i1 == i2).all()
+    def is_same_indices(i1, i2):
+        return len(i1) == len(i2) and (i1 == i2).all()
+
     if is_same_indices(fixed_i.append(varying_i), index):
-        def reindex_maybe(s): return s
+
+        def reindex_maybe(s):
+            return s
+
     else:
-        def reindex_maybe(s): return s.reindex(index)
+
+        def reindex_maybe(s):
+            return s.reindex(index)
 
     return (
         reindex_maybe(df.loc[fixed_i, attr].append(pnl[attr].loc[sn, varying_i]))
@@ -254,8 +275,7 @@ def allocate_series_dataframes(network, series):
     --------
     >>> allocate_series_dataframes(network, {'Generator': ['p'],
                                              'Load': ['p']})
-
-"""
+    """
 
     for component, attributes in series.items():
 
@@ -263,19 +283,23 @@ def allocate_series_dataframes(network, series):
         pnl = network.pnl(component)
 
         for attr in attributes:
-            pnl[attr] = pnl[attr].reindex(columns=df.index,
-                                          fill_value=network.components[component]["attrs"].at[attr,"default"])
+            pnl[attr] = pnl[attr].reindex(
+                columns=df.index,
+                fill_value=network.components[component]["attrs"].at[attr, "default"],
+            )
+
 
 def free_output_series_dataframes(network, components=None):
     if components is None:
         components = network.all_components
 
     for component in components:
-        attrs = network.components[component]['attrs']
+        attrs = network.components[component]["attrs"]
         pnl = network.pnl(component)
 
-        for attr in attrs.index[attrs['varying'] & (attrs['status'] == 'Output')]:
+        for attr in attrs.index[attrs["varying"] & (attrs["status"] == "Output")]:
             pnl[attr] = pd.DataFrame(index=network.snapshots, columns=[])
+
 
 def zsum(s, *args, **kwargs):
     """
@@ -286,13 +310,17 @@ def zsum(s, *args, **kwargs):
     """
     return 0 if s.empty else s.sum(*args, **kwargs)
 
-#Perhaps this should rather go into components.py
-nominal_attrs = {'Generator': 'p_nom',
-                 'Line': 's_nom',
-                 'Transformer': 's_nom',
-                 'Link': 'p_nom',
-                 'Store': 'e_nom',
-                 'StorageUnit': 'p_nom'}
+
+# Perhaps this should rather go into components.py
+nominal_attrs = {
+    "Generator": "p_nom",
+    "Line": "s_nom",
+    "Transformer": "s_nom",
+    "Link": "p_nom",
+    "Store": "e_nom",
+    "StorageUnit": "p_nom",
+}
+
 
 def expand_series(ser, columns):
     """
@@ -304,37 +332,43 @@ def expand_series(ser, columns):
 
 def get_extendable_i(n, c):
     """
-    Getter function. Get the index of extendable elements of a given component.
+    Getter function.
+
+    Get the index of extendable elements of a given component.
     """
-    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + '_extendable']].index
-    return idx.rename(f'{c}-ext')
+    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
+    return idx.rename(f"{c}-ext")
 
 
 def get_non_extendable_i(n, c):
     """
-    Getter function. Get the index of non-extendable elements of a given
-    component.
+    Getter function.
+
+    Get the index of non-extendable elements of a given component.
     """
-    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + '_extendable']].index
-    return idx.rename(f'{c}-fix')
+    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
+    return idx.rename(f"{c}-fix")
 
 
 def get_committable_i(n, c):
     """
-    Getter function. Get the index of commitable elements of a given
-    component.
+    Getter function.
+
+    Get the index of commitable elements of a given component.
     """
     if "committable" not in n.df(c):
         idx = pd.Index([])
     else:
-        idx = n.df(c)[lambda ds: ds['committable']].index
-    return idx.rename(f'{c}-com')
+        idx = n.df(c)[lambda ds: ds["committable"]].index
+    return idx.rename(f"{c}-com")
 
 
 def get_active_assets(n, c, investment_period):
     """
-    Getter function. Get True values for elements of component c which are active
-    at a given investment period. These are calculated from lifetime and the
+    Getter function.
+
+    Get True values for elements of component c which are active at a
+    given investment period. These are calculated from lifetime and the
     build year.
     """
     periods = np.atleast_1d(investment_period)
@@ -348,22 +382,24 @@ def get_active_assets(n, c, investment_period):
 
 def get_activity_mask(n, c, sns=None, index=None):
     """
-    Getter function. Get a boolean array with True values for elements of
-    component c which are active at a specific snapshot. If the network is
-    in multi_investment_period mode (given by n._multi_invest),
-    these are calculated from lifetime and the build year. Otherwise all
-    values are set to True.
+    Getter function.
+
+    Get a boolean array with True values for elements of component c
+    which are active at a specific snapshot. If the network is in
+    multi_investment_period mode (given by n._multi_invest), these are
+    calculated from lifetime and the build year. Otherwise all values
+    are set to True.
     """
     if sns is None:
         sns = n.snapshots
-    if getattr(n, '_multi_invest', False):
+    if getattr(n, "_multi_invest", False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
         res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
     else:
         res = pd.DataFrame(True, sns, n.df(c).index)
     if index is not None:
         res = res.reindex(columns=index)
-    res.index.name = 'snapshot'
+    res.index.name = "snapshot"
     return res
 
 
@@ -386,19 +422,18 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
-
     """
-    min_pu_str = nominal_attrs[c].replace('nom', 'min_pu')
-    max_pu_str = nominal_attrs[c].replace('nom', 'max_pu')
+    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
+    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
 
     max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
     if c in n.passive_branch_components:
-        min_pu = - max_pu
-    elif c == 'StorageUnit':
+        min_pu = -max_pu
+    elif c == "StorageUnit":
         min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-        if attr == 'p_store':
-            max_pu = - get_switchable_as_dense(n, c, min_pu_str, sns)
-        if attr == 'state_of_charge':
+        if attr == "p_store":
+            max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
+        if attr == "state_of_charge":
             max_pu = expand_series(n.df(c).max_hours, sns).T
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
@@ -411,5 +446,8 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
 
 
 def additional_linkports(n):
-    return [i[3:] for i in n.links.columns if i.startswith('bus')
-            and i not in ['bus0', 'bus1']]
+    return [
+        i[3:]
+        for i in n.links.columns
+        if i.startswith("bus") and i not in ["bus0", "bus1"]
+    ]
