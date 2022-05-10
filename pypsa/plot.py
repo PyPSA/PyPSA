@@ -165,9 +165,11 @@ def plot(
     x, y = _get_coordinates(n, layouter=layouter)
 
     if margin is None:
-        logger.warning("The `margin` argument does support None value anymore. "
-                       "Falling back to the default value 0.05. This will raise "
-                       "an error in the future.")
+        logger.warning(
+            "The `margin` argument does support None value anymore. "
+            "Falling back to the default value 0.05. This will raise "
+            "an error in the future."
+        )
         margin = 0.05
 
     if boundaries is None:
@@ -498,14 +500,14 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     return
 
 
-
 class HandlerCircle(HandlerPatch):
     """
     Legend Handler used to create circles for legend entries.
 
-    This handler resizes the circles in order to match the same dimensional
-    scaling as in the applied axis.
+    This handler resizes the circles in order to match the same
+    dimensional scaling as in the applied axis.
     """
+
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
@@ -570,7 +572,6 @@ def add_carrier_legend(ax, carriers, size=1, scale=1, **kwargs):
     >>> circ = pd.Series(["white", "k"], index=["color", "edgecolor"])
     >>> circ = circ.to_frame(f"Biggest circle = {biggest_size} MW").T
     >>> pypsa.plot.add_legend(ax, circ, size=biggest_size, scale=bus_scale, loc=2)
-
     """
 
     size = carriers.get("size", size)
@@ -578,7 +579,7 @@ def add_carrier_legend(ax, carriers, size=1, scale=1, **kwargs):
     empty_ser = pd.Series(index=carriers.index, dtype=object)
     nice_names = carriers.get("nice_name", empty_ser)
     circles = carriers.rename(columns={"color": "facecolor"})
-    circles = circles[set(plt.Circle.properties(plt.Circle((0,0)))) & set(circles)]
+    circles = circles[set(plt.Circle.properties(plt.Circle((0, 0)))) & set(circles)]
 
     # Scale the legend circles according to the circles drawn in the figure.
     # Note: the factor 56 is derived emprically!
@@ -590,7 +591,7 @@ def add_carrier_legend(ax, carriers, size=1, scale=1, **kwargs):
     rows = circles.iterrows()
     handles = [plt.Circle((0, 0), radius * figscale, **row[1].dropna()) for row in rows]
 
-    notnull = (nice_names != '') & nice_names.notnull()
+    notnull = (nice_names != "") & nice_names.notnull()
     labels = list(nice_names.where(notnull, carriers.index))
 
     handler_map = {plt.Circle: HandlerCircle()}
