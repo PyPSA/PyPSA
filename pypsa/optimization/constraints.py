@@ -4,21 +4,22 @@
 Define optimisation constraints from PyPSA networks with Linopy.
 """
 import logging
-import pandas as pd
-from linopy.expressions import merge, LinearExpression
-from numpy import roll, cumsum, nan, inf
-from xarray import DataArray, Dataset
-from scipy import sparse
 
-from .common import reindex
-from ..descriptors import (
-    get_bounds_pu,
-    get_activity_mask,
-    get_switchable_as_dense as get_as_dense,
-    expand_series,
-    nominal_attrs,
+import pandas as pd
+from linopy.expressions import LinearExpression, merge
+from numpy import cumsum, inf, nan, roll
+from scipy import sparse
+from xarray import DataArray, Dataset
+
+from pypsa.descriptors import (
     additional_linkports,
+    expand_series,
+    get_activity_mask,
+    get_bounds_pu,
 )
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.common import reindex
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,6 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
     fix_i = n.get_non_extendable_i(c)
     fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
@@ -71,7 +71,6 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
     ext_i = n.get_extendable_i(c)
 
@@ -103,7 +102,6 @@ def define_operational_constraints_for_committables(n, sns, c):
         Snapshots of the constraint.
     c : str
         name of the network component
-
     """
     com_i = n.get_committable_i(c)
 
@@ -128,8 +126,8 @@ def define_operational_constraints_for_committables(n, sns, c):
 
 def define_nominal_constraints_for_extendables(n, c, attr):
     """
-    Sets capacity expansion constraints for extendable
-    assets for a given component and a given attribute.
+    Sets capacity expansion constraints for extendable assets for a given
+    component and a given attribute.
 
     Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
 
@@ -140,7 +138,6 @@ def define_nominal_constraints_for_extendables(n, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
     ext_i = n.get_extendable_i(c)
 
@@ -164,7 +161,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     n : pypsa.Network
     c : str
         name of the network component
-
     """
     # TODO: Fix ramping for rolling horizons
     m = n.model
@@ -254,7 +250,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 def define_nodal_balance_constraints(n, sns):
     """
     Defines nodal balance constraints.
-
     """
     m = n.model
 
@@ -316,10 +311,9 @@ def define_nodal_balance_constraints(n, sns):
     n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance")
 
 
-def define_kirchhoff_constraints(n, sns):
+def define_kirchhoff_voltage_constraints(n, sns):
     """
-    Defines Kirchhoff voltage constraints
-
+    Defines Kirchhoff voltage constraints.
     """
     m = n.model
     n.calculate_dependent_values()
@@ -378,8 +372,8 @@ def define_kirchhoff_constraints(n, sns):
 
 def define_fixed_nominal_constraints(n, c, attr):
     """
-    Sets constraints for fixing static variables of a given component and attribute
-    to the corresponding values in `n.df(c)[attr + '_set']`.
+    Sets constraints for fixing static variables of a given component and
+    attribute to the corresponding values in `n.df(c)[attr + '_set']`.
 
     Parameters
     ----------
@@ -388,7 +382,6 @@ def define_fixed_nominal_constraints(n, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
 
     if attr + "_set" not in n.df(c):
@@ -417,7 +410,6 @@ def define_fixed_operation_constraints(n, sns, c, attr):
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
-
     """
 
     if attr + "_set" not in n.pnl(c):
@@ -425,27 +417,28 @@ def define_fixed_operation_constraints(n, sns, c, attr):
 
     dim = f"{c}-{attr}_set_i"
     fix = n.pnl(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
-    fix.index.name = "snapshot"  # still necessary: reindex looses the index name
+    fix.index.name = "snapshot"  # still necessary: reindex loses the index name
 
     if fix.empty:
         return
 
     if n._multi_invest:
         active = get_activity_mask(n, c, sns, index=fix.columns)
+        mask = fix.notna() & active
     else:
         active = None
+        mask = fix.notna()
 
     var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
-    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", active)
+    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask)
 
 
 def define_storage_unit_constraints(n, sns):
     """
-    Defines energy balance constraints for storage units. In principal
-    the constraints states:
+    Defines energy balance constraints for storage units. In principal the
+    constraints states:
 
-        previous_soc + p_store - p_dispatch + inflow - spill == soc
-
+    previous_soc + p_store - p_dispatch + inflow - spill == soc
     """
 
     m = n.model
@@ -521,11 +514,10 @@ def define_storage_unit_constraints(n, sns):
 
 def define_store_constraints(n, sns):
     """
-    Defines energy balance constraints for stores. In principal
-    the constraints states:
+    Defines energy balance constraints for stores. In principal the constraints
+    states:
 
-        previous_e - p == e
-
+    previous_e - p == e
     """
 
     m = n.model

@@ -3,51 +3,45 @@
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
-import os
 import logging
+import os
 
-from linopy import Model, merge
 import numpy as np
 import pandas as pd
+from linopy import Model, merge
 
-from ..descriptors import (
-    nominal_attrs,
-    get_switchable_as_dense as get_as_dense,
-    additional_linkports,
-)
-from ..pf import _as_snapshots
-
-from .common import set_from_frame
-
-from .variables import (
-    define_nominal_variables,
-    define_operational_variables,
-    define_status_variables,
-    define_spillage_variables,
-)
-from .constraints import (
-    define_operational_constraints_for_non_extendables,
+from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.abstract import iterative_transmission_capacity_expansion
+from pypsa.optimization.common import set_from_frame
+from pypsa.optimization.constraints import (
+    define_fixed_nominal_constraints,
+    define_fixed_operation_constraints,
+    define_kirchhoff_voltage_constraints,
+    define_nodal_balance_constraints,
+    define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
     define_operational_constraints_for_extendables,
-    define_nominal_constraints_for_extendables,
-    define_fixed_operation_constraints,
-    define_fixed_nominal_constraints,
+    define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
-    define_nodal_balance_constraints,
-    define_kirchhoff_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
 )
-
-from .global_constraints import (
+from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
     define_primary_energy_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
-
-from .abstract import iterative_transmission_capacity_expansion
+from pypsa.optimization.variables import (
+    define_nominal_variables,
+    define_operational_variables,
+    define_spillage_variables,
+    define_status_variables,
+)
+from pypsa.pf import _as_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +78,6 @@ def sanity_check(n, sns=None):
     Returns
     -------
     None.
-
     """
     if sns is None:
         sns = n.snapshots
@@ -129,8 +122,7 @@ def sanity_check(n, sns=None):
 
 def define_objective(n, sns):
     """
-    Defines and writes out the objective function
-
+    Defines and writes out the objective function.
     """
     m = n.model
     objective = []
@@ -260,7 +252,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
         define_fixed_operation_constraints(n, sns, c, attr)
 
     define_nodal_balance_constraints(n, sns)
-    define_kirchhoff_constraints(n, sns)
+    define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
 
@@ -363,7 +355,6 @@ def post_processing(n):
 
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
-
     """
     sns = n.model.parameters.snapshots
 
@@ -452,7 +443,6 @@ def optimize(
     Returns
     -------
     None.
-
     """
 
     sns = _as_snapshots(n, snapshots)
@@ -479,7 +469,9 @@ def is_documented_by(original):
 
 
 class OptimizationAccessor:
-    """Optimization accessor for building and solving models using linopy."""
+    """
+    Optimization accessor for building and solving models using linopy.
+    """
 
     def __init__(self, network):
         self._parent = network
@@ -502,7 +494,6 @@ class OptimizationAccessor:
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
-
         """
         n = self._parent
         m = n.model
@@ -539,8 +530,9 @@ class OptimizationAccessor:
         """
         Fix capacities of extendable assets to optimized capacities.
 
-        Use this function when a capacity expansion optimization was already
-        performed and a operational optimization should be done afterwards.
+        Use this function when a capacity expansion optimization was
+        already performed and a operational optimization should be done
+        afterwards.
         """
         n = self._parent
         for c, attr in nominal_attrs.items():
@@ -575,7 +567,6 @@ class OptimizationAccessor:
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
-
         """
         n = self._parent
         if "Load" not in n.carriers.index:
@@ -593,5 +584,3 @@ class OptimizationAccessor:
             marginal_cost=marginal_cost,
             p_nom=p_nom,
         )
-
-
