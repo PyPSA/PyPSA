@@ -1184,8 +1184,8 @@ class Network(Basic):
             for attr in ["bus"]:
                 connected_buses.update(c.df[attr])
 
-        disconnected_buses = list(set(self.buses.index) - connected_buses)
-        if len(disconnected_buses) > 0:
+        disconnected_buses = set(self.buses.index) - connected_buses
+        if disconnected_buses:
             logger.warning(f"The following buses are not connected:\n{disconnected_buses}\n - lopf might fail, to be fixed.")
 
 
