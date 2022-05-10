@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 ## Copyright 2015-2021 PyPSA Developers
 
@@ -7,19 +8,25 @@
 ## PyPSA is released under the open source MIT License, see
 ## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
-"""Graph helper functions, which are attached to network and sub_network
+"""
+Graph helper functions, which are attached to network and sub_network.
 """
 
-__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-                 "MIT License")
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
 
 # Functions which will be attached to network and sub_network
 
-import scipy as sp
 import numpy as np
+import scipy as sp
 
-from .descriptors import OrderedGraph, get_active_assets
+from pypsa.descriptors import OrderedGraph, get_active_assets
+
 
 def graph(network, branch_components=None, weight=None, inf_weight=False):
     """
@@ -48,7 +55,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
         NetworkX graph
     """
 
-    from . import components
+    from pypsa import components
 
     if isinstance(network, components.Network):
         if branch_components is None:
@@ -69,17 +76,18 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     # Multigraph uses the branch type and name as key
     def gen_edges():
         for c in network.iterate_components(branch_components):
-            for branch in c.df.loc[slice(None) if c.ind is None
-                                               else c.ind].itertuples():
+            for branch in c.df.loc[
+                slice(None) if c.ind is None else c.ind
+            ].itertuples():
                 if weight is None:
                     data = {}
                 else:
                     data = dict(weight=getattr(branch, weight, 0))
-                    if np.isinf(data['weight']) and inf_weight is not True:
+                    if np.isinf(data["weight"]) and inf_weight is not True:
                         if inf_weight is False:
                             continue
                         else:
-                            data['weight'] = inf_weight
+                            data["weight"] = inf_weight
 
                 yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
@@ -87,8 +95,10 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
 
     return graph
 
-def adjacency_matrix(network, branch_components=None, investment_period=None,
-                     busorder=None, weights=None):
+
+def adjacency_matrix(
+    network, branch_components=None, investment_period=None, busorder=None, weights=None
+):
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -110,7 +120,7 @@ def adjacency_matrix(network, branch_components=None, investment_period=None,
        Directed adjacency matrix
     """
 
-    from . import components
+    from pypsa import components
 
     if isinstance(network, components.Network):
         if branch_components is None:
@@ -141,15 +151,17 @@ def adjacency_matrix(network, branch_components=None, investment_period=None,
             if investment_period is None:
                 sel = c.ind
             else:
-                active = get_active_assets(network, c.name, investment_period, network.snapshots)
+                active = get_active_assets(
+                    network, c.name, investment_period, network.snapshots
+                )
                 sel = c.ind & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
-        weight_vals.append(np.ones(no_branches)
-                           if weights is None
-                           else weights[c.name][sel].values)
+        weight_vals.append(
+            np.ones(no_branches) if weights is None else weights[c.name][sel].values
+        )
 
     if no_branches == 0:
         return sp.sparse.coo_matrix((no_buses, no_buses))
@@ -158,8 +170,10 @@ def adjacency_matrix(network, branch_components=None, investment_period=None,
     bus1_inds = np.concatenate(bus1_inds)
     weight_vals = np.concatenate(weight_vals)
 
-    return sp.sparse.coo_matrix((weight_vals, (bus0_inds, bus1_inds)),
-                                shape=(no_buses, no_buses))
+    return sp.sparse.coo_matrix(
+        (weight_vals, (bus0_inds, bus1_inds)), shape=(no_buses, no_buses)
+    )
+
 
 def incidence_matrix(network, branch_components=None, busorder=None):
     """
@@ -179,7 +193,7 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
     """
-    from . import components
+    from pypsa import components
 
     if isinstance(network, components.Network):
         if branch_components is None:
@@ -210,6 +224,10 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 
-    return sp.sparse.csr_matrix((np.r_[np.ones(no_branches), -np.ones(no_branches)],
-                                 (np.r_[bus0_inds, bus1_inds], np.r_[:no_branches, :no_branches])),
-                                (no_buses, no_branches))
+    return sp.sparse.csr_matrix(
+        (
+            np.r_[np.ones(no_branches), -np.ones(no_branches)],
+            (np.r_[bus0_inds, bus1_inds], np.r_[:no_branches, :no_branches]),
+        ),
+        (no_buses, no_branches),
+    )

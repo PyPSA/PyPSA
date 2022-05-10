@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  2 10:21:16 2021
+Created on Fri Jul  2 10:21:16 2021.
 
 @author: fabian
 """
 
-import pypsa
-import pytest
 import os
+
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
+
+import pypsa
 from pypsa.descriptors import get_activity_mask
 
 

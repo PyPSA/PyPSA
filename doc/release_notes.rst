@@ -7,36 +7,97 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The names of the indexes in static dataframes are now set to the component names. So, the index of ``n.generators`` has the name 'Generator'. The same accounts for the columns of the timeseries.  
+PyPSA 0.19.3 (22nd April 2022)
+==============================
 
-* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial clustering method [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
+* Apply pre-commit formats to support development (incl. black formatting,
+  jupyter cleanup, import sorting, preventing large file uploads). This will
+  distort ``git blame`` functionality, which can be fixed by running ``git
+  config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
+  repostory. Run ``pre-commit install`` to set up locally.
 
-* The snapshot levels of a multi-indexed snapshot were renamed to ['period', 'timestep'], the name of the index was set to 'snapshot'. This makes the snapshot name coherent for single and multi-indexed snapshots.
+* Change message when exporting and importing networks without a set ``network_name``. Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
 
-* A new convenience function `Network.get_committable_i` was added. This returns an index containing all committable assets of component `c`. In case that component `c` does not support committable assets, it returns an empty dataframe.  
+PyPSA 0.19.2 (7th March 2022)
+=============================
 
-* The `Link` component has two new attributes, `ramp_limit_up` and `ramp_limit_down`, which limits the marginal power increase equivalent to the implementation for generators. The new attributes are only considered when performing the `lopf` with `pyomo=False`.
+* Add standard line type for 750 kV transmission line.
 
-* A warning message is shown if a network contains one or more links with an :code:`efficiency` smaller than 1 and a negative value for :code:`p_min_pu` [`#320 <https://github.com/PyPSA/PyPSA/pull/320>`_].
+PyPSA 0.19.1 (18th February 2022)
+=================================
 
-* Clustering networks now also supports the clustering of time-series associated to lines.
+* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.
+
+
+PyPSA 0.19.0 (11th February 2022)
+=================================
+
+This release contains new features for ramping constraints in link components,
+hierarchical network clustering functionality, and an interface to the
+open-source HiGHS solver.
+
+**New Features**
+
+* Ramp limits for ``Links``. The ``Link`` component has two new attributes, :code:`ramp_limit_up` and
+  :code:`ramp_limit_down`, which limits the marginal power increase equivalent to the
+  implementation for generators. The new attributes are only considered when
+  running ``network.lopf(pyomo=False)``.
+
+* Hierarchical Agglomerative Clustering (HAC) was introduced as new spatial
+  clustering method [`#289 <https://github.com/PyPSA/PyPSA/pull/289>`_].
+
+* Clustering networks now also supports the clustering of time-series associated
+  to lines.
+
+* Add open-source `HiGHS solver <https://github.com/ERGO-Code/HiGHS>`_.
+
+* A new convenience function ``Network.get_committable_i`` was added. This returns
+  an index containing all committable assets of component ``c``. In case that
+  component ``c`` does not support committable assets, it returns an empty
+  dataframe.
+
+* A warning message is shown if a network contains one or more links with an
+  :code:`efficiency` smaller than 1 and a negative value for :code:`p_min_pu`
+  [`#320 <https://github.com/PyPSA/PyPSA/pull/320>`_].
 
 * New example for spatial clustering.
 
-* Add open source `HiGHS solver <https://github.com/ERGO-Code/HiGHS>`_.
+* Speed-up of ``network.plot()`` by only plotting buses with non-zero size.
+
+* Increased test coverage.
+
+**Changes**
+
+* The names of the indexes in static dataframes are now set to the component
+  names. So, the index of ``n.generators`` has the name 'Generator'. The same
+  accounts for the columns of the timeseries.
+
+* The snapshot levels of a multi-indexed snapshot were renamed to ['period',
+  'timestep'], the name of the index was set to 'snapshot'. This makes the
+  snapshot name coherent for single and multi-indexed snapshots.
+
+**Bugs and Compatibility**
+
+* Compatibility with ``pandas>=1.4``.
+
+* Drop support for Python 3.6 in accordance with its
+  [end-of-life](https://endoflife.date/python).
+
+* Use ``nx.Graph`` instead of ``nx.OrderedGraph`` which guarantees order is
+  preserved for Python 3.7 and above.
 
 * Add assert: CBC solver does not work with '>' and '<'.
 
+* When running ``network.lopf(pyomo=False)``, the ramp limits did not take
+  the time step right before the optimization horizon into account (relevant for
+  rolling horizon optimization). This is now fixed.
+
 * Fix bug when multi-links are defined but the network has no links.
 
-* Drop support for Python 3.6 in accordance with its [end-of-life](https://endoflife.date/python).
-
-* Use ``nx.Graph`` instead of ``nx.OrderedGraph`` which guarantees order is preserved for
-  Python 3.7 and above.
-
-* Combatibility with pandas 1.4.
-
-* When performing a `lopf` with ``pyomo=False``, the ramp limits did not take the time step right before the optimization horizon into account (relevant for rolling horizon optimization). This is now fixed.  
+Special thanks for this release to Samuel Matthew Dumlao (@smdumlao) for
+implementing the ramp limits for Links in PyPSA, Martha Frysztacki (@martacki) for
+implementing the hierarchical network clustering, and Max Parzen (@pz-max) for
+implementing the HiGHS solver interface.
 
 PyPSA 0.18.1 (15th October 2021)
 ================================
@@ -54,7 +115,7 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
-  
+
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
   were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 
@@ -147,6 +208,8 @@ documentation's examples section as well as compatibility and bug fixes.
 
 * ``n.snapshots`` are now a property, hence assigning values with
   ``n.snapshots = values`` is the same as ``n.set_snapshots(values)``.
+
+* Remove deprecated function ``geo.area_from_lon_lat_poly``.
 
 **Deprecations**
 

@@ -1,4 +1,4 @@
-|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder|
+|badge_pypi| |badge_conda| |ci_badge| |ci_badge_conda| |codecov| |badge_docs| |badge_license| |link-latest-doi| |gitter| |binder| |pre-commit.ci| |black|
 
 -----
 
@@ -23,14 +23,17 @@ and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks. PyPSA is designed
 to scale well with large networks and long time series.
 
-This project is maintained by the `Energy System Modelling
-group <https://www.iai.kit.edu/english/2338.php>`_ at the `Institute for
+
+This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`_
+at the `Technical University of Berlin <https://www.tu.berlin>`_.
+Previous versions were developed by the Energy System Modelling
+group at the `Institute for
 Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
-Technology <http://www.kit.edu/english/index.php>`_. The group is funded by the
-`Helmholtz Association <https://www.helmholtz.de/en/>`_ until 2024.
-Previous versions were developed by the `Renewable Energy Group
+Technology <http://www.kit.edu/english/index.php>`_ funded by the
+`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the
+`Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
 for the `CoNDyNet project <http://condynet.de/>`_, financed by the
@@ -285,3 +288,11 @@ PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/P
 .. |codecov| image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
     :alt: Code coverage
+
+.. |pre-commit.ci| image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
+    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
+    :alt: pre-commit.ci status
+
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/psf/black
+   :alt: Code style: black
