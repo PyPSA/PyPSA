@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.patches import Circle, FancyArrow, Wedge
+from matplotlib.legend_handler import HandlerPatch
+from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
 
 cartopy_present = True
 try:
@@ -52,7 +53,7 @@ except ImportError:
 
 def plot(
     n,
-    margin=None,
+    margin=0.05,
     ax=None,
     geomap=True,
     projection=None,
@@ -60,6 +61,7 @@ def plot(
     bus_alpha=1,
     bus_sizes=2e-2,
     bus_cmap=None,
+    bus_norm=None,
     line_colors="rosybrown",
     link_colors="darkseagreen",
     transformer_colors="orange",
@@ -69,6 +71,9 @@ def plot(
     line_cmap=None,
     link_cmap=None,
     transformer_cmap=None,
+    line_norm=None,
+    link_norm=None,
+    transformer_norm=None,
     flow=None,
     branch_components=None,
     layouter=None,
@@ -83,8 +88,9 @@ def plot(
 
     Parameters
     ----------
-    margin : float
+    margin : float, defaults to 0.05
         Margin at the sides as proportion of distance between max/min x,y
+        Will be ignored if boundaries are given.
     ax : matplotlib ax, defaults to plt.gca()
         Axis to which to plot the network
     geomap: bool/str, default True
@@ -108,6 +114,8 @@ def plot(
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
     bus_cmap : plt.cm.ColorMap/str
         If bus_colors are floats, this color map will assign the colors
+    bus_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the bus_cmap.
     line_colors : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
@@ -126,6 +134,12 @@ def plot(
         If link_colors are floats, this color map will assign the colors.
     transformer_cmap : plt.cm.ColorMap/str|dict
         If transformer_colors are floats, this color map will assign the colors.
+    line_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the line_cmap.
+    link_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the link_cmap.
+    transformer_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+        The norm applied to the transformer_cmap.
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
         n.snapshots is given, the flow at this timestamp will be
@@ -160,8 +174,17 @@ def plot(
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
+
+    if margin is None:
+        logger.warning(
+            "The `margin` argument does support None value anymore. "
+            "Falling back to the default value 0.05. This will raise "
+            "an error in the future."
+        )
+        margin = 0.05
+
     x, y = _get_coordinates(n, layouter=layouter)
-    if boundaries is None and margin:
+    if boundaries is None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap and not cartopy_present:
@@ -197,6 +220,8 @@ def plot(
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
+    elif hasattr(ax, "projection"):
+        raise ValueError("Axis is a geo axis, but `geomap` is set to False")
     if not geomap and boundaries:
         ax.axis(boundaries)
 
@@ -263,8 +288,9 @@ def plot(
         if bus_cmap is not None and c.dtype is np.dtype("float"):
             if isinstance(bus_cmap, str):
                 bus_cmap = plt.cm.get_cmap(bus_cmap)
-            norm = plt.Normalize(vmin=c.min(), vmax=c.max())
-            c = c.apply(lambda cval: bus_cmap(norm(cval)))
+            if not bus_norm:
+                bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
+            c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
         patches = []
         for b_i in s.index[s != 0]:
@@ -313,6 +339,11 @@ def plot(
         "Link": link_cmap,
         "Transformer": transformer_cmap,
     }
+    branch_norm = {
+        "Line": line_norm,
+        "Link": link_norm,
+        "Transformer": transformer_norm,
+    }
 
     branch_collections = []
     arrow_collections = []
@@ -326,6 +357,7 @@ def plot(
         b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
         b_nums = None
         b_cmap = branch_cmap[c.name]
+        b_norm = branch_norm[c.name]
         b_flow = flow.get(c.name, None) if flow is not None else None
 
         if issubclass(b_colors.dtype.type, np.number):
@@ -368,6 +400,7 @@ def plot(
                 f_collection.set_array(np.asarray(b_nums))
                 f_collection.set_cmap(b_cmap)
                 f_collection.autoscale()
+                f_collection.set(norm=b_norm)
             arrow_collections.append(f_collection)
             ax.add_collection(f_collection)
 
@@ -383,13 +416,11 @@ def plot(
             b_collection.set_array(np.asarray(b_nums))
             b_collection.set_cmap(b_cmap)
             b_collection.autoscale()
+            b_collection.set(norm=b_norm)
 
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
-
-    if boundaries is None:
-        ax.autoscale()
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
@@ -445,8 +476,6 @@ def projected_area_factor(ax, original_crs=4326):
     """
     if not hasattr(ax, "projection"):
         return 1
-    if isinstance(ax.projection, ccrs.PlateCarree):
-        return 1
     x1, x2, y1, y2 = ax.get_extent()
     pbounds = get_projection_from_crs(original_crs).transform_points(
         ax.projection, np.array([x1, x2]), np.array([y1, y2])
@@ -487,6 +516,123 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     ax.add_feature(border, linewidth=0.3)
 
     return
+
+
+class HandlerCircle(HandlerPatch):
+    """
+    Legend Handler used to create circles for legend entries.
+
+    This handler resizes the circles in order to match the same
+    dimensional scaling as in the applied axis.
+    """
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+
+        # take minimum to protect against too uneven x- and y-axis extents
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        radius = orig_handle.get_radius() * (72 / fig.dpi) * unit
+        center = 5 - xdescent, 3 - ydescent
+        p = plt.Circle(center, radius)
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
+def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for lines and links.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the line reference; for example [3,2,1]
+    labels : list-like, str
+        Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to plt.Line2D
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+
+    legend = ax.legend(handles, labels, **legend_kw)
+
+    ax.add_artist(legend)
+
+
+def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
+    """
+    Add patches for color references.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    colors : list-like, float
+        Color of the patch; for example ["r", "g", "b"]
+    labels : list-like, str
+        Label of the patch; for example ["wind", "solar", "gas"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Patch
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    colors = np.atleast_1d(colors)
+    labels = np.atleast_1d(labels)
+
+    assert len(colors) == len(labels), "Colors and labels must have the same length."
+
+    handles = [Patch(facecolor=c, **patch_kw) for c in colors]
+
+    legend = ax.legend(handles, labels, **legend_kw)
+
+    ax.add_artist(legend)
+
+
+def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for reference circles.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference circle; for example [3,2,1]
+    labels : list-like, str
+        Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Circle
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    if hasattr(ax, "projection"):
+        area_correction = projected_area_factor(ax, srid) ** 2
+        sizes = [s * area_correction for s in sizes]
+
+    handles = [Circle((0, 0), radius=s**0.5, **patch_kw) for s in sizes]
+
+    legend = ax.legend(
+        handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
+    )
+
+    ax.add_artist(legend)
 
 
 def _flow_ds_from_arg(flow, n, branch_components):

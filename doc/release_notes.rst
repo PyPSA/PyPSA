@@ -7,6 +7,48 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
+
+* Improved support for individually normed colorbars in ``n.plot()`` for buses, lines, links, transformers with keyword arguments ``bus_norm``, ``line_norm``, ``link_norm``, ``transformer_norm``.
+
+  .. code-block:: python
+    :caption: Colorbar plotting example
+
+    import pypsa
+    import matplotlib.pyplot as plt
+    n = pypsa.examples.ac_dc_meshed()
+    norm = plt.Normalize(vmin=0, vmax=10)
+    n.plot(
+        bus_colors=n.buses.x,
+        bus_cmap='viridis',
+        bus_norm=norm
+    )
+    plt.colorbar(plt.cm.ScalarMappable(cmap='viridis', norm=norm))
+
+* New utility functions to add legends for line widths (:func:`pypsa.plot.add_legend_lines`), circles and pie chart areas (:func:`pypsa.plot.add_legend_circles`), and patch colors (:func:`pypsa.plot.add_legend_patches`).
+  See the following example:
+
+  .. code-block:: python
+    :caption: Legend plotting example
+
+    import pypsa
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    from pypsa.plot import add_legend_circles
+
+    n = pypsa.examples.ac_dc_meshed()
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    n.plot(ax=ax, bus_sizes=1)
+
+    add_legend_circles(
+        ax,
+        [1, 0.5],
+        ["reference size", "reference size 2"],
+        legend_kw=dict(frameon=False, bbox_to_anchor=(1,0.1))
+    )
+
+
 PyPSA 0.19.3 (22nd April 2022)
 ==============================
 
