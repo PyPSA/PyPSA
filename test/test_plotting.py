@@ -113,6 +113,26 @@ def test_plot_map_flow(ac_dc_network):
     plt.close()
 
 
+def test_plot_map_line_colorbar(ac_dc_network):
+    n = ac_dc_network
+
+    norm = plt.Normalize(vmin=0, vmax=10)
+
+    n.plot(line_colors=n.lines.index.astype(int), line_cmap="viridis", line_norm=norm)
+
+    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm))
+
+
+def test_plot_map_bus_colorbar(ac_dc_network):
+    n = ac_dc_network
+
+    norm = plt.Normalize(vmin=0, vmax=10)
+
+    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_norm=norm)
+
+    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm))
+
+
 def test_plot_legend_lines(ac_dc_network):
     n = ac_dc_network
 

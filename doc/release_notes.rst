@@ -9,6 +9,22 @@ Upcoming Release
 
 * In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
 
+* Improved support for individually normed colorbars in ``n.plot()`` for buses, lines, links, transformers with keyword arguments ``bus_norm``, ``line_norm``, ``link_norm``, ``transformer_norm``.
+
+  .. code-block:: python
+    :caption: Colorbar plotting example
+
+    import pypsa
+    import matplotlib.pyplot as plt
+    n = pypsa.examples.ac_dc_meshed()
+    norm = plt.Normalize(vmin=0, vmax=10)
+    n.plot(
+        bus_colors=n.buses.x,
+        bus_cmap='viridis',
+        bus_norm=norm
+    )
+    plt.colorbar(plt.cm.ScalarMappable(cmap='viridis', norm=norm))
+
 * New utility functions to add legends for line widths (:func:`pypsa.plot.add_legend_lines`), circles and pie chart areas (:func:`pypsa.plot.add_legend_circles`), and patch colors (:func:`pypsa.plot.add_legend_patches`).
   See the following example:
 
