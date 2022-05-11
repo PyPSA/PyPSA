@@ -52,7 +52,7 @@ except ImportError:
 
 def plot(
     n,
-    margin=None,
+    margin=0.05,
     ax=None,
     geomap=True,
     projection=None,
@@ -83,8 +83,9 @@ def plot(
 
     Parameters
     ----------
-    margin : float
+    margin : float, defaults to 0.05
         Margin at the sides as proportion of distance between max/min x,y
+        Will be ignored if boundaries are given.
     ax : matplotlib ax, defaults to plt.gca()
         Axis to which to plot the network
     geomap: bool/str, default True
@@ -160,8 +161,17 @@ def plot(
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
+
+    if margin is None:
+        logger.warning(
+            "The `margin` argument does support None value anymore. "
+            "Falling back to the default value 0.05. This will raise "
+            "an error in the future."
+        )
+        margin = 0.05
+
     x, y = _get_coordinates(n, layouter=layouter)
-    if boundaries is None and margin:
+    if boundaries is None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
     if geomap and not cartopy_present:
@@ -197,6 +207,8 @@ def plot(
             ax.set_extent(boundaries, crs=transform)
     elif ax is None:
         ax = plt.gca()
+    elif hasattr(ax, "projection"):
+        raise ValueError("Axis is a geo axis, but `geomap` is set to False")
     if not geomap and boundaries:
         ax.axis(boundaries)
 
@@ -387,9 +399,6 @@ def plot(
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
-
-    if boundaries is None:
-        ax.autoscale()
 
     return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
