@@ -10,7 +10,7 @@ Upcoming Release
 * In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
 
 * Improved support for individually normed colorbars in ``n.plot()`` for buses, lines, links, transformers with keyword arguments ``bus_norm``, ``line_norm``, ``link_norm``, ``transformer_norm``.
-  
+
   .. code-block:: python
     :caption: Colorbar plotting example
 
