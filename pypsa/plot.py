@@ -60,6 +60,7 @@ def plot(
     bus_alpha=1,
     bus_sizes=2e-2,
     bus_cmap=None,
+    bus_norm=None,
     line_colors="rosybrown",
     link_colors="darkseagreen",
     transformer_colors="orange",
@@ -69,6 +70,9 @@ def plot(
     line_cmap=None,
     link_cmap=None,
     transformer_cmap=None,
+    line_norm=None,
+    link_norm=None,
+    transformer_norm=None,
     flow=None,
     branch_components=None,
     layouter=None,
@@ -109,6 +113,8 @@ def plot(
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
     bus_cmap : plt.cm.ColorMap/str
         If bus_colors are floats, this color map will assign the colors
+    bus_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the bus_cmap.
     line_colors : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
@@ -127,6 +133,12 @@ def plot(
         If link_colors are floats, this color map will assign the colors.
     transformer_cmap : plt.cm.ColorMap/str|dict
         If transformer_colors are floats, this color map will assign the colors.
+    line_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the line_cmap.
+    link_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the link_cmap.
+    transformer_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+        The norm applied to the transformer_cmap.
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
         n.snapshots is given, the flow at this timestamp will be
@@ -275,8 +287,9 @@ def plot(
         if bus_cmap is not None and c.dtype is np.dtype("float"):
             if isinstance(bus_cmap, str):
                 bus_cmap = plt.cm.get_cmap(bus_cmap)
-            norm = plt.Normalize(vmin=c.min(), vmax=c.max())
-            c = c.apply(lambda cval: bus_cmap(norm(cval)))
+            if not bus_norm:
+                bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
+            c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
         patches = []
         for b_i in s.index[s != 0]:
@@ -325,6 +338,11 @@ def plot(
         "Link": link_cmap,
         "Transformer": transformer_cmap,
     }
+    branch_norm = {
+        "Line": line_norm,
+        "Link": link_norm,
+        "Transformer": transformer_norm,
+    }
 
     branch_collections = []
     arrow_collections = []
@@ -338,6 +356,7 @@ def plot(
         b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
         b_nums = None
         b_cmap = branch_cmap[c.name]
+        b_norm = branch_norm[c.name]
         b_flow = flow.get(c.name, None) if flow is not None else None
 
         if issubclass(b_colors.dtype.type, np.number):
@@ -380,6 +399,7 @@ def plot(
                 f_collection.set_array(np.asarray(b_nums))
                 f_collection.set_cmap(b_cmap)
                 f_collection.autoscale()
+                f_collection.set(norm=b_norm)
             arrow_collections.append(f_collection)
             ax.add_collection(f_collection)
 
@@ -395,6 +415,7 @@ def plot(
             b_collection.set_array(np.asarray(b_nums))
             b_collection.set_cmap(b_cmap)
             b_collection.autoscale()
+            b_collection.set(norm=b_norm)
 
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
