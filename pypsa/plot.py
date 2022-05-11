@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.patches import Circle, FancyArrow, Wedge, Patch
 from matplotlib.legend_handler import HandlerPatch
+from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
 
 cartopy_present = True
 try:
@@ -499,11 +499,12 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
 
 class HandlerCircle(HandlerPatch):
     """
-    Legend Handler used to create circles for legend entries. 
-    
-    This handler resizes the circles in order to match the same dimensional 
-    scaling as in the applied axis.
+    Legend Handler used to create circles for legend entries.
+
+    This handler resizes the circles in order to match the same
+    dimensional scaling as in the applied axis.
     """
+
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
@@ -523,7 +524,7 @@ class HandlerCircle(HandlerPatch):
 def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     """
     Add a legend for lines and links.
-    
+
     Parameters
     ----------
     ax : matplotlib ax
@@ -544,10 +545,7 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
 
     handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
 
-    legend = ax.legend(
-        handles, labels,
-        **legend_kw
-    )
+    legend = ax.legend(handles, labels, **legend_kw)
 
     ax.add_artist(legend)
 
@@ -555,7 +553,7 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
 def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     """
     Add patches for color references.
-    
+
     Parameters
     ----------
     ax : matplotlib ax
@@ -571,7 +569,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
 
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
-    
+
     assert len(colors) == len(labels), "Colors and labels must have the same length."
 
     handles = [Patch(facecolor=c, **patch_kw) for c in colors]
@@ -584,7 +582,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
 def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     """
     Add a legend for reference circles.
-    
+
     Parameters
     ----------
     ax : matplotlib ax
@@ -604,15 +602,13 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     assert len(sizes) == len(labels), "Sizes and labels must have the same length."
 
     if hasattr(ax, "projection"):
-        area_correction = projected_area_factor(ax, srid)**2 
+        area_correction = projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
     handles = [Circle((0, 0), radius=s**0.5, **patch_kw) for s in sizes]
 
     legend = ax.legend(
-        handles, labels,
-        handler_map={Circle: HandlerCircle()},
-        **legend_kw
+        handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
     )
 
     ax.add_artist(legend)

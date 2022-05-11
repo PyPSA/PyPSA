@@ -125,7 +125,7 @@ def test_plot_legend_lines(ac_dc_network):
     )
 
     plt.close()
-    
+
 
 def test_plot_legend_patches(ac_dc_network):
     n = ac_dc_network
@@ -142,12 +142,13 @@ def test_plot_legend_patches(ac_dc_network):
 
     plt.close()
 
+
 def test_plot_legend_circles_no_geomap(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots()
     n.plot(ax=ax, geomap=False)
-    
+
     add_legend_circles(ax, 1, "reference size")
 
     plt.close()
@@ -159,8 +160,7 @@ def test_plot_legend_circles_geomap(ac_dc_network):
 
     fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
     n.plot(ax=ax, geomap=True)
-    
+
     add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
-
