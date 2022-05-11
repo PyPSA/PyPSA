@@ -187,4 +187,3 @@ def test_plot_legend_circles_geomap(ac_dc_network):
     add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
-
