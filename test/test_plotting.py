@@ -12,8 +12,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
+
 try:
     import cartopy
+    import cartopy.crs as ccrs
 
     cartopy_present = True
 except ImportError as e:
@@ -107,4 +110,60 @@ def test_plot_map_flow(ac_dc_network):
     plt.close()
 
     n.plot(flow=n.snapshots[0], geomap=False)
+    plt.close()
+
+
+def test_plot_legend_lines(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots()
+    n.plot(ax=ax, geomap=False)
+
+    add_legend_lines(
+        ax,
+        [2, 5],
+        ["label a", "label b"],
+        patch_kw=dict(alpha=0.5),
+        legend_kw=dict(frameon=False),
+    )
+
+    plt.close()
+
+
+def test_plot_legend_patches(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots()
+    n.plot(ax=ax, geomap=False)
+
+    add_legend_patches(
+        ax,
+        ["r", "g", "b"],
+        ["red", "green", "blue"],
+        legend_kw=dict(frameon=False),
+    )
+
+    plt.close()
+
+
+def test_plot_legend_circles_no_geomap(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots()
+    n.plot(ax=ax, geomap=False)
+
+    add_legend_circles(ax, 1, "reference size")
+
+    plt.close()
+
+
+@pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
+def test_plot_legend_circles_geomap(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    n.plot(ax=ax, geomap=True)
+
+    add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
+
     plt.close()

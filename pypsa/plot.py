@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.patches import Circle, FancyArrow, Wedge
+from matplotlib.legend_handler import HandlerPatch
+from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
 
 cartopy_present = True
 try:
@@ -454,8 +455,6 @@ def projected_area_factor(ax, original_crs=4326):
     """
     if not hasattr(ax, "projection"):
         return 1
-    if isinstance(ax.projection, ccrs.PlateCarree):
-        return 1
     x1, x2, y1, y2 = ax.get_extent()
     pbounds = get_projection_from_crs(original_crs).transform_points(
         ax.projection, np.array([x1, x2]), np.array([y1, y2])
@@ -496,6 +495,123 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     ax.add_feature(border, linewidth=0.3)
 
     return
+
+
+class HandlerCircle(HandlerPatch):
+    """
+    Legend Handler used to create circles for legend entries.
+
+    This handler resizes the circles in order to match the same
+    dimensional scaling as in the applied axis.
+    """
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+
+        # take minimum to protect against too uneven x- and y-axis extents
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        radius = orig_handle.get_radius() * (72 / fig.dpi) * unit
+        center = 5 - xdescent, 3 - ydescent
+        p = plt.Circle(center, radius)
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
+def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for lines and links.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the line reference; for example [3,2,1]
+    labels : list-like, str
+        Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to plt.Line2D
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+
+    legend = ax.legend(handles, labels, **legend_kw)
+
+    ax.add_artist(legend)
+
+
+def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
+    """
+    Add patches for color references.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    colors : list-like, float
+        Color of the patch; for example ["r", "g", "b"]
+    labels : list-like, str
+        Label of the patch; for example ["wind", "solar", "gas"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Patch
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    colors = np.atleast_1d(colors)
+    labels = np.atleast_1d(labels)
+
+    assert len(colors) == len(labels), "Colors and labels must have the same length."
+
+    handles = [Patch(facecolor=c, **patch_kw) for c in colors]
+
+    legend = ax.legend(handles, labels, **legend_kw)
+
+    ax.add_artist(legend)
+
+
+def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for reference circles.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference circle; for example [3,2,1]
+    labels : list-like, str
+        Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Circle
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    if hasattr(ax, "projection"):
+        area_correction = projected_area_factor(ax, srid) ** 2
+        sizes = [s * area_correction for s in sizes]
+
+    handles = [Circle((0, 0), radius=s**0.5, **patch_kw) for s in sizes]
+
+    legend = ax.legend(
+        handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
+    )
+
+    ax.add_artist(legend)
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
