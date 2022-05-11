@@ -455,8 +455,6 @@ def projected_area_factor(ax, original_crs=4326):
     """
     if not hasattr(ax, "projection"):
         return 1
-    if isinstance(ax.projection, ccrs.PlateCarree):
-        return 1
     x1, x2, y1, y2 = ax.get_extent()
     pbounds = get_projection_from_crs(original_crs).transform_points(
         ax.projection, np.array([x1, x2]), np.array([y1, y2])
