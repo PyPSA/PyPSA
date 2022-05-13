@@ -635,23 +635,28 @@ def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
+
 def _solver_options_handler(options):
     if options is None:
         return {}
     elif isinstance(options, dict):
         return options
     elif isinstance(options, str):
-        logger.info('Solver options can have dictionary type.')
+        logger.info("Solver options can have dictionary type.")
         if isinstance(options, str):
-            s = options.split(' ')
-            if (len(s) >= 2) and (len(s)%2 == 0):
-                optionsdict = {s[i]:s[i+1] for i in range(0, len(s), 2)}
+            s = options.split(" ")
+            if (len(s) >= 2) and (len(s) % 2 == 0):
+                optionsdict = {s[i]: s[i + 1] for i in range(0, len(s), 2)}
                 return optionsdict
             else:
-                raise Exception(f'Could not convert solver options string {options} to dictionary. Please keep key:value format. Fill value with empty string if necessary.')
+                raise Exception(
+                    f"Could not convert solver options string {options} to dictionary. Please keep key:value format. Fill value with empty string if necessary."
+                )
     else:
-        raise Exception(f'Solver option type not understood, got {options}. Type can be dict (preferred), or string separated by one space.')
-        
+        raise Exception(
+            f"Solver option type not understood, got {options}. Type can be dict (preferred), or string separated by one space."
+        )
+
 
 def run_and_read_highs(
     n,
@@ -861,7 +866,7 @@ def run_and_read_cbc(
     solver_options = _solver_options_handler(solver_options)
     if (solver_options is not None) and (solver_options != {}):
         for key, val in solver_options.items():
-            command += key + ' ' + val
+            command += key + " " + val
     command += f"-solve -solu {solution_fn} "
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
@@ -939,7 +944,7 @@ def run_and_read_glpk(
     solver_options = _solver_options_handler(solver_options)
     if (solver_options is not None) and (solver_options != {}):
         for key, val in solver_options.items():
-            command += key + ' ' + val
+            command += key + " " + val
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
     result.wait()
