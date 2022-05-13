@@ -640,7 +640,7 @@ def _solver_options_handler(options):
         return {}
     elif isinstance(options, dict):
         return options
-    else:
+    elif isinstance(options, str):
         logger.info('Solver options can have dictionary type.')
         if isinstance(options, str):
             s = options.split(' ')
@@ -649,6 +649,9 @@ def _solver_options_handler(options):
                 return optionsdict
             else:
                 raise Exception(f'Could not convert solver options string {options} to dictionary. Please keep key:value format. Fill value with empty string if necessary.')
+    else:
+        raise Exception(f'Solver option type not understood, got {options}. Type can be dict (preferred), or string separated by one space.')
+        
 
 def run_and_read_highs(
     n,
