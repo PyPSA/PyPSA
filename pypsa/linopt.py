@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 from importlib.util import find_spec
+from tkinter import Y
 
 import numpy as np
 import pandas as pd
@@ -635,6 +636,20 @@ def set_int_index(ser):
     ser.index = ser.index.str[1:].astype(int)
     return ser
 
+def _solver_options_handler(options):
+    if options is None:
+        return {}
+    elif isinstance(options, dict):
+        return options
+    else:
+        logger.info('Solver options can have dictionary type.')
+        if isinstance(options, str):
+            s = options.split(' ')
+            if (len(s) >= 2) and (len(s)%2 == 0):
+                optionsdict = {s[i]:s[i+1] for i in range(0, len(s), 2)}
+                return optionsdict
+            else:
+                raise Exception(f'Could not convert solver options string {options} to dictionary. Please keep key:value format. Fill value with empty string if necessary.')
 
 def run_and_read_highs(
     n,
@@ -745,6 +760,7 @@ def run_and_read_highs(
         "log_to_console": True,
     }
     # update default_dict through solver_options and write to file
+    solver_options = _solver_options_handler(solver_options)
     default_dict.update(solver_options)
     method = default_dict.pop("method", "ipm")
     logger.info(
@@ -839,8 +855,11 @@ def run_and_read_cbc(
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
         command += f"-basisI {warmstart} "
+
+    solver_options = _solver_options_handler(solver_options)
     if (solver_options is not None) and (solver_options != {}):
-        command += solver_options
+        for key, val in solver_options.items():
+            command += key + ' ' + val
     command += f"-solve -solu {solution_fn} "
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
@@ -914,8 +933,11 @@ def run_and_read_glpk(
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
         command += f" -w {n.basis_fn}"
+
+    solver_options = _solver_options_handler(solver_options)
     if (solver_options is not None) and (solver_options != {}):
-        command += solver_options
+        for key, val in solver_options.items():
+            command += key + ' ' + val
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
     result.wait()
@@ -1001,12 +1023,13 @@ def run_and_read_cplex(
         else:
             log_file_or_path = solver_logfile
         m.set_log_stream(log_file_or_path)
-    if solver_options is not None:
-        for key, value in solver_options.items():
-            param = m.parameters
-            for key_layer in key.split("."):
-                param = getattr(param, key_layer)
-            param.set(value)
+
+    solver_options = _solver_options_handler(solver_options)
+    for key, value in solver_options.items():
+        param = m.parameters
+        for key_layer in key.split("."):
+            param = getattr(param, key_layer)
+        param.set(value)
     m.read(problem_fn)
     if warmstart:
         m.start.read_basis(warmstart)
@@ -1078,9 +1101,9 @@ def run_and_read_gurobi(
     logging.disable(50)
 
     m = gurobipy.read(problem_fn)
-    if solver_options is not None:
-        for key, value in solver_options.items():
-            m.setParam(key, value)
+    solver_options = _solver_options_handler(solver_options)
+    for key, value in solver_options.items():
+        m.setParam(key, value)
     if solver_logfile is not None:
         m.setParam("logfile", solver_logfile)
 
@@ -1156,6 +1179,7 @@ def run_and_read_xpress(
     m = xpress.problem()
 
     m.read(problem_fn)
+    solver_options = _solver_options_handler(solver_options)
     m.setControl(solver_options)
 
     if solver_logfile is not None:
