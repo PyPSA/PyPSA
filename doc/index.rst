@@ -106,6 +106,7 @@ Documentation
    examples-basic
    examples-lopf
    examples-sector_coupling
+   examples-models
    examples-other
 
 
