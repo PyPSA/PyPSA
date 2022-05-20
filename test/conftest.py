@@ -14,6 +14,19 @@ import pytest
 
 import pypsa
 
+SUPPORTED_APIS = ["pyomo", "linopy", "native"]
+
+
+def optimize(n, api, *args, **kwargs):
+    if api == "linopy":
+        return n.optimize(solver_name="glpk", *args, **kwargs)
+    elif api == "pyomo":
+        return n.lopf(pyomo=True, solver_name="glpk", *args, **kwargs)
+    elif api == "native":
+        return n.lopf(pyomo=False, solver_name="glpk", *args, **kwargs)
+    else:
+        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
+
 
 @pytest.fixture(scope="module")
 def scipy_network():

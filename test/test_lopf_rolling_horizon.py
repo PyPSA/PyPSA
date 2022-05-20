@@ -5,19 +5,17 @@ Created on Thu Feb 10 19:08:25 2022.
 
 @author: fabian
 """
-
 import numpy as np
 import pandas as pd
 import pytest
+from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
-solver_name = "glpk"
 
-
-@pytest.mark.parametrize("pyomo", [True, False])
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
 @pytest.mark.parametrize("committable", [True, False])
-def test_rolling_horizon(pyomo, committable):
+def test_rolling_horizon(api, committable):
     n = pypsa.Network(snapshots=range(12))
 
     n.add("Bus", "bus")
@@ -50,7 +48,7 @@ def test_rolling_horizon(pyomo, committable):
 
     # now rolling horizon
     for sns in np.array_split(n.snapshots, 4):
-        status, condition = n.lopf(sns, solver_name=solver_name, pyomo=pyomo)
+        status, condition = optimize(n, api, sns)
         assert status == "ok"
 
     ramping = n.generators_t.p.diff().fillna(0)

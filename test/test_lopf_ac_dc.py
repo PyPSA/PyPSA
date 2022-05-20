@@ -2,11 +2,10 @@
 import os
 
 import pytest
+from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
-
-solver_name = "glpk"
 
 
 @pytest.fixture
@@ -22,47 +21,14 @@ def ac_dc_network_r():
     return pypsa.Network(csv_folder)
 
 
-@pytest.mark.parametrize("formulation", ["angles", "cycles", "kirchhoff", "ptdf"])
-@pytest.mark.parametrize("free_memory", [{}, {"pypsa"}])
-def test_lopf(ac_dc_network, ac_dc_network_r, formulation, free_memory):
-    """
-    Test results were generated with GLPK; solution should be unique, so other
-    solvers should not differ (e.g. cbc or gurobi)
-    """
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_lopf(ac_dc_network, ac_dc_network_r, api):
     n = ac_dc_network
     n_r = ac_dc_network_r
+    # p_set values are considered by linopy implementation
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
 
-    n.lopf(
-        snapshots=n.snapshots,
-        solver_name=solver_name,
-        formulation=formulation,
-        free_memory=free_memory,
-    )
-
-    equal(
-        n.generators_t.p.loc[:, n.generators.index],
-        n_r.generators_t.p.loc[:, n.generators.index],
-        decimal=4,
-    )
-
-    equal(
-        n.lines_t.p0.loc[:, n.lines.index],
-        n_r.lines_t.p0.loc[:, n.lines.index],
-        decimal=4,
-    )
-
-    equal(
-        n.links_t.p0.loc[:, n.links.index],
-        n_r.links_t.p0.loc[:, n.links.index],
-        decimal=4,
-    )
-
-
-def test_lopf_lowmem(ac_dc_network, ac_dc_network_r):
-    n = ac_dc_network
-    n_r = ac_dc_network_r
-
-    status, _ = n.lopf(snapshots=n.snapshots, solver_name=solver_name, pyomo=False)
+    status, _ = optimize(n, api, snapshots=n.snapshots)
 
     assert status == "ok"
 
@@ -82,4 +48,40 @@ def test_lopf_lowmem(ac_dc_network, ac_dc_network_r):
         n.links_t.p0.loc[:, n.links.index],
         n_r.links_t.p0.loc[:, n.links.index],
         decimal=2,
+    )
+
+
+@pytest.mark.parametrize("formulation", ["angles", "cycles", "kirchhoff", "ptdf"])
+def test_lopf_formulations(ac_dc_network, ac_dc_network_r, formulation):
+    """
+    Test results were generated with GLPK; solution should be unique, so other
+    solvers should not differ (e.g. cbc or gurobi)
+    """
+    n = ac_dc_network
+    n_r = ac_dc_network_r
+
+    api = "pyomo"
+    optimize(
+        n,
+        api,
+        snapshots=n.snapshots,
+        formulation=formulation,
+    )
+
+    equal(
+        n.generators_t.p.loc[:, n.generators.index],
+        n_r.generators_t.p.loc[:, n.generators.index],
+        decimal=4,
+    )
+
+    equal(
+        n.lines_t.p0.loc[:, n.lines.index],
+        n_r.lines_t.p0.loc[:, n.lines.index],
+        decimal=4,
+    )
+
+    equal(
+        n.links_t.p0.loc[:, n.links.index],
+        n_r.links_t.p0.loc[:, n.links.index],
+        decimal=4,
     )

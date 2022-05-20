@@ -448,7 +448,7 @@ def optimize(
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
 
-    sanity_check(n, sns)
+    n.consistency_check()
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)
     status, condition = m.solve(**kwargs)
 

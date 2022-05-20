@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-
 import numpy as np
 import pytest
+from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
-solver_name = "glpk"
 
-
-@pytest.mark.parametrize("pyomo", [True, False])
-def test_part_load(pyomo):
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_part_load(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -46,7 +44,7 @@ def test_part_load(pyomo):
 
     nu.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    nu.lopf(nu.snapshots, solver_name=solver_name, pyomo=pyomo)
+    optimize(nu, api)
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
 
@@ -57,7 +55,8 @@ def test_part_load(pyomo):
     equal(nu.generators_t.p.values, expected_dispatch)
 
 
-def test_minimum_up_time():
+@pytest.mark.parametrize("api", ["pyomo"])
+def test_minimum_up_time(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -95,7 +94,7 @@ def test_minimum_up_time():
 
     nu.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
 
-    nu.lopf(nu.snapshots, solver_name=solver_name)
+    optimize(nu, api)
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
@@ -108,7 +107,8 @@ def test_minimum_up_time():
     equal(nu.generators_t.p.values, expected_dispatch)
 
 
-def test_minimum_down_time():
+@pytest.mark.parametrize("api", ["pyomo"])
+def test_minimum_down_time(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -144,7 +144,7 @@ def test_minimum_down_time():
 
     nu.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
 
-    nu.lopf(nu.snapshots, solver_name=solver_name)
+    optimize(nu, api)
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 

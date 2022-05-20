@@ -9,7 +9,7 @@ import pandas as pd
 from linopy.expressions import LinearExpression, merge
 from numpy import cumsum, inf, nan, roll
 from scipy import sparse
-from xarray import DataArray, Dataset
+from xarray import DataArray, Dataset, zeros_like
 
 from pypsa.descriptors import (
     additional_linkports,
@@ -162,7 +162,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     c : str
         name of the network component
     """
-    # TODO: Fix ramping for rolling horizons
     m = n.model
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
@@ -170,81 +169,126 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
         return
 
-    def p(idx):
-        return reindex(m[f"{c}-{attr}"].sel(snapshot=sns[1:]), c, idx)
+    # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
-    def p_prev(idx):
-        return reindex(m[f"{c}-{attr}"].shift(snapshot=1).sel(snapshot=sns[1:]), c, idx)
+    pnl = n.pnl(c)
+    attr = {"p", "p0"}.intersection(pnl).pop()  # dispatch for either one or two ports
+    start_i = n.snapshots.get_loc(sns[0]) - 1
+    p_start = pnl[attr].iloc[start_i]
+
+    is_rolling_horizon = (sns[0] != n.snapshots[0]) and not p_start.empty
+    p = m[f"{c}-p"]
+
+    if is_rolling_horizon:
+        active = get_activity_mask(n, c, sns)
+        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        rhs_start.loc[sns[0]] = p_start
+        p_actual = lambda idx: reindex(p, c, idx)
+        p_previous = lambda idx: reindex(p, c, idx).shift(snapshot=1)
+    else:
+        active = get_activity_mask(n, c, sns[1:])
+        rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.df(c).index)
+        p_actual = lambda idx: reindex(p, c, idx).sel(snapshot=sns[1:])
+        p_previous = (
+            lambda idx: reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
+        )
+
+    # ----------------------------- Fixed Generators ----------------------------- #
 
     fix_i = n.get_non_extendable_i(c)
     assets = n.df(c).reindex(fix_i)
-    active = get_activity_mask(n, c, sns[1:], fix_i)
 
     # fix up
     if not assets.ramp_limit_up.isnull().all():
-        lhs = p(fix_i) - p_prev(fix_i)
-        rhs = assets.eval("ramp_limit_up * p_nom")
-        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", active)
+        lhs = p_actual(fix_i) - p_previous(fix_i)
+        rhs = assets.eval("ramp_limit_up * p_nom") + rhs_start.reindex(columns=fix_i)
+        mask = active.reindex(columns=fix_i)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask)
 
     # fix down
     if not assets.ramp_limit_down.isnull().all():
-        lhs = p(fix_i) - p_prev(fix_i)
-        rhs = assets.eval("-1 * ramp_limit_down * p_nom")
-        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", active)
+        lhs = p_actual(fix_i) - p_previous(fix_i)
+        rhs = assets.eval("- ramp_limit_down * p_nom") + rhs_start.reindex(
+            columns=fix_i
+        )
+        mask = active.reindex(columns=fix_i)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask)
+
+    # ----------------------------- Extendable Generators ----------------------------- #
 
     ext_i = n.get_extendable_i(c)
     assets = n.df(c).reindex(ext_i)
-    active = get_activity_mask(n, c, sns[1:], ext_i)
 
     # ext up
     if not assets.ramp_limit_up.isnull().all():
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_up.to_xarray()
-        lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (-limit_pu, p_nom)
-        m.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-ramp_limit_up", active)
+        lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
+        rhs = rhs_start.reindex(columns=ext_i)
+        mask = active.reindex(columns=ext_i)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask)
 
     # ext down
     if not assets.ramp_limit_down.isnull().all():
         p_nom = m[f"{c}-p_nom"]
         limit_pu = assets.ramp_limit_down.to_xarray()
-        lhs = (1, p(ext_i)), (-1, p_prev(ext_i)), (limit_pu, p_nom)
-        m.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-ramp_limit_down", active)
+        lhs = (1, p_actual(ext_i)), (-1, p_previous(ext_i)), (limit_pu, p_nom)
+        rhs = rhs_start.reindex(columns=ext_i)
+        mask = active.reindex(columns=ext_i)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask)
+
+    # ----------------------------- Committable Generators ----------------------------- #
 
     com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
-    active = get_activity_mask(n, c, sns[1:], com_i)
 
     # com up
     if not assets.ramp_limit_up.isnull().all():
         limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
         limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
 
-        status = m[f"{c}-status"].sel(snapshot=sns[1:])
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=sns[1:])
+        status = m[f"{c}-status"].sel(snapshot=active.index)
+        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
         lhs = (
-            (1, p(com_i)),
-            (-1, p_prev(com_i)),
+            (1, p_actual(com_i)),
+            (-1, p_previous(com_i)),
             (limit_start - limit_up, status_prev),
             (-limit_start, status),
         )
-        m.add_constraints(lhs, "<=", 0, f"{c}-com-{attr}-ramp_limit_up", active)
+
+        rhs = rhs_start.reindex(columns=com_i)
+        if is_rolling_horizon:
+            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
+
+        mask = active.reindex(columns=com_i)
+
+        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask)
 
     # com down
     if not assets.ramp_limit_down.isnull().all():
         limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
         limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
 
-        status = m[f"{c}-status"].sel(snapshot=sns[1:])
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=sns[1:])
+        status = m[f"{c}-status"].sel(snapshot=active.index)
+        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
         lhs = (
-            (1, p(com_i)),
-            (-1, p_prev(com_i)),
+            (1, p_actual(com_i)),
+            (-1, p_previous(com_i)),
             (limit_down - limit_shut, status),
             (limit_shut, status_prev),
         )
-        m.add_constraints(lhs, ">=", 0, f"{c}-com-{attr}-ramp_limit_down", active)
+
+        rhs = rhs_start.reindex(columns=com_i)
+        if is_rolling_horizon:
+            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+            rhs.loc[sns[0]] += -limit_shut * status_start
+
+        mask = active.reindex(columns=com_i)
+
+        m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask)
 
 
 def define_nodal_balance_constraints(n, sns):
