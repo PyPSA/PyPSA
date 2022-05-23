@@ -256,7 +256,7 @@ def plot(
             bus_sizes = bus_sizes * projected_area_factor(ax, n.srid) ** 2
 
         patches = []
-        for b_i in bus_sizes.index.levels[0]:
+        for b_i in bus_sizes.index.unique(level=0):
             s = bus_sizes.loc[b_i]
             radius = s.sum() ** 0.5
             if radius == 0.0:
