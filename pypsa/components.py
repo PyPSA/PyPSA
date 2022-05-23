@@ -1300,6 +1300,7 @@ class Network(Basic):
                     missing,
                 )
 
+        # check for unknown buses
         for c in self.iterate_components(self.branch_components):
             for attr in ["bus0", "bus1"]:
                 missing = c.df.index[~c.df[attr].isin(self.buses.index)]
@@ -1310,6 +1311,20 @@ class Network(Basic):
                         attr,
                         missing,
                     )
+
+        # check for disconnected buses
+        connected_buses = set()
+        for c in self.iterate_components(self.branch_components):
+            for attr in [col for col in c.df.columns if col.startswith("bus")]:
+                connected_buses.update(c.df[attr])
+        for c in self.iterate_components(self.one_port_components):
+            connected_buses.update(c.df.bus)
+
+        disconnected_buses = set(self.buses.index) - connected_buses
+        if disconnected_buses:
+            logger.warning(
+                f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}"
+            )
 
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:

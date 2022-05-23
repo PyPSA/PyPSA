@@ -46,3 +46,34 @@ def test_331():
     n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
     n.lopf(pyomo=False)
     assert "generator2" in n.generators_t.p
+
+
+def test_nomansland_bus(caplog):
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
+
+    n.consistency_check()
+    assert (
+        "The following buses have no attached components" not in caplog.text
+    ), "warning should not trigger..."
+
+    n.add("Bus", "extrabus")
+
+    n.consistency_check()
+    assert (
+        "The following buses have no attached components" in caplog.text
+    ), "warning is not working..."
+
+    try:
+        n.lopf(pyomo=False)
+    except:
+        print("to be fixed - unconnected bus throws error in non-pyomo version.")
+
+    try:
+        n.lopf(pyomo=True)
+    except:
+        print("to be fixed - unconnected bus throws error in pyomo version.")
+    return True
