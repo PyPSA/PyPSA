@@ -201,7 +201,7 @@ def plot(
             ), "The passed projection is not a cartopy.crs.Projection"
 
         if ax is None:
-            ax = plt.gca(projection=projection)
+            ax = plt.axes(projection=projection)
         else:
             assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
                 "The passed axis is not a GeoAxesSubplot. You can "
@@ -409,7 +409,6 @@ def plot(
             linewidths=b_widths,
             antialiaseds=(1,),
             colors=b_colors,
-            transOffset=ax.transData,
         )
 
         if b_nums is not None:

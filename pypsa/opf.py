@@ -1980,7 +1980,8 @@ def extract_optimisation_results(
                 },
                 sort=False,
             )
-            .sum(level=1)
+            .groupby(level=1)
+            .sum()
             .reindex(columns=network.buses_t.p.columns, fill_value=0.0)
         )
 
