@@ -110,7 +110,7 @@ def _calculate_controllable_nodal_power_balance(
             c_n_set = get_switchable_as_dense(
                 network, c.name, n + "_set", snapshots, c.ind
             )
-            c.pnl[n].loc[snapshots, c.ind] = c_n_set
+            network.pnl(c.name)[n].loc[snapshots, c.ind] = c_n_set
 
         # set the power injection at each node from controllable components
         network.buses_t[n].loc[snapshots, buses_o] = sum(
@@ -783,10 +783,10 @@ def sub_network_pf(
     for c in sub_network.iterate_components(network.passive_branch_components):
         s0t = s0.loc[:, c.name]
         s1t = s1.loc[:, c.name]
-        c.pnl.p0.loc[snapshots, s0t.columns] = s0t.values.real
-        c.pnl.q0.loc[snapshots, s0t.columns] = s0t.values.imag
-        c.pnl.p1.loc[snapshots, s1t.columns] = s1t.values.real
-        c.pnl.q1.loc[snapshots, s1t.columns] = s1t.values.imag
+        network.pnl(c.name).p0.loc[snapshots, s0t.columns] = s0t.values.real
+        network.pnl(c.name).q0.loc[snapshots, s0t.columns] = s0t.values.imag
+        network.pnl(c.name).p1.loc[snapshots, s1t.columns] = s1t.values.real
+        network.pnl(c.name).q1.loc[snapshots, s1t.columns] = s1t.values.imag
 
     s_calc = np.empty((len(snapshots), len(buses_o)), dtype=complex)
     for i in np.arange(len(snapshots)):
@@ -1244,7 +1244,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
 
     I = csc_matrix((np.ones(n_pvpq), (index, index)))
 
-    B_inverse = spsolve(sub_network.B[1:, 1:], I)
+    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
 
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):
@@ -1531,7 +1531,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):
         c_p_set = get_switchable_as_dense(network, c.name, "p_set", snapshots, c.ind)
-        c.pnl.p.loc[snapshots, c.ind] = c_p_set
+        network.pnl(c.name).p.loc[snapshots, c.ind] = c_p_set
 
     # set the power injection at each node
     network.buses_t.p.loc[snapshots, buses_o] = sum(
@@ -1574,8 +1574,8 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
         for c in sub_network.iterate_components(network.passive_branch_components):
             f = flows.loc[:, c.name]
-            c.pnl.p0.loc[snapshots, f.columns] = f
-            c.pnl.p1.loc[snapshots, f.columns] = -f
+            network.pnl(c.name).p0.loc[snapshots, f.columns] = f
+            network.pnl(c.name).p1.loc[snapshots, f.columns] = -f
 
     if network.sub_networks.at[sub_network.name, "carrier"] == "DC":
         network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1 + v_diff
