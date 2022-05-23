@@ -20,18 +20,21 @@ def reindex(ds, dim, index):
     -------
     ds
         Reindexed dataarray with renamed dimension.
-
     """
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
 def get_var(n, c, key):
-    """Get variables directly from network"""
+    """
+    Get variables directly from network.
+    """
     return n.model[f"{c}-{key}"]
 
 
 def set_from_frame(n, c, attr, df):
-    """Update values in time-dependent attribute from new dataframe."""
+    """
+    Update values in time-dependent attribute from new dataframe.
+    """
     pnl = n.pnl(c)
     if attr not in pnl:
         return

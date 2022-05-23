@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Build abstracted, extended optimisation problems from PyPSA networks with Linopy.
+Build abstracted, extended optimisation problems from PyPSA networks with
+Linopy.
 """
 import logging
+
 import numpy as np
 import pandas as pd
 
-from ..descriptors import nominal_attrs
+from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +24,8 @@ def iterative_transmission_capacity_expansion(
     **kwargs,
 ):
     """
-    Iterative linear optimization updating the line parameters for passive
-    AC and DC lines. This is helpful when line expansion is enabled. After each
+    Iterative linear optimization updating the line parameters for passive AC
+    and DC lines. This is helpful when line expansion is enabled. After each
     successful solving, line impedances and line resistance are recalculated
     based on the optimization result. If warmstart is possible, it uses the
     result from the previous iteration to fasten the optimization.
@@ -50,7 +52,6 @@ def iterative_transmission_capacity_expansion(
         iteration 0 represent the initial state.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
-
     """
 
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
