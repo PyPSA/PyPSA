@@ -1318,8 +1318,7 @@ class Network(Basic):
             for attr in [col for col in c.df.columns if col.startswith("bus")]:
                 connected_buses.update(c.df[attr])
         for c in self.iterate_components(self.one_port_components):
-            for attr in ["bus"]:
-                connected_buses.update(c.df[attr])
+            connected_buses.update(c.df.bus)
 
         disconnected_buses = set(self.buses.index) - connected_buses
         if disconnected_buses:
