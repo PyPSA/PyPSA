@@ -123,6 +123,67 @@ def define_operational_constraints_for_committables(n, sns, c):
     lhs = (1, p), (-upper, status)
     n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
 
+    # minimum up time
+    if n.df(c).get("min_up_time", pd.Series()).gt(0).any():
+
+        up_time_i = com_i.intersection(n.df(c).query("min_up_time > 0").index)
+        min_up_time = n.df(c).min_up_time.reindex(up_time_i)
+        start_i = n.snapshots.get_loc(sns[0])
+
+        # find out how long the generator has been up before snapshots
+        until_start = n.pnl(c).status.reindex(columns=up_time_i).iloc[:start_i][::-1]
+        ref = range(1, len(until_start) + 1)
+        up_time_before = until_start[until_start.cumsum().eq(ref, axis=0)].sum()
+        up_time_before = up_time_before.clip(upper=min_up_time)
+
+        initial_status = up_time_before.astype(bool)
+        must_stay_up = (min_up_time - up_time_before).clip(lower=0, upper=len(sns))
+
+        if must_stay_up.any():
+            for sn in sns[must_stay_up.max()]:
+                pass
+
+        for sn in sns:
+            pass
+
+    #     def force_up(model, i):
+    #         return model.generator_status[gen, snapshots[i]] == 1
+
+    #     network.model.add_component(
+    #         "gen_up_time_force_{}".format(gen_i),
+    #         Constraint(range(must_stay_up), rule=force_up),
+    #     )
+
+    #     blocks = range(must_stay_up, len(snapshots) - 1)
+
+    #     def gen_rule(model, i):
+    #         period = min(min_up_time, len(snapshots) - i)
+    #         lhs = sum(
+    #             network.model.generator_status[gen, snapshots[j]]
+    #             for j in range(i, i + period)
+    #         )
+    #         if i == 0:
+    #             rhs = (
+    #                 period * network.model.generator_status[gen, snapshots[i]]
+    #                 - period * initial_status
+    #             )
+    #         else:
+    #             rhs = (
+    #                 period * network.model.generator_status[gen, snapshots[i]]
+    #                 - period * network.model.generator_status[gen, snapshots[i - 1]]
+    #             )
+    #         return lhs >= rhs
+
+    #     network.model.add_component(
+    #         "gen_up_time_{}".format(gen_i), Constraint(blocks, rule=gen_rule)
+    #     )
+
+    # if must_stay_up_too_long:
+    #     logger.warning(
+    #         "At least one generator was set to an min_up_time longer "
+    #         "than possible. Setting it to the maximal possible value."
+    #     )
+
 
 def define_nominal_constraints_for_extendables(n, c, attr):
     """
