@@ -1315,7 +1315,7 @@ class Network(Basic):
         # check for disconnected buses
         connected_buses = set()
         for c in self.iterate_components(self.branch_components):
-            for attr in ["bus0", "bus1"]:
+            for attr in [col for col in c.df.columns if col.startswith("bus")]:
                 connected_buses.update(c.df[attr])
         for c in self.iterate_components(self.one_port_components):
             for attr in ["bus"]:
