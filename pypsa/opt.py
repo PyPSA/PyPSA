@@ -195,7 +195,7 @@ def l_constraint(model, name, constraints, *args):
 
     setattr(model, name, Constraint(*args, noruleinit=True))
     v = getattr(model, name)
-    for i in v._index:
+    for i in v._index_set:
         c = constraints[i]
         if isinstance(c, LConstraint):
             variables = c.lhs.variables + [

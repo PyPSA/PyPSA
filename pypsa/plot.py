@@ -201,7 +201,7 @@ def plot(
             ), "The passed projection is not a cartopy.crs.Projection"
 
         if ax is None:
-            ax = plt.gca(projection=projection)
+            ax = plt.axes(projection=projection)
         else:
             assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
                 "The passed axis is not a GeoAxesSubplot. You can "
@@ -256,7 +256,7 @@ def plot(
             bus_sizes = bus_sizes * projected_area_factor(ax, n.srid) ** 2
 
         patches = []
-        for b_i in bus_sizes.index.levels[0]:
+        for b_i in bus_sizes.index.unique(level=0):
             s = bus_sizes.loc[b_i]
             radius = s.sum() ** 0.5
             if radius == 0.0:
@@ -409,7 +409,6 @@ def plot(
             linewidths=b_widths,
             antialiaseds=(1,),
             colors=b_colors,
-            transOffset=ax.transData,
         )
 
         if b_nums is not None:
