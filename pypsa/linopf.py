@@ -82,7 +82,7 @@ lookup = pd.read_csv(
     index_col=["component", "variable"],
 )
 
-
+#%%
 def define_nominal_for_extendable_variables(n, c, attr):
     """
     Initializes variables for nominal capacities for a given component and a
@@ -623,19 +623,19 @@ def define_storage_unit_constraints(n, sns):
             lambda ds: np.roll(ds, 1)
         )
         lhs += masked_term(eff_stand, previous_soc_cyclic_pp, cyclic_pp_i)
+        if not noncyclic_pp_i.empty:
+            # set the initial enery at the beginning of each period
+            first_active_snapshot_pp = active[noncyclic_pp_i].groupby(level=0).cumsum() == 1
 
-        # set the initial enery at the beginning of each period
-        first_active_snapshot_pp = active[noncyclic_pp_i].groupby(level=0).cumsum() == 1
+            lhs += masked_term(
+                eff_stand[~first_active_snapshot_pp],
+                soc.shift()[~first_active_snapshot_pp],
+                noncyclic_pp_i,
+            )
 
-        lhs += masked_term(
-            eff_stand[~first_active_snapshot_pp],
-            soc.shift()[~first_active_snapshot_pp],
-            noncyclic_pp_i,
-        )
-
-        rhs[noncyclic_pp_i] = rhs[noncyclic_pp_i].where(
-            ~first_active_snapshot_pp, rhs - n.df(c).state_of_charge_initial, axis=1
-        )
+            rhs[noncyclic_pp_i] = rhs[noncyclic_pp_i].where(
+                ~first_active_snapshot_pp, rhs - n.df(c).state_of_charge_initial, axis=1
+            )
 
     define_constraints(n, lhs, "==", rhs, c, "mu_state_of_charge", mask=active)
 
@@ -1052,6 +1052,9 @@ def prepare_lopf(
     skip_objective=False,
     extra_functionality=None,
     solver_dir=None,
+    learning=False,
+    time_delay=False,
+    segments=5,
 ):
     """
     Sets up the linear problem and writes it out to a lp file.
@@ -1061,7 +1064,7 @@ def prepare_lopf(
     Tuple (fdp, problem_fn) indicating the file descriptor and the file name of
     the lp file
     """
-    n._xCounter, n._cCounter = 1, 1
+    n._xCounter, n._cCounter, n._SOScCounter = 1, 1, 1
     n.vars, n.cons = Dict(), Dict()
 
     cols = ["component", "name", "pnl", "specification"]
@@ -1077,17 +1080,20 @@ def prepare_lopf(
     fdc, constraints_fn = mkstemp(".txt", "pypsa-constraints-", **tmpkwargs)
     fdb, bounds_fn = mkstemp(".txt", "pypsa-bounds-", **tmpkwargs)
     fdi, binaries_fn = mkstemp(".txt", "pypsa-binaries-", **tmpkwargs)
+    fds, sos_fn = mkstemp(".txt", "pypsa-sos-", **tmpkwargs)
     fdp, problem_fn = mkstemp(".lp", "pypsa-problem-", **tmpkwargs)
 
     n.objective_f = open(objective_fn, mode="w")
     n.constraints_f = open(constraints_fn, mode="w")
     n.bounds_f = open(bounds_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
+    n.sos_f = open(sos_fn, mode="w")
 
     n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
+    n.sos_f.write("\nSOS\n")
 
     for c, attr in lookup.query("nominal and not handle_separately").index:
         define_nominal_for_extendable_variables(n, c, attr)
@@ -1126,7 +1132,12 @@ def prepare_lopf(
     if extra_functionality is not None:
         extra_functionality(n, snapshots)
 
+    if n._learning:
+        from pypsa.learning import add_learning
+        add_learning(n, snapshots, segments, time_delay)
+
     n.binaries_f.write("end\n")
+    n.sos_f.write("end\n")
 
     # explicit closing with file descriptor is necessary for windows machines
     for f, fd in (
@@ -1134,6 +1145,7 @@ def prepare_lopf(
         ("constraints_f", fdc),
         ("objective_f", fdo),
         ("binaries_f", fdi),
+        ("sos_f", fds),
     ):
         getattr(n, f).close()
         delattr(n, f)
@@ -1362,6 +1374,9 @@ def network_lopf(
     warmstart=False,
     store_basis=False,
     solver_dir=None,
+    learning=False,
+    time_delay=False,
+    segments=5,
 ):
     """
     Linear optimal power flow for a group of snapshots.
@@ -1423,6 +1438,12 @@ def network_lopf(
         names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
         After solving, the shadow prices can be retrieved using
         :func:`pypsa.linopt.get_dual` with corresponding name
+    learning: bool, if endogenous cost decrease should be applied
+    time_delay: bool, only applies if learning=True. Switch if endogenous
+        learning at time t is only based on installed capacities at previous time
+        steps (t'<t) or including the current one (t'<=t)
+    segments: int, number of interpolation points used for learning, only applies
+        if learning=True
     """
     supported_solvers = ["highs", "cbc", "gurobi", "glpk", "cplex", "xpress"]
     if solver_name not in supported_solvers:
@@ -1450,13 +1471,20 @@ def network_lopf(
         ), "Not all first-level snapshots values in investment periods."
     n._multi_invest = int(multi_investment_periods)
 
+    if learning:
+        logger.info("Apply endogenous technology learning.")
+        # objective function is newly defined
+        skip_objective = True
+        n._learning = True
+
     if not skip_pre:
         n.calculate_dependent_values()
         n.determine_network_topology()
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(
-        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir
+        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir,
+        learning, time_delay, segments
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 
