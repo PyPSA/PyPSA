@@ -1244,7 +1244,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
 
     I = csc_matrix((np.ones(n_pvpq), (index, index)))
 
-    B_inverse = spsolve(sub_network.B[1:, 1:], I)
+    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
 
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):

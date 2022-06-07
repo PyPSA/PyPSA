@@ -94,6 +94,7 @@ Documentation
 * :doc:`examples-basic`
 * :doc:`examples-lopf`
 * :doc:`examples-sector_coupling`
+* :doc:`examples-models`
 * :doc:`examples-other`
 
 .. toctree::
@@ -105,6 +106,7 @@ Documentation
    examples-basic
    examples-lopf
    examples-sector_coupling
+   examples-models
    examples-other
 
 

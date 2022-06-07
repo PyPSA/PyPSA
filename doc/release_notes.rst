@@ -50,6 +50,7 @@ Upcoming Release
         legend_kw=dict(frameon=False, bbox_to_anchor=(1,0.1))
     )
 
+* Compatibility with pyomo 6.4.1.
 
 PyPSA 0.19.3 (22nd April 2022)
 ==============================
