@@ -8,8 +8,10 @@ import pypsa
 
 def test_netcdf_io(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.meta = {"test": "test"}
     scipy_network.export_to_netcdf(fn)
-    pypsa.Network(fn)
+    reloaded = pypsa.Network(fn)
+    assert reloaded.meta == scipy_network.meta
 
 
 def test_csv_io(scipy_network, tmpdir):

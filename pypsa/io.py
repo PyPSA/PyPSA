@@ -24,6 +24,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import json
 import math
 import os
 from glob import glob
@@ -269,6 +270,9 @@ if has_xarray:
                 if attr.startswith("network_")
             }
 
+        def get_meta(self):
+            return json.loads(self.ds.attrs.get("meta", "{}"))
+
         def get_snapshots(self):
             return self.get_static("snapshots", "snapshots")
 
@@ -308,6 +312,9 @@ if has_xarray:
             self.ds.attrs.update(
                 ("network_" + attr, val) for attr, val in attrs.items()
             )
+
+        def save_meta(self, meta):
+            self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
             snapshots.index.name = "snapshots"
@@ -375,6 +382,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         )
     )
     exporter.save_attributes(attrs)
+
+    exporter.save_meta(network.meta)
 
     # now export snapshots
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
@@ -660,6 +669,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
 
     attrs = importer.get_attributes()
+    network.meta = importer.get_meta()
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
