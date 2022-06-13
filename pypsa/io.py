@@ -87,6 +87,12 @@ class ImporterCSV(Importer):
             return None
         return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
 
+    def get_meta(self):
+        fn = os.path.join(self.csv_folder_name, "meta.json")
+        if not os.path.isfile(fn):
+            return {}
+        return json.loads(open(fn).read())
+
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn):
@@ -144,6 +150,10 @@ class ExporterCSV(Exporter):
         fn = os.path.join(self.csv_folder_name, "network.csv")
         df.to_csv(fn, encoding=self.encoding)
 
+    def save_meta(self, meta):
+        fn = os.path.join(self.csv_folder_name, "meta.json")
+        open(fn, "w").write(json.dumps(meta))
+
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
@@ -180,6 +190,9 @@ class ImporterHDF5(Importer):
 
     def get_attributes(self):
         return dict(self.ds["/network"].reset_index().iloc[0])
+
+    def get_meta(self):
+        return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
@@ -224,6 +237,9 @@ class ExporterHDF5(Exporter):
             format="table",
             index=False,
         )
+
+    def save_meta(self, meta):
+        self.ds.put("/meta", pd.Series(json.dumps(meta)))
 
     def save_snapshots(self, snapshots):
         self.ds.put("/snapshots", snapshots, format="table", index=False)

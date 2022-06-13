@@ -16,14 +16,20 @@ def test_netcdf_io(scipy_network, tmpdir):
 
 def test_csv_io(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "csv_export")
+    scipy_network.meta = {"test": "test"}
     scipy_network.export_to_csv_folder(fn)
     pypsa.Network(fn)
+    reloaded = pypsa.Network(fn)
+    assert reloaded.meta == scipy_network.meta
 
 
 def test_hdf5_io(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "hdf5_export.h5")
+    scipy_network.meta = {"test": "test"}
     scipy_network.export_to_hdf5(fn)
     pypsa.Network(fn)
+    reloaded = pypsa.Network(fn)
+    assert reloaded.meta == scipy_network.meta
 
 
 def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
