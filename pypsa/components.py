@@ -428,6 +428,9 @@ class Network(Basic):
 
     @property
     def meta(self):
+        """
+        Dictionary of the network meta data.
+        """
         return self._meta
 
     @meta.setter
