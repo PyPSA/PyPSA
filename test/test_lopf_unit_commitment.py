@@ -55,7 +55,7 @@ def test_part_load(api):
     equal(nu.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo"])
+@pytest.mark.parametrize("api", ["pyomo", "linopy"])
 def test_minimum_up_time(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-

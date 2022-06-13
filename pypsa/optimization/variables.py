@@ -28,7 +28,7 @@ def define_operational_variables(n, sns, c, attr):
         return
 
     active = get_activity_mask(n, c, sns) if n._multi_invest else None
-    coords = [sns, n.df(c).index]
+    coords = [sns, n.df(c).index.rename(c)]
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 

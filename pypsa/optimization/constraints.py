@@ -7,7 +7,7 @@ import logging
 
 import pandas as pd
 from linopy.expressions import LinearExpression, merge
-from numpy import cumsum, inf, nan, roll
+from numpy import arange, cumsum, inf, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, zeros_like
 
@@ -124,14 +124,13 @@ def define_operational_constraints_for_committables(n, sns, c):
     n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
 
     # minimum up time
-    if n.df(c).get("min_up_time", pd.Series()).gt(0).any():
+    if n.df(c).get("min_up_time", pd.Series(dtype=float)).gt(0).any():
 
-        up_time_i = com_i.intersection(n.df(c).query("min_up_time > 0").index)
-        min_up_time = n.df(c).min_up_time.reindex(up_time_i)
+        min_up_time = n.df(c).min_up_time[com_i]
         start_i = n.snapshots.get_loc(sns[0])
 
         # find out how long the generator has been up before snapshots
-        until_start = n.pnl(c).status.reindex(columns=up_time_i).iloc[:start_i][::-1]
+        until_start = n.pnl(c).status.iloc[:start_i][::-1]
         ref = range(1, len(until_start) + 1)
         up_time_before = until_start[until_start.cumsum().eq(ref, axis=0)].sum()
         up_time_before = up_time_before.clip(upper=min_up_time)
@@ -139,50 +138,24 @@ def define_operational_constraints_for_committables(n, sns, c):
         initial_status = up_time_before.astype(bool)
         must_stay_up = (min_up_time - up_time_before).clip(lower=0, upper=len(sns))
 
-        if must_stay_up.any():
-            for sn in sns[must_stay_up.max()]:
-                pass
+        if initial_status.any():
+            N = int(must_stay_up.max()) + 1
+            ref = pd.DataFrame({c: range(1, N) for c in com_i})
+            mask = (ref <= must_stay_up) & initial_status
+            name = f"{c}-com-status-min_up_time"
+            n.model.add_constraints(status, "=", 1, name, mask=mask)
 
-        for sn in sns:
-            pass
+        # remaining_time = DataArray(arange(len(sns), 0, -1), coords={'snapshot': sns})
+        min_up_time = min_up_time.clip(upper=len(sns))
 
-    #     def force_up(model, i):
-    #         return model.generator_status[gen, snapshots[i]] == 1
-
-    #     network.model.add_component(
-    #         "gen_up_time_force_{}".format(gen_i),
-    #         Constraint(range(must_stay_up), rule=force_up),
-    #     )
-
-    #     blocks = range(must_stay_up, len(snapshots) - 1)
-
-    #     def gen_rule(model, i):
-    #         period = min(min_up_time, len(snapshots) - i)
-    #         lhs = sum(
-    #             network.model.generator_status[gen, snapshots[j]]
-    #             for j in range(i, i + period)
-    #         )
-    #         if i == 0:
-    #             rhs = (
-    #                 period * network.model.generator_status[gen, snapshots[i]]
-    #                 - period * initial_status
-    #             )
-    #         else:
-    #             rhs = (
-    #                 period * network.model.generator_status[gen, snapshots[i]]
-    #                 - period * network.model.generator_status[gen, snapshots[i - 1]]
-    #             )
-    #         return lhs >= rhs
-
-    #     network.model.add_component(
-    #         "gen_up_time_{}".format(gen_i), Constraint(blocks, rule=gen_rule)
-    #     )
-
-    # if must_stay_up_too_long:
-    #     logger.warning(
-    #         "At least one generator was set to an min_up_time longer "
-    #         "than possible. Setting it to the maximal possible value."
-    #     )
+        # status_diff = status.shift()
+        lhs = []
+        for asset in com_i[min_up_time > 0]:
+            up_time = min_up_time[asset]
+            # reverse snapshot order to correctly apply rolling_sum, and unreverse
+            asset_status = status.loc[:, [asset]]
+            kwargs = dict(snapshot=up_time, center=False)
+            expr = asset_status[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
 
 
 def define_nominal_constraints_for_extendables(n, c, attr):
@@ -263,7 +236,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     if not assets.ramp_limit_up.isnull().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
         rhs = assets.eval("ramp_limit_up * p_nom") + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i)
+        mask = active.reindex(columns=fix_i) & assets.ramp_limit_up.notnull()
         m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask)
 
     # fix down
@@ -272,7 +245,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         rhs = assets.eval("- ramp_limit_down * p_nom") + rhs_start.reindex(
             columns=fix_i
         )
-        mask = active.reindex(columns=fix_i)
+        mask = active.reindex(columns=fix_i) & assets.ramp_limit_down.notnull()
         m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask)
 
     # ----------------------------- Extendable Generators ----------------------------- #
@@ -286,7 +259,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         limit_pu = assets.ramp_limit_up.to_xarray()
         lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i)
+        mask = active.reindex(columns=ext_i) & assets.ramp_limit_up.notnull()
         m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask)
 
     # ext down
@@ -295,7 +268,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         limit_pu = assets.ramp_limit_down.to_xarray()
         lhs = (1, p_actual(ext_i)), (-1, p_previous(ext_i)), (limit_pu, p_nom)
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i)
+        mask = active.reindex(columns=ext_i) & assets.ramp_limit_down.notnull()
         m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask)
 
     # ----------------------------- Committable Generators ----------------------------- #
@@ -323,7 +296,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
-        mask = active.reindex(columns=com_i)
+        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
 
         m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask)
 
@@ -347,7 +320,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += -limit_shut * status_start
 
-        mask = active.reindex(columns=com_i)
+        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
 
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask)
 
@@ -397,7 +370,7 @@ def define_nodal_balance_constraints(n, sns):
             expr = expr.sel({c: buses.index})
 
         if expr.size:
-            expr = expr.group_terms(buses.to_xarray())
+            expr = expr.groupby_sum(buses.to_xarray())
             exprs.append(expr)
 
     lhs = merge(exprs).reindex(

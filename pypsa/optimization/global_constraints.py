@@ -79,7 +79,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
                 ext_i = ext_i[n.get_active_assets(c, 1)[ext_i]]
 
             buses = n.df(c)["bus"][ext_i].rename("Bus").rename_axis(dim).to_xarray()
-            expr = m[var].loc[ext_i].group_terms(buses)
+            expr = m[var].loc[ext_i].groupby_sum(buses)
             lhs.append(expr)
 
         if not lhs:
@@ -132,7 +132,7 @@ def define_growth_limit(n, sns):
 
         carriers = assets.carrier.to_xarray().rename("Carrier")
         vars = m[var].sel({dim: limited_i}).where(first_active)
-        expr = vars.group_terms(carriers)
+        expr = vars.groupby_sum(carriers)
         lhs.append(expr)
 
     if not lhs:
