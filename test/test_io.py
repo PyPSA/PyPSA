@@ -2,11 +2,10 @@
 import os
 
 import pandas as pd
+import pytest
 
 import pypsa
 
-
-import pytest
 
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
 def test_netcdf_io(scipy_network, tmpdir, meta):
