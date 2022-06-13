@@ -6,7 +6,10 @@ import pandas as pd
 import pypsa
 
 
-def test_netcdf_io(scipy_network, tmpdir):
+import pytest
+
+@pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
+def test_netcdf_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
     scipy_network.meta = {"test": "test"}
     scipy_network.export_to_netcdf(fn)
