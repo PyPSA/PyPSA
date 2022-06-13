@@ -251,6 +251,8 @@ class Network(Basic):
         # this will be saved on export
         self.pypsa_version = pypsa_version
 
+        self._meta = {}
+
         self._snapshots = pd.Index(["now"])
 
         cols = ["objective", "stores", "generators"]
@@ -423,6 +425,19 @@ class Network(Basic):
         dict of pandas.DataFrame
         """
         return getattr(self, self.components[component_name]["list_name"] + "_t")
+
+    @property
+    def meta(self):
+        """
+        Dictionary of the network meta data.
+        """
+        return self._meta
+
+    @meta.setter
+    def meta(self, new):
+        if not isinstance(new, (dict, Dict)):
+            raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
+        self._meta = new
 
     def set_snapshots(self, value):
         """

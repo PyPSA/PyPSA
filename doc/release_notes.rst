@@ -52,6 +52,8 @@ Upcoming Release
 
 * Compatibility with pyomo 6.4.1.
 
+* A new attribute `meta` was added to the Network object. This can be an arbitrary dictionary, and is used to store meta data about the network.
+
 PyPSA 0.19.3 (22nd April 2022)
 ==============================
 
