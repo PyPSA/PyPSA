@@ -2,33 +2,34 @@
 import os
 
 import pandas as pd
+import pytest
 
 import pypsa
 
 
-import pytest
-
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
 def test_netcdf_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
-    scipy_network.meta = {"test": "test"}
+    scipy_network.meta = meta
     scipy_network.export_to_netcdf(fn)
     reloaded = pypsa.Network(fn)
     assert reloaded.meta == scipy_network.meta
 
 
-def test_csv_io(scipy_network, tmpdir):
+@pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
+def test_csv_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "csv_export")
-    scipy_network.meta = {"test": "test"}
+    scipy_network.meta = meta
     scipy_network.export_to_csv_folder(fn)
     pypsa.Network(fn)
     reloaded = pypsa.Network(fn)
     assert reloaded.meta == scipy_network.meta
 
 
-def test_hdf5_io(scipy_network, tmpdir):
+@pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
+def test_hdf5_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "hdf5_export.h5")
-    scipy_network.meta = {"test": "test"}
+    scipy_network.meta = meta
     scipy_network.export_to_hdf5(fn)
     pypsa.Network(fn)
     reloaded = pypsa.Network(fn)
