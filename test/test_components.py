@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 import pypsa
-from pypsa.components import Network
 
 
 @pytest.fixture
