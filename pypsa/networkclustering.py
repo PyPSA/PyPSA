@@ -28,6 +28,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from deprecation import deprecated
+from packaging.version import Version, parse
 
 logger = logging.getLogger(__name__)
 
@@ -925,6 +926,12 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
+
+    if parse(nx.__version__) < Version("2.8"):
+        raise NotImplementedError(
+            "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
+            f"but version `networkx={nx.__version__}` is installed."
+        )
 
     if buses_i is None:
         buses_i = network.buses.index

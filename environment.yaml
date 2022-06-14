@@ -10,7 +10,7 @@ dependencies:
 - netcdf4
 - pytables
 - matplotlib
-- networkx>=2.8
+- networkx>=2.6
 - pyomo>=5.7.0
 - cartopy>=0.16
 - glpk
