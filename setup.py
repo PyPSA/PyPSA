@@ -30,7 +30,7 @@ setup(
         "tables",
         "pyomo>=5.7",
         "matplotlib",
-        "networkx>=2.8",
+        "networkx>=1.10",
         "deprecation",
     ],
     extras_require={
