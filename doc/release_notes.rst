@@ -62,8 +62,10 @@ PyPSA 0.19.3 (22nd April 2022)
   distort ``git blame`` functionality, which can be fixed by running ``git
   config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
   repostory. Run ``pre-commit install`` to set up locally.
-
-* Change message when exporting and importing networks without a set ``network_name``. Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
+* Change message when exporting and importing networks without a set ``network_name``.
+  Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
+* Greedy Modularity Maximisation was introduced as new spatial
+  clustering method [`#377 <https://github.com/PyPSA/PyPSA/pull/377>`_].
 
 PyPSA 0.19.2 (7th March 2022)
 =============================

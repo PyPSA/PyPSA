@@ -28,6 +28,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from deprecation import deprecated
+from packaging.version import Version, parse
 
 logger = logging.getLogger(__name__)
 
@@ -754,7 +755,7 @@ def busmap_by_hac(
     feature=None,
     affinity="euclidean",
     linkage="ward",
-    **kwargs
+    **kwargs,
 ):
     """
     Create a busmap according to Hierarchical Agglomerative Clustering.
@@ -830,7 +831,7 @@ def busmap_by_hac(
         connectivity=A,
         affinity=affinity,
         linkage=linkage,
-        **kwargs
+        **kwargs,
     ).fit_predict(feature)
 
     busmap = pd.Series(labels, index=buses_i, dtype=str)
@@ -847,7 +848,7 @@ def hac_clustering(
     affinity="euclidean",
     linkage="ward",
     line_length_factor=1.0,
-    **kwargs
+    **kwargs,
 ):
     """
     Cluster the network using Hierarchical Agglomerative Clustering.
@@ -892,6 +893,103 @@ def hac_clustering(
     busmap = busmap_by_hac(
         network, n_clusters, buses_i, branch_components, feature, **kwargs
     )
+
+    return get_clustering_from_busmap(
+        network, busmap, line_length_factor=line_length_factor
+    )
+
+
+################
+# Cluserting based on Modularity (on electrical parameters of the network)
+def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
+    """
+    Create a busmap according to Clauset-Newman-Moore greedy modularity
+    maximization [1].
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i: None | pandas.Index, default=None
+        Subset of buses to cluster. If None, all buses are considered.
+
+    Returns
+    -------
+    busmap : pandas.Series
+        Mapping of network.buses to clusters (indexed by
+        non-negative integers).
+
+    References
+    ----------
+    .. [1] Clauset, A., Newman, M. E., & Moore, C.
+       "Finding community structure in very large networks."
+       Physical Review E 70(6), 2004.
+    """
+
+    if parse(nx.__version__) < Version("2.8"):
+        raise NotImplementedError(
+            "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
+            f"but version `networkx={nx.__version__}` is installed."
+        )
+
+    if buses_i is None:
+        buses_i = network.buses.index
+
+    network.calculate_dependent_values()
+
+    lines = network.lines.query("bus0 in @buses_i and bus1 in @buses_i")
+    lines = (
+        lines[["bus0", "bus1"]]
+        .assign(weight=lines.s_nom / abs(lines.r + 1j * lines.x))
+        .set_index(["bus0", "bus1"])
+    )
+
+    G = nx.Graph()
+    G.add_nodes_from(buses_i)
+    G.add_edges_from((u, v, dict(weight=w)) for (u, v), w in lines.itertuples())
+
+    communities = nx.community.greedy_modularity_communities(
+        G, best_n=n_clusters, cutoff=n_clusters, weight="weight"
+    )
+    busmap = pd.Series(buses_i, buses_i)
+    for c in np.arange(len(communities)):
+        busmap.loc[communities[c]] = str(c)
+    busmap.index = busmap.index.astype(str)
+
+    return busmap
+
+
+def greedy_modularity_clustering(
+    network, n_clusters, buses_i=None, line_length_factor=1.0
+):
+    """
+    Create a busmap according to Clauset-Newman-Moore greedy modularity
+    maximization [1].
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    n_clusters : int
+        Final number of clusters desired.
+    buses_i: None | pandas.Index, default=None
+        Subset of buses to cluster. If None, all buses are considered.
+    line_length_factor: float, default=1.0
+        Factor to multiply the spherical distance between two new buses to get new line lengths.
+
+    Returns
+    -------
+    Clustering : named tuple
+        A named tuple containing network, busmap and linemap.
+
+    References
+    ----------
+    .. [1] Clauset, A., Newman, M. E., & Moore, C.
+       "Finding community structure in very large networks."
+       Physical Review E 70(6), 2004.
+    """
+
+    busmap = busmap_by_greedy_modularity(network, n_clusters, buses_i)
 
     return get_clustering_from_busmap(
         network, busmap, line_length_factor=line_length_factor
