@@ -755,7 +755,7 @@ def busmap_by_hac(
     feature=None,
     affinity="euclidean",
     linkage="ward",
-    **kwargs
+    **kwargs,
 ):
     """
     Create a busmap according to Hierarchical Agglomerative Clustering.
@@ -831,7 +831,7 @@ def busmap_by_hac(
         connectivity=A,
         affinity=affinity,
         linkage=linkage,
-        **kwargs
+        **kwargs,
     ).fit_predict(feature)
 
     busmap = pd.Series(labels, index=buses_i, dtype=str)
@@ -848,7 +848,7 @@ def hac_clustering(
     affinity="euclidean",
     linkage="ward",
     line_length_factor=1.0,
-    **kwargs
+    **kwargs,
 ):
     """
     Cluster the network using Hierarchical Agglomerative Clustering.
