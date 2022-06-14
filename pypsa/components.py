@@ -251,6 +251,8 @@ class Network(Basic):
         # this will be saved on export
         self.pypsa_version = pypsa_version
 
+        self._meta = {}
+
         self._snapshots = pd.Index(["now"])
 
         cols = ["objective", "stores", "generators"]
@@ -423,6 +425,19 @@ class Network(Basic):
         dict of pandas.DataFrame
         """
         return getattr(self, self.components[component_name]["list_name"] + "_t")
+
+    @property
+    def meta(self):
+        """
+        Dictionary of the network meta data.
+        """
+        return self._meta
+
+    @meta.setter
+    def meta(self, new):
+        if not isinstance(new, (dict, Dict)):
+            raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
+        self._meta = new
 
     def set_snapshots(self, value):
         """
@@ -620,6 +635,11 @@ class Network(Basic):
         pyomo : bool, default True
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
+
+            .. deprecated:: 0.20
+
+               In PyPSA version 0.21 the default will change to ``pyomo=False``.
+
         solver_name : string
             Must be a solver name that pyomo recognises and that is
             installed, e.g. "glpk", "gurobi"
@@ -730,6 +750,11 @@ class Network(Basic):
             )
 
         if pyomo:
+            logger.warning(
+                "Solving optimisation problem with pyomo."
+                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``."
+                "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
+            )
             return network_lopf(self, **args)
         else:
             return network_lopf_lowmem(self, **args)
@@ -1290,6 +1315,7 @@ class Network(Basic):
                     missing,
                 )
 
+        # check for unknown buses
         for c in self.iterate_components(self.branch_components):
             for attr in ["bus0", "bus1"]:
                 missing = c.df.index[~c.df[attr].isin(self.buses.index)]
@@ -1300,6 +1326,20 @@ class Network(Basic):
                         attr,
                         missing,
                     )
+
+        # check for disconnected buses
+        connected_buses = set()
+        for c in self.iterate_components(self.branch_components):
+            for attr in [col for col in c.df.columns if col.startswith("bus")]:
+                connected_buses.update(c.df[attr])
+        for c in self.iterate_components(self.one_port_components):
+            connected_buses.update(c.df.bus)
+
+        disconnected_buses = set(self.buses.index) - connected_buses
+        if disconnected_buses:
+            logger.warning(
+                f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}"
+            )
 
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:
@@ -1612,9 +1652,31 @@ class SubNetwork(Common):
         return self.network.storage_units.loc[self.storage_units_i()]
 
     def iterate_components(self, components=None, skip_empty=True):
+        """
+        Iterate over components of the subnetwork and extract corresponding
+        data.
+
+        Parameters
+        ----------
+        components : list-like, optional
+            List of components ('Generator', 'Line', etc.) to iterate over,
+            by default None
+        skip_empty : bool, optional
+            Whether to skip a components with no assigned assets,
+            by default True
+
+        Yields
+        ------
+        Component
+            Container for component data. See Component class for details.
+        """
         for c in self.network.iterate_components(
             components=components, skip_empty=False
         ):
-            c = Component(*c[:-1], ind=getattr(self, c.list_name + "_i")())
-            if not (skip_empty and len(c.ind) == 0):
+            ind = getattr(self, c.list_name + "_i")()
+            pnl = Dict()
+            for k, v in c.pnl.items():
+                pnl[k] = v[ind.intersection(v.columns)]
+            c = Component(c.name, c.list_name, c.attrs, c.df.loc[ind], pnl, ind)
+            if not (skip_empty and len(ind) == 0):
                 yield c

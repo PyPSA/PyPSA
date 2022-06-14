@@ -36,11 +36,11 @@ import logging
 import os
 import re
 import subprocess
-from distutils.version import LooseVersion
 from importlib.util import find_spec
 
 import numpy as np
 import pandas as pd
+from packaging.version import Version, parse
 from pandas import IndexSlice as idx
 
 from pypsa.descriptors import Dict
@@ -993,10 +993,10 @@ def run_and_read_cplex(
         )
     import cplex
 
-    _version = LooseVersion(cplex.__version__)
+    _version = parse(cplex.__version__)
     m = cplex.Cplex()
     if solver_logfile is not None:
-        if _version >= "12.10":
+        if _version >= Version("12.10"):
             log_file_or_path = open(solver_logfile, "w")
         else:
             log_file_or_path = solver_logfile

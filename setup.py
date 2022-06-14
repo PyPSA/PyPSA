@@ -10,7 +10,7 @@ with open("README.rst", encoding="utf-8") as f:
 
 setup(
     name="pypsa",
-    version="0.19.2",
+    version="0.19.3",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
@@ -43,6 +43,7 @@ setup(
             "nbsphinx",
             "nbsphinx-link",
             "black",
+            "scikit-learn",
         ],
         "gurobipy": ["gurobipy"],
     },

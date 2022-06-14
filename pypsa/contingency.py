@@ -74,9 +74,10 @@ def calculate_BODF(sub_network, skip_pre=False):
     # build LxL version of PTDF
     branch_PTDF = sub_network.PTDF * sub_network.K
 
-    denominator = csr_matrix(
-        (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
-    )
+    with np.errstate(divide="ignore"):
+        denominator = csr_matrix(
+            (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
+        )
 
     sub_network.BODF = branch_PTDF * denominator
 
@@ -409,6 +410,11 @@ def network_sclopf(
     pyomo : bool, default True
         Whether to use pyomo for building and solving the model, setting
         this to False saves a lot of memory and time.
+
+        .. deprecated:: 0.20
+
+            In PyPSA version 0.21 the default will change to ``pyomo=False``.
+
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
