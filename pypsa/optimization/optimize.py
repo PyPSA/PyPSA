@@ -38,7 +38,9 @@ from pypsa.optimization.global_constraints import (
 from pypsa.optimization.variables import (
     define_nominal_variables,
     define_operational_variables,
+    define_shut_down_variables,
     define_spillage_variables,
+    define_start_up_variables,
     define_status_variables,
 )
 from pypsa.pf import _as_snapshots
@@ -195,6 +197,17 @@ def define_objective(n, sns):
         caps = m[f"{c}-{attr}"]
         objective.append((caps * cost).sum())
 
+    # unit commitment
+    keys = ["start_up", "shut_down"]
+    for c, attr in lookup.query("variable in @keys").index:
+
+        com_i = n.get_committable_i(c)
+        cost = n.df(c)[attr + "_cost"].reindex(com_i)
+
+        if cost.sum():
+            var = m[f"{c}-{attr}"]
+            objective.append((var * cost).sum())
+
     m.objective = merge(objective)
 
 
@@ -235,6 +248,8 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
         define_status_variables(n, sns, c)
+        define_start_up_variables(n, sns, c)
+        define_shut_down_variables(n, sns, c)
 
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
