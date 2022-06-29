@@ -24,6 +24,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+import json
 import math
 import os
 from glob import glob
@@ -86,6 +87,12 @@ class ImporterCSV(Importer):
             return None
         return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
 
+    def get_meta(self):
+        fn = os.path.join(self.csv_folder_name, "meta.json")
+        if not os.path.isfile(fn):
+            return {}
+        return json.loads(open(fn).read())
+
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn):
@@ -143,6 +150,10 @@ class ExporterCSV(Exporter):
         fn = os.path.join(self.csv_folder_name, "network.csv")
         df.to_csv(fn, encoding=self.encoding)
 
+    def save_meta(self, meta):
+        fn = os.path.join(self.csv_folder_name, "meta.json")
+        open(fn, "w").write(json.dumps(meta))
+
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
@@ -179,6 +190,9 @@ class ImporterHDF5(Importer):
 
     def get_attributes(self):
         return dict(self.ds["/network"].reset_index().iloc[0])
+
+    def get_meta(self):
+        return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
@@ -223,6 +237,9 @@ class ExporterHDF5(Exporter):
             format="table",
             index=False,
         )
+
+    def save_meta(self, meta):
+        self.ds.put("/meta", pd.Series(json.dumps(meta)))
 
     def save_snapshots(self, snapshots):
         self.ds.put("/snapshots", snapshots, format="table", index=False)
@@ -269,6 +286,9 @@ if has_xarray:
                 if attr.startswith("network_")
             }
 
+        def get_meta(self):
+            return json.loads(self.ds.attrs.get("meta", "{}"))
+
         def get_snapshots(self):
             return self.get_static("snapshots", "snapshots")
 
@@ -308,6 +328,9 @@ if has_xarray:
             self.ds.attrs.update(
                 ("network_" + attr, val) for attr, val in attrs.items()
             )
+
+        def save_meta(self, meta):
+            self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
             snapshots.index.name = "snapshots"
@@ -375,6 +398,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         )
     )
     exporter.save_attributes(attrs)
+
+    exporter.save_meta(network.meta)
 
     # now export snapshots
     if isinstance(network.snapshot_weightings.index, pd.MultiIndex):
@@ -660,6 +685,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
 
     attrs = importer.get_attributes()
+    network.meta = importer.get_meta()
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
