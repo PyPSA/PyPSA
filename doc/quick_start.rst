@@ -51,4 +51,4 @@ The same counts for lines, generators and loads, see the list of all components 
 		q_set=100)
 
 
-Note that fixed values of active and inactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview.
+Note that fixed values of active and reactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview.
