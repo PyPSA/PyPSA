@@ -45,6 +45,7 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
 
 Companies and Non-Governmental Organisations
