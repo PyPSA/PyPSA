@@ -188,7 +188,7 @@ def test_madd_defaults(empty_network_5_buses):
 
 def test_copy_default_behavior(ac_dc_network):
     """
-    GIVEN   the AC DC exemplary pypsa network
+    GIVEN   the AC DC exemplary pypsa network.
 
     WHEN    copying the network with timestamps
 
@@ -211,7 +211,7 @@ def test_copy_default_behavior(ac_dc_network):
 
 def test_copy_deep_copy_behavior(ac_dc_network):
     """
-    GIVEN   the AC DC exemplary pypsa network
+    GIVEN   the AC DC exemplary pypsa network.
 
     WHEN    copying the network and changing a component
 
@@ -219,25 +219,21 @@ def test_copy_deep_copy_behavior(ac_dc_network):
     """
     copied_network = ac_dc_network.copy()
 
-    copied_network.loads.rename(index={'London': 'Berlin'}, inplace=True)
+    copied_network.loads.rename(index={"London": "Berlin"}, inplace=True)
 
     assert ac_dc_network.loads.index[0] != copied_network.loads.index[0]
 
 
 def test_copy_no_snapshot(ac_dc_network):
     """
-    GIVEN   the AC DC exemplary pypsa network
+    GIVEN   the AC DC exemplary pypsa network.
 
     WHEN    copying the network without snapshots
 
     THEN    the copied network should only have the current time index.
     """
     snapshot = ac_dc_network.snapshots[2]
-    copied_network = ac_dc_network.copy(
-        with_time=False,
-        snapshots=snapshot
-    )
+    copied_network = ac_dc_network.copy(with_time=False, snapshots=snapshot)
 
     assert copied_network.snapshots.size == 1
     assert snapshot not in copied_network.snapshots
-
