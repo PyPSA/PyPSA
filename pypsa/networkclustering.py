@@ -954,7 +954,7 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
     )
     busmap = pd.Series(buses_i, buses_i)
     for c in np.arange(len(communities)):
-        busmap.loc[communities[c]] = str(c)
+        busmap.loc[list(communities[c])] = str(c)
     busmap.index = busmap.index.astype(str)
 
     return busmap
