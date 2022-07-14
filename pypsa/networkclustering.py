@@ -103,7 +103,7 @@ def aggregategenerators(
         "ramp_limit_start_up": pd.Series.mean,
         "ramp_limit_shut_down": pd.Series.mean,
         "build_year": lambda x: 0,
-        "lifetime": lambda x: np.inf
+        "lifetime": lambda x: np.inf,
     }
     strategies.update(custom_strategies)
     if strategies["p_nom_max"] is pd.Series.min:
@@ -206,7 +206,7 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
         v_nom=pd.Series.max,
         v_mag_pu_max=pd.Series.min,
         v_mag_pu_min=pd.Series.max,
-        country=_make_consense("Bus", "country")
+        country=_make_consense("Bus", "country"),
     )
     strategies.update(
         (attr, _make_consense("Bus", attr)) for attr in columns.difference(strategies)
