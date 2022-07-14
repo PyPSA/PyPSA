@@ -206,7 +206,6 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
         v_nom=pd.Series.max,
         v_mag_pu_max=pd.Series.min,
         v_mag_pu_min=pd.Series.max,
-        country=_make_consense("Bus", "country"),
     )
     strategies.update(
         (attr, _make_consense("Bus", attr)) for attr in columns.difference(strategies)
