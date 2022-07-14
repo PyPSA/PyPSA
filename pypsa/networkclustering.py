@@ -91,16 +91,23 @@ def aggregategenerators(
 
     weighting = generators.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
     generators["capital_cost"] *= weighting
+
     strategies = {
-        "p_nom_max": np.min,
-        "weight": np.sum,
-        "p_nom": np.sum,
-        "capital_cost": np.sum,
+        "p_nom_max": pd.Series.min,
+        "weight": pd.Series.sum,
+        "p_nom": pd.Series.min,
+        "capital_cost": pd.Series.sum,
+        "efficiency": pd.Series.mean,
+        "ramp_limit_up": pd.Series.mean,
+        "ramp_limit_down": pd.Series.mean,
+        "ramp_limit_start_up": pd.Series.mean,
+        "ramp_limit_shut_down": pd.Series.mean,
+        "build_year": lambda x: 0,
+        "lifetime": lambda x: np.inf
     }
     strategies.update(custom_strategies)
-    if strategies["p_nom_max"] is np.min:
+    if strategies["p_nom_max"] is pd.Series.min:
         generators["p_nom_max"] /= weighting
-
     strategies.update(
         (attr, _make_consense("Generator", attr))
         for attr in columns.difference(strategies)
@@ -159,13 +166,13 @@ def aggregateoneport(
             return (max_hours * _normed(old_df.p_nom.reindex(max_hours.index))).sum()
 
     default_strategies = dict(
-        p=np.sum,
-        q=np.sum,
-        p_set=np.sum,
-        q_set=np.sum,
-        p_nom=np.sum,
-        p_nom_max=np.sum,
-        p_nom_min=np.sum,
+        p=pd.Series.sum,
+        q=pd.Series.sum,
+        p_set=pd.Series.sum,
+        q_set=pd.Series.sum,
+        p_nom=pd.Series.sum,
+        p_nom_max=pd.Series.sum,
+        p_nom_min=pd.Series.sum,
         max_hours=aggregate_max_hours,
     )
     strategies = {
@@ -194,7 +201,12 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
     ) & set(network.buses.columns)
 
     strategies = dict(
-        x=np.mean, y=np.mean, v_nom=np.max, v_mag_pu_max=np.min, v_mag_pu_min=np.max
+        x=pd.Series.mean,
+        y=pd.Series.mean,
+        v_nom=pd.Series.max,
+        v_mag_pu_max=pd.Series.min,
+        v_mag_pu_min=pd.Series.max,
+        country=_make_consense("Bus", "country")
     )
     strategies.update(
         (attr, _make_consense("Bus", attr)) for attr in columns.difference(strategies)
