@@ -3,18 +3,22 @@ from packaging.version import Version, parse
 
 # NB: this test doesn't work for other cases because transformer tap
 # ratio and phase angle not supported for lpf
-from pypower.api import case30 as case
-from pypower.api import ppoption, runpf
-from pypower.ppver import ppver
+try:
+    # pypower is not maintained and with recent numpy verion it breaks
+    from pypower.api import case30 as case
+    from pypower.api import ppoption, runpf
+    from pypower.ppver import ppver
 
-import pypsa
-
-pypower_version = parse(ppver()["Version"])
+    pypower_version = parse(ppver()["Version"])
+except:
+    pypower_version = Version("0.0.0")
 
 import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
 
 
 @pytest.mark.skipif(
