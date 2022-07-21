@@ -311,7 +311,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         lhs = p_actual(fix_i) - p_previous(fix_i)
         rhs = assets.eval("ramp_limit_up * p_nom") + rhs_start.reindex(columns=fix_i)
         mask = active.reindex(columns=fix_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask=mask)
 
     # fix down
     if not assets.ramp_limit_down.isnull().all():
@@ -320,7 +320,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             columns=fix_i
         )
         mask = active.reindex(columns=fix_i) & assets.ramp_limit_down.notnull()
-        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Extendable Generators ----------------------------- #
 
@@ -334,7 +334,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
         mask = active.reindex(columns=ext_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask=mask)
 
     # ext down
     if not assets.ramp_limit_down.isnull().all():
@@ -343,7 +343,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         lhs = (1, p_actual(ext_i)), (-1, p_previous(ext_i)), (limit_pu, p_nom)
         rhs = rhs_start.reindex(columns=ext_i)
         mask = active.reindex(columns=ext_i) & assets.ramp_limit_down.notnull()
-        m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Committable Generators ----------------------------- #
 
@@ -371,8 +371,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-
-        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask)
+        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask=mask)
 
     # com down
     if not assets.ramp_limit_down.isnull().all():
@@ -396,7 +395,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
 
-        m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask)
+        m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
 def define_nodal_balance_constraints(n, sns):
@@ -582,7 +581,7 @@ def define_fixed_operation_constraints(n, sns, c, attr):
         mask = fix.notna()
 
     var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
-    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask)
+    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask=mask)
 
 
 def define_storage_unit_constraints(n, sns):
