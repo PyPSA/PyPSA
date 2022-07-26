@@ -32,6 +32,13 @@ Input and Output
     :members:
 
 
+Examples
+--------
+
+.. automodule:: pypsa.examples
+   :members:
+
+
 Network Graph
 -------------
 
@@ -53,8 +60,8 @@ Optimisation Module
     :members:
 
 
-Optimal Power Flow
-------------------
+Power System Optimisation
+-------------------------
 
 .. automodule:: pypsa.linopf
    :members:
@@ -67,10 +74,17 @@ Pyomo Optimisation Module
     :members:
 
 
-Pyomo Optimal Power Flow
-------------------------
+Pyomo Power System Optimisation
+-------------------------------
 
 .. automodule:: pypsa.opf
+   :members:
+
+
+Contingency Analysis
+-------------------------------
+
+.. automodule:: pypsa.contingency
    :members:
 
 
@@ -79,6 +93,13 @@ Plotting Networks
 
 .. automodule:: pypsa.plot
    :members:
+
+
+Network Clustering
+------------------
+
+.. automodule:: pypsa.networkclustering
+    :members:
 
 
 Georeferencing Utilities

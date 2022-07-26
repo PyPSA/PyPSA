@@ -3,8 +3,6 @@ Contingency Analysis
 ######################
 
 
-See the module ``pypsa.contingency``.
-
 Contingency analysis is concerned with the behaviour of the power
 system after contingencies such as the outage of particular branches.
 Only branch outages and the resulting effects on linear power flow are
