@@ -223,4 +223,3 @@ Dispatchable generators have a p_set series which is separate from the
 calculated active power series p, since the operators's intention may
 be different from what is calculated (e.g. when using distributed
 slack for the active power).
-
