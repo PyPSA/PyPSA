@@ -75,7 +75,7 @@ This release contains new features for plotting and storing metadata with Networ
 
 * Testing: ``pypower`` is not importable with newest numpy versions. Skip test if import fails.
 
-Special thanks for this release to @Cellophil, 
+Special thanks for this release to @Cellophil,
 @txelldm and @rockstaedt for improving test coverage and documentation.
 
 
