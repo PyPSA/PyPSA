@@ -21,7 +21,6 @@ from pypsa import (
     opt,
     pf,
     plot,
-    stats,
 )
 from pypsa.components import Network, SubNetwork
 

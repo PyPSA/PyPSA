@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 
 from pypsa import io
-from pypsa.__init__ import __version__ as pypsa_version
 from pypsa.components import Network
 from pypsa.geo import haversine_pts
 
