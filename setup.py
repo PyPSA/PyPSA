@@ -15,7 +15,7 @@ setup(
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type='text/markdown',
     url="https://github.com/PyPSA/PyPSA",
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),
