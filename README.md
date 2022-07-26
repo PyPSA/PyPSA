@@ -116,27 +116,25 @@ n.plot()
 ```
 
 There are [more extensive
-examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html)
-available as [Jupyter notebooks](https://jupyter.org/). They are also
-described in the [doc/examples.rst](doc/examples.rst) and are available
-as Python scripts in [examples/](examples/).
+examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html) available
+as [Jupyter notebooks](https://jupyter.org/). They are also described in the
+[doc/examples.rst](doc/examples.rst) and are available as Python scripts in
+[examples/](examples/).
 
 ## Screenshots
 
--   [PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising
-    capacities of generation, storage and transmission lines (9% line
-    volume expansion allowed) for a 95% reduction in CO2 emissions in
-    Europe compared to 1990 levels
+[PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising capacities of
+generation, storage and transmission lines (9% line volume expansion allowed)
+for a 95% reduction in CO2 emissions in Europe compared to 1990 levels
 
-![image](doc/img/elec_s_256_lv1.09_Co2L-3H.png){.align-center
-width="500px"}
+![image](doc/img/elec_s_256_lv1.09_Co2L-3H.png)
 
--   [SciGRID model](https://power.scigrid.de/) simulating the German
-    power system for 2015.
+[SciGRID model](https://power.scigrid.de/) simulating the German power system
+for 2015.
 
-![image](doc/img/stacked-gen_and_storage-scigrid.png){.align-center}
+![image](doc/img/stacked-gen_and_storage-scigrid.png)
 
-![image](doc/img/lmp_and_line-loading.png){.align-center}
+![image](doc/img/lmp_and_line-loading.png)
 
 ## Dependencies
 
