@@ -5,6 +5,14 @@ This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.
 """
 
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2021-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
+
 import logging
 import os
 from pathlib import Path
