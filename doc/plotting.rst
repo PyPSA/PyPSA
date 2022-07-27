@@ -2,8 +2,6 @@
  Plotting Networks
 ######################
 
-See the module ``pypsa.plot``.
-
 PyPSA has several functions available for plotting networks with
 different colors/widths/labels on buses and branches.
 

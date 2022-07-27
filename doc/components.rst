@@ -65,7 +65,7 @@ user.
 Sub-networks are subsets of buses and passive branches (i.e. lines and
 transformers) that are connected.
 
-They have a uniform energy``carrier`` inherited from the buses, such as
+They have a uniform energy ``carrier`` inherited from the buses, such as
 "DC", "AC", "heat" or "gas". In the case of "AC" sub-networks, these
 correspond to synchronous areas. Only "AC" and "DC" sub-networks can
 contain passive branches; all other sub-networks must contain a single
@@ -117,9 +117,6 @@ table, the canonical example being CO2 emissions of the carrier
 relevant for limits on CO2 emissions.
 
 
-.. note:: In versions of PyPSA < 0.6.0, this was called Source.
-
-
 .. csv-table::
    :header-rows: 1
    :file: ../pypsa/component_attrs/carriers.csv
@@ -143,8 +140,6 @@ energy" (for limits on the share of renewable or nuclear electricity
 after conversion), "generation capacity" (for limits on total capacity
 expansion of given carriers) and "transmission capacity" (for limits
 on the total expansion of lines and links).
-
-.. note:: Global constraints were added in PyPSA 0.10.0 and replace the ad hoc ``network.co2_limit`` attribute.
 
 
 .. csv-table::
@@ -171,31 +166,19 @@ Generators with static limits are like controllable conventional
 generators which can dispatch anywhere between ``p_nom*p_min_pu`` and
 ``p_nom*p_max_pu`` at all times. The static factor ``p_max_pu``,
 stored at ``network.generator.loc[gen_name,"p_max_pu"]`` essentially
-acts like a de-rating factor. In the following example ``p_max_pu =
-0.9`` and ``p_min_pu = 0``. Since ``p_nom`` is 12000 MW, the maximum
-dispatchable active power is 0.9*12000 MW = 10800 MW.
-
-.. image:: img/nuclear-dispatch.png
-
+acts like a de-rating factor.
 
 Generators with time-varying limits are like variable
 weather-dependent renewable generators. The time series ``p_max_pu``,
 stored as a series in ``network.generators_t.p_max_pu[gen_name]``,
 dictates the active power availability for each snapshot per unit of
 the nominal power ``p_nom`` and another time series ``p_min_pu`` which
-dictates the minimum dispatch. These time series can take values
-between 0 and 1, e.g. ``network.generators_t.p_max_pu[gen_name]``
-could be
-
-.. image:: img/p_max_pu.png
+dictates the minimum dispatch.
 
 This time series is then multiplied by ``p_nom`` to get the available
 power dispatch, which is the maximum that may be dispatched. The
 actual dispatch ``p``, stored in ``network.generators_t.p[gen_name]``,
-may be below this value, e.g.
-
-.. image:: img/scigrid-curtailment.png
-
+may be below this value.
 
 For the implementation of unit commitment, see :ref:`unit-commitment`.
 
@@ -404,7 +387,7 @@ We take no responsibility for the accuracy of the values.
 Link
 ====
 
-The ``Link`` is a component introduced in PyPSA 0.5.0 for controllable
+The ``Link`` is a component for controllable
 directed flows between two buses ``bus0`` and ``bus1`` with arbitrary
 energy carriers. It can have an efficiency loss and a marginal cost;
 for this reason its default settings allow only for power flow in one
@@ -416,8 +399,6 @@ The ``Link`` component can be used for any element with a controllable
 power flow: a bidirectional point-to-point HVDC link, a unidirectional
 lossy HVDC link, a converter between an AC and a DC network, a heat
 pump or resistive heater from an AC/DC bus to a heat bus, etc.
-
-.. note:: ``Link`` has replaced the ``Converter`` component for linking AC with DC buses and the ``TransportLink`` component for providing controllable flows between AC buses. If you want to replace ``Converter`` and ``TransportLink`` components in your old code, use the ``Link`` with ``efficiency = 1``, ``marginal_cost = 0``, ``p_min_pu = -1``, ``p_max_pu = 1`` and ``p_nom* = s_nom*``.
 
 .. csv-table::
    :header-rows: 1
@@ -465,7 +446,7 @@ with ``efficiency=-0.5`` (since 0.5 units of carbon dioxide is taken
 for each unit of hydrogen), ``bus2`` connects to methane with
 ``efficiency2=0.8`` and ``bus3`` to heat with ``efficiency3=0.2``.
 
-The Jupyter notebook `Biomass, synthetic fuels and carbon management <https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
+The example `Biomass, synthetic fuels and carbon management <https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
 
 Groups of Components
 ====================

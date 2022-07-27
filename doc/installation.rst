@@ -6,29 +6,25 @@
 Getting Python
 ==============
 
-If it's your first time with Python, we recommend
-`Anaconda <https://www.continuum.io/downloads>`_ as an easy-to-use
-environment that includes many basic packages. Anaconda is available
-for Windows, Mac OS X and GNU/Linux.
+If it is your first time with Python, we recommend `conda
+<https://docs.conda.io/en/latest/miniconda.html>`_, `mamba
+<https://github.com/mamba-org/mamba>`_ or `pip
+<https://pip.pypa.io/en/stable/>`_ as easy-to-use package managers. They are
+available for Windows, Mac OS X and GNU/Linux.
 
-`Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_ is a minimal installer for conda.
-
-It's always helpful to use a dedicated `conda environment <https://docs.conda.io/en/latest/>`_ or `virtual environment
-<https://pypi.python.org/pypi/virtualenv>`_ for your Python
-installation (and even easier to use with a `virtualenv-burrito
-<https://github.com/brainsik/virtualenv-burrito>`_), in case you
-accidentally trash something.
+It is always helpful to use dedicated `conda/mamba environments <https://mamba.readthedocs.io/en/latest/user_guide/mamba.html>`_ or `virtual environments
+<https://pypi.python.org/pypi/virtualenv>`_.
 
 
-
-Getting a solver for linear optimisation
-========================================
+Getting a solver for optimisation
+=================================
 
 PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
 external solver. PyPSA is known to work with the free software
 
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
 - `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
+- `HiGHS <https://highs.dev/>`_
 
 and the non-free software, commercial software (for which free academic licenses are available)
 
@@ -68,6 +64,8 @@ and then installing simply with::
 
     conda install pypsa
 
+In all of the above commands you can replace ``conda`` with ``mamba`` if you use this alternative.
+
 
 Installing PyPSA with pip
 =========================
@@ -81,45 +79,8 @@ If you're feeling adventurous, you can also install the latest master branch fro
     pip install git+https://github.com/PyPSA/PyPSA.git
 
 
-Manual installation with setuptools
-=====================================
-
-PyPSA relies on the following packages which are not contained in a
-standard Python installation:
-
-* numpy
-* scipy
-* pandas
-* networkx
-* pyomo
-* cartopy
-
-It is recommended to use PyPSA with the following additional packages:
-
-* `iPython <http://ipython.org/>`_ for interactive simulations
-* `plotly <https://plot.ly/python/>`_ for interactive plotting
-* `matplotlib <https://matplotlib.org/>`_ for static plotting
-* py.test for unit testing
-
-In a unix-based environment these packages can be obtained with the
-`pip <https://pypi.python.org/pypi/pip>`_ Python package manager::
-
-    pip install numpy scipy pandas networkx pyomo ipython
-
-
-To install PyPSA, you need to download the code from the `PyPSA github
-repository <https://github.com/PyPSA/PyPSA/>`_ and then go to the
-local repository and run::
-
-    python setup.py install
-
-Or if you want to develop/modify the code in the current directory, run::
-
-    python setup.py develop
-
-
-Conservative manual installation
-================================
+Conservative installation
+=========================
 
 If you're very conservative and don't like package managers, you can
 just download the code from the `PyPSA github repository
@@ -135,11 +96,11 @@ your python path with e.g.::
 
 .. _upgrading-packages:
 
-Upgrade all packages to the latest versions
-===========================================
+Upgrading dependencies
+======================
 
 PyPSA is only tested with the latest stable versions of all the
-dependent packages. Therefore it is
+dependent packages for the respective Python versions. Therefore it is
 very important that you upgrade these packages; otherwise PyPSA may
 not work.
 
@@ -149,9 +110,7 @@ line::
     pip install -U pandas
 
 
-In Anaconda the `user manual
-<http://conda.pydata.org/docs/using/pkgs.html>`_ suggests to upgrade
-packages with::
+With ``conda/mamba`` upgrade packages with::
 
     conda update pandas
 
@@ -162,10 +121,15 @@ Upgrading PyPSA
 ===============
 
 We recommend always keeping your PyPSA installation up-to-date, since
-bugs get fixed and new features are added. To upgrade PyPSA with pip,
-do at the command line::
+bugs get fixed and new features are added.
+
+To upgrade PyPSA with pip, do at the command line::
 
     pip install -U pypsa
+
+To upgrade PyPSA with conda, do at the command line::
+
+    conda update pypsa
 
 Don't forget to read the :doc:`release_notes` regarding API changes
 that might require you to update your code.
