@@ -3,8 +3,6 @@ Power Flow
 ######################
 
 
-See the module ``pypsa.pf``.
-
 
 Full non-linear power flow
 ==========================
@@ -252,25 +250,15 @@ For the non-linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-bus.{v_nom, v_mag_pu_set (if PV generators are attached)}
-
-load.{p_set, q_set}
-
-generator.{control, p_set, q_set (for control PQ)}
-
-storage_unit.{control, p_set, q_set (for control PQ)}
-
-store.{p_set, q_set}
-
-shunt_impedance.{b, g}
-
-line.{x, r, b, g}
-
-transformer.{x, r, b, g}
-
-link.{p_set}
-
-
+- buses.{v_nom, v_mag_pu_set (if PV generators are attached)}
+- loads.{p_set, q_set}
+- generators.{control, p_set, q_set (for control PQ)}
+- storage_units.{control, p_set, q_set (for control PQ)}
+- stores.{p_set, q_set}
+- shunt_impedances.{b, g}
+- lines.{x, r, b, g}
+- transformers.{x, r, b, g}
+- links.{p_set}
 
 .. note:: Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators NOT on the buses. Buses then inherit the  control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
 
@@ -280,23 +268,15 @@ link.{p_set}
 Outputs
 -------
 
-bus.{v_mag_pu, v_ang, p, q}
-
-load.{p, q}
-
-generator.{p, q}
-
-storage_unit.{p, q}
-
-store.{p, q}
-
-shunt_impedance.{p, q}
-
-line.{p0, q0, p1, q1}
-
-transformer.{p0, q0, p1, q1}
-
-link.{p0, p1}
+- buses.{v_mag_pu, v_ang, p, q}
+- loads.{p, q}
+- generators.{p, q}
+- storage_units.{p, q}
+- stores.{p, q}
+- shunt_impedances.{p, q}
+- lines.{p0, q0, p1, q1}
+- transformers.{p0, q0, p1, q1}
+- links.{p0, p1}
 
 
 Linear power flow
@@ -359,43 +339,27 @@ For the linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`components`.
 
-bus.{v_nom}
-
-load.{p_set}
-
-generator.{p_set}
-
-storage_unit.{p_set}
-
-store.{p_set}
-
-shunt_impedance.{g}
-
-line.{x}
-
-transformer.{x}
-
-link.{p_set}
+- buses.{v_nom}
+- loads.{p_set}
+- generators.{p_set}
+- storage_units.{p_set}
+- stores.{p_set}
+- shunt_impedances.{g}
+- lines.{x}
+- transformers.{x}
+- links.{p_set}
 
 .. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
 
-bus.{v_mag_pu, v_ang, p}
-
-load.{p}
-
-generator.{p}
-
-storage_unit.{p}
-
-store.{p}
-
-shunt_impedance.{p}
-
-line.{p0, p1}
-
-transformer.{p0, p1}
-
-link.{p0, p1}
+- buses.{v_mag_pu, v_ang, p}
+- loads.{p}
+- generators.{p}
+- storage_units.{p}
+- stores.{p}
+- shunt_impedances.{p}
+- lines.{p0, p1}
+- transformers.{p0, p1}
+- links.{p0, p1}

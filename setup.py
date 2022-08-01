@@ -5,17 +5,17 @@ from codecs import open
 
 from setuptools import find_packages, setup
 
-with open("README.rst", encoding="utf-8") as f:
+with open("README.md", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
     name="pypsa",
-    version="0.19.3",
+    version="0.20.0",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     url="https://github.com/PyPSA/PyPSA",
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),

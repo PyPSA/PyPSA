@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """
 Tools for fast Linear Problem file writing. This module contains.
@@ -26,7 +19,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -201,7 +194,7 @@ def define_constraints(
     >>> gas_i = n.generators.query('carrier == "Natural Gas"').index
     >>> gas_vars = get_var(n, 'Generator', 'p').loc[n.snapshots[:10], gas_i]
     >>> lhs = linexpr((1, gas_vars)).sum().sum()
-    >>> define_(n, lhs, '<=', 100, 'Generator', 'gas_power_limit')
+    >>> define_constraints(n, lhs, '<=', 100, 'Generator', 'gas_power_limit')
 
     Now the constraint references can be accessed by
     :func:`pypsa.linopt.get_con` using
