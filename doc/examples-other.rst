@@ -12,3 +12,4 @@ This section provides examples related to different topics:
     examples/spatial-clustering.ipynb
     examples/logging-demo.ipynb
     examples/replace-generator-storage-units-with-store.ipynb
+    examples/flow-plot.ipynb
