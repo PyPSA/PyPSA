@@ -1489,6 +1489,7 @@ def network_lopf(
             f"Optimization failed with status {status} and "
             f"termination condition {termination_condition}"
         )
+        n.objective = np.nan
         return status, termination_condition
 
     n.objective = obj

@@ -2340,6 +2340,7 @@ def network_lopf_solve(
             "Optimisation failed with status %s and terminal condition %s"
             % (status, termination_condition)
         )
+        network.objective = np.nan
 
     return status, termination_condition
 
