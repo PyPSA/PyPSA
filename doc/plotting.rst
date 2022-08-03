@@ -17,7 +17,8 @@ To plot a network with matplotlib run
 ``network.plot()``, see :py:meth:`pypsa.Network.plot` for details.
 
 See also the `SciGRID matplotlib example
-<https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_.
+<https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_ and the `Flow plotting matplotlib example
+<https://pypsa.readthedocs.io/en/latest/examples/flow-plot.html>`_.
 
 
 Interactive plotting with plotly
