@@ -45,12 +45,13 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
 
 Companies and Non-Governmental Organisations
 ============================================
 
-* `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, and for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_
+* `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
 
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, and for a study in 2021 `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_
 

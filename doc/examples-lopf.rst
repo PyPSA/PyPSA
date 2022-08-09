@@ -1,6 +1,6 @@
-#######################
-Power Flow Optimization
-#######################
+#########################
+Power System Optimization
+#########################
 
 
 This section provides examples related to network optimization with PyPSA. Note that PyPSA allows for optimising networks in two ways, first using the ``pyomo`` interface and second using the in-home implementation (which is way faster and memory-efficient). Some newer examples use the in-house implementation while others are based in the pyomo package.

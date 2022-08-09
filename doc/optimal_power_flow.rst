@@ -1,24 +1,22 @@
-######################
- Optimal Power Flow
-######################
+#########################
+Power System Optimization
+#########################
 
 
-See the module ``pypsa.opf`` and ``pypsa.linopf``. Optimisation with the linearised power flow equations for (mixed) AC
-and DC networks is fully supported. Note that optimisation with the full non-linear power flow equations is not yet supported.
-
-
-
-All constraints and variables are listed below.
+See the modules ``pypsa.opf`` and ``pypsa.linopf``. Optimisation with the
+linearised power flow equations for (mixed) AC and DC networks is fully
+supported. Note that optimisation with the full non-linear power flow equations
+is not yet supported. All constraints and variables are listed below.
 
 
 Overview
 --------
-* The linear OPF module can optimise the dispatch of generation and storage and the capacities of generation, storage and transmission infrastructure.
+
+* PyPSA can optimise the dispatch of generation and storage and the capacities of generation, storage and transmission infrastructure.
 
 * It is assumed that the load is inelastic and must be met in every snapshot (this will be relaxed in future versions).
 
 * The optimisation currently uses continuous variables for most functionality; unit commitment with binary variables is also implemented for generators.
-
 
 * The objective function is the total system cost for the snapshots optimised.
 
@@ -38,25 +36,19 @@ Execute:
 
     network.lopf(snapshots, solver_name="glpk", solver_io=None,
                  extra_functionality=None, solver_options={},
-                 keep_files=False, formulation="angles",
-                 extra_postprocessing=None,
-		 pyomo=True)
+                 formulation="angles", extra_postprocessing=None, pyomo=True)
 
 
-where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a
-string, e.g. "gurobi" or "glpk", ``solver_io`` is a string,
-``extra_functionality`` is a function of network and snapshots that is
-called before the solver (see below), ``extra_postprocessing`` is a
-function of network, snapshots and duals that is called after solving
-(see below), ``solver_options`` is a dictionary of flags to pass to
-the solver, ``keep_files`` means that the ``.lp`` file is saved,
-``formulation`` is a string in
-``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations`
-for more details) and ``pyomo`` is a boolean to switch between formulating
-the optimisation problem using ``pyomo`` or PyPSA's custom optimisation
-framework.
-
-See :py:meth:`pypsa.Network.lopf` for the documentation.
+where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a string,
+e.g. "gurobi" or "glpk", ``solver_io`` is a string, ``extra_functionality`` is a
+function of network and snapshots that is called before the solver (see below),
+``extra_postprocessing`` is a function of network, snapshots and duals that is
+called after solving (see below), ``solver_options`` is a dictionary of flags to
+pass to the solver, ``formulation`` is a string in
+``["angles","cycles","kirchhoff","ptdf"]`` (see :ref:`formulations` for more
+details) and ``pyomo`` is a boolean to switch between formulating the
+optimisation problem using ``pyomo`` or PyPSA's custom optimisation framework.
+See :py:meth:`pypsa.Network.lopf` for the full documentation.
 
 
 
@@ -69,13 +61,11 @@ See :py:meth:`pypsa.Network.lopf` for the documentation.
 Optimising dispatch only - a market model
 -----------------------------------------
 
-Capacity optimisation can be turned off so that only the dispatch is
-optimised, like a short-run electricity market model.
-
-For simplified transmission representation using Net Transfer
-Capacities (NTCs), there is a Link component which does controllable
-power flow like a transport model (and can also represent a
-point-to-point HVDC link).
+Capacity optimisation can be turned off so that only the dispatch is optimised,
+like a short-run electricity market model. For simplified transmission
+representation using Net Transfer Capacities (NTCs), there is a Link component
+which does controllable power flow like a transport model (and can also
+represent a point-to-point HVDC link).
 
 
 
@@ -131,12 +121,8 @@ Variables and notation summary
   :math:`e_s`; CO2-equivalent-tonne-per-MWh of the fuel carrier :math:`s`
 
 
-Further definitions are given below.
-
 Objective function
 ------------------
-
-See ``pypsa.opf.define_linear_objective(network,snapshots)``.
 
 The objective function is composed of capital costs :math:`c` for each component and operation costs :math:`o` for generators
 
@@ -160,8 +146,6 @@ for each bus.
 
 Generator constraints
 ---------------------
-
-These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
 Generator nominal power and generator dispatch for each snapshot may be optimised.
 
@@ -207,8 +191,6 @@ installable nominal power may also be introduced, e.g.
 
 Generator unit commitment constraints
 -------------------------------------
-
-These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
 
 .. important:: Unit commitment constraints will only be build fully if pyomo is set to True. If pyomo is set to False a simplified version of the unit commitment is calculated by ignoring the parameters `min_up_time`, `min_down_time`, `start_up_cost`, `shut_down_cost`, `up_time_before` and `down_time_before`.
 
@@ -266,8 +248,6 @@ so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the gen
 Generator ramping constraints
 -----------------------------
 
-These are defined in ``pypsa.opf.define_generator_variables_constraints(network,snapshots)``.
-
 The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
 Joshua Adam Taylor (CUP, 2015).
 
@@ -295,9 +275,6 @@ at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
 
 Storage Unit constraints
 -------------------------
-
-These are defined in ``pypsa.opf.define_storage_variables_constraints(network,snapshots)``.
-
 
 Storage nominal power and dispatch for each snapshot may be optimised.
 
@@ -395,14 +372,6 @@ optimisation assumes :math:`e_{n,s,t=-1} = e_{n,s,t=|T|-1}`.
 Passive branch flows: lines and transformers
 ---------------------------------------------
 
-
-See ``pypsa.opf.define_passive_branch_flows(network,snapshots)`` and
-``pypsa.opf.define_passive_branch_constraints(network,snapshots)`` and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
-
-
-
-
-
 For lines and transformers, whose power flows according to impedances,
 the power flow :math:`f_{l,t}` in AC networks is given by the difference in voltage
 angles :math:`\theta_{n,t}` at bus0 and :math:`\theta_{m,t}` at bus1 divided by the series reactance :math:`x_l`
@@ -426,12 +395,6 @@ This flow is the limited by the capacity :math:``F_l`` of the line
   (``branch.s_nom_extendable -- True``), then the impedance :math:`x` of
   the line is NOT automatically changed with the capacity (to represent
   e.g. parallel lines being added).
-
-  There are two choices here:
-
-  1. Iterate the LOPF again with the updated impedances, see e.g. `<http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_, like done by ``pypsa.linopf.ilopf``
-
-  2. João Gorenstein Dedecca has also implemented a MILP version of the transmission expansion, see `<https://github.com/jdedecca/MILP_PyPSA>`_, which properly takes account of the impedance with a disjunctive relaxation. This will be pulled into the main PyPSA code base soon.
 
 
 .. _formulations:
@@ -470,12 +433,6 @@ generators at most nodes.
 Controllable branch flows: links
 --------------------------------
 
-
-
-See ``pypsa.opf.define_controllable_branch_flows(network,snapshots)``
-and ``pypsa.opf.define_branch_extension_variables(network,snapshots)``.
-
-
 For links, whose power flow is controllable, there is simply an
 optimisation variable for each component which satisfies
 
@@ -498,9 +455,6 @@ efficiencies ``efficiencyi``, i.e. :math:`\eta_{i,l}`, then at
 Nodal power balances
 --------------------
 
-
-See ``pypsa.opf.define_nodal_balances(network,snapshots)``.
-
 This is the most important equation, which guarantees that the power
 balances at each bus :math:`n` for each time :math:`t`.
 
@@ -516,14 +470,10 @@ feeding in and out of it (i.e. like Kirchhoff's Current Law).
 .. image:: img/buses.png
 
 
-
 .. _global-constraints-opf:
 
 Global constraints
 ------------------
-
-
-See ``pypsa.opf.define_global_constraints(network,snapshots)``.
 
 Global constraints apply to more than one component.
 
@@ -608,8 +558,15 @@ Custom constraints and other functionality
 ------------------------------------------
 
 
-Since PyPSA v0.16.0, the lopf function is provided by two different modules. The ordinary implementation based on the ``pypsa.opf`` module uses
-`pyomo <http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing it to the solver. The implementation without pyomo, based on the module ``pypsa.linopf``, uses PyPSA's own internal optimisation framework that writes out the ``.lp`` file directly and explicitly runs it from a solver's interface. Therefore the application of custom constraints depends on whether pyomo is activated or not. Pyomo is activated by default, but to switch to the internal optimisation framework run ``pypsa.lopf(pyomo=False)``.
+The :py:meth:`pypsa.Network.lopf` function is provided by two different modules.
+The ordinary implementation based on the ``pypsa.opf`` module uses `pyomo
+<http://www.pyomo.org/>`_ to set up the linear optimisation problem and passing
+it to the solver. The implementation without pyomo, based on the module
+``pypsa.linopf``, uses PyPSA's own internal optimisation framework that writes
+out the ``.lp`` file directly and explicitly runs it from a solver's interface.
+Therefore the application of custom constraints depends on whether pyomo is
+activated or not. Pyomo is activated by default, but to switch to the internal
+optimisation framework run ``pypsa.lopf(pyomo=False)``.
 
 In general for a custom constraint, pass the function ``network.lopf`` a
 function ``extra_functionality`` as an argument.  This function must
@@ -801,8 +758,6 @@ explicitly set. For the defaults and units, see :doc:`components`.
 * carrier.{carrier_attribute}
 
 * global_constraint.{type, carrier_attribute, sense, constant}
-
-.. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------

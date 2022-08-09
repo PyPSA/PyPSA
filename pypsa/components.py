@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
-
 """
 Power system components.
 """
@@ -19,7 +11,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -251,6 +243,8 @@ class Network(Basic):
         # this will be saved on export
         self.pypsa_version = pypsa_version
 
+        self._meta = {}
+
         self._snapshots = pd.Index(["now"])
 
         cols = ["objective", "stores", "generators"]
@@ -423,6 +417,19 @@ class Network(Basic):
         dict of pandas.DataFrame
         """
         return getattr(self, self.components[component_name]["list_name"] + "_t")
+
+    @property
+    def meta(self):
+        """
+        Dictionary of the network meta data.
+        """
+        return self._meta
+
+    @meta.setter
+    def meta(self, new):
+        if not isinstance(new, (dict, Dict)):
+            raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
+        self._meta = new
 
     def set_snapshots(self, value):
         """
@@ -1302,6 +1309,7 @@ class Network(Basic):
                     missing,
                 )
 
+        # check for unknown buses
         for c in self.iterate_components(self.branch_components):
             for attr in ["bus0", "bus1"]:
                 missing = c.df.index[~c.df[attr].isin(self.buses.index)]
@@ -1312,6 +1320,20 @@ class Network(Basic):
                         attr,
                         missing,
                     )
+
+        # check for disconnected buses
+        connected_buses = set()
+        for c in self.iterate_components(self.branch_components):
+            for attr in [col for col in c.df.columns if col.startswith("bus")]:
+                connected_buses.update(c.df[attr])
+        for c in self.iterate_components(self.one_port_components):
+            connected_buses.update(c.df.bus)
+
+        disconnected_buses = set(self.buses.index) - connected_buses
+        if disconnected_buses:
+            logger.warning(
+                f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}"
+            )
 
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:
