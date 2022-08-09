@@ -95,7 +95,7 @@ def aggregategenerators(
     strategies = {
         "p_nom_max": pd.Series.min,
         "weight": pd.Series.sum,
-        "p_nom": pd.Series.min,
+        "p_nom": pd.Series.sum,
         "capital_cost": pd.Series.sum,
         "efficiency": pd.Series.mean,
         "ramp_limit_up": pd.Series.mean,
