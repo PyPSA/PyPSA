@@ -6,23 +6,18 @@
 Network object is the overall container
 =======================================
 
-The ``pypsa.Network`` is an overall container for all network
-components; components cannot exist without a network.
-
-It is also the object on which calculations, such as power flow and
-optimal power flow, are performed.
+The ``pypsa.Network`` is an overall container for all network components;
+components cannot exist without a network. It is also the object on which
+calculations, such as power flow and optimal power flow, are performed.
 
 
 Buses are the fundamental nodes
 ===============================
 
-The bus is the fundamental node to which all loads, generators,
-storage units, lines, transformers and links attach.
-
-You can have as many components attached to a bus as you want.
-
-The bus's role is to enforce energy conservation for all elements
-feeding in and out of it (i.e. like Kirchhoff's Current Law).
+The bus is the fundamental node to which all loads, generators, storage units,
+lines, transformers and links attach. You can have as many components attached
+to a bus as you want. The bus's role is to enforce energy conservation for all
+elements feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
 
 .. image:: img/buses.png
@@ -63,11 +58,11 @@ must be uniquely named for each network, its basic static data is
 stored in a pandas DataFrame, which is an attribute of the network
 object, with names that follow the component names:
 
-* network.buses
-* network.generators
-* network.loads
-* network.lines
-* network.transformers
+* ``network.buses``
+* ``network.generators``
+* ``network.loads``
+* ``network.lines``
+* ``network.transformers``
 
 These are all pandas DataFrames, indexed by the unique name of the
 component.
@@ -96,11 +91,11 @@ to store different values of these attributes for the different
 snapshots in ``network.snapshots`` in the following attributes of the
 network object:
 
-* network.buses_t
-* network.generators_t
-* network.loads_t
-* network.lines_t
-* network.transformers_t
+* ``network.buses_t``
+* ``network.generators_t``
+* ``network.loads_t``
+* ``network.lines_t``
+* ``network.transformers_t``
 
 These are all dictionaries of pandas DataFrames, so that for example
 ``network.generators_t["p_set"]`` is a DataFrame with columns
@@ -142,15 +137,6 @@ For **output data**, all time-varying data is stored in the
 simulation has been run.
 
 
-
-No GUI: Use Jupyter notebooks
-=============================
-
-PyPSA has no Graphical User Interface (GUI). However it has features
-for plotting time series and networks (e.g. ``network.plot()``), which
-works especially well in combination with `Jupyter notebooks
-<http://jupyter.org/>`_.
-
 Internal use of per unit
 ===========================
 
@@ -167,21 +153,27 @@ The units for physical quantities are chosen for easy user input.
 
 The units follow the general rules:
 
-Power: MW/MVA/MVar (unless per unit of nominal power,
-e.g. generator.p_max_pu for variable generators is per unit of
-generator.p_nom)
+.. list-table:: Title
+   :widths: 25 75
+   :header-rows: 1
 
-Time: h
-
-Energy: MWh
-
-Voltage: kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc.
-
-Angles: radians, except transformer.phase_shift which is in degrees for easy input
-
-Impedance: Ohm, except transformers which are pu, using transformer.s_nom for the base power
-
-CO2-equivalent emissions: tonnes of CO2-equivalent per MWh_thermal of energy carrier
+   * - Quantity
+     - Units
+   * - Power
+     - MW/MVA/MVar (unless per unit of nominal power, e.g. generator.p_max_pu
+       for variable generators is per unit of generator.p_nom)
+   * - Time
+     - h
+   * - Energy
+     - MWh
+   * - Voltage
+     - kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc.
+   * - Angles
+     - radians, except transformer.phase_shift which is in degrees for easy input
+   * - Impedance
+     - Ohm, except transformers which are pu, using transformer.s_nom for the base power
+   * - CO2-equivalent emissions
+     - tonnes of CO2-equivalent per MWh_thermal of energy carrier
 
 .. _sign-conventions:
 
@@ -231,14 +223,3 @@ Dispatchable generators have a p_set series which is separate from the
 calculated active power series p, since the operators's intention may
 be different from what is calculated (e.g. when using distributed
 slack for the active power).
-
-
-Pyomo for the optimisation framework
-====================================
-
-To enable portability between solvers, the OPF is formulated using the
-Python optimisation modelling package `pyomo <http://www.pyomo.org/>`_
-(which can be thought of as a Python version of `GAMS
-<http://www.gams.de/>`_).
-
-Pyomo also has useful features such as index sets, etc.

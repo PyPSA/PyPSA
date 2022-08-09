@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
-
 """
 Functionality for contingency analysis, such as branch outages.
 """
@@ -16,16 +8,14 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
 import logging
 
-from numpy import ones, r_, zeros
-from scipy.sparse import csc_matrix, csr_matrix
-from scipy.sparse import hstack as shstack
-from scipy.sparse import issparse
+from numpy import r_
+from scipy.sparse import csr_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +24,7 @@ from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 
-from pypsa.descriptors import get_extendable_i, get_non_extendable_i
+from pypsa.descriptors import get_extendable_i
 from pypsa.linopt import get_var, linexpr, set_conref, write_constraint
 from pypsa.opt import l_constraint
 from pypsa.pf import _as_snapshots, calculate_PTDF

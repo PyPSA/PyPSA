@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 import pypsa
-from pypsa.components import Network
 
 
 @pytest.fixture
@@ -185,3 +184,56 @@ def test_madd_defaults(empty_network_5_buses):
     assert empty_network_5_buses.loads.loc[line_names[0], "p_set"] == (
         empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
     )
+
+
+def test_copy_default_behavior(ac_dc_network):
+    """
+    GIVEN   the AC DC exemplary pypsa network.
+
+    WHEN    copying the network with timestamps
+
+    THEN    the copied network should have the same generators, loads and
+            timestamps.
+    """
+    snapshot = ac_dc_network.snapshots[2]
+    copied_network = ac_dc_network.copy()
+
+    loads = ac_dc_network.loads.index.tolist()
+    generators = ac_dc_network.generators.index.tolist()
+    copied_loads = copied_network.loads.index.tolist()
+    copied_generators = copied_network.generators.index.tolist()
+
+    assert loads == copied_loads
+    assert generators == copied_generators
+    assert not copied_network.snapshots.empty
+    assert snapshot in copied_network.snapshots
+
+
+def test_copy_deep_copy_behavior(ac_dc_network):
+    """
+    GIVEN   the AC DC exemplary pypsa network.
+
+    WHEN    copying the network and changing a component
+
+    THEN    the original network should have not changed.
+    """
+    copied_network = ac_dc_network.copy()
+
+    copied_network.loads.rename(index={"London": "Berlin"}, inplace=True)
+
+    assert ac_dc_network.loads.index[0] != copied_network.loads.index[0]
+
+
+def test_copy_no_snapshot(ac_dc_network):
+    """
+    GIVEN   the AC DC exemplary pypsa network.
+
+    WHEN    copying the network without snapshots
+
+    THEN    the copied network should only have the current time index.
+    """
+    snapshot = ac_dc_network.snapshots[2]
+    copied_network = ac_dc_network.copy(with_time=False, snapshots=snapshot)
+
+    assert copied_network.snapshots.size == 1
+    assert snapshot not in copied_network.snapshots

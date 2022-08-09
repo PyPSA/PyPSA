@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """
 Build optimisation problems from PyPSA networks without Pyomo.
@@ -18,7 +11,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -54,7 +47,6 @@ from pypsa.linopt import (
     run_and_read_highs,
     run_and_read_xpress,
     set_conref,
-    set_varref,
     write_bound,
     write_constraint,
     write_objective,
@@ -1497,6 +1489,7 @@ def network_lopf(
             f"Optimization failed with status {status} and "
             f"termination condition {termination_condition}"
         )
+        n.objective = np.nan
         return status, termination_condition
 
     n.objective = obj
