@@ -32,10 +32,10 @@ from pypsa.linopt import (
     write_SOS2_constraint
 )
 
-from distutils.version import LooseVersion
-
-pd_version = LooseVersion(pd.__version__)
-agg_group_kwargs = dict(numeric_only=False) if pd_version >= "1.3" else {}
+from packaging.version import Version, parse
+agg_group_kwargs = (
+    dict(numeric_only=False) if parse(pd.__version__) >= Version("1.3") else {}
+)
 
 import logging
 
@@ -161,15 +161,15 @@ def learning_consistency_check(n):
     )
 
 
-def define_learning_variables(n, snapshots, segments):
-    """Define binaries for technology learning.
+def define_sos2_variables(n, snapshots, segments):
+    """Define SOS2 variables for technology learning.
 
-    Define continuos variabe for technology learning for each
+    Define continuos variable for technology learning for each
     investment period, each carrier with learning rate and each point of
     the linear interpolation of the learning curve
 
-    learning        : continuos variable [0,1] which is per period and carrier
-                      a special ordered set of type 2 (SOS2)
+    learning        : continuos variable [0,1] which is defined per period and
+                      carrier, a special ordered set of type 2 (SOS2)
     Input:
     ------
         n          : pypsa network
@@ -184,7 +184,7 @@ def define_learning_variables(n, snapshots, segments):
     # get all investment periods
     investments = snapshots.levels[0] if n._multi_invest else [0.0]
     # create index for all line segments of the linear interpolation
-    segments_i = pd.Index(np.arange(segments+1))
+    segments_i = pd.Index(np.arange(segments+1), name="segments")
 
     # multiindex for every learning tech and pipe segment
     multi_i = pd.MultiIndex.from_product([learn_i, segments_i])
@@ -198,6 +198,34 @@ def define_learning_variables(n, snapshots, segments):
     for carrier in learn_i:
         for year in investments:
             sos2 = write_SOS2_constraint(n, learning.loc[[year], [carrier]])
+
+
+def define_learning_constraint(n, snapshots):
+    """Define constraints for the learning binaries or SOS2 variables.
+
+    Constraints for the binary variables:
+        (1) for every tech/carrier and investment period select only one
+        line segment
+        (2) experience grows or stays constant
+    """
+    c, attr = "Carrier", "learning"
+
+    # get carriers with learning
+    learn_i = n.carriers[n.carriers.learning_rate != 0].index
+    if learn_i.empty:
+        return
+
+    # get learning binaries
+    learning = get_var(n, c, attr)
+    # (1) sum over all line segments
+    lhs = (
+        linexpr((1, learning))
+        .groupby(level=0, axis=1)
+        .sum(**agg_group_kwargs)
+        .reindex(columns=learn_i)
+    )
+    # define constraint to always select just on line segment
+    define_constraints(n, lhs, "=", 1, "Carrier", "select_segment")
 
 
 def piecewise_linear(x, y, segments, carrier):
@@ -662,23 +690,20 @@ def define_position_on_learning_curve(n, snapshots, segments, time_delay):
     x_low = n.carriers.loc[learn_i, "global_capacity"]
     x_high = n.carriers.loc[learn_i, "max_capacity"]
 
-    # ######## PIECEWIESE LINEARISATION #######################################
+    # ########### PIECEWIESE LINEARISATION ####################################
     # get interpolation points (number of points = line segments + 1)
     points = get_linear_interpolation_points(n, x_low, x_high, segments)
 
-    # ######## CAPACITY #######################################################
-    # ------------------------------------------------------------------------
-    # define cumulative capacity
+    # ########### CAPACITY ####################################################
+    # ---- define cumulative capacity (global) --------------------------------
     define_cumulative_capacity(n, x_low, x_high, investments, learn_i, points)
-    # -------------------------------------------------------------------------
-    # define new installed capacity per period
+    # ---- define new installed capacity per period (local) -------------------
     define_capacity_per_period(n, investments, learn_i,  snapshots)
 
-    # ######## CUMULATIVE COST ################################################
-    # ------- define cumulative cost -----------------------------------------
+    # ########### COST ########################################################
+    # ---- define cumulative cost (global) ------------------------------------
     define_cumulative_cost(n, points, investments, segments, learn_i, time_delay)
-    # -------------------------------------------------------------------------
-    # define new investment per period
+    # ---- define new investment per period (local) ---------------------------
     define_cost_per_period(n, points, investments, segments, learn_i)
 
 
@@ -744,7 +769,6 @@ def define_learning_objective(n, sns):
     # investment for extendable assets
     # get carriers with learning
     learn_i = n.carriers[n.carriers.learning_rate != 0].index
-    breakpoint()
     for c, attr in nom_attr:
         ext_i = get_extendable_i(n, c)
         if "carrier" not in n.df(c) or n.df(c).empty:
@@ -758,20 +782,20 @@ def define_learning_objective(n, sns):
         # assets without tecnology learning
         no_learn = ext_i.difference(learn_assets)
         cost = n.df(c)["capital_cost"][no_learn]
+        if not cost.empty:
+            if n._multi_invest:
+                active = pd.concat(
+                    {
+                        period: get_active_assets(n, c, period)[ext_i]
+                        for period in sns.unique("period")
+                    },
+                    axis=1,
+                )
+                cost = active @ period_weighting * cost
 
-        if n._multi_invest:
-            active = pd.concat(
-                {
-                    period: get_active_assets(n, c, period)[ext_i]
-                    for period in sns.unique("period")
-                },
-                axis=1,
-            )
-            cost = active @ period_weighting * cost
-
-        caps = get_var(n, c, attr)
-        terms = linexpr((cost.loc[no_learn], caps.loc[no_learn]))
-        write_objective(n, terms)
+            caps = get_var(n, c, attr)
+            terms = linexpr((cost.loc[no_learn], caps.loc[no_learn]))
+            write_objective(n, terms)
 
         # (ii) assets with technology learning -------------------------------
         if learn_assets.empty:
@@ -793,7 +817,7 @@ def define_learning_objective(n, sns):
         write_objective(n, terms)
 
 
-        # (iii) costs of learning assets which do not underly any learning
+        # costs of learning assets which do not underly any learning
         if "nolearning_cost" in n.df(c).columns:
             logger.info("Non learning costs for component {} are added to objective.".format(c))
 
@@ -820,9 +844,9 @@ def add_learning(n, snapshots, segments=5, time_delay=False):
     # consistency check
     learning_consistency_check(n)
     # learning variables of type SOS2
-    define_learning_variables(n, snapshots, segments)
+    define_sos2_variables(n, snapshots, segments)
     ## define constraints for learning variable
-    # define_learning_constraint(n, snapshots)  # TODO
+    define_learning_constraint(n, snapshots)
     # define relation cost - cumulative installed capacity
     define_position_on_learning_curve(n, snapshots, segments, time_delay)
     # define objective function with technology learning

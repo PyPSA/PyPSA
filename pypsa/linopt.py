@@ -1138,7 +1138,8 @@ def run_and_read_gurobi(
         )
     except AttributeError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
+        constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()],
+                                     dtype=float)
     objective = m.ObjVal
     del m
     return (status, termination_condition, variables_sol, constraints_dual, objective)
