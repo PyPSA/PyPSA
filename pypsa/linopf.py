@@ -617,7 +617,9 @@ def define_storage_unit_constraints(n, sns):
         lhs += masked_term(eff_stand, previous_soc_cyclic_pp, cyclic_pp_i)
         if not noncyclic_pp_i.empty:
             # set the initial enery at the beginning of each period
-            first_active_snapshot_pp = active[noncyclic_pp_i].groupby(level=0).cumsum() == 1
+            first_active_snapshot_pp = (
+                active[noncyclic_pp_i].groupby(level=0).cumsum() == 1
+            )
 
             lhs += masked_term(
                 eff_stand[~first_active_snapshot_pp],
@@ -1126,6 +1128,7 @@ def prepare_lopf(
 
     if n._learning:
         from pypsa.learning import add_learning
+
         add_learning(n, snapshots, segments, time_delay)
 
     n.sos_f.write("end\n")
@@ -1232,7 +1235,9 @@ def assign_solution(
                 else:
                     capital_cost.fillna(method="ffill", inplace=True)
                 # remove errors because of very small investment per period costs
-                capital_cost = capital_cost[capital_cost.diff()<=0].fillna(capital_cost.shift().fillna(capital_cost.iloc[0,:]))
+                capital_cost = capital_cost[capital_cost.diff() <= 0].fillna(
+                    capital_cost.shift().fillna(capital_cost.iloc[0, :])
+                )
                 for comp, attribute in nominal_attrs.items():
                     ext_i = get_extendable_i(n, comp)
                     if "carrier" not in n.df(comp) or n.df(comp).empty:
@@ -1252,12 +1257,26 @@ def assign_solution(
                             axis=1,
                         )
                     )
-                    if all(np.isin([attribute+"_extendable", "nolearning_cost"], n.df(comp).columns)):
-                        nolearn_i = n.df(comp)[n.df(comp)[attribute+"_extendable"] & (~n.df(comp).nolearning_cost.isna())].index
+                    if all(
+                        np.isin(
+                            [attribute + "_extendable", "nolearning_cost"],
+                            n.df(comp).columns,
+                        )
+                    ):
+                        nolearn_i = n.df(comp)[
+                            n.df(comp)[attribute + "_extendable"]
+                            & (~n.df(comp).nolearning_cost.isna())
+                        ].index
                         nolearn_i = nolearn_i.intersection(learn_assets)
-                        logger.info("Add back connection costs which do not "
-                                    "underly learning for carriers {}.\n".format(n.df(comp).loc[nolearn_i,"carrier"].unique()))
-                        n.df(comp).loc[nolearn_i, "capital_cost"] += n.df(comp).loc[nolearn_i, "nolearning_cost"]
+                        logger.info(
+                            "Add back connection costs which do not "
+                            "underly learning for carriers {}.\n".format(
+                                n.df(comp).loc[nolearn_i, "carrier"].unique()
+                            )
+                        )
+                        n.df(comp).loc[nolearn_i, "capital_cost"] += n.df(comp).loc[
+                            nolearn_i, "nolearning_cost"
+                        ]
         else:
             # case that variables are static
             n.solutions.at[(c, attr), "pnl"] = False
@@ -1528,8 +1547,15 @@ def network_lopf(
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(
-        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir,
-        learning, time_delay, segments
+        n,
+        snapshots,
+        keep_files,
+        skip_objective,
+        extra_functionality,
+        solver_dir,
+        learning,
+        time_delay,
+        segments,
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 

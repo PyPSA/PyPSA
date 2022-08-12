@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Module for technology learning with PyPSA.
+"""
+Module for technology learning with PyPSA.
 
 Created on Thu May 19 18:16:14 2022
 
 @author: lisa
 """
 
-import os
-import pandas as pd
-import numpy as np
 import math
+import os
 
+import numpy as np
+import pandas as pd
+from packaging.version import Version, parse
 
-from pypsa.pf import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import (
-    get_extendable_i,
     expand_series,
-    nominal_attrs,
     get_active_assets,
-    get_activity_mask
+    get_activity_mask,
+    get_extendable_i,
+    nominal_attrs,
 )
-
 from pypsa.linopt import (
+    define_constraints,
+    define_variables,
+    get_var,
     linexpr,
     write_bound,
     write_objective,
-    get_var,
-    define_constraints,
-    define_variables,
-    write_SOS2_constraint
+    write_SOS2_constraint,
 )
+from pypsa.pf import get_switchable_as_dense as get_as_dense
 
-from packaging.version import Version, parse
 agg_group_kwargs = (
     dict(numeric_only=False) if parse(pd.__version__) >= Version("1.3") else {}
 )
@@ -47,7 +47,9 @@ lookup = pd.read_csv(
 )
 #%%
 def get_slope(points):
-    """Return the slope of the line segments."""
+    """
+    Return the slope of the line segments.
+    """
     point_distance = (points.shift() - points).shift(-1).dropna(axis=0)
 
     return point_distance.xs("y_fit", level=1, axis=1) / point_distance.xs(
@@ -56,7 +58,9 @@ def get_slope(points):
 
 
 def get_interception(points, slope):
-    """Get interception point with cumulative cost (y) axis."""
+    """
+    Get interception point with cumulative cost (y) axis.
+    """
     return (
         points.xs("y_fit", axis=1, level=1)
         - (slope * points.xs("x_fit", axis=1, level=1))
@@ -64,7 +68,8 @@ def get_interception(points, slope):
 
 
 def define_bounds(points, col, bound_type, investments, segments):
-    """Define lower and  upper bounds.
+    """
+    Define lower and  upper bounds.
 
     Input:
         points      : interpolation points
@@ -85,15 +90,14 @@ def define_bounds(points, col, bound_type, investments, segments):
 
 
 def learning_consistency_check(n):
-    """Consistency check for technology learning.
+    """
+    Consistency check for technology learning.
 
-    Checks if:
-        (i) there are any learning technology
-        (ii) all attributes for learning are defined
-        (ii) an upper and lower bound for the capacity is defined
-        (iii) for learning carriers there are also assets with extendable
-        capacity
-        # TODO add warning if not asset for each investment period
+    Checks if:     (i) there are any learning technology     (ii) all
+    attributes for learning are defined     (ii) an upper and lower
+    bound for the capacity is defined     (iii) for learning carriers
+    there are also assets with extendable     capacity     # TODO add
+    warning if not asset for each investment period
     """
 
     # check if there are any technologies with learning
@@ -162,7 +166,8 @@ def learning_consistency_check(n):
 
 
 def define_sos2_variables(n, snapshots, segments):
-    """Define SOS2 variables for technology learning.
+    """
+    Define SOS2 variables for technology learning.
 
     Define continuos variable for technology learning for each
     investment period, each carrier with learning rate and each point of
@@ -184,13 +189,14 @@ def define_sos2_variables(n, snapshots, segments):
     # get all investment periods
     investments = snapshots.levels[0] if n._multi_invest else [0.0]
     # create index for all line segments of the linear interpolation
-    segments_i = pd.Index(np.arange(segments+1), name="segments")
+    segments_i = pd.Index(np.arange(segments + 1), name="segments")
 
     # multiindex for every learning tech and pipe segment
     multi_i = pd.MultiIndex.from_product([learn_i, segments_i])
     # define learning variable (index=investment, columns=[carrier, segment])
-    learning = define_variables(n, 0, 1, "Carrier", "learning",
-                                axes=[investments, multi_i])
+    learning = define_variables(
+        n, 0, 1, "Carrier", "learning", axes=[investments, multi_i]
+    )
 
     # add SOS2 (special ordered Set 2) constraint:
     # (i) sum of learning variables per investment period and carrier == 1
@@ -201,12 +207,12 @@ def define_sos2_variables(n, snapshots, segments):
 
 
 def define_learning_constraint(n, snapshots):
-    """Define constraints for the learning binaries or SOS2 variables.
+    """
+    Define constraints for the learning binaries or SOS2 variables.
 
-    Constraints for the binary variables:
-        (1) for every tech/carrier and investment period select only one
-        line segment
-        (2) experience grows or stays constant
+    Constraints for the binary variables:     (1) for every tech/carrier
+    and investment period select only one     line segment     (2)
+    experience grows or stays constant
     """
     c, attr = "Carrier", "learning"
 
@@ -229,7 +235,8 @@ def define_learning_constraint(n, snapshots):
 
 
 def piecewise_linear(x, y, segments, carrier):
-    """Define interpolation points of piecewise-linearised learning curve.
+    """
+    Define interpolation points of piecewise-linearised learning curve.
 
     The higher the number of segments, the more precise is the solution. But
     with the number of segments, also the number of binary variables and
@@ -264,7 +271,7 @@ def piecewise_linear(x, y, segments, carrier):
                                 index=interpolation points = (line segments + 1))
     """
     factor = pd.Series(np.arange(segments), index=np.arange(segments), dtype=float)
-    factor = factor.apply(lambda x: 2 ** x)
+    factor = factor.apply(lambda x: 2**x)
     # maximum cumulative cost increase
     y_max_increase = y.max() - y.min()
 
@@ -272,7 +279,7 @@ def piecewise_linear(x, y, segments, carrier):
     y_fit_data = (
         [y.min()]
         + [y.iloc[1]]
-        + [y.min() + int(initial_len) * 2 ** s for s in range(segments - 2)]
+        + [y.min() + int(initial_len) * 2**s for s in range(segments - 2)]
         + [y.max()]
     )
 
@@ -287,7 +294,8 @@ def piecewise_linear(x, y, segments, carrier):
 
 
 def experience_curve(cumulative_capacity, learning_rate, c0, initial_capacity=1):
-    """Define experience curve.
+    """
+    Define experience curve.
 
     Calculates the specific investment costs c for the corresponding cumulative
     capacity
@@ -324,7 +332,8 @@ def experience_curve(cumulative_capacity, learning_rate, c0, initial_capacity=1)
 def cumulative_cost_curve(
     cumulative_capacity, learning_rate, c0, initial_capacity=1, with_previous_TC=True
 ):
-    """Define cumulative cost depending on cumulative capacity.
+    """
+    Define cumulative cost depending on cumulative capacity.
 
     Using directly the learning curve (eq 1)
 
@@ -371,7 +380,8 @@ def cumulative_cost_curve(
 
 
 def get_linear_interpolation_points(n, x_low, x_high, segments):
-    """Define interpolation points of the cumulative investment curve.
+    """
+    Define interpolation points of the cumulative investment curve.
 
     Get interpolation points (x and y position) of piece-wise linearisation of
     cumulative cost function.
@@ -388,7 +398,6 @@ def get_linear_interpolation_points(n, x_low, x_high, segments):
         points        : (pd.DataFrame(columns=pd.MultiIndex([carrier], [x_fit, y_fit]),
                                 index=interpolation points = (line segments + 1)))
                         interpolation/kink points of cumulative cost function
-
     """
     # (1) define capacity range
     x = pd.DataFrame(np.linspace(x_low, x_high, 1000), columns=x_low.index)
@@ -419,7 +428,8 @@ def get_linear_interpolation_points(n, x_low, x_high, segments):
 
 
 def define_cumulative_capacity(n, x_low, x_high, investments, learn_i, points):
-    """Define global cumulative capacity.
+    """
+    Define global cumulative capacity.
 
     Define variable and constraint for global cumulative capacity.
 
@@ -439,8 +449,9 @@ def define_cumulative_capacity(n, x_low, x_high, investments, learn_i, points):
         n, x_low, x_high, c, "cumulative_capacity", axes=[investments, learn_i]
     )
     # x position of the interpolation points for each investment period
-    points_x_fit = expand_series(points.xs("x_fit", level=1, axis=1).unstack(),
-                                 investments).T
+    points_x_fit = expand_series(
+        points.xs("x_fit", level=1, axis=1).unstack(), investments
+    ).T
     # learning variables
     learning = get_var(n, c, "learning")
     # sum over all line segments (lambda) = cumulative installed capacity
@@ -455,8 +466,9 @@ def define_cumulative_capacity(n, x_low, x_high, investments, learn_i, points):
     define_constraints(n, lhs, "=", 0, "Carrier", "cum_cap_definition")
 
 
-def define_capacity_per_period(n, investments, learn_i,  snapshots):
-    """Define new installed capacity per investment period.
+def define_capacity_per_period(n, investments, learn_i, snapshots):
+    """
+    Define new installed capacity per investment period.
 
     Define variable 'cap_per_period' for new installed capacity per investment
     period and corresponding constraints.
@@ -501,10 +513,14 @@ def define_capacity_per_period(n, investments, learn_i,  snapshots):
         if learn_assets.empty:
             continue
 
-        active = get_activity_mask(n,c,snapshots).astype(int)[learn_assets]
+        active = get_activity_mask(n, c, snapshots).astype(int)[learn_assets]
         # new build assets in investment period
-        new_build = (active.apply(lambda x: x.diff().fillna(x.iloc[0]), axis=0)
-                     .replace(-1, 0).groupby(level=0).first())
+        new_build = (
+            active.apply(lambda x: x.diff().fillna(x.iloc[0]), axis=0)
+            .replace(-1, 0)
+            .groupby(level=0)
+            .first()
+        )
 
         # nominal capacity for each asset
         caps = expand_series(get_var(n, c, attr).loc[learn_assets], investments).T
@@ -520,7 +536,8 @@ def define_capacity_per_period(n, investments, learn_i,  snapshots):
 
 
 def define_cumulative_cost(n, points, investments, segments, learn_i, time_delay):
-    """Define global cumulative cost.
+    """
+    Define global cumulative cost.
 
     Define variable and constraints for cumulative cost
     starting at zero (previous installed capacity is not priced)
@@ -559,8 +576,9 @@ def define_cumulative_cost(n, points, investments, segments, learn_i, time_delay
     # learning variables
     learning = get_var(n, c, "learning")
     # y values of interpolation points expand per investment period
-    points_y_fit = expand_series(points.xs("y_fit", level=1, axis=1).unstack(),
-                                 investments).T
+    points_y_fit = expand_series(
+        points.xs("y_fit", level=1, axis=1).unstack(), investments
+    ).T
     #  make sure that columns have same order
     y_intercept_t = y_intercept_t.reindex(learning.columns, axis=1)
 
@@ -575,8 +593,9 @@ def define_cumulative_cost(n, points, investments, segments, learn_i, time_delay
         # TC(t) = TC(t-1) + slope(t-1) * [cap(t) - cap(t-1)]
         #########################
         # define new variable x_diff for [cap(t)-cap(t-1)] ------------------
-        x_diff= define_variables(n, 0, np.inf, c, "x_diff",
-                                 axes=[investments, learning.columns])
+        x_diff = define_variables(
+            n, 0, np.inf, c, "x_diff", axes=[investments, learning.columns]
+        )
 
         # no learning first investment period ------------------------------
         exclude_cols = x_diff.xs(0, level=1, axis=1, drop_level=False).columns
@@ -588,38 +607,52 @@ def define_cumulative_cost(n, points, investments, segments, learn_i, time_delay
         # ----------------------------------------------------------
         # sum_segments xs_diff(inv_p, carrier) = cap_per_period
         cap_per_period = get_var(n, c, "cap_per_period")
-        global_factor = expand_series(n.df(c).loc[learn_i, "global_factor"], investments).T
+        global_factor = expand_series(
+            n.df(c).loc[learn_i, "global_factor"], investments
+        ).T
         lhs = linexpr((1, x_diff)).groupby(level=0, axis=1).sum(**agg_group_kwargs)
-        lhs += linexpr((-1/global_factor, cap_per_period)).reindex(columns=lhs.columns)
+        lhs += linexpr((-1 / global_factor, cap_per_period)).reindex(
+            columns=lhs.columns
+        )
 
         define_constraints(n, lhs, "==", 0, "Carrier", "xs_shift_xs_relation")
         # -------------------------------------------------------
-        x_max = (expand_series(n.carriers.loc[learn_i, "max_capacity"], investments[1:]).T
-                 .reindex(columns=learning_shift.columns, level=0))
-        lhs = linexpr((1, x_diff.iloc[1:]),(-x_max, learning_shift))
+        x_max = expand_series(
+            n.carriers.loc[learn_i, "max_capacity"], investments[1:]
+        ).T.reindex(columns=learning_shift.columns, level=0)
+        lhs = linexpr((1, x_diff.iloc[1:]), (-x_max, learning_shift))
 
         define_constraints(n, lhs, "<=", 0, "Carrier", "x_diff_ub")
         #################################
         # TODO
         # slope is defined for each line segment
         # x_diff is defined for each interpolation point
-        initial_cost = (expand_series(n.carriers.loc[slope.columns, "initial_cost"]
-                                      .reindex(x_diff.columns, level=0), investments).T)
-        slope_diff = (expand_series(slope.unstack(), investments).T
-                      .reindex_like(x_diff).groupby(level=0, axis=1).shift()
-                       .fillna(initial_cost, axis=1))
+        initial_cost = expand_series(
+            n.carriers.loc[slope.columns, "initial_cost"].reindex(
+                x_diff.columns, level=0
+            ),
+            investments,
+        ).T
+        slope_diff = (
+            expand_series(slope.unstack(), investments)
+            .T.reindex_like(x_diff)
+            .groupby(level=0, axis=1)
+            .shift()
+            .fillna(initial_cost, axis=1)
+        )
 
         # define cumulative cost TC(t)
         lhs = linexpr((-1, cum_cost))
         # slope(t-1) * [cap(t) - cap(t-1)] = slope * x_diff
-        lhs += (linexpr((slope_diff, x_diff))
-                .groupby(level=0, axis=1)
-                .sum(**agg_group_kwargs)
-                .reindex(lhs.columns, axis=1))
-        # cumulative cost at previous investment period TC(t-1)
-        lhs.iloc[1:] += (
-            linexpr((1, cum_cost.shift().dropna()))
+        lhs += (
+            linexpr((slope_diff, x_diff))
+            .groupby(level=0, axis=1)
+            .sum(**agg_group_kwargs)
             .reindex(lhs.columns, axis=1)
+        )
+        # cumulative cost at previous investment period TC(t-1)
+        lhs.iloc[1:] += linexpr((1, cum_cost.shift().dropna())).reindex(
+            lhs.columns, axis=1
         )
 
         rhs = pd.DataFrame(0, index=lhs.index, columns=lhs.columns)
@@ -639,7 +672,8 @@ def define_cumulative_cost(n, points, investments, segments, learn_i, time_delay
 
 
 def define_cost_per_period(n, points, investments, segments, learn_i):
-    """Define investment costs per investment period.
+    """
+    Define investment costs per investment period.
 
     Define investment costs for each technology per invesment period.
 
@@ -657,8 +691,9 @@ def define_cost_per_period(n, points, investments, segments, learn_i):
     global_factor = expand_series(n.df(c).loc[learn_i, "global_factor"], investments).T
 
     # define variable for investment per period in technology ---------------
-    inv = define_variables(n, 0, np.inf, c, "inv_per_period",
-                           axes=[investments, learn_i])
+    inv = define_variables(
+        n, 0, np.inf, c, "inv_per_period", axes=[investments, learn_i]
+    )
     # cumulative cost
     cum_cost = get_var(n, c, "cumulative_cost")
     # inv = cumulative_cost(t) - cum_cost(t-1)
@@ -672,12 +707,13 @@ def define_cost_per_period(n, points, investments, segments, learn_i):
 
 
 def define_position_on_learning_curve(n, snapshots, segments, time_delay):
-    """Define piece-wised linearised learning curve.
+    """
+    Define piece-wised linearised learning curve.
 
     Define constraints to identify x_position on the learning curve
-    (x=cumulative capacity, y=investment costs) and corresponding investment
-    costs. The learning curve is expressed by the cumulative investments,
-    which are piecewise linearised with line segments.
+    (x=cumulative capacity, y=investment costs) and corresponding
+    investment costs. The learning curve is expressed by the cumulative
+    investments, which are piecewise linearised with line segments.
     """
     # ############ INDEX ######################################################
     # get carriers with learning
@@ -698,7 +734,7 @@ def define_position_on_learning_curve(n, snapshots, segments, time_delay):
     # ---- define cumulative capacity (global) --------------------------------
     define_cumulative_capacity(n, x_low, x_high, investments, learn_i, points)
     # ---- define new installed capacity per period (local) -------------------
-    define_capacity_per_period(n, investments, learn_i,  snapshots)
+    define_capacity_per_period(n, investments, learn_i, snapshots)
 
     # ########### COST ########################################################
     # ---- define cumulative cost (global) ------------------------------------
@@ -708,13 +744,13 @@ def define_position_on_learning_curve(n, snapshots, segments, time_delay):
 
 
 def define_learning_objective(n, sns):
-    """Modify objective function to include technology learning for pyomo=False.
+    """
+    Modify objective function to include technology learning for pyomo=False.
 
-    The new objective function consists of
-    (i) the 'regular' equations of all the expenses for the technologies
-          without learning,
-    plus
-    (ii) the investment costs for the learning technologies (learni_i)
+    The new objective function consists of (i) the 'regular' equations
+    of all the expenses for the technologies       without learning,
+    plus (ii) the investment costs for the learning technologies
+    (learni_i)
     """
     # weightings -----------------------------------------------------------
     if n._multi_invest:
@@ -807,19 +843,23 @@ def define_learning_objective(n, sns):
         # add additional weight for active time
         lifetime_w = (
             (active.loc[learn_assets].astype(int))
-            .groupby([n.df(c).carrier, n.df(c).build_year]).max()
+            .groupby([n.df(c).carrier, n.df(c).build_year])
+            .max()
             .reindex(learn_i, level=0)
         )
         weighting = (
-            lifetime_w.mul(period_weighting).sum(axis=1).unstack()[period_weighting.index]
+            lifetime_w.mul(period_weighting)
+            .sum(axis=1)
+            .unstack()[period_weighting.index]
         ).T
         terms = linexpr((weighting, cost_learning[weighting.columns]))
         write_objective(n, terms)
 
-
         # costs of learning assets which do not underly any learning
         if "nolearning_cost" in n.df(c).columns:
-            logger.info("Non learning costs for component {} are added to objective.".format(c))
+            logger.info(
+                "Non learning costs for component {} are added to objective.".format(c)
+            )
 
             nolearn_cost = n.df(c).loc[learn_assets, "nolearning_cost"].fillna(0)
             caps = expand_series(
@@ -833,7 +873,8 @@ def define_learning_objective(n, sns):
 
 
 def add_learning(n, snapshots, segments=5, time_delay=False):
-    """Add technology learning to the lopf by piecewise linerarisation.
+    """
+    Add technology learning to the lopf by piecewise linerarisation.
 
     Input:
         segments  : type(int) number of line segments for linear interpolation
