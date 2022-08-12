@@ -1128,7 +1128,6 @@ def prepare_lopf(
         from pypsa.learning import add_learning
         add_learning(n, snapshots, segments, time_delay)
 
-    n.binaries_f.write("end\n")
     n.sos_f.write("end\n")
 
     # explicit closing with file descriptor is necessary for windows machines
@@ -1145,7 +1144,7 @@ def prepare_lopf(
 
     # concatenate files
     with open(problem_fn, "wb") as wfd:
-        for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
+        for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn, sos_fn]:
             with open(f, "rb") as fd:
                 shutil.copyfileobj(fd, wfd)
             if not keep_files:
@@ -1171,11 +1170,19 @@ def assign_solution(
     """
 
     def set_from_frame(pnl, attr, df):
-        if attr not in pnl:  # use this for subnetworks_t
-            pnl[attr] = df.reindex(n.snapshots, fill_value=0)
+        if attr not in pnl:
+            if isinstance(n.snapshots, pd.MultiIndex):  #
+                pnl[attr] = df.reindex(n.snapshots, level=0, fill_value=0)
+            else:
+                pnl[attr] = df.reindex(n.snapshots, fill_value=0)
+
         elif pnl[attr].empty:
-            pnl[attr] = df.reindex(n.snapshots, fill_value=0)
+            pnl[attr] = df.reindex(n.snapshots, level=0, fill_value=0)
         else:
+            # for variables indexed with investment period not MultiIndex
+            if not isinstance(df.index, pd.MultiIndex):
+                df = df.reindex(n.snapshots, level=0)
+            # pnl[attr].loc[sns, :] = df.reindex(columns=pnl[attr].columns)
             pnl[attr].loc[sns, df.columns] = df
 
     pop = not keep_references
@@ -1207,6 +1214,50 @@ def assign_solution(
                     ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
             else:
                 set_from_frame(pnl, attr, values)
+
+            # map investment costs of learning technologies
+            if c == "Carrier" and attr == "cap_per_period":
+                inv_per_period_v = get_var(n, c, "inv_per_period", pop=False)
+                inv_per_period = inv_per_period_v.applymap(
+                    lambda x: variables_sol.loc[x]
+                )
+                capital_cost = round(inv_per_period / values.replace(0, 1), ndigits=2)
+                learn_i = capital_cost.columns
+                capital_cost[round(values) == 0] = np.NaN
+                capital_cost.loc[sns[0][0]].fillna(
+                    n.carriers.loc[learn_i, "initial_cost"], inplace=True
+                )
+                if n._time_delay:
+                    capital_cost.fillna(method="bfill", inplace=True)
+                else:
+                    capital_cost.fillna(method="ffill", inplace=True)
+                # remove errors because of very small investment per period costs
+                capital_cost = capital_cost[capital_cost.diff()<=0].fillna(capital_cost.shift().fillna(capital_cost.iloc[0,:]))
+                for comp, attribute in nominal_attrs.items():
+                    ext_i = get_extendable_i(n, comp)
+                    if "carrier" not in n.df(comp) or n.df(comp).empty:
+                        continue
+                    learn_assets = ext_i.intersection(
+                        n.df(comp)[n.df(comp)["carrier"].isin(learn_i)].index
+                    )
+                    if learn_assets.empty:
+                        continue
+                    n.df(comp).loc[learn_assets, "capital_cost"] = (
+                        n.df(comp)
+                        .loc[learn_assets]
+                        .apply(
+                            lambda x: capital_cost.loc[
+                                x.loc["build_year"], x.loc["carrier"]
+                            ],
+                            axis=1,
+                        )
+                    )
+                    if all(np.isin([attribute+"_extendable", "nolearning_cost"], n.df(comp).columns)):
+                        nolearn_i = n.df(comp)[n.df(comp)[attribute+"_extendable"] & (~n.df(comp).nolearning_cost.isna())].index
+                        nolearn_i = nolearn_i.intersection(learn_assets)
+                        logger.info("Add back connection costs which do not "
+                                    "underly learning for carriers {}.\n".format(n.df(comp).loc[nolearn_i,"carrier"].unique()))
+                        n.df(comp).loc[nolearn_i, "capital_cost"] += n.df(comp).loc[nolearn_i, "nolearning_cost"]
         else:
             # case that variables are static
             n.solutions.at[(c, attr), "pnl"] = False
@@ -1468,6 +1519,8 @@ def network_lopf(
         # objective function is newly defined
         skip_objective = True
         n._learning = True
+    else:
+        n._learning = False
 
     if not skip_pre:
         n.calculate_dependent_values()
@@ -1498,7 +1551,6 @@ def network_lopf(
     )
 
     status, termination_condition, variables_sol, constraints_dual, obj = res
-
     if not keep_files:
         os.close(fdp)
         os.remove(problem_fn)
