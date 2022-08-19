@@ -205,7 +205,7 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     snapshots : pandas.Index
         Restrict to these snapshots rather than network.snapshots.
     inds : pandas.Index
-        Restrict to these items rather than all of network.{generators,..}.index
+        Restrict to these items rather than all of network.{generators, ..}.index
 
     Returns
     -------

@@ -229,7 +229,7 @@ htmlhelp_basename = "PyPSAdoc"
 # -- Options for nbsphinx -------------------------------------------------
 # nbsphinx_kernel_name = 'pypsa'
 nbsphinx_prolog = """
-{% set docname = env.doc2path(env.docname, base=None).replace("nblink","ipynb").replace("examples/", "examples/notebooks/") %}
+{% set docname = env.doc2path(env.docname, base=None).replace("nblink", "ipynb").replace("examples/", "examples/notebooks/") %}
 .. note::
 
     You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook

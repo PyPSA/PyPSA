@@ -80,7 +80,7 @@ def plot(
     Parameters
     ----------
     margin : float, defaults to 0.05
-        Margin at the sides as proportion of distance between max/min x,y
+        Margin at the sides as proportion of distance between max/min x, y
         Will be ignored if boundaries are given.
     ax : matplotlib ax, defaults to plt.gca()
         Axis to which to plot the network
@@ -142,13 +142,13 @@ def plot(
         flow arrows.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``n.buses[['x','y']]``. See
+        overrules coordinates given in ``n.buses[['x', 'y']]``. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
         of available options.
     title : string
         Graph title
     boundaries : list of four floats
-        Boundaries of the plot in format [x1,x2,y1,y2]
+        Boundaries of the plot in format [x1, x2, y1, y2]
     branch_components : list of str
         Branch components to be plotted, defaults to Line and Link.
     jitter : None|float
@@ -398,7 +398,7 @@ def plot(
         b_collection = LineCollection(
             segments,
             linewidths=b_widths,
-            antialiaseds=(1,),
+            antialiaseds=(1, ),
             colors=b_colors,
         )
 
@@ -412,7 +412,7 @@ def plot(
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
 
-    return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
+    return (bus_collection, ) + tuple(branch_collections) + tuple(arrow_collections)
 
 
 def as_branch_series(ser, arg, c, n):
@@ -540,7 +540,7 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     ----------
     ax : matplotlib ax
     sizes : list-like, float
-        Size of the line reference; for example [3,2,1]
+        Size of the line reference; for example [3, 2, 1]
     labels : list-like, str
         Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
     patch_kw : defaults to {}
@@ -598,7 +598,7 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     ----------
     ax : matplotlib ax
     sizes : list-like, float
-        Size of the reference circle; for example [3,2,1]
+        Size of the reference circle; for example [3, 2, 1]
     labels : list-like, str
         Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
     patch_kw : defaults to {}
@@ -713,7 +713,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     n : pypsa.Network
     assign : bool, default False
         Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x','y']]``.
+        at ``n.buses[['x', 'y']]``.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
@@ -859,7 +859,7 @@ def iplot(
         Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``n.buses[['x','y']]``. See
+        overrules coordinates given in ``n.buses[['x', 'y']]``. See
         `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
         of available options.
     title : string

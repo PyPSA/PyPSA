@@ -48,7 +48,7 @@ class LExpression(object):
     Parameters
     ----------
     variables : list of tuples of coefficients and variables
-        e.g. [(coeff1,var1),(coeff2,var2),...]
+        e.g. [(coeff1, var1), (coeff2, var2), ...]
     constant : float
     """
 
@@ -151,11 +151,11 @@ def l_constraint(model, name, constraints, *args):
 
     Instead of
 
-    model.name = Constraint(index1,index2,...,rule=f)
+    model.name = Constraint(index1, index2, ..., rule=f)
 
     call instead
 
-    l_constraint(model,name,constraints,index1,index2,...)
+    l_constraint(model, name, constraints, index1, index2, ...)
 
     where constraints is a dictionary of constraints of the form:
 
@@ -163,11 +163,11 @@ def l_constraint(model, name, constraints, *args):
 
     OR using the soon-to-be-deprecated list format:
 
-    constraints[i] = [[(coeff1,var1),(coeff2,var2),...],sense,constant_term]
+    constraints[i] = [[(coeff1, var1), (coeff2, var2), ...], sense, constant_term]
 
     i.e. the first argument is a list of tuples with the variables and their
     coefficients, the second argument is the sense string (must be one of
-    "==","<=",">=","><") and the third argument is the constant term
+    "==", "<=", ">=", "><") and the third argument is the constant term
     (a float). The sense "><" allows lower and upper bounds and requires
     `constant_term` to be a 2-tuple.
 
@@ -213,7 +213,7 @@ def l_constraint(model, name, constraints, *args):
             constr_expr = inequality(lo, sum_expr, hi)
         else:
             raise KeyError(
-                '`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense)
+                '`sense` must be one of "==", "<=", ">=", "><"; got: {}'.format(sense)
             )
 
         v._data[i] = _GeneralConstraintData(constr_expr, v)
@@ -229,7 +229,7 @@ def l_objective(model, objective=None, sense=minimize):
 
     call instead
 
-    l_objective(model,objective,sense)
+    l_objective(model, objective, sense)
 
     where objective is an LExpression.
 

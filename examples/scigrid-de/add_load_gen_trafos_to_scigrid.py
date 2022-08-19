@@ -35,7 +35,7 @@
 #
 # Wind and solar capacities and locations: EEG Stammdaten, based on  http://www.energymap.info/download.html, which represents capacities at the end of 2014. Units without PLZ are removed.
 #
-# Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+# Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis, " Energy 93 (2015) 1074 - 1088.
 #
 # NB:
 #
@@ -92,7 +92,7 @@ folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 # note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(
     folder_prefix + "scigrid-151109/vertices_de_power_151109.csvdata",
-    sep=",",
+    sep=", ",
     quotechar="'",
     index_col=0,
 )
@@ -103,7 +103,7 @@ print(vertices["voltage"].value_counts(dropna=False))
 
 links = pd.read_csv(
     folder_prefix + "scigrid-151109/links_de_power_151109.csvdata",
-    sep=",",
+    sep=", ",
     quotechar="'",
     index_col=0,
 )
@@ -361,7 +361,7 @@ for sn in network.sub_networks.obj:
             )
         )
         # print(buses.index)
-        # print(len(branches),branches.index)
+        # print(len(branches), branches.index)
         for bus in buses:
             network.remove("Bus", bus)
         for branch in branches:
@@ -534,7 +534,7 @@ def read_kraftwerksliste(with_latlon=True):
         delimiter=";",
         encoding="utf-8",
         thousands=".",
-        decimal=",",
+        decimal=", ",
     )
 
     def sanitize_names(x):
@@ -564,7 +564,7 @@ def read_kraftwerksliste(with_latlon=True):
         }
         kraftwerke["lon"] = kraftwerke.PLZ.map({pc: c.x for pc, c in postcodes.items()})
         kraftwerke["lat"] = kraftwerke.PLZ.map({pc: c.y for pc, c in postcodes.items()})
-        # kraftwerke.dropna(subset=('lon','lat'), inplace=True)
+        # kraftwerke.dropna(subset=('lon', 'lat'), inplace=True)
 
     kraftwerke["Type"] = kraftwerke["Auswertung Energieträger"].map(
         {

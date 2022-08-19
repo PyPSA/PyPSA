@@ -474,7 +474,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
     n_clusters : int
@@ -535,7 +535,7 @@ def kmeans_clustering(
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
     n_clusters : int
@@ -670,7 +670,7 @@ def hac_clustering(
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
     branch_components: List, default=["Line", "Link"]
@@ -851,7 +851,7 @@ def busmap_by_stubs(network, matching_attrs=None):
         for u in G.nodes:
             neighbours = list(G.adj[u].keys())
             if len(neighbours) == 1:
-                (v,) = neighbours
+                (v, ) = neighbours
                 if attrs_match(u, v):
                     busmap[busmap == u] = v
                     stubs.append(u)

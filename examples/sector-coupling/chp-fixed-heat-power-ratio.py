@@ -13,7 +13,7 @@ import pypsa
 
 # First tell PyPSA that links will have a 2nd bus by
 # overriding the component_attrs. This can be done for
-# as many buses as you need with format busi for i = 2,3,4,5,....
+# as many buses as you need with format busi for i = 2, 3, 4, 5, ....
 
 override_component_attrs = pypsa.descriptors.Dict(
     {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
