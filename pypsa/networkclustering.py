@@ -217,7 +217,6 @@ def aggregatebuses(network, busmap, custom_strategies=dict()):
 
 
 def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time=True):
-
     # make sure all lines have same bus ordering
     positive_order = interlines.bus0_s < interlines.bus1_s
     interlines_p = interlines[positive_order]

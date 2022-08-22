@@ -477,7 +477,6 @@ def projected_area_factor(ax, original_crs=4326):
 
 
 def draw_map_cartopy(ax, geomap=True, color_geomap=None):
-
     resolution = "50m" if isinstance(geomap, bool) else geomap
     assert resolution in [
         "10m",
