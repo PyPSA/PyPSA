@@ -104,6 +104,30 @@ def define_variables(n, lower, upper, name, attr="", axes=None, spec="", mask=No
     return var
 
 
+def write_SOS2_constraint(n, variables):
+    """
+    Writer function for writing out mutliple constraints to the corresponding
+    constraints file.
+
+    If lower and upper are numpy.ndarrays it axes must not be None but a
+    tuple of (index, columns) or (index). Return a series or frame with
+    constraint references.
+    """
+    axes, shape, size = _get_handlers(variables)
+    if not size:
+        return pd.Series()
+    cons = np.arange(variables.size).reshape(variables.shape) + 1
+    n.sos_f.write(
+        "s{}: S2 :: ".format(n._SOScCounter)
+        + join_exprs(
+            "x" + _str_array(variables, True) + ":" + _str_array(cons, True) + " "
+        )
+        + "\n\n"
+    )
+    n._SOScCounter += 1
+    return to_pandas(variables)
+
+
 def define_binaries(n, axes, name, attr="", spec="", mask=None):
     """
     Defines binary-variable(s) for pypsa-network. The variables are stored in
@@ -1118,7 +1142,9 @@ def run_and_read_gurobi(
         )
     except AttributeError:
         logger.warning("Shadow prices of MILP couldn't be parsed")
-        constraints_dual = pd.Series(index=[c.ConstrName for c in m.getConstrs()])
+        constraints_dual = pd.Series(
+            index=[c.ConstrName for c in m.getConstrs()], dtype=float
+        )
     objective = m.ObjVal
     del m
     return (status, termination_condition, variables_sol, constraints_dual, objective)

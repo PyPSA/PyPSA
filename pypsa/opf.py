@@ -2347,6 +2347,7 @@ def network_lopf(
     ptdf_tolerance=0.0,
     free_memory={},
     extra_postprocessing=None,
+    learning=False,
 ):
     """
     Linear optimal power flow for a group of snapshots.
@@ -2401,6 +2402,10 @@ def network_lopf(
     if multi_investment_periods:
         raise NotImplementedError(
             "Multi period invesmtent is only supported for pyomo=False"
+        )
+    if learning:
+        raise NotImplementedError(
+            "Endogenous technology learning is only supported for pyomo=False"
         )
     if type(network.snapshots) == pd.MultiIndex:
         raise NotImplementedError(

@@ -614,6 +614,7 @@ class Network(Basic):
         keep_files=False,
         extra_functionality=None,
         multi_investment_periods=False,
+        learning=False,
         **kwargs,
     ):
         """
@@ -731,6 +732,7 @@ class Network(Basic):
             "multi_investment_periods": multi_investment_periods,
             "solver_name": solver_name,
             "solver_logfile": solver_logfile,
+            "learning": learning,
         }
         args.update(kwargs)
 
