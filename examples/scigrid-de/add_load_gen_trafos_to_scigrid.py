@@ -528,7 +528,6 @@ monthly_load.plot(grid=True)
 
 
 def read_kraftwerksliste(with_latlon=True):
-
     kraftwerke = pd.read_csv(
         "../../lib/vresutils/data/Kraftwerksliste_CSV_deCP850ed.csv",
         delimiter=";",
@@ -608,7 +607,6 @@ import random
 
 
 def backup_capacity_german_grid(G):
-
     from shapely.geometry import Point
 
     plants = power_plants

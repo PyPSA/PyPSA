@@ -147,7 +147,6 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
 
 def add_contingency_constraints(network, snapshots):
-
     passive_branches = network.passive_branches()
 
     branch_outages = network._branch_outages
@@ -274,7 +273,6 @@ def add_contingency_constraints(network, snapshots):
 
 
 def add_contingency_constraints_lowmem(network, snapshots):
-
     n = network
 
     if not hasattr(n, "_branch_outages"):

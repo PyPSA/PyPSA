@@ -46,7 +46,6 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
 
 
 def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
-
     fn = os.path.join(tmpdir, "csv_export")
     ac_dc_network_multiindexed.export_to_csv_folder(fn)
     m = pypsa.Network(fn)
