@@ -154,7 +154,7 @@ It leans heavily on the following Python packages:
     (currently only linear)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
--   [py.test](http://pytest.org/) for unit testing
+-   [pytest](http://pytest.org/) for unit testing
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
@@ -187,7 +187,7 @@ cite the following paper:
     [arXiv:1707.09913](https://arxiv.org/abs/1707.09913),
     [DOI:10.5334/jors.188](https://doi.org/10.5334/jors.188)
 
-Please use the following BibTeX: :
+Please use the following BibTeX:
 
     @article{PyPSA,
        author = {T. Brown and J. H\"orsch and D. Schlachtberger},
