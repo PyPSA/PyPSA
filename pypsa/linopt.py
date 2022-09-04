@@ -194,7 +194,7 @@ def define_constraints(
     >>> gas_i = n.generators.query('carrier == "Natural Gas"').index
     >>> gas_vars = get_var(n, 'Generator', 'p').loc[n.snapshots[:10], gas_i]
     >>> lhs = linexpr((1, gas_vars)).sum().sum()
-    >>> define_(n, lhs, '<=', 100, 'Generator', 'gas_power_limit')
+    >>> define_constraints(n, lhs, '<=', 100, 'Generator', 'gas_power_limit')
 
     Now the constraint references can be accessed by
     :func:`pypsa.linopt.get_con` using

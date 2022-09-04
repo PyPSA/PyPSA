@@ -67,7 +67,6 @@ def _as_snapshots(network, snapshots):
 
 
 def _allocate_pf_outputs(network, linear=False):
-
     to_allocate = {
         "Generator": ["p"],
         "Load": ["p"],

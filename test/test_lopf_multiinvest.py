@@ -65,7 +65,6 @@ def n():
 
 @pytest.fixture
 def n_sus(n):
-
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
     n.mremove("Generator", n.generators.query('bus == "1"').index)
@@ -88,7 +87,6 @@ def n_sus(n):
 
 @pytest.fixture
 def n_sts(n):
-
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
     n.mremove("Generator", n.generators.query('bus == "1"').index)
@@ -223,7 +221,6 @@ def test_simple_network_snapshot_subset(n):
 
 
 def test_simple_network_storage_noncyclic(n_sus):
-
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
     n_sus.storage_units["state_of_charge_initial_per_period"] = False
@@ -239,7 +236,6 @@ def test_simple_network_storage_noncyclic(n_sus):
 
 
 def test_simple_network_storage_noncyclic_per_period(n_sus):
-
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
     n_sus.storage_units["state_of_charge_initial_per_period"] = True
@@ -261,7 +257,6 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
 
 
 def test_simple_network_storage_cyclic(n_sus):
-
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = False
 
@@ -280,7 +275,6 @@ def test_simple_network_storage_cyclic(n_sus):
 
 
 def test_simple_network_storage_cyclic_per_period(n_sus):
-
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = True
 
@@ -296,7 +290,6 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
 
 
 def test_simple_network_store_noncyclic(n_sts):
-
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = False
 
@@ -312,7 +305,6 @@ def test_simple_network_store_noncyclic(n_sts):
 
 
 def test_simple_network_store_noncyclic_per_period(n_sts):
-
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = True
 
@@ -332,7 +324,6 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
 
 
 def test_simple_network_store_cyclic(n_sts):
-
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = False
 
@@ -348,7 +339,6 @@ def test_simple_network_store_cyclic(n_sts):
 
 
 def test_simple_network_store_cyclic_per_period(n_sts):
-
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = True
 
