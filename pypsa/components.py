@@ -339,6 +339,22 @@ class Network(Basic):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def __repr__(self):
+        header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
+        comps = {}
+        for c in self.iterate_components():
+            if "Type" not in c.name and len(c.df):
+                comps[c.name] = f" - {c.name}: {len(c.df)}"
+        content = "\nComponents:"
+        if comps:
+            content += "\n" + "\n".join(comps[c] for c in sorted(comps))
+        else:
+            header = "Empty " + header
+            content += " none"
+        content += "\n"
+        content += f"Snapshots: {len(self.snapshots)}"
+        return header + content
+
     def _build_dataframes(self):
         """
         Function called when network is created to build component
