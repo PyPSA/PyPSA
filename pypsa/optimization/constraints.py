@@ -152,16 +152,18 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         min_up_time = min_up_time.clip(upper=len(sns))
         lhs = []
-        for asset in com_i[min_up_time >= 1]:
+        coords = com_i[min_up_time >= 1]
+        for asset in coords:
             up_time = min_up_time[asset]
             # reverse snapshot order to correctly apply rolling_sum, and unreverse
-            asset_status = status.loc[:, asset]
+            asset_sel = {com_i.name: asset}
+            asset_status = status.sel(asset_sel, drop=True)
             kwargs = dict(snapshot=up_time, center=False)
-            expr = asset_status[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
+            expr = asset_status.loc[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
             # shift last var to the followed substraction
             expr = expr.drop_isel(_term=-1)
-            lhs.append(expr - (up_time - 1) * status_diff.sel({com_i.name: asset}))
-        lhs = merge(lhs, dim=com_i.name).reindex({com_i.name: com_i})
+            lhs.append(expr - (up_time - 1) * status_diff.sel(asset_sel, drop=True))
+        lhs = merge(lhs, dim=coords).reindex({com_i.name: com_i})
 
         # rhs has to consider initial value and end-of-horizon relaxation
         rhs = pd.DataFrame(0, sns, com_i)
@@ -203,16 +205,18 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         min_down_time = min_down_time.clip(upper=len(sns))
         lhs = []
-        for asset in com_i[min_down_time >= 1]:
+        coords = com_i[min_down_time >= 1]
+        for asset in coords:
             down_time = min_down_time[asset]
             # reverse snapshot order to correctly apply rolling_sum, and unreverse
-            asset_status = status.loc[:, asset]
+            asset_sel = {com_i.name: asset}
+            asset_status = status.sel(asset_sel, drop=True)
             kwargs = dict(snapshot=down_time, center=False)
-            expr = -asset_status[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
+            expr = -asset_status.loc[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
             # shift last var to the followed substraction
             expr = expr.drop_isel(_term=-1)
-            lhs.append(expr + (down_time - 1) * status_diff.sel({com_i.name: asset}))
-        lhs = merge(lhs, dim=com_i.name).reindex({com_i.name: com_i})
+            lhs.append(expr + (down_time - 1) * status_diff.sel(asset_sel, drop=True))
+        lhs = merge(lhs, dim=coords).reindex({com_i.name: com_i})
 
         # rhs has to consider initial value and end-of-horizon relaxation
         rhs = -pd.DataFrame([min_down_time] * len(sns), sns, com_i)
@@ -657,7 +661,6 @@ def define_storage_unit_constraints(n, sns):
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
-
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
     m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)

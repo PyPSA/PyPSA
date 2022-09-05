@@ -295,6 +295,7 @@ def test_simple_network_storage_cyclic(n_sus, api):
 @pytest.mark.parametrize("api", APIS)
 def test_simple_network_storage_cyclic_per_period(n_sus, api):
 
+    # Watch out breaks with xarray version 2022.06.00 !
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = True
 
@@ -367,6 +368,7 @@ def test_simple_network_store_cyclic(n_sts, api):
 @pytest.mark.parametrize("api", APIS)
 def test_simple_network_store_cyclic_per_period(n_sts, api):
 
+    # Watch out breaks with xarray version 2022.06.00 !
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = True
 
@@ -382,7 +384,7 @@ def test_simple_network_store_cyclic_per_period(n_sts, api):
 
 
 @pytest.mark.parametrize("api", APIS)
-def test_global_constraint_primary_energy(n_sus, api):
+def test_global_constraint_primary_energy_storage(n_sus, api):
     c = "StorageUnit"
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sus.df(c)["state_of_charge_initial"] = 200
@@ -402,7 +404,7 @@ def test_global_constraint_primary_energy(n_sus, api):
 
 
 @pytest.mark.parametrize("api", APIS)
-def test_global_constraint_primary_energy(n_sts, api):
+def test_global_constraint_primary_energy_store(n_sts, api):
     c = "Store"
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
     n_sts.df(c)["e_initial"] = 200
