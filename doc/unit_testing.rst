@@ -3,7 +3,7 @@ Unit Testing
 ########################
 
 
-Unit testing is performed with ``py.test`` that can be installed via
+Unit testing is performed with ``pytest`` that can be installed via
 
 .. code::
 
