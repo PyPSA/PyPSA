@@ -335,7 +335,9 @@ class Network(Basic):
             elif import_name.is_dir():
                 self.import_from_csv_folder(import_name)
             else:
-                raise ValueError(f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory.")
+                raise ValueError(
+                    f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
+                )
 
         for key, value in kwargs.items():
             setattr(self, key, value)
