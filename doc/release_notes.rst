@@ -7,6 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The representation of networks was modified to show the number of components and snapshots.
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
 
 PyPSA 0.20.0 (26th July 2022)
@@ -86,7 +87,7 @@ PyPSA 0.19.3 (22nd April 2022)
   jupyter cleanup, import sorting, preventing large file uploads). This will
   distort ``git blame`` functionality, which can be fixed by running ``git
   config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
-  repostory. Run ``pre-commit install`` to set up locally.
+  repository. Run ``pre-commit install`` to set up locally.
 * Change message when exporting and importing networks without a set ``network_name``.
   Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
 * Greedy Modularity Maximisation was introduced as new spatial
