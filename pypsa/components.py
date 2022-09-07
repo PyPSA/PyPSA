@@ -18,6 +18,7 @@ __copyright__ = (
 import os
 import sys
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -132,17 +133,14 @@ class Network(Basic):
 
     Parameters
     ----------
-    import_name : string
-        Name of netCDF file, HDF5 .h5 store or folder from which to import CSVs
-        of network data.
+    import_name : string, Path
+        Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
+        import network data.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
         If True, do not read in PyPSA standard types into standard types
         DataFrames.
-    csv_folder_name : string
-        Name of folder from which to import CSVs of network data. Overrides
-        import_name.
     override_components : pandas.DataFrame
         If you want to override the standard PyPSA components in
         pypsa.components.components, pass it a DataFrame with index of component
@@ -328,13 +326,18 @@ class Network(Basic):
         if not ignore_standard_types:
             self.read_in_default_standard_types()
 
-        if import_name is not None:
-            if import_name[-3:] == ".h5":
+        if import_name:
+            import_name = Path(import_name)
+            if import_name.suffix == ".h5":
                 self.import_from_hdf5(import_name)
-            elif import_name[-3:] == ".nc":
+            elif import_name.suffix == ".nc":
                 self.import_from_netcdf(import_name)
-            else:
+            elif import_name.is_dir():
                 self.import_from_csv_folder(import_name)
+            else:
+                raise ValueError(
+                    f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
+                )
 
         for key, value in kwargs.items():
             setattr(self, key, value)

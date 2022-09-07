@@ -8,7 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * The representation of networks was modified to show the number of components and snapshots.
-
+* Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================
