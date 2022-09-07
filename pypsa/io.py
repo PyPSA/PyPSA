@@ -494,7 +494,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
     >>> network.import_from_csv_folder(csv_folder_name)
     """
 
-    basename = os.path.basename(csv_folder_name)
+    basename = Path(csv_folder_name).name
     with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
@@ -555,7 +555,7 @@ def import_from_hdf5(network, path, skip_time=False):
         Skip reading in time dependent attributes
     """
 
-    basename = os.path.basename(path)
+    basename = Path(path).name
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
@@ -611,7 +611,7 @@ def import_from_netcdf(network, path, skip_time=False):
 
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = os.path.basename(path) if isinstance(path, (str, Path)) else None
+    basename = Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
