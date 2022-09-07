@@ -20,7 +20,7 @@ def test_netcdf_io(scipy_network, tmpdir, meta):
 def test_netcdf_io_Path(scipy_network, tmpdir):
     fn = Path(os.path.join(tmpdir, "netcdf_export.nc"))
     scipy_network.export_to_netcdf(fn)
-    reloaded = pypsa.Network(fn)
+    pypsa.Network(fn)
 
 
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
@@ -53,7 +53,6 @@ def test_hdf5_io_Path(scipy_network, tmpdir):
     fn = Path(os.path.join(tmpdir, "hdf5_export.h5"))
     scipy_network.export_to_hdf5(fn)
     pypsa.Network(fn)
-    reloaded = pypsa.Network(fn)
 
 
 def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
