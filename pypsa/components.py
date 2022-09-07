@@ -18,6 +18,7 @@ __copyright__ = (
 import os
 import sys
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -132,7 +133,7 @@ class Network(Basic):
 
     Parameters
     ----------
-    import_name : string
+    import_name : string, Path
         Name of netCDF file, HDF5 .h5 store or folder from which to import CSVs
         of network data.
     name : string, default ""
@@ -329,9 +330,10 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
         if import_name is not None:
-            if import_name[-3:] == ".h5":
+            import_name = Path(import_name)
+            if import_name.suffix == ".h5":
                 self.import_from_hdf5(import_name)
-            elif import_name[-3:] == ".nc":
+            elif import_name.suffix == ".nc":
                 self.import_from_netcdf(import_name)
             else:
                 self.import_from_csv_folder(import_name)

@@ -21,6 +21,7 @@ import math
 import os
 from glob import glob
 from textwrap import dedent
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -257,18 +258,18 @@ if has_xarray:
     class ImporterNetCDF(Importer):
         def __init__(self, path):
             self.path = path
-            if isinstance(path, str):
+            if isinstance(path, (str, Path)):
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
 
         def __enter__(self):
-            if isinstance(self.path, str):
+            if isinstance(self.path, (str, Path)):
                 super(ImporterNetCDF, self).__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            if isinstance(self.path, str):
+            if isinstance(self.path, (str, Path)):
                 super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
@@ -548,7 +549,7 @@ def import_from_hdf5(network, path, skip_time=False):
 
     Parameters
     ----------
-    path : string
+    path : string, Path
         Name of HDF5 store
     skip_time : bool, default False
         Skip reading in time dependent attributes
@@ -610,7 +611,7 @@ def import_from_netcdf(network, path, skip_time=False):
 
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = os.path.basename(path) if isinstance(path, str) else None
+    basename = os.path.basename(path) if isinstance(path, (str, Path)) else None
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
