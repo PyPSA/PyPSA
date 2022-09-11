@@ -13,6 +13,7 @@ This section provides examples related to network optimization with PyPSA. Note 
     examples/lopf_with_pyomo_False.ipynb
     examples/capacity-constraint-per-bus.ipynb
     examples/multi-investment-optimisation.ipynb
+    examples/scrigrid-redispatch.ipynb
 
 
 .. toctree::
