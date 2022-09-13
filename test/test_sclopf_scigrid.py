@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
-import pytest
 
 solver_name = "glpk"
 
@@ -37,9 +37,7 @@ def test_sclopf_pyomo(scipy_network, pyomo):
     # check loading as per unit of s_nom in each contingency
 
     max_loading = (
-        abs(p0_test.divide(n.passive_branches().s_nom, axis=0))
-        .describe()
-        .loc["max"]
+        abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
     )
 
     arr_equal(max_loading, np.ones((len(max_loading))), decimal=4)
