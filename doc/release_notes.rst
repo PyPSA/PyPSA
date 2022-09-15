@@ -9,6 +9,7 @@ Upcoming Release
 
 * The representation of networks was modified to show the number of components and snapshots.
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
+* Add example notebook on how to model redispatch with PyPSA.
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================
