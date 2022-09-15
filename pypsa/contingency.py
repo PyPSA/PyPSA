@@ -433,6 +433,7 @@ def network_sclopf(
     """
 
     if not skip_pre:
+        network.calculate_dependent_values()
         network.determine_network_topology()
 
     snapshots = _as_snapshots(network, snapshots)
