@@ -47,6 +47,8 @@ Universities and Research Institutes
 
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_.
+
 
 Companies and Non-Governmental Organisations
 ============================================
