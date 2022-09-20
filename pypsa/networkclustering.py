@@ -175,8 +175,11 @@ def aggregateoneport(
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
+
     def normed_or_uniform(x):
-        return x/x.sum() if x.sum(skipna=False) > 0 else pd.Series(1./len(x), x.index)
+        return (
+            x / x.sum() if x.sum(skipna=False) > 0 else pd.Series(1.0 / len(x), x.index)
+        )
 
     if "e_nom" in new_df.columns:
         weighting = old_df.e_nom.groupby(grouper, axis=0).transform(normed_or_uniform)
@@ -193,6 +196,7 @@ def aggregateoneport(
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pnl_df
     return new_df, new_pnl
+
 
 def aggregatebuses(network, busmap, custom_strategies=dict()):
     attrs = network.components["Bus"]["attrs"]
