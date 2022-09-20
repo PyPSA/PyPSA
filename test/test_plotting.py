@@ -120,7 +120,7 @@ def test_plot_map_line_colorbar(ac_dc_network):
 
     n.plot(line_colors=n.lines.index.astype(int), line_cmap="viridis", line_norm=norm)
 
-    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm))
+    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
 
 def test_plot_map_bus_colorbar(ac_dc_network):
@@ -130,7 +130,7 @@ def test_plot_map_bus_colorbar(ac_dc_network):
 
     n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_norm=norm)
 
-    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm))
+    plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
 
 def test_plot_legend_lines(ac_dc_network):
