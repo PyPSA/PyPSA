@@ -274,8 +274,7 @@ def define_generator_variables_constraints(network, snapshots):
         for i in range(1, min(min_up_time, start_i) + 1):
             if network.generators_t.status.at[network.snapshots[start_i - i], gen] == 0:
                 break
-            else:
-                up_time_before += 1
+            up_time_before += 1
 
         if up_time_before == start_i:
             up_time_before = min(
@@ -345,8 +344,7 @@ def define_generator_variables_constraints(network, snapshots):
         for i in range(1, min(min_down_time, start_i) + 1):
             if network.generators_t.status.at[network.snapshots[start_i - i], gen] == 1:
                 break
-            else:
-                down_time_before += 1
+            down_time_before += 1
 
         if down_time_before == start_i:
             down_time_before = min(

@@ -758,8 +758,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             if component == "Bus":
                 logger.error("Error, no buses found")
                 return
-            else:
-                continue
+            continue
 
         import_components_from_dataframe(network, df, component)
 

@@ -748,8 +748,7 @@ class Network(Basic):
                 "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
             )
             return network_lopf(self, **args)
-        else:
-            return network_lopf_lowmem(self, **args)
+        return network_lopf_lowmem(self, **args)
 
     def add(self, class_name, name, **kwargs):
         """
@@ -1336,13 +1335,12 @@ class Network(Basic):
         def bad_by_type(branch, attr):
             if branch.type not in self.line_types.index:
                 return True
-            elif (
+            if (
                 self.line_types.loc[branch.type, attr + "_per_length"] * branch.length
                 == 0.0
             ):
                 return True
-            else:
-                return False
+            return False
 
         for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x", "r"]:

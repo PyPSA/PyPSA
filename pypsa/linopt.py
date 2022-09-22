@@ -452,8 +452,7 @@ def _str_array(array, integer_string=False):
             array = np.nan_to_num(array, False, -1)
             return _v_to_int_str(array)
         return _v_to_float_str(array)
-    else:
-        return array
+    return array
 
 
 def join_exprs(df):
@@ -589,8 +588,7 @@ def get_sol(n, name, attr=""):
     pnl = n.solutions.at[(name, attr), "pnl"]
     if n.solutions.at[(name, attr), "in_comp"]:
         return n.pnl(name)[attr] if pnl else n.df(name)[attr + "_opt"]
-    else:
-        return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
+    return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
 
 
 def get_dual(n, name, attr=""):
@@ -615,8 +613,7 @@ def get_dual(n, name, attr=""):
     pnl = n.dualvalues.at[(name, attr), "pnl"]
     if n.dualvalues.at[(name, attr), "in_comp"]:
         return n.pnl(name)[attr] if pnl else n.df(name)[attr]
-    else:
-        return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
+    return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
 
 
 # =============================================================================

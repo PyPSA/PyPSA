@@ -41,10 +41,9 @@ def _repo_url(master=False):
     url = "https://github.com/PyPSA/PyPSA/raw/"
     if master:
         return url + "master/"
-    else:
-        from pypsa import __version__  # avoid cyclic imports
+    from pypsa import __version__  # avoid cyclic imports
 
-        return url + f"v{__version__}/"
+    return url + f"v{__version__}/"
 
 
 def _retrieve_if_not_local(name, repofile, update=False, from_master=False):

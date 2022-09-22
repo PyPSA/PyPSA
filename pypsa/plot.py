@@ -505,8 +505,6 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     border = cartopy.feature.BORDERS.with_scale(resolution)
     ax.add_feature(border, linewidth=0.3)
 
-    return
-
 
 class HandlerCircle(HandlerPatch):
     """
@@ -640,7 +638,7 @@ def _flow_ds_from_arg(flow, n, branch_components):
             keys=branch_components,
             sort=True,
         )
-    elif isinstance(flow, str) or callable(flow):
+    if isinstance(flow, str) or callable(flow):
         return pd.concat(
             [n.pnl(c).p0 for c in branch_components],
             axis=1,
@@ -755,8 +753,7 @@ def _get_coordinates(n, layouter=None):
     if layouter is not None or n.buses[["x", "y"]].isin([np.nan, 0]).all().all():
         coordinates = autogenerate_coordinates(n, layouter=layouter)
         return coordinates["x"], coordinates["y"]
-    else:
-        return n.buses["x"], n.buses["y"]
+    return n.buses["x"], n.buses["y"]
 
 
 _token_required_mb_styles = [

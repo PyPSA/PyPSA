@@ -34,8 +34,7 @@ def _normed(s):
     tot = s.sum()
     if tot == 0:
         return 1.0
-    else:
-        return s / tot
+    return s / tot
 
 
 def _flatten_multiindex(m, join=" "):

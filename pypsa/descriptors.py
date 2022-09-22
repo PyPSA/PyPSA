@@ -96,8 +96,7 @@ class Dict(dict):
             raise AttributeError(
                 "'Dict' object attribute " "'{0}' is read-only".format(name)
             )
-        else:
-            self[name] = value
+        self[name] = value
 
     def __getattr__(self, item):
         try:
@@ -384,8 +383,7 @@ def get_activity_mask(n, c, sns=None):
     if getattr(n, "_multi_invest", False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
         return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
-    else:
-        return pd.DataFrame(True, sns, n.df(c).index)
+    return pd.DataFrame(True, sns, n.df(c).index)
 
 
 def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
