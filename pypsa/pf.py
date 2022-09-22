@@ -1204,7 +1204,7 @@ def calculate_B_H(sub_network, skip_pre=False):
         [
             (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
             if c.name == "Transformer"
-            else np.zeros((len(c.ind), ))
+            else np.zeros((len(c.ind),))
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
@@ -1241,7 +1241,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):
         B_inverse = B_inverse.toarray()
-    elif B_inverse.shape == (1, ):
+    elif B_inverse.shape == (1,):
         B_inverse = B_inverse.reshape((1, 1))
 
     # add back in zeroes for slack

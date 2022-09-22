@@ -1345,7 +1345,7 @@ class Network(Basic):
         for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x", "r"]:
                 bad = c.df.index[
-                    (c.df[attr] == 0.0) & c.df.apply(bad_by_type, args=(attr, ), axis=1)
+                    (c.df[attr] == 0.0) & c.df.apply(bad_by_type, args=(attr,), axis=1)
                 ]
                 if len(bad) > 0:
                     logger.warning(
@@ -1359,8 +1359,8 @@ class Network(Basic):
             bad = c.df.index[
                 (c.df["x"] == 0.0)
                 & (c.df["r"] == 0.0)
-                & c.df.apply(bad_by_type, args=("x", ), axis=1)
-                & c.df.apply(bad_by_type, args=("r", ), axis=1)
+                & c.df.apply(bad_by_type, args=("x",), axis=1)
+                & c.df.apply(bad_by_type, args=("r",), axis=1)
             ]
             if len(bad) > 0:
                 logger.warning(

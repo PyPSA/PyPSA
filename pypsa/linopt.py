@@ -325,7 +325,7 @@ def broadcasted_axes(*dfs):
     background.
     """
     axes = []
-    shape = (1, )
+    shape = (1,)
 
     if set(map(type, dfs)) == {tuple}:
         dfs = sum(dfs, ())

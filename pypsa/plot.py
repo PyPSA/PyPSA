@@ -398,7 +398,7 @@ def plot(
         b_collection = LineCollection(
             segments,
             linewidths=b_widths,
-            antialiaseds=(1, ),
+            antialiaseds=(1,),
             colors=b_colors,
         )
 
@@ -412,7 +412,7 @@ def plot(
         b_collection.set_zorder(3)
         branch_collections.append(b_collection)
 
-    return (bus_collection, ) + tuple(branch_collections) + tuple(arrow_collections)
+    return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
 
 def as_branch_series(ser, arg, c, n):
