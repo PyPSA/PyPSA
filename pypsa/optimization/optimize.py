@@ -54,74 +54,6 @@ lookup = pd.read_csv(
 )
 
 
-def sanity_check(n, sns=None):
-    """
-    Verify that the network fulfills basic requirements for the optimization.
-
-    This functions checks that:
-        1. No network assets are commitable and extendable at the same time.
-        2. No nan's are contained in the nominal bounds of capacities
-        3. Investment period specifications in global constraints are aligned
-           with the set of investment periods of the network and the type of
-           optimization.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    snapshots : list or index slice
-        A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
-
-    Raises
-    ------
-    ValueError
-        - if one of the tests fail.
-
-    Returns
-    -------
-    None.
-    """
-    if sns is None:
-        sns = n.snapshots
-
-    for c in {"Generator", "Link"}:
-        intersection = n.get_committable_i(c).intersection(n.get_extendable_i(c))
-        if not intersection.empty:
-            raise ValueError(
-                "Assets can only be committable or extendable. Found "
-                f"assets in component {c} which are both:"
-                f"\n\n\t{', '.join(intersection)}"
-            )
-
-    for c, attr in lookup.query("nominal").index:
-        ext_i = n.get_extendable_i(c)
-        for col in [f"{attr}_min", f"{attr}_max"]:
-            if n.df(c)[col][ext_i].isnull().any():
-                raise ValueError(
-                    f"Encountered nan's in column '{col}' of component '{c}'."
-                )
-
-    constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
-    if isinstance(sns, pd.MultiIndex):
-        if not constraint_periods.issubset(sns.unique("period")):
-            raise ValueError(
-                "The global constraints contain investment periods which are "
-                "not in the set of optimized snapshots."
-            )
-    else:
-        if constraint_periods:
-            raise ValueError(
-                "The global constraints contain investment periods but snapshots are "
-                "not multi-indexed."
-            )
-
-    # TODO: Check for nan in p_min_pu/p_max_pu
-    # TODO: Check that p_min_pu <= p_max_pu
-    # TODO: Check for bidirectional links with efficiency < 1.
-    # TODO: Check for unassigned buses in additional link ports.
-    # TODO: Warn if any ramp limits are 0.
-
-
 def define_objective(n, sns):
     """
     Defines and writes out the objective function.
@@ -235,7 +167,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     """
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
-    sanity_check(n, sns)
+    n.consistency_check()
 
     kwargs.setdefault("force_dim_names", True)
     n.model = Model(**kwargs)
@@ -520,10 +452,6 @@ class OptimizationAccessor:
             post_processing(n)
 
         return status, condition
-
-    @is_documented_by(sanity_check)
-    def sanity_check(self, **kwargs):
-        return sanity_check(self._parent, **kwargs)
 
     @is_documented_by(assign_solution)
     def assign_solution(self, **kwargs):
