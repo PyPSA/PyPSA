@@ -15,7 +15,7 @@ import pytest
 import pypsa
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def scipy_network():
     csv_folder = os.path.join(
         os.path.dirname(__file__),

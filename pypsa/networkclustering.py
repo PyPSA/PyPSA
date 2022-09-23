@@ -175,10 +175,23 @@ def aggregateoneport(
     new_df.index = _flatten_multiindex(new_df.index).rename("name")
 
     new_pnl = dict()
+
+    def normed_or_uniform(x):
+        return (
+            x / x.sum() if x.sum(skipna=False) > 0 else pd.Series(1.0 / len(x), x.index)
+        )
+
+    if "e_nom" in new_df.columns:
+        weighting = old_df.e_nom.groupby(grouper, axis=0).transform(normed_or_uniform)
+    elif "p_nom" in new_df.columns:
+        weighting = old_df.p_nom.groupby(grouper, axis=0).transform(normed_or_uniform)
+
     if with_time:
         old_pnl = network.pnl(component)
         for attr, df in old_pnl.items():
             if not df.empty:
+                if attr in ["e_min_pu", "e_max_pu", "p_min_pu", "p_max_pu"]:
+                    df = df.multiply(weighting.loc[df.columns], axis=1)
                 pnl_df = df.groupby(grouper, axis=1).sum()
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pnl_df
