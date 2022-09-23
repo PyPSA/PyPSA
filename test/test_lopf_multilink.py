@@ -206,6 +206,5 @@ def network():
 
 @pytest.mark.parametrize("api", SUPPORTED_APIS)
 def test_lopf(network, api):
-
     status, condition = optimize(network, api)
     assert status == "ok"

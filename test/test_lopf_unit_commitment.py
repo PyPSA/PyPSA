@@ -157,7 +157,6 @@ def test_minimum_down_time(api):
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
 def test_start_up_costs(api):
-
     n = pypsa.Network()
 
     n.snapshots = range(4)
@@ -196,7 +195,6 @@ def test_start_up_costs(api):
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
 def test_shut_down_costs(api):
-
     n = pypsa.Network()
 
     n.snapshots = range(4)
@@ -234,7 +232,6 @@ def test_shut_down_costs(api):
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
 def test_unit_commitment_rolling_horizon(api):
-
     n = pypsa.Network()
 
     n.snapshots = range(6)
