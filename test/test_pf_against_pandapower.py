@@ -7,7 +7,6 @@ import pypsa
 
 
 def test_pandapower_case():
-
     # more complicated examples like
     # net = pandapower.networks.example_simple()
     # can be used once the import of e.g. switches is perfected

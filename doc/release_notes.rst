@@ -7,9 +7,16 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* When iterating over components of a Subnetwork, only a those assets are included in the dataframes which are included in the subnetwork.
+* The representation of networks was modified to show the number of components and snapshots.
+* Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
+* Add example notebook on how to model redispatch with PyPSA.
 
-* In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
+PyPSA 0.20.0 (26th July 2022)
+==============================
+
+This release contains new features for plotting and storing metadata with Network objects.
+
+* A new attribute ``n.meta`` was added to the Network object. This can be an arbitrary dictionary, and is used to store meta data about the network.
 
 * Improved support for individually normed colorbars in ``n.plot()`` for buses, lines, links, transformers with keyword arguments ``bus_norm``, ``line_norm``, ``link_norm``, ``transformer_norm``.
 
@@ -50,9 +57,29 @@ Upcoming Release
         legend_kw=dict(frameon=False, bbox_to_anchor=(1,0.1))
     )
 
+* When iterating over components of a Subnetwork, only a those assets are included in the dataframes which are included in the subnetwork.
+
+* In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
+
 * Compatibility with pyomo 6.4.1.
 
-* A new attribute `meta` was added to the Network object. This can be an arbitrary dictionary, and is used to store meta data about the network.
+* Removed ``pypsa.stats`` module.
+
+* Extended defaults for the clustering of attributes in ``pypsa.networkclustering``.
+
+* Removed deprecated clustering algorithms in ``pypsa.networkclustering``.
+
+* Improved documentation and README.
+
+* Fix a few deprecations.
+
+* Improved test coverage, e.g. when copying networks.
+
+* Testing: ``pypower`` is not importable with newest numpy versions. Skip test if import fails.
+
+Special thanks for this release to @Cellophil,
+@txelldm and @rockstaedt for improving test coverage and documentation.
+
 
 PyPSA 0.19.3 (22nd April 2022)
 ==============================
@@ -61,7 +88,7 @@ PyPSA 0.19.3 (22nd April 2022)
   jupyter cleanup, import sorting, preventing large file uploads). This will
   distort ``git blame`` functionality, which can be fixed by running ``git
   config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
-  repostory. Run ``pre-commit install`` to set up locally.
+  repository. Run ``pre-commit install`` to set up locally.
 * Change message when exporting and importing networks without a set ``network_name``.
   Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
 * Greedy Modularity Maximisation was introduced as new spatial
@@ -1245,7 +1272,7 @@ main component pandas.DataFrame.
 Release process
 ===============
 
-* Update ``release_notes.rst``
+* Update ``doc/release_notes.rst``
 * Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
 * ``git commit`` and put release notes in commit message
 * ``git tag v0.x.0``

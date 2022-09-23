@@ -13,7 +13,6 @@ try:
 except:
     pypower_version = Version("0.0.0")
 
-import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
@@ -26,7 +25,6 @@ import pypsa
     reason="PyPOWER 5.0.0 is broken with recent numpy and unmaintained since Aug 2017.",
 )
 def test_pypower_case():
-
     # ppopt is a dictionary with the details of the optimization routine to run
     ppopt = ppoption(PF_ALG=2)
 

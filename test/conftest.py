@@ -28,7 +28,7 @@ def optimize(n, api, *args, **kwargs):
         raise ValueError(f"api must be one of {SUPPORTED_APIS}")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def scipy_network():
     csv_folder = os.path.join(
         os.path.dirname(__file__),

@@ -46,6 +46,12 @@ Functionality
   <https://github.com/JuliaEnergy/PowerDynamics.jl>`_ for dynamic
   modelling of power grids at time scales where differential equations are relevant
 
+Target user group
+=================
+
+PyPSA is intended for researchers, planners and utilities who need a
+fast, easy-to-use and transparent tool for power system
+analysis. PyPSA is free software and can be arbitrarily extended.
 
 
 Screenshots
@@ -79,19 +85,13 @@ Screenshots
     :align: center
     :width: 400px
 
-All results from a PyPSA simulation can be converted into an interactive
-online animation using `PyPSA-animation
-<https://github.com/PyPSA/PyPSA-animation>`_.
 
 
+Dependencies
+============
 
-
-
-What PyPSA uses under the hood
-===============================
-
-PyPSA is written and tested to be compatible with Python 3.6 and
-3.7. The last release supporting Python 2.7 was PyPSA 0.15.0.
+PyPSA is written and tested to be compatible with Python 3.7 and
+above. The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 
 It leans heavily on the following Python packages:
@@ -99,23 +99,19 @@ It leans heavily on the following Python packages:
 * `pandas <http://pandas.pydata.org/>`_ for storing data about components and time series
 * `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
   linear algebra and sparse matrix calculations
-* `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
-* `plotly <https://plot.ly/python/>`_ for interactive plotting
 * `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
 * `networkx <https://networkx.github.io/>`_ for some network calculations
-* `py.test <http://pytest.org/>`_ for unit testing
+* `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `pytest <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 
 
-The optimisation uses pyomo so that it is independent of the preferred
-solver. You can use e.g. one of the free solvers `GLPK <https://www.gnu.org/software/glpk/>`_
-and `CLP/CBC <https://github.com/coin-or/Cbc/>`_ or the commercial
-solver `Gurobi <http://www.gurobi.com/>`_
-for which free academic licenses are available.
-
-The time-expensive calculations, such as solving sparse linear
-equations, are carried out using the `scipy.sparse <https://docs.scipy.org/doc/scipy/reference/sparse.html>`_ libraries.
+The optimisation uses solver interfaces that are independent of the preferred
+solver. You can use e.g. one of the free solvers `GLPK
+<https://www.gnu.org/software/glpk/>`_ and `CLP/CBC
+<https://github.com/coin-or/Cbc/>`_ or the commercial solver `Gurobi
+<http://www.gurobi.com/>`_ for which free academic licenses are available.
 
 
 Other comparable software
@@ -144,18 +140,9 @@ and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 
 
 
-Target user group
-=================
-
-PyPSA is intended for researchers, planners and utilities who need a
-fast, easy-to-use and transparent tool for power system
-analysis. PyPSA is free software and can be arbitrarily extended.
-
-
-
 Licence
 =======
 
-Copyright 2015-2021 :doc:`developers`
+Copyright 2015-2022 :doc:`developers`
 
 PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.

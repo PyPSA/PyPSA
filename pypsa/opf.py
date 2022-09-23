@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
-
 """
 Optimal Power Flow functions.
 """
@@ -16,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -85,7 +77,6 @@ def network_opf(network, snapshots=None):
 
 
 def define_generator_variables_constraints(network, snapshots):
-
     extendable_gens_i = network.generators.index[network.generators.p_nom_extendable]
     fixed_gens_i = network.generators.index[
         ~network.generators.p_nom_extendable & ~network.generators.committable
@@ -697,7 +688,6 @@ def define_generator_variables_constraints(network, snapshots):
 
 
 def define_storage_variables_constraints(network, snapshots):
-
     sus = network.storage_units
     ext_sus_i = sus.index[sus.p_nom_extendable]
     fix_sus_i = sus.index[~sus.p_nom_extendable]
@@ -922,7 +912,6 @@ def define_storage_variables_constraints(network, snapshots):
 
 
 def define_store_variables_constraints(network, snapshots):
-
     stores = network.stores
     ext_stores = stores.index[stores.e_nom_extendable]
     fix_stores = stores.index[~stores.e_nom_extendable]
@@ -1028,7 +1017,6 @@ def define_store_variables_constraints(network, snapshots):
 
 
 def define_branch_extension_variables(network, snapshots):
-
     passive_branches = network.passive_branches()
 
     extendable_passive_branches = passive_branches[passive_branches.s_nom_extendable]
@@ -1070,7 +1058,6 @@ def define_branch_extension_variables(network, snapshots):
 
 
 def define_link_flows(network, snapshots):
-
     extendable_links_i = network.links.index[network.links.p_nom_extendable]
 
     fixed_links_i = network.links.index[~network.links.p_nom_extendable]
@@ -1161,7 +1148,6 @@ def define_passive_branch_flows(
 
 
 def define_passive_branch_flows_with_angles(network, snapshots):
-
     network.model.voltage_angles = Var(list(network.buses.index), snapshots)
 
     slack = {
@@ -1228,7 +1214,6 @@ def define_passive_branch_flows_with_angles(network, snapshots):
 
 
 def define_passive_branch_flows_with_PTDF(network, snapshots, ptdf_tolerance=0.0):
-
     passive_branches = network.passive_branches()
 
     network.model.passive_branch_p = Var(list(passive_branches.index), snapshots)
@@ -1315,7 +1300,6 @@ def define_sub_network_cycle_constraints(
 
 
 def define_passive_branch_flows_with_cycles(network, snapshots):
-
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
         find_cycles(sub_network)
@@ -1451,7 +1435,6 @@ def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=Fal
 
 
 def define_passive_branch_constraints(network, snapshots):
-
     passive_branches = network.passive_branches()
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~passive_branches.s_nom_extendable]
@@ -1619,7 +1602,6 @@ def define_nodal_balances(network, snapshots):
 
 
 def define_nodal_balance_constraints(network, snapshots):
-
     passive_branches = network.passive_branches()
 
     for branch in passive_branches.index:
@@ -1649,7 +1631,6 @@ def define_nodal_balance_constraints(network, snapshots):
 
 
 def define_sub_network_balance_constraints(network, snapshots):
-
     sn_balance = {}
 
     for sub_network in network.sub_networks.obj:
@@ -1675,7 +1656,6 @@ def define_sub_network_balance_constraints(network, snapshots):
 
 
 def define_global_constraints(network, snapshots):
-
     global_constraints = {}
 
     for gc in network.global_constraints.index:
@@ -1751,7 +1731,6 @@ def define_global_constraints(network, snapshots):
 
 
 def define_linear_objective(network, snapshots):
-
     model = network.model
 
     extendable_generators = network.generators[network.generators.p_nom_extendable]
@@ -2348,6 +2327,7 @@ def network_lopf_solve(
             "Optimisation failed with status %s and terminal condition %s"
             % (status, termination_condition)
         )
+        network.objective = np.nan
 
     return status, termination_condition
 
