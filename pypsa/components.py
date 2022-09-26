@@ -1319,98 +1319,60 @@ class Network(Basic):
         --------
         >>> network.consistency_check()
         """
+        # TODO: Check for bidirectional links with efficiency < 1.
+        # TODO: Warn if any ramp limits are 0.
 
-        for c in self.iterate_components(self.one_port_components):
-            missing = c.df.index[~c.df.bus.isin(self.buses.index)]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    c.list_name,
-                    missing,
-                )
+        self.calculate_dependent_values()
+
+        def bus_columns(df):
+            return df.columns[df.columns.str.startswith("bus")]
 
         # check for unknown buses
-        for c in self.iterate_components(self.branch_components):
-            for attr in ["bus0", "bus1"]:
-                missing = c.df.index[~c.df[attr].isin(self.buses.index)]
-                if len(missing) > 0:
-                    logger.warning(
-                        "The following %s have %s which are not defined:\n%s",
-                        c.list_name,
-                        attr,
-                        missing,
-                    )
+        for c in self.iterate_components():
+            for attr in bus_columns(c.df):
+                missing = ~c.df[attr].isin(self.buses.index)
+                if missing.any():
+                    msg = "The following %s have %s which are not defined:\n%s"
+                    logger.warning(msg, c.list_name, attr, c.df.index[missing])
 
         # check for disconnected buses
         connected_buses = set()
-        for c in self.iterate_components(self.branch_components):
-            for attr in [col for col in c.df.columns if col.startswith("bus")]:
+        for c in self.iterate_components():
+            for attr in bus_columns(c.df):
                 connected_buses.update(c.df[attr])
-        for c in self.iterate_components(self.one_port_components):
-            connected_buses.update(c.df.bus)
 
         disconnected_buses = set(self.buses.index) - connected_buses
         if disconnected_buses:
-            logger.warning(
-                f"The following buses have no attached components, which can break the lopf:\n{disconnected_buses}"
-            )
-
-        def bad_by_type(branch, attr):
-            if branch.type not in self.line_types.index:
-                return True
-            elif (
-                self.line_types.loc[branch.type, attr + "_per_length"] * branch.length
-                == 0.0
-            ):
-                return True
-            else:
-                return False
+            msg = "The following buses have no attached components, which can break the lopf:\n%s"
+            logger.warning(msg, disconnected_buses)
 
         for c in self.iterate_components(self.passive_branch_components):
             for attr in ["x", "r"]:
-                bad = c.df.index[
-                    (c.df[attr] == 0.0) & c.df.apply(bad_by_type, args=(attr,), axis=1)
-                ]
-                if len(bad) > 0:
-                    logger.warning(
+                bad = c.df[attr] == 0
+                if bad.any():
+                    msg = (
                         "The following %s have zero %s, which "
-                        "could break the linear load flow:\n%s",
-                        c.list_name,
-                        attr,
-                        bad,
+                        "could break the linear load flow:\n%s"
                     )
-
-            bad = c.df.index[
-                (c.df["x"] == 0.0)
-                & (c.df["r"] == 0.0)
-                & c.df.apply(bad_by_type, args=("x",), axis=1)
-                & c.df.apply(bad_by_type, args=("r",), axis=1)
-            ]
-            if len(bad) > 0:
-                logger.warning(
-                    "The following %s have zero series impedance, "
-                    "which will break the load flow:\n%s",
-                    c.list_name,
-                    bad,
-                )
+                    logger.warning(msg, c.list_name, attr, c.df.index[bad])
 
         for c in self.iterate_components({"Transformer"}):
-            bad = c.df.index[c.df["s_nom"] == 0.0]
-            if len(bad) > 0:
+            bad = c.df["s_nom"] == 0
+            if bad.any():
                 logger.warning(
                     "The following %s have zero s_nom, which is used "
                     "to define the impedance and will thus break "
                     "the load flow:\n%s",
                     c.list_name,
-                    bad,
+                    c.df.index[bad],
                 )
 
-        for c in self.iterate_components(self.all_components):
+        for c in self.iterate_components():
             for attr in c.attrs.index[c.attrs.varying & c.attrs.static]:
                 attr_df = c.pnl[attr]
 
                 diff = attr_df.columns.difference(c.df.index)
-                if len(diff) > 0:
+                if len(diff):
                     logger.warning(
                         "The following %s have time series defined "
                         "for attribute %s in network.%s_t, but are "
@@ -1422,55 +1384,45 @@ class Network(Basic):
                         diff,
                     )
 
-                diff = self.snapshots.difference(attr_df.index)
-                if len(diff) > 0:
+                if not self.snapshots.equals(attr_df.index):
                     logger.warning(
-                        "In the time-dependent Dataframe for attribute "
-                        "%s of network.%s_t the following snapshots "
-                        "are missing:\n%s",
+                        "The index of the time-dependent Dataframe for attribute "
+                        "%s of network.%s_t is not aligned with network snapshots",
                         attr,
                         c.list_name,
-                        diff,
-                    )
-
-                diff = attr_df.index.difference(self.snapshots)
-                if len(diff) > 0:
-                    logger.warning(
-                        "In the time-dependent Dataframe for attribute "
-                        "%s of network.%s_t the following snapshots "
-                        "are defined which are not in network.snapshots:\n%s",
-                        attr,
-                        c.list_name,
-                        diff,
                     )
 
         static_attrs = ["p_nom", "s_nom", "e_nom"]
         varying_attrs = ["p_max_pu", "e_max_pu"]
         for c in self.iterate_components(self.all_components - {"TransformerType"}):
-            varying_attr = c.attrs.index[c.attrs.varying].intersection(varying_attrs)
-            static_attr = c.attrs.index[c.attrs.static].intersection(static_attrs)
+            varying_attr = c.attrs.query("varying").index.intersection(varying_attrs)
+            static_attr = c.attrs.query("static").index.intersection(static_attrs)
 
             if len(static_attr):
-                diff = (
-                    getattr(self, c.list_name)[static_attr[0] + "_max"]
-                    - getattr(self, c.list_name)[static_attr[0] + "_min"]
-                )
-                if not diff[diff < 0].empty:
+                attr = static_attr[0]
+                bad = c.df[attr + "_max"] < c.df[attr + "_min"]
+                if bad.any():
                     logger.warning(
                         "The following %s have smaller maximum than "
                         "minimum expansion limit which can lead to "
                         "infeasibilty:\n%s",
                         c.list_name,
-                        diff[diff < 0].index,
+                        c.df.index[bad],
                     )
 
+                attr = static_attr[0]
+                for col in [attr + "_min", attr + "_max"]:
+                    if c.df[col][c.df[attr + "_extendable"]].isnull().any():
+                        logger.warning(
+                            "Encountered nan's in column %s of component '%s'.",
+                            col,
+                            c.name,
+                        )
+
             if len(varying_attr):
-                max_pu = get_switchable_as_dense(
-                    self, c.name, varying_attr[0][0] + "_max_pu"
-                )
-                min_pu = get_switchable_as_dense(
-                    self, c.name, varying_attr[0][0] + "_min_pu"
-                )
+                attr = varying_attr[0][0]
+                max_pu = self.get_switchable_as_dense(c.name, attr + "_max_pu")
+                min_pu = self.get_switchable_as_dense(c.name, attr + "_min_pu")
 
                 # check for NaN values:
                 if max_pu.isnull().values.any():
@@ -1478,7 +1430,7 @@ class Network(Basic):
                         logger.warning(
                             "The attribute %s of element %s of %s has "
                             "NaN values for the following snapshots:\n%s",
-                            varying_attr[0][0] + "_max_pu",
+                            attr + "_max_pu",
                             col,
                             c.list_name,
                             max_pu.index[max_pu[col].isnull()],
@@ -1488,7 +1440,7 @@ class Network(Basic):
                         logger.warning(
                             "The attribute %s of element %s of %s has "
                             "NaN values for the following snapshots:\n%s",
-                            varying_attr[0][0] + "_min_pu",
+                            attr + "_min_pu",
                             col,
                             c.list_name,
                             min_pu.index[min_pu[col].isnull()],
@@ -1500,7 +1452,7 @@ class Network(Basic):
                         logger.warning(
                             "The attribute %s of element %s of %s has "
                             "infinite values for the following snapshots:\n%s",
-                            varying_attr[0][0] + "_max_pu",
+                            attr + "_max_pu",
                             col,
                             c.list_name,
                             max_pu.index[np.isinf(max_pu[col])],
@@ -1510,7 +1462,7 @@ class Network(Basic):
                         logger.warning(
                             "The attribute %s of element %s of %s has "
                             "infinite values for the following snapshots:\n%s",
-                            varying_attr[0][0] + "_min_pu",
+                            attr + "_min_pu",
                             col,
                             c.list_name,
                             min_pu.index[np.isinf(min_pu[col])],
@@ -1526,6 +1478,17 @@ class Network(Basic):
                         col,
                         c.list_name,
                         diff[col].dropna().index,
+                    )
+
+            if c.name in {"Generator", "Link"}:
+                committables = self.get_committable_i(c.name)
+                extendables = self.get_extendable_i(c.name)
+                intersection = committables.intersection(extendables)
+                if not intersection.empty:
+                    logger.warning(
+                        "Assets can only be committable or extendable. Found "
+                        f"assets in component {c} which are both:"
+                        f"\n\n\t{', '.join(intersection)}"
                     )
 
         # check all dtypes of component attributes
@@ -1569,6 +1532,22 @@ class Network(Basic):
                         c.pnl[attr].dtypes[unmatched],
                         typ,
                     )
+
+        constraint_periods = set(
+            self.global_constraints.investment_period.dropna().unique()
+        )
+        if isinstance(self.snapshots, pd.MultiIndex):
+            if not constraint_periods.issubset(self.snapshots.unique("period")):
+                raise ValueError(
+                    "The global constraints contain investment periods which are "
+                    "not in the set of optimized snapshots."
+                )
+        else:
+            if constraint_periods:
+                raise ValueError(
+                    "The global constraints contain investment periods but snapshots are "
+                    "not multi-indexed."
+                )
 
 
 class SubNetwork(Common):

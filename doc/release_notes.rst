@@ -10,6 +10,7 @@ Upcoming Release
 * The representation of networks was modified to show the number of components and snapshots.
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
 * Add example notebook on how to model redispatch with PyPSA.
+* The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================
