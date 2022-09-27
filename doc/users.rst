@@ -49,6 +49,7 @@ Universities and Research Institutes
 
 * `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_.
 
+* Think-tank `Ember <https://ember-climate.org/>`_ developed a standalone `PyPSA-UK model <https://github.com/ember-climate/pypsa-uk>`_ for a `study on UK gas phase-out <https://ember-climate.org/insights/research/uk-gas-power-phase-out/>`_.
 
 Companies and Non-Governmental Organisations
 ============================================
