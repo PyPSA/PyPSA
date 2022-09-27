@@ -273,7 +273,10 @@ def assign_duals(n):
 
     for name, dual in m.dual.items():
 
-        c, attr = name.split("-", 1)
+        try:
+            c, attr = name.split("-", 1)
+        except ValueError:
+            continue
 
         if "snapshot" in dual.dims:
 
@@ -397,6 +400,7 @@ def optimize(
 
     n.consistency_check()
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)
+    kwargs.setdefault("solver_name", "glpk")
     status, condition = m.solve(**kwargs)
 
     if status == "ok":
