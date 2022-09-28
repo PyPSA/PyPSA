@@ -13,7 +13,10 @@ from linopy import Model, merge
 from pypsa.descriptors import additional_linkports
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
-from pypsa.optimization.abstract import iterative_transmission_capacity_expansion
+from pypsa.optimization.abstract import (
+    iterative_transmission_capacity_expansion,
+    security_constraint_optimization,
+)
 from pypsa.optimization.common import set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
@@ -270,6 +273,7 @@ def assign_duals(n):
     Map dual values i.e. shadow prices to network components.
     """
     m = n.model
+    unassigned = []
 
     for name, dual in m.dual.items():
 
@@ -280,23 +284,32 @@ def assign_duals(n):
 
         if "snapshot" in dual.dims:
 
-            df = dual.transpose("snapshot", ...).to_pandas()
-            spec = attr.rsplit("-", 1)[-1]
-            assign = [
-                "upper",
-                "lower",
-                "ramp_limit_up",
-                "ramp_limit_down",
-                "p_set",
-                "e_set",
-                "s_set",
-                "state_of_charge_set",
-            ]
+            try:
+                df = dual.transpose("snapshot", ...).to_pandas()
+                spec = attr.rsplit("-", 1)[-1]
+                assign = [
+                    "upper",
+                    "lower",
+                    "ramp_limit_up",
+                    "ramp_limit_down",
+                    "p_set",
+                    "e_set",
+                    "s_set",
+                    "state_of_charge_set",
+                ]
 
-            if spec in assign:
-                set_from_frame(n, c, "mu_" + spec, df)
-            elif attr == "nodal_balance":
-                set_from_frame(n, c, "marginal_price", df)
+                if spec in assign:
+                    set_from_frame(n, c, "mu_" + spec, df)
+                elif attr == "nodal_balance":
+                    set_from_frame(n, c, "marginal_price", df)
+            except:
+                unassigned.append(name)
+
+    if unassigned:
+        logger.info(
+            f"The shadow-prices of the constraints {', '.join(unassigned)} were "
+            "not assigned to the network."
+        )
 
 
 def post_processing(n):
@@ -470,8 +483,12 @@ class OptimizationAccessor:
         return post_processing(self._parent, **kwargs)
 
     @is_documented_by(iterative_transmission_capacity_expansion)
-    def iterative_transmission_capacity_expansion(self, **kwargs):
-        iterative_transmission_capacity_expansion(self._parent, **kwargs)
+    def iterative_transmission_capacity_expansion(self, *args, **kwargs):
+        iterative_transmission_capacity_expansion(self._parent, *args, **kwargs)
+
+    @is_documented_by(security_constraint_optimization)
+    def security_constraint_optimization(self, *args, **kwargs):
+        security_constraint_optimization(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

@@ -5,9 +5,11 @@ Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
 import logging
+from itertools import product
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from pypsa.descriptors import nominal_attrs
 
@@ -150,3 +152,103 @@ def iterative_transmission_capacity_expansion(
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= obj_links + obj_lines
+
+
+def security_constraint_optimization(
+    n,
+    snapshots=None,
+    branch_outages=None,
+    multi_investment_periods=False,
+    model_kwargs={},
+    **kwargs,
+):
+    """
+    Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
+
+    This ensures that no branch is overloaded even given the branch outages.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    snapshots : list-like, optional
+        Set of snapshots to consider in the optimization. The default is None.
+    branch_outages : list-like/pandas.Index/pandas.MultiIndex, optional
+        Subset of passive branches to consider as possible outages. If a list
+        or a pandas.Index is passed, it is assumed to identify lines. If a
+        multiindex is passed, its first level has to contain the component names,
+        the second the assets. The default None results in all passive branches
+        to be considered.
+    multi_investment_periods : bool, default False
+        Whether to optimise as a single investment period or to optimise in multiple
+        investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    model_kwargs: dict
+        Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+    **kwargs:
+        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+        `problem_fn` or solver options directly passed to the solver.
+
+    Returns
+    -------
+    None
+    """
+    all_passive_branches = n.passive_branches().index
+
+    if branch_outages is None:
+        branch_outages = all_passive_branches
+    elif isinstance(branch_outages, (list, pd.Index)):
+        branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
+
+        diff = set(branch_outages) - set(all_passive_branches)
+        if diff:
+            raise ValueError(
+                f"The following passive branches are not in the network: {diff}"
+            )
+
+    if not len(all_passive_branches):
+        return n.optimize(
+            snapshots,
+            multi_investment_periods=multi_investment_periods,
+            model_kwargs=model_kwargs,
+            **kwargs,
+        )
+
+    m = n.optimize.create_model(
+        snapshots=snapshots,
+        multi_investment_periods=multi_investment_periods,
+        **model_kwargs,
+    )
+
+    for sn in n.sub_networks.obj:
+
+        branches_i = sn.branches_i()
+        outages = branches_i.intersection(branch_outages)
+
+        if outages.empty:
+            continue
+
+        sn.calculate_BODF()
+        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
+        BODF = (BODF - np.diagflat(np.diag(BODF)))[outages]
+
+        for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
+
+            c_outages = outages.get_loc_level(c_outage)[1]
+            flow = m.variables[c_outage + "-s"].loc[:, c_outages]
+
+            bodf = BODF.loc[c_affected, c_outage]
+            bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
+            additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
+
+            for bound, kind in product(("lower", "upper"), ("fix", "ext")):
+
+                constraint = c_affected + "-" + kind + "-s-" + bound
+                if constraint not in m.constraints:
+                    continue
+                lhs = m.constraints[constraint].lhs
+                sign = m.constraints[constraint].sign
+                rhs = m.constraints[constraint].rhs
+                rename = {c_affected + "-affected": c_affected + "-" + kind}
+                lhs = lhs + additional_flow.rename(rename)
+                m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
+
+    return n.optimize.solve_model(**kwargs)

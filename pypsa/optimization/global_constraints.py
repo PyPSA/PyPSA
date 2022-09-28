@@ -88,7 +88,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         lhs = merge(lhs)
         rhs = rhs[lhs.Bus.data]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask)
+        n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask=mask)
 
 
 def define_growth_limit(n, sns):
