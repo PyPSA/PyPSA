@@ -64,6 +64,28 @@ class StatisticsAccessor:
         return capex
 
     @check_if_optimised
+    def calculate_opex(self, components=None):
+        if components == None:
+            components = ["Generator", "Store", "StorageUnit", "Link"]
+        eval_mapper = {
+            "Generator": "p",
+            "Store": "e",
+            "StorageUnit": "p",
+            "Link": "p0",
+        }
+        n = self._parent
+        opex = pd.DataFrame()
+        for component in components:
+            mapper = eval_mapper[component]
+            df = np.abs(n.pnl(component)[mapper]).sum().mul(n.df(component).marginal_cost).groupby(n.df(component).carrier).sum()
+            index = pd.MultiIndex.from_product(
+                [[component], df.index], names=["Component", "Carrier"]
+            )
+            df = pd.DataFrame(df, columns=["Marginal Cost"]).set_index(index)
+            opex = pd.concat([opex, df])
+        return opex
+
+    @check_if_optimised
     def curtailment(self):
         n = self._parent
         renewables = n.meta["renewable"].keys()
