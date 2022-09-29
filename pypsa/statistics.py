@@ -77,8 +77,18 @@ class StatisticsAccessor:
         opex = pd.DataFrame()
         for component in components:
             mapper = eval_mapper[component]
-            marginal_cost = n.pnl(component)["marginal_cost"] if not n.pnl(component)["marginal_cost"].empty else n.df(component).marginal_cost
-            df = np.abs(n.pnl(component)[mapper]).mul(marginal_cost).sum().groupby(n.df(component).carrier).sum()
+            marginal_cost = (
+                n.pnl(component)["marginal_cost"]
+                if not n.pnl(component)["marginal_cost"].empty
+                else n.df(component).marginal_cost
+            )
+            df = (
+                np.abs(n.pnl(component)[mapper])
+                .mul(marginal_cost)
+                .sum()
+                .groupby(n.df(component).carrier)
+                .sum()
+            )
             index = pd.MultiIndex.from_product(
                 [[component], df.index], names=["Component", "Carrier"]
             )
