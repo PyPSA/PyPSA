@@ -284,7 +284,7 @@ class Network(Basic):
 
         self.components = Dict(self.components.T.to_dict())
 
-        self.statistics=StatisticsAccessor(self)
+        self.statistics = StatisticsAccessor(self)
 
         for component in self.components:
             # make copies to prevent unexpected sharing of variables
