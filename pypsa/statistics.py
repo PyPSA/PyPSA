@@ -43,23 +43,38 @@ class StatisticsAccessor:
     def calculate_capex(self, components=None):
         if components == None:
             components = ["Generator", "Store", "StorageUnit", "Line", "Link"]
-        eval_mapper={"Generator" : "p", "Store" : "e", "StorageUnit" : "p", "Line" : "s", "Link" : "p"}
+        eval_mapper = {
+            "Generator": "p",
+            "Store": "e",
+            "StorageUnit": "p",
+            "Line": "s",
+            "Link": "p",
+        }
         n = self._parent
-        capex=pd.DataFrame()
+        capex = pd.DataFrame()
         for component in components:
-            mapper=eval_mapper[component]
-            expression="capital_cost*("+ mapper + "_nom_opt-" + mapper +"_nom)"
-            df=n.df(component).eval(expression).groupby(n.df(component).carrier).sum()
-            index=pd.MultiIndex.from_product([[component], df.index], names=["Component", "Carrier"])
-            df=pd.DataFrame(df, columns=["Capital Cost"]).set_index(index)
-            capex=pd.concat([capex, df])
+            mapper = eval_mapper[component]
+            expression = "capital_cost*(" + mapper + "_nom_opt-" + mapper + "_nom)"
+            df = n.df(component).eval(expression).groupby(n.df(component).carrier).sum()
+            index = pd.MultiIndex.from_product(
+                [[component], df.index], names=["Component", "Carrier"]
+            )
+            df = pd.DataFrame(df, columns=["Capital Cost"]).set_index(index)
+            capex = pd.concat([capex, df])
         return capex
 
     @check_if_optimised
     def curtailment(self):
         n = self._parent
-        renewables=n.meta["renewable"].keys()
-        renewable_generators=n.generators[n.generators.carrier.isin(renewables)]
-        curtailment=n.generators_t.p_max_pu[renewable_generators.index].mul(renewable_generators.p_nom_opt)-n.generators_t.p[renewable_generators.index]
-        curtailment=curtailment.groupby(by=renewable_generators.carrier, axis=1).sum().sum()
+        renewables = n.meta["renewable"].keys()
+        renewable_generators = n.generators[n.generators.carrier.isin(renewables)]
+        curtailment = (
+            n.generators_t.p_max_pu[renewable_generators.index].mul(
+                renewable_generators.p_nom_opt
+            )
+            - n.generators_t.p[renewable_generators.index]
+        )
+        curtailment = (
+            curtailment.groupby(by=renewable_generators.carrier, axis=1).sum().sum()
+        )
         return curtailment
