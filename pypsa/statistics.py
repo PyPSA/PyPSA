@@ -31,19 +31,21 @@ def check_if_optimised(func, *args, **kwargs):
 
     return wrapper
 
+
 eval_mapper_static = {
-            "Generator": "p",
-            "Store": "e",
-            "StorageUnit": "p",
-            "Line": "s",
-            "Link": "p",
-        }
+    "Generator": "p",
+    "Store": "e",
+    "StorageUnit": "p",
+    "Line": "s",
+    "Link": "p",
+}
 eval_mapper_dynamic = {
-            "Generator": "p",
-            "Store": "e",
-            "StorageUnit": "p",
-            "Link": "p0",
-        }
+    "Generator": "p",
+    "Store": "e",
+    "StorageUnit": "p",
+    "Link": "p0",
+}
+
 
 class StatisticsAccessor:
     def __init__(self, network):
@@ -56,7 +58,7 @@ class StatisticsAccessor:
     def calculate_capex(self, components=None):
         if components == None:
             components = ["Generator", "Store", "StorageUnit", "Line", "Link"]
-        
+
         n = self._parent
         capex = pd.DataFrame()
         for component in components:
@@ -113,12 +115,11 @@ class StatisticsAccessor:
         )
         return curtailment
 
-
     @check_if_optimised
     def congestion_rent(self):
         n = self._parent
-        congestion_rent=(n.lines_t.mu_lower+n.lines_t.mu_upper).mul(n.lines_t.p0)
-        congestion_rent=np.abs(congestion_rent).sum()
+        congestion_rent = (n.lines_t.mu_lower + n.lines_t.mu_upper).mul(n.lines_t.p0)
+        congestion_rent = np.abs(congestion_rent).sum()
         return congestion_rent
 
     @check_if_optimised
@@ -137,19 +138,26 @@ class StatisticsAccessor:
             df = pd.DataFrame(df, columns=["Optimized Capacity"]).set_index(index)
             p_nom_opt = pd.concat([p_nom_opt, df])
         return p_nom_opt
-    
+
     @check_if_optimised
     def revenue(self, components=None):
         if components == None:
             components = ["Generator", "Store", "StorageUnit"]
         n = self._parent
         revenue = pd.DataFrame()
-        nodal_prices=n.buses_t.marginal_price
+        nodal_prices = n.buses_t.marginal_price
         for component in components:
             mapper = eval_mapper_dynamic[component]
-            columns=pd.Series(n.pnl(component)[mapper].columns.map(n.df(component).bus), index=n.pnl(component)[mapper].columns)
-            df = n.pnl(component)[mapper].clip(lower=0).mul(nodal_prices.loc[:,columns].set_axis(columns.index, axis=1))
-            df = df.sum().groupby(n.df(component).carrier).sum()  
+            columns = pd.Series(
+                n.pnl(component)[mapper].columns.map(n.df(component).bus),
+                index=n.pnl(component)[mapper].columns,
+            )
+            df = (
+                n.pnl(component)[mapper]
+                .clip(lower=0)
+                .mul(nodal_prices.loc[:, columns].set_axis(columns.index, axis=1))
+            )
+            df = df.sum().groupby(n.df(component).carrier).sum()
             index = pd.MultiIndex.from_product(
                 [[component], df.index], names=["Component", "Carrier"]
             )
