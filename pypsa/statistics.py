@@ -22,14 +22,19 @@ import numpy as np
 import pandas as pd
 
 
-def check_if_optimised(func, *args, **kwargs):
-    def wrapper(self):
+def check_if_optimised(func):
+    def wrapper(self, *args, **kwargs):
         if not hasattr(self._parent, "objective") or self._parent.objective == np.nan:
             print("Network not optimised yet or optimisation failed")
         else:
             return func(self, *args, **kwargs)
-
     return wrapper
+
+
+def get_multiindex(df, component):
+    index = pd.MultiIndex.from_product(
+        [[component], df.index], names=["Component", "Carrier"])
+    return index
 
 
 eval_mapper_static = {
@@ -52,7 +57,10 @@ class StatisticsAccessor:
         self._parent = network
 
     def __call__(self, *args, **kwargs):
-        return "TBD"
+        method_list = [method for method in dir(
+            self) if method.startswith('_') is False]
+        print("The following methods can be called with statistics:\n")
+        print(*method_list, sep="\n")
 
     @check_if_optimised
     def calculate_capex(self, components=None):
@@ -63,11 +71,11 @@ class StatisticsAccessor:
         capex = pd.DataFrame()
         for component in components:
             mapper = eval_mapper_static[component]
-            expression = "capital_cost*(" + mapper + "_nom_opt-" + mapper + "_nom)"
-            df = n.df(component).eval(expression).groupby(n.df(component).carrier).sum()
-            index = pd.MultiIndex.from_product(
-                [[component], df.index], names=["Component", "Carrier"]
-            )
+            expression = "capital_cost*(" + mapper + \
+                "_nom_opt-" + mapper + "_nom)"
+            df = n.df(component).eval(expression).groupby(
+                n.df(component).carrier).sum()
+            index = get_multiindex(df, component)
             df = pd.DataFrame(df, columns=["Capital Cost"]).set_index(index)
             capex = pd.concat([capex, df])
         return capex
@@ -92,9 +100,7 @@ class StatisticsAccessor:
                 .groupby(n.df(component).carrier)
                 .sum()
             )
-            index = pd.MultiIndex.from_product(
-                [[component], df.index], names=["Component", "Carrier"]
-            )
+            index = get_multiindex(df, component)
             df = pd.DataFrame(df, columns=["Marginal Cost"]).set_index(index)
             opex = pd.concat([opex, df])
         return opex
@@ -103,7 +109,8 @@ class StatisticsAccessor:
     def curtailment(self):
         n = self._parent
         renewables = n.meta["renewable"].keys()
-        renewable_generators = n.generators[n.generators.carrier.isin(renewables)]
+        renewable_generators = n.generators[n.generators.carrier.isin(
+            renewables)]
         curtailment = (
             n.generators_t.p_max_pu[renewable_generators.index].mul(
                 renewable_generators.p_nom_opt
@@ -111,14 +118,16 @@ class StatisticsAccessor:
             - n.generators_t.p[renewable_generators.index]
         )
         curtailment = (
-            curtailment.groupby(by=renewable_generators.carrier, axis=1).sum().sum()
+            curtailment.groupby(
+                by=renewable_generators.carrier, axis=1).sum().sum()
         )
         return curtailment
 
     @check_if_optimised
     def congestion_rent(self):
         n = self._parent
-        congestion_rent = (n.lines_t.mu_lower + n.lines_t.mu_upper).mul(n.lines_t.p0)
+        congestion_rent = (n.lines_t.mu_lower +
+                           n.lines_t.mu_upper).mul(n.lines_t.p0)
         congestion_rent = np.abs(congestion_rent).sum()
         return congestion_rent
 
@@ -131,13 +140,28 @@ class StatisticsAccessor:
         for component in components:
             mapper = eval_mapper_static[component]
             expression = mapper + "_nom_opt"
-            df = n.df(component).eval(expression).groupby(n.df(component).carrier).sum()
-            index = pd.MultiIndex.from_product(
-                [[component], df.index], names=["Component", "Carrier"]
-            )
-            df = pd.DataFrame(df, columns=["Optimized Capacity"]).set_index(index)
+            df = n.df(component).eval(expression).groupby(
+                n.df(component).carrier).sum()
+            index = get_multiindex(df, component)
+            df = pd.DataFrame(
+                df, columns=["Optimized Capacity"]).set_index(index)
             p_nom_opt = pd.concat([p_nom_opt, df])
         return p_nom_opt
+
+    @check_if_optimised
+    def generation(self, components=None):
+        if components == None:
+            components = ["Generator", "Store", "StorageUnit"]
+        n = self._parent
+        generation = pd.DataFrame()
+        for component in components:
+            mapper = eval_mapper_dynamic[component]
+            df = (n.pnl(component)[mapper].clip(lower=0))
+            df = df.sum().groupby(n.df(component).carrier).sum()
+            index = get_multiindex(df, component)
+            df = pd.DataFrame(df, columns=["Generation"]).set_index(index)
+            generation = pd.concat([generation, df])
+        return generation
 
     @check_if_optimised
     def revenue(self, components=None):
@@ -145,6 +169,7 @@ class StatisticsAccessor:
             components = ["Generator", "Store", "StorageUnit"]
         n = self._parent
         revenue = pd.DataFrame()
+        revenue.attrs["unit"] = "billion €"
         nodal_prices = n.buses_t.marginal_price
         for component in components:
             mapper = eval_mapper_dynamic[component]
@@ -158,9 +183,14 @@ class StatisticsAccessor:
                 .mul(nodal_prices.loc[:, columns].set_axis(columns.index, axis=1))
             )
             df = df.sum().groupby(n.df(component).carrier).sum()
-            index = pd.MultiIndex.from_product(
-                [[component], df.index], names=["Component", "Carrier"]
-            )
+            index = get_multiindex(df, component)
             df = pd.DataFrame(df, columns=["Revenue"]).set_index(index)
             revenue = pd.concat([revenue, df])
         return revenue
+
+    @check_if_optimised
+    def market_value(self, components=None):
+        total_revenue = self.revenue(components=components).values.sum()
+        total_generation = self.generation(components=components).values.sum()
+        market_value = total_revenue/total_generation
+        return market_value
