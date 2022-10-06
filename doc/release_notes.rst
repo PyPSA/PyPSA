@@ -20,7 +20,7 @@ PyPSA 0.20.1 (6th October 2022)
 * Added new network plotting example.
 * Bugfix for non-pyomo version of ``n.sclopf()``.
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
-* Adressed ``.iteritems()`` deprecations.
+* Addressed ``.iteritems()`` deprecations.
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================
