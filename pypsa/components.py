@@ -371,7 +371,7 @@ class Network(Basic):
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
 
             df = pd.DataFrame(
-                {k: pd.Series(dtype=d) for k, d in static_dtypes.iteritems()},
+                {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
 
@@ -482,7 +482,7 @@ class Network(Basic):
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
 
-            for k, default in attrs.default[attrs.varying].iteritems():
+            for k, default in attrs.default[attrs.varying].items():
                 pnl[k] = pnl[k].reindex(self._snapshots).fillna(default)
 
         # NB: No need to rebind pnl to self, since haven't changed it
@@ -569,7 +569,7 @@ class Network(Basic):
                 pnl = self.pnl(component)
                 attrs = self.components[component]["attrs"]
 
-                for k, default in attrs.default[attrs.varying].iteritems():
+                for k, default in attrs.default[attrs.varying].items():
                     pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
                     pnl[k].index.name = "snapshot"
 
