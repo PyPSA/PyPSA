@@ -118,7 +118,7 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec="ext", mask=active)
 
 
-def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
+def define_dispatch_for_non_extendable_variables(n, sns, c, attr, transmission_losses):
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -146,12 +146,17 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     kwargs = dict(spec="non_ext", mask=active)
 
     dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, **kwargs)
-    dispatch = linexpr((1, dispatch))
-    define_constraints(n, dispatch, ">=", lower, c, "mu_lower", **kwargs)
-    define_constraints(n, dispatch, "<=", upper, c, "mu_upper", **kwargs)
+    dispatch_lower = linexpr((1, dispatch))
+    dispatch_upper = linexpr((1, dispatch))
+    if c in n.passive_branch_components and transmission_losses:
+        loss = get_var(n, c, "loss")[fix_i]
+        dispatch_lower = linexpr((1, dispatch), (-1, loss))
+        dispatch_upper = linexpr((1, dispatch), (1, loss))
+    define_constraints(n, dispatch_lower, ">=", lower, c, "mu_lower", **kwargs)
+    define_constraints(n, dispatch_upper, "<=", upper, c, "mu_upper", **kwargs)
 
 
-def define_dispatch_for_extendable_constraints(n, sns, c, attr):
+def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_losses):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -175,10 +180,16 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
     active = get_activity_mask(n, c, sns)[ext_i] if n._multi_invest else None
     kwargs = dict(spec=attr, mask=active)
 
-    lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v), return_axes=True)
+    lhs_upper = [(max_pu, nominal_v), (-1, operational_ext_v)]
+    lhs_lower = [(min_pu, nominal_v), (-1, operational_ext_v)]
+    if c in n.passive_branch_components and transmission_losses:
+        loss = get_var(n, c, "loss")[ext_i]
+        lhs_upper.append((-1, loss))
+        lhs_lower.append((-1, loss))
+    lhs, *axes = linexpr(*lhs_upper, return_axes=True)
     define_constraints(n, lhs, ">=", rhs, c, "mu_upper", axes=axes, **kwargs)
 
-    lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v), return_axes=True)
+    lhs, *axes = linexpr(*lhs_lower, return_axes=True)
     define_constraints(n, lhs, "<=", rhs, c, "mu_lower", axes=axes, **kwargs)
 
 
@@ -241,6 +252,55 @@ def define_generator_status_variables(n, sns):
         return
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
     define_binaries(n, (sns, com_i), "Generator", "status", mask=active)
+
+
+def define_loss_variables(n, sns, c, transmission_losses):
+    branches_i = n.df(c).index
+    if branches_i.empty or not transmission_losses:
+        return
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    define_variables(n, 0, inf, c, "loss", axes=[sns, branches_i], mask=active)
+
+
+def define_loss_constraints(n, sns, c, transmission_losses):
+    if not transmission_losses:
+        return
+
+    tangents = transmission_losses
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+
+    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+
+    s_nom_max = n.df(c)["s_nom_max"].where(
+        n.df(c)["s_nom_extendable"],
+        n.df(c)["s_nom"]
+    )
+
+    r_pu_eff = n.df(c)["r_pu_eff"]
+
+    rhs = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+
+    loss = get_var(n, c, "loss")
+    lhs = linexpr((1, loss))
+
+    
+
+    define_constraints(n, lhs, "<=", rhs, c, "loss_upper", mask=active)
+
+    flow = get_var(n, c, 's')
+
+    for k in range(1, tangents + 1):
+
+        p_k = k / tangents * s_max_pu * s_nom_max
+        loss_k = r_pu_eff * p_k**2
+        slope_k = 2 * r_pu_eff * p_k
+        offset_k = loss_k - slope_k * p_k
+
+        for sign in [-1, 1]:
+
+            lhs = linexpr((1, loss), (sign * slope_k, flow))
+
+            define_constraints(n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active)
 
 
 def define_committable_generator_constraints(n, sns):
@@ -417,7 +477,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             define_constraints(n, lhs, sense, rhs, "Bus", "mu_" + col)
 
 
-def define_nodal_balance_constraints(n, sns):
+def define_nodal_balance_constraints(n, sns, transmission_losses):
     """
     Defines nodal balance constraint.
     """
@@ -446,6 +506,12 @@ def define_nodal_balance_constraints(n, sns):
         ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
     ]
     args = [arg for arg in args if not n.df(arg[0]).empty]
+
+    if transmission_losses:
+        args.extend([
+            ["Line", "loss", "bus0", -0.5],
+            ["Line", "loss", "bus1", -0.5],
+        ])
 
     if not n.links.empty:
         for i in additional_linkports(n):
@@ -1044,6 +1110,7 @@ def prepare_lopf(
     skip_objective=False,
     extra_functionality=None,
     solver_dir=None,
+    transmission_losses=0,
 ):
     """
     Sets up the linear problem and writes it out to a lp file.
@@ -1081,16 +1148,18 @@ def prepare_lopf(
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
 
+    for c in n.passive_branch_components:
+        define_loss_variables(n, snapshots, c, transmission_losses)
     for c, attr in lookup.query("nominal and not handle_separately").index:
         define_nominal_for_extendable_variables(n, c, attr)
         # define constraint for newly installed capacity per investment period
         define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
+        define_dispatch_for_non_extendable_variables(n, snapshots, c, attr, transmission_losses)
         define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
         align_with_static_component(n, c, attr)
-        define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
+        define_dispatch_for_extendable_constraints(n, snapshots, c, attr, transmission_losses)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_generator_status_variables(n, snapshots)
     define_nominal_constraints_per_bus_carrier(n, snapshots)
@@ -1105,7 +1174,9 @@ def prepare_lopf(
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
-    define_nodal_balance_constraints(n, snapshots)
+    define_nodal_balance_constraints(n, snapshots, transmission_losses)
+    for c in n.passive_branch_components:
+        define_loss_constraints(n, snapshots, c, transmission_losses)
     define_global_constraints(n, snapshots)
     if skip_objective:
         logger.info(
@@ -1381,7 +1452,7 @@ def network_lopf(
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles","cycles","kirchhoff","ptdf"]
-    transmission_losses : int
+    transmission_losses : int, default 0
         Whether an approximation of transmission losses should be included
         in the linearised power flow formulation. A passed number will denote
         the number of tangents used for the piecewise linear approximation.
