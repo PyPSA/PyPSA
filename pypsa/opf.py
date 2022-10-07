@@ -1434,7 +1434,7 @@ def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=Fal
     )
 
 
-def define_passive_branch_constraints(network, snapshots):
+def define_passive_branch_constraints(network, snapshots, transmission_losses):
     passive_branches = network.passive_branches()
     extendable_branches = passive_branches[passive_branches.s_nom_extendable]
     fixed_branches = passive_branches[~passive_branches.s_nom_extendable]
@@ -1448,65 +1448,51 @@ def define_passive_branch_constraints(network, snapshots):
         sort=False,
     )
 
-    flow_upper = {
-        (b[0], b[1], sn): [
-            [(1, network.model.passive_branch_p[b[0], b[1], sn])],
-            "<=",
-            s_max_pu.at[sn, b] * fixed_branches.at[b, "s_nom"],
-        ]
-        for b in fixed_branches.index
-        for sn in snapshots
-    }
+    flow_upper = {}
+    for sn in snapshots:
+        for b in fixed_branches.index:
+            lhs = [(1, network.model.passive_branch_p[b[0], b[1], sn])]
+            if transmission_losses:
+                lhs.append((1, network.model.loss[b[0], b[1], sn]))
 
-    flow_upper.update(
-        {
-            (b[0], b[1], sn): [
-                [
-                    (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                    (
-                        -s_max_pu.at[sn, b],
-                        network.model.passive_branch_s_nom[b[0], b[1]],
-                    ),
-                ],
-                "<=",
-                0,
+            rhs = s_max_pu.at[sn, b] * fixed_branches.at[b, "s_nom"]
+
+            flow_upper[(b[0], b[1], sn)] = [lhs, "<=", rhs]
+
+        for b in extendable_branches.index:
+            lhs = [
+                (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                (-s_max_pu.at[sn, b], network.model.passive_branch_s_nom[b[0], b[1]]),
             ]
-            for b in extendable_branches.index
-            for sn in snapshots
-        }
-    )
+            if transmission_losses:
+                lhs.append((1, network.model.loss[b[0], b[1], sn]))
+
+            flow_upper[(b[0], b[1], sn)] = [lhs, "<=", 0]
 
     l_constraint(
         network.model, "flow_upper", flow_upper, list(passive_branches.index), snapshots
     )
 
-    flow_lower = {
-        (b[0], b[1], sn): [
-            [(1, network.model.passive_branch_p[b[0], b[1], sn])],
-            ">=",
-            -s_max_pu.at[sn, b] * fixed_branches.at[b, "s_nom"],
-        ]
-        for b in fixed_branches.index
-        for sn in snapshots
-    }
+    flow_lower = {}
+    for sn in snapshots:
+        for b in fixed_branches.index:
+            lhs = [(1, network.model.passive_branch_p[b[0], b[1], sn])]
+            if transmission_losses:
+                lhs.append((-1, network.model.loss[b[0], b[1], sn]))
 
-    flow_lower.update(
-        {
-            (b[0], b[1], sn): [
-                [
-                    (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                    (
-                        s_max_pu.at[sn, b],
-                        network.model.passive_branch_s_nom[b[0], b[1]],
-                    ),
-                ],
-                ">=",
-                0,
+            rhs = -s_max_pu.at[sn, b] * fixed_branches.at[b, "s_nom"]
+
+            flow_lower[(b[0], b[1], sn)] = [lhs, ">=", rhs]
+
+        for b in extendable_branches.index:
+            lhs = [
+                (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                (s_max_pu.at[sn, b], network.model.passive_branch_s_nom[b[0], b[1]]),
             ]
-            for b in extendable_branches.index
-            for sn in snapshots
-        }
-    )
+            if transmission_losses:
+                lhs.append((-1, network.model.loss[b[0], b[1], sn]))
+
+            flow_lower[(b[0], b[1], sn)] = [lhs, ">=", 0]
 
     l_constraint(
         network.model, "flow_lower", flow_lower, list(passive_branches.index), snapshots
@@ -1601,7 +1587,7 @@ def define_nodal_balances(network, snapshots):
             )
 
 
-def define_nodal_balance_constraints(network, snapshots):
+def define_nodal_balance_constraints(network, snapshots, transmission_losses):
     passive_branches = network.passive_branches()
 
     for branch in passive_branches.index:
@@ -1611,11 +1597,21 @@ def define_nodal_balance_constraints(network, snapshots):
         bn = branch[1]
         for sn in snapshots:
             network._p_balance[bus0, sn].variables.append(
-                (-1, network.model.passive_branch_p[bt, bn, sn])
+                (-1, network.model.passive_branch_p[bt, bn, sn]),
+                (-0.5, network.model.loss[bt, bn, sn])
             )
             network._p_balance[bus1, sn].variables.append(
-                (1, network.model.passive_branch_p[bt, bn, sn])
+                (1, network.model.passive_branch_p[bt, bn, sn]),
+                (-0.5, network.model.loss[bt, bn, sn])
             )
+
+            if transmission_losses:
+                network._p_balance[bus0, sn].variables.append(
+                    (-0.5, network.model.loss[bt, bn, sn])
+                )
+                network._p_balance[bus1, sn].variables.append(
+                    (-0.5, network.model.loss[bt, bn, sn])
+                )
 
     power_balance = {
         k: LConstraint(v, "==", LExpression()) for k, v in network._p_balance.items()
@@ -1626,6 +1622,90 @@ def define_nodal_balance_constraints(network, snapshots):
         "power_balance",
         power_balance,
         list(network.buses.index),
+        snapshots,
+    )
+
+
+def define_passive_branch_loss_variables(network, snapshots, transmission_losses):
+    if not transmission_losses: return
+    passive_branches = network.passive_branches()
+    network.model.loss = Var(
+        list(passive_branches.index), snapshots, domain=NonNegativeReals
+    )
+
+
+def define_loss_constraints(network, snapshots, transmission_losses):
+
+    tangents = transmission_losses
+
+    positions = range(1, tangents + 1)
+    signs = [-1, 1]
+
+    passive_branches = network.passive_branches()
+
+    s_max_pus = get_switchable_as_dense(network, "Line", "s_max_pu")
+
+    loss_upper = {}
+    loss_tangents = {}
+
+    for branch in passive_branches.index:
+
+        bt = branch[0]
+        bn = branch[1]
+
+        r_pu_eff = passive_branches.at[branch, "r_pu_eff"]
+
+        if passive_branches.at[branch, "s_nom_extendable"]:
+            attr = "s_nom_max"
+        else:
+            attr = "s_nom"
+
+        s_nom_max = passive_branches.at[branch, attr]
+        s_nom_extendable = passive_branches.at[branch, 's_nom_extendable']
+
+        assert (
+            not s_nom_extendable or (not np.isfinite(s_nom_max) and not np.isnan(s_nom_max))
+        ), f"Infinite or NaN values found for 's_nom_max' at extendable line {bn}. Loss approximation requires finite 's_nom_max'"
+
+        for sn in snapshots:
+
+            s_max_pu = s_max_pus.loc[sn, bn]
+
+            # upper loss limit
+            lhs = LExpression(
+                [(1, network.model.loss[bt, bn, sn])],
+                -r_pu_eff * (s_max_pu * s_nom_max) ** 2,
+            )
+            loss_upper[bt, bn, sn] = LConstraint(lhs, "<=", LExpression())
+
+            # loss tangents
+            for k in positions:
+
+                p_k = k / tangents * s_max_pu * s_nom_max
+                loss_k = r_pu_eff * p_k ** 2
+                slope_k = 2 * r_pu_eff * p_k
+                offset_k = loss_k - slope_k * p_k
+
+                for sign in signs:
+
+                    lhs = LExpression([(1, network.model.loss[bt, bn, sn])])
+                    rhs = LExpression(
+                        [(sign * slope_k, network.model.passive_branch_p[bt, bn, sn])],
+                        offset_k,
+                    )
+                    loss_tangents[sign, k, bt, bn, sn] = LConstraint(lhs, ">=", rhs)
+
+    l_constraint(
+        network.model, "loss_upper", loss_upper, list(passive_branches.index), snapshots
+    )
+
+    l_constraint(
+        network.model,
+        "loss_tangents",
+        loss_tangents,
+        signs,
+        list(positions),
+        list(passive_branches.index),
         snapshots,
     )
 
@@ -2118,7 +2198,7 @@ def extract_optimisation_results(
 
 
 def network_lopf_build_model(
-    network, snapshots=None, skip_pre=False, formulation="angles", ptdf_tolerance=0.0
+    network, snapshots=None, skip_pre=False, formulation="angles", transmission_losses=0, ptdf_tolerance=0.0
 ):
     """
     Build pyomo model for linear optimal power flow for a group of snapshots.
@@ -2164,6 +2244,8 @@ def network_lopf_build_model(
 
     define_store_variables_constraints(network, snapshots)
 
+    define_passive_branch_loss_variables(network, snapshots, transmission_losses)
+
     define_branch_extension_variables(network, snapshots)
 
     define_link_flows(network, snapshots)
@@ -2172,10 +2254,10 @@ def network_lopf_build_model(
 
     define_passive_branch_flows(network, snapshots, formulation, ptdf_tolerance)
 
-    define_passive_branch_constraints(network, snapshots)
+    define_passive_branch_constraints(network, snapshots, transmission_losses)
 
     if formulation in ["angles", "kirchhoff"]:
-        define_nodal_balance_constraints(network, snapshots)
+        define_nodal_balance_constraints(network, snapshots, transmission_losses)
     elif formulation in ["ptdf", "cycles"]:
         define_sub_network_balance_constraints(network, snapshots)
 
@@ -2344,6 +2426,7 @@ def network_lopf(
     solver_options={},
     keep_files=False,
     formulation="angles",
+    transmission_losses=0,
     ptdf_tolerance=0.0,
     free_memory={},
     extra_postprocessing=None,
@@ -2382,6 +2465,11 @@ def network_lopf(
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles","cycles","kirchhoff","ptdf"]
+    transmission_losses : int
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0, which ignores losses.
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
     free_memory : set, default {'pyomo'}
