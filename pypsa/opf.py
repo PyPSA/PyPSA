@@ -1634,8 +1634,8 @@ def define_passive_branch_loss_variables(network, snapshots, transmission_losses
 
 
 def define_loss_constraints(network, snapshots, transmission_losses):
-
-    if not transmission_losses: return
+    if not transmission_losses:
+        return
 
     tangents = transmission_losses
 
