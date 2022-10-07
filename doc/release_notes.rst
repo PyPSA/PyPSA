@@ -7,7 +7,13 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature
+* Transmission losses can now be represented during optimisation with
+  ``n.lopf()`` using a piecewise linear approximation of the loss parabola as
+  presented in `this paper <https://doi.org/10.1016/j.apenergy.2022.118859>`_.
+  The number of segments can be chosen with the argument
+  ``n.lopf(transmission_losses=3)``. The default remains that transmission
+  losses are neglected with ``n.lopf(transmission_losses=0)``. This feature is
+  implemented for both ``pyomo=True`` and ``pyomo=False``.
 
 PyPSA 0.20.1 (6th October 2022)
 ==============================
