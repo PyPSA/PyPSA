@@ -1944,7 +1944,7 @@ def define_linear_objective(network, snapshots):
 
 
 def extract_optimisation_results(
-    network, snapshots, formulation="angles", free_pyomo=True, extra_postprocessing=None
+    network, snapshots, formulation="angles", transmission_losses=0, free_pyomo=True, extra_postprocessing=None
 ):
 
     allocate_series_dataframes(
@@ -2055,6 +2055,13 @@ def extract_optimisation_results(
 
         set_from_series(c.pnl.mu_lower, flow_lower[c.name])
         set_from_series(c.pnl.mu_upper, -flow_upper[c.name])
+
+        if transmission_losses:
+            c.pnl["loss"] = pd.DataFrame(
+                0, index=snapshots, columns=network.lines.index
+            )
+            loss_values = get_values(network.model.loss)
+            set_from_series(c.pnl.loss, loss_values.loc[c.name])
     del flow_lower, flow_upper
 
     # active branches
@@ -2315,6 +2322,7 @@ def network_lopf_solve(
     network,
     snapshots=None,
     formulation="angles",
+    transmission_losses=0,
     solver_options={},
     solver_logfile=None,
     keep_files=False,
@@ -2334,6 +2342,7 @@ def network_lopf_solve(
         Formulation of the linear power flow equations to use; must be one of
         ["angles","cycles","kirchhoff","ptdf"]; must match formulation used for
         building the model.
+    transmission_losses: int, default 0
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
         (e.g. {'threads':2} tells gurobi to use only 2 cpus)
@@ -2399,6 +2408,7 @@ def network_lopf_solve(
             network,
             snapshots,
             formulation,
+            transmission_losses,
             free_pyomo="pyomo" in free_memory,
             extra_postprocessing=extra_postprocessing,
         )
@@ -2410,6 +2420,7 @@ def network_lopf_solve(
             network,
             snapshots,
             formulation,
+            transmission_losses,
             free_pyomo="pyomo" in free_memory,
             extra_postprocessing=extra_postprocessing,
         )
@@ -2515,6 +2526,7 @@ def network_lopf(
         snapshots,
         skip_pre=skip_pre,
         formulation=formulation,
+        transmission_losses=transmission_losses,
         ptdf_tolerance=ptdf_tolerance,
     )
 
@@ -2527,6 +2539,7 @@ def network_lopf(
         network,
         snapshots,
         formulation=formulation,
+        transmission_losses=transmission_losses,
         solver_logfile=solver_logfile,
         solver_options=solver_options,
         keep_files=keep_files,

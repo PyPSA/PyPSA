@@ -283,8 +283,6 @@ def define_loss_constraints(n, sns, c, transmission_losses):
     loss = get_var(n, c, "loss")
     lhs = linexpr((1, loss))
 
-    
-
     define_constraints(n, lhs, "<=", rhs, c, "loss_upper", mask=active)
 
     flow = get_var(n, c, 's')
@@ -1255,6 +1253,8 @@ def assign_solution(
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, "p0", values)
                 set_from_frame(pnl, "p1", -values)
+            if c in n.passive_branch_components and attr == "loss":
+                set_from_frame(pnl, "loss", values)
             elif c == "Link" and attr == "p":
                 set_from_frame(pnl, "p0", values)
                 for i in ["1"] + additional_linkports(n):
@@ -1525,7 +1525,7 @@ def network_lopf(
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(
-        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir
+        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir, transmission_losses
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 
