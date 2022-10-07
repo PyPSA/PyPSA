@@ -275,7 +275,9 @@ def define_loss_constraints(n, sns, c, transmission_losses):
         n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
     )
 
-    assert np.isfinite(s_nom_max).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~np.isfinite(s_nom_max)]}"
+    assert np.isfinite(
+        s_nom_max
+    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~np.isfinite(s_nom_max)]}"
 
     r_pu_eff = n.df(c)["r_pu_eff"]
 

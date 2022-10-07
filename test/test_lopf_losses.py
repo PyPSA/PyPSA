@@ -5,10 +5,9 @@ import pytest
 solver_name = "glpk"
 
 
-@pytest.mark.parametrize("transmission_losses", [1,2])
+@pytest.mark.parametrize("transmission_losses", [1, 2])
 @pytest.mark.parametrize("pyomo", [True, False])
 def test_lopf_losses(scipy_network, transmission_losses, pyomo):
-
     n = scipy_network
     n.lines.s_max_pu = 0.7
     n.lines.loc[["316", "527", "602"], "s_nom"] = 1715
