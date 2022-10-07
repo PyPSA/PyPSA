@@ -1944,7 +1944,12 @@ def define_linear_objective(network, snapshots):
 
 
 def extract_optimisation_results(
-    network, snapshots, formulation="angles", transmission_losses=0, free_pyomo=True, extra_postprocessing=None
+    network,
+    snapshots,
+    formulation="angles",
+    transmission_losses=0,
+    free_pyomo=True,
+    extra_postprocessing=None,
 ):
 
     allocate_series_dataframes(

@@ -1532,7 +1532,13 @@ def network_lopf(
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(
-        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir, transmission_losses
+        n,
+        snapshots,
+        keep_files,
+        skip_objective,
+        extra_functionality,
+        solver_dir,
+        transmission_losses,
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 
