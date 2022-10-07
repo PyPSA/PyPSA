@@ -1663,7 +1663,9 @@ def define_loss_constraints(network, snapshots, transmission_losses):
 
         s_nom_max = passive_branches.at[branch, attr]
 
-        assert np.isfinite(s_nom_max), f"Infinite or NaN values found for 's_nom_max' at extendable line {bn}. Loss approximation requires finite 's_nom_max'"
+        assert np.isfinite(
+            s_nom_max
+        ), f"Infinite or NaN values found for 's_nom_max' at extendable line {bn}. Loss approximation requires finite 's_nom_max'"
 
         for sn in snapshots:
 
