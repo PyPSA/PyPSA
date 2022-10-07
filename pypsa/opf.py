@@ -1597,12 +1597,10 @@ def define_nodal_balance_constraints(network, snapshots, transmission_losses):
         bn = branch[1]
         for sn in snapshots:
             network._p_balance[bus0, sn].variables.append(
-                (-1, network.model.passive_branch_p[bt, bn, sn]),
-                (-0.5, network.model.loss[bt, bn, sn]),
+                (-1, network.model.passive_branch_p[bt, bn, sn])
             )
             network._p_balance[bus1, sn].variables.append(
-                (1, network.model.passive_branch_p[bt, bn, sn]),
-                (-0.5, network.model.loss[bt, bn, sn]),
+                (1, network.model.passive_branch_p[bt, bn, sn])
             )
 
             if transmission_losses:
@@ -1636,6 +1634,9 @@ def define_passive_branch_loss_variables(network, snapshots, transmission_losses
 
 
 def define_loss_constraints(network, snapshots, transmission_losses):
+
+    if not transmission_losses: return
+
     tangents = transmission_losses
 
     positions = range(1, tangents + 1)
@@ -2219,6 +2220,7 @@ def network_lopf_build_model(
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles","cycles","kirchhoff","ptdf"]
+    transmission_losses : int, 0
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
 
@@ -2265,6 +2267,8 @@ def network_lopf_build_model(
         define_nodal_balance_constraints(network, snapshots, transmission_losses)
     elif formulation in ["ptdf", "cycles"]:
         define_sub_network_balance_constraints(network, snapshots)
+
+    define_loss_constraints(network, snapshots, transmission_losses)
 
     define_global_constraints(network, snapshots)
 

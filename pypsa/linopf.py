@@ -1347,6 +1347,7 @@ def network_lopf(
     skip_pre=False,
     extra_postprocessing=None,
     formulation="kirchhoff",
+    transmission_losses=0,
     keep_references=False,
     keep_files=False,
     keep_shadowprices=["Bus", "Line", "Transformer", "Link", "GlobalConstraint"],
@@ -1380,6 +1381,11 @@ def network_lopf(
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles","cycles","kirchhoff","ptdf"]
+    transmission_losses : int
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0 which ignores losses.
     extra_functionality : callable function
         This function must take two arguments
         `extra_functionality(network,snapshots)` and is called after
