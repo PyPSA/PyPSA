@@ -272,8 +272,7 @@ def define_loss_constraints(n, sns, c, transmission_losses):
     s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
 
     s_nom_max = n.df(c)["s_nom_max"].where(
-        n.df(c)["s_nom_extendable"],
-        n.df(c)["s_nom"]
+        n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
     )
 
     r_pu_eff = n.df(c)["r_pu_eff"]
@@ -283,11 +282,9 @@ def define_loss_constraints(n, sns, c, transmission_losses):
     loss = get_var(n, c, "loss")
     lhs = linexpr((1, loss))
 
-    
-
     define_constraints(n, lhs, "<=", rhs, c, "loss_upper", mask=active)
 
-    flow = get_var(n, c, 's')
+    flow = get_var(n, c, "s")
 
     for k in range(1, tangents + 1):
 
@@ -300,7 +297,9 @@ def define_loss_constraints(n, sns, c, transmission_losses):
 
             lhs = linexpr((1, loss), (sign * slope_k, flow))
 
-            define_constraints(n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active)
+            define_constraints(
+                n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active
+            )
 
 
 def define_committable_generator_constraints(n, sns):
@@ -508,10 +507,12 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
     if transmission_losses:
-        args.extend([
-            ["Line", "loss", "bus0", -0.5],
-            ["Line", "loss", "bus1", -0.5],
-        ])
+        args.extend(
+            [
+                ["Line", "loss", "bus0", -0.5],
+                ["Line", "loss", "bus1", -0.5],
+            ]
+        )
 
     if not n.links.empty:
         for i in additional_linkports(n):
@@ -1156,10 +1157,14 @@ def prepare_lopf(
         define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_dispatch_for_non_extendable_variables(n, snapshots, c, attr, transmission_losses)
+        define_dispatch_for_non_extendable_variables(
+            n, snapshots, c, attr, transmission_losses
+        )
         define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
         align_with_static_component(n, c, attr)
-        define_dispatch_for_extendable_constraints(n, snapshots, c, attr, transmission_losses)
+        define_dispatch_for_extendable_constraints(
+            n, snapshots, c, attr, transmission_losses
+        )
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_generator_status_variables(n, snapshots)
     define_nominal_constraints_per_bus_carrier(n, snapshots)
