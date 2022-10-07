@@ -1598,11 +1598,11 @@ def define_nodal_balance_constraints(network, snapshots, transmission_losses):
         for sn in snapshots:
             network._p_balance[bus0, sn].variables.append(
                 (-1, network.model.passive_branch_p[bt, bn, sn]),
-                (-0.5, network.model.loss[bt, bn, sn])
+                (-0.5, network.model.loss[bt, bn, sn]),
             )
             network._p_balance[bus1, sn].variables.append(
                 (1, network.model.passive_branch_p[bt, bn, sn]),
-                (-0.5, network.model.loss[bt, bn, sn])
+                (-0.5, network.model.loss[bt, bn, sn]),
             )
 
             if transmission_losses:
@@ -1627,7 +1627,8 @@ def define_nodal_balance_constraints(network, snapshots, transmission_losses):
 
 
 def define_passive_branch_loss_variables(network, snapshots, transmission_losses):
-    if not transmission_losses: return
+    if not transmission_losses:
+        return
     passive_branches = network.passive_branches()
     network.model.loss = Var(
         list(passive_branches.index), snapshots, domain=NonNegativeReals
@@ -1635,7 +1636,6 @@ def define_passive_branch_loss_variables(network, snapshots, transmission_losses
 
 
 def define_loss_constraints(network, snapshots, transmission_losses):
-
     tangents = transmission_losses
 
     positions = range(1, tangents + 1)
@@ -1661,10 +1661,10 @@ def define_loss_constraints(network, snapshots, transmission_losses):
             attr = "s_nom"
 
         s_nom_max = passive_branches.at[branch, attr]
-        s_nom_extendable = passive_branches.at[branch, 's_nom_extendable']
+        s_nom_extendable = passive_branches.at[branch, "s_nom_extendable"]
 
-        assert (
-            not s_nom_extendable or (not np.isfinite(s_nom_max) and not np.isnan(s_nom_max))
+        assert not s_nom_extendable or (
+            not np.isfinite(s_nom_max) and not np.isnan(s_nom_max)
         ), f"Infinite or NaN values found for 's_nom_max' at extendable line {bn}. Loss approximation requires finite 's_nom_max'"
 
         for sn in snapshots:
@@ -1682,7 +1682,7 @@ def define_loss_constraints(network, snapshots, transmission_losses):
             for k in positions:
 
                 p_k = k / tangents * s_max_pu * s_nom_max
-                loss_k = r_pu_eff * p_k ** 2
+                loss_k = r_pu_eff * p_k**2
                 slope_k = 2 * r_pu_eff * p_k
                 offset_k = loss_k - slope_k * p_k
 
@@ -2198,7 +2198,12 @@ def extract_optimisation_results(
 
 
 def network_lopf_build_model(
-    network, snapshots=None, skip_pre=False, formulation="angles", transmission_losses=0, ptdf_tolerance=0.0
+    network,
+    snapshots=None,
+    skip_pre=False,
+    formulation="angles",
+    transmission_losses=0,
+    ptdf_tolerance=0.0,
 ):
     """
     Build pyomo model for linear optimal power flow for a group of snapshots.
@@ -2367,7 +2372,7 @@ def network_lopf_solve(
                 suffixes=["dual"],
                 keepfiles=keep_files,
                 logfile=solver_logfile,
-                options=solver_options
+                options=solver_options,
             )
     else:
         network.results = network.opt.solve(
@@ -2375,7 +2380,7 @@ def network_lopf_solve(
             suffixes=["dual"],
             keepfiles=keep_files,
             logfile=solver_logfile,
-            options=solver_options
+            options=solver_options,
         )
 
     if logger.isEnabledFor(logging.INFO):
