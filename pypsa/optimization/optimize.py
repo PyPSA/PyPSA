@@ -143,6 +143,12 @@ def define_objective(n, sns):
             var = m[f"{c}-{attr}"]
             objective.append((var * cost).sum())
 
+    if not len(objective):
+        raise ValueError(
+            "Objective function could not be created. "
+            "Please make sure the components have assigned costs."
+        )
+
     m.objective = merge(objective)
 
 
