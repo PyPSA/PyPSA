@@ -46,7 +46,9 @@ def ac_dc_network():
     csv_folder = os.path.join(
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
-    return pypsa.Network(csv_folder)
+    n = pypsa.Network(csv_folder)
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
 
 
 @pytest.fixture(scope="module")

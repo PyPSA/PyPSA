@@ -25,8 +25,6 @@ def ac_dc_network_r():
 def test_lopf(ac_dc_network, ac_dc_network_r, api):
     n = ac_dc_network
     n_r = ac_dc_network_r
-    # p_set values are considered by linopy implementation
-    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
 
     status, _ = optimize(n, api, snapshots=n.snapshots)
 
