@@ -5,11 +5,23 @@ import pytest
 from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
 
-solver_name = "glpk"
+SOLVER_NAME = "glpk"
+SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 
 
-@pytest.mark.parametrize("pyomo", [True, False])
-def test_sclopf_pyomo(scipy_network, pyomo):
+def sclopf(n, api, *args, **kwargs):
+    if api == "linopy":
+        return n.optimize.security_constraint_optimization(*args, **kwargs)
+    elif api == "pyomo":
+        return n.sclopf(pyomo=True, *args, **kwargs)
+    elif api == "native":
+        return n.sclopf(pyomo=False, *args, **kwargs)
+    else:
+        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
+
+
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_sclopf_pyomo(scipy_network, api):
     n = scipy_network
 
     # There are some infeasibilities without line extensions
@@ -19,11 +31,12 @@ def test_sclopf_pyomo(scipy_network, pyomo):
     # choose the contingencies
     branch_outages = n.lines.index[:2]
 
-    n.sclopf(
+    sclopf(
+        n,
+        api,
         n.snapshots[0],
         branch_outages=branch_outages,
-        pyomo=pyomo,
-        solver_name=solver_name,
+        solver_name=SOLVER_NAME,
     )
 
     # For the PF, set the P to the optimised P
