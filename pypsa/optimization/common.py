@@ -24,13 +24,6 @@ def reindex(ds, dim, index):
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def get_var(n, c, key):
-    """
-    Get variables directly from network.
-    """
-    return n.model[f"{c}-{key}"]
-
-
 def set_from_frame(n, c, attr, df):
     """
     Update values in time-dependent attribute from new dataframe.
