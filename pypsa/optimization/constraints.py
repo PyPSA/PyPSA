@@ -167,7 +167,7 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # rhs has to consider initial value and end-of-horizon relaxation
         rhs = pd.DataFrame(0, sns, com_i)
-        rhs.loc[sns[0], initially_up] = -min_up_time[initially_up]
+        rhs.loc[sns[0], initially_up] = -up_time_before[initially_up]
         ref = range(1, len(sns) + 1)
         until_end = pd.DataFrame([ref] * len(com_i), com_i, sns[::-1]).T
         until_end = until_end.le(min_up_time).cumsum()[::-1]
@@ -220,11 +220,12 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # rhs has to consider initial value and end-of-horizon relaxation
         rhs = -pd.DataFrame([min_down_time] * len(sns), sns, com_i)
-        rhs.loc[sns[0], initially_down] += min_down_time[initially_down]
+        rhs.loc[sns[0], initially_down] -= down_time_before[initially_down]
         ref = range(1, len(sns) + 1)
         until_end = pd.DataFrame([ref] * len(com_i), com_i, sns[::-1]).T
         until_end = until_end.le(min_down_time).cumsum()[::-1]
         rhs -= until_end.where(until_end < min_down_time, 0)
+        rhs = (rhs + 1).where(rhs < 0, rhs)
         n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-status-min_down_time")
 
     if shut_down_cost.sum():
