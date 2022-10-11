@@ -389,7 +389,12 @@ def post_processing(n):
 
 
 def optimize(
-    n, snapshots=None, multi_investment_periods=False, model_kwargs={}, **kwargs
+    n,
+    snapshots=None,
+    multi_investment_periods=False,
+    model_kwargs={},
+    extra_functionality=None,
+    **kwargs,
 ):
     """
     Optimize the pypsa network using linopy.
@@ -419,6 +424,8 @@ def optimize(
 
     n.consistency_check()
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)
+    if extra_functionality:
+        extra_functionality(n, sns)
     kwargs.setdefault("solver_name", "glpk")
     status, condition = m.solve(**kwargs)
 
