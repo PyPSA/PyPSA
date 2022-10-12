@@ -11,6 +11,10 @@ Upcoming Release
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
 * Add example notebook on how to model redispatch with PyPSA.
 * The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.
+* A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ a migration guide for extra functionalities can be found at `here
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_
+
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================
