@@ -410,6 +410,12 @@ def optimize(
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
     model_kwargs: dict
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+    extra_functionality : callable
+        This function must take two arguments
+        `extra_functionality(network, snapshots)` and is called after
+        the model building is complete, but before it is sent to the
+        solver. It allows the user to
+        add/change constraints and add/change the objective function.
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
