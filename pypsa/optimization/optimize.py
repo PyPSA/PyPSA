@@ -480,6 +480,7 @@ class OptimizationAccessor:
         """
         n = self._parent
         m = n.model
+        kwargs.setdefault("solver_name", "glpk")
         status, condition = m.solve(**kwargs)
 
         if status == "ok":
