@@ -7,13 +7,23 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The representation of networks was modified to show the number of components and snapshots.
-* Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
-* Add example notebook on how to model redispatch with PyPSA.
-* The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.
 * A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ a migration guide for extra functionalities can be found at `here
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_
+
+
+PyPSA 0.20.1 (6th October 2022)
+==============================
+
+* The representation of networks was modified to show the number of components and snapshots.
+* The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.
+* When applying network clustering algorithms, per unit time series are now aggregated using a capacity-weighted average and default aggregation strategies were adjusted.
+* The value of ``n.objective`` is now set to NaN for failed optimisation runs.
+* Added example notebook on how to model redispatch with PyPSA.
+* Added new network plotting example.
+* Bugfix for non-pyomo version of ``n.sclopf()``.
+* Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
+* Addressed ``.iteritems()`` deprecations.
 
 
 PyPSA 0.20.0 (26th July 2022)

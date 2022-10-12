@@ -10,7 +10,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pypsa",
-    version="0.20.0",
+    version="0.20.1",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
