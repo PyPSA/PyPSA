@@ -5,8 +5,6 @@ Created on Tue Feb  1 15:20:12 2022.
 
 @author: fabian
 """
-from tarfile import SUPPORTED_TYPES
-
 import pandas as pd
 import pytest
 from conftest import SUPPORTED_APIS, optimize

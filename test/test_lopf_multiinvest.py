@@ -9,14 +9,14 @@ import os
 
 import pandas as pd
 import pytest
-from conftest import SUPPORTED_APIS, optimize
+from conftest import optimize
 from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 
 import pypsa
 from pypsa.descriptors import get_activity_mask
 
-APIS = ["linopy", "native"]
+MULTIINVEST_APIS = ["linopy", "native"]
 kwargs = dict(multi_investment_periods=True)
 
 
@@ -167,7 +167,7 @@ def test_active_assets(n):
     ).all()
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_tiny_with_default(api):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
@@ -179,7 +179,7 @@ def test_tiny_with_default(api):
     assert n.generators.p_nom_opt.item() == 100
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_tiny_with_build_year(api):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
@@ -193,7 +193,7 @@ def test_tiny_with_build_year(api):
     assert n.generators.p_nom_opt.item() == 100
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_tiny_infeasible(api):
     n = pypsa.Network(snapshots=range(2))
     n.investment_periods = [2020, 2030]
@@ -206,7 +206,7 @@ def test_tiny_infeasible(api):
         status, cond = optimize(n, api, **kwargs)
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network(n, api):
     status, cond = optimize(n, api, **kwargs)
     assert status == "ok"
@@ -218,7 +218,7 @@ def test_simple_network(n, api):
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_snapshot_subset(n, api):
     status, cond = optimize(n, api, n.snapshots[:20], **kwargs)
     assert status == "ok"
@@ -230,7 +230,7 @@ def test_simple_network_snapshot_subset(n, api):
     assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_storage_noncyclic(n_sus, api):
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
@@ -246,7 +246,7 @@ def test_simple_network_storage_noncyclic(n_sus, api):
     assert soc.loc[idx[2040, 9], "sto1-2020"] == 0
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_storage_noncyclic_per_period(n_sus, api):
     n_sus.storage_units["state_of_charge_initial"] = 200
     n_sus.storage_units["cyclic_state_of_charge"] = False
@@ -268,7 +268,7 @@ def test_simple_network_storage_noncyclic_per_period(n_sus, api):
     assert soc_initial.loc[2040, "sto1-2040"] == 200
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_storage_cyclic(n_sus, api):
     n_sus.storage_units["cyclic_state_of_charge"] = True
     n_sus.storage_units["cyclic_state_of_charge_per_period"] = False
@@ -287,7 +287,7 @@ def test_simple_network_storage_cyclic(n_sus, api):
     )
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_storage_cyclic_per_period(n_sus, api):
     # Watch out breaks with xarray version 2022.06.00 !
     n_sus.storage_units["cyclic_state_of_charge"] = True
@@ -304,7 +304,7 @@ def test_simple_network_storage_cyclic_per_period(n_sus, api):
     )
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_store_noncyclic(n_sts, api):
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = False
@@ -320,7 +320,7 @@ def test_simple_network_store_noncyclic(n_sts, api):
     assert e_initial.loc[2020, "sto1-2020"] == 20
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_store_noncyclic_per_period(n_sts, api):
     n_sts.stores["e_cyclic"] = False
     n_sts.stores["e_initial_per_period"] = True
@@ -340,7 +340,7 @@ def test_simple_network_store_noncyclic_per_period(n_sts, api):
     assert e_initial.loc[2050, "sto1-2020"] == 0
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_store_cyclic(n_sts, api):
     n_sts.stores["e_cyclic"] = True
     n_sts.stores["e_cyclic_per_period"] = False
@@ -356,7 +356,7 @@ def test_simple_network_store_cyclic(n_sts, api):
     assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_simple_network_store_cyclic_per_period(n_sts, api):
     # Watch out breaks with xarray version 2022.06.00 !
     n_sts.stores["e_cyclic"] = True
@@ -373,7 +373,7 @@ def test_simple_network_store_cyclic_per_period(n_sts, api):
     assert e.loc[idx[2020, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_global_constraint_primary_energy_storage(n_sus, api):
     c = "StorageUnit"
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
@@ -393,7 +393,7 @@ def test_global_constraint_primary_energy_storage(n_sus, api):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_global_constraint_primary_energy_store(n_sts, api):
     c = "Store"
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
@@ -414,7 +414,7 @@ def test_global_constraint_primary_energy_store(n_sts, api):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_global_constraint_transmission_expansion_limit(n, api):
     n.add(
         "GlobalConstraint",
@@ -438,7 +438,7 @@ def test_global_constraint_transmission_expansion_limit(n, api):
     assert n.lines.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_global_constraint_transmission_cost_limit(n, api):
     n.add(
         "GlobalConstraint",
@@ -488,7 +488,7 @@ def test_global_constraint_bus_tech_limit(n, api):
     assert n.global_constraints.at["expansion_limit", "mu"] == 0
 
 
-@pytest.mark.parametrize("api", APIS)
+@pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_max_growth_constraint(n, api):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]

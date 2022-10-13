@@ -2,11 +2,9 @@
 
 import numpy as np
 import pytest
+from conftest import SOLVER_NAME, SUPPORTED_APIS
 from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
-
-SOLVER_NAME = "glpk"
-SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 
 
 def sclopf(n, api, *args, **kwargs):
