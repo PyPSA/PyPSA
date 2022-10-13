@@ -524,6 +524,19 @@ class OptimizationAccessor:
             n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
             n.df(c)[attr + "_extendable"] = False
 
+    def fix_optimal_dispatch(self):
+        """
+        Fix dispatch of all assets to optimized values.
+
+        Use this function when the optimal dispatch should be used as an
+        starting point for power flow calculation (`Network.pf`).
+        """
+        n = self._parent
+        for c in n.one_port_components:
+            n.pnl(c).p_set = n.pnl(c).p
+        for c in n.controllable_branch_components:
+            n.pnl(c).p_set = n.pnl(c).p0
+
     def add_load_shedding(
         self,
         suffix=" load shedding",
