@@ -16,7 +16,7 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def iterative_transmission_capacity_expansion(
+def optimize_transmission_expansion_iteratively(
     n,
     snapshots=None,
     msq_threshold=0.05,
@@ -154,7 +154,7 @@ def iterative_transmission_capacity_expansion(
     n.objective_constant -= obj_links + obj_lines
 
 
-def security_constraint_optimization(
+def optimize_security_constrained(
     n,
     snapshots=None,
     branch_outages=None,

@@ -11,7 +11,7 @@ SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 
 def sclopf(n, api, *args, **kwargs):
     if api == "linopy":
-        return n.optimize.security_constraint_optimization(*args, **kwargs)
+        return n.optimize.optimize_security_constrained(*args, **kwargs)
     elif api == "pyomo":
         return n.sclopf(pyomo=True, *args, **kwargs)
     elif api == "native":

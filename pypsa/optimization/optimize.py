@@ -14,8 +14,8 @@ from pypsa.descriptors import additional_linkports
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
-    iterative_transmission_capacity_expansion,
-    security_constraint_optimization,
+    optimize_security_constrained,
+    optimize_transmission_expansion_iteratively,
 )
 from pypsa.optimization.common import set_from_frame
 from pypsa.optimization.constraints import (
@@ -502,13 +502,13 @@ class OptimizationAccessor:
     def post_processing(self, **kwargs):
         return post_processing(self._parent, **kwargs)
 
-    @is_documented_by(iterative_transmission_capacity_expansion)
-    def iterative_transmission_capacity_expansion(self, *args, **kwargs):
-        iterative_transmission_capacity_expansion(self._parent, *args, **kwargs)
+    @is_documented_by(optimize_transmission_expansion_iteratively)
+    def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
+        optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
 
-    @is_documented_by(security_constraint_optimization)
-    def security_constraint_optimization(self, *args, **kwargs):
-        security_constraint_optimization(self._parent, *args, **kwargs)
+    @is_documented_by(optimize_security_constrained)
+    def optimize_security_constrained(self, *args, **kwargs):
+        optimize_security_constrained(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """
