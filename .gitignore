@@ -47,3 +47,5 @@ website/examples/*.py
 .vscode
 
 .coverage
+
+dev-scripts
