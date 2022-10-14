@@ -18,6 +18,8 @@ import os
 from pathlib import Path
 from urllib.request import urlretrieve as _retrieve
 
+import pandas as pd
+
 from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,7 @@ def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
     return str(path)
 
 
-def ac_dc_meshed(update=False, from_master=False):
+def ac_dc_meshed(update=False, from_master=False, remove_link_p_set=True):
     """
     Load the meshed AC-DC network example of pypsa stored in the PyPSA
     repository.
@@ -79,7 +81,10 @@ def ac_dc_meshed(update=False, from_master=False):
     path = _retrieve_if_not_local(
         name, repofile, update=update, from_master=from_master
     )
-    return Network(path)
+    n = Network(path)
+    if remove_link_p_set:
+        n.links_t.p_set = pd.DataFrame(index=n.snapshots)
+    return n
 
 
 def storage_hvdc(update=False, from_master=False):

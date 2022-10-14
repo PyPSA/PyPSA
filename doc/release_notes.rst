@@ -7,6 +7,10 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ a migration guide for extra functionalities can be found at `here
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_
+
 * Transmission losses can now be represented during optimisation with
   ``n.lopf()`` using a piecewise linear approximation of the loss parabola as
   presented in `this paper <https://doi.org/10.1016/j.apenergy.2022.118859>`_.
@@ -27,6 +31,7 @@ PyPSA 0.20.1 (6th October 2022)
 * Bugfix for non-pyomo version of ``n.sclopf()``.
 * Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
 * Addressed ``.iteritems()`` deprecations.
+
 
 PyPSA 0.20.0 (26th July 2022)
 ==============================

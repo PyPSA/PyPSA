@@ -175,18 +175,15 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
         fixed_i = fixed_i.intersection(inds)
     if snapshots is None:
         snapshots = network.snapshots
-    return pd.concat(
-        [
-            pd.DataFrame(
-                np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0),
-                index=snapshots,
-                columns=fixed_i,
-            ),
-            pnl[attr].loc[snapshots, varying_i],
-        ],
-        axis=1,
-        sort=False,
-    ).reindex(index=snapshots, columns=index)
+
+    vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
+    static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
+    varying = pnl[attr].loc[snapshots, varying_i]
+
+    res = pd.concat([static, varying], axis=1, sort=False).reindex(columns=index)
+    res.index.name = "snapshot"  # reindex with multiindex does not preserve name
+
+    return res
 
 
 def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
@@ -331,7 +328,8 @@ def get_extendable_i(n, c):
 
     Get the index of extendable elements of a given component.
     """
-    return n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
+    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
+    return idx.rename(f"{c}-ext")
 
 
 def get_non_extendable_i(n, c):
@@ -340,7 +338,8 @@ def get_non_extendable_i(n, c):
 
     Get the index of non-extendable elements of a given component.
     """
-    return n.df(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
+    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
+    return idx.rename(f"{c}-fix")
 
 
 def get_committable_i(n, c):
@@ -364,12 +363,16 @@ def get_active_assets(n, c, investment_period):
     given investment period. These are calculated from lifetime and the
     build year.
     """
-    if investment_period not in n.investment_periods:
-        raise ValueError("Investment period not in `network.investment_periods`")
-    return n.df(c).eval("build_year <= @investment_period < build_year + lifetime")
+    periods = np.atleast_1d(investment_period)
+    active = {}
+    for period in periods:
+        if period not in n.investment_periods:
+            raise ValueError("Investment period not in `network.investment_periods`")
+        active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
+    return pd.DataFrame(active).any(1)
 
 
-def get_activity_mask(n, c, sns=None):
+def get_activity_mask(n, c, sns=None, index=None):
     """
     Getter function.
 
@@ -383,12 +386,16 @@ def get_activity_mask(n, c, sns=None):
         sns = n.snapshots
     if getattr(n, "_multi_invest", False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
-        return pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+        res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
     else:
-        return pd.DataFrame(True, sns, n.df(c).index)
+        res = pd.DataFrame(True, sns, n.df(c).index)
+    if index is not None:
+        res = res.reindex(columns=index)
+    res.index.name = "snapshot"
+    return res
 
 
-def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
+def get_bounds_pu(n, c, sns, index=None, attr=None):
     """
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
@@ -424,7 +431,10 @@ def get_bounds_pu(n, c, sns, index=slice(None), attr=None):
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
-    return min_pu[index], max_pu[index]
+    if index is None:
+        return min_pu, max_pu
+    else:
+        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
 def additional_linkports(n):

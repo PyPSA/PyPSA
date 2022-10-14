@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pytest
+from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
 
-def test_basic_sector_coupling():
+@pytest.fixture
+def network():
     override_component_attrs = pypsa.descriptors.Dict(
         {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
     )
@@ -198,6 +201,10 @@ def test_basic_sector_coupling():
         carrier_attribute="co2_emissions",
         constant=target,
     )
+    return n
 
-    status, condition = n.lopf()
+
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_lopf(network, api):
+    status, condition = optimize(network, api)
     assert status == "ok"
