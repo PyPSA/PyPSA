@@ -7,7 +7,7 @@ import logging
 
 import pandas as pd
 from linopy.expressions import LinearExpression, merge
-from numpy import arange, cumsum, inf, nan, roll, isfinite
+from numpy import arange, cumsum, inf, isfinite, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, zeros_like
 
@@ -20,12 +20,14 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
-from pypsa.optimization.compat import get_var, linexpr, define_constraints
+from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
 
-def define_operational_constraints_for_non_extendables(n, sns, c, attr, transmission_losses):
+def define_operational_constraints_for_non_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
@@ -59,11 +61,17 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr, transmis
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
         dispatch_lower = (1, dispatch_lower), (-1, loss)
         dispatch_upper = (1, dispatch_upper), (1, loss)
-    n.model.add_constraints(dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active)
-    n.model.add_constraints(dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active)
+    n.model.add_constraints(
+        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+    )
+    n.model.add_constraints(
+        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+    )
 
 
-def define_operational_constraints_for_extendables(n, sns, c, attr, transmission_losses):
+def define_operational_constraints_for_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -93,8 +101,8 @@ def define_operational_constraints_for_extendables(n, sns, c, attr, transmission
     lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_upper += (1, loss),
-        lhs_lower += (1, loss),
+        lhs_upper += ((1, loss),)
+        lhs_lower += ((1, loss),)
 
     n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
     n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
@@ -755,7 +763,6 @@ def define_store_constraints(n, sns):
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
-
     tangents = transmission_losses
     active = get_activity_mask(n, c, sns) if n._multi_invest else None
 

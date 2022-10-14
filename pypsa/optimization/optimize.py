@@ -22,6 +22,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_loss_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -30,7 +31,6 @@ from pypsa.optimization.constraints import (
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
-    define_loss_constraints,
 )
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
@@ -40,13 +40,13 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_loss_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
-    define_loss_variables,
 )
 from pypsa.pf import _as_snapshots
 
@@ -154,7 +154,9 @@ def define_objective(n, sns):
     m.objective = merge(objective)
 
 
-def create_model(n, snapshots=None, multi_investment_periods=False, transmission_losses=0, **kwargs):
+def create_model(
+    n, snapshots=None, multi_investment_periods=False, transmission_losses=0, **kwargs
+):
     """
     Create a linopy.Model instance from a pypsa network.
 
@@ -208,8 +210,12 @@ def create_model(n, snapshots=None, multi_investment_periods=False, transmission
         define_fixed_nominal_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_operational_constraints_for_non_extendables(n, sns, c, attr, transmission_losses)
-        define_operational_constraints_for_extendables(n, sns, c, attr, transmission_losses)
+        define_operational_constraints_for_non_extendables(
+            n, sns, c, attr, transmission_losses
+        )
+        define_operational_constraints_for_extendables(
+            n, sns, c, attr, transmission_losses
+        )
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
@@ -446,7 +452,9 @@ def optimize(
     n._multi_invest = int(multi_investment_periods)
 
     n.consistency_check()
-    m = create_model(n, sns, multi_investment_periods, transmission_losses, **model_kwargs)
+    m = create_model(
+        n, sns, multi_investment_periods, transmission_losses, **model_kwargs
+    )
     if extra_functionality:
         extra_functionality(n, sns)
     kwargs.setdefault("solver_name", "glpk")
