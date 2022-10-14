@@ -5,6 +5,7 @@ from conftest import optimize
 
 SUPPORTED_APIS = ["pyomo", "native"]
 
+
 @pytest.mark.parametrize("api", SUPPORTED_APIS)
 @pytest.mark.parametrize("transmission_losses", [1, 2])
 def test_lopf_losses(scipy_network, api, transmission_losses):
@@ -12,7 +13,9 @@ def test_lopf_losses(scipy_network, api, transmission_losses):
     n.lines.s_max_pu = 0.7
     n.lines.loc[["316", "527", "602"], "s_nom"] = 1715
 
-    optimize(n, api,
+    optimize(
+        n,
+        api,
         snapshots=n.snapshots[0],
         transmission_losses=transmission_losses,
     )
