@@ -30,6 +30,7 @@ from pypsa.optimization.constraints import (
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_loss_constraints,
 )
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
@@ -45,6 +46,7 @@ from pypsa.optimization.variables import (
     define_spillage_variables,
     define_start_up_variables,
     define_status_variables,
+    define_loss_variables,
 )
 from pypsa.pf import _as_snapshots
 
@@ -152,7 +154,7 @@ def define_objective(n, sns):
     m.objective = merge(objective)
 
 
-def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
+def create_model(n, snapshots=None, multi_investment_periods=False, transmission_losses=0, **kwargs):
     """
     Create a linopy.Model instance from a pypsa network.
 
@@ -167,6 +169,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
     **kwargs:
         Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -195,22 +198,30 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
 
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_variables(n, sns, c)
+
     # Define constraints
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_operational_constraints_for_non_extendables(n, sns, c, attr)
-        define_operational_constraints_for_extendables(n, sns, c, attr)
+        define_operational_constraints_for_non_extendables(n, sns, c, attr, transmission_losses)
+        define_operational_constraints_for_extendables(n, sns, c, attr, transmission_losses)
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
-    define_nodal_balance_constraints(n, sns)
+    define_nodal_balance_constraints(n, sns, transmission_losses)
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
+
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_constraints(n, sns, c, transmission_losses)
 
     # Define global constraints
     define_primary_energy_limit(n, sns)
@@ -392,6 +403,7 @@ def optimize(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    transmission_losses=0,
     model_kwargs={},
     extra_functionality=None,
     **kwargs,
@@ -408,6 +420,11 @@ def optimize(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0, which ignores losses.
     model_kwargs: dict
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
     extra_functionality : callable
@@ -429,7 +446,7 @@ def optimize(
     n._multi_invest = int(multi_investment_periods)
 
     n.consistency_check()
-    m = create_model(n, sns, multi_investment_periods, **model_kwargs)
+    m = create_model(n, sns, multi_investment_periods, transmission_losses, **model_kwargs)
     if extra_functionality:
         extra_functionality(n, sns)
     kwargs.setdefault("solver_name", "glpk")

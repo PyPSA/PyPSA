@@ -3,7 +3,7 @@
 import pytest
 from conftest import optimize
 
-SUPPORTED_APIS = ["pyomo", "native"]
+SUPPORTED_APIS = ["pyomo", "native", "linopy"]
 
 
 @pytest.mark.parametrize("api", SUPPORTED_APIS)
@@ -24,3 +24,4 @@ def test_lopf_losses(scipy_network, api, transmission_losses):
     dem = n.loads_t.p_set.iloc[0].sum()
 
     assert gen > 1.01 * dem, "For this example, losses should be greater than 1%"
+    assert gen < 1.05 * dem, "For this example, losses should be lower than 5%"
