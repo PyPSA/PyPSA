@@ -1,22 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import pytest
+from conftest import optimize
 
-solver_name = "glpk"
+SUPPORTED_APIS = ["pyomo", "native"]
 
-
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
 @pytest.mark.parametrize("transmission_losses", [1, 2])
-@pytest.mark.parametrize("pyomo", [True, False])
-def test_lopf_losses(scipy_network, transmission_losses, pyomo):
+def test_lopf_losses(scipy_network, api, transmission_losses):
     n = scipy_network
     n.lines.s_max_pu = 0.7
     n.lines.loc[["316", "527", "602"], "s_nom"] = 1715
 
-    n.lopf(
+    optimize(n, api,
         snapshots=n.snapshots[0],
-        solver_name=solver_name,
         transmission_losses=transmission_losses,
-        pyomo=pyomo,
     )
 
     gen = n.generators_t.p.iloc[0].sum() + n.storage_units_t.p.iloc[0].sum()
