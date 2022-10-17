@@ -14,6 +14,20 @@ import pytest
 
 import pypsa
 
+SUPPORTED_APIS = ["pyomo", "linopy", "native"]
+SOLVER_NAME = "glpk"
+
+
+def optimize(n, api, *args, **kwargs):
+    if api == "linopy":
+        return n.optimize(solver_name=SOLVER_NAME, *args, **kwargs)
+    elif api == "pyomo":
+        return n.lopf(pyomo=True, solver_name=SOLVER_NAME, *args, **kwargs)
+    elif api == "native":
+        return n.lopf(pyomo=False, solver_name=SOLVER_NAME, *args, **kwargs)
+    else:
+        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
+
 
 @pytest.fixture(scope="function")
 def scipy_network():
@@ -33,7 +47,9 @@ def ac_dc_network():
     csv_folder = os.path.join(
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
-    return pypsa.Network(csv_folder)
+    n = pypsa.Network(csv_folder)
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
 
 
 @pytest.fixture(scope="module")

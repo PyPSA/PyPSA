@@ -3,6 +3,9 @@ Power System Optimization
 #########################
 
 
+.. important:: Since version v0.22.0, PyPSA enables the optimisation with `Linopy <https://github.com/PyPSA/linopy>`_ through the `optimization` module. The core function is available via `Network.optimize` which per default follows the behaviour of the `lopf` function and includes all its feature. The new optimization module should provide flexibility as well as performance. For an introduction to the new implementation have a look at the `example notebook <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ for a migration guide of extra functionalities have a look at `our migration guide <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_. The following section will be adapted in the future to the new optimization interface.
+
+
 See the modules ``pypsa.opf`` and ``pypsa.linopf``. Optimisation with the
 linearised power flow equations for (mixed) AC and DC networks is fully
 supported. Note that optimisation with the full non-linear power flow equations
@@ -50,10 +53,6 @@ details) and ``pyomo`` is a boolean to switch between formulating the
 optimisation problem using ``pyomo`` or PyPSA's custom optimisation framework.
 See :py:meth:`pypsa.Network.lopf` for the full documentation.
 
-
-
-.. important:: Since version v0.16.0, PyPSA enables optimisation without the use of `pyomo <http://www.pyomo.org/>`_ by setting ``pyomo=False``. This make the ``lopf`` function much more efficient in terms of memory usage and time. For this purpose two new module were introduced, ``pypsa.linopf`` and ``pypsa.linopt`` which mainly reflect the functionality of ``pypsa.opf`` and ``pypsa.opt`` but without using pyomo.
-  Note that when setting pyomo to False, the ``extra_functionality`` has to be adapted to the appropriate syntax (see guidelines below).  Some unit commitment functionality is not yet implemented without pyomo.
 
 .. warning:: If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is NOT reflected in the ordinary LOPF, however ``pypsa.linopf.ilopf`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 

@@ -5,9 +5,9 @@ Created on Tue Feb  1 15:20:12 2022.
 
 @author: fabian
 """
-
 import pandas as pd
 import pytest
+from conftest import SUPPORTED_APIS, optimize
 
 from pypsa.descriptors import expand_series
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -201,16 +201,17 @@ funcs = (
 )
 
 
-@pytest.fixture(scope="module")
-def solved_network(ac_dc_network):
+@pytest.fixture
+def solved_network(ac_dc_network, api):
     n = ac_dc_network
-    n.lopf(pyomo=False)
+    optimize(n, api)
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     return n
 
 
 @pytest.mark.parametrize("func", *funcs)
-def test_tolerance(solved_network, func):
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_tolerance(solved_network, api, func):
     n = solved_network
     description = func(n).fillna(0)
     for col in description:

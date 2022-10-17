@@ -47,6 +47,7 @@ from pypsa.io import (
     import_series_from_dataframe,
 )
 from pypsa.opf import network_lopf, network_opf
+from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
     calculate_dependent_values,
@@ -253,6 +254,8 @@ class Network(Basic):
 
         cols = ["objective", "years"]
         self._investment_period_weightings = pd.DataFrame(columns=cols)
+
+        self.optimize = OptimizationAccessor(self)
 
         if override_components is None:
             self.components = components
