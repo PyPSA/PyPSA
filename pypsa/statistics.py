@@ -29,7 +29,7 @@ def get_carrier(n, c):
     fall_back = pd.Series("", index=df.index)
     return (
         df.get("carrier", fall_back)
-        .replace(n.carriers.nice_name)
+        .replace(n.carriers.nice_name[lambda ds: ds != ""])
         .replace("", "-")
         .rename("carrier")
     )
