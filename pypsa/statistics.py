@@ -249,7 +249,9 @@ class StatisticsAccessor:
         """
         df = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groups=groups
-        ) - self.installed_capacity(comps=comps, aggregate_groups=aggregate_groups, groups=groups)
+        ) - self.installed_capacity(
+            comps=comps, aggregate_groups=aggregate_groups, groups=groups
+        )
         df.attrs["unit"] = "MW"
         return df.rename("Expanded Capacity")
 
