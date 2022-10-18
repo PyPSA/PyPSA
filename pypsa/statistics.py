@@ -183,9 +183,9 @@ class StatisticsAccessor:
             res.append(func(aggregate_time=aggregate_time, **kwargs))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
-    def capex(self, comps=None, aggregate_groups=None, groups=None):
+    def capex(self, comps=None, aggregate_groups="sum", groups=None):
         """
-        Calculate the capital expenditure of a network.
+        Calculate the capital expenditure of the network.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -204,7 +204,7 @@ class StatisticsAccessor:
 
     def optimal_capacity(self, comps=None, aggregate_groups="sum", groups=None):
         """
-        Calculate the optimal capacity of network components.
+        Calculate the optimal capacity of the network components.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -223,7 +223,7 @@ class StatisticsAccessor:
 
     def installed_capacity(self, comps=None, aggregate_groups="sum", groups=None):
         """
-        Calculate the installed capacity of network components.
+        Calculate the installed capacity of the network components.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -240,24 +240,24 @@ class StatisticsAccessor:
         df.attrs["unit"] = "MW"
         return df.rename("Installed Capacity")
 
-    def expanded_capacity(self, comps=None, aggregate_groups=None, groups=None):
+    def expanded_capacity(self, comps=None, aggregate_groups="sum", groups=None):
         """
-        Calculate the expanded capacity of network components.
+        Calculate the expanded capacity of the network components.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         df = self.optimal_capacity(
-            comps=comps, agg=aggregate_groups, groups=groups
-        ) - self.installed_capacity(comps=comps, agg=aggregate_groups, groups=groups)
+            comps=comps, aggregate_groups=aggregate_groups, groups=groups
+        ) - self.installed_capacity(comps=comps, aggregate_groups=aggregate_groups, groups=groups)
         df.attrs["unit"] = "MW"
         return df.rename("Expanded Capacity")
 
     def opex(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
@@ -287,8 +287,8 @@ class StatisticsAccessor:
     def supply(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
@@ -318,8 +318,8 @@ class StatisticsAccessor:
     def withdrawal(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
@@ -349,12 +349,12 @@ class StatisticsAccessor:
     def curtailment(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
-        Calculate the curailment of components in the network.
+        Calculate the curtailment of components in the network.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -376,8 +376,8 @@ class StatisticsAccessor:
     def capacity_factor(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
@@ -407,8 +407,8 @@ class StatisticsAccessor:
     def revenue(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
@@ -443,8 +443,8 @@ class StatisticsAccessor:
     def market_value(
         self,
         comps=None,
-        aggregate_time=None,
-        aggregate_groups=None,
+        aggregate_time="mean",
+        aggregate_groups="sum",
         groups=get_carrier,
     ):
         """
