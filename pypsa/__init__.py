@@ -19,6 +19,7 @@ from pypsa import (
     networkclustering,
     opf,
     opt,
+    optimization,
     pf,
     plot,
 )

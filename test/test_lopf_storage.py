@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-
 import os
 
 import pandas as pd
 import pytest
+from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -35,12 +35,7 @@ def network():
     return pypsa.Network(csv_folder)
 
 
-def test_opf_pyomo(network, target_gen_p):
-    network.lopf(solver_name="glpk", pyomo=True)
-    equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
-
-
-def test_opf_lowmem(network, target_gen_p):
-    status, _ = network.lopf(solver_name="glpk", pyomo=False)
-    assert status == "ok"
+@pytest.mark.parametrize("api", SUPPORTED_APIS)
+def test_lopf(network, target_gen_p, api):
+    optimize(network, api)
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
