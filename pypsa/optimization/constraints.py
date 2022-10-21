@@ -465,7 +465,8 @@ def define_nodal_balance_constraints(n, sns):
     rhs.index.name = "snapshot"
     rhs = DataArray(rhs)
 
-    if (empty_nodal_balance := (lhs.vars == -1).all("_term")).any():
+    empty_nodal_balance = (lhs.vars == -1).all("_term")
+    if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
 
