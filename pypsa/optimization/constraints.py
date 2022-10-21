@@ -462,17 +462,17 @@ def define_nodal_balance_constraints(n, sns):
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"  
+    rhs.index.name = "snapshot"
     rhs = DataArray(rhs)
 
     if (empty_nodal_balance := (lhs.vars == -1).all("_term")).any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
-        
-        mask = ~ empty_nodal_balance
+
+        mask = ~empty_nodal_balance
     else:
         mask = None
-    
+
     n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance", mask=mask)
 
 
