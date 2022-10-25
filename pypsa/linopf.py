@@ -459,9 +459,6 @@ def define_nodal_balance_constraints(n, sns):
         .reindex(columns=n.buses.index, fill_value="")
     )
 
-    if (lhs == "").any().any():
-        raise ValueError("Empty LHS in nodal balance constraint.")
-
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
@@ -469,7 +466,16 @@ def define_nodal_balance_constraints(n, sns):
         .sum()
         .reindex(columns=n.buses.index, fill_value=0)
     )
-    define_constraints(n, lhs, sense, rhs, "Bus", "marginal_price")
+
+    if (lhs == "").any(axis=None):
+        if ((lhs == "") & (rhs != 0)).any(axis=None):
+            raise ValueError("Empty LHS in nodal balance constraint for non-zero RHS.")
+
+        mask = lhs != ""
+    else:
+        mask = None
+
+    define_constraints(n, lhs, sense, rhs, "Bus", "marginal_price", mask=mask)
 
 
 def define_kirchhoff_constraints(n, sns):
