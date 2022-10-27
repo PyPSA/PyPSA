@@ -325,7 +325,7 @@ def post_processing(n):
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
     """
-    sns = n.model.parameters.snapshots
+    sns = n.model.parameters.snapshots.to_index()
 
     # correct prices with objective weightings
     if n._multi_invest:
