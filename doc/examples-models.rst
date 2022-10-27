@@ -11,7 +11,8 @@ This section provides examples of open-source models using PyPSA:
 
     European electricity model PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>
     European sector-coupled model PyPSA-Eur-Sec <https://github.com/PyPSA/pypsa-eur-sec>
-    PyPSA meets Africa and PyPSA meets Earth <https://github.com/pypsa-meets-africa/pypsa-africa>
+    Global electricity model PyPSA-Earth <https://github.com/pypsa-meets-earth/pypsa-earth>
+    Global sector-coupled model PyPSA-Earth-Sec <https://github.com/pypsa-meets-earth/pypsa-earth-sec>
     Build your own global zero emission scenario model.energy <https://model.energy/>
     Define your own sector-coupled European scenarios model.energy/scenarios <https://model.energy/scenarios/>
     Transmission grid optimisation eTraGo <https://github.com/openego/eTraGo>
