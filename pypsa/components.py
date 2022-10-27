@@ -62,6 +62,7 @@ from pypsa.pf import (
     sub_network_pf,
 )
 from pypsa.plot import iplot, plot
+from pypsa.statistics import StatisticsAccessor
 
 if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
@@ -285,6 +286,8 @@ class Network(Basic):
         self.all_components = set(self.components.index) - {"Network"}
 
         self.components = Dict(self.components.T.to_dict())
+
+        self.statistics = StatisticsAccessor(self)
 
         for component in self.components:
             # make copies to prevent unexpected sharing of variables

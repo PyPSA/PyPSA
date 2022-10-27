@@ -454,17 +454,27 @@ def define_nodal_balance_constraints(n, sns):
     lhs = merge(exprs).reindex(
         Bus=n.buses.index, fill_value=LinearExpression.fill_value
     )
-    if (lhs.vars == -1).all("_term").any():
-        raise ValueError("Empty LHS in nodal balance constraint.")
-
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
         .groupby(n.loads.bus, axis=1)
         .sum()
         .reindex(columns=n.buses.index, fill_value=0)
     )
-    rhs.index.name = "snapshot"  # the name for multi-index is getting lost by groupby
-    n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance")
+    # the name for multi-index is getting lost by groupby before pandas 1.4.0
+    # TODO remove once we bump the required pandas version to >= 1.4.0
+    rhs.index.name = "snapshot"
+    rhs = DataArray(rhs)
+
+    empty_nodal_balance = (lhs.vars == -1).all("_term")
+    if empty_nodal_balance.any():
+        if (empty_nodal_balance & (rhs != 0)).any().item():
+            raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
+
+        mask = ~empty_nodal_balance
+    else:
+        mask = None
+
+    n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance", mask=mask)
 
 
 def define_kirchhoff_voltage_constraints(n, sns):
