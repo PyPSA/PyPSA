@@ -47,7 +47,7 @@ Universities and Research Institutes
 
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
-* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_.
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ and used PyPSA for further `research articles <https://ideas.repec.org/a/gam/jeners/v15y2022i12p4233-d834443.html>`_.
 
 * Think-tank `Ember <https://ember-climate.org/>`_ developed a standalone `PyPSA-UK model <https://github.com/ember-climate/pypsa-uk>`_ for a `study on UK gas phase-out <https://ember-climate.org/insights/research/uk-gas-power-phase-out/>`_.
 
