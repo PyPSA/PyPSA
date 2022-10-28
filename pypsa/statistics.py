@@ -183,6 +183,16 @@ class StatisticsAccessor:
             res.append(func(aggregate_time=aggregate_time, **kwargs))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
+    def get_carrier(self, **kwargs):
+        return get_carrier(self._parent, **kwargs)
+
+    get_carrier.__doc__ = get_carrier.__doc__
+
+    def get_bus_and_carrier(self, **kwargs):
+        return get_bus_and_carrier(self._parent, **kwargs)
+
+    get_bus_and_carrier.__doc__ = get_bus_and_carrier.__doc__
+
     def capex(self, comps=None, aggregate_groups="sum", groups=None):
         """
         Calculate the capital expenditure of the network.
