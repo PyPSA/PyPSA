@@ -173,9 +173,7 @@ class StatisticsAccessor:
             self.capacity_factor,
             self.revenue,
         ]
-        kwargs = dict(
-            comps=comps, aggregate_groups=aggregate_groups, groupby=get_carrier
-        )
+        kwargs = dict(comps=comps, aggregate_groups=aggregate_groups, groupby=groupby)
         res = []
         for func in static_funcs:
             res.append(func(**kwargs))
