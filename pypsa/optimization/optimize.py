@@ -392,6 +392,7 @@ def optimize(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
     **kwargs,
@@ -427,6 +428,7 @@ def optimize(
 
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
+    n._linearized_uc = linearized_unit_commitment
 
     n.consistency_check()
     m = create_model(n, sns, multi_investment_periods, **model_kwargs)

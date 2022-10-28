@@ -40,32 +40,30 @@ def define_status_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
-    n.model.add_variables(coords=coords, name=f"{c}-status", mask=active, binary=True)
+    n.model.add_variables(upper=1, lower=0, coords=coords, name=f"{c}-status", mask=active, binary=not n._linearized_uc)
 
 
 def define_start_up_variables(n, sns, c):
     com_i = n.get_committable_i(c)
 
-    # only define if start-up costs are given
-    if com_i.empty or n.df(c).start_up_cost[com_i].eq(0).all():
+    if com_i.empty:
         return
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
-    n.model.add_variables(coords=coords, name=f"{c}-start_up", mask=active, binary=True)
+    n.model.add_variables(upper=1, lower=0, coords=coords, name=f"{c}-start_up", mask=active, binary=not n._linearized_uc)
 
 
 def define_shut_down_variables(n, sns, c):
     com_i = n.get_committable_i(c)
 
-    # only define if start-up costs are given
-    if com_i.empty or n.df(c).shut_down_cost[com_i].eq(0).all():
+    if com_i.empty:
         return
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
     n.model.add_variables(
-        coords=coords, name=f"{c}-shut_down", mask=active, binary=True
+        upper=1, lower=0, coords=coords, name=f"{c}-shut_down", mask=active, binary=not n._linearized_uc
     )
 
 

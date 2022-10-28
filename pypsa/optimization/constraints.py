@@ -6,7 +6,7 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy.expressions import LinearExpression, merge
+from linopy.expressions import LinearExpression, merge, ScalarLinearExpression
 from numpy import arange, cumsum, inf, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, zeros_like
@@ -89,8 +89,189 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
     lhs = (1, dispatch), (-max_pu, capacity)
     n.model.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-upper", active)
 
-
 def define_operational_constraints_for_committables(n, sns, c):
+    """
+    Sets power dispatch constraints for committable devices for a given
+    component and a given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : pd.Index
+        Snapshots of the constraint.
+    c : str
+        name of the network component
+    """
+    com_i = n.get_committable_i(c)
+
+    if com_i.empty:
+        return
+
+    # variables
+    status = n.model[f"{c}-status"]
+    start_up = n.model[f"{c}-start_up"]
+    shut_down = n.model[f"{c}-shut_down"]
+    status_diff = status - status.shift(snapshot=1)
+    p = reindex(n.model[f"{c}-p"], c, com_i)
+    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+
+    # parameters
+    nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
+    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
+    lower_p = min_pu * nominal
+    upper_p = max_pu * nominal
+    min_up_time_set = n.df(c).min_up_time[com_i]
+    min_down_time_set = n.df(c).min_down_time[com_i]
+    start_up_cost = n.df(c).start_up_cost
+    shut_down_cost = n.df(c).shut_down_cost
+    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
+    initially_up = up_time_before_set.astype(bool)
+
+    ramp_up_limit = n.df(c).ramp_limit_up[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
+
+    # lower dispatch level limit
+    lhs = (1, p), (-lower_p, status)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", active)
+
+    # upper dispatch level limit
+    lhs = (1, p), (-upper_p, status)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
+
+    #state-transition constraint
+    rhs = pd.DataFrame(0, sns, com_i)
+    rhs.loc[sns[0], initially_up] = -1
+    lhs = (start_up - status_diff)
+    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", active)
+
+    rhs = pd.DataFrame(0, sns, com_i)
+    lhs = (shut_down + status_diff)
+    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-shut-down", active)
+
+    #min up time constraint
+    def min_up_time(m, g, sn):
+        t = sns.get_loc(sn)
+        t_up = min_up_time_set[g]
+        if t < t_up -1 or t_up==0:
+            return ScalarLinearExpression((0,), (-1,))
+        lhs = - status[t, g]
+        for i in sns[t-t_up+1: t+1]:
+            lhs = lhs + start_up[i,g]
+        return lhs
+
+    lhs = n.model.linexpr(min_up_time, [com_i, sns])
+    #problem here
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", active) 
+
+
+    #min down time constraint
+    def min_down_time(m, g, sn):
+        t = sns.get_loc(sn)
+        t_down = min_down_time_set[g]
+        if t < t_down - 1 or t_down==0:
+            return ScalarLinearExpression((0,), (-1,))
+        lhs = status[t, g]
+        for i in sns[t-t_down+1: t+1]:
+            lhs = lhs + shut_down[i,g]
+        return lhs
+
+    lhs = n.model.linexpr(min_down_time, [com_i, sns])
+    n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", active)
+
+    #up time before
+    timesteps = DataArray(range(1, len(sns) + 1), coords=[sns]) 
+    must_run = DataArray(min_up_time_set - up_time_before_set).clip(min=0)
+    mask = must_run >= timesteps
+    name = f"{c}-com-status-min_up_time_must_stay_up"
+    mask = mask & active if active is not None else mask
+    n.model.add_constraints(status, "=", 1, name, mask=mask)
+
+    #down time before
+    must_not_run = DataArray(min_down_time_set - down_time_before_set).clip(min=0)
+    mask = must_not_run >= timesteps
+    name = f"{c}-com-status-min_down_time_must_stay_up"
+    mask = mask & active if active is not None else mask
+    n.model.add_constraints(status, "=", 0, name, mask=mask)
+
+    # ramping constrains
+    def ramp_up(m, g, sn):
+        t = sns.get_loc(sn)
+        if t<1:
+            return ScalarLinearExpression((0,), (-1,))
+        lhs = p[t, g] - p[t-1, g] + (-ramp_up_limit[g] + ramp_start_up[g]) * status[t-1,g]
+        return lhs
+    
+    lhs = n.model.linexpr(ramp_up, [com_i, sns])
+    
+    n.model.add_constraints(lhs, "<=", ramp_start_up, f"{c}-com-ramp-up", active)
+
+    def ramp_down(m, g, sn):
+        t = sns.get_loc(sn)
+        if t<1:
+            return ScalarLinearExpression((0,), (-1,))
+        lhs = p[t-1, g] - p[t, g] + (-ramp_down_limit[g] +  ramp_shut_down[g]) * status[t,g]
+        return lhs
+    
+    lhs = n.model.linexpr(ramp_down, [com_i, sns])
+    
+    n.model.add_constraints(lhs, "<=", ramp_shut_down, f"{c}-com-ramp-down", active)
+
+    
+    # linearized approximation because committable can partly start up and shut down
+    if n._linearized_uc:
+        # dispatch limit for partly start up/shut down for t-1
+        def linear_approximation1(m, g, sn):
+            t = sns.get_loc(sn)
+            if t<1:
+                return ScalarLinearExpression((0,), (-1,))
+            lhs = p[t-1,g] - ramp_shut_down[g] * status[t-1, g] - (upper_p.loc[t,g].data - ramp_shut_down[g]) * (status[t,g] - start_up[t,g])
+            return lhs
+
+        lhs = n.model.linexpr(linear_approximation1, [com_i, sns])
+        
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-before", active)
+
+    # dispatch limit for partly start up/shut down for t
+        def linear_approximation2(m, g, sn):
+            t = sns.get_loc(sn)
+            if t<1:
+                return ScalarLinearExpression((0,), (-1,))
+            lhs = p[t,g] - upper_p.loc[t,g].data * status[t,g] + (upper_p.loc[t,g].data-ramp_start_up[g]) * start_up[t,g]
+            return lhs
+
+        lhs = n.model.linexpr(linear_approximation2, [com_i, sns])
+        
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-current", active)
+
+        # ramp up if committable is only partly active and some capacity is starting up
+        def linear_approximation3(m, g, sn):
+            t = sns.get_loc(sn)
+            if t<1:
+                return ScalarLinearExpression((0,), (-1,))
+            lhs = p[t,g] - p[t-1,g] - (lower_p.loc[t,g].data + ramp_up_limit[g]) * status[t,g] + lower_p.loc[t,g].data * status[t-1, g] - (lower_p.loc[t,g].data + ramp_up_limit[g] - ramp_start_up[g]) * start_up[t,g]
+            return lhs
+
+        lhs = n.model.linexpr(linear_approximation3, [com_i, sns])
+        
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
+        
+        # ramp down if committable is only partly active and some capacity is shutting up
+        def linear_approximation4(m, g, sn):
+            t = sns.get_loc(sn)
+            if t<1:
+                return ScalarLinearExpression((0,), (-1,))
+            lhs = p[t-1,g] - p[t,g] - ramp_up_limit[g] * status[t-1,g] + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[t, g] - (lower_p.loc[t,g].data + ramp_up_limit[g] - ramp_shut_down[g]) * start_up[t,g]
+            return lhs
+
+        lhs = n.model.linexpr(linear_approximation4, [com_i, sns])
+        
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-shut-down", active)
+
+
+def define_operational_constraints_for_committables_old(n, sns, c):
     """
     Sets power dispatch constraints for committable devices for a given
     component and a given attribute.
@@ -280,6 +461,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
+        return
+    if n.df(c).committable.all():
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
