@@ -82,4 +82,4 @@ Companies and Non-Governmental Organisations
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
 
-* `Meridian economics <https://www.meridian-ally.com/>`_, a consultancy, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa `energy system planning studies <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_
+* `Meridian Economics <https://www.meridian-ally.com/>`_, a consultancy, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa `energy system planning studies <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_
