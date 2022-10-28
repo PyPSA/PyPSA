@@ -122,11 +122,21 @@ def define_operational_constraints_for_committables(n, sns, c):
     upper_p = max_pu * nominal
     min_up_time_set = n.df(c).min_up_time[com_i]
     min_down_time_set = n.df(c).min_down_time[com_i]
-    start_up_cost = n.df(c).start_up_cost
-    shut_down_cost = n.df(c).shut_down_cost
-    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
-    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
+    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i).clip(lower=min_up_time_set)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i).clip(lower=min_down_time_set)
     initially_up = up_time_before_set.astype(bool)
+    
+    # check if there are status calculated/fixed before given sns interval
+    if sns[0] != n.snapshots[0]:
+        start_i = n.snapshots.get_loc(sns[0])
+        #get generators which are online until the first regarded snapshot
+        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        ref = range(1, len(until_start_up) + 1)
+        up_time_before_set = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
+        #get number of snapshots for generators which are offline before the first regarded snapshot
+        until_start_down = ~until_start_up.astype(bool)
+        ref = range(1, len(until_start_down) + 1)
+        down_time_before_set = until_start_down[until_start_down.cumsum().eq(ref, axis=0)].sum()
 
     ramp_up_limit = n.df(c).ramp_limit_up[com_i] * n.df(c)[nominal_attrs[c]]
     ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
@@ -147,23 +157,25 @@ def define_operational_constraints_for_committables(n, sns, c):
     lhs = (start_up - status_diff)
     n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", active)
 
-    rhs = pd.DataFrame(0, sns, com_i)
     lhs = (shut_down + status_diff)
-    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-shut-down", active)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-transition-shut-down", active)
 
     #min up time constraint
     def min_up_time(m, g, sn):
         t = sns.get_loc(sn)
         t_up = min_up_time_set[g]
-        if t < t_up -1 or t_up==0:
-            return ScalarLinearExpression((0,), (-1,))
-        lhs = - status[t, g]
-        for i in sns[t-t_up+1: t+1]:
-            lhs = lhs + start_up[i,g]
+        lhs = - status[sns[t], g]
+        if t_up == 0:
+            lhs = ScalarLinearExpression((0,), (-1,))
+        elif t < t_up -1:
+            for i in sns[0: t+1]:
+                lhs = lhs + start_up[i,g]
+        else:
+            for i in sns[t-t_up+1: t+1]:
+                lhs = lhs + start_up[i,g]
         return lhs
 
     lhs = n.model.linexpr(min_up_time, [com_i, sns])
-    #problem here
     n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", active) 
 
 
@@ -171,11 +183,15 @@ def define_operational_constraints_for_committables(n, sns, c):
     def min_down_time(m, g, sn):
         t = sns.get_loc(sn)
         t_down = min_down_time_set[g]
-        if t < t_down - 1 or t_down==0:
-            return ScalarLinearExpression((0,), (-1,))
-        lhs = status[t, g]
-        for i in sns[t-t_down+1: t+1]:
-            lhs = lhs + shut_down[i,g]
+        lhs = status[sns[t], g]
+        if t_down == 0:
+            lhs = ScalarLinearExpression((0,), (-1,))
+        elif t < t_down - 1:
+            for i in sns[0: t+1]:
+                lhs = lhs + start_up[i,g]
+        else:
+            for i in sns[t-t_down+1: t+1]:
+                lhs = lhs + shut_down[i,g]
         return lhs
 
     lhs = n.model.linexpr(min_down_time, [com_i, sns])
@@ -198,8 +214,8 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     # ramping constrains
     def ramp_up(m, g, sn):
-        t = sns.get_loc(sn)
-        if t<1:
+        t = sn
+        if t<sns[1]:
             return ScalarLinearExpression((0,), (-1,))
         lhs = p[t, g] - p[t-1, g] + (-ramp_up_limit[g] + ramp_start_up[g]) * status[t-1,g]
         return lhs
@@ -209,8 +225,8 @@ def define_operational_constraints_for_committables(n, sns, c):
     n.model.add_constraints(lhs, "<=", ramp_start_up, f"{c}-com-ramp-up", active)
 
     def ramp_down(m, g, sn):
-        t = sns.get_loc(sn)
-        if t<1:
+        t = sn
+        if t<sns[1]:
             return ScalarLinearExpression((0,), (-1,))
         lhs = p[t-1, g] - p[t, g] + (-ramp_down_limit[g] +  ramp_shut_down[g]) * status[t,g]
         return lhs
@@ -224,8 +240,8 @@ def define_operational_constraints_for_committables(n, sns, c):
     if n._linearized_uc:
         # dispatch limit for partly start up/shut down for t-1
         def linear_approximation1(m, g, sn):
-            t = sns.get_loc(sn)
-            if t<1:
+            t = sn
+            if t<sns[1]:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = p[t-1,g] - ramp_shut_down[g] * status[t-1, g] - (upper_p.loc[t,g].data - ramp_shut_down[g]) * (status[t,g] - start_up[t,g])
             return lhs
@@ -236,8 +252,8 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     # dispatch limit for partly start up/shut down for t
         def linear_approximation2(m, g, sn):
-            t = sns.get_loc(sn)
-            if t<1:
+            t = sn
+            if t<sns[1]:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = p[t,g] - upper_p.loc[t,g].data * status[t,g] + (upper_p.loc[t,g].data-ramp_start_up[g]) * start_up[t,g]
             return lhs
@@ -248,8 +264,8 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # ramp up if committable is only partly active and some capacity is starting up
         def linear_approximation3(m, g, sn):
-            t = sns.get_loc(sn)
-            if t<1:
+            t = sn
+            if t<sns[1]:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = p[t,g] - p[t-1,g] - (lower_p.loc[t,g].data + ramp_up_limit[g]) * status[t,g] + lower_p.loc[t,g].data * status[t-1, g] - (lower_p.loc[t,g].data + ramp_up_limit[g] - ramp_start_up[g]) * start_up[t,g]
             return lhs
@@ -260,8 +276,8 @@ def define_operational_constraints_for_committables(n, sns, c):
         
         # ramp down if committable is only partly active and some capacity is shutting up
         def linear_approximation4(m, g, sn):
-            t = sns.get_loc(sn)
-            if t<1:
+            t = sn
+            if t<sns[1]:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = p[t-1,g] - p[t,g] - ramp_up_limit[g] * status[t-1,g] + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[t, g] - (lower_p.loc[t,g].data + ramp_up_limit[g] - ramp_shut_down[g]) * start_up[t,g]
             return lhs
