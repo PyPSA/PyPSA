@@ -40,7 +40,14 @@ def define_status_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
-    n.model.add_variables(upper=1, lower=0, coords=coords, name=f"{c}-status", mask=active, binary=not n._linearized_uc)
+    n.model.add_variables(
+        upper=1,
+        lower=0,
+        coords=coords,
+        name=f"{c}-status",
+        mask=active,
+        binary=not n._linearized_uc,
+    )
 
 
 def define_start_up_variables(n, sns, c):
@@ -51,7 +58,14 @@ def define_start_up_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
-    n.model.add_variables(upper=1, lower=0, coords=coords, name=f"{c}-start_up", mask=active, binary=not n._linearized_uc)
+    n.model.add_variables(
+        upper=1,
+        lower=0,
+        coords=coords,
+        name=f"{c}-start_up",
+        mask=active,
+        binary=not n._linearized_uc,
+    )
 
 
 def define_shut_down_variables(n, sns, c):
@@ -63,7 +77,12 @@ def define_shut_down_variables(n, sns, c):
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
     n.model.add_variables(
-        upper=1, lower=0, coords=coords, name=f"{c}-shut_down", mask=active, binary=not n._linearized_uc
+        upper=1,
+        lower=0,
+        coords=coords,
+        name=f"{c}-shut_down",
+        mask=active,
+        binary=not n._linearized_uc,
     )
 
 

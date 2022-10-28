@@ -327,7 +327,7 @@ def test_shut_down_costs(api):
 
     optimize(n, api)
 
-    #assumes that generator gas shuts down down after 4th time step -> could argue its not correct 
+    # assumes that generator gas shuts down down after 4th time step -> could argue its not correct
     assert n.objective == 358000
 
 
