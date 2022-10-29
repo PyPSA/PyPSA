@@ -9,11 +9,11 @@ Created on Mon Jan 31 18:29:48 2022.
 import os
 
 import numpy as np
+import pandapower as pp
 import pandas as pd
 import pytest
 
 import pypsa
-import pandapower as pp
 
 SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 SOLVER_NAME = "glpk"
@@ -69,14 +69,23 @@ def pandapower_network():
     # create empty net
     net = pp.create_empty_network()
     # create buses
-    bus1 = pp.create_bus(net, vn_kv=20., name="Bus 1")
+    bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
     bus3 = pp.create_bus(net, vn_kv=0.4, name="Bus 3")
     # create bus elements
     pp.create_ext_grid(net, bus=bus1, vm_pu=1.02, name="Grid Connection")
     pp.create_load(net, bus=bus3, p_mw=0.100, q_mvar=0.05, name="Load")
-    pp.create_shunt(net, bus=bus3, p_mw=0, q_mvar=0.005, name='Shunt')
+    pp.create_shunt(net, bus=bus3, p_mw=0, q_mvar=0.005, name="Shunt")
     # create branch elements
-    pp.create_transformer(net, hv_bus=bus1, lv_bus=bus2, std_type="0.4 MVA 20/0.4 kV", name="Trafo")
-    pp.create_line(net, from_bus=bus2, to_bus=bus3, length_km=0.1, std_type="NAYY 4x50 SE", name="Line")
+    pp.create_transformer(
+        net, hv_bus=bus1, lv_bus=bus2, std_type="0.4 MVA 20/0.4 kV", name="Trafo"
+    )
+    pp.create_line(
+        net,
+        from_bus=bus2,
+        to_bus=bus3,
+        length_km=0.1,
+        std_type="NAYY 4x50 SE",
+        name="Line",
+    )
     return net

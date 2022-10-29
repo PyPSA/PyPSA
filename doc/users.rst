@@ -86,4 +86,3 @@ Companies and Non-Governmental Organisations
 * `spire <https://www.spireenergy.com/>`_
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
-
