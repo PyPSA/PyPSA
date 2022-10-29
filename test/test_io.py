@@ -80,3 +80,14 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
     )
+
+
+def test_import_from_pandapower_network(pandapower_network):
+    net = pandapower_network
+    network = pypsa.Network()
+    network.import_from_pandapower_net(net)
+    assert len(network.buses) == len(net.bus)
+    assert len(network.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+    assert len(network.loads) == len(net.load)
+    assert len(network.transformers) == len(net.trafo)
+    assert len(network.shunt_impedances) == len(net.shunt)
