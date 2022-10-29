@@ -45,12 +45,16 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ and used PyPSA for further `research articles <https://ideas.repec.org/a/gam/jeners/v15y2022i12p4233-d834443.html>`_.
+
+* Think-tank `Ember <https://ember-climate.org/>`_ developed a standalone `PyPSA-UK model <https://github.com/ember-climate/pypsa-uk>`_ for a `study on UK gas phase-out <https://ember-climate.org/insights/research/uk-gas-power-phase-out/>`_.
 
 Companies and Non-Governmental Organisations
 ============================================
 
-* `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, and for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_
+* `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
 
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, and for a study in 2021 `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_
 
@@ -77,3 +81,5 @@ Companies and Non-Governmental Organisations
 * `spire <https://www.spireenergy.com/>`_
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
+
+* `Meridian Economics <https://www.meridian-ally.com/>`_, a consultancy, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa `energy system planning studies <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_

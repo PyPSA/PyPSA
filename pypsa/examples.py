@@ -5,12 +5,22 @@ This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.
 """
 
-import logging
-from urllib.request import urlretrieve as _retrieve
-import os
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2021-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
 
+import logging
+import os
 from pathlib import Path
-from .components import Network
+from urllib.request import urlretrieve as _retrieve
+
+import pandas as pd
+
+from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +60,10 @@ def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
     return str(path)
 
 
-def ac_dc_meshed(update=False, from_master=False):
+def ac_dc_meshed(update=False, from_master=False, remove_link_p_set=True):
     """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA repository.
+    Load the meshed AC-DC network example of pypsa stored in the PyPSA
+    repository.
 
     Parameters
     ----------
@@ -64,14 +75,16 @@ def ac_dc_meshed(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "ac-dc-meshed"
     repofile = "examples/ac-dc-meshed/ac-dc-data.nc"
     path = _retrieve_if_not_local(
         name, repofile, update=update, from_master=from_master
     )
-    return Network(path)
+    n = Network(path)
+    if remove_link_p_set:
+        n.links_t.p_set = pd.DataFrame(index=n.snapshots)
+    return n
 
 
 def storage_hvdc(update=False, from_master=False):
@@ -86,7 +99,6 @@ def storage_hvdc(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "storage-hvdc"
     repofile = "examples/opf-storage-hvdc/storage-hvdc.nc"
@@ -108,7 +120,6 @@ def scigrid_de(update=False, from_master=False):
     Returns
     -------
     pypsa.Network
-
     """
     name = "scigrid-de"
     repofile = "examples/scigrid-de/scigrid-with-load-gen-trafos.nc"

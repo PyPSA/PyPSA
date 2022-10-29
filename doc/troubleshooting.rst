@@ -107,11 +107,9 @@ For example:
 Reporting bugs/issues
 =====================
 
-Please do not contact the developers directly.
-
 Instead, please post questions to the `mailing list
-<https://groups.google.com/group/pypsa>`_.
+<https://groups.google.com/group/pypsa>`_. This is preferred over contacting the
+developers directly.
 
-If you're relatively certain you've found a bug, raise it as an issue
-on the `PyPSA Github Issues page
+If you found a bug, raise it as an issue on the `PyPSA Github Issues page
 <https://github.com/PyPSA/PyPSA/issues>`_ or prepare a pull request.

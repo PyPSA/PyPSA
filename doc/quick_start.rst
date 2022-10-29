@@ -4,9 +4,9 @@ Quick Start
 
 For installation instructions see :doc:`installation`.
 
-See also the :doc:`examples-basic` examples with executable Jupyter notebooks. 
+See also the :doc:`examples-basic` examples with executable Jupyter notebooks.
 
-In principle, PyPSA networks can be assigned with 
+In principle, PyPSA networks can be assigned with
 
 .. code:: python
 
@@ -15,7 +15,7 @@ In principle, PyPSA networks can be assigned with
 
     network = pypsa.Network()
 
-Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth:`pypsa.Network.madd` 
+Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth:`pypsa.Network.madd`
 
 .. code:: python
 
@@ -25,7 +25,7 @@ Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth
     for i in range(n_buses):
         network.add("Bus", "My bus {}".format(i),  v_nom=20.)
 
-The same counts for lines, generators and loads, see the list of all components :doc:`components`. 
+The same counts for lines, generators and loads, see the list of all components :doc:`components`.
 
 .. code:: python
 
@@ -51,4 +51,4 @@ The same counts for lines, generators and loads, see the list of all components 
 		q_set=100)
 
 
-Note that fixed values of active and inactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview. 
+Note that fixed values of active and reactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview.

@@ -1,7 +1,10 @@
-import pypsa
+# -*- coding: utf-8 -*-
 import os
+
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
 
 
 @pytest.fixture
@@ -20,6 +23,7 @@ def ac_dc_network_r():
 def test_lpf(ac_dc_network, ac_dc_network_r):
     n = ac_dc_network
     n_r = ac_dc_network_r
+    n.links_t.p_set = n_r.links_t.p_set
 
     n.lpf(snapshots=n.snapshots)
 

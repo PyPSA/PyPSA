@@ -1,11 +1,5 @@
+# -*- coding: utf-8 -*-
 
-## Copyright 2015-2021 PyPSA Developers
-
-## You can find the list of PyPSA Developers at
-## https://pypsa.readthedocs.io/en/latest/developers.html
-
-## PyPSA is released under the open source MIT License, see
-## https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt
 
 """
 Tools for fast Pyomo linear problem building.
@@ -14,31 +8,38 @@ Essentially this library replaces Pyomo expressions with more strict
 objects with a pre-defined affine structure.
 """
 
-__author__ = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-__copyright__ = ("Copyright 2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-                 "MIT License")
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
-from pyomo.environ import Constraint, Objective, Var, ComponentUID, minimize
-from pyomo.core.expr.numeric_expr import LinearExpression
-from pyomo.core.expr.logical_expr import inequality
-from pyomo.core.base.constraint import _GeneralConstraintData
-
-import pyomo
+import gc
+import os
+import tempfile
 from contextlib import contextmanager
-from six.moves import cPickle as pickle
-import gc, os, tempfile
 
+from pyomo.core.base.constraint import _GeneralConstraintData
+from pyomo.core.expr.logical_expr import inequality
+from pyomo.core.expr.numeric_expr import LinearExpression
+from pyomo.environ import Constraint, Objective, Var, minimize
+from six.moves import cPickle as pickle
 
 # =============================================================================
 # Tools for solving with pyomo
 # =============================================================================
 
+
 class LExpression(object):
-    """Affine expression of optimisation variables.
+    """
+    Affine expression of optimisation variables.
 
     Affine expression of the form:
 
@@ -49,10 +50,9 @@ class LExpression(object):
     variables : list of tuples of coefficients and variables
         e.g. [(coeff1,var1),(coeff2,var2),...]
     constant : float
-
     """
 
-    def __init__(self,variables=None,constant=0.):
+    def __init__(self, variables=None, constant=0.0):
 
         if variables is None:
             self.variables = []
@@ -64,42 +64,48 @@ class LExpression(object):
     def __repr__(self):
         return "{} + {}".format(self.variables, self.constant)
 
-
-    def __mul__(self,constant):
+    def __mul__(self, constant):
         try:
             constant = float(constant)
         except:
             logger.error("Can only multiply an LExpression with a float!")
             return None
-        return LExpression([(constant*item[0],item[1]) for item in self.variables],
-                           constant*self.constant)
+        return LExpression(
+            [(constant * item[0], item[1]) for item in self.variables],
+            constant * self.constant,
+        )
 
-    def __rmul__(self,constant):
+    def __rmul__(self, constant):
         return self.__mul__(constant)
 
-    def __add__(self,other):
+    def __add__(self, other):
         if isinstance(other, LExpression):
-            return LExpression(self.variables + other.variables,self.constant+other.constant)
+            return LExpression(
+                self.variables + other.variables, self.constant + other.constant
+            )
         else:
             try:
                 constant = float(other)
             except:
-                logger.error("Can only add an LExpression to another LExpression or a constant!")
+                logger.error(
+                    "Can only add an LExpression to another LExpression or a constant!"
+                )
                 return None
-            return LExpression(self.variables[:],self.constant+constant)
+            return LExpression(self.variables[:], self.constant + constant)
 
-
-    def __radd__(self,other):
+    def __radd__(self, other):
         return self.__add__(other)
 
     def __pos__(self):
         return self
 
     def __neg__(self):
-        return -1*self
+        return -1 * self
+
 
 class LConstraint(object):
-    """Constraint of optimisation variables.
+    """
+    Constraint of optimisation variables.
 
     Linear constraint of the form:
 
@@ -110,10 +116,9 @@ class LConstraint(object):
     lhs : LExpression
     sense : string
     rhs : LExpression
-
     """
 
-    def __init__(self,lhs=None,sense="==",rhs=None):
+    def __init__(self, lhs=None, sense="==", rhs=None):
 
         if lhs is None:
             self.lhs = LExpression()
@@ -130,15 +135,18 @@ class LConstraint(object):
     def __repr__(self):
         return "{} {} {}".format(self.lhs, self.sense, self.rhs)
 
-def _build_sum_expression(variables, constant=0.):
+
+def _build_sum_expression(variables, constant=0.0):
     expr = LinearExpression()
     expr.linear_vars = [item[1] for item in variables]
     expr.linear_coefs = [item[0] for item in variables]
     expr.constant = constant
     return expr
 
-def l_constraint(model,name,constraints,*args):
-    """A replacement for pyomo's Constraint that quickly builds linear
+
+def l_constraint(model, name, constraints, *args):
+    """
+    A replacement for pyomo's Constraint that quickly builds linear
     constraints.
 
     Instead of
@@ -175,15 +183,16 @@ def l_constraint(model,name,constraints,*args):
         A dictionary of constraints (see format above)
     *args :
         Indices of the constraints
-
     """
 
-    setattr(model,name,Constraint(*args,noruleinit=True))
-    v = getattr(model,name)
-    for i in v._index:
+    setattr(model, name, Constraint(*args, noruleinit=True))
+    v = getattr(model, name)
+    for i in v._index_set:
         c = constraints[i]
         if isinstance(c, LConstraint):
-            variables = c.lhs.variables + [(-item[0],item[1]) for item in c.rhs.variables]
+            variables = c.lhs.variables + [
+                (-item[0], item[1]) for item in c.rhs.variables
+            ]
             sense = c.sense
             constant = c.rhs.constant - c.lhs.constant
         else:
@@ -192,7 +201,7 @@ def l_constraint(model,name,constraints,*args):
             constant = c[2]
 
         sum_expr = _build_sum_expression(variables)
-        
+
         if sense == "==":
             constr_expr = sum_expr == constant
         elif sense == "<=":
@@ -203,15 +212,16 @@ def l_constraint(model,name,constraints,*args):
             lo, hi = constant
             constr_expr = inequality(lo, sum_expr, hi)
         else:
-            raise KeyError('`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense))
+            raise KeyError(
+                '`sense` must be one of "==","<=",">=","><"; got: {}'.format(sense)
+            )
 
         v._data[i] = _GeneralConstraintData(constr_expr, v)
 
 
-def l_objective(model,objective=None, sense=minimize):
+def l_objective(model, objective=None, sense=minimize):
     """
-    A replacement for pyomo's Objective that quickly builds linear
-    objectives.
+    A replacement for pyomo's Objective that quickly builds linear objectives.
 
     Instead of
 
@@ -232,30 +242,38 @@ def l_objective(model,objective=None, sense=minimize):
     model : pyomo.environ.ConcreteModel
     objective : LExpression
     sense : minimize / maximize
-
     """
 
     if objective is None:
         objective = LExpression()
 
-    #initialise with a dummy
-    model.objective = Objective(expr = 0., sense=sense)
-    model.objective._expr = _build_sum_expression(objective.variables, constant=objective.constant)
+    # initialise with a dummy
+    model.objective = Objective(expr=0.0, sense=sense)
+    model.objective._expr = _build_sum_expression(
+        objective.variables, constant=objective.constant
+    )
+
 
 def free_pyomo_initializers(obj):
     obj.construct()
     if isinstance(obj, Var):
-        attrs = ('_bounds_init_rule', '_bounds_init_value',
-                 '_domain_init_rule', '_domain_init_value',
-                 '_value_init_rule', '_value_init_value')
+        attrs = (
+            "_bounds_init_rule",
+            "_bounds_init_value",
+            "_domain_init_rule",
+            "_domain_init_value",
+            "_value_init_rule",
+            "_value_init_value",
+        )
     elif isinstance(obj, Constraint):
-        attrs = ('rule', '_init_expr')
+        attrs = ("rule", "_init_expr")
     else:
         raise NotImplementedError
 
     for attr in attrs:
         if hasattr(obj, attr):
             setattr(obj, attr, None)
+
 
 @contextmanager
 def empty_model(model):
@@ -273,7 +291,7 @@ def empty_model(model):
             obj._bounds_init_rule = None
 
     fd, fn = tempfile.mkstemp()
-    with os.fdopen(fd, 'wb') as f:
+    with os.fdopen(fd, "wb") as f:
         pickle.dump(model.__getstate__(), f, -1)
 
     model.__dict__.clear()
@@ -283,7 +301,7 @@ def empty_model(model):
     yield
 
     logger.debug("Reloading pyomo model")
-    with open(fn, 'rb') as f:
+    with open(fn, "rb") as f:
         state = pickle.load(f)
     os.remove(fn)
     model.__setstate__(state)
@@ -296,6 +314,7 @@ def empty_model(model):
 
     logger.debug("Reloaded pyomo model")
 
+
 @contextmanager
 def empty_network(network):
     logger.debug("Storing pypsa timeseries to disk")
@@ -307,7 +326,7 @@ def empty_network(network):
         setattr(network, attr, None)
 
     fd, fn = tempfile.mkstemp()
-    with os.fdopen(fd, 'wb') as f:
+    with os.fdopen(fd, "wb") as f:
         pickle.dump(panels, f, -1)
 
     del panels
@@ -316,31 +335,39 @@ def empty_network(network):
     yield
 
     logger.debug("Reloading pypsa timeseries from disk")
-    with open(fn, 'rb') as f:
+    with open(fn, "rb") as f:
         panels = pickle.load(f)
     os.remove(fn)
     for attr, pnl in panels.items():
         setattr(network, attr, pnl)
 
+
 def patch_optsolver_free_model_before_solving(opt, model):
     orig_apply_solver = opt._apply_solver
+
     def wrapper():
         with empty_model(model):
             return orig_apply_solver()
+
     opt._apply_solver = wrapper
+
 
 def patch_optsolver_record_memusage_before_solving(opt, network):
     try:
         import resource
 
         orig_apply_solver = opt._apply_solver
+
         def wrapper():
             network.max_memusage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             return orig_apply_solver()
+
         opt._apply_solver = wrapper
         return True
     except ImportError:
-        logger.debug("Unable to measure memory usage, since the resource library is missing")
+        logger.debug(
+            "Unable to measure memory usage, since the resource library is missing"
+        )
         return False
 
 

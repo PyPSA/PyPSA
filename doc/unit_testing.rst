@@ -3,7 +3,7 @@ Unit Testing
 ########################
 
 
-Unit testing is performed with ``py.test`` that can be installed via
+Unit testing is performed with ``pytest`` that can be installed via
 
 .. code::
 
@@ -21,7 +21,7 @@ Or to run individual tests:
 
     pytest test_lpf_against_pypower.py
 
-Power flow is tested against PYPOWER (the Python implementation of MATPOWER) 
+Power flow is tested against PYPOWER (the Python implementation of MATPOWER)
 and pandapower.
 
 .. warning::

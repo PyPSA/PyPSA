@@ -37,6 +37,14 @@ PyPSA: Python for Power System Analysis
     :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
     :alt: Chat on Gitter
 
+.. image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
+    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
+    :alt: pre-commit.ci status
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/psf/black
+   :alt: Code style: black
+
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is an open source toolbox for
@@ -54,7 +62,7 @@ Automation and Applied
 Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
 `Karlsruhe Institute of
 Technology <http://www.kit.edu/english/index.php>`_ funded by the
-`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the 
+`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the
 `Renewable Energy Group
 <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
 at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
@@ -86,6 +94,7 @@ Documentation
 * :doc:`examples-basic`
 * :doc:`examples-lopf`
 * :doc:`examples-sector_coupling`
+* :doc:`examples-models`
 * :doc:`examples-other`
 
 .. toctree::
@@ -97,6 +106,7 @@ Documentation
    examples-basic
    examples-lopf
    examples-sector_coupling
+   examples-models
    examples-other
 
 

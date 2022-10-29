@@ -7,17 +7,121 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-**New Features**
-
+* A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ a migration guide for extra functionalities can be found at `here
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_
+* A new module for a quick calculation of system relevant quantities was introduced. It is directly accessible via the new accessor `Network.statistics` which returns a table of values often calculated manually. At the same time `Network.statistics` allows to call individual functions, as `capex`, `opex`, `capacity_factor` etc.
+* Add reference to `Discord server <https://discord.gg/AnuJBk23FU>`_ for support and discussion.
 * Restore import of pandapower networks. Now, some issues regarding the transformer component and indexing are fixed. Shunts can now also be imported. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
 
+
+
+PyPSA 0.20.1 (6th October 2022)
+==============================
+
+* The representation of networks was modified to show the number of components and snapshots.
+* The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.
+* When applying network clustering algorithms, per unit time series are now aggregated using a capacity-weighted average and default aggregation strategies were adjusted.
+* The value of ``n.objective`` is now set to NaN for failed optimisation runs.
+* Added example notebook on how to model redispatch with PyPSA.
+* Added new network plotting example.
+* Bugfix for non-pyomo version of ``n.sclopf()``.
+* Accept ``pathlib.Path`` objects when importing networks with ``pypsa.Network()``.
+* Addressed ``.iteritems()`` deprecations.
+
+
+PyPSA 0.20.0 (26th July 2022)
+==============================
+
+This release contains new features for plotting and storing metadata with Network objects.
+
+* A new attribute ``n.meta`` was added to the Network object. This can be an arbitrary dictionary, and is used to store meta data about the network.
+
+* Improved support for individually normed colorbars in ``n.plot()`` for buses, lines, links, transformers with keyword arguments ``bus_norm``, ``line_norm``, ``link_norm``, ``transformer_norm``.
+
+  .. code-block:: python
+    :caption: Colorbar plotting example
+
+    import pypsa
+    import matplotlib.pyplot as plt
+    n = pypsa.examples.ac_dc_meshed()
+    norm = plt.Normalize(vmin=0, vmax=10)
+    n.plot(
+        bus_colors=n.buses.x,
+        bus_cmap='viridis',
+        bus_norm=norm
+    )
+    plt.colorbar(plt.cm.ScalarMappable(cmap='viridis', norm=norm))
+
+* New utility functions to add legends for line widths (:func:`pypsa.plot.add_legend_lines`), circles and pie chart areas (:func:`pypsa.plot.add_legend_circles`), and patch colors (:func:`pypsa.plot.add_legend_patches`).
+  See the following example:
+
+  .. code-block:: python
+    :caption: Legend plotting example
+
+    import pypsa
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    from pypsa.plot import add_legend_circles
+
+    n = pypsa.examples.ac_dc_meshed()
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    n.plot(ax=ax, bus_sizes=1)
+
+    add_legend_circles(
+        ax,
+        [1, 0.5],
+        ["reference size", "reference size 2"],
+        legend_kw=dict(frameon=False, bbox_to_anchor=(1,0.1))
+    )
+
+* When iterating over components of a Subnetwork, only a those assets are included in the dataframes which are included in the subnetwork.
+
+* In ``n.plot()``, compute boundaries in all cases for consistent circle sizes. This is realised by setting a new default margin of 0.05.
+
+* Compatibility with pyomo 6.4.1.
+
+* Removed ``pypsa.stats`` module.
+
+* Extended defaults for the clustering of attributes in ``pypsa.networkclustering``.
+
+* Removed deprecated clustering algorithms in ``pypsa.networkclustering``.
+
+* Improved documentation and README.
+
+* Fix a few deprecations.
+
+* Improved test coverage, e.g. when copying networks.
+
+* Testing: ``pypower`` is not importable with newest numpy versions. Skip test if import fails.
+
+Special thanks for this release to @Cellophil,
+@txelldm and @rockstaedt for improving test coverage and documentation.
+
+
+PyPSA 0.19.3 (22nd April 2022)
+==============================
+
+* Apply pre-commit formats to support development (incl. black formatting,
+  jupyter cleanup, import sorting, preventing large file uploads). This will
+  distort ``git blame`` functionality, which can be fixed by running ``git
+  config blame.ignoreRevsFile .git-blame-ignore-revs`` inside the PyPSA
+  repository. Run ``pre-commit install`` to set up locally.
+* Change message when exporting and importing networks without a set ``network_name``.
+  Fixes [`#381 <https://github.com/PyPSA/PyPSA/issues/381>`_].
+* Greedy Modularity Maximisation was introduced as new spatial
+  clustering method [`#377 <https://github.com/PyPSA/PyPSA/pull/377>`_].
+
+PyPSA 0.19.2 (7th March 2022)
+=============================
+
+* Add standard line type for 750 kV transmission line.
 
 PyPSA 0.19.1 (18th February 2022)
 =================================
 
-**Bugs and Compatibility**
-
-* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.   
+* When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.
 
 
 PyPSA 0.19.0 (11th February 2022)
@@ -61,7 +165,7 @@ open-source HiGHS solver.
 
 * The names of the indexes in static dataframes are now set to the component
   names. So, the index of ``n.generators`` has the name 'Generator'. The same
-  accounts for the columns of the timeseries.  
+  accounts for the columns of the timeseries.
 
 * The snapshot levels of a multi-indexed snapshot were renamed to ['period',
   'timestep'], the name of the index was set to 'snapshot'. This makes the
@@ -69,7 +173,7 @@ open-source HiGHS solver.
 
 **Bugs and Compatibility**
 
-* Combatibility with ``pandas>=1.4``.
+* Compatibility with ``pandas>=1.4``.
 
 * Drop support for Python 3.6 in accordance with its
   [end-of-life](https://endoflife.date/python).
@@ -81,7 +185,7 @@ open-source HiGHS solver.
 
 * When running ``network.lopf(pyomo=False)``, the ramp limits did not take
   the time step right before the optimization horizon into account (relevant for
-  rolling horizon optimization). This is now fixed.  
+  rolling horizon optimization). This is now fixed.
 
 * Fix bug when multi-links are defined but the network has no links.
 
@@ -106,7 +210,7 @@ PyPSA 0.18.1 (15th October 2021)
   ``busmap_by_spectral_clustering()``, ``spectral_clustering()``, ``busmap_by_louvain()``,
   ``louvain_clustering()``, ``busmap_by_rectangular_grid()``, ``rectangular_grid_clustering()``
   and ``stubs_clustering()`` were deprecated and will be removed in v0.20.
-  
+
 * Distance measures for function ``busmap_by_spectral()`` and ``busmap_by_louvain()``
   were adapted to electrical distance (``s_nom/|r+i*x|``) (before: ``num_parallel``)
 
@@ -1187,7 +1291,7 @@ main component pandas.DataFrame.
 Release process
 ===============
 
-* Update ``release_notes.rst``
+* Update ``doc/release_notes.rst``
 * Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
 * ``git commit`` and put release notes in commit message
 * ``git tag v0.x.0``

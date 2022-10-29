@@ -1,6 +1,8 @@
 component,variable,marginal_cost,nominal,handle_separately
 Generator,p,True,False,False
 Generator,status,False,False,True
+Generator,start_up,False,False,True
+Generator,shut_down,False,False,True
 Generator,p_nom,False,True,False
 Line,s,False,False,False
 Line,s_nom,False,True,False
@@ -16,4 +18,3 @@ StorageUnit,p_store,False,False,False
 StorageUnit,state_of_charge,False,False,False
 StorageUnit,p_nom,False,True,False
 StorageUnit,spill,False,False,True
-

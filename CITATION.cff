@@ -2,7 +2,7 @@ cff-version: 1.1.0
 message: "If you use this package, please cite the corresponding manuscript in Journal of Open Research Software."
 title: "PyPSA: Python for Power System Analysis"
 repository: https://github.com/pypsa/pypsa
-version: 0.19.1
+version: 0.19.3
 license: MIT
 journal: Journal of Open Research Software
 doi: 10.5334/jors.188
@@ -30,3 +30,5 @@ authors:
   - family-names: Schlachtberger
     given-names: David
     orcid: https://orcid.org/0000-0002-8167-8213
+  - family-names: Glaum
+    given-names: Philipp
