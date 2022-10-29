@@ -19,6 +19,8 @@ Universities and Research Institutes
 
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022
+
 * `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
 
 * `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_, `doi:10.1016/j.apenergy.2021.116936 <https://doi.org/10.1016/j.apenergy.2021.116936>`_
@@ -49,9 +51,6 @@ Universities and Research Institutes
 
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
-* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ and used PyPSA for further `research articles <https://ideas.repec.org/a/gam/jeners/v15y2022i12p4233-d834443.html>`_.
-
-* Think-tank `Ember <https://ember-climate.org/>`_ developed a standalone `PyPSA-UK model <https://github.com/ember-climate/pypsa-uk>`_ for a `study on UK gas phase-out <https://ember-climate.org/insights/research/uk-gas-power-phase-out/>`_.
 
 Companies and Non-Governmental Organisations
 ============================================
