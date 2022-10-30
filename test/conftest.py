@@ -14,9 +14,11 @@ import pandas as pd
 import pytest
 
 import pypsa
+
 <<<<<<< HEAD
 import pandapower as pp
 import pandapower.networks as pn
+
 =======
 >>>>>>> 52d2be4c245b7f26b39ff2d2d7679f0df5d92dbb
 

@@ -1190,7 +1190,9 @@ def import_from_pandapower_net(
     >>> network = pypsa.Network()
     >>> network.import_from_pandapower_net(net, extra_line_data=True)
     """
-    logger.warning("Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers.")
+    logger.warning(
+        "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."
+    )
 
     d = {}
 
@@ -1198,38 +1200,59 @@ def import_from_pandapower_net(
         {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0}, index=net.bus.name
     )
 
-    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values,"v_mag_pu_set"] = net.gen.vm_pu.values
+    d["Bus"].loc[
+        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
+    ] = net.gen.vm_pu.values
 
-    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values,"v_mag_pu_set"] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[
+        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
+    ] = net.ext_grid.vm_pu.values
 
+    d["Load"] = pd.DataFrame(
+        {
+            "p_set": (net.load.scaling * net.load.p_mw).values,
+            "q_set": (net.load.scaling * net.load.q_mvar).values,
+            "bus": net.bus.name.loc[net.load.bus].values,
+        },
+        index=net.load.name,
+    )
 
-    d["Load"] = pd.DataFrame({"p_set" : (net.load.scaling*net.load.p_mw).values,
-                              "q_set" : (net.load.scaling*net.load.q_mvar).values,
-                              "bus" : net.bus.name.loc[net.load.bus].values},
-                              index=net.load.name)
+    # deal with PV generators
+    _tmp_gen = pd.DataFrame(
+        {
+            "p_set": (net.gen.scaling * net.gen.p_mw).values,
+            "q_set": 0.0,
+            "bus": net.bus.name.loc[net.gen.bus].values,
+            "control": "PV",
+        },
+        index=net.gen.name,
+    )
 
-    #deal with PV generators
-    _tmp_gen = pd.DataFrame({"p_set" : (net.gen.scaling*net.gen.p_mw).values,
-                             "q_set" : 0.,
-                             "bus" : net.bus.name.loc[net.gen.bus].values,
-                             "control" : "PV"},
-                             index=net.gen.name)
+    # deal with PQ "static" generators
+    _tmp_sgen = pd.DataFrame(
+        {
+            "p_set": (net.sgen.scaling * net.sgen.p_mw).values,
+            "q_set": (net.sgen.scaling * net.sgen.q_mvar).values,
+            "bus": net.bus.name.loc[net.sgen.bus].values,
+            "control": "PQ",
+        },
+        index=net.sgen.name,
+    )
 
-    #deal with PQ "static" generators
-    _tmp_sgen = pd.DataFrame({"p_set" : (net.sgen.scaling*net.sgen.p_mw).values,
-                              "q_set" : (net.sgen.scaling*net.sgen.q_mvar).values,
-                              "bus" : net.bus.name.loc[net.sgen.bus].values,
-                              "control" : "PQ"},
-                              index=net.sgen.name)
-
-    _tmp_ext_grid = pd.DataFrame({"control" : "Slack",
-                                  "p_set" : 0.,
-                                  "q_set" : 0.,
-                                  "bus" : net.bus.name.loc[net.ext_grid.bus].values},
-                                  index=net.ext_grid.name.fillna("External Grid"))
+    _tmp_ext_grid = pd.DataFrame(
+        {
+            "control": "Slack",
+            "p_set": 0.0,
+            "q_set": 0.0,
+            "bus": net.bus.name.loc[net.ext_grid.bus].values,
+        },
+        index=net.ext_grid.name.fillna("External Grid"),
+    )
 
     # concat all generators and index according to option
-    d["Generator"] = pd.concat([_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index)
+    d["Generator"] = pd.concat(
+        [_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index
+    )
 
     if extra_line_data == False:
         d["Line"] = pd.DataFrame(
