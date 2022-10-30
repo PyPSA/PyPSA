@@ -9,12 +9,16 @@ Created on Mon Jan 31 18:29:48 2022.
 import os
 
 import numpy as np
+import pandapower as pp
 import pandas as pd
 import pytest
 
 import pypsa
+<<<<<<< HEAD
 import pandapower as pp
 import pandapower.networks as pn
+=======
+>>>>>>> 52d2be4c245b7f26b39ff2d2d7679f0df5d92dbb
 
 SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 SOLVER_NAME = "glpk"
