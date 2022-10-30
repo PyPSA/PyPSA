@@ -82,12 +82,15 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     )
 
 
-def test_import_from_pandapower_network(pandapower_network):
-    net = pandapower_network
-    network = pypsa.Network()
-    network.import_from_pandapower_net(net)
-    assert len(network.buses) == len(net.bus)
-    assert len(network.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
-    assert len(network.loads) == len(net.load)
-    assert len(network.transformers) == len(net.trafo)
-    assert len(network.shunt_impedances) == len(net.shunt)
+@pytest.mark.parametrize("use_pandapower_index", [True, False])
+@pytest.mark.parametrize("extra_line_data", [True, False])
+def test_import_from_pandapower_network(pandapower_custom_network, pandapower_cigre_network, extra_line_data, use_pandapower_index):
+    nets = [pandapower_custom_network, pandapower_cigre_network]
+    for net in nets:
+        network = pypsa.Network()
+        network.import_from_pandapower_net(net, use_pandapower_index=use_pandapower_index, extra_line_data=extra_line_data)
+        assert len(network.buses) == len(net.bus)
+        assert len(network.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+        assert len(network.loads) == len(net.load)
+        assert len(network.transformers) == len(net.trafo)
+        assert len(network.shunt_impedances) == len(net.shunt)
