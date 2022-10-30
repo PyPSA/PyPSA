@@ -1,20 +1,24 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pandapower as pp
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
-import pytest
 
 
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
-def test_pandapower_custom_case(pandapower_custom_network, use_pandapower_index, extra_line_data):
+def test_pandapower_custom_case(
+    pandapower_custom_network, use_pandapower_index, extra_line_data
+):
     net = pandapower_custom_network
     # because of phase angles, need to init with DC
     pp.runpp(net, calculate_voltage_angles=True, init="dc")
     n = pypsa.Network()
-    n.import_from_pandapower_net(net, use_pandapower_index=use_pandapower_index, extra_line_data=extra_line_data)
+    n.import_from_pandapower_net(
+        net, use_pandapower_index=use_pandapower_index, extra_line_data=extra_line_data
+    )
 
     # seed PF with LPF solution because of phase angle jumps
     n.lpf()
