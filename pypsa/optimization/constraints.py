@@ -127,12 +127,8 @@ def define_operational_constraints_for_committables(n, sns, c):
     ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
     ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
     ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
-    up_time_before_set = (
-        n.df(c)["up_time_before"].reindex(com_i)
-    )
-    down_time_before_set = (
-        n.df(c)["down_time_before"].reindex(com_i)
-    )
+    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
@@ -142,17 +138,19 @@ def define_operational_constraints_for_committables(n, sns, c):
         # get generators which are online until the first regarded snapshot
         until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
         ref = range(1, len(until_start_up) + 1)
-        up_time_before = until_start_up[
-            until_start_up.cumsum().eq(ref, axis=0)
-        ].sum()
-        up_time_before_set = up_time_before.clip(upper=min_up_time_set, lower=up_time_before_set)
+        up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
+        up_time_before_set = up_time_before.clip(
+            upper=min_up_time_set, lower=up_time_before_set
+        )
         # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
         ref = range(1, len(until_start_down) + 1)
         down_time_before = until_start_down[
             until_start_down.cumsum().eq(ref, axis=0)
         ].sum()
-        down_time_before_set = down_time_before.clip(upper=min_down_time_set, lower=down_time_before_set)
+        down_time_before_set = down_time_before.clip(
+            upper=min_down_time_set, lower=down_time_before_set
+        )
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
