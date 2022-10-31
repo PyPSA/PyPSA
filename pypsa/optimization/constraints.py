@@ -123,12 +123,12 @@ def define_operational_constraints_for_committables(n, sns, c):
     upper_p = max_pu * nominal
     min_up_time_set = n.df(c).min_up_time[com_i]
     min_down_time_set = n.df(c).min_down_time[com_i]
-    up_time_before_set = (
-        n.df(c)["up_time_before"].reindex(com_i).clip(lower=min_up_time_set)
-    )
-    down_time_before_set = (
-        n.df(c)["down_time_before"].reindex(com_i).clip(lower=min_down_time_set)
-    )
+    ramp_up_limit = n.df(c).ramp_limit_up[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
+    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i).clip(lower=min_up_time_set)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i).clip(lower=min_down_time_set)
     initially_up = up_time_before_set.astype(bool)
 
     # check if there are status calculated/fixed before given sns interval
@@ -147,11 +147,6 @@ def define_operational_constraints_for_committables(n, sns, c):
             until_start_down.cumsum().eq(ref, axis=0)
         ].sum()
 
-    ramp_up_limit = n.df(c).ramp_limit_up[com_i] * n.df(c)[nominal_attrs[c]]
-    ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
-    ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
-    ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
-
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
     n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", active)
@@ -166,8 +161,10 @@ def define_operational_constraints_for_committables(n, sns, c):
     lhs = start_up - status_diff
     n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", active)
 
+    rhs = pd.DataFrame(0, sns, com_i)
+    rhs.loc[sns[0], initially_up] = 1
     lhs = shut_down + status_diff
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-transition-shut-down", active)
+    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-shut-down", active)
 
     # min up time constraint
     def min_up_time(m, g, sn):
@@ -196,7 +193,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             lhs = ScalarLinearExpression((0,), (-1,))
         elif t < t_down - 1:
             for i in sns[0 : t + 1]:
-                lhs = lhs + start_up[i, g]
+                lhs = lhs + shut_down[i, g]
         else:
             for i in sns[t - t_down + 1 : t + 1]:
                 lhs = lhs + shut_down[i, g]
