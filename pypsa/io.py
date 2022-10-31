@@ -1317,7 +1317,6 @@ def import_from_pandapower_net(
             net.trafo.pfe_kw.values
             / net.trafo.sn_mva.values
             / 1000
-            * 1.0
             / net.trafo.sn_mva.values
         )
         b = np.sqrt(y**2 - g**2)
