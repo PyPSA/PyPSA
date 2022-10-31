@@ -1308,8 +1308,8 @@ def import_from_pandapower_net(
         s_nom = net.trafo.sn_mva.values
 
         # documented at https://pandapower.readthedocs.io/en/develop/elements/trafo.html?highlight=transformer#impedance-values
-        z = net.trafo.vk_percent.values / 100.0 * 1.0 / net.trafo.sn_mva.values
-        r = net.trafo.vkr_percent.values / 100.0 * 1.0 / net.trafo.sn_mva.values
+        z = net.trafo.vk_percent.values / 100. / net.trafo.sn_mva.values
+        r = net.trafo.vkr_percent.values / 100. / net.trafo.sn_mva.values
         x = np.sqrt(z**2 - r**2)
 
         y = net.trafo.i0_percent.values / 100.0
