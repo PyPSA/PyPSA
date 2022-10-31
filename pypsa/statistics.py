@@ -268,7 +268,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the operational expenditure in the network.
@@ -299,7 +299,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the supply of components in the network.
@@ -330,7 +330,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the withdrawal of components in the network.
@@ -361,7 +361,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the curtailment of components in the network.
@@ -388,7 +388,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -419,7 +419,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the revenue of components in the network.
@@ -455,7 +455,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the market value of components in the network.
