@@ -32,10 +32,10 @@ def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
     assert not df.empty
 
-    df = ac_dc_network_r.capex()
+    df = ac_dc_network_r.statistics.capex()
     assert not df.empty
 
-    df = ac_dc_network_r.opex()
+    df = ac_dc_network_r.statistics.opex()
     assert not df.empty
 
 
