@@ -127,8 +127,12 @@ def define_operational_constraints_for_committables(n, sns, c):
     ramp_down_limit = n.df(c).ramp_limit_down[com_i] * n.df(c)[nominal_attrs[c]]
     ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
     ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
-    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i).clip(lower=min_up_time_set)
-    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i).clip(lower=min_down_time_set)
+    up_time_before_set = (
+        n.df(c)["up_time_before"].reindex(com_i).clip(lower=min_up_time_set)
+    )
+    down_time_before_set = (
+        n.df(c)["down_time_before"].reindex(com_i).clip(lower=min_down_time_set)
+    )
     initially_up = up_time_before_set.astype(bool)
 
     # check if there are status calculated/fixed before given sns interval
