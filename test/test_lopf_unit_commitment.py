@@ -14,15 +14,15 @@ def test_unit_commitment(api):
     commitment.html and is not very comprehensive.
     """
 
-    nu = pypsa.Network()
+    n = pypsa.Network()
 
     snapshots = range(4)
 
-    nu.set_snapshots(snapshots)
+    n.set_snapshots(snapshots)
 
-    nu.add("Bus", "bus")
+    n.add("Bus", "bus")
 
-    nu.add(
+    n.add(
         "Generator",
         "coal",
         bus="bus",
@@ -32,7 +32,7 @@ def test_unit_commitment(api):
         p_nom=10000,
     )
 
-    nu.add(
+    n.add(
         "Generator",
         "gas",
         bus="bus",
@@ -42,17 +42,17 @@ def test_unit_commitment(api):
         p_nom=1000,
     )
 
-    nu.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
+    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    optimize(nu, api)
+    optimize(n, api)
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
 
-    equal(nu.generators_t.status.values, expected_status)
+    equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array([[4000, 6000, 5000, 0], [0, 0, 0, 800]], dtype=float).T
 
-    equal(nu.generators_t.p.values, expected_dispatch)
+    equal(n.generators_t.p.values, expected_dispatch)
 
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
@@ -62,15 +62,15 @@ def test_minimum_up_time(api):
     commitment.html and is not very comprehensive.
     """
 
-    nu = pypsa.Network()
+    n = pypsa.Network()
 
     snapshots = range(4)
 
-    nu.set_snapshots(snapshots)
+    n.set_snapshots(snapshots)
 
-    nu.add("Bus", "bus")
+    n.add("Bus", "bus")
 
-    nu.add(
+    n.add(
         "Generator",
         "coal",
         bus="bus",
@@ -80,7 +80,7 @@ def test_minimum_up_time(api):
         p_nom=10000,
     )
 
-    nu.add(
+    n.add(
         "Generator",
         "gas",
         bus="bus",
@@ -92,19 +92,19 @@ def test_minimum_up_time(api):
         p_nom=1000,
     )
 
-    nu.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
+    n.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
 
-    optimize(nu, api)
+    optimize(n, api)
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
-    equal(nu.generators_t.status.values, expected_status)
+    equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array(
         [[3900, 0, 4900, 3000], [100, 800, 100, 0]], dtype=float
     ).T
 
-    equal(nu.generators_t.p.values, expected_dispatch)
+    equal(n.generators_t.p.values, expected_dispatch)
 
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
@@ -114,15 +114,15 @@ def test_minimum_up_time_up_time_before(api):
     commitment.html and is not very comprehensive.
     """
 
-    nu = pypsa.Network()
+    n = pypsa.Network()
 
     snapshots = range(4)
 
-    nu.set_snapshots(snapshots)
+    n.set_snapshots(snapshots)
 
-    nu.add("Bus", "bus")
+    n.add("Bus", "bus")
 
-    nu.add(
+    n.add(
         "Generator",
         "coal",
         bus="bus",
@@ -132,7 +132,7 @@ def test_minimum_up_time_up_time_before(api):
         p_nom=10000,
     )
 
-    nu.add(
+    n.add(
         "Generator",
         "gas",
         bus="bus",
@@ -144,19 +144,19 @@ def test_minimum_up_time_up_time_before(api):
         p_nom=1000,
     )
 
-    nu.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
+    n.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
 
-    optimize(nu, api)
+    optimize(n, api)
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
-    equal(nu.generators_t.status.values, expected_status)
+    equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array(
         [[3900, 0, 4900, 3000], [100, 800, 100, 0]], dtype=float
     ).T
 
-    equal(nu.generators_t.p.values, expected_dispatch)
+    equal(n.generators_t.p.values, expected_dispatch)
 
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
@@ -166,13 +166,13 @@ def test_minimum_down_time(api):
     commitment.html and is not very comprehensive.
     """
 
-    nu = pypsa.Network()
+    n = pypsa.Network()
 
-    nu.set_snapshots(range(4))
+    n.set_snapshots(range(4))
 
-    nu.add("Bus", "bus")
+    n.add("Bus", "bus")
 
-    nu.add(
+    n.add(
         "Generator",
         "coal",
         bus="bus",
@@ -184,7 +184,7 @@ def test_minimum_down_time(api):
         p_nom=10000,
     )
 
-    nu.add(
+    n.add(
         "Generator",
         "gas",
         bus="bus",
@@ -194,17 +194,17 @@ def test_minimum_down_time(api):
         p_nom=4000,
     )
 
-    nu.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
+    n.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
 
-    optimize(nu, api)
+    optimize(n, api)
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
-    equal(nu.generators_t.status.values, expected_status)
+    equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array([[0, 0, 3000, 8000], [3000, 800, 0, 0]], dtype=float).T
 
-    equal(nu.generators_t.p.values, expected_dispatch)
+    equal(n.generators_t.p.values, expected_dispatch)
 
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
@@ -214,13 +214,13 @@ def test_minimum_down_time_up_time_before(api):
     commitment.html and is not very comprehensive.
     """
 
-    nu = pypsa.Network()
+    n = pypsa.Network()
 
-    nu.set_snapshots(range(4))
+    n.set_snapshots(range(4))
 
-    nu.add("Bus", "bus")
+    n.add("Bus", "bus")
 
-    nu.add(
+    n.add(
         "Generator",
         "coal",
         bus="bus",
@@ -232,7 +232,7 @@ def test_minimum_down_time_up_time_before(api):
         p_nom=10000,
     )
 
-    nu.add(
+    n.add(
         "Generator",
         "gas",
         bus="bus",
@@ -242,17 +242,17 @@ def test_minimum_down_time_up_time_before(api):
         p_nom=4000,
     )
 
-    nu.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
+    n.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
 
-    optimize(nu, api)
+    optimize(n, api)
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
-    equal(nu.generators_t.status.values, expected_status)
+    equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array([[0, 0, 3000, 8000], [3000, 800, 0, 0]], dtype=float).T
 
-    equal(nu.generators_t.p.values, expected_dispatch)
+    equal(n.generators_t.p.values, expected_dispatch)
 
 
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
@@ -282,6 +282,7 @@ def test_start_up_costs(api):
         committable=True,
         marginal_cost=70,
         p_min_pu=0.0,
+        up_time_before=1,
         start_up_cost=1000,
         p_nom=10000,
     )
@@ -359,6 +360,7 @@ def test_unit_commitment_rolling_horizon(api):
         committable=True,
         marginal_cost=50,
         p_min_pu=0.0,
+        up_time_before=1,
         min_down_time=2,
         start_up_cost=1000,
         p_nom=10000,

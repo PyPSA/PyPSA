@@ -134,6 +134,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         n.df(c)["down_time_before"].reindex(com_i)
     )
     initially_up = up_time_before_set.astype(bool)
+    initially_down = down_time_before_set.astype(bool)
 
     # check if there are status calculated/fixed before given sns interval
     if sns[0] != n.snapshots[0]:
@@ -209,19 +210,21 @@ def define_operational_constraints_for_committables(n, sns, c):
     n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", active)
 
     # up time before
-    timesteps = DataArray(range(1, len(sns) + 1), coords=[sns])
-    must_run = DataArray(min_up_time_set - up_time_before_set).clip(min=0)
-    mask = must_run >= timesteps
-    name = f"{c}-com-status-min_up_time_must_stay_up"
-    mask = mask & active if active is not None else mask
-    n.model.add_constraints(status, "=", 1, name, mask=mask)
+    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
+    if initially_up.any():
+        must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
+        mask = (must_stay_up >= timesteps) & initially_up
+        name = f"{c}-com-status-min_up_time_must_stay_up"
+        mask = mask & active if active is not None else mask
+        n.model.add_constraints(status, "=", 1, name, mask=mask)
 
     # down time before
-    must_not_run = DataArray(min_down_time_set - down_time_before_set).clip(min=0)
-    mask = must_not_run >= timesteps
-    name = f"{c}-com-status-min_down_time_must_stay_up"
-    mask = mask & active if active is not None else mask
-    n.model.add_constraints(status, "=", 0, name, mask=mask)
+    if initially_down.any():
+        must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
+        mask = (must_stay_down >= timesteps) & initially_down
+        name = f"{c}-com-status-min_down_time_must_stay_up"
+        mask = mask & active if active is not None else mask
+        n.model.add_constraints(status, "=", 0, name, mask=mask)
 
     # ramping constrains
     def ramp_up(m, g, sn):

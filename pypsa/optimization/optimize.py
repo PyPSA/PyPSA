@@ -152,7 +152,7 @@ def define_objective(n, sns):
     m.objective = merge(objective)
 
 
-def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
+def create_model(n, snapshots=None, multi_investment_periods=False, linearized_unit_commitment=False, **kwargs):
     """
     Create a linopy.Model instance from a pypsa network.
 
@@ -175,6 +175,7 @@ def create_model(n, snapshots=None, multi_investment_periods=False, **kwargs):
     linopy.model
     """
     sns = _as_snapshots(n, snapshots)
+    n._linearized_uc = linearized_unit_commitment
     n._multi_invest = int(multi_investment_periods)
     n.consistency_check()
 
@@ -431,7 +432,7 @@ def optimize(
     n._linearized_uc = linearized_unit_commitment
 
     n.consistency_check()
-    m = create_model(n, sns, multi_investment_periods, **model_kwargs)
+    m = create_model(n, sns, multi_investment_periods, linearized_unit_commitment, **model_kwargs)
     if extra_functionality:
         extra_functionality(n, sns)
     kwargs.setdefault("solver_name", "glpk")
