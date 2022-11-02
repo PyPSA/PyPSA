@@ -32,6 +32,12 @@ def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
     assert not df.empty
 
+    df = ac_dc_network_r.statistics.capex()
+    assert not df.empty
+
+    df = ac_dc_network_r.statistics.opex()
+    assert not df.empty
+
 
 def test_per_bus_carrier_unsolved(ac_dc_network):
     df = ac_dc_network.statistics(groupby=get_bus_and_carrier)

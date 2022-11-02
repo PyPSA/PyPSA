@@ -182,14 +182,16 @@ class StatisticsAccessor:
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
     def get_carrier(self, c):
+        """
+        Get the buses and nice carrier names for a component.
+        """
         return get_carrier(self._parent, c)
 
-    get_carrier.__doc__ = get_carrier.__doc__
-
     def get_bus_and_carrier(self, c):
+        """
+        Get the buses and nice carrier names for a component.
+        """
         return get_bus_and_carrier(self._parent, c)
-
-    get_bus_and_carrier.__doc__ = get_bus_and_carrier.__doc__
 
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
@@ -268,7 +270,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the operational expenditure in the network.
@@ -299,7 +301,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the supply of components in the network.
@@ -330,7 +332,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the withdrawal of components in the network.
@@ -361,7 +363,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the curtailment of components in the network.
@@ -388,7 +390,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -419,7 +421,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the revenue of components in the network.
@@ -455,7 +457,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="mean",
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
     ):
         """
         Calculate the market value of components in the network.
