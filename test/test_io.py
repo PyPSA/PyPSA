@@ -62,6 +62,12 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
     )
+    pd.testing.assert_frame_equal(
+        m.snapshot_weightings,
+        ac_dc_network_multiindexed.snapshot_weightings[
+            m.snapshot_weightings.columns
+        ],  # reset order
+    )
 
 
 def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
