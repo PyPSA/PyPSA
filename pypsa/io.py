@@ -212,8 +212,7 @@ class ImporterHDF5(Importer):
             if tab.startswith("/" + list_name + "_t/"):
                 attr = tab[len("/" + list_name + "_t/") :]
                 df = self.ds[tab]
-                if self.pypsa_version is not None and self.pypsa_version > [0, 13, 0]:
-                    df.columns = self.index[list_name][df.columns]
+                df.columns = self.index[list_name][df.columns]
                 yield attr, df
 
 
@@ -239,7 +238,10 @@ class ExporterHDF5(Exporter):
 
     def save_investment_periods(self, investment_periods):
         self.ds.put(
-            "/investment_periods", investment_periods, format="table", index=False
+            "/investment_periods",
+            investment_periods,
+            format="table",
+            index=False,
         )
 
     def save_static(self, list_name, df):
@@ -617,7 +619,10 @@ def import_from_netcdf(network, path, skip_time=False):
 
 
 def export_to_netcdf(
-    network, path=None, export_standard_types=False, least_significant_digit=None
+    network,
+    path=None,
+    export_standard_types=False,
+    least_significant_digit=None,
 ):
     """
     Export network and components to a netCDF file.
@@ -696,16 +701,15 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
-        logger.warning(
-            dedent(
-                """
-                Importing PyPSA from older version of PyPSA than current version.
-                Please read the release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html
-                carefully to prepare your network for import.
-                Currently used PyPSA version {}, imported network file PyPSA version {}.
-        """
-            ).format(current_pypsa_version, pypsa_version)
+        pypsa_version_str = ".".join(map(str, pypsa_version))
+        current_pypsa_version_str = ".".join(map(str, current_pypsa_version))
+        msg = (
+            f"Importing network from PyPSA version v{pypsa_version_str} while "
+            f"current version is v{current_pypsa_version_str}. Read the "
+            "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
+            "to prepare your network for import."
         )
+        logger.warning(msg)
 
     if pypsa_version is None or pypsa_version < [0, 18, 0]:
         network._multi_invest = 0
@@ -718,10 +722,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     if df is not None:
         # check if imported snapshots have MultiIndex
-        # backwards-compatibility: level "snapshot" was rename to "timestep"
-        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(
-            df.columns
-        )
+        snapshot_levels = set(["period", "timestep"]).intersection(df.columns)
         if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
@@ -1197,7 +1198,8 @@ def import_from_pandapower_net(
     d = {}
 
     d["Bus"] = pd.DataFrame(
-        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0}, index=net.bus.name
+        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
+        index=net.bus.name,
     )
 
     d["Bus"].loc[
@@ -1351,7 +1353,14 @@ def import_from_pandapower_net(
     )
     d["ShuntImpedance"] = d["ShuntImpedance"].fillna(0)
 
-    for c in ["Bus", "Load", "Generator", "Line", "Transformer", "ShuntImpedance"]:
+    for c in [
+        "Bus",
+        "Load",
+        "Generator",
+        "Line",
+        "Transformer",
+        "ShuntImpedance",
+    ]:
         network.import_components_from_dataframe(d[c], c)
 
     # amalgamate buses connected by closed switches
