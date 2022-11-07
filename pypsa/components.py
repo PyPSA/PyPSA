@@ -489,7 +489,10 @@ class Network(Basic):
             attrs = self.components[component]["attrs"]
 
             for k, default in attrs.default[attrs.varying].items():
-                pnl[k] = pnl[k].reindex(self._snapshots).fillna(default)
+                if pnl[k].empty:  # avoid expensive reindex operation
+                    pnl[k].index = self._snapshots
+                else:
+                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
 
         # NB: No need to rebind pnl to self, since haven't changed it
 
@@ -652,11 +655,6 @@ class Network(Basic):
         pyomo : bool, default True
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
-
-            .. deprecated:: 0.20
-
-               In PyPSA version 0.21 the default will change to ``pyomo=False``.
-
         solver_name : string
             Must be a solver name that pyomo recognises and that is
             installed, e.g. "glpk", "gurobi"
