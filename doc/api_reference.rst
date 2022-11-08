@@ -88,6 +88,13 @@ Contingency Analysis
    :members:
 
 
+Statistics
+----------
+
+.. automodule:: pypsa.statistics
+   :members:
+
+
 Plotting Networks
 -----------------
 
