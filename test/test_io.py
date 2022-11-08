@@ -25,11 +25,7 @@ def test_netcdf_io_Path(scipy_network, tmpdir):
 
 def test_netcdf_io_datetime(tmpdir):
     fn = os.path.join(tmpdir, "temp.nc")
-    exported_sns = pd.date_range(
-        start="2013-03-01",
-        end="2013-03-02",
-        freq='h'
-    )
+    exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
     n = pypsa.Network()
     n.set_snapshots(exported_sns)
     n.export_to_netcdf(fn)
