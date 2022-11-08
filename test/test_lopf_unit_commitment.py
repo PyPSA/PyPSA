@@ -229,6 +229,7 @@ def test_minimum_down_time_up_time_before(api):
         marginal_cost=20,
         min_down_time=3,
         down_time_before=2,
+        up_time_before=0,
         p_nom=10000,
     )
 
@@ -328,7 +329,6 @@ def test_shut_down_costs(api):
 
     optimize(n, api)
 
-    # assumes that generator gas shuts down down after 4th time step -> could argue its not correct
     assert n.objective == 358000
 
 

@@ -103,6 +103,19 @@ def define_operational_constraints_for_committables(n, sns, c):
     c : str
         name of the network component
     """
+
+    bad_uc_gens = n.generators.index[
+    n.generators.committable
+    & (n.generators.up_time_before > 0)
+    & (n.generators.down_time_before > 0)
+    ]
+    if not bad_uc_gens.empty:
+        logger.warning(
+            "The following committable generators were both up and down before the simulation: {}. This could cause an infeasibility.".format(
+                bad_uc_gens
+            )
+        )
+
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
