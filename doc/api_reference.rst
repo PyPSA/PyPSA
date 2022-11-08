@@ -58,7 +58,7 @@ Linopy Optimisation Module
 
 ``abstract.py``
 
-.. automodule:: pypsa.optimize.abstract
+.. automodule:: pypsa.optimize
     :members:
 
 ``common.py``
