@@ -23,6 +23,17 @@ def test_netcdf_io_Path(scipy_network, tmpdir):
     pypsa.Network(fn)
 
 
+def test_netcdf_io_datetime(tmpdir):
+    fn = os.path.join(tmpdir, "temp.nc")
+    exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
+    n = pypsa.Network()
+    n.set_snapshots(exported_sns)
+    n.export_to_netcdf(fn)
+    imported_sns = pypsa.Network(fn).snapshots
+
+    assert (imported_sns == exported_sns).all()
+
+
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
 def test_csv_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "csv_export")

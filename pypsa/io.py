@@ -722,7 +722,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     if df is not None:
         # check if imported snapshots have MultiIndex
-        snapshot_levels = set(["period", "timestep"]).intersection(df.columns)
+        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(
+            df.columns
+        )
         if snapshot_levels:
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
