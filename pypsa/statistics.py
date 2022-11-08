@@ -367,6 +367,9 @@ class StatisticsAccessor:
     ):
         """
         Calculate the curtailment of components in the network.
+        
+        The calculation only considers assets with a `p_max_pu` time series, 
+        which is used to quantify the available power potential.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -375,7 +378,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(upper=0)
+            p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
