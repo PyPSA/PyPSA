@@ -105,9 +105,9 @@ def define_operational_constraints_for_committables(n, sns, c):
     """
 
     bad_uc_gens = n.generators.index[
-    n.generators.committable
-    & (n.generators.up_time_before > 0)
-    & (n.generators.down_time_before > 0)
+        n.generators.committable
+        & (n.generators.up_time_before > 0)
+        & (n.generators.down_time_before > 0)
     ]
     if not bad_uc_gens.empty:
         logger.warning(
