@@ -9,6 +9,14 @@ Upcoming Release
 
 * new feature
 
+PyPSA 0.21.1 (10th November 2022)
+=================================
+
+* Default of ``n.lopf()`` changed to ``n.lopf(pyomo=False)``.
+* Bugfix in calculating statistics of curtailment.
+* Bugfix in IO of netCDF network files for datetime indices.
+* Bugfix for warning about imports from different PyPSA versions.
+* Add linopy and statistics module to API reference.
 
 PyPSA 0.21.0 (7th November 2022)
 ================================
