@@ -701,7 +701,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
-        pypsa_version_str = ".".join(map(str, pypsa_version))
+        pypsa_version_str = ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
         current_pypsa_version_str = ".".join(map(str, current_pypsa_version))
         msg = (
             f"Importing network from PyPSA version v{pypsa_version_str} while "
