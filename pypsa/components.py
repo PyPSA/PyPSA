@@ -634,7 +634,7 @@ class Network(Basic):
     def lopf(
         self,
         snapshots=None,
-        pyomo=True,
+        pyomo=False,
         solver_name="glpk",
         solver_options={},
         solver_logfile=None,
@@ -652,7 +652,7 @@ class Network(Basic):
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             network.snapshots, defaults to network.snapshots
-        pyomo : bool, default True
+        pyomo : bool, default False
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
         solver_name : string
@@ -765,11 +765,6 @@ class Network(Basic):
             )
 
         if pyomo:
-            logger.warning(
-                "Solving optimisation problem with pyomo."
-                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``."
-                "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
-            )
             return network_lopf(self, **args)
         else:
             return network_lopf_lowmem(self, **args)
