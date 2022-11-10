@@ -283,7 +283,7 @@ def define_primary_energy_limit(n, sns):
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
             soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
-            soc = soc.where(soc != -1, nan).ffill("snapshot").isel(snapshot=-1)
+            soc = soc.where(soc.labels != -1, nan).ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, soc)).sum())
             rhs -= em_pu @ sus.state_of_charge_initial
 
@@ -293,7 +293,7 @@ def define_primary_energy_limit(n, sns):
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
             e = m["Store-e"].loc[snapshots, stores.index]
-            e = e.where(e != -1, nan).ffill("snapshot").isel(snapshot=-1)
+            e = e.labels.where(e.labels != -1, nan).ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
 

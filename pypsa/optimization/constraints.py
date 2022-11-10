@@ -548,7 +548,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
         if len(exprs):
             exprs = merge(exprs, dim="cycles")
-            exprs = exprs.assign_coords(cycles=range(len(exprs.cycles)))
+            exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
     if len(lhs):
@@ -660,8 +660,8 @@ def define_storage_unit_constraints(n, sns):
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     kwargs = dict(snapshot=1, roll_coords=False)
-    previous_soc = soc.where(active, nan).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_soc = previous_soc.sanitize().where(include_previous_soc)
+    previous_soc = soc.labels.where(active).ffill(dim).roll(**kwargs).ffill(dim)
+    previous_soc = previous_soc.where(include_previous_soc).fillna(-1).astype(int)
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = assets.state_of_charge_initial.to_xarray()
@@ -670,22 +670,15 @@ def define_storage_unit_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = soc.period.to_array()
+        periods = soc.labels.period
         per_period = (
             assets.cyclic_state_of_charge_per_period.to_xarray()
             | assets.state_of_charge_initial_per_period.to_xarray()
         )
-
         # We calculate the previous soc per period while cycling within a period
-        # Normally, we should use groupby, but is broken for multi-index
-        # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        previous_soc_pp = concat(
-            [soc.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
-        )
-        previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=soc.snapshot
-        )
+        kwargs = dict(shortcut=True, shift=1, axis=list(soc.dims).index(dim))
+        previous_soc_pp = soc.labels.groupby(periods).map(roll, **kwargs)
+
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
@@ -736,8 +729,8 @@ def define_store_constraints(n, sns):
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     kwargs = dict(snapshot=1, roll_coords=False)
-    previous_e = e.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_e = previous_e.sanitize().where(include_previous_e)
+    previous_e = e.labels.where(active).ffill(dim).roll(**kwargs).ffill(dim)
+    previous_e = previous_e.where(include_previous_e).fillna(-1).astype(int)
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
@@ -745,22 +738,15 @@ def define_store_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = e.period.to_array()
+        periods = e.labels.period
         per_period = (
             assets.e_cyclic_per_period.to_xarray()
             | assets.e_initial_per_period.to_xarray()
         )
 
         # We calculate the previous e per period while cycling within a period
-        # Normally, we should use groupby, but is broken for multi-index
-        # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        previous_e_pp = concat(
-            [e.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
-        )
-        previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=e.snapshot
-        )
+        kwargs = dict(shortcut=True, shift=1, axis=list(e.dims).index(dim))
+        previous_e_pp = e.labels.groupby(periods).map(roll, **kwargs)
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
