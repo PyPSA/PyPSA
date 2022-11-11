@@ -6,6 +6,12 @@ The following universities, research institutes, companies and non-governmental 
 
 Research publications that cite the `PyPSA research paper <https://doi.org/10.5334/jors.188>`_ can be found on `Google Scholar <https://scholar.google.com/scholar?oi=bibs&hl=en&cites=11241966939032736670&as_sdt=5>`_.
 
+The 1st PyPSA user meeting in 10/2022 gives good insight into the use of PyPSA in the energy sector.
+
+.. raw:: html
+
+    <iframe width="832" height="468" src="https://www.youtube.com/embed/ty47YU1_eeQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 Universities and Research Institutes
 ====================================
 
