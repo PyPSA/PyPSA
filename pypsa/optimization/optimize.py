@@ -577,7 +577,7 @@ class OptimizationAccessor:
             suffix,
             bus=buses,
             carrier="load",
-            sig=sign,
+            sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,
         )
