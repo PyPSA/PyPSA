@@ -16,8 +16,8 @@ This section provides examples of open-source models using PyPSA:
 - Distribution grid optimisation `dDisGo <https://github.com/openego/eDisGo>`_
 - South-African electricity model `PyPSA-ZA <https://github.com/PyPSA/pypsa-za>`_
 - Vietnamese electricity model `PyPSA-VN <https://github.com/fiasresna/pypsa-vn>`_
-- `Transport of chemical energy carriers <https://github.com/euronion/trace>`_
-- `Japanese coal phase-out <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>`_
-- `PyPSA Poland <https://github.com/instrat-pl/pypsa-pl>`_
-- `PyPSA Brazil <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
-- `PyPSA China <https://arxiv.org/abs/1810.10347>`_
+- Transport of chemical energy carriers to Germany `TRACE <https://github.com/euronion/trace>`_
+- Polish power system model `PyPSA-PL <https://github.com/instrat-pl/pypsa-pl>`_
+- Brazilian power system model `PyPSA-Brazil <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
+- `Japanese power system model <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>`_
+- `Chinese model for hydro power and storage <https://arxiv.org/abs/1810.10347>`_
