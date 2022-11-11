@@ -104,18 +104,6 @@ def define_operational_constraints_for_committables(n, sns, c):
         name of the network component
     """
 
-    bad_uc_gens = n.generators.index[
-        n.generators.committable
-        & (n.generators.up_time_before > 0)
-        & (n.generators.down_time_before > 0)
-    ]
-    if not bad_uc_gens.empty:
-        logger.warning(
-            "The following committable generators were both up and down before the simulation: {}. This could cause an infeasibility.".format(
-                bad_uc_gens
-            )
-        )
-
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -301,9 +289,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             lhs = (
                 p[t - 1, g]
                 - p[t, g]
-                - ramp_up_limit[g] * status[t - 1, g]
+                - ramp_shut_down[g] * status[t - 1, g]
                 + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[t, g]
-                - (lower_p.loc[t, g].data + ramp_up_limit[g] - ramp_shut_down[g])
+                - (lower_p.loc[t, g].data + ramp_down_limit[g] - ramp_shut_down[g])
                 * start_up[t, g]
             )
             return lhs

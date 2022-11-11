@@ -381,3 +381,54 @@ def test_unit_commitment_rolling_horizon(api):
     ).T
 
     equal(n.generators_t.p.values, expected_dispatch)
+
+
+@pytest.mark.parametrize("api", ["linopy"])
+def test_linearised_unit_commitment(api):
+    n = pypsa.Network()
+    n.snapshots = range(40)
+
+    load = np.zeros(len(n.snapshots))
+    load[0:5] = 5
+    load[5:10] = 6
+    load[10:15] = 8
+    load[15:20] = 10
+    load[20:30] = 7
+    load[30:40] = 6
+    load *= 100
+
+    n.add("Bus", "bus")
+
+    seed = 1
+    for i in range(40):
+        np.random.seed(seed)
+        p_min_pu = np.random.randint(1, 5) / 10
+        marginal_cost = np.random.randint(1, 11) * 10
+        min_up_time = np.random.randint(0, 6)
+        min_down_time = np.random.randint(0, 6)
+        p_nom = np.random.randint(1, 10) * 5
+        start_up_cost = np.random.randint(1, 5) * 100
+        shut_down_cost = np.random.randint(1, 5) * 100
+
+        n.add(
+            "Generator",
+            f"{i}",
+            bus="bus",
+            committable=True,
+            up_time_before=0,
+            p_min_pu=p_min_pu,
+            marginal_cost=marginal_cost,
+            min_up_time=min_up_time,
+            min_down_time=min_down_time,
+            p_nom=p_nom,
+            start_up_cost=start_up_cost,
+            shut_down_cost=shut_down_cost,
+        )
+        seed += 1
+
+    n.add("Load", "load", bus="bus", p_set=load)
+
+    optimize(n, api, linearized_unit_commitment=True)
+
+    MILP_objective = 1510000
+    assert round(n.objective / MILP_objective, 2) == 1

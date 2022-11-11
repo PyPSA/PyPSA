@@ -1494,6 +1494,19 @@ class Network(Basic):
                         f"\n\n\t{', '.join(intersection)}"
                     )
 
+            if c.name in {"Generator"}:
+                bad_uc_gens = c.df.index[
+                    c.df.committable
+                    & (c.df.up_time_before > 0)
+                    & (c.df.down_time_before > 0)
+                ]
+                if not bad_uc_gens.empty:
+                    logger.warning(
+                        "The following committable generators were both up and down"
+                        f" before the simulation: {bad_uc_gens}."
+                        " This could cause an infeasibility."
+                    )
+
         # check all dtypes of component attributes
 
         for c in self.iterate_components():
