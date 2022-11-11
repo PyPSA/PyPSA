@@ -10,7 +10,7 @@ The 1st PyPSA user meeting in 10/2022 gives good insight into the use of PyPSA i
 
 .. raw:: html
 
-    <iframe width="832" height="468" src="https://www.youtube.com/embed/ty47YU1_eeQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/fmwDxNpSMM4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Universities and Research Institutes
 ====================================
