@@ -23,3 +23,4 @@ This section provides examples of open-source models using PyPSA:
     Japanese coal phase-out <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>
     PyPSA Poland <https://github.com/instrat-pl/pypsa-pl>
     PyPSA Brazil <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>
+    PyPSA China <https://arxiv.org/abs/1810.10347>
