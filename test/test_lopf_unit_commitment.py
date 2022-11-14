@@ -384,7 +384,7 @@ def test_unit_commitment_rolling_horizon(api):
 
 
 @pytest.mark.parametrize("api", ["linopy"])
-def test_linearised_unit_commitment(api):
+def test_linearized_unit_commitment(api):
     n = pypsa.Network()
     n.snapshots = range(40)
 

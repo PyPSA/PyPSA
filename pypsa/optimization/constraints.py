@@ -231,14 +231,14 @@ def define_operational_constraints_for_committables(n, sns, c):
     if n._linearized_uc:
         # dispatch limit for partly start up/shut down for t-1
         def linear_approximation1(m, g, sn):
-            t = sn
-            if t < sns[1]:
+            t = sns.get_loc(sn)
+            if t < 1:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = (
-                p[t - 1, g]
-                - ramp_shut_down[g] * status[t - 1, g]
-                - (upper_p.loc[t, g].data - ramp_shut_down[g])
-                * (status[t, g] - start_up[t, g])
+                p[sns[t - 1], g]
+                - ramp_shut_down[g] * status[sns[t - 1], g]
+                - (upper_p.loc[sns[t], g].data - ramp_shut_down[g])
+                * (status[sns[t], g] - start_up[sns[t], g])
             )
             return lhs
 
@@ -248,13 +248,13 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # dispatch limit for partly start up/shut down for t
         def linear_approximation2(m, g, sn):
-            t = sn
-            if t < sns[1]:
+            t = sns.get_loc(sn)
+            if t < 1:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = (
-                p[t, g]
-                - upper_p.loc[t, g].data * status[t, g]
-                + (upper_p.loc[t, g].data - ramp_start_up[g]) * start_up[t, g]
+                p[sns[t], g]
+                - upper_p.loc[sns[t], g].data * status[sns[t], g]
+                + (upper_p.loc[sns[t], g].data - ramp_start_up[g]) * start_up[sns[t], g]
             )
             return lhs
 
@@ -264,16 +264,16 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # ramp up if committable is only partly active and some capacity is starting up
         def linear_approximation3(m, g, sn):
-            t = sn
-            if t < sns[1]:
+            t = sns.get_loc(sn)
+            if t < 1:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = (
-                p[t, g]
-                - p[t - 1, g]
-                - (lower_p.loc[t, g].data + ramp_up_limit[g]) * status[t, g]
-                + lower_p.loc[t, g].data * status[t - 1, g]
-                - (lower_p.loc[t, g].data + ramp_up_limit[g] - ramp_start_up[g])
-                * start_up[t, g]
+                p[sns[t], g]
+                - p[sns[t - 1], g]
+                - (lower_p.loc[sns[t], g].data + ramp_up_limit[g]) * status[sns[t], g]
+                + lower_p.loc[sns[t], g].data * status[sns[t - 1], g]
+                - (lower_p.loc[sns[t], g].data + ramp_up_limit[g] - ramp_start_up[g])
+                * start_up[sns[t], g]
             )
             return lhs
 
@@ -283,16 +283,16 @@ def define_operational_constraints_for_committables(n, sns, c):
 
         # ramp down if committable is only partly active and some capacity is shutting up
         def linear_approximation4(m, g, sn):
-            t = sn
-            if t < sns[1]:
+            t = sns.get_loc(sn)
+            if t < 1:
                 return ScalarLinearExpression((0,), (-1,))
             lhs = (
-                p[t - 1, g]
-                - p[t, g]
-                - ramp_shut_down[g] * status[t - 1, g]
-                + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[t, g]
-                - (lower_p.loc[t, g].data + ramp_down_limit[g] - ramp_shut_down[g])
-                * start_up[t, g]
+                p[sns[t - 1], g]
+                - p[sns[t], g]
+                - ramp_shut_down[g] * status[sns[t - 1], g]
+                + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[sns[t], g]
+                - (lower_p.loc[sns[t], g].data + ramp_down_limit[g] - ramp_shut_down[g])
+                * start_up[sns[t], g]
             )
             return lhs
 
