@@ -156,7 +156,7 @@ def create_model(
     n,
     snapshots=None,
     multi_investment_periods=False,
-    linearized_unit_commitment=False,
+    linearised_unit_commitment=False,
     **kwargs,
 ):
     """
@@ -173,6 +173,8 @@ def create_model(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    linearised_unit_commitment : bool, default False
+        Whether to optimise using the linearised unit commitment formulation or not.
     **kwargs:
         Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -181,7 +183,7 @@ def create_model(
     linopy.model
     """
     sns = _as_snapshots(n, snapshots)
-    n._linearized_uc = linearized_unit_commitment
+    n._linearized_uc = linearised_unit_commitment
     n._multi_invest = int(multi_investment_periods)
     n.consistency_check()
 
@@ -399,7 +401,7 @@ def optimize(
     n,
     snapshots=None,
     multi_investment_periods=False,
-    linearized_unit_commitment=False,
+    linearised_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
     **kwargs,
@@ -416,6 +418,8 @@ def optimize(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    linearised_unit_commitment : bool, default False
+        Whether to optimise using the linearised unit commitment formulation or not.
     model_kwargs: dict
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
     extra_functionality : callable
@@ -435,11 +439,11 @@ def optimize(
 
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
-    n._linearized_uc = linearized_unit_commitment
+    n._linearised_uc = linearised_unit_commitment
 
     n.consistency_check()
     m = create_model(
-        n, sns, multi_investment_periods, linearized_unit_commitment, **model_kwargs
+        n, sns, multi_investment_periods, linearised_unit_commitment, **model_kwargs
     )
     if extra_functionality:
         extra_functionality(n, sns)
