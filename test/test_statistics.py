@@ -32,24 +32,30 @@ def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
     assert not df.empty
 
+    df = ac_dc_network_r.statistics.capex()
+    assert not df.empty
+
+    df = ac_dc_network_r.statistics.opex()
+    assert not df.empty
+
 
 def test_per_bus_carrier_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics(groups=get_bus_and_carrier)
+    df = ac_dc_network.statistics(groupby=get_bus_and_carrier)
     assert not df.empty
 
 
 def test_per_bus_carrier_solved(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(groups=get_bus_and_carrier)
+    df = ac_dc_network_r.statistics(groupby=get_bus_and_carrier)
     assert not df.empty
 
 
 def test_column_grouping_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics(groups=["bus0", "carrier"], comps={"Link"})
+    df = ac_dc_network.statistics(groupby=["bus0", "carrier"], comps={"Link"})
     assert not df.empty
 
 
 def test_column_grouping_solved(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(groups=["bus0", "carrier"], comps={"Link"})
+    df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], comps={"Link"})
     assert not df.empty
 
 

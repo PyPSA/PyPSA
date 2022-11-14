@@ -23,6 +23,17 @@ def test_netcdf_io_Path(scipy_network, tmpdir):
     pypsa.Network(fn)
 
 
+def test_netcdf_io_datetime(tmpdir):
+    fn = os.path.join(tmpdir, "temp.nc")
+    exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
+    n = pypsa.Network()
+    n.set_snapshots(exported_sns)
+    n.export_to_netcdf(fn)
+    imported_sns = pypsa.Network(fn).snapshots
+
+    assert (imported_sns == exported_sns).all()
+
+
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
 def test_csv_io(scipy_network, tmpdir, meta):
     fn = os.path.join(tmpdir, "csv_export")
@@ -62,6 +73,12 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
     )
+    pd.testing.assert_frame_equal(
+        m.snapshot_weightings,
+        ac_dc_network_multiindexed.snapshot_weightings[
+            m.snapshot_weightings.columns
+        ],  # reset order
+    )
 
 
 def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
@@ -80,3 +97,28 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
     )
+
+
+@pytest.mark.parametrize("use_pandapower_index", [True, False])
+@pytest.mark.parametrize("extra_line_data", [True, False])
+def test_import_from_pandapower_network(
+    pandapower_custom_network,
+    pandapower_cigre_network,
+    extra_line_data,
+    use_pandapower_index,
+):
+    nets = [pandapower_custom_network, pandapower_cigre_network]
+    for net in nets:
+        network = pypsa.Network()
+        network.import_from_pandapower_net(
+            net,
+            use_pandapower_index=use_pandapower_index,
+            extra_line_data=extra_line_data,
+        )
+        assert len(network.buses) == len(net.bus)
+        assert len(network.generators) == (
+            len(net.gen) + len(net.sgen) + len(net.ext_grid)
+        )
+        assert len(network.loads) == len(net.load)
+        assert len(network.transformers) == len(net.trafo)
+        assert len(network.shunt_impedances) == len(net.shunt)

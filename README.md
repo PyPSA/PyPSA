@@ -12,6 +12,7 @@
 [![Examples of use](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
@@ -174,6 +175,11 @@ releases can be made and questions can be asked.
 To discuss issues and suggest/contribute features for future development
 we prefer ticketing through the [PyPSA Github Issues
 page](https://github.com/PyPSA/PyPSA/issues).
+
+A `Discord server <https://discord.gg/AnuJBk23FU>` hosts every tool
+in the PyPSA ecosystem. We have there public voice and text channels
+that are suitable to organise projects, ask questions,
+share news, or chat with the community.
 
 ## Citing PyPSA
 

@@ -489,7 +489,10 @@ class Network(Basic):
             attrs = self.components[component]["attrs"]
 
             for k, default in attrs.default[attrs.varying].items():
-                pnl[k] = pnl[k].reindex(self._snapshots).fillna(default)
+                if pnl[k].empty:  # avoid expensive reindex operation
+                    pnl[k].index = self._snapshots
+                else:
+                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
 
         # NB: No need to rebind pnl to self, since haven't changed it
 
@@ -631,7 +634,7 @@ class Network(Basic):
     def lopf(
         self,
         snapshots=None,
-        pyomo=True,
+        pyomo=False,
         solver_name="glpk",
         solver_options={},
         solver_logfile=None,
@@ -649,14 +652,9 @@ class Network(Basic):
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             network.snapshots, defaults to network.snapshots
-        pyomo : bool, default True
+        pyomo : bool, default False
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
-
-            .. deprecated:: 0.20
-
-               In PyPSA version 0.21 the default will change to ``pyomo=False``.
-
         solver_name : string
             Must be a solver name that pyomo recognises and that is
             installed, e.g. "glpk", "gurobi"
@@ -767,11 +765,6 @@ class Network(Basic):
             )
 
         if pyomo:
-            logger.warning(
-                "Solving optimisation problem with pyomo."
-                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``."
-                "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
-            )
             return network_lopf(self, **args)
         else:
             return network_lopf_lowmem(self, **args)

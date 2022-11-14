@@ -52,6 +52,45 @@ Power Flow
 .. automodule:: pypsa.pf
     :members:
 
+Linopy Optimisation Module
+--------------------------
+
+
+``abstract.py``
+
+.. automodule:: pypsa.optimization.abstract
+    :members:
+
+``common.py``
+
+.. automodule:: pypsa.optimization.common
+    :members:
+
+``compat.py``
+
+.. automodule:: pypsa.optimization.compat
+    :members:
+
+``constraints.py``
+
+.. automodule:: pypsa.optimization.constraints
+    :members:
+
+``global_constraints.py``
+
+.. automodule:: pypsa.optimization.global_constraints
+    :members:
+
+``optimize.py``
+
+.. automodule:: pypsa.optimization.optimize
+    :members:
+
+``variables.py``
+
+.. automodule:: pypsa.optimization.variables
+    :members:
+
 
 Optimisation Module
 -------------------
@@ -85,6 +124,13 @@ Contingency Analysis
 -------------------------------
 
 .. automodule:: pypsa.contingency
+   :members:
+
+
+Statistics
+----------
+
+.. automodule:: pypsa.statistics
    :members:
 
 
