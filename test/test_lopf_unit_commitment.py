@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pandas as pd
 import pytest
 from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
@@ -386,7 +387,7 @@ def test_unit_commitment_rolling_horizon(api):
 @pytest.mark.parametrize("api", ["linopy"])
 def test_linearized_unit_commitment(api):
     n = pypsa.Network()
-    n.snapshots = range(40)
+    n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
 
     load = np.zeros(len(n.snapshots))
     load[0:5] = 5
