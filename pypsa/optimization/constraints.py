@@ -93,7 +93,9 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 def define_operational_constraints_for_committables(n, sns, c):
     """
     Sets power dispatch constraints for committable devices for a given
-    component and a given attribute.
+    component and a given attribute. The linearized approximation of the unit
+    commitment problem is inspired by Hua et al. (2017) DOI:
+    10.1109/TPWRS.2017.2735026.
 
     Parameters
     ----------
