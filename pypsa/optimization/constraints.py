@@ -6,7 +6,7 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy.expressions import LinearExpression, ScalarLinearExpression, merge
+from linopy.expressions import LinearExpression, merge
 from numpy import arange, cumsum, inf, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, zeros_like
