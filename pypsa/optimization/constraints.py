@@ -93,7 +93,9 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 def define_operational_constraints_for_committables(n, sns, c):
     """
     Sets power dispatch constraints for committable devices for a given
-    component and a given attribute.
+    component and a given attribute. The linearized approximation of the unit
+    commitment problem is inspired by Hua et al. (2017) DOI:
+    10.1109/TPWRS.2017.2735026.
 
     Parameters
     ----------
@@ -103,138 +105,153 @@ def define_operational_constraints_for_committables(n, sns, c):
     c : str
         name of the network component
     """
+
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
         return
 
-    nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
-    lower = min_pu * nominal
-    upper = max_pu * nominal
-
+    # variables
     status = n.model[f"{c}-status"]
+    start_up = n.model[f"{c}-start_up"]
+    shut_down = n.model[f"{c}-shut_down"]
+    status_diff = status - status.shift(snapshot=1)
     p = reindex(n.model[f"{c}-p"], c, com_i)
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
 
-    lhs = (1, p), (-lower, status)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", active)
+    # parameters
+    nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
+    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
+    lower_p = min_pu * nominal
+    upper_p = max_pu * nominal
+    min_up_time_set = n.df(c).min_up_time[com_i]
+    min_down_time_set = n.df(c).min_down_time[com_i]
+    ramp_up_limit = nominal * n.df(c).ramp_limit_up[com_i].fillna(1)
+    ramp_down_limit = nominal * n.df(c).ramp_limit_down[com_i].fillna(1)
+    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[com_i]
+    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[com_i]
+    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
+    initially_up = up_time_before_set.astype(bool)
+    initially_down = down_time_before_set.astype(bool)
 
-    lhs = (1, p), (-upper, status)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
-
-    start_i = n.snapshots.get_loc(sns[0])
-    status_diff = status - status.shift(snapshot=1)
-    min_up_time = n.df(c).min_up_time[com_i]
-    min_down_time = n.df(c).min_down_time[com_i]
-    start_up_cost = n.df(c).start_up_cost
-    shut_down_cost = n.df(c).shut_down_cost
-
-    if min_up_time.sum() + start_up_cost.sum():
-        # find out how long the generator has been up before snapshots
-        up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
-        until_start = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
-        ref = range(1, len(until_start) + 1)
-        up_time_before = until_start[until_start.cumsum().eq(ref, axis=0)].sum()
-        up_time_before = up_time_before.clip(
-            upper=min_up_time, lower=up_time_before_set
+    # check if there are status calculated/fixed before given sns interval
+    if sns[0] != n.snapshots[0]:
+        start_i = n.snapshots.get_loc(sns[0])
+        # get generators which are online until the first regarded snapshot
+        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        ref = range(1, len(until_start_up) + 1)
+        up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
+        up_time_before_set = up_time_before.clip(
+            upper=min_up_time_set, lower=up_time_before_set
+        )
+        # get number of snapshots for generators which are offline before the first regarded snapshot
+        until_start_down = ~until_start_up.astype(bool)
+        ref = range(1, len(until_start_down) + 1)
+        down_time_before = until_start_down[
+            until_start_down.cumsum().eq(ref, axis=0)
+        ].sum()
+        down_time_before_set = down_time_before.clip(
+            upper=min_down_time_set, lower=down_time_before_set
         )
 
-        initially_up = up_time_before.astype(bool)
-        must_stay_up = (min_up_time - up_time_before).clip(lower=0, upper=len(sns))
+    # lower dispatch level limit
+    lhs = (1, p), (-lower_p, status)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", mask=active)
 
-    if min_up_time.sum():
-        if initially_up.any():
-            ref = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
-            mask = (ref <= must_stay_up) & initially_up
-            name = f"{c}-com-status-min_up_time_must_stay_up"
-            n.model.add_constraints(status, "=", 1, name, mask=mask)
+    # upper dispatch level limit
+    lhs = (1, p), (-upper_p, status)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", mask=active)
 
-        min_up_time = min_up_time.clip(upper=len(sns))
-        lhs = []
-        coords = com_i[min_up_time >= 1]
-        for asset in coords:
-            up_time = min_up_time[asset]
-            # reverse snapshot order to correctly apply rolling_sum, and unreverse
-            asset_sel = {com_i.name: asset}
-            asset_status = status.sel(asset_sel, drop=True)
-            kwargs = dict(snapshot=up_time, center=False)
-            expr = asset_status.loc[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
-            # shift last var to the followed substraction
-            expr = expr.drop_isel(_term=-1)
-            lhs.append(expr - (up_time - 1) * status_diff.sel(asset_sel, drop=True))
-        lhs = merge(lhs, dim=coords).reindex({com_i.name: com_i})
+    # state-transition constraint
+    rhs = pd.DataFrame(0, sns, com_i)
+    rhs.loc[sns[0], initially_up] = -1
+    lhs = start_up - status_diff
+    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", mask=active)
 
-        # rhs has to consider initial value and end-of-horizon relaxation
-        rhs = pd.DataFrame(0, sns, com_i)
-        rhs.loc[sns[0], initially_up] = -up_time_before[initially_up]
-        ref = range(1, len(sns) + 1)
-        until_end = pd.DataFrame([ref] * len(com_i), com_i, sns[::-1]).T
-        until_end = until_end.le(min_up_time).cumsum()[::-1]
-        rhs -= until_end.where(until_end < min_up_time, 0)
-        n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-status-min_up_time")
+    rhs = pd.DataFrame(0, sns, com_i)
+    rhs.loc[sns[0], initially_up] = 1
+    lhs = shut_down + status_diff
+    n.model.add_constraints(
+        lhs, ">=", rhs, f"{c}-com-transition-shut-down", mask=active
+    )
 
-    if start_up_cost.sum():
-        start_up = n.model[f"{c}-start_up"]
-        lhs = start_up - status_diff
-        rhs = -initially_up.to_frame(sns[0]).T.astype(int).reindex(sns, fill_value=0)
-        n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-start_up")
+    # min up time
+    expr = []
+    min_up_time_i = com_i[min_up_time_set.astype(bool)]
+    if not min_up_time_i.empty:
+        for g in min_up_time_i:
+            su = start_up.loc[:, g]
+            expr.append(su.rolling_sum(snapshot=min_up_time_set[g]))
+        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
 
-    if min_down_time.sum() + shut_down_cost.sum():
-        # find out how long the generator has been down before snapshots
-        down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
-        until_start = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
-        until_start = ~until_start.astype(bool)
-        ref = range(1, len(until_start) + 1)
-        down_time_before = until_start[until_start.cumsum().eq(ref, axis=0)].sum()
-        down_time_before = down_time_before.clip(
-            upper=min_down_time, lower=down_time_before_set
+    # min down time
+    expr = []
+    min_down_time_i = com_i[min_down_time_set.astype(bool)]
+    if not min_down_time_i.empty:
+        for g in min_down_time_i:
+            su = shut_down.loc[:, g]
+            expr.append(su.rolling_sum(snapshot=min_down_time_set[g]))
+        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
+
+    # up time before
+    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
+    if initially_up.any():
+        must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
+        mask = (must_stay_up >= timesteps) & initially_up
+        name = f"{c}-com-status-min_up_time_must_stay_up"
+        mask = mask & active if active is not None else mask
+        n.model.add_constraints(status, "=", 1, name, mask=mask)
+
+    # down time before
+    if initially_down.any():
+        must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
+        mask = (must_stay_down >= timesteps) & initially_down
+        name = f"{c}-com-status-min_down_time_must_stay_up"
+        mask = mask & active if active is not None else mask
+        n.model.add_constraints(status, "=", 0, name, mask=mask)
+
+    # linearized approximation because committable can partly start up and shut down
+    if n._linearized_uc:
+        # dispatch limit for partly start up/shut down for t-1
+        lhs = (
+            p.shift(snapshot=1)
+            - ramp_shut_down * status.shift(snapshot=1)
+            - (upper_p - ramp_shut_down) * (status - start_up)
         )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-before", active)
 
-        initially_down = down_time_before.astype(bool)
-        must_stay_down = (min_down_time - down_time_before).clip(
-            lower=0, upper=len(sns)
+        # dispatch limit for partly start up/shut down for t
+        lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-current", active)
+
+        # ramp up if committable is only partly active and some capacity is starting up
+        lhs = (
+            p
+            - p.shift(snapshot=1)
+            - (lower_p + ramp_up_limit) * status
+            + lower_p * status.shift(snapshot=1)
+            - (lower_p + ramp_up_limit - ramp_start_up) * start_up
         )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
 
-    if min_down_time.sum():
-        if initially_down.any():
-            ref = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
-            mask = (ref <= must_stay_down) & initially_down
-            name = f"{c}-com-status-min_down_time_must_stay_down"
-            n.model.add_constraints(status, "=", 0, name, mask=mask)
-
-        min_down_time = min_down_time.clip(upper=len(sns))
-        lhs = []
-        coords = com_i[min_down_time >= 1]
-        for asset in coords:
-            down_time = min_down_time[asset]
-            # reverse snapshot order to correctly apply rolling_sum, and unreverse
-            asset_sel = {com_i.name: asset}
-            asset_status = status.sel(asset_sel, drop=True)
-            kwargs = dict(snapshot=down_time, center=False)
-            expr = -asset_status.loc[::-1].rolling_sum(**kwargs).reindex(snapshot=sns)
-            # shift last var to the followed substraction
-            expr = expr.drop_isel(_term=-1)
-            lhs.append(expr + (down_time - 1) * status_diff.sel(asset_sel, drop=True))
-        lhs = merge(lhs, dim=coords).reindex({com_i.name: com_i})
-
-        # rhs has to consider initial value and end-of-horizon relaxation
-        rhs = -pd.DataFrame([min_down_time] * len(sns), sns, com_i)
-        rhs.loc[sns[0], initially_down] -= down_time_before[initially_down]
-        ref = range(1, len(sns) + 1)
-        until_end = pd.DataFrame([ref] * len(com_i), com_i, sns[::-1]).T
-        until_end = until_end.le(min_down_time).cumsum()[::-1]
-        rhs -= until_end.where(until_end < min_down_time, 0)
-        rhs = (rhs + 1).where(rhs < 0, rhs)
-        n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-status-min_down_time")
-
-    if shut_down_cost.sum():
-        shut_down = n.model[f"{c}-shut_down"]
-        lhs = shut_down + status_diff
-        rhs = (
-            (~initially_down).to_frame(sns[0]).T.astype(int).reindex(sns, fill_value=0)
+        # ramp down if committable is only partly active and some capacity is shutting up
+        lhs = (
+            p.shift(snapshot=1)
+            - p
+            - ramp_shut_down * status.shift(snapshot=1)
+            + (ramp_shut_down - ramp_down_limit) * status
+            - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
         )
-        n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-shut_down")
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-shut-down", active)
 
 
 def define_nominal_constraints_for_extendables(n, c, attr):
@@ -281,6 +298,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         return
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
         return
+    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
+        return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
@@ -301,6 +320,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     else:
         active = get_activity_mask(n, c, sns[1:])
         rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.df(c).index)
+        rhs_start.index.name = "snapshot"
         p_actual = lambda idx: reindex(p, c, idx).sel(snapshot=sns[1:])
         p_previous = (
             lambda idx: reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
