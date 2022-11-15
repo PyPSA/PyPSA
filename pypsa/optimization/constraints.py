@@ -124,12 +124,10 @@ def define_operational_constraints_for_committables(n, sns, c):
     upper_p = max_pu * nominal
     min_up_time_set = n.df(c).min_up_time[com_i]
     min_down_time_set = n.df(c).min_down_time[com_i]
-    ramp_up_limit = n.df(c).ramp_limit_up[com_i].fillna(1) * n.df(c)[nominal_attrs[c]]
-    ramp_down_limit = (
-        n.df(c).ramp_limit_down[com_i].fillna(1) * n.df(c)[nominal_attrs[c]]
-    )
-    ramp_start_up = n.df(c).ramp_limit_start_up[com_i] * n.df(c)[nominal_attrs[c]]
-    ramp_shut_down = n.df(c).ramp_limit_shut_down[com_i] * n.df(c)[nominal_attrs[c]]
+    ramp_up_limit = nominal * n.df(c).ramp_limit_up[com_i].fillna(1)
+    ramp_down_limit = nominal * n.df(c).ramp_limit_down[com_i].fillna(1)
+    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[com_i]
+    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[com_i]
     up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
     down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
     initially_up = up_time_before_set.astype(bool)
@@ -157,58 +155,46 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", active)
+    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", mask=active)
 
     # upper dispatch level limit
     lhs = (1, p), (-upper_p, status)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", active)
+    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", mask=active)
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
     rhs.loc[sns[0], initially_up] = -1
     lhs = start_up - status_diff
-    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", active)
+    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", mask=active)
 
     rhs = pd.DataFrame(0, sns, com_i)
     rhs.loc[sns[0], initially_up] = 1
     lhs = shut_down + status_diff
-    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-shut-down", active)
+    n.model.add_constraints(
+        lhs, ">=", rhs, f"{c}-com-transition-shut-down", mask=active
+    )
 
-    # min up time constraint
-    def min_up_time(m, g, sn):
-        t = sns.get_loc(sn)
-        t_up = min_up_time_set[g]
-        lhs = -status[sns[t], g]
-        if t_up == 0:
-            lhs = ScalarLinearExpression((0,), (-1,))
-        elif t < t_up - 1:
-            for i in sns[0 : t + 1]:
-                lhs = lhs + start_up[i, g]
-        else:
-            for i in sns[t - t_up + 1 : t + 1]:
-                lhs = lhs + start_up[i, g]
-        return lhs
+    # min up time
+    expr = []
+    min_up_time_i = com_i[min_up_time_set.astype(bool)]
+    if not min_up_time_i.empty:
+        for g in min_up_time_i:
+            su = start_up.loc[:, g]
+            expr.append(su.rolling_sum(snapshot=min_up_time_set[g]))
+        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
 
-    lhs = n.model.linexpr(min_up_time, [com_i, sns])
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", active)
-
-    # min down time constraint
-    def min_down_time(m, g, sn):
-        t = sns.get_loc(sn)
-        t_down = min_down_time_set[g]
-        lhs = status[sns[t], g]
-        if t_down == 0:
-            lhs = ScalarLinearExpression((0,), (-1,))
-        elif t < t_down - 1:
-            for i in sns[0 : t + 1]:
-                lhs = lhs + shut_down[i, g]
-        else:
-            for i in sns[t - t_down + 1 : t + 1]:
-                lhs = lhs + shut_down[i, g]
-        return lhs
-
-    lhs = n.model.linexpr(min_down_time, [com_i, sns])
-    n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", active)
+    # min down time
+    expr = []
+    min_down_time_i = com_i[min_down_time_set.astype(bool)]
+    if not min_down_time_i.empty:
+        for g in min_down_time_i:
+            su = shut_down.loc[:, g]
+            expr.append(su.rolling_sum(snapshot=min_down_time_set[g]))
+        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
 
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
@@ -230,74 +216,39 @@ def define_operational_constraints_for_committables(n, sns, c):
     # linearized approximation because committable can partly start up and shut down
     if n._linearized_uc:
         # dispatch limit for partly start up/shut down for t-1
-        def linear_approximation1(m, g, sn):
-            t = sns.get_loc(sn)
-            if t < 1:
-                return ScalarLinearExpression((0,), (-1,))
-            lhs = (
-                p[sns[t - 1], g]
-                - ramp_shut_down[g] * status[sns[t - 1], g]
-                - (upper_p.loc[sns[t], g].data - ramp_shut_down[g])
-                * (status[sns[t], g] - start_up[sns[t], g])
-            )
-            return lhs
-
-        lhs = n.model.linexpr(linear_approximation1, [com_i, sns])
-
+        lhs = (
+            p.shift(snapshot=1)
+            - ramp_shut_down * status.shift(snapshot=1)
+            - (upper_p - ramp_shut_down) * (status - start_up)
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-before", active)
 
         # dispatch limit for partly start up/shut down for t
-        def linear_approximation2(m, g, sn):
-            t = sns.get_loc(sn)
-            if t < 1:
-                return ScalarLinearExpression((0,), (-1,))
-            lhs = (
-                p[sns[t], g]
-                - upper_p.loc[sns[t], g].data * status[sns[t], g]
-                + (upper_p.loc[sns[t], g].data - ramp_start_up[g]) * start_up[sns[t], g]
-            )
-            return lhs
-
-        lhs = n.model.linexpr(linear_approximation2, [com_i, sns])
-
+        lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-current", active)
 
         # ramp up if committable is only partly active and some capacity is starting up
-        def linear_approximation3(m, g, sn):
-            t = sns.get_loc(sn)
-            if t < 1:
-                return ScalarLinearExpression((0,), (-1,))
-            lhs = (
-                p[sns[t], g]
-                - p[sns[t - 1], g]
-                - (lower_p.loc[sns[t], g].data + ramp_up_limit[g]) * status[sns[t], g]
-                + lower_p.loc[sns[t], g].data * status[sns[t - 1], g]
-                - (lower_p.loc[sns[t], g].data + ramp_up_limit[g] - ramp_start_up[g])
-                * start_up[sns[t], g]
-            )
-            return lhs
-
-        lhs = n.model.linexpr(linear_approximation3, [com_i, sns])
-
+        lhs = (
+            p
+            - p.shift(snapshot=1)
+            - (lower_p + ramp_up_limit) * status
+            + lower_p * status.shift(snapshot=1)
+            - (lower_p + ramp_up_limit - ramp_start_up) * start_up
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
 
         # ramp down if committable is only partly active and some capacity is shutting up
-        def linear_approximation4(m, g, sn):
-            t = sns.get_loc(sn)
-            if t < 1:
-                return ScalarLinearExpression((0,), (-1,))
-            lhs = (
-                p[sns[t - 1], g]
-                - p[sns[t], g]
-                - ramp_shut_down[g] * status[sns[t - 1], g]
-                + (ramp_shut_down[g] - ramp_down_limit.loc[g]) * status[sns[t], g]
-                - (lower_p.loc[sns[t], g].data + ramp_down_limit[g] - ramp_shut_down[g])
-                * start_up[sns[t], g]
-            )
-            return lhs
-
-        lhs = n.model.linexpr(linear_approximation4, [com_i, sns])
-
+        lhs = (
+            p.shift(snapshot=1)
+            - p
+            - ramp_shut_down * status.shift(snapshot=1)
+            + (ramp_shut_down - ramp_down_limit) * status
+            - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-shut-down", active)
 
 
