@@ -183,7 +183,7 @@ def create_model(
     linopy.model
     """
     sns = _as_snapshots(n, snapshots)
-    n._linearized_uc = linearized_unit_commitment
+    n._linearized_uc = int(linearized_unit_commitment)
     n._multi_invest = int(multi_investment_periods)
     n.consistency_check()
 
