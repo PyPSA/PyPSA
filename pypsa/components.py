@@ -1327,6 +1327,10 @@ class Network(Basic):
         for c in self.iterate_components():
             for attr in bus_columns(c.df):
                 missing = ~c.df[attr].isin(self.buses.index)
+                # if bus2, bus3... contain empty strings do not warn
+                if c.name in self.branch_components:
+                    if int(attr[-1]) > 1:
+                        missing &= c.df[attr] != ""
                 if missing.any():
                     msg = "The following %s have %s which are not defined:\n%s"
                     logger.warning(msg, c.list_name, attr, c.df.index[missing])
