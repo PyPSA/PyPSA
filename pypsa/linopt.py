@@ -794,6 +794,20 @@ def run_and_read_highs(
     f.close()
 
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
+
+    sol = sol = sol.iloc[
+        :-2, :
+    ]  # last two rows are model info: status and objective value
+
+    # If there's nothing in the "status" column, then the following columns
+    # will parse as off by one. But some of the rows may have parsed correctly
+    # and thus have non-Nan name
+    bad_rows = sol.Name.isna()
+    sol.loc[bad_rows, ["Lower", "Upper", "Primal", "Dual", "Name"]] = sol.loc[
+        sol.Name.isna(), ["Status", "Lower", "Upper", "Primal", "Dual"]
+    ].to_numpy()
+    sol.loc[bad_rows, "Status"] = np.NaN  # There was no status value in these rows
+
     row_no = sol[sol["Index"] == "Rows"].index[0]
     sol = sol.drop(row_no + 1)  # Removes header line after "Rows"
     sol_rows = sol[(sol.index > row_no)]
