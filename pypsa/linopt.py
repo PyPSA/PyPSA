@@ -795,7 +795,7 @@ def run_and_read_highs(
 
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
 
-    sol = sol = sol.iloc[
+    sol = sol.iloc[
         :-2, :
     ]  # last two rows are model info: status and objective value
 
