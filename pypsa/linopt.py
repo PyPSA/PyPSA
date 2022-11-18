@@ -802,7 +802,7 @@ def run_and_read_highs(
     # If there's nothing in the "status" column, then the following columns
     # will parse as off by one. But some of the rows may have parsed correctly
     # and thus have non-Nan name
-    bad_rows = sol.Name.isna()
+    nan_rows = sol.Name.isna()
     sol.loc[bad_rows, ["Lower", "Upper", "Primal", "Dual", "Name"]] = sol.loc[
         sol.Name.isna(), ["Status", "Lower", "Upper", "Primal", "Dual"]
     ].to_numpy()
