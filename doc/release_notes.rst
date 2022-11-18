@@ -7,9 +7,27 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Add linearized unit commitment implementation in linopy.
+
+PyPSA 0.21.1 (10th November 2022)
+=================================
+
+* Default of ``n.lopf()`` changed to ``n.lopf(pyomo=False)``.
+* Bugfix in calculating statistics of curtailment.
+* Bugfix in IO of netCDF network files for datetime indices.
+* Bugfix for warning about imports from different PyPSA versions.
+* Add linopy and statistics module to API reference.
+
+PyPSA 0.21.0 (7th November 2022)
+================================
+
 * A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy.html>`_ a migration guide for extra functionalities can be found at `here
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_
+* A new module for a quick calculation of system relevant quantities was introduced. It is directly accessible via the new accessor `Network.statistics` which returns a table of values often calculated manually. At the same time `Network.statistics` allows to call individual functions, as `capex`, `opex`, `capacity_factor` etc.
+* Add reference to `Discord server <https://discord.gg/AnuJBk23FU>`_ for support and discussion.
+* Restore import of pandapower networks. Issues regarding the transformer component and indexing as well as missing imports for shunts are fixed. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
+* The import performance of networks was improved. With the changes, the import time for standard netcdf imports decreased by roughly 70%.
 
 * Transmission losses can now be represented during optimisation with
   ``n.lopf()`` using a piecewise linear approximation of the loss parabola as
@@ -20,7 +38,7 @@ Upcoming Release
   implemented for both ``pyomo=True`` and ``pyomo=False``.
 
 PyPSA 0.20.1 (6th October 2022)
-==============================
+===============================
 
 * The representation of networks was modified to show the number of components and snapshots.
 * The performance of the consistency check function was improved. The consistency check was extended by validating the capacity expansion limits as well as global constraint attributes.

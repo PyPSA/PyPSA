@@ -398,17 +398,12 @@ def network_sclopf(
     pyomo : bool, default True
         Whether to use pyomo for building and solving the model, setting
         this to False saves a lot of memory and time.
-
-        .. deprecated:: 0.20
-
-            In PyPSA version 0.21 the default will change to ``pyomo=False``.
-
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
     extra_functionality : callable function
         This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
+        `extra_functionality(network, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to add/change constraints and
         add/change the objective function.
@@ -420,7 +415,7 @@ def network_sclopf(
         construction, e.g. .lp file - useful for debugging
     formulation : string, default "kirchhoff"
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchoff","ptdf"]
+        one of ["angles", "cycles", "kirchoff", "ptdf"]
     ptdf_tolerance : float
 
     Returns

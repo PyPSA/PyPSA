@@ -530,9 +530,6 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
         .reindex(columns=n.buses.index, fill_value="")
     )
 
-    if (lhs == "").any().any():
-        raise ValueError("Empty LHS in nodal balance constraint.")
-
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
@@ -540,7 +537,16 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
         .sum()
         .reindex(columns=n.buses.index, fill_value=0)
     )
-    define_constraints(n, lhs, sense, rhs, "Bus", "marginal_price")
+
+    if (lhs == "").any(axis=None):
+        if ((lhs == "") & (rhs != 0)).any(axis=None):
+            raise ValueError("Empty LHS in nodal balance constraint for non-zero RHS.")
+
+        mask = lhs != ""
+    else:
+        mask = None
+
+    define_constraints(n, lhs, sense, rhs, "Bus", "marginal_price", mask=mask)
 
 
 def define_kirchhoff_constraints(n, sns):
@@ -1462,7 +1468,7 @@ def network_lopf(
         construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchhoff","ptdf"]
+        one of ["angles", "cycles", "kirchhoff", "ptdf"]
     transmission_losses : int, default 0
         Whether an approximation of transmission losses should be included
         in the linearised power flow formulation. A passed number will denote
@@ -1470,7 +1476,7 @@ def network_lopf(
         Defaults to 0 which ignores losses.
     extra_functionality : callable function
         This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
+        `extra_functionality(network, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -1481,7 +1487,7 @@ def network_lopf(
         objective has to be defined via extra_functionality.
     extra_postprocessing : callable function
         This function must take three arguments
-        `extra_postprocessing(network,snapshots,duals)` and is called after
+        `extra_postprocessing(network, snapshots, duals)` and is called after
         the model has solved and the results are extracted. It allows the user
         to extract further information about the solution, such as additional
         shadow prices.

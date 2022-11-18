@@ -155,7 +155,12 @@ def define_objective(n, sns):
 
 
 def create_model(
-    n, snapshots=None, multi_investment_periods=False, transmission_losses=0, **kwargs
+    n,
+    snapshots=None,
+    multi_investment_periods=False,
+    transmission_losses=0,
+    linearized_unit_commitment=False,
+    **kwargs,
 ):
     """
     Create a linopy.Model instance from a pypsa network.
@@ -169,9 +174,11 @@ def create_model(
         A list of snapshots to optimise, must be a subset of
         network.snapshots, defaults to network.snapshots
     multi_investment_periods : bool, default False
-        Whether to optimise as a single investment period or to optimise in multiple
+        Whether to optimise as a single investment period or to optimize in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
     transmission_losses : int, default 0
+    linearized_unit_commitment : bool, default False
+        Whether to optimise using the linearised unit commitment formulation or not.
     **kwargs:
         Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -180,6 +187,7 @@ def create_model(
     linopy.model
     """
     sns = _as_snapshots(n, snapshots)
+    n._linearized_uc = int(linearized_unit_commitment)
     n._multi_invest = int(multi_investment_periods)
     n.consistency_check()
 
@@ -342,7 +350,7 @@ def post_processing(n):
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
     """
-    sns = n.model.parameters.snapshots
+    sns = n.model.parameters.snapshots.to_index()
 
     # correct prices with objective weightings
     if n._multi_invest:
@@ -410,6 +418,7 @@ def optimize(
     snapshots=None,
     multi_investment_periods=False,
     transmission_losses=0,
+    linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
     **kwargs,
@@ -431,6 +440,8 @@ def optimize(
         in the linearised power flow formulation. A passed number will denote
         the number of tangents used for the piecewise linear approximation.
         Defaults to 0, which ignores losses.
+    linearized_unit_commitment : bool, default False
+        Whether to optimise using the linearised unit commitment formulation or not.
     model_kwargs: dict
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
     extra_functionality : callable
@@ -450,10 +461,11 @@ def optimize(
 
     sns = _as_snapshots(n, snapshots)
     n._multi_invest = int(multi_investment_periods)
+    n._linearized_uc = linearized_unit_commitment
 
     n.consistency_check()
     m = create_model(
-        n, sns, multi_investment_periods, transmission_losses, **model_kwargs
+        n, sns, multi_investment_periods, linearized_unit_commitment, transmission_losses, **model_kwargs
     )
     if extra_functionality:
         extra_functionality(n, sns)
@@ -602,7 +614,7 @@ class OptimizationAccessor:
             suffix,
             bus=buses,
             carrier="load",
-            sig=sign,
+            sign=sign,
             marginal_cost=marginal_cost,
             p_nom=p_nom,
         )

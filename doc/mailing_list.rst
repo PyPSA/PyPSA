@@ -19,3 +19,8 @@ developers directly, so that others can also profit from the answers.
 To discuss issues and suggest/contribute features
 for future development we prefer ticketing through the `PyPSA Github Issues page
 <https://github.com/PyPSA/PyPSA/issues>`_.
+
+A `Discord server <https://discord.gg/AnuJBk23FU>`_ hosts every tool
+in the PyPSA ecosystem. We have there public voice and text channels
+that are suitable to organise projects, ask questions,
+share news, or chat with the community.

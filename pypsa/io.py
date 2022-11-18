@@ -212,8 +212,7 @@ class ImporterHDF5(Importer):
             if tab.startswith("/" + list_name + "_t/"):
                 attr = tab[len("/" + list_name + "_t/") :]
                 df = self.ds[tab]
-                if self.pypsa_version is not None and self.pypsa_version > [0, 13, 0]:
-                    df.columns = self.index[list_name][df.columns]
+                df.columns = self.index[list_name][df.columns]
                 yield attr, df
 
 
@@ -239,7 +238,10 @@ class ExporterHDF5(Exporter):
 
     def save_investment_periods(self, investment_periods):
         self.ds.put(
-            "/investment_periods", investment_periods, format="table", index=False
+            "/investment_periods",
+            investment_periods,
+            format="table",
+            index=False,
         )
 
     def save_static(self, list_name, df):
@@ -617,7 +619,10 @@ def import_from_netcdf(network, path, skip_time=False):
 
 
 def export_to_netcdf(
-    network, path=None, export_standard_types=False, least_significant_digit=None
+    network,
+    path=None,
+    export_standard_types=False,
+    least_significant_digit=None,
 ):
     """
     Export network and components to a netCDF file.
@@ -696,16 +701,17 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
-        logger.warning(
-            dedent(
-                """
-                Importing PyPSA from older version of PyPSA than current version.
-                Please read the release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html
-                carefully to prepare your network for import.
-                Currently used PyPSA version {}, imported network file PyPSA version {}.
-        """
-            ).format(current_pypsa_version, pypsa_version)
+        pypsa_version_str = (
+            ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
         )
+        current_pypsa_version_str = ".".join(map(str, current_pypsa_version))
+        msg = (
+            f"Importing network from PyPSA version v{pypsa_version_str} while "
+            f"current version is v{current_pypsa_version_str}. Read the "
+            "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
+            "to prepare your network for import."
+        )
+        logger.warning(msg)
 
     if pypsa_version is None or pypsa_version < [0, 18, 0]:
         network._multi_invest = 0
@@ -718,7 +724,6 @@ def _import_from_importer(network, importer, basename, skip_time=False):
 
     if df is not None:
         # check if imported snapshots have MultiIndex
-        # backwards-compatibility: level "snapshot" was rename to "timestep"
         snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(
             df.columns
         )
@@ -759,8 +764,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             if component == "Bus":
                 logger.error("Error, no buses found")
                 return
-            else:
-                continue
+            continue
 
         import_components_from_dataframe(network, df, component)
 
@@ -793,7 +797,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         A DataFrame whose index is the names of the components and
         whose columns are the non-default attributes.
     cls_name : string
-        Name of class of component, e.g. ``"Line","Bus","Generator", "StorageUnit"``
+        Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
 
     Examples
     --------
@@ -888,7 +892,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     >>> import numpy as np
     >>> network.set_snapshots(range(10))
     >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10,4),
+            pd.DataFrame(np.random.rand(10, 4),
                 columns=network.generators.index,
                             index=range(10)),
                         "Generator",
@@ -1155,35 +1159,39 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     )
 
 
-def import_from_pandapower_net(network, net, extra_line_data=False):
+def import_from_pandapower_net(
+    network, net, extra_line_data=False, use_pandapower_index=False
+):
     """
-    Import network from pandapower net.
+    Import PyPSA network from pandapower net.
 
     Importing from pandapower is still in beta;
-    not all pandapower data is supported.
+    not all pandapower components are supported.
 
     Unsupported features include:
     - three-winding transformers
     - switches
-    - in_service status,
-    - shunt impedances, and
-    -  tap positions of transformers."
+    - in_service status and
+    - tap positions of transformers
 
     Parameters
     ----------
     net : pandapower network
     extra_line_data : boolean, default: False
-        if True, the line data for all parameters is imported instead of only
-        the type
+        if True, the line data for all parameters is imported instead of only the type
+    use_pandapower_index : boolean, default: False
+        if True, use integer numbers which is the pandapower index standard
+        if False, use any net.name as index (e.g. 'Bus 1' (str) or 1 (int))
 
     Examples
     --------
     >>> network.import_from_pandapower_net(net)
     OR
+    >>> import pypsa
     >>> import pandapower as pp
     >>> import pandapower.networks as pn
     >>> net = pn.create_cigre_network_mv(with_der='all')
-    >>> pp.runpp(net)
+    >>> network = pypsa.Network()
     >>> network.import_from_pandapower_net(net, extra_line_data=True)
     """
     logger.warning(
@@ -1193,8 +1201,17 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     d = {}
 
     d["Bus"] = pd.DataFrame(
-        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0}, index=net.bus.name
+        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
+        index=net.bus.name,
     )
+
+    d["Bus"].loc[
+        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
+    ] = net.gen.vm_pu.values
+
+    d["Bus"].loc[
+        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
+    ] = net.ext_grid.vm_pu.values
 
     d["Load"] = pd.DataFrame(
         {
@@ -1206,9 +1223,9 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     )
 
     # deal with PV generators
-    d["Generator"] = pd.DataFrame(
+    _tmp_gen = pd.DataFrame(
         {
-            "p_set": -(net.gen.scaling * net.gen.p_mw).values,
+            "p_set": (net.gen.scaling * net.gen.p_mw).values,
             "q_set": 0.0,
             "bus": net.bus.name.loc[net.gen.bus].values,
             "control": "PV",
@@ -1216,46 +1233,31 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
         index=net.gen.name,
     )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
-    ] = net.gen.vm_pu.values
-
     # deal with PQ "static" generators
-    d["Generator"] = pd.concat(
-        (
-            d["Generator"],
-            pd.DataFrame(
-                {
-                    "p_set": -(net.sgen.scaling * net.sgen.p_mw).values,
-                    "q_set": -(net.sgen.scaling * net.sgen.q_mvar).values,
-                    "bus": net.bus.name.loc[net.sgen.bus].values,
-                    "control": "PQ",
-                },
-                index=net.sgen.name,
-            ),
-        ),
-        sort=False,
+    _tmp_sgen = pd.DataFrame(
+        {
+            "p_set": (net.sgen.scaling * net.sgen.p_mw).values,
+            "q_set": (net.sgen.scaling * net.sgen.q_mvar).values,
+            "bus": net.bus.name.loc[net.sgen.bus].values,
+            "control": "PQ",
+        },
+        index=net.sgen.name,
     )
 
-    d["Generator"] = pd.concat(
-        (
-            d["Generator"],
-            pd.DataFrame(
-                {
-                    "control": "Slack",
-                    "p_set": 0.0,
-                    "q_set": 0.0,
-                    "bus": net.bus.name.loc[net.ext_grid.bus].values,
-                },
-                index=net.ext_grid.name.fillna("External Grid"),
-            ),
-        ),
-        sort=False,
+    _tmp_ext_grid = pd.DataFrame(
+        {
+            "control": "Slack",
+            "p_set": 0.0,
+            "q_set": 0.0,
+            "bus": net.bus.name.loc[net.ext_grid.bus].values,
+        },
+        index=net.ext_grid.name.fillna("External Grid"),
     )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
-    ] = net.ext_grid.vm_pu.values
+    # concat all generators and index according to option
+    d["Generator"] = pd.concat(
+        [_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index
+    )
 
     if extra_line_data == False:
         d["Line"] = pd.DataFrame(
@@ -1308,15 +1310,21 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
 
     # if it's not based on a standard-type - get the included values:
     else:
-        s_nom = net.trafo.sn_mva.values / 1000.0
+        s_nom = net.trafo.sn_mva.values
 
-        r = net.trafo.vkr_percent.values / 100.0
-        x = np.sqrt((net.trafo.vk_percent.values / 100.0) ** 2 - r**2)
-        # NB: b and g are per unit of s_nom
-        g = net.trafo.pfe_kw.values / (1000.0 * s_nom)
+        # documented at https://pandapower.readthedocs.io/en/develop/elements/trafo.html?highlight=transformer#impedance-values
+        z = net.trafo.vk_percent.values / 100.0 / net.trafo.sn_mva.values
+        r = net.trafo.vkr_percent.values / 100.0 / net.trafo.sn_mva.values
+        x = np.sqrt(z**2 - r**2)
 
-        # for some bizarre reason, some of the standard types in pandapower have i0^2 < g^2
-        b = -np.sqrt(((net.trafo.i0_percent.values / 100.0) ** 2 - g**2).clip(min=0))
+        y = net.trafo.i0_percent.values / 100.0
+        g = (
+            net.trafo.pfe_kw.values
+            / net.trafo.sn_mva.values
+            / 1000
+            / net.trafo.sn_mva.values
+        )
+        b = np.sqrt(y**2 - g**2)
 
         d["Transformer"] = pd.DataFrame(
             {
@@ -1334,7 +1342,28 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
         )
         d["Transformer"] = d["Transformer"].fillna(0)
 
-    for c in ["Bus", "Load", "Generator", "Line", "Transformer"]:
+    # documented at https://pypsa.readthedocs.io/en/latest/components.html#shunt-impedance
+    g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
+    b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
+
+    d["ShuntImpedance"] = pd.DataFrame(
+        {
+            "bus": net.bus.name.loc[net.shunt.bus].values,
+            "g": g_shunt,
+            "b": b_shunt,
+        },
+        index=net.shunt.name,
+    )
+    d["ShuntImpedance"] = d["ShuntImpedance"].fillna(0)
+
+    for c in [
+        "Bus",
+        "Load",
+        "Generator",
+        "Line",
+        "Transformer",
+        "ShuntImpedance",
+    ]:
         network.import_components_from_dataframe(d[c], c)
 
     # amalgamate buses connected by closed switches
@@ -1349,7 +1378,7 @@ def import_from_pandapower_net(network, net, extra_line_data=False):
     for i in to_replace.index:
         network.remove("Bus", i)
 
-    for c in network.iterate_components({"Load", "Generator"}):
+    for c in network.iterate_components({"Load", "Generator", "ShuntImpedance"}):
         c.df.bus.replace(to_replace, inplace=True)
 
     for c in network.iterate_components({"Line", "Transformer"}):

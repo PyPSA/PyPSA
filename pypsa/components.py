@@ -62,6 +62,7 @@ from pypsa.pf import (
     sub_network_pf,
 )
 from pypsa.plot import iplot, plot
+from pypsa.statistics import StatisticsAccessor
 
 if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
@@ -286,6 +287,8 @@ class Network(Basic):
 
         self.components = Dict(self.components.T.to_dict())
 
+        self.statistics = StatisticsAccessor(self)
+
         for component in self.components:
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
@@ -486,7 +489,10 @@ class Network(Basic):
             attrs = self.components[component]["attrs"]
 
             for k, default in attrs.default[attrs.varying].items():
-                pnl[k] = pnl[k].reindex(self._snapshots).fillna(default)
+                if pnl[k].empty:  # avoid expensive reindex operation
+                    pnl[k].index = self._snapshots
+                else:
+                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
 
         # NB: No need to rebind pnl to self, since haven't changed it
 
@@ -628,7 +634,7 @@ class Network(Basic):
     def lopf(
         self,
         snapshots=None,
-        pyomo=True,
+        pyomo=False,
         solver_name="glpk",
         solver_options={},
         solver_logfile=None,
@@ -647,14 +653,9 @@ class Network(Basic):
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             network.snapshots, defaults to network.snapshots
-        pyomo : bool, default True
+        pyomo : bool, default False
             Whether to use pyomo for building and solving the model, setting
             this to False saves a lot of memory and time.
-
-            .. deprecated:: 0.20
-
-               In PyPSA version 0.21 the default will change to ``pyomo=False``.
-
         solver_name : string
             Must be a solver name that pyomo recognises and that is
             installed, e.g. "glpk", "gurobi"
@@ -668,7 +669,7 @@ class Network(Basic):
             construction, e.g. .lp file - useful for debugging
         formulation : string
             Formulation of the linear power flow equations to use; must be
-            one of ["angles","cycles","kirchhoff","ptdf"]
+            one of ["angles", "cycles", "kirchhoff", "ptdf"]
         transmission_losses : int
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
@@ -676,7 +677,7 @@ class Network(Basic):
             Defaults to 0, which ignores losses.
         extra_functionality : callable function
             This function must take two arguments
-            `extra_functionality(network,snapshots)` and is called after
+            `extra_functionality(network, snapshots)` and is called after
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
@@ -705,7 +706,7 @@ class Network(Basic):
         extra_postprocessing : callable function
             Only taking effect when pyomo is True.
             This function must take three arguments
-            `extra_postprocessing(network,snapshots,duals)` and is called after
+            `extra_postprocessing(network, snapshots, duals)` and is called after
             the model has solved and the results are extracted. It allows the user
             to extract further information about the solution, such as additional
             shadow prices.
@@ -771,14 +772,8 @@ class Network(Basic):
             )
 
         if pyomo:
-            logger.warning(
-                "Solving optimisation problem with pyomo."
-                "In PyPSA version 0.21 the default will change to ``n.lopf(pyomo=False)``."
-                "Explicitly set ``n.lopf(pyomo=True)`` to retain current behaviour."
-            )
             return network_lopf(self, **args)
-        else:
-            return network_lopf_lowmem(self, **args)
+        return network_lopf_lowmem(self, **args)
 
     def add(self, class_name, name, **kwargs):
         """
@@ -804,9 +799,9 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.add("Bus","my_bus_0")
-        >>> network.add("Bus","my_bus_1",v_nom=380)
-        >>> network.add("Line","my_line_name",bus0="my_bus_0",bus1="my_bus_1",length=34,r=2,x=4)
+        >>> network.add("Bus", "my_bus_0")
+        >>> network.add("Bus", "my_bus_1", v_nom=380)
+        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
 
         assert class_name in self.components, "Component class {} not found".format(
@@ -877,7 +872,7 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.remove("Line","my_line 12345")
+        >>> network.remove("Line", "my_line 12345")
         """
 
         if class_name not in self.components:
@@ -917,7 +912,7 @@ class Network(Basic):
             All components are named after names with this added suffix. It
             is assumed that all Series and DataFrames are indexed by the original names.
         kwargs
-            Component attributes, e.g. x=[0.1,0.2], can be list, pandas.Series
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
         Returns
@@ -931,8 +926,8 @@ class Network(Basic):
         Short Example:
 
         >>> network.madd("Load", ["load 1", "load 2"],
-        ...        bus=["1","2"],
-        ...        p_set=np.random.rand(len(network.snapshots),2))
+        ...        bus=["1", "2"],
+        ...        p_set=np.random.rand(len(network.snapshots), 2))
 
         Long Example:
 
@@ -946,9 +941,9 @@ class Network(Basic):
         >>> n.madd("Load",
         ...        n.buses.index + " load",
         ...        bus=buses,
-        ...        p_set=np.random.rand(len(snapshots),len(buses)))
+        ...        p_set=np.random.rand(len(snapshots), len(buses)))
         >>> # add wind availability as pandas DataFrame
-        >>> wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
         ...        columns=buses)
         >>> #use a suffix to avoid boilerplate to rename everything
@@ -1338,6 +1333,10 @@ class Network(Basic):
         for c in self.iterate_components():
             for attr in bus_columns(c.df):
                 missing = ~c.df[attr].isin(self.buses.index)
+                # if bus2, bus3... contain empty strings do not warn
+                if c.name in self.branch_components:
+                    if int(attr[-1]) > 1:
+                        missing &= c.df[attr] != ""
                 if missing.any():
                     msg = "The following %s have %s which are not defined:\n%s"
                     logger.warning(msg, c.list_name, attr, c.df.index[missing])
@@ -1496,6 +1495,19 @@ class Network(Basic):
                         "Assets can only be committable or extendable. Found "
                         f"assets in component {c} which are both:"
                         f"\n\n\t{', '.join(intersection)}"
+                    )
+
+            if c.name in {"Generator"}:
+                bad_uc_gens = c.df.index[
+                    c.df.committable
+                    & (c.df.up_time_before > 0)
+                    & (c.df.down_time_before > 0)
+                ]
+                if not bad_uc_gens.empty:
+                    logger.warning(
+                        "The following committable generators were both up and down"
+                        f" before the simulation: {bad_uc_gens}."
+                        " This could cause an infeasibility."
                     )
 
         # check all dtypes of component attributes
