@@ -147,7 +147,6 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
 
 def add_contingency_constraints(network, snapshots):
-
     passive_branches = network.passive_branches()
 
     branch_outages = network._branch_outages
@@ -274,7 +273,6 @@ def add_contingency_constraints(network, snapshots):
 
 
 def add_contingency_constraints_lowmem(network, snapshots):
-
     n = network
 
     if not hasattr(n, "_branch_outages"):
@@ -400,11 +398,6 @@ def network_sclopf(
     pyomo : bool, default True
         Whether to use pyomo for building and solving the model, setting
         this to False saves a lot of memory and time.
-
-        .. deprecated:: 0.20
-
-            In PyPSA version 0.21 the default will change to ``pyomo=False``.
-
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
@@ -435,6 +428,7 @@ def network_sclopf(
     """
 
     if not skip_pre:
+        network.calculate_dependent_values()
         network.determine_network_topology()
 
     snapshots = _as_snapshots(network, snapshots)

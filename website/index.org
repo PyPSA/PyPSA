@@ -143,7 +143,7 @@ It leans heavily on the following Python packages:
 -  [[https://plot.ly/python/][plotly]] for interactive plotting
 -  [[https://matplotlib.org/][matplotlib]] for static plotting
 -  [[https://networkx.github.io/][networkx]] for some network calculations
--  [[http://pytest.org/][py.test]] for unit testing
+-  [[http://pytest.org/][pytest]] for unit testing
 -  [[https://docs.python.org/3/library/logging.html][logging]] for managing messages
 
 The optimisation uses pyomo so that it is independent of the preferred
