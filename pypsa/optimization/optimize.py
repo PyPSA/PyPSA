@@ -465,7 +465,12 @@ def optimize(
 
     n.consistency_check()
     m = create_model(
-        n, sns, multi_investment_periods, linearized_unit_commitment, transmission_losses, **model_kwargs
+        n,
+        sns,
+        multi_investment_periods,
+        linearized_unit_commitment,
+        transmission_losses,
+        **model_kwargs,
     )
     if extra_functionality:
         extra_functionality(n, sns)
