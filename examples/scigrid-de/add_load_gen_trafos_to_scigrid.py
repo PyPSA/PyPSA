@@ -92,7 +92,7 @@ folder_prefix = os.path.dirname(pypsa.__file__) + "/../examples/scigrid-de/"
 # note that some columns have 'quotes because of fields containing commas'
 vertices = pd.read_csv(
     folder_prefix + "scigrid-151109/vertices_de_power_151109.csvdata",
-    sep=", ",
+    sep=",",
     quotechar="'",
     index_col=0,
 )
@@ -103,7 +103,7 @@ print(vertices["voltage"].value_counts(dropna=False))
 
 links = pd.read_csv(
     folder_prefix + "scigrid-151109/links_de_power_151109.csvdata",
-    sep=", ",
+    sep=",",
     quotechar="'",
     index_col=0,
 )
@@ -534,7 +534,7 @@ def read_kraftwerksliste(with_latlon=True):
         delimiter=";",
         encoding="utf-8",
         thousands=".",
-        decimal=", ",
+        decimal=",",
     )
 
     def sanitize_names(x):

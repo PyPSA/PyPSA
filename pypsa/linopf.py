@@ -863,7 +863,7 @@ def define_global_constraints(n, sns):
     )
     substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
     for name, glc in glcs.iterrows():
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(", ")]
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
         lhs = ""
         period = get_period(n, glc, sns)
         for c, attr in (("Line", "s_nom"), ("Link", "p_nom")):
@@ -896,7 +896,7 @@ def define_global_constraints(n, sns):
     # (3) transmission_expansion_cost_limit
     glcs = n.global_constraints.query("type == " '"transmission_expansion_cost_limit"')
     for name, glc in glcs.iterrows():
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(", ")]
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
         lhs = ""
         period = get_period(n, glc, sns)
         for c, attr in (("Line", "s_nom"), ("Link", "p_nom")):
