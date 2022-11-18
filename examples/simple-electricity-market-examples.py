@@ -239,13 +239,13 @@ network.buses_t.marginal_price
 #
 # In this example we consider a single market bidding zone, South Africa.
 #
-# We consider multiple time periods (labelled [0,1,2,3]) to represent variable wind generation.
+# We consider multiple time periods (labelled [0, 1, 2, 3]) to represent variable wind generation.
 
 country = "South Africa"
 
 network = pypsa.Network()
 
-# snapshots labelled by [0,1,2,3]
+# snapshots labelled by [0, 1, 2, 3]
 network.set_snapshots(range(4))
 
 network.add("Bus", country)
@@ -282,13 +282,13 @@ network.buses_t.marginal_price
 #
 # In this example we consider a single market bidding zone, South Africa.
 #
-# We consider multiple time periods (labelled [0,1,2,3]) to represent variable wind generation. Storage is allowed to do price arbitrage to reduce oil consumption.
+# We consider multiple time periods (labelled [0, 1, 2, 3]) to represent variable wind generation. Storage is allowed to do price arbitrage to reduce oil consumption.
 
 country = "South Africa"
 
 network = pypsa.Network()
 
-# snapshots labelled by [0,1,2,3]
+# snapshots labelled by [0, 1, 2, 3]
 network.set_snapshots(range(4))
 
 network.add("Bus", country)

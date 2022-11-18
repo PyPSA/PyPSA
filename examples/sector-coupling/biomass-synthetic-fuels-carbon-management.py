@@ -20,7 +20,7 @@ import pypsa
 
 # First tell PyPSA that links can have multiple outputs by
 # overriding the component_attrs. This can be done for
-# as many buses as you need with format busi for i = 2,3,4,5,....
+# as many buses as you need with format busi for i = 2, 3, 4, 5, ....
 # See https://pypsa.readthedocs.io/en/latest/components.html#link-with-multiple-outputs-or-inputs
 
 override_component_attrs = pypsa.descriptors.Dict(
@@ -91,7 +91,7 @@ n.add("Bus", "hydrogen")
 
 n.add("Store", "hydrogen", bus="hydrogen", e_cyclic=True, e_nom=1000.0)
 
-# n.add("Load","hydrogen",
+# n.add("Load", "hydrogen",
 #      bus="hydrogen",
 #      p_set=1.)
 

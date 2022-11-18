@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 ## Show classic screening curve analysis for generation investment
 #
-# Compute the long-term equilibrium power plant investment for a given load duration curve (1000-1000z for z \in [0,1]) and a given set of generator investment options.
+# Compute the long-term equilibrium power plant investment for a given load duration curve (1000-1000z for z \in [0, 1]) and a given set of generator investment options.
 #
 # Available as a Jupyter notebook at https://pypsa.readthedocs.io/en/latest/examples/generation-investment-screening-curve.ipynb.
 
