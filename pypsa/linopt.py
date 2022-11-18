@@ -804,7 +804,7 @@ def run_and_read_highs(
     # and thus have non-Nan name
     nan_rows = sol.Name.isna()
     sol.loc[bad_rows, ["Lower", "Upper", "Primal", "Dual", "Name"]] = sol.loc[
-        sol.Name.isna(), ["Status", "Lower", "Upper", "Primal", "Dual"]
+        nan_rows, ["Status", "Lower", "Upper", "Primal", "Dual"]
     ].to_numpy()
     sol.loc[nan_rows, "Status"] = np.nan
 
