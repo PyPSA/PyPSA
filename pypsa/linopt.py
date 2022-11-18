@@ -801,9 +801,9 @@ def run_and_read_highs(
     # will parse as off by one. But some of the rows may have parsed correctly
     # and thus have non-Nan name
     nan_rows = sol.Name.isna()
-    sol.loc[bad_rows, ["Lower", "Upper", "Primal", "Dual", "Name"]] = sol.loc[
+    sol.loc[nan_rows, ["Lower", "Upper", "Primal", "Dual", "Name"]] = sol.loc[
         nan_rows, ["Status", "Lower", "Upper", "Primal", "Dual"]
-    ].to_numpy()
+    ].values
     sol.loc[nan_rows, "Status"] = np.nan
 
     row_no = sol[sol["Index"] == "Rows"].index[0]
