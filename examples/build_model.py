@@ -65,7 +65,7 @@ for test_i in range(1):
             "load" + str(gen_i),
             bus="bus" + str(gen_i),
             p_set=generator_p_nom[gen_i] / 2.0,
-        )  # [4000,6000,5000,800])
+        )  # [4000, 6000, 5000, 800])
 
         nu.add(
             "Generator",

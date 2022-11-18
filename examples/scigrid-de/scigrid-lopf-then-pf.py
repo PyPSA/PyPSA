@@ -19,7 +19,7 @@
 #
 # Wind and solar capacities and locations: EEG Stammdaten, based on  http://www.energymap.info/download.html, which represents capacities at the end of 2014. Units without PLZ are removed.
 #
-# Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis," Energy 93 (2015) 1074 - 1088.
+# Wind and solar time series: REatlas, Andresen et al, "Validation of Danish wind time series from a new global renewable energy atlas for energy system analysis, " Energy 93 (2015) 1074 - 1088.
 #
 # NB:
 #
@@ -184,7 +184,7 @@ for i in range(int(24 / group_size)):
     # network.lines.s_nom = network.lines.s_nom_opt
 
 # if lines are extended, look at which ones are bigger
-# network.lines[["s_nom_original","s_nom"]][abs(network.lines.s_nom - network.lines.s_nom_original) > 1]
+# network.lines[["s_nom_original", "s_nom"]][abs(network.lines.s_nom - network.lines.s_nom_original) > 1]
 
 p_by_carrier = network.generators_t.p.groupby(network.generators.carrier, axis=1).sum()
 
@@ -370,7 +370,7 @@ network.storage_units_t.p_set = network.storage_units_t.p
 network.generators.control = "PV"
 
 # set slack
-# network.generators.loc["1 Coal","control"] = "Slack"
+# network.generators.loc["1 Coal", "control"] = "Slack"
 
 
 # Need some PQ buses so that Jacobian doesn't break

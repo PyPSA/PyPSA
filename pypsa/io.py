@@ -764,8 +764,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             if component == "Bus":
                 logger.error("Error, no buses found")
                 return
-            else:
-                continue
+            continue
 
         import_components_from_dataframe(network, df, component)
 
@@ -798,7 +797,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         A DataFrame whose index is the names of the components and
         whose columns are the non-default attributes.
     cls_name : string
-        Name of class of component, e.g. ``"Line","Bus","Generator", "StorageUnit"``
+        Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
 
     Examples
     --------
@@ -893,7 +892,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     >>> import numpy as np
     >>> network.set_snapshots(range(10))
     >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10,4),
+            pd.DataFrame(np.random.rand(10, 4),
                 columns=network.generators.index,
                             index=range(10)),
                         "Generator",

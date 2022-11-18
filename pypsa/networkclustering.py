@@ -34,8 +34,7 @@ def _normed(s):
     tot = s.sum()
     if tot == 0:
         return 1.0
-    else:
-        return s / tot
+    return s / tot
 
 
 def _flatten_multiindex(m, join=" "):
@@ -486,7 +485,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
     n_clusters : int
@@ -547,7 +546,7 @@ def kmeans_clustering(
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
     n_clusters : int
@@ -682,7 +681,7 @@ def hac_clustering(
     Parameters
     ----------
     network : pypsa.Network
-        The buses must have coordinates x,y.
+        The buses must have coordinates x, y.
     buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
     branch_components: List, default=["Line", "Link"]
