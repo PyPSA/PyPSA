@@ -795,9 +795,7 @@ def run_and_read_highs(
 
     sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
 
-    sol = sol.iloc[
-        :-2, :
-    ]  # last two rows are model info: status and objective value
+    sol = sol.iloc[:-2, :]  # last two rows are model info: status and objective value
 
     # If there's nothing in the "status" column, then the following columns
     # will parse as off by one. But some of the rows may have parsed correctly
