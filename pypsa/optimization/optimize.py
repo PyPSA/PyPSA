@@ -468,8 +468,8 @@ def optimize(
         n,
         sns,
         multi_investment_periods,
-        linearized_unit_commitment,
         transmission_losses,
+        linearized_unit_commitment,
         **model_kwargs,
     )
     if extra_functionality:
