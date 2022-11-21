@@ -1323,7 +1323,7 @@ def calculate_Y(sub_network, skip_pre=False):
         (ones(num_branches), (np.arange(num_branches), bus1)), (num_branches, num_buses)
     )
 
-    # build Y{0,1} such that Y{0,1} * V is the vector complex branch currents
+    # build Y{0, 1} such that Y{0, 1} * V is the vector complex branch currents
 
     i = r_[np.arange(num_branches), np.arange(num_branches)]
     sub_network.Y0 = csr_matrix(

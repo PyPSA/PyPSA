@@ -1385,10 +1385,10 @@ def network_lopf(
         construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchhoff","ptdf"]
+        one of ["angles", "cycles", "kirchhoff", "ptdf"]
     extra_functionality : callable function
         This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
+        `extra_functionality(network, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -1399,7 +1399,7 @@ def network_lopf(
         objective has to be defined via extra_functionality.
     extra_postprocessing : callable function
         This function must take three arguments
-        `extra_postprocessing(network,snapshots,duals)` and is called after
+        `extra_postprocessing(network, snapshots, duals)` and is called after
         the model has solved and the results are extracted. It allows the user
         to extract further information about the solution, such as additional
         shadow prices.

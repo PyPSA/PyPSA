@@ -51,7 +51,7 @@ def define_variables(n, lower, upper, name, attr="", axes=None, spec="", mask=No
     bound(s). The variables are stored in the network object under n.vars with
     key of the variable name. If multiple variables are defined at ones, at
     least one of lower and upper has to be an array (including pandas) of
-    `shape > (1,)` or axes have to define the dimensions of the variables.
+    `shape > (1, )` or axes have to define the dimensions of the variables.
 
     Parameters
     ----------
@@ -452,8 +452,7 @@ def _str_array(array, integer_string=False):
             array = np.nan_to_num(array, False, -1)
             return _v_to_int_str(array)
         return _v_to_float_str(array)
-    else:
-        return array
+    return array
 
 
 def join_exprs(df):
@@ -589,8 +588,7 @@ def get_sol(n, name, attr=""):
     pnl = n.solutions.at[(name, attr), "pnl"]
     if n.solutions.at[(name, attr), "in_comp"]:
         return n.pnl(name)[attr] if pnl else n.df(name)[attr + "_opt"]
-    else:
-        return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
+    return n.sols[name].pnl[attr] if pnl else n.sols[name].df[attr]
 
 
 def get_dual(n, name, attr=""):
@@ -615,8 +613,7 @@ def get_dual(n, name, attr=""):
     pnl = n.dualvalues.at[(name, attr), "pnl"]
     if n.dualvalues.at[(name, attr), "in_comp"]:
         return n.pnl(name)[attr] if pnl else n.df(name)[attr]
-    else:
-        return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
+    return n.duals[name].pnl[attr] if pnl else n.duals[name].df[attr]
 
 
 # =============================================================================
@@ -666,7 +663,7 @@ def run_and_read_highs(
     Now when typing ``highs`` in the terminal you should see something like ::
         Running HiGHS 1.1.1 [date: 2021-11-14, git hash: 95342daa]
 
-    The function reads and execute (i.e. subprocess.Popen,...) terminal
+    The function reads and execute (i.e. subprocess.Popen, ...) terminal
     commands of the solver. Meaning the command can be also executed at your
     command window/terminal if HiGHs is installed. Executing the commands on
     your local terminal helps to identify the raw outputs that are useful for
@@ -720,7 +717,7 @@ def run_and_read_highs(
 
     """
     logger.warning(
-        "The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi,cbc,glpk"
+        "The HiGHS solver can potentially solve towards variables that slightly deviate from Gurobi, cbc, glpk"
     )
     options_fn = "highs_options.txt"
     default_dict = {

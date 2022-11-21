@@ -162,7 +162,7 @@ for i in range(3):
     n.add("Bus", "bus {}".format(i))
 
 
-# There are 2 new attribute for the components ("Line", "Link", "Generator", Storage",...) <br>
+# There are 2 new attribute for the components ("Line", "Link", "Generator", Storage", ...) <br>
 #     (1) "**build_year**" : time when the asset is build (=first year of operation) <br>
 #     (2) "**lifetime**": time of operation (not used to annualise the capital costs) <br>
 # - If build_year and lifetime is not specified, it is assumed that the asset can operate in all investment_periods. - If only the build_year and no lifetime is specified, it is assumed the the asset can operate from build_year until the end of the optimisation time range
