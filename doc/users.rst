@@ -69,6 +69,8 @@ Companies and Non-Governmental Organisations
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
+* `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_
+
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
 * `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example this study from 2021: `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_
