@@ -94,3 +94,5 @@ Companies and Non-Governmental Organisations
 * `spire <https://www.spireenergy.com/>`_
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
+
+* `Ministry of Economic Affairs and Climate Policy` via `Witteveen+Bos Raadgevende ingenieurs`: study on nuclear energy scentarios: van&nbsp;Druten, EJ, SWP van Wieringen, WJ ter&nbsp;Heijden, Ruut Schalij, Maarten van&nbsp;der&nbsp;Kloot Meijburg, Laetitia Ouillet, Coen Hoogeveen, M&nbsp;Rademaker, I&nbsp;Patrahau, and L&nbsp;van&nbsp;Geuns (26&nbsp;September 2022).  [*Scenario study nuclear energy: Conclusions and summary — Final version&nbsp;02, Reference 130675/22-013.680*](https://eriskgroup.com/wp-content/uploads/2022/10/Scenario-study-nuclear-energy-Conclusions-and-Summary.pdf).  Deventer, The Netherlands: Witteveen+Bos Raadgevende ingenieurs.  Study for Ministry of Economic Affairs and Climate Policy.
