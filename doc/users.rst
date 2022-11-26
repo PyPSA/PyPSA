@@ -81,7 +81,7 @@ Companies and Non-Governmental Organisations
 
 * `Energynautics GmbH <https://energynautics.com/>`_, a grid integration consultancy in Germany: used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: `Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen <https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf>`_ (`summary in English <https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/>`_)
 
-* `Witteveen+Bos <https://www.witteveenbos.com/about-us/>`_, a Dutch engineering and consultancy company, used PyPSA in 2022 to consult the Ministry Economic Affairs and Climate Policy in Netherlands: `Scenario study on nuclear energy <https://eriskgroup.com/wp-content/uploads/2022/10/Scenario-study-nuclear-energy-Conclusions-and-Summary.pdf>`_
+* `Witteveen+Bos <https://www.witteveenbos.com/about-us/>`_, a Dutch engineering and consultancy company, used PyPSA in 2022 to consult the Ministry of Economic Affairs and Climate Policy in Netherlands: `Scenario study on nuclear energy <https://eriskgroup.com/wp-content/uploads/2022/10/Scenario-study-nuclear-energy-Conclusions-and-Summary.pdf>`_
 
 * `Saudi Aramco <https://www.aramco.com/>`_: used PyPSA for an assessment of renewables integration in 2019, see `arXiv:1709.03761 <https://arxiv.org/abs/1709.03761>`_
 
