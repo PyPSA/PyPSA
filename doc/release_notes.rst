@@ -9,6 +9,11 @@ Upcoming Release
 
 * Add linearized unit commitment implementation in linopy.
 
+PyPSA 0.21.2 (30th November 2022)
+=================================
+
+* Compatibility with ``pyomo>=6.4.3``.
+
 PyPSA 0.21.1 (10th November 2022)
 =================================
 
