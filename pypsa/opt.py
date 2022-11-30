@@ -28,7 +28,7 @@ from contextlib import contextmanager
 
 from pyomo.core.base.constraint import _GeneralConstraintData
 from pyomo.core.expr.numeric_expr import LinearExpression
-from pyomo.environ import Constraint, Objective, Var, minimize, inequality
+from pyomo.environ import Constraint, Objective, Var, inequality, minimize
 from six.moves import cPickle as pickle
 
 # =============================================================================
