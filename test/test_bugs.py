@@ -93,6 +93,6 @@ def test_515():
     n.add('Generator', 'gen', bus='bus', p_nom=1, marginal_cost=marginal_costs)
     n.add('Load', 'load', bus='bus', p_set=1)
 
-    n.lopf(pyomo=False, solver_name='cbc')
+    n.lopf(pyomo=False)
 
     assert n.objective == 10
