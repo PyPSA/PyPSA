@@ -84,7 +84,7 @@ Companies and Non-Governmental Organisations
   <http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf>`_,
   `power sector analysis for Thailand <https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf>`_ within the CASE programme, `the
   future of the Indonesian power system <https://energynautics.com/en/pypsa/>`_ within the "1000 Islands"
-  programme, and the `Brazilian electricity system <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_ 
+  programme, and the `Brazilian electricity system <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
 
 * `Meridian Economics <https://meridianeconomics.co.za/>`_, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on `load shedding in 2021 <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_ and `a plan to resolve load shedding <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf>`_
 
