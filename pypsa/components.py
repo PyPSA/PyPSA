@@ -668,10 +668,10 @@ class Network(Basic):
             construction, e.g. .lp file - useful for debugging
         formulation : string
             Formulation of the linear power flow equations to use; must be
-            one of ["angles","cycles","kirchhoff","ptdf"]
+            one of ["angles", "cycles", "kirchhoff", "ptdf"]
         extra_functionality : callable function
             This function must take two arguments
-            `extra_functionality(network,snapshots)` and is called after
+            `extra_functionality(network, snapshots)` and is called after
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
@@ -700,7 +700,7 @@ class Network(Basic):
         extra_postprocessing : callable function
             Only taking effect when pyomo is True.
             This function must take three arguments
-            `extra_postprocessing(network,snapshots,duals)` and is called after
+            `extra_postprocessing(network, snapshots, duals)` and is called after
             the model has solved and the results are extracted. It allows the user
             to extract further information about the solution, such as additional
             shadow prices.
@@ -766,8 +766,7 @@ class Network(Basic):
 
         if pyomo:
             return network_lopf(self, **args)
-        else:
-            return network_lopf_lowmem(self, **args)
+        return network_lopf_lowmem(self, **args)
 
     def add(self, class_name, name, **kwargs):
         """
@@ -793,9 +792,9 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.add("Bus","my_bus_0")
-        >>> network.add("Bus","my_bus_1",v_nom=380)
-        >>> network.add("Line","my_line_name",bus0="my_bus_0",bus1="my_bus_1",length=34,r=2,x=4)
+        >>> network.add("Bus", "my_bus_0")
+        >>> network.add("Bus", "my_bus_1", v_nom=380)
+        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
 
         assert class_name in self.components, "Component class {} not found".format(
@@ -866,7 +865,7 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.remove("Line","my_line 12345")
+        >>> network.remove("Line", "my_line 12345")
         """
 
         if class_name not in self.components:
@@ -906,7 +905,7 @@ class Network(Basic):
             All components are named after names with this added suffix. It
             is assumed that all Series and DataFrames are indexed by the original names.
         kwargs
-            Component attributes, e.g. x=[0.1,0.2], can be list, pandas.Series
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
         Returns
@@ -920,8 +919,8 @@ class Network(Basic):
         Short Example:
 
         >>> network.madd("Load", ["load 1", "load 2"],
-        ...        bus=["1","2"],
-        ...        p_set=np.random.rand(len(network.snapshots),2))
+        ...        bus=["1", "2"],
+        ...        p_set=np.random.rand(len(network.snapshots), 2))
 
         Long Example:
 
@@ -935,9 +934,9 @@ class Network(Basic):
         >>> n.madd("Load",
         ...        n.buses.index + " load",
         ...        bus=buses,
-        ...        p_set=np.random.rand(len(snapshots),len(buses)))
+        ...        p_set=np.random.rand(len(snapshots), len(buses)))
         >>> # add wind availability as pandas DataFrame
-        >>> wind = pd.DataFrame(np.random.rand(len(snapshots),len(buses)),
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
         ...        columns=buses)
         >>> #use a suffix to avoid boilerplate to rename everything

@@ -273,8 +273,7 @@ def define_generator_variables_constraints(network, snapshots):
         for i in range(1, min(min_up_time, start_i) + 1):
             if network.generators_t.status.at[network.snapshots[start_i - i], gen] == 0:
                 break
-            else:
-                up_time_before += 1
+            up_time_before += 1
 
         if up_time_before == start_i:
             up_time_before = min(
@@ -344,8 +343,7 @@ def define_generator_variables_constraints(network, snapshots):
         for i in range(1, min(min_down_time, start_i) + 1):
             if network.generators_t.status.at[network.snapshots[start_i - i], gen] == 1:
                 break
-            else:
-                down_time_before += 1
+            down_time_before += 1
 
         if down_time_before == start_i:
             down_time_before = min(
@@ -2133,7 +2131,7 @@ def network_lopf_build_model(
         dependent values and finding bus controls.
     formulation : string
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchhoff","ptdf"]
+        one of ["angles", "cycles", "kirchhoff", "ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
 
@@ -2241,7 +2239,7 @@ def network_lopf_solve(
         network.snapshots, defaults to network.snapshots
     formulation : string
         Formulation of the linear power flow equations to use; must be one of
-        ["angles","cycles","kirchhoff","ptdf"]; must match formulation used for
+        ["angles", "cycles", "kirchhoff", "ptdf"]; must match formulation used for
         building the model.
     solver_options : dictionary
         A dictionary with additional options that get passed to the solver.
@@ -2257,7 +2255,7 @@ def network_lopf_solve(
         `pyomo` data after the solution has been extracted.
     extra_postprocessing : callable function
         This function must take three arguments
-        `extra_postprocessing(network,snapshots,duals)` and is called after
+        `extra_postprocessing(network, snapshots, duals)` and is called after
         the model has solved and the results are extracted. It allows the user to
         extract further information about the solution, such as additional shadow prices.
 
@@ -2367,7 +2365,7 @@ def network_lopf(
         dependent values and finding bus controls.
     extra_functionality : callable function
         This function must take two arguments
-        `extra_functionality(network,snapshots)` and is called after
+        `extra_functionality(network, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -2381,7 +2379,7 @@ def network_lopf(
         construction, e.g. .lp file - useful for debugging
     formulation : string
         Formulation of the linear power flow equations to use; must be
-        one of ["angles","cycles","kirchhoff","ptdf"]
+        one of ["angles", "cycles", "kirchhoff", "ptdf"]
     ptdf_tolerance : float
         Value below which PTDF entries are ignored
     free_memory : set, default {'pyomo'}
@@ -2390,7 +2388,7 @@ def network_lopf(
         `pyomo` data after the solution has been extracted.
     extra_postprocessing : callable function
         This function must take three arguments
-        `extra_postprocessing(network,snapshots,duals)` and is called after
+        `extra_postprocessing(network, snapshots, duals)` and is called after
         the model has solved and the results are extracted. It allows the user to
         extract further information about the solution, such as additional shadow prices.
 

@@ -78,8 +78,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
                     if np.isinf(data["weight"]) and inf_weight is not True:
                         if inf_weight is False:
                             continue
-                        else:
-                            data["weight"] = inf_weight
+                        data["weight"] = inf_weight
 
                 yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
