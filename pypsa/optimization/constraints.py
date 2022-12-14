@@ -7,9 +7,9 @@ import logging
 
 import pandas as pd
 from linopy.expressions import LinearExpression, merge
-from numpy import arange, cumsum, inf, nan, roll
+from numpy import arange, cumsum, inf, nan
 from scipy import sparse
-from xarray import DataArray, Dataset, zeros_like
+from xarray import DataArray, Dataset, concat, zeros_like
 
 from pypsa.descriptors import (
     additional_linkports,
@@ -670,20 +670,24 @@ def define_storage_unit_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = soc.period
+        periods = soc.period.to_array()
         per_period = (
             assets.cyclic_state_of_charge_per_period.to_xarray()
             | assets.state_of_charge_initial_per_period.to_xarray()
         )
 
         # We calculate the previous soc per period while cycling within a period
-        kwargs = dict(shortcut=True, shift=1, axis=list(soc.dims).index(dim))
-        previous_soc_pp = soc.groupby(periods).map(roll, **kwargs)
+        # Normally, we should use groupby, but is broken for multi-index
+        # see https://github.com/pydata/xarray/issues/6836
+        ps = n.investment_periods.rename("period")
+        previous_soc_pp = concat(
+            [soc.sel(period=p).roll(timestep=1) for p in ps], dim=ps
+        )
+        previous_soc_pp = previous_soc_pp.stack(snapshot=["period", "timestep"])
 
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
-        kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
-        include_previous_soc_pp = active.groupby(periods).map(cumsum, **kwargs) != 1
+        include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp, -1)
 
@@ -739,20 +743,25 @@ def define_store_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = e.period
+        periods = e.period.to_array()
         per_period = (
             assets.e_cyclic_per_period.to_xarray()
             | assets.e_initial_per_period.to_xarray()
         )
 
         # We calculate the previous e per period while cycling within a period
-        kwargs = dict(shortcut=True, shift=1, axis=list(e.dims).index(dim))
-        previous_e_pp = e.groupby(periods).map(roll, **kwargs)
+        # Normally, we should use groupby, but is broken for multi-index
+        # see https://github.com/pydata/xarray/issues/6836
+        ps = n.investment_periods.rename("period")
+        previous_e_pp = concat(
+            [e.sel(period=p).roll(timestep=1) for p in ps],
+            dim=ps,
+        )
+        previous_e_pp = previous_e_pp.stack(snapshot=["period", "timestep"])
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
-        kwargs = dict(shortcut=True, axis=list(active.dims).index(dim))
-        include_previous_e_pp = active.groupby(periods).map(cumsum, **kwargs) != 1
+        include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
         previous_e_pp = previous_e_pp.where(include_previous_e_pp, -1)
 
