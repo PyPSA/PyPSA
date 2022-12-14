@@ -10,6 +10,7 @@ Upcoming Release
 * Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
 * Bugfix: Due to xarray's `groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
 * Add linearized unit commitment implementation in linopy.
+* Update HiGHS parsing function in linopt for HiGHS version 1.4.0. Minimum version of HiGHS is v1.3.0. Older versions have not been tested.
 
 
 PyPSA 0.21.2 (30th November 2022)

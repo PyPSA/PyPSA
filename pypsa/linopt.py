@@ -790,7 +790,10 @@ def run_and_read_highs(
     trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     f.close()
 
-    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
+    sol = pd.read_fwf(io.BytesIO(trimed_sol_fn), header=[1])
+
+    sol = sol.iloc[:-2, :]  # last two rows are model info: status and objective value
+
     row_no = sol[sol["Index"] == "Rows"].index[0]
     sol = sol.drop(row_no + 1)  # Removes header line after "Rows"
     sol_rows = sol[(sol.index > row_no)]
