@@ -46,7 +46,7 @@ PyPSA: Python for Power System Analysis
    :alt: Code style: black
 
 .. image:: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
-   :target: code_of_conduct.md 
+   :target: code_of_conduct.md
    :alt: Contributor Covenant 2.1
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
