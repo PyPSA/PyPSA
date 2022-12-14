@@ -11,11 +11,8 @@ dependencies:
 - pytables
 - matplotlib
 - networkx>=1.10
+- linopy
 - pyomo>=5.7.0
 - cartopy>=0.16
 - glpk
 - deprecation
-#  - coincbc
-#  - gurobi::gurobi
-- pip:
-  - linopy
