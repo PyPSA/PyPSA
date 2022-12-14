@@ -77,6 +77,15 @@ Companies and Non-Governmental Organisations
 
 * `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 
+* `GIZ <https://www.giz.de/en/html/index.html>`_, the  German Agency for
+  International Cooperation (Deutsche Gesellschaft für Internationale
+  Zusammenarbeit) published and supported several studies based on PyPSA for the
+  `integration of renewables into the Vietnamese power system
+  <http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf>`_,
+  `power sector analysis for Thailand <https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf>`_ within the CASE programme, `the
+  future of the Indonesian power system <https://energynautics.com/en/pypsa/>`_ within the "1000 Islands"
+  programme, and the `Brazilian electricity system <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
+
 * `Meridian Economics <https://meridianeconomics.co.za/>`_, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on `load shedding in 2021 <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_ and `a plan to resolve load shedding <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf>`_
 
 * `Energynautics GmbH <https://energynautics.com/>`_, a grid integration consultancy in Germany: used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: `Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen <https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf>`_ (`summary in English <https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/>`_)

@@ -156,41 +156,41 @@ if heat and chp:
 
     def extra_functionality(network, snapshots):
 
+        model = network.model
+        link_p = model.variables["Link-p"]
+        link_p_nom = model.variables["Link-p_nom"]
+
         # Guarantees heat output and electric output nominal powers are proportional
-        network.model.chp_nom = Constraint(
-            rule=lambda model: network.links.at["generator", "efficiency"]
+        model.add_constraints(
+            network.links.at["generator", "efficiency"]
             * nom_r
-            * model.link_p_nom["generator"]
-            == network.links.at["boiler", "efficiency"] * model.link_p_nom["boiler"]
+            * link_p_nom["generator"]
+            - network.links.at["boiler", "efficiency"] * link_p_nom["boiler"]
+            == 0,
+            name="heat-power output proportionality",
         )
 
         # Guarantees c_m p_b1  \leq p_g1
-        def backpressure(model, snapshot):
-            return (
-                c_m
-                * network.links.at["boiler", "efficiency"]
-                * model.link_p["boiler", snapshot]
-                <= network.links.at["generator", "efficiency"]
-                * model.link_p["generator", snapshot]
-            )
-
-        network.model.backpressure = Constraint(list(snapshots), rule=backpressure)
+        model.add_constraints(
+            c_m * network.links.at["boiler", "efficiency"] * link_p.sel(Link="boiler")
+            - network.links.at["generator", "efficiency"] * link_p.sel(Link="generator")
+            <= 0,
+            name="backpressure",
+        )
 
         # Guarantees p_g1 +c_v p_b1 \leq p_g1_nom
-        def top_iso_fuel_line(model, snapshot):
-            return (
-                model.link_p["boiler", snapshot] + model.link_p["generator", snapshot]
-                <= model.link_p_nom["generator"]
-            )
-
-        network.model.top_iso_fuel_line = Constraint(
-            list(snapshots), rule=top_iso_fuel_line
+        model.add_constraints(
+            link_p.sel(Link="boiler")
+            + link_p.sel(Link="generator")
+            - link_p_nom.sel({"Link-ext": "generator"})
+            <= 0,
+            name="top_iso_fuel_line",
         )
 
 else:
     extra_functionality = None
 
-network.lopf(network.snapshots, extra_functionality=extra_functionality)
+network.optimize(extra_functionality=extra_functionality)
 print("Objective:", network.objective)
 
 network.loads_t.p
