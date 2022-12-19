@@ -38,10 +38,11 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
+    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)].rename("Bus-nom_min_max")
 
     for col in cols:
         msg = (
-            f"Bus column '{col}' has invalid specifaction and cannot be "
+            f"Bus column '{col}' has invalid specification and cannot be "
             "interpreted as constraint, must match the pattern "
             "`nom_{min/max}_{carrier}` or `nom_{min/max}_{carrier}_{period}`"
         )
@@ -51,42 +52,50 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             sign = "<="
         else:
             logger.warn(msg)
+            continue
         remainder = col[len("nom_max_") :]
         if remainder in n.carriers.index:
             carrier = remainder
             period = None
-        elif not isinstance(n.snapshots, pd.MultiIndex):
-            logger.warn(msg)
-            continue
-        else:
+        elif isinstance(n.snapshots, pd.MultiIndex):
             carrier, period = remainder.rsplit("_", 1)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
                 logger.warn(msg)
                 continue
+        else:
+            logger.warn(msg)
+            continue
 
-        rhs = n.buses[col]
         lhs = []
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            ext_i = n.get_extendable_i(c)
+            df = n.df(c)
 
-            if c not in n.one_port_components or ext_i.empty:
+            if c not in n.one_port_components or "carrier" not in df:
                 continue
 
+            ext_i = (
+                n.get_extendable_i(c)
+                .intersection(df.index[df.carrier == carrier])
+                .rename(dim)
+            )
             if period is not None:
-                ext_i = ext_i[n.get_active_assets(c, 1)[ext_i]]
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
 
-            buses = n.df(c)["bus"][ext_i].rename("Bus").rename_axis(dim).to_xarray()
-            expr = m[var].loc[ext_i].groupby_sum(buses)
+            if ext_i.empty:
+                continue
+
+            busmap = df.loc[ext_i, "bus"].rename(buses.name).to_xarray()
+            expr = m[var].loc[ext_i].groupby_sum(busmap).reindex({buses.name: buses})
             lhs.append(expr)
 
         if not lhs:
             continue
 
         lhs = merge(lhs)
-        rhs = rhs[lhs.Bus.data]
+        rhs = n.buses.loc[buses, col]
         mask = rhs.notnull()
         n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask=mask)
 
