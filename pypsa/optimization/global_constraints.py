@@ -59,6 +59,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             period = None
         elif isinstance(n.snapshots, pd.MultiIndex):
             carrier, period = remainder.rsplit("_", 1)
+            period = int(period)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
                 logger.warn(msg)
                 continue
