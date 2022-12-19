@@ -512,6 +512,6 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n, api):
 def test_max_growth_constraint(n, api):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]
-    n.add("Carrier", name="gencarrier", max_growth=218)
+    n.carriers.at[gen_carrier, "max_growth"] = 218
     status, cond = optimize(n, api, **kwargs)
     assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
