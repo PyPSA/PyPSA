@@ -17,6 +17,71 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
+def define_tech_capacity_expansion_limit(n, sns):
+    """
+    Defines per-carrier and potentially per-bus capacity expansion limits.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
+    m = n.model
+    glcs = n.global_constraints.loc[
+        lambda df: df.type == "tech_capacity_expansion_limit"
+    ]
+
+    for (carrier, sense, period), glcs_group in glcs.groupby(
+        ["carrier_attribute", "sense", "investment_period"]
+    ):
+        period = None if isnan(period) else int(period)
+        sign = "=" if sense == "==" else sense
+        busdim = f"Bus-{carrier}-{period}"
+        lhs_per_bus = []
+
+        for c, attr in nominal_attrs.items():
+            var = f"{c}-{attr}"
+            dim = f"{c}-ext"
+            df = n.df(c)
+
+            if c not in n.one_port_components or "carrier" not in df:
+                continue
+
+            ext_i = (
+                n.get_extendable_i(c)
+                .intersection(df.index[df.carrier == carrier])
+                .rename(dim)
+            )
+            if period is not None:
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
+
+            if ext_i.empty:
+                continue
+
+            busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
+            expr = m[var].loc[ext_i].groupby_sum(busmap)
+            lhs_per_bus.append(expr)
+
+        if not lhs_per_bus:
+            continue
+
+        lhs_per_bus = merge(lhs_per_bus)
+
+        for name, glc in glcs_group.iterrows():
+            bus = glc.get("bus")
+            if bus is None:
+                lhs = lhs_per_bus.sum(busdim)
+            else:
+                lhs = lhs_per_bus.sel(**{busdim: str(bus)}, drop=True)
+
+            n.model.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+
+
 def define_nominal_constraints_per_bus_carrier(n, sns):
     """
     Set an capacity expansion limit for assets of the same carrier at the same

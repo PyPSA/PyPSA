@@ -464,7 +464,7 @@ def test_global_constraint_transmission_cost_limit(n, api):
     assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
-@pytest.mark.parametrize("api", ["native"])
+@pytest.mark.parametrize("api", ["native", "linopy"])
 def test_global_constraint_bus_tech_limit(n, api):
     n.add(
         "GlobalConstraint",
