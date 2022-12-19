@@ -265,7 +265,6 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
     }
 
     def aggregatelinegroup(l):
-
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = (
             haversine_pts(
