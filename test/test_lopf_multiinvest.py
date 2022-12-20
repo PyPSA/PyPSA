@@ -515,3 +515,14 @@ def test_max_growth_constraint(n, api):
     n.carriers.at[gen_carrier, "max_growth"] = 218
     status, cond = optimize(n, api, **kwargs)
     assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
+
+
+@pytest.mark.parametrize("api", ["linopy"])
+def test_max_relative_growth_constraint(n, api):
+    # test generator relative grow limit
+    gen_carrier = n.generators.carrier.unique()[0]
+    n.carriers.at[gen_carrier, "max_growth"] = 218
+    n.carriers.at[gen_carrier, "max_relative_growth"] = 1.5
+    status, cond = optimize(n, api, **kwargs)
+    built_per_period = n.generators.p_nom_opt.groupby(n.generators.build_year).sum()
+    assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)

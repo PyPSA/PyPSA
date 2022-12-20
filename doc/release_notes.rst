@@ -7,7 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature
+* The linopy based optimization (`n.optimize`) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by x times what was installed in the investment period before. See the corresponding `pull request <https://github.com/PyPSA/PyPSA/pull/521>`_ for more details.
+
 
 PyPSA 0.21.3 (16th December 2022)
 =================================

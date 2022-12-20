@@ -181,7 +181,11 @@ def define_growth_limit(n, sns):
 
     m = n.model
     periods = sns.unique("period")
-    carrier_i = n.carriers.query("max_growth != inf").index
+    carrier_i = n.carriers.query("max_growth != inf").index.rename("Carrier")
+    max_absolute_growth = DataArray(n.carriers.loc[carrier_i, "max_growth"])
+    max_relative_growth = DataArray(
+        n.carriers.loc[carrier_i, "max_relative_growth"]
+    ).clip(min=0)
 
     if carrier_i.empty:
         return
@@ -190,33 +194,39 @@ def define_growth_limit(n, sns):
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
+        df = n.df(c)
 
-        if "carrier" not in n.df(c):
+        if "carrier" not in df:
             continue
 
-        limited_i = n.df(c).query("carrier in @carrier_i").index
-        limited_i = limited_i.intersection(n.get_extendable_i(c)).rename(dim)
-
+        limited_i = (
+            df.index[df.carrier.isin(carrier_i)]
+            .intersection(n.get_extendable_i(c))
+            .rename(dim)
+        )
         if limited_i.empty:
             continue
 
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
-        active = active.reindex(limited_i).rename_axis(columns="periods").T
+        active = active.loc[limited_i].rename_axis(columns="periods").T
         first_active = DataArray(active.cumsum() == 1)
-        assets = n.df(c).reindex(limited_i)
+        carriers = df.loc[limited_i, "carrier"].rename("Carrier")
 
-        carriers = assets.carrier.to_xarray().rename("Carrier")
         vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.groupby_sum(carriers)
+
+        if (max_relative_growth.loc[carriers.unique()] > 0).any():
+            expr = expr - expr.shift(periods=1) * max_relative_growth
+
         lhs.append(expr)
 
     if not lhs:
         return
 
     lhs = merge(lhs)
-    rhs = n.carriers.max_growth[carrier_i].rename_axis("Carrier")
+    rhs = max_absolute_growth
 
-    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit_{}".format(c))
+    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
 
 
 def define_primary_energy_limit(n, sns):
