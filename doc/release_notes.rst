@@ -7,15 +7,23 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
-* Bugfix: Due to xarray's `groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
-* Add linearized unit commitment implementation in linopy.
+* new feature
 
+PyPSA 0.21.3 (16th December 2022)
+=================================
+
+* Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
+* Bugfix: Due to xarray's ``groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
+* Update HiGHS parsing function in linopt for HiGHS version 1.4.0. Minimum version of HiGHS is v1.3.0. Older versions have not been tested.
+* Update of gas boiler example to ``linopy``.
+* New standard line types for DC lines.
+* Included code of conduct.
 
 PyPSA 0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
+* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================
