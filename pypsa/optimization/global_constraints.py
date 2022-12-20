@@ -224,7 +224,7 @@ def define_growth_limit(n, sns):
         return
 
     lhs = merge(lhs)
-    rhs = max_absolute_growth
+    rhs = max_absolute_growth.reindex_like(lhs)
 
     m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
 
