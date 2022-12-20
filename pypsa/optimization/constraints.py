@@ -681,15 +681,17 @@ def define_storage_unit_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
         previous_soc_pp = concat(
-            [soc.sel(period=p).roll(timestep=1) for p in ps], dim=ps
+            [soc.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
         )
-        previous_soc_pp = previous_soc_pp.stack(snapshot=["period", "timestep"])
-
+        previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
+            snapshot=soc.snapshot
+        )
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
-        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp, -1)
+        # We take values still to handle internal xarray multi-index difficulties
+        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
 
         # update the previous_soc variables and right hand side
         previous_soc = previous_soc_pp.where(per_period, previous_soc)
@@ -754,16 +756,18 @@ def define_store_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
         previous_e_pp = concat(
-            [e.sel(period=p).roll(timestep=1) for p in ps],
-            dim=ps,
+            [e.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
         )
-        previous_e_pp = previous_e_pp.stack(snapshot=["period", "timestep"])
+        previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
+            snapshot=e.snapshot
+        )
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
-        previous_e_pp = previous_e_pp.where(include_previous_e_pp, -1)
+        # We take values still to handle internal xarray multi-index difficulties
+        previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
 
         # update the previous_e variables and right hand side
         previous_e = previous_e_pp.where(per_period, previous_e)
