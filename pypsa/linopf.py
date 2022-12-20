@@ -740,7 +740,7 @@ def define_growth_limit(n, sns, c, attr):
     if "carrier" not in n.df(c) or n.df(c).empty:
         return
 
-    if n.carriers.max_relative_growth.notnull().any():
+    if (n.carriers.max_relative_growth > 0).any():
         logger.warning(
             "Max relative growth is not implemented for the native pypsa optimization framework. "
             "Use the linopy framework with `n.optimize` instead."
