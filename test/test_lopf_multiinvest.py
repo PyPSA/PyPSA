@@ -24,6 +24,7 @@ kwargs = dict(multi_investment_periods=True)
 def n():
     n = pypsa.Network(snapshots=range(10))
     n.investment_periods = [2020, 2030, 2040, 2050]
+    n.add("Carrier", "gencarrier")
     n.madd("Bus", [1, 2])
 
     for i, period in enumerate(n.investment_periods):
@@ -463,7 +464,7 @@ def test_global_constraint_transmission_cost_limit(n, api):
     assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
-@pytest.mark.parametrize("api", ["native"])
+@pytest.mark.parametrize("api", ["native", "linopy"])
 def test_global_constraint_bus_tech_limit(n, api):
     n.add(
         "GlobalConstraint",
@@ -488,11 +489,30 @@ def test_global_constraint_bus_tech_limit(n, api):
     assert n.global_constraints.at["expansion_limit", "mu"] == 0
 
 
+@pytest.mark.parametrize("api", ["linopy"])
+def test_nominal_constraint_bus_carrier_expansion_limit(n, api):
+    n.buses.at["1", "nom_max_gencarrier"] = 100
+    status, cond = optimize(n, api, **kwargs)
+    gen1s = [f"gen1-{period}" for period in n.investment_periods]
+    assert round(n.generators.p_nom_opt[gen1s], 0).sum() == 100
+    n.buses.drop(["nom_max_gencarrier"], inplace=True, axis=1)
+
+    n.buses.at["1", "nom_max_gencarrier_2020"] = 100
+    status, cond = optimize(n, api, **kwargs)
+    assert n.generators.at["gen1-2020", "p_nom_opt"] == 100
+    n.buses.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
+
+    # make the constraint non-binding and check that the shadow price is zero
+    n.buses.at["1", "nom_min_gencarrier_2020"] = 100
+    status, cond = optimize(n, api, **kwargs)
+    assert (n.model.dual["Bus-nom_min_gencarrier_2020"]).item() == 0
+
+
 @pytest.mark.parametrize("api", MULTIINVEST_APIS)
 def test_max_growth_constraint(n, api):
     # test generator grow limit
     gen_carrier = n.generators.carrier.unique()[0]
-    n.add("Carrier", name="gencarrier", max_growth=218)
+    n.carriers.at[gen_carrier, "max_growth"] = 218
     status, cond = optimize(n, api, **kwargs)
     assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
 
