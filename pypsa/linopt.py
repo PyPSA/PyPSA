@@ -1055,8 +1055,9 @@ def run_and_read_gurobi(
     solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function.
 
-    For
-    moreocumentation/{gurobi_verion}/refman/parameter_descriptions.html
+    For more information on solver options, see
+
+    <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
         raise ModuleNotFoundError(
@@ -1140,9 +1141,9 @@ def run_and_read_xpress(
     constraint dual values. The xpress module must be installed for using this
     function.
 
-    For more information on solver options: https://www.fico.com/fico-
-    xpress-optimization/docs/latest/solver/GUID-
-    ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html
+    For more information on solver options, see
+
+    <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """
 
     import xpress
