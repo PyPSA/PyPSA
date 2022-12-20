@@ -1055,8 +1055,8 @@ def run_and_read_gurobi(
     solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function.
 
-    For more information on solver options, see
-    https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
+    For
+    moreocumentation/{gurobi_verion}/refman/parameter_descriptions.html
     """
     if find_spec("gurobipy") is None:
         raise ModuleNotFoundError(
