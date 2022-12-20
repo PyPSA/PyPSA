@@ -17,6 +17,71 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
+def define_tech_capacity_expansion_limit(n, sns):
+    """
+    Defines per-carrier and potentially per-bus capacity expansion limits.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
+    m = n.model
+    glcs = n.global_constraints.loc[
+        lambda df: df.type == "tech_capacity_expansion_limit"
+    ]
+
+    for (carrier, sense, period), glcs_group in glcs.groupby(
+        ["carrier_attribute", "sense", "investment_period"]
+    ):
+        period = None if isnan(period) else int(period)
+        sign = "=" if sense == "==" else sense
+        busdim = f"Bus-{carrier}-{period}"
+        lhs_per_bus = []
+
+        for c, attr in nominal_attrs.items():
+            var = f"{c}-{attr}"
+            dim = f"{c}-ext"
+            df = n.df(c)
+
+            if c not in n.one_port_components or "carrier" not in df:
+                continue
+
+            ext_i = (
+                n.get_extendable_i(c)
+                .intersection(df.index[df.carrier == carrier])
+                .rename(dim)
+            )
+            if period is not None:
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
+
+            if ext_i.empty:
+                continue
+
+            busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
+            expr = m[var].loc[ext_i].groupby_sum(busmap)
+            lhs_per_bus.append(expr)
+
+        if not lhs_per_bus:
+            continue
+
+        lhs_per_bus = merge(lhs_per_bus)
+
+        for name, glc in glcs_group.iterrows():
+            bus = glc.get("bus")
+            if bus is None:
+                lhs = lhs_per_bus.sum(busdim)
+            else:
+                lhs = lhs_per_bus.sel(**{busdim: str(bus)}, drop=True)
+
+            n.model.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+
+
 def define_nominal_constraints_per_bus_carrier(n, sns):
     """
     Set an capacity expansion limit for assets of the same carrier at the same
@@ -38,10 +103,11 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
+    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)].rename("Bus-nom_min_max")
 
     for col in cols:
         msg = (
-            f"Bus column '{col}' has invalid specifaction and cannot be "
+            f"Bus column '{col}' has invalid specification and cannot be "
             "interpreted as constraint, must match the pattern "
             "`nom_{min/max}_{carrier}` or `nom_{min/max}_{carrier}_{period}`"
         )
@@ -51,42 +117,51 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             sign = "<="
         else:
             logger.warn(msg)
+            continue
         remainder = col[len("nom_max_") :]
         if remainder in n.carriers.index:
             carrier = remainder
             period = None
-        elif not isinstance(n.snapshots, pd.MultiIndex):
-            logger.warn(msg)
-            continue
-        else:
+        elif isinstance(n.snapshots, pd.MultiIndex):
             carrier, period = remainder.rsplit("_", 1)
+            period = int(period)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
                 logger.warn(msg)
                 continue
+        else:
+            logger.warn(msg)
+            continue
 
-        rhs = n.buses[col]
         lhs = []
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            ext_i = n.get_extendable_i(c)
+            df = n.df(c)
 
-            if c not in n.one_port_components or ext_i.empty:
+            if c not in n.one_port_components or "carrier" not in df:
                 continue
 
+            ext_i = (
+                n.get_extendable_i(c)
+                .intersection(df.index[df.carrier == carrier])
+                .rename(dim)
+            )
             if period is not None:
-                ext_i = ext_i[n.get_active_assets(c, 1)[ext_i]]
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
 
-            buses = n.df(c)["bus"][ext_i].rename("Bus").rename_axis(dim).to_xarray()
-            expr = m[var].loc[ext_i].groupby_sum(buses)
+            if ext_i.empty:
+                continue
+
+            busmap = df.loc[ext_i, "bus"].rename(buses.name).to_xarray()
+            expr = m[var].loc[ext_i].groupby_sum(busmap).reindex({buses.name: buses})
             lhs.append(expr)
 
         if not lhs:
             continue
 
         lhs = merge(lhs)
-        rhs = rhs[lhs.Bus.data]
+        rhs = n.buses.loc[buses, col]
         mask = rhs.notnull()
         n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask=mask)
 
@@ -106,7 +181,11 @@ def define_growth_limit(n, sns):
 
     m = n.model
     periods = sns.unique("period")
-    carrier_i = n.carriers.query("max_growth != inf").index
+    carrier_i = n.carriers.query("max_growth != inf").index.rename("Carrier")
+    max_absolute_growth = DataArray(n.carriers.loc[carrier_i, "max_growth"])
+    max_relative_growth = DataArray(
+        n.carriers.loc[carrier_i, "max_relative_growth"]
+    ).clip(min=0)
 
     if carrier_i.empty:
         return
@@ -115,33 +194,39 @@ def define_growth_limit(n, sns):
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
+        df = n.df(c)
 
-        if "carrier" not in n.df(c):
+        if "carrier" not in df:
             continue
 
-        limited_i = n.df(c).query("carrier in @carrier_i").index
-        limited_i = limited_i.intersection(n.get_extendable_i(c)).rename(dim)
-
+        limited_i = (
+            df.index[df.carrier.isin(carrier_i)]
+            .intersection(n.get_extendable_i(c))
+            .rename(dim)
+        )
         if limited_i.empty:
             continue
 
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
-        active = active.reindex(limited_i).rename_axis(columns="periods").T
+        active = active.loc[limited_i].rename_axis(columns="periods").T
         first_active = DataArray(active.cumsum() == 1)
-        assets = n.df(c).reindex(limited_i)
+        carriers = df.loc[limited_i, "carrier"].rename("Carrier")
 
-        carriers = assets.carrier.to_xarray().rename("Carrier")
         vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.groupby_sum(carriers)
+
+        if (max_relative_growth.loc[carriers.unique()] > 0).any():
+            expr = expr - expr.shift(periods=1) * max_relative_growth
+
         lhs.append(expr)
 
     if not lhs:
         return
 
     lhs = merge(lhs)
-    rhs = n.carriers.max_growth[carrier_i].rename_axis("Carrier")
+    rhs = max_absolute_growth
 
-    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit_{}".format(c))
+    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
 
 
 def define_primary_energy_limit(n, sns):
