@@ -274,8 +274,9 @@ def assign_solution(n):
 
     # if nominal capacity was no variable set optimal value to nominal
     for (c, attr) in lookup.query("nominal").index:
-        if f"{c}-{attr}" not in m.variables:
-            n.df(c)[attr + "_opt"] = n.df(c)[attr]
+        fix_i = n.get_non_extendable_i(c)
+        if not fix_i.empty:
+            n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
 
     # recalculate storageunit net dispatch
     if not n.df("StorageUnit").empty:
