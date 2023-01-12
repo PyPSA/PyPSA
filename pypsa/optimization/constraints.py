@@ -6,10 +6,10 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy.expressions import LinearExpression, merge
-from numpy import arange, cumsum, inf, nan
+from linopy import LinearExpression, Variable, merge
+from numpy import inf
 from scipy import sparse
-from xarray import DataArray, Dataset, concat, zeros_like
+from xarray import DataArray, Dataset, concat
 
 from pypsa.descriptors import (
     additional_linkports,
@@ -468,7 +468,7 @@ def define_nodal_balance_constraints(n, sns):
             expr = expr.sel({c: buses.index})
 
         if expr.size:
-            expr = expr.groupby_sum(buses.to_xarray())
+            expr = expr.groupby(buses.to_xarray()).sum()
             exprs.append(expr)
 
     lhs = merge(exprs).reindex(
@@ -544,7 +544,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
                     coords={"snapshot": snapshots},
                 )
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
-                exprs.append(LinearExpression(ds))
+                exprs.append(LinearExpression(ds, m))
 
         if len(exprs):
             exprs = merge(exprs, dim="cycles")
@@ -659,9 +659,13 @@ def define_storage_unit_constraints(n, sns):
     noncyclic_b = ~assets.cyclic_state_of_charge.to_xarray()
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
-    kwargs = dict(snapshot=1, roll_coords=False)
-    previous_soc = soc.labels.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_soc = previous_soc.where(include_previous_soc).fillna(-1).astype(int)
+    previous_soc = (
+        soc.where(active)
+        .ffill(dim)
+        .roll(snapshot=1)
+        .ffill(dim)
+        .where(include_previous_soc)
+    )
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = assets.state_of_charge_initial.to_xarray()
@@ -670,15 +674,23 @@ def define_storage_unit_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = soc.labels.period
+        periods = soc.coords["period"]
         per_period = (
             assets.cyclic_state_of_charge_per_period.to_xarray()
             | assets.state_of_charge_initial_per_period.to_xarray()
         )
-        # We calculate the previous soc per period while cycling within a period
-        kwargs = dict(shortcut=True, shift=1, axis=list(soc.dims).index(dim))
-        previous_soc_pp = soc.labels.groupby(periods).map(roll, **kwargs)
 
+        # We calculate the previous soc per period while cycling within a period
+        # Normally, we should use groupby, but is broken for multi-index
+        # see https://github.com/pydata/xarray/issues/6836
+        ps = n.investment_periods.rename("period")
+        previous_soc_pp = concat(
+            [soc.data.sel(period=p, drop=True).roll(timestep=1) for p in ps],
+            dim="timestep",
+        )
+        previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
+            snapshot=soc.coords["snapshot"]
+        )
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
@@ -687,7 +699,7 @@ def define_storage_unit_constraints(n, sns):
         previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
 
         # update the previous_soc variables and right hand side
-        previous_soc = previous_soc_pp.where(per_period, previous_soc)
+        previous_soc = previous_soc.where(~per_period, previous_soc_pp.values)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
@@ -728,9 +740,9 @@ def define_store_constraints(n, sns):
     noncyclic_b = ~assets.e_cyclic.to_xarray()
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
-    kwargs = dict(snapshot=1, roll_coords=False)
-    previous_e = e.labels.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_e = previous_e.where(include_previous_e).fillna(-1).astype(int)
+    previous_e = (
+        e.where(active).ffill(dim).roll(snapshot=1).ffill(dim).where(include_previous_e)
+    )
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
@@ -738,15 +750,23 @@ def define_store_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = e.labels.period
+        periods = e.coords["period"]
         per_period = (
             assets.e_cyclic_per_period.to_xarray()
             | assets.e_initial_per_period.to_xarray()
         )
 
         # We calculate the previous e per period while cycling within a period
-        kwargs = dict(shortcut=True, shift=1, axis=list(e.dims).index(dim))
-        previous_e_pp = e.labels.groupby(periods).map(roll, **kwargs)
+        # Normally, we should use groupby, but is broken for multi-index
+        # see https://github.com/pydata/xarray/issues/6836
+        ps = n.investment_periods.rename("period")
+        previous_e_pp = concat(
+            [e.labels.sel(period=p, drop=True).roll(timestep=1) for p in ps],
+            dim="timestep",
+        )
+        previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
+            snapshot=e.coords["snapshot"]
+        )
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
@@ -756,7 +776,7 @@ def define_store_constraints(n, sns):
         previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
 
         # update the previous_e variables and right hand side
-        previous_e = previous_e_pp.where(per_period, previous_e)
+        previous_e = previous_e.where(~per_period, previous_e_pp.values)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]

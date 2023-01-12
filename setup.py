@@ -29,7 +29,7 @@ setup(
         "netcdf4",
         "tables",
         "pyomo>=5.7",
-        "linopy>=0.0.13, <0.1",
+        "linopy>=0.1",
         "matplotlib",
         "networkx>=1.10",
         "deprecation",

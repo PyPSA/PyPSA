@@ -64,7 +64,7 @@ def define_tech_capacity_expansion_limit(n, sns):
                 continue
 
             busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
-            expr = m[var].loc[ext_i].groupby_sum(busmap)
+            expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus.append(expr)
 
         if not lhs_per_bus:
@@ -154,7 +154,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
                 continue
 
             busmap = df.loc[ext_i, "bus"].rename(buses.name).to_xarray()
-            expr = m[var].loc[ext_i].groupby_sum(busmap).reindex({buses.name: buses})
+            expr = m[var].loc[ext_i].groupby(busmap).sum().reindex({buses.name: buses})
             lhs.append(expr)
 
         if not lhs:
@@ -213,7 +213,7 @@ def define_growth_limit(n, sns):
         carriers = df.loc[limited_i, "carrier"].rename("Carrier")
 
         vars = m[var].sel({dim: limited_i}).where(first_active)
-        expr = vars.groupby_sum(carriers)
+        expr = vars.groupby(carriers.to_xarray()).sum()
 
         if (max_relative_growth.loc[carriers.unique()] > 0).any():
             expr = expr - expr.shift(periods=1) * max_relative_growth
@@ -224,7 +224,7 @@ def define_growth_limit(n, sns):
         return
 
     lhs = merge(lhs)
-    rhs = max_absolute_growth.reindex_like(lhs)
+    rhs = max_absolute_growth.reindex_like(lhs.data)
 
     m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
 
@@ -283,7 +283,7 @@ def define_primary_energy_limit(n, sns):
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
             soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
-            soc = soc.where(soc.labels != -1, nan).ffill("snapshot").isel(snapshot=-1)
+            soc = soc.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, soc)).sum())
             rhs -= em_pu @ sus.state_of_charge_initial
 
@@ -293,7 +293,7 @@ def define_primary_energy_limit(n, sns):
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
             e = m["Store-e"].loc[snapshots, stores.index]
-            e = e.labels.where(e.labels != -1, nan).ffill("snapshot").isel(snapshot=-1)
+            e = e.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
 
