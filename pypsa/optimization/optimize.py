@@ -17,7 +17,7 @@ from pypsa.optimization.abstract import (
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
 )
-from pypsa.optimization.common import set_from_frame
+from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
@@ -217,7 +217,16 @@ def create_model(
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
-    define_nodal_balance_constraints(n, sns)
+    meshed_buses = get_strongly_meshed_buses(n)
+    weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+    if not meshed_buses.empty and not weakly_meshed_buses.empty:
+        # Write constraint for buses many terms and for buses with a few terms
+        # separately. This reduces memory usage for large networks.
+        define_nodal_balance_constraints(n, sns, buses=weakly_meshed_buses)
+        define_nodal_balance_constraints(n, sns, buses=meshed_buses, suffix="_meshed")
+    else:
+        define_nodal_balance_constraints(n, sns)
+
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)

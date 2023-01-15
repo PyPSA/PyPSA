@@ -423,11 +423,13 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns):
+def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
     """
     Defines nodal balance constraints.
     """
     m = n.model
+    if buses is None:
+        buses = n.buses.index
 
     args = [
         ["Generator", "p", "bus", 1],
@@ -460,30 +462,29 @@ def define_nodal_balance_constraints(n, sns):
             sign = sign * n.df(c).sign
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        buses = n.df(c)[column].rename("Bus")
+        cbuses = n.df(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
 
         #  drop non-existent multiport buses which are ''
         if column in ["bus" + i for i in additional_linkports(n)]:
-            buses = buses[buses != ""]
-            expr = expr.sel({c: buses.index})
+            cbuses = cbuses[cbuses != ""]
+
+        expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            expr = expr.groupby(buses.to_xarray()).sum()
+            # eventually do a separation of short and long linear expressions
+            expr = expr.groupby(cbuses.to_xarray()).sum()
+
             exprs.append(expr)
 
-    lhs = merge(exprs).reindex(
-        Bus=n.buses.index, fill_value=LinearExpression.fill_value
+    lhs = merge(exprs, join="outer").reindex(
+        Bus=buses, fill_value=LinearExpression.fill_value
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
         .groupby(n.loads.bus, axis=1)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .reindex(columns=buses, fill_value=0)
     )
-    # the name for multi-index is getting lost by groupby before pandas 1.4.0
-    # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"
-    rhs = DataArray(rhs)
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     if empty_nodal_balance.any():
@@ -494,7 +495,10 @@ def define_nodal_balance_constraints(n, sns):
     else:
         mask = None
 
-    n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance", mask=mask)
+    if suffix:
+        lhs = lhs.rename(Bus=f"Bus{suffix}")
+        rhs.columns.name = f"Bus{suffix}"
+    n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
 def define_kirchhoff_voltage_constraints(n, sns):

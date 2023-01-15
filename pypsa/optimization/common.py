@@ -4,6 +4,9 @@
 Use common methods for optimization problem definition with Linopy.
 """
 
+import pandas as pd
+from numpy import hstack, ravel
+
 
 def reindex(ds, dim, index):
     """
@@ -36,3 +39,25 @@ def set_from_frame(n, c, attr, df):
     else:
         pnl[attr].loc[df.index, df.columns] = df
         pnl[attr] = pnl[attr].fillna(0)
+
+
+def get_strongly_meshed_buses(n, threshold=45):
+    """
+    Get the buses which are strongly meshed in the network.
+
+    Parameters
+    ----------
+    n : Network
+    threshhold: int
+        number of attached components to be counted as strongly meshed
+
+    Returns
+    -------
+    pandas series of all meshed buses.
+    """
+    all_buses = pd.Series(
+        hstack([ravel(c.df.filter(like="bus")) for c in n.iterate_components()])
+    )
+    all_buses = all_buses[all_buses != ""]
+    counts = all_buses.value_counts()
+    return counts.index[counts > 20].rename("Bus-meshed")
