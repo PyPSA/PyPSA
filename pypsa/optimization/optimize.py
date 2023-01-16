@@ -223,7 +223,7 @@ def create_model(
         # Write constraint for buses many terms and for buses with a few terms
         # separately. This reduces memory usage for large networks.
         define_nodal_balance_constraints(n, sns, buses=weakly_meshed_buses)
-        define_nodal_balance_constraints(n, sns, buses=meshed_buses, suffix="_meshed")
+        define_nodal_balance_constraints(n, sns, buses=meshed_buses, suffix="-meshed")
     else:
         define_nodal_balance_constraints(n, sns)
 
@@ -327,7 +327,7 @@ def assign_duals(n):
 
                 if spec in assign:
                     set_from_frame(n, c, "mu_" + spec, df)
-                elif attr == "nodal_balance":
+                elif attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
             except:
                 unassigned.append(name)
