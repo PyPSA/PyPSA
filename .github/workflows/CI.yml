@@ -28,9 +28,6 @@ jobs:
         - ubuntu-latest
         - macos-latest
         - windows-latest
-        include:
-        - os: ubuntu-latest
-          python-version: 3.7
 
     steps:
 

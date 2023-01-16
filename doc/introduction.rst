@@ -90,8 +90,8 @@ Screenshots
 Dependencies
 ============
 
-PyPSA is written and tested to be compatible with Python 3.7 and
-above. The last release supporting Python 2.7 was PyPSA 0.15.0.
+PyPSA is written and tested to be compatible with Python 3.8 and
+above. The last release supporting Python 3.7 was PyPSA 0.21.3.
 
 
 It leans heavily on the following Python packages:

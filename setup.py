@@ -20,7 +20,7 @@ setup(
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),
     include_package_data=True,
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
         "numpy",
         "scipy",
