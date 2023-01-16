@@ -485,6 +485,9 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
         .sum()
         .reindex(columns=buses, fill_value=0)
     )
+    # the name for multi-index is getting lost by groupby before pandas 1.4.0
+    # TODO remove once we bump the required pandas version to >= 1.4.0
+    rhs.index.name = "snapshot"
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     if empty_nodal_balance.any():

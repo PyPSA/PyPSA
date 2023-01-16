@@ -24,7 +24,7 @@ setup(
     install_requires=[
         "numpy",
         "scipy",
-        "pandas>=1.4.0",
+        "pandas>=0.24",
         "xarray",
         "netcdf4",
         "tables",
