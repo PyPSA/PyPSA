@@ -5,6 +5,7 @@ Build optimisation problems from PyPSA networks with Linopy.
 """
 import logging
 import os
+from functools import wraps
 
 import numpy as np
 import pandas as pd
@@ -470,14 +471,6 @@ def optimize(
     return status, condition
 
 
-def is_documented_by(original):
-    def wrapper(target):
-        target.__doc__ = original.__doc__
-        return target
-
-    return wrapper
-
-
 class OptimizationAccessor:
     """
     Optimization accessor for building and solving models using linopy.
@@ -486,14 +479,13 @@ class OptimizationAccessor:
     def __init__(self, network):
         self._parent = network
 
+    @wraps(optimize)
     def __call__(self, *args, **kwargs):
         return optimize(self._parent, *args, **kwargs)
 
-    __call__.__doc__ = optimize.__doc__
-
-    @is_documented_by(create_model)
-    def create_model(self, **kwargs):
-        return create_model(self._parent, **kwargs)
+    @wraps(create_model)
+    def create_model(self, *args, **kwargs):
+        return create_model(self._parent, *args, **kwargs)
 
     def solve_model(self, **kwargs):
         """
@@ -517,23 +509,23 @@ class OptimizationAccessor:
 
         return status, condition
 
-    @is_documented_by(assign_solution)
+    @wraps(assign_solution)
     def assign_solution(self, **kwargs):
         return assign_solution(self._parent, **kwargs)
 
-    @is_documented_by(assign_duals)
+    @wraps(assign_duals)
     def assign_duals(self, **kwargs):
         return assign_duals(self._parent, **kwargs)
 
-    @is_documented_by(post_processing)
+    @wraps(post_processing)
     def post_processing(self, **kwargs):
         return post_processing(self._parent, **kwargs)
 
-    @is_documented_by(optimize_transmission_expansion_iteratively)
+    @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
         optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
 
-    @is_documented_by(optimize_security_constrained)
+    @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
 
