@@ -396,7 +396,6 @@ class Network(Basic):
             setattr(self, self.components[component]["list_name"] + "_t", pnl)
 
     def read_in_default_standard_types(self):
-
         for std_type in self.standard_type_components:
 
             list_name = self.components[std_type]["list_name"]
@@ -1017,7 +1016,6 @@ class Network(Basic):
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     def _retrieve_overridden_components(self):
-
         components_index = list(self.components.keys())
 
         cols = ["list_name", "description", "type"]

@@ -553,7 +553,6 @@ def sub_network_pf(
     )
 
     def f(guess, distribute_slack=False, slack_weights=None):
-
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)
@@ -580,7 +579,6 @@ def sub_network_pf(
         return F
 
     def dfdx(guess, distribute_slack=False, slack_weights=None):
-
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)

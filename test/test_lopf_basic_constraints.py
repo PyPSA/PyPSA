@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from conftest import SUPPORTED_APIS, optimize
 
+import pypsa
 from pypsa.descriptors import expand_series
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
@@ -218,3 +219,30 @@ def test_tolerance(solved_network, api, func):
         assert abs(description[col]["min"]) < TOLERANCE
         if "max" in description:
             assert description[col]["max"] < TOLERANCE
+
+
+def test_optimization_with_strongly_meshed_bus():
+    """
+    Test that an optimization with a strongly meshed bus works.
+
+    In the linopy framework, the nodal balance constraint is separately
+    defined for buses with a large number of components.
+    """
+
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=10)
+    n.add("Load", "load", bus="bus", p_set=1)
+
+    n.add("Bus", "bus2")
+    n.madd("Generator", pd.RangeIndex(50), bus="bus2", p_nom=1, marginal_cost=10)
+    n.add("Load", "load2", bus="bus2", p_set=1)
+
+    n.add("Line", "line", bus0="bus", bus1="bus2", s_nom=1)
+
+    n.optimize()
+
+    assert n.buses_t.marginal_price.shape == (2, 2)
+    assert n.buses_t.marginal_price.eq(10).all().all()

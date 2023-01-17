@@ -57,6 +57,8 @@ Universities and Research Institutes
 
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
+* `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
+
 
 Companies and Non-Governmental Organisations
 ============================================

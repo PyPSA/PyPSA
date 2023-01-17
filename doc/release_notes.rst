@@ -7,15 +7,27 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
-* Bugfix: Due to xarray's `groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
-* Add linearized unit commitment implementation in linopy.
+* The linopy based optimization (`n.optimize`) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by x times what was installed in the investment period before. See the corresponding `pull request <https://github.com/PyPSA/PyPSA/pull/521>`_ for more details.
+* The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
+* Wrapped functions defined by the ``Network.optimize`` accessor are better wrapping meta information of the original functions. This enables better feedback in interactive sessions.
+* The support of python 3.7 was dropped. The minimum supported python version is now 3.8.
 
+
+PyPSA 0.21.3 (16th December 2022)
+=================================
+
+* Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
+* Bugfix: Due to xarray's ``groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
+* Update HiGHS parsing function in linopt for HiGHS version 1.4.0. Minimum version of HiGHS is v1.3.0. Older versions have not been tested.
+* Update of gas boiler example to ``linopy``.
+* New standard line types for DC lines.
+* Included code of conduct.
 
 PyPSA 0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
+* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================

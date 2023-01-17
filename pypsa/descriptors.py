@@ -368,7 +368,7 @@ def get_active_assets(n, c, investment_period):
         if period not in n.investment_periods:
             raise ValueError("Investment period not in `network.investment_periods`")
         active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
-    return pd.DataFrame(active).any(1)
+    return pd.DataFrame(active).any(axis=1)
 
 
 def get_activity_mask(n, c, sns=None, index=None):

@@ -155,7 +155,6 @@ if heat and chp:
     )
 
     def extra_functionality(network, snapshots):
-
         model = network.model
         link_p = model.variables["Link-p"]
         link_p_nom = model.variables["Link-p_nom"]
