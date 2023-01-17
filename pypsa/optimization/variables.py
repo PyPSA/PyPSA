@@ -40,13 +40,10 @@ def define_status_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
+    is_binary = not n._linearized_uc
+    kwargs = dict(upper=1, lower=0) if not is_binary else {}
     n.model.add_variables(
-        upper=1,
-        lower=0,
-        coords=coords,
-        name=f"{c}-status",
-        mask=active,
-        binary=not n._linearized_uc,
+        coords=coords, name=f"{c}-status", mask=active, binary=is_binary, **kwargs
     )
 
 
@@ -58,13 +55,10 @@ def define_start_up_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
+    is_binary = not n._linearized_uc
+    kwargs = dict(upper=1, lower=0) if not is_binary else {}
     n.model.add_variables(
-        upper=1,
-        lower=0,
-        coords=coords,
-        name=f"{c}-start_up",
-        mask=active,
-        binary=not n._linearized_uc,
+        coords=coords, name=f"{c}-start_up", mask=active, binary=is_binary, **kwargs
     )
 
 
@@ -76,13 +70,10 @@ def define_shut_down_variables(n, sns, c):
 
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
+    is_binary = not n._linearized_uc
+    kwargs = dict(upper=1, lower=0) if not is_binary else {}
     n.model.add_variables(
-        upper=1,
-        lower=0,
-        coords=coords,
-        name=f"{c}-shut_down",
-        mask=active,
-        binary=not n._linearized_uc,
+        coords=coords, name=f"{c}-shut_down", binary=is_binary, **kwargs
     )
 
 

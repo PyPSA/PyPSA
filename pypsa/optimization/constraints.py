@@ -6,10 +6,10 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy.expressions import LinearExpression, merge
-from numpy import arange, cumsum, inf, nan
+from linopy import LinearExpression, Variable, merge
+from numpy import inf
 from scipy import sparse
-from xarray import DataArray, Dataset, concat, zeros_like
+from xarray import DataArray, Dataset, concat
 
 from pypsa.descriptors import (
     additional_linkports,
@@ -423,11 +423,13 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns):
+def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
     """
     Defines nodal balance constraints.
     """
     m = n.model
+    if buses is None:
+        buses = n.buses.index
 
     args = [
         ["Generator", "p", "bus", 1],
@@ -460,30 +462,32 @@ def define_nodal_balance_constraints(n, sns):
             sign = sign * n.df(c).sign
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        buses = n.df(c)[column].rename("Bus")
+        cbuses = n.df(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
 
         #  drop non-existent multiport buses which are ''
         if column in ["bus" + i for i in additional_linkports(n)]:
-            buses = buses[buses != ""]
-            expr = expr.sel({c: buses.index})
+            cbuses = cbuses[cbuses != ""]
+
+        expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            expr = expr.groupby_sum(buses.to_xarray())
+            # eventually do a separation of short and long linear expressions
+            expr = expr.groupby(cbuses.to_xarray()).sum()
+
             exprs.append(expr)
 
-    lhs = merge(exprs).reindex(
-        Bus=n.buses.index, fill_value=LinearExpression.fill_value
+    lhs = merge(exprs, join="outer").reindex(
+        Bus=buses, fill_value=LinearExpression.fill_value
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
         .groupby(n.loads.bus, axis=1)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .reindex(columns=buses, fill_value=0)
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
     rhs.index.name = "snapshot"
-    rhs = DataArray(rhs)
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     if empty_nodal_balance.any():
@@ -494,7 +498,10 @@ def define_nodal_balance_constraints(n, sns):
     else:
         mask = None
 
-    n.model.add_constraints(lhs, "=", rhs, "Bus-nodal_balance", mask=mask)
+    if suffix:
+        lhs = lhs.rename(Bus=f"Bus{suffix}")
+        rhs.columns.name = f"Bus{suffix}"
+    n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
 def define_kirchhoff_voltage_constraints(n, sns):
@@ -544,11 +551,11 @@ def define_kirchhoff_voltage_constraints(n, sns):
                     coords={"snapshot": snapshots},
                 )
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
-                exprs.append(LinearExpression(ds))
+                exprs.append(LinearExpression(ds, m))
 
         if len(exprs):
             exprs = merge(exprs, dim="cycles")
-            exprs = exprs.assign_coords(cycles=range(len(exprs.cycles)))
+            exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
     if len(lhs):
@@ -659,9 +666,13 @@ def define_storage_unit_constraints(n, sns):
     noncyclic_b = ~assets.cyclic_state_of_charge.to_xarray()
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
-    kwargs = dict(snapshot=1, roll_coords=False)
-    previous_soc = soc.where(active, nan).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_soc = previous_soc.sanitize().where(include_previous_soc)
+    previous_soc = (
+        soc.where(active)
+        .ffill(dim)
+        .roll(snapshot=1)
+        .ffill(dim)
+        .where(include_previous_soc)
+    )
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = assets.state_of_charge_initial.to_xarray()
@@ -670,7 +681,7 @@ def define_storage_unit_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = soc.period.to_array()
+        periods = soc.coords["period"]
         per_period = (
             assets.cyclic_state_of_charge_per_period.to_xarray()
             | assets.state_of_charge_initial_per_period.to_xarray()
@@ -681,10 +692,11 @@ def define_storage_unit_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
         previous_soc_pp = concat(
-            [soc.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
+            [soc.data.sel(period=p, drop=True).roll(timestep=1) for p in ps],
+            dim="timestep",
         )
         previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=soc.snapshot
+            snapshot=soc.coords["snapshot"]
         )
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
@@ -694,7 +706,7 @@ def define_storage_unit_constraints(n, sns):
         previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
 
         # update the previous_soc variables and right hand side
-        previous_soc = previous_soc_pp.where(per_period, previous_soc)
+        previous_soc = previous_soc.where(~per_period, previous_soc_pp.values)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
@@ -735,9 +747,9 @@ def define_store_constraints(n, sns):
     noncyclic_b = ~assets.e_cyclic.to_xarray()
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
-    kwargs = dict(snapshot=1, roll_coords=False)
-    previous_e = e.where(active).ffill(dim).roll(**kwargs).ffill(dim)
-    previous_e = previous_e.sanitize().where(include_previous_e)
+    previous_e = (
+        e.where(active).ffill(dim).roll(snapshot=1).ffill(dim).where(include_previous_e)
+    )
 
     # We add inflow and initial e for for noncyclic assets to rhs
     e_init = assets.e_initial.to_xarray()
@@ -745,7 +757,7 @@ def define_store_constraints(n, sns):
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_e and the rhs
         # for all assets which are cyclid/non-cyclid per period.
-        periods = e.period.to_array()
+        periods = e.coords["period"]
         per_period = (
             assets.e_cyclic_per_period.to_xarray()
             | assets.e_initial_per_period.to_xarray()
@@ -756,10 +768,11 @@ def define_store_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
         previous_e_pp = concat(
-            [e.sel(period=p, drop=True).roll(timestep=1) for p in ps], dim="timestep"
+            [e.labels.sel(period=p, drop=True).roll(timestep=1) for p in ps],
+            dim="timestep",
         )
         previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=e.snapshot
+            snapshot=e.coords["snapshot"]
         )
 
         # We create a mask `include_previous_e_pp` which excludes the first
@@ -770,7 +783,7 @@ def define_store_constraints(n, sns):
         previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
 
         # update the previous_e variables and right hand side
-        previous_e = previous_e_pp.where(per_period, previous_e)
+        previous_e = previous_e.where(~per_period, previous_e_pp.values)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]

@@ -238,7 +238,6 @@ def optimize_security_constrained(
             bodf = BODF.loc[c_affected, c_outage]
             bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
             additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
-
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
 
                 constraint = c_affected + "-" + kind + "-s-" + bound
