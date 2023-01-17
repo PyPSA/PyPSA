@@ -240,7 +240,7 @@ def assign_solution(n):
     Map solution to network components.
     """
     m = n.model
-    sns = n.model.parameters.snapshots
+    sns = n.model.parameters.snapshots.to_index()
 
     for name, sol in m.solution.items():
 
