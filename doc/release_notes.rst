@@ -10,6 +10,8 @@ Upcoming Release
 * The linopy based optimization (`n.optimize`) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by x times what was installed in the investment period before. See the corresponding `pull request <https://github.com/PyPSA/PyPSA/pull/521>`_ for more details.
 * The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
 * Wrapped functions defined by the ``Network.optimize`` accessor are better wrapping meta information of the original functions. This enables better feedback in interactive sessions.
+* The support of python 3.7 was dropped. The minimum supported python version is now 3.8.
+
 
 PyPSA 0.21.3 (16th December 2022)
 =================================
