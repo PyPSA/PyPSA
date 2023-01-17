@@ -122,7 +122,6 @@ class Network(pypsa.Network):
         super().__init__(*args, **kwargs)
 
     def lopf(self, *args, **kwargs):
-
         # at this point check that all the extra links are in place for the CHPs
         if not self.chps.empty:
 

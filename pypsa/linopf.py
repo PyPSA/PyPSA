@@ -739,6 +739,13 @@ def define_growth_limit(n, sns, c, attr):
     ext_i = get_extendable_i(n, c)
     if "carrier" not in n.df(c) or n.df(c).empty:
         return
+
+    if (n.carriers.max_relative_growth > 0).any():
+        logger.warning(
+            "Max relative growth is not implemented for the native pypsa optimization framework. "
+            "Use the linopy framework with `n.optimize` instead."
+        )
+
     with_limit = n.carriers.query("max_growth != inf").index
     limit_i = n.df(c).query("carrier in @with_limit").index.intersection(ext_i)
     if limit_i.empty:

@@ -35,6 +35,7 @@ from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
     define_primary_energy_limit,
+    define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
@@ -225,6 +226,7 @@ def create_model(
     define_primary_energy_limit(n, sns)
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
+    define_tech_capacity_expansion_limit(n, sns)
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
 
@@ -238,7 +240,7 @@ def assign_solution(n):
     Map solution to network components.
     """
     m = n.model
-    sns = n.model.parameters.snapshots
+    sns = n.model.parameters.snapshots.to_index()
 
     for name, sol in m.solution.items():
 
@@ -272,8 +274,9 @@ def assign_solution(n):
 
     # if nominal capacity was no variable set optimal value to nominal
     for (c, attr) in lookup.query("nominal").index:
-        if f"{c}-{attr}" not in m.variables:
-            n.df(c)[attr + "_opt"] = n.df(c)[attr]
+        fix_i = n.get_non_extendable_i(c)
+        if not fix_i.empty:
+            n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
 
     # recalculate storageunit net dispatch
     if not n.df("StorageUnit").empty:

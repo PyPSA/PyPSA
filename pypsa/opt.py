@@ -52,7 +52,6 @@ class LExpression(object):
     """
 
     def __init__(self, variables=None, constant=0.0):
-
         if variables is None:
             self.variables = []
         else:
@@ -118,7 +117,6 @@ class LConstraint(object):
     """
 
     def __init__(self, lhs=None, sense="==", rhs=None):
-
         if lhs is None:
             self.lhs = LExpression()
         else:
