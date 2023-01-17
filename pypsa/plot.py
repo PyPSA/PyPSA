@@ -384,7 +384,7 @@ def plot(
             )
             b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
             # update the line width, allows to set line widths separately from flows
-            b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
+            # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)
             f_collection = directed_flow(coords, b_flow, b_colors, area_factor, b_cmap)
             if b_nums is not None:
