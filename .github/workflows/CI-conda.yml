@@ -35,10 +35,12 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with: # checks out environment 'test' by default
+        miniconda-version: latest
         python-version: ${{ matrix.python-version }}
         mamba-version: "*"
         channels: conda-forge,defaults
         channel-priority: true
+        auto-activate-base: false
 
     - name: Install dependencies
       run: |
