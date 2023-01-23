@@ -1057,6 +1057,7 @@ def run_and_read_gurobi(
 
     For more information on solver options, see
 
+
     <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
@@ -1142,6 +1143,7 @@ def run_and_read_xpress(
     function.
 
     For more information on solver options, see
+
 
     <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """

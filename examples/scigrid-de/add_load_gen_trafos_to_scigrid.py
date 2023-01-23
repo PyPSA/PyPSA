@@ -439,7 +439,6 @@ def generate_dummy_graph(network):
     when the buses have been split, so that all load and generation is
     attached to the 220kV bus.
     """
-
     graph = pypsa.descriptors.OrderedGraph()
 
     graph.add_nodes_from(

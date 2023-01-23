@@ -368,7 +368,8 @@ class StatisticsAccessor:
         """
         Calculate the curtailment of components in the network.
 
-        The calculation only considers assets with a `p_max_pu` time series,
+        The calculation only considers assets with a `p_max_pu` time
+        series,
         which is used to quantify the available power potential.
 
         For information on the list of arguments, see the docs in

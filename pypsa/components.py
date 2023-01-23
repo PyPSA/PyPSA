@@ -369,7 +369,6 @@ class Network(Basic):
         Function called when network is created to build component
         pandas.DataFrames.
         """
-
         for component in self.all_components:
 
             attrs = self.components[component]["attrs"]
@@ -795,7 +794,6 @@ class Network(Basic):
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
-
         assert class_name in self.components, "Component class {} not found".format(
             class_name
         )
@@ -866,7 +864,6 @@ class Network(Basic):
         --------
         >>> network.remove("Line", "my_line 12345")
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -947,7 +944,6 @@ class Network(Basic):
         ...        capital_cost=1e5,
         ...        p_max_pu=wind)
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -998,7 +994,6 @@ class Network(Basic):
         --------
         >>> network.mremove("Line", ["line x", "line y"])
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -1133,7 +1128,6 @@ class Network(Basic):
 
         >>> sub_network_0_with_only_10_snapshots = network[:10, network.buses.sub_network = "0"]
         """
-
         if isinstance(key, tuple):
             time_i, key = key
         else:
@@ -1229,7 +1223,6 @@ class Network(Basic):
         the network topology is determined on the basis of the active
         branches.
         """
-
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,

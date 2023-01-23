@@ -159,7 +159,6 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     --------
     >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
     """
-
     df = network.df(component)
     pnl = network.pnl(component)
 
@@ -211,7 +210,6 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     --------
     >>> get_switchable_as_iter(network, 'Generator', 'p_max_pu', snapshots)
     """
-
     df = network.df(component)
     pnl = network.pnl(component)
 
@@ -267,7 +265,6 @@ def allocate_series_dataframes(network, series):
     >>> allocate_series_dataframes(network, {'Generator': ['p'],
                                              'Load': ['p']})
     """
-
     for component, attributes in series.items():
 
         df = network.df(component)

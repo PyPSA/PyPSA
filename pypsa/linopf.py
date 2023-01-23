@@ -198,7 +198,6 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     pnl : bool, default True
         Whether variable which should be fixed is time-dependent
     """
-
     if pnl:
         if attr + "_set" not in n.pnl(c):
             return
@@ -788,7 +787,6 @@ def define_global_constraints(n, sns):
         technology in a certain region. Currently, only the
         capacities of extendable generators have to be below the set limit.
     """
-
     if n._multi_invest:
         period_weighting = n.investment_period_weightings["years"]
         weightings = n.snapshot_weightings.mul(period_weighting, level=0, axis=0).loc[
@@ -979,7 +977,6 @@ def define_objective(n, sns):
     """
     Defines and writes out the objective function.
     """
-
     if n._multi_invest:
         period_weighting = n.investment_period_weightings.objective[
             sns.unique("period")

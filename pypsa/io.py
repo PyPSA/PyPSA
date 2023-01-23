@@ -378,7 +378,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
     """
-
     # exportable component types
     # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
@@ -495,7 +494,6 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
     ----------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
-
     basename = Path(csv_folder_name).name
     with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -556,7 +554,6 @@ def import_from_hdf5(network, path, skip_time=False):
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-
     basename = Path(path).name
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -586,7 +583,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     --------
     >>> network.export_to_hdf5(filename)
     """
-
     kwargs.setdefault("complevel", 4)
 
     basename = os.path.basename(path)
@@ -610,7 +606,6 @@ def import_from_netcdf(network, path, skip_time=False):
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = Path(path).name
@@ -681,7 +676,6 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     skip_time : bool
         Skip importing time
     """
-
     attrs = importer.get_attributes()
     network.meta = importer.get_meta()
 
@@ -816,7 +810,6 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     --------
     pypsa.Network.madd
     """
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
@@ -902,7 +895,6 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     --------
     pypsa.Network.madd()
     """
-
     df = network.df(cls_name)
     pnl = network.pnl(cls_name)
     list_name = network.components[cls_name]["list_name"]
@@ -965,7 +957,6 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     >>> ppc = case30()
     >>> network.import_from_pypower_ppc(ppc)
     """
-
     version = ppc["version"]
     if int(version) != 2:
         logger.warning(
