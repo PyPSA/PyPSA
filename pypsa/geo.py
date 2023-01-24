@@ -40,7 +40,6 @@ def haversine_pts(a, b):
     --------
     haversine : Matrix of distances between all pairs in a and b
     """
-
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
 

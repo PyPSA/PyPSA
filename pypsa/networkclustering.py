@@ -500,7 +500,6 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
         Mapping of network.buses to k-means clusters (indexed by
         non-negative integers).
     """
-
     if find_spec("sklearn") is None:
         raise ModuleNotFoundError(
             "Optional dependency 'sklearn' not found."
@@ -750,7 +749,6 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
-
     if parse(nx.__version__) < Version("2.8"):
         raise NotImplementedError(
             "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
@@ -842,7 +840,6 @@ def busmap_by_stubs(network, matching_attrs=None):
         Mapping of network.buses to k-means clusters (indexed by
         non-negative integers).
     """
-
     busmap = pd.Series(network.buses.index, network.buses.index)
 
     G = network.graph()

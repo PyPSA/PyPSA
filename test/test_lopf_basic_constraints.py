@@ -228,7 +228,6 @@ def test_optimization_with_strongly_meshed_bus():
     In the linopy framework, the nodal balance constraint is separately
     defined for buses with a large number of components.
     """
-
     n = pypsa.Network()
     n.set_snapshots(range(2))
 

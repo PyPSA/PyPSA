@@ -545,7 +545,6 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
@@ -574,7 +573,6 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
 
@@ -603,7 +601,6 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
@@ -730,7 +727,6 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     >>> autogenerate_coordinates(network)
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
     """
-
     G = n.graph()
 
     if layouter is None:

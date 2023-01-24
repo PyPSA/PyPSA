@@ -55,7 +55,6 @@ def calculate_BODF(sub_network, skip_pre=False):
     --------
     >>> sub_network.caculate_BODF()
     """
-
     if not skip_pre:
         calculate_PTDF(sub_network)
 
@@ -98,7 +97,6 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     --------
     >>> network.lpf_contingency(snapshot, branch_outages)
     """
-
     if snapshots is None:
         snapshots = network.snapshots
 

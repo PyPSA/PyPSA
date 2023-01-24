@@ -14,7 +14,6 @@ def test_unit_commitment(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -62,7 +61,6 @@ def test_minimum_up_time(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -114,7 +112,6 @@ def test_minimum_up_time_up_time_before(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -166,7 +163,6 @@ def test_minimum_down_time(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     n.set_snapshots(range(4))
@@ -214,7 +210,6 @@ def test_minimum_down_time_up_time_before(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     n.set_snapshots(range(4))

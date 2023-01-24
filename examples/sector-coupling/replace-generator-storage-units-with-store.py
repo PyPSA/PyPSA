@@ -18,7 +18,6 @@ def replace_gen(network, gen_to_replace):
     link for the conversion from the energy carrier to electricity and a store
     to keep track of the depletion of the energy carrier and its CO2 emissions.
     """
-
     gen = network.generators.loc[gen_to_replace]
 
     bus_name = "{} {}".format(gen["bus"], gen["carrier"])
@@ -74,7 +73,6 @@ def replace_su(network, su_to_replace):
     unit by the max_hours, extra functionality must be added to the LOPF
     to implement this constraint.
     """
-
     su = network.storage_units.loc[su_to_replace]
 
     bus_name = "{} {}".format(su["bus"], su["carrier"])

@@ -72,7 +72,6 @@ def network_opf(network, snapshots=None):
     """
     Optimal power flow for snapshots.
     """
-
     raise NotImplementedError("Non-linear optimal power flow not supported yet")
 
 
@@ -1391,7 +1390,6 @@ def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=Fal
     """
     define passive branch flows with the kirchoff method.
     """
-
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
         find_cycles(sub_network)
@@ -1517,7 +1515,6 @@ def define_nodal_balances(network, snapshots):
 
     Store the nodal balance expression in network._p_balance.
     """
-
     # dictionary for constraints
     network._p_balance = {
         (bus, sn): LExpression() for bus in network.buses.index for sn in snapshots
@@ -2207,7 +2204,6 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
     -------
     None
     """
-
     network.opt = SolverFactory(solver_name, solver_io=solver_io)
 
     patch_optsolver_record_memusage_before_solving(network.opt, network)

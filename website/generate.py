@@ -20,7 +20,6 @@ def process_org(org_name):
     """
     Build HTML page and write it.
     """
-
     html_name = org_name[:-4] + ".html"
 
     root_path = org_name.count("/") * "../"

@@ -8,7 +8,6 @@ def test_344():
     """
     Overridden multi-links but empty n.links.
     """
-
     override = pypsa.descriptors.Dict(
         {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
     )
@@ -83,7 +82,6 @@ def test_515():
     """
     Time-varying marginal costs removed.
     """
-
     marginal_costs = [0, 10]
 
     n = pypsa.Network()

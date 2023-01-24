@@ -105,7 +105,6 @@ def define_operational_constraints_for_committables(n, sns, c):
     c : str
         name of the network component
     """
-
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -576,7 +575,6 @@ def define_fixed_nominal_constraints(n, c, attr):
     attr : str
         name of the attribute, e.g. 'p'
     """
-
     if attr + "_set" not in n.df(c):
         return
 
@@ -604,7 +602,6 @@ def define_fixed_operation_constraints(n, sns, c, attr):
     attr : str
         name of the attribute, e.g. 'p'
     """
-
     if attr + "_set" not in n.pnl(c):
         return
 
@@ -633,7 +630,6 @@ def define_storage_unit_constraints(n, sns):
 
     previous_soc + p_store - p_dispatch + inflow - spill == soc
     """
-
     m = n.model
     c = "StorageUnit"
     dim = "snapshot"
@@ -722,7 +718,6 @@ def define_store_constraints(n, sns):
 
     previous_e - p == e
     """
-
     m = n.model
     c = "Store"
     dim = "snapshot"

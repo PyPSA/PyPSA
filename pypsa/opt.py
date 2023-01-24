@@ -181,7 +181,6 @@ def l_constraint(model, name, constraints, *args):
     *args :
         Indices of the constraints
     """
-
     setattr(model, name, Constraint(*args, noruleinit=True))
     v = getattr(model, name)
     for i in v._index_set:
@@ -240,7 +239,6 @@ def l_objective(model, objective=None, sense=minimize):
     objective : LExpression
     sense : minimize / maximize
     """
-
     if objective is None:
         objective = LExpression()
 

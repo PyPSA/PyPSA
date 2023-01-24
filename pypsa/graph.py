@@ -46,7 +46,6 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     graph : OrderedGraph
         NetworkX graph
     """
-
     from pypsa import components
 
     if isinstance(network, components.Network):
