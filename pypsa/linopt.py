@@ -1159,12 +1159,17 @@ def run_and_read_xpress(
         m.setlogfile(solver_logfile)
 
     if warmstart:
-        m.readbasis(warmstart)
+        try:
+            m.readbasis(n.basis_fn)
+            logger.info("Model basis loaded")
+        except:
+            logger.info("No model basis loaded")
+            pass
 
     m.solve()
 
     if store_basis:
-        n.basis_fn = solution_fn.replace(".sol", ".bas")
+        n.basis_fn = solution_fn.replace(".sol", ".bss")
         try:
             m.writebasis(n.basis_fn)
         except:
