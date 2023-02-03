@@ -11,9 +11,8 @@ Upcoming Release
 * The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
 * Wrapped functions defined by the ``Network.optimize`` accessor are better wrapping meta information of the original functions. This enables better feedback in interactive sessions.
 * The support of python 3.7 was dropped. The minimum supported python version is now 3.8.
+* Checking of datatypes in the ``consistency_check`` is now deactivated by default. Set ``n.consistency_check(check_dtypes=True)`` to activate it.
 * The plotting functionality ``Network.plot`` now supports setting alpha values on the branch components individually.
-
-
 
 PyPSA 0.21.3 (16th December 2022)
 =================================

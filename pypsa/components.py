@@ -1294,7 +1294,7 @@ class Network(Basic):
             if not (skip_empty and self.df(c).empty)
         )
 
-    def consistency_check(self):
+    def consistency_check(self, check_dtypes=False):
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1496,45 +1496,46 @@ class Network(Basic):
 
         # check all dtypes of component attributes
 
-        for c in self.iterate_components():
+        if check_dtypes:
+            for c in self.iterate_components():
 
-            # first check static attributes
+                # first check static attributes
 
-            dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
-            unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
-
-            if unmatched.any():
-                logger.warning(
-                    "The following attributes of the dataframe %s "
-                    "have the wrong dtype:\n%s\n"
-                    "They are:\n%s\nbut should be:\n%s",
-                    c.list_name,
-                    unmatched.index[unmatched],
-                    c.df.dtypes[dtypes_soll.index[unmatched]],
-                    dtypes_soll[unmatched],
-                )
-
-            # now check varying attributes
-
-            types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
-
-            for attr, typ, dtype in types_soll.itertuples():
-                if c.pnl[attr].empty:
-                    continue
-
-                unmatched = c.pnl[attr].dtypes != dtype
+                dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
+                unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
 
                 if unmatched.any():
                     logger.warning(
-                        "The following columns of time-varying attribute "
-                        "%s in %s_t have the wrong dtype:\n%s\n"
+                        "The following attributes of the dataframe %s "
+                        "have the wrong dtype:\n%s\n"
                         "They are:\n%s\nbut should be:\n%s",
-                        attr,
                         c.list_name,
                         unmatched.index[unmatched],
-                        c.pnl[attr].dtypes[unmatched],
-                        typ,
+                        c.df.dtypes[dtypes_soll.index[unmatched]],
+                        dtypes_soll[unmatched],
                     )
+
+                # now check varying attributes
+
+                types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
+
+                for attr, typ, dtype in types_soll.itertuples():
+                    if c.pnl[attr].empty:
+                        continue
+
+                    unmatched = c.pnl[attr].dtypes != dtype
+
+                    if unmatched.any():
+                        logger.warning(
+                            "The following columns of time-varying attribute "
+                            "%s in %s_t have the wrong dtype:\n%s\n"
+                            "They are:\n%s\nbut should be:\n%s",
+                            attr,
+                            c.list_name,
+                            unmatched.index[unmatched],
+                            c.pnl[attr].dtypes[unmatched],
+                            typ,
+                        )
 
         constraint_periods = set(
             self.global_constraints.investment_period.dropna().unique()
