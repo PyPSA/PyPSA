@@ -75,7 +75,6 @@ def test_nomansland_bus(caplog):
         n.lopf(pyomo=True)
     except:
         print("to be fixed - unconnected bus throws error in pyomo version.")
-    return True
 
 
 def test_515():

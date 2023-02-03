@@ -667,8 +667,8 @@ def sub_network_pf(
                 slack_weights
             )
             slack_weights_calc = (
-                network.generators.groupby("bus")
-                .sum()[slack_weights]
+                network.generators.groupby("bus")[slack_weights]
+                .sum()
                 .reindex(buses_o)
                 .pipe(normed)
                 .fillna(0)
@@ -1167,13 +1167,14 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    # susceptances
-    b = 1.0 / np.concatenate(
+    z = np.concatenate(
         [
             (c.df.loc[c.ind, attribute]).values
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    # susceptances
+    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
     if np.isnan(b).any():
         logger.warning(
@@ -1189,7 +1190,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # weighted Laplacian
     sub_network.B = sub_network.K * sub_network.H
 
-    sub_network.p_branch_shift = -b * np.concatenate(
+    phase_shift = np.concatenate(
         [
             (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
             if c.name == "Transformer"
@@ -1197,6 +1198,7 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    sub_network.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 

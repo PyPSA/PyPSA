@@ -420,7 +420,7 @@ def define_nodal_balance_constraints(n, sns):
     """
     Defines nodal balance constraint.
     """
-
+    #
     def bus_injection(c, attr, groupcol="bus", sign=1):
         # additional sign only necessary for branches in reverse direction
         if "sign" in n.df(c):
@@ -1086,7 +1086,7 @@ def prepare_lopf(
     n.bounds_f = open(bounds_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
 
-    n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
+    n.objective_f.write("\ LOPF \n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
