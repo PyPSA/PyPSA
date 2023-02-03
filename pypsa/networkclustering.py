@@ -519,6 +519,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
         bus_weightings.reindex(buses_i).astype(int), axis=0
     )
 
+    kwargs.setdefault("n_init", "auto")
     kmeans = KMeans(init="k-means++", n_clusters=n_clusters, **kwargs)
 
     kmeans.fit(points)
@@ -649,10 +650,11 @@ def busmap_by_hac(
         :, buses_x
     ]
 
+    # TODO: maybe change the deprecated argument 'affinity' to 'metric'
     labels = HAC(
         n_clusters=n_clusters,
         connectivity=A,
-        affinity=affinity,
+        metric=affinity,
         linkage=linkage,
         **kwargs,
     ).fit_predict(feature)
@@ -714,7 +716,14 @@ def hac_clustering(
     """
 
     busmap = busmap_by_hac(
-        network, n_clusters, buses_i, branch_components, feature, **kwargs
+        network,
+        n_clusters,
+        buses_i,
+        branch_components,
+        feature,
+        affinity,
+        linkage,
+        **kwargs,
     )
 
     return get_clustering_from_busmap(

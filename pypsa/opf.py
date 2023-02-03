@@ -1899,7 +1899,7 @@ def extract_optimisation_results(
         return s
 
     def set_from_series(df, series):
-        df.loc[snapshots] = series.unstack(0).reindex(columns=df.columns)
+        df.loc[snapshots, :] = series.unstack(0).reindex(columns=df.columns)
 
     def get_shadows(constraint, multiind=True):
         if len(constraint) == 0:
@@ -1941,7 +1941,7 @@ def extract_optimisation_results(
         network.loads_t["p"].loc[snapshots] = load_p_set.loc[snapshots]
 
     if len(network.buses):
-        network.buses_t.p.loc[snapshots] = (
+        network.buses_t.p.loc[snapshots, :] = (
             pd.concat(
                 {
                     c.name: c.pnl.p.loc[snapshots]
