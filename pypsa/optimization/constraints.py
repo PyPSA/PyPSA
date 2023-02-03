@@ -181,7 +181,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     if not min_up_time_i.empty:
         for g in min_up_time_i:
             su = start_up.loc[:, g]
-            expr.append(su.rolling_sum(snapshot=min_up_time_set[g]))
+            expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
@@ -192,7 +192,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     if not min_down_time_i.empty:
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
-            expr.append(su.rolling_sum(snapshot=min_down_time_set[g]))
+            expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
@@ -687,13 +687,10 @@ def define_storage_unit_constraints(n, sns):
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
-        previous_soc_pp = concat(
-            [soc.data.sel(period=p, drop=True).roll(timestep=1) for p in ps],
-            dim="timestep",
-        )
-        previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=soc.coords["snapshot"]
-        )
+        sl = slice(None, None)
+        previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
+        previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
+
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
@@ -762,13 +759,9 @@ def define_store_constraints(n, sns):
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
-        previous_e_pp = concat(
-            [e.labels.sel(period=p, drop=True).roll(timestep=1) for p in ps],
-            dim="timestep",
-        )
-        previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=e.coords["snapshot"]
-        )
+        sl = slice(None, None)
+        previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
+        previous_e_pp = concat(previous_e_pp, dim="snapshot")
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.

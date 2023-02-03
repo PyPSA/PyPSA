@@ -78,7 +78,7 @@ def haversine(a, b):
     --------
     haversine_pts : Determine pointwise crow-fly distance
     """
-
+    #
     def ensure_dimensions(a):
         a = np.asarray(a)
 

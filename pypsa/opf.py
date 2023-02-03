@@ -1978,7 +1978,7 @@ def extract_optimisation_results(
         efficiency = get_switchable_as_dense(network, "Link", "efficiency", snapshots)
 
         network.links_t.p1.loc[snapshots] = (
-            -network.links_t.p0.loc[snapshots] * efficiency.loc[snapshots, :]
+            -network.links_t.p0.loc[snapshots] * efficiency.loc[snapshots]
         )
 
         network.buses_t.p.loc[snapshots] -= (
