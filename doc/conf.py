@@ -63,7 +63,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "PyPSA"
-copyright = "2015-2021 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+copyright = "2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 author = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -80,7 +80,7 @@ release = "0.21.3"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -124,16 +124,14 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_book_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "canonical_url": "https://pypsa.readthedocs.io",
-    "display_version": True,
-    "sticky_navigation": True,
-    #'style_nav_header_background': '#009682',
+    "repository_url": "https://github.com/pypsa/pypsa",
+    "use_repository_button": True,
 }
 
 
@@ -142,14 +140,14 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = None
+html_title = "PyPSA: Python for Power System Analysis"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = "PyPSA"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = None
+html_logo = "img/pypsa-logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -161,7 +159,7 @@ html_static_path = ["_static"]
 
 # These paths are either relative to html_static_path
 # or fully qualified paths (eg. https://...)
-html_css_files = ["theme_overrides.css"]
+# html_css_files = ["theme_overrides.css"]
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

@@ -28,6 +28,6 @@ dependencies:
 - pip:
   - .
   - sphinx<6
-  - sphinx_rtd_theme
+  - sphinx-book-theme
   - nbsphinx
   - nbsphinx_link
