@@ -89,6 +89,28 @@ def test_plot_with_line_cmap(ac_dc_network):
     plt.close()
 
 
+def test_plot_alpha(ac_dc_network):
+    n = ac_dc_network
+
+    bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
+    bus_sizes[:] = 1
+    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    n.plot(
+        bus_sizes=bus_sizes,
+        bus_colors=bus_colors,
+        geomap=False,
+        bus_alpha=0.5,
+        line_alpha=0.5,
+        link_alpha=0.5,
+    )
+    plt.close()
+
+    # Retrieving the colors from carriers also should work
+    n.carriers["color"] = bus_colors
+    n.plot(bus_sizes=bus_sizes)
+    plt.close()
+
+
 def test_plot_layouter(ac_dc_network):
     n = ac_dc_network
 
