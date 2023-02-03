@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import os
 import pytest
 
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
@@ -25,6 +26,7 @@ except ImportError as e:
 
 @pytest.mark.parametrize("margin", (None, 0.1))
 @pytest.mark.parametrize("jitter", (None, 1))
+@pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")
 def test_plot_standard_params_wo_geomap(ac_dc_network, margin, jitter):
     n = ac_dc_network
     n.plot(geomap=False, margin=margin, jitter=jitter)
