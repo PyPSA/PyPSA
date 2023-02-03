@@ -37,15 +37,6 @@ Functionality
   <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 
-**Other complementary libraries:**
-
-* `pandapower <https://github.com/e2nIEE/pandapower>`__ for more
-  detailed modelling of distribution grids, short-circuit
-  calculations, unbalanced load flow and more
-* `PowerDynamics.jl
-  <https://github.com/JuliaEnergy/PowerDynamics.jl>`_ for dynamic
-  modelling of power grids at time scales where differential equations are relevant
-
 Target user group
 =================
 
@@ -108,10 +99,12 @@ It leans heavily on the following Python packages:
 
 
 The optimisation uses solver interfaces that are independent of the preferred
-solver. You can use e.g. one of the free solvers `GLPK
-<https://www.gnu.org/software/glpk/>`_ and `CLP/CBC
-<https://github.com/coin-or/Cbc/>`_ or the commercial solver `Gurobi
-<http://www.gurobi.com/>`_ for which free academic licenses are available.
+solver. You can use e.g. one of the free solvers `HiGHS <https://highs.dev/>`_,
+`GLPK <https://www.gnu.org/software/glpk/>`_ and `CLP/CBC
+<https://github.com/coin-or/Cbc/>`_ or commercial solvers like `Gurobi
+<http://www.gurobi.com/>`_ or `CPLEX
+<https://www.ibm.com/de-de/analytics/cplex-optimizer>`_ for which free academic
+licenses are available.
 
 
 Other comparable software
