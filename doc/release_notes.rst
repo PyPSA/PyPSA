@@ -7,12 +7,20 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The linopy based optimization (`n.optimize`) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by x times what was installed in the investment period before. See the corresponding `pull request <https://github.com/PyPSA/PyPSA/pull/521>`_ for more details.
+* new feature
+
+PyPSA 0.22.0 (3rd February 2023)
+================================
+
+* Python 3.11 is now tested. The support of Python 3.7 was dropped. The minimum supported python version is now 3.8.
+* The linopy based optimization (``n.optimize()``) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by multiples of what was installed in the preceding investment period.
 * The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
-* Wrapped functions defined by the ``Network.optimize`` accessor are better wrapping meta information of the original functions. This enables better feedback in interactive sessions.
-* The support of python 3.7 was dropped. The minimum supported python version is now 3.8.
+* Wrapped functions defined by the ``Network.optimize`` accessor are now wrapping meta information of the original functions more coherently. This enables better feedback in interactive sessions.
 * Checking of datatypes in the ``consistency_check`` is now deactivated by default. Set ``n.consistency_check(check_dtypes=True)`` to activate it.
-* The plotting functionality ``Network.plot`` now supports setting alpha values on the branch components individually.
+* The plotting functionality ``n.plot()`` now supports setting alpha values on the branch components individually.
+* The plotting functionality ``n.plot()`` now allows independent control of arrow size and branch width using ``line_widths`` and ``flow`` in conjunction.
+* The documentation shines in a new look using the ``sphinx-book-theme``. Limit ``sphinx`` to versions below 6.
+* Address various deprecation warnings.
 
 PyPSA 0.21.3 (16th December 2022)
 =================================
