@@ -27,7 +27,7 @@ dependencies:
 
 - pip:
   - .
-  - sphinx
+  - sphinx<6
   - sphinx_rtd_theme
   - nbsphinx
   - nbsphinx_link
