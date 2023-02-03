@@ -6,11 +6,12 @@ Created on Tue Feb  1 13:13:59 2022.
 @author: fabian
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-import os
 import pytest
 
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
