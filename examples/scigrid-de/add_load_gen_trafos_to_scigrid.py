@@ -79,7 +79,7 @@ import pandas as pd
 
 import pypsa
 
-#%matplotlib inline
+# %matplotlib inline
 
 ### Read in the raw SciGRID data
 
@@ -225,7 +225,6 @@ start = 0  # km
 stop = 1  # km
 
 for (u, v), dist in pairs.sort_values().iteritems():
-
     if dist < start:
         continue
 
@@ -257,7 +256,6 @@ for (u, v), dist in pairs.sort_values().iteritems():
 limit = 0.85
 
 for (u, v), dist in pairs.sort_values().iteritems():
-
     # only go up to pairs stop km apart
     if dist > limit:
         break
@@ -507,7 +505,7 @@ for bus in graph.nodes():
         ),
     )
 
-#%matplotlib inline
+# %matplotlib inline
 
 pd.DataFrame(load.sum(axis=1)).plot()
 
@@ -666,7 +664,7 @@ m_costs = {
 
 default_cost = 10.0
 
-for (bus_name, tech_name) in cap.index:
+for bus_name, tech_name in cap.index:
     print(bus_name, tech_name, cap[(bus_name, tech_name)])
     if tech_name == "Pumped Hydro":
         network.add(

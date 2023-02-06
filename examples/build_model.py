@@ -44,7 +44,6 @@ logging.basicConfig(level=args.loglevel)
 # In final hour load goes below part-load limit of coal gen (30%), forcing gas to commit.
 
 for test_i in range(1):
-
     snapshots = range(1, 101)
     p_set = [p * 20 for p in snapshots]
 

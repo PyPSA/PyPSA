@@ -266,7 +266,6 @@ def allocate_series_dataframes(network, series):
                                              'Load': ['p']})
     """
     for component, attributes in series.items():
-
         df = network.df(component)
         pnl = network.pnl(component)
 

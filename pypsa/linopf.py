@@ -384,7 +384,6 @@ def define_ramp_limit_constraints(n, sns, c):
 def define_nominal_constraints_per_bus_carrier(n, sns):
     for carrier in n.carriers.index:
         for bound, sense in [("max", "<="), ("min", ">=")]:
-
             col = f"nom_{bound}_{carrier}"
             if col not in n.buses.columns:
                 continue
@@ -420,6 +419,7 @@ def define_nodal_balance_constraints(n, sns):
     """
     Defines nodal balance constraint.
     """
+
     #
     def bus_injection(c, attr, groupcol="bus", sign=1):
         # additional sign only necessary for branches in reverse direction

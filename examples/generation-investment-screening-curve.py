@@ -10,7 +10,7 @@ import pandas as pd
 
 import pypsa
 
-#%matplotlib inline
+# %matplotlib inline
 
 # Generator marginal (m) and capital (c) costs in EUR/MWh - numbers chosen for simple answer
 generators = {
