@@ -232,7 +232,6 @@ class Network(Basic):
         override_component_attrs=None,
         **kwargs,
     ):
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -370,7 +369,6 @@ class Network(Basic):
         pandas.DataFrames.
         """
         for component in self.all_components:
-
             attrs = self.components[component]["attrs"]
 
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
@@ -396,7 +394,6 @@ class Network(Basic):
 
     def read_in_default_standard_types(self):
         for std_type in self.standard_type_components:
-
             list_name = self.components[std_type]["list_name"]
 
             file_name = os.path.join(
@@ -1498,7 +1495,6 @@ class Network(Basic):
 
         if check_dtypes:
             for c in self.iterate_components():
-
                 # first check static attributes
 
                 dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")

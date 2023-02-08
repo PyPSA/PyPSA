@@ -136,7 +136,6 @@ def aggregategenerators(
 def aggregateoneport(
     network, busmap, component, with_time=True, custom_strategies=dict()
 ):
-
     if network.df(component).empty:
         return network.df(component), network.pnl(component)
 
@@ -373,7 +372,6 @@ def get_clustering_from_busmap(
     one_port_strategies=dict(),
     generator_strategies=dict(),
 ):
-
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
     )

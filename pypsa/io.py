@@ -409,7 +409,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
-
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
 

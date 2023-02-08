@@ -9,7 +9,7 @@ import pandas as pd
 
 import pypsa
 
-#%matplotlib inline
+# %matplotlib inline
 
 # NB: this example will use units of kW and kWh, unlike the PyPSA defaults
 

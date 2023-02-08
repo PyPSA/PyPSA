@@ -10,7 +10,7 @@ from pyomo.environ import Constraint
 
 import pypsa
 
-#%matplotlib inline
+# %matplotlib inline
 
 ### Combined-Heat-and-Power (CHP) parameterisation
 
@@ -125,7 +125,6 @@ network.add("Store", "gas depot", bus="0 gas", e_cyclic=True, e_nom_extendable=T
 
 
 if heat:
-
     network.add("Bus", "0 heat", carrier="heat")
 
     network.add("Carrier", "heat")
@@ -148,7 +147,6 @@ if heat:
 
 
 if heat and chp:
-
     # Guarantees ISO fuel lines, i.e. fuel consumption p_b0 + p_g0 = constant along p_g1 + c_v p_b1 = constant
     network.links.at["boiler", "efficiency"] = (
         network.links.at["generator", "efficiency"] / c_v

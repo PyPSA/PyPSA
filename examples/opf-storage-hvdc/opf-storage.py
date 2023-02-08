@@ -54,7 +54,6 @@ print("\n\nBranch capacities:\n")
 print(network.branches().s_nom)
 
 for snapshot in network.snapshots:
-
     print("\n" * 2 + "For time", snapshot, ":\nBus injections:")
 
     print(network.buses_t.p.loc[snapshot])
@@ -78,11 +77,9 @@ print("Comparing bus injection to branch outgoing for %s:" % now)
 
 
 for sub_network in network.sub_networks.obj:
-
     print("\n\nConsidering sub network", sub_network, ":")
 
     for bus in sub_network.buses().index:
-
         print("\n%s" % bus)
 
         print(
@@ -102,7 +99,6 @@ for sub_network in network.sub_networks.obj:
         p1 = 0.0
 
         for c in network.iterate_components(network.branch_components):
-
             bs = c.df.bus0 == bus
 
             if bs.any():

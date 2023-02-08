@@ -137,7 +137,6 @@ def define_objective(n, sns):
     # unit commitment
     keys = ["start_up", "shut_down"]
     for c, attr in lookup.query("variable in @keys").index:
-
         com_i = n.get_committable_i(c)
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
 
@@ -253,7 +252,6 @@ def assign_solution(n):
     sns = n.model.parameters.snapshots.to_index()
 
     for name, sol in m.solution.items():
-
         if name == "objective_constant":
             continue
 
@@ -261,7 +259,6 @@ def assign_solution(n):
         df = sol.to_pandas()
 
         if "snapshot" in sol.dims:
-
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(n, c, "p0", df)
                 set_from_frame(n, c, "p1", -df)
@@ -283,7 +280,7 @@ def assign_solution(n):
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal
-    for (c, attr) in lookup.query("nominal").index:
+    for c, attr in lookup.query("nominal").index:
         fix_i = n.get_non_extendable_i(c)
         if not fix_i.empty:
             n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
@@ -304,14 +301,12 @@ def assign_duals(n):
     unassigned = []
 
     for name, dual in m.dual.items():
-
         try:
             c, attr = name.split("-", 1)
         except ValueError:
             continue
 
         if "snapshot" in dual.dims:
-
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
                 spec = attr.rsplit("-", 1)[-1]
