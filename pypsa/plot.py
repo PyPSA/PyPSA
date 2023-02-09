@@ -488,10 +488,10 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
         color_geomap = {}
     elif not isinstance(color_geomap, dict):
         color_geomap = {
-            "ocean": "lightblue",
-            "land": "whitesmoke",
-            "border": "black",
-            "border_width": 0.3,
+            "ocean"         : "lightblue",
+            "land"          : "whitesmoke",
+            "border"        : "darkgray",
+            "coastline"     : "black"
         }
 
     if "land" in color_geomap:
@@ -508,11 +508,16 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     if "border" in color_geomap:
         ax.add_feature(
             cartopy.feature.BORDERS.with_scale(resolution),
-            linewidth=color_geomap["border_width"],
+            linewidth=0.3,
             color=color_geomap["border"],
         )
 
-    ax.coastlines(linewidth=0.4, zorder=2, resolution=resolution)
+    if "coastline" in color_geomap:
+        ax.add_feature(
+            cartopy.feature.COASTLINE.with_scale(resolution),
+            linewidth=0.3,
+            color=color_geomap["coastline"],
+        )
 
 
 class HandlerCircle(HandlerPatch):
