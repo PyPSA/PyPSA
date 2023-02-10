@@ -451,7 +451,6 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
     exprs = []
 
     for arg in args:
-
         c, attr, column, sign = arg
 
         if n.df(c).empty:
