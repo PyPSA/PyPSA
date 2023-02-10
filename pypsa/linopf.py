@@ -496,7 +496,7 @@ def define_kirchhoff_constraints(n, sns):
     constraints = []
     periods = sns.unique("period") if n._multi_invest else [None]
     for period in periods:
-        n.determine_network_topology(investment_period=period, skip_isolated_buses=True)
+        n.determine_network_topology(investment_period=period)
         subconstraints = []
         for sub in n.sub_networks.obj:
             branches = sub.branches()
@@ -1454,7 +1454,7 @@ def network_lopf(
 
     if not skip_pre:
         n.calculate_dependent_values()
-        n.determine_network_topology(skip_isolated_buses=True)
+        n.determine_network_topology()
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(

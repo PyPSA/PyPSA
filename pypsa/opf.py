@@ -2132,7 +2132,7 @@ def network_lopf_build_model(
         )
 
     if not skip_pre:
-        network.determine_network_topology(skip_isolated_buses=True)
+        network.determine_network_topology()
         calculate_dependent_values(network)
         for sub_network in network.sub_networks.obj:
             find_slack_bus(sub_network)
