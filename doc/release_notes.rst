@@ -7,7 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature
+* The model creation for large (sector-coupled) models was sped up.
+
 
 PyPSA 0.22.0 (3rd February 2023)
 ================================
