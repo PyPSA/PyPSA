@@ -470,8 +470,17 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
         expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            # eventually do a separation of short and long linear expressions
-            expr = expr.groupby(cbuses.to_xarray()).sum()
+            # do a fast version of `expr.groupby(cbuses.to_xarray()).sum()`
+            idx = pd.MultiIndex.from_arrays(
+                [cbuses, cbuses.groupby(cbuses).cumcount()], names=["Bus", "_term"]
+            )
+            ds = (
+                expr.data.squeeze()
+                .assign_coords({c: idx})
+                .unstack(c)
+                .reset_index("_term")
+            )
+            expr = LinearExpression(ds, m)
 
             exprs.append(expr)
 
@@ -523,7 +532,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
     periods = sns.unique("period") if n._multi_invest else [None]
 
     for period in periods:
-        n.determine_network_topology(investment_period=period)
+        n.determine_network_topology(investment_period=period, skip_isolated_buses=True)
 
         snapshots = sns if period is None else sns[sns.get_loc(period)]
 

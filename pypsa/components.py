@@ -1210,7 +1210,9 @@ class Network(Basic):
             sort=True,
         )
 
-    def determine_network_topology(self, investment_period=None):
+    def determine_network_topology(
+        self, investment_period=None, skip_isolated_buses=False
+    ):
         """
         Build sub_networks from topology.
 
@@ -1237,6 +1239,10 @@ class Network(Basic):
         for i in np.arange(n_components):
             # index of first bus
             buses_i = (labels == i).nonzero()[0]
+
+            if skip_isolated_buses and (len(buses_i) == 1):
+                continue
+
             carrier = self.buses.carrier.iat[buses_i[0]]
 
             if carrier not in ["AC", "DC"] and len(buses_i) > 1:
