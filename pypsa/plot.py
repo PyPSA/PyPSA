@@ -507,10 +507,10 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
         color_geomap = {}
     elif not isinstance(color_geomap, dict):
         color_geomap = {
-            "ocean"         : "lightblue",
-            "land"          : "whitesmoke",
-            "border"        : "darkgray",
-            "coastline"     : "black"
+            "ocean": "lightblue",
+            "land": "whitesmoke",
+            "border": "darkgray",
+            "coastline": "black",
         }
 
     if "land" in color_geomap:
