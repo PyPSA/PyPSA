@@ -9,7 +9,6 @@ Upcoming Release
 
 * The model creation for large (sector-coupled) models was sped up.
 * The colors of borders and coastlines can now be controlled with ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
-* The Xpress solver interface now skips loading a basis if there is an error associated with the basis function and continues without it.
 
 
 PyPSA 0.22.0 (3rd February 2023)
