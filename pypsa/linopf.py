@@ -11,7 +11,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -384,7 +384,6 @@ def define_ramp_limit_constraints(n, sns, c):
 def define_nominal_constraints_per_bus_carrier(n, sns):
     for carrier in n.carriers.index:
         for bound, sense in [("max", "<="), ("min", ">=")]:
-
             col = f"nom_{bound}_{carrier}"
             if col not in n.buses.columns:
                 continue
@@ -421,6 +420,7 @@ def define_nodal_balance_constraints(n, sns):
     Defines nodal balance constraint.
     """
 
+    #
     def bus_injection(c, attr, groupcol="bus", sign=1):
         # additional sign only necessary for branches in reverse direction
         if "sign" in n.df(c):
@@ -1086,7 +1086,7 @@ def prepare_lopf(
     n.bounds_f = open(bounds_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
 
-    n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
+    n.objective_f.write("\ LOPF \n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")

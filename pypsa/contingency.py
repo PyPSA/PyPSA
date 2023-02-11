@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -152,7 +152,6 @@ def add_contingency_constraints(network, snapshots):
     # prepare the sub networks by calculating BODF and preparing helper DataFrames
 
     for sn in network.sub_networks.obj:
-
         sn.calculate_BODF()
 
         sn._branches = sn.branches()
@@ -296,7 +295,6 @@ def add_contingency_constraints_lowmem(network, snapshots):
 
     constraints = {}
     for sn in n.sub_networks.obj:
-
         sn.calculate_BODF()
 
         branches_i = sn.branches_i()

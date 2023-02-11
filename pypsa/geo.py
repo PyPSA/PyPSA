@@ -9,7 +9,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -79,6 +79,7 @@ def haversine(a, b):
     haversine_pts : Determine pointwise crow-fly distance
     """
 
+    #
     def ensure_dimensions(a):
         a = np.asarray(a)
 

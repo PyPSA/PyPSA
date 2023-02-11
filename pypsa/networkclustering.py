@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -136,7 +136,6 @@ def aggregategenerators(
 def aggregateoneport(
     network, busmap, component, with_time=True, custom_strategies=dict()
 ):
-
     if network.df(component).empty:
         return network.df(component), network.pnl(component)
 
@@ -373,7 +372,6 @@ def get_clustering_from_busmap(
     one_port_strategies=dict(),
     generator_strategies=dict(),
 ):
-
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
     )
@@ -519,6 +517,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
         bus_weightings.reindex(buses_i).astype(int), axis=0
     )
 
+    kwargs.setdefault("n_init", "auto")
     kmeans = KMeans(init="k-means++", n_clusters=n_clusters, **kwargs)
 
     kmeans.fit(points)
@@ -649,10 +648,11 @@ def busmap_by_hac(
         :, buses_x
     ]
 
+    # TODO: maybe change the deprecated argument 'affinity' to 'metric'
     labels = HAC(
         n_clusters=n_clusters,
         connectivity=A,
-        affinity=affinity,
+        metric=affinity,
         linkage=linkage,
         **kwargs,
     ).fit_predict(feature)
@@ -714,7 +714,14 @@ def hac_clustering(
     """
 
     busmap = busmap_by_hac(
-        network, n_clusters, buses_i, branch_components, feature, **kwargs
+        network,
+        n_clusters,
+        buses_i,
+        branch_components,
+        feature,
+        affinity,
+        linkage,
+        **kwargs,
     )
 
     return get_clustering_from_busmap(

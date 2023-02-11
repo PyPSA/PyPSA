@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -92,7 +92,6 @@ def _allocate_pf_outputs(network, linear=False):
 def _calculate_controllable_nodal_power_balance(
     sub_network, network, snapshots, buses_o
 ):
-
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
         for c in sub_network.iterate_components(
@@ -145,7 +144,6 @@ def _network_prepare_and_run_pf(
     slack_weights="p_set",
     **kwargs
 ):
-
     if linear:
         sub_network_pf_fun = sub_network_lpf
         sub_network_prepare_fun = calculate_B_H
@@ -317,7 +315,6 @@ def newton_raphson_sparse(
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     while diff > x_tol and n_iter < lim_iter:
-
         n_iter += 1
 
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
@@ -643,7 +640,6 @@ def sub_network_pf(
     slack_variable_b = 1 if distribute_slack else 0
 
     if distribute_slack:
-
         if isinstance(slack_weights, str) and slack_weights == "p_set":
             generators_t_p_choice = get_switchable_as_dense(
                 network, "Generator", slack_weights, snapshots
@@ -667,8 +663,8 @@ def sub_network_pf(
                 slack_weights
             )
             slack_weights_calc = (
-                network.generators.groupby("bus")
-                .sum()[slack_weights]
+                network.generators.groupby("bus")[slack_weights]
+                .sum()
                 .reindex(buses_o)
                 .pipe(normed)
                 .fillna(0)
@@ -1074,7 +1070,6 @@ def find_slack_bus(sub_network):
         sub_network.slack_bus = sub_network.buses_i()[0]
 
     else:
-
         slacks = gens[gens.control == "Slack"].index
 
         if len(slacks) == 0:
@@ -1167,13 +1162,14 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    # susceptances
-    b = 1.0 / np.concatenate(
+    z = np.concatenate(
         [
             (c.df.loc[c.ind, attribute]).values
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    # susceptances
+    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
     if np.isnan(b).any():
         logger.warning(
@@ -1189,7 +1185,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # weighted Laplacian
     sub_network.B = sub_network.K * sub_network.H
 
-    sub_network.p_branch_shift = -b * np.concatenate(
+    phase_shift = np.concatenate(
         [
             (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
             if c.name == "Transformer"
@@ -1197,6 +1193,7 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    sub_network.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
@@ -1438,7 +1435,6 @@ def find_cycles(sub_network, weight="x_pu"):
     sub_network.C = dok_matrix((len(branches_bus0), len(cycles) + num_multi))
 
     for j, cycle in enumerate(cycles):
-
         for i in range(len(cycle)):
             branch = next(iter(mgraph[cycle[i]][cycle[(i + 1) % len(cycle)]].keys()))
             branch_i = branches_i.get_loc(branch)

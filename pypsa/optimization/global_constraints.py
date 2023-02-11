@@ -253,7 +253,6 @@ def define_primary_energy_limit(n, sns):
         weightings = weightings.mul(period_weighting, level=0, axis=0)
 
     for name, glc in glcs.iterrows():
-
         if isnan(glc.investment_period):
             snapshots = sns
         else:

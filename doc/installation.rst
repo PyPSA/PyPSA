@@ -22,9 +22,9 @@ Getting a solver for optimisation
 PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
 external solver. PyPSA is known to work with the free software
 
+- `HiGHS <https://highs.dev/>`_
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
 - `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
-- `HiGHS <https://highs.dev/>`_
 
 and the non-free software, commercial software (for which free academic licenses are available)
 
@@ -34,7 +34,11 @@ and the non-free software, commercial software (for which free academic licenses
 
 For installation instructions of these solvers for your operating system, follow the links above.
 
-Depending on your operating system, you can also install some of the open-source solvers in a ``conda`` environment.
+Depending on your operating system, you can also install some of the open-source solvers in a ``conda`` or ``pip`` environment.
+
+For HiGHS on all operating systems::
+
+    pip install highspy
 
 For GLPK on all operating systems::
 
@@ -55,14 +59,6 @@ Installing PyPSA with conda
 If you are using ``conda`` you can install PyPSA with::
 
     conda install -c conda-forge pypsa
-
-or by adding the ``conda-forge`` channel to your ``conda`` installation with::
-
-    conda config --add channels conda-forge
-
-and then installing simply with::
-
-    conda install pypsa
 
 In all of the above commands you can replace ``conda`` with ``mamba`` if you use this alternative.
 
@@ -94,34 +90,15 @@ your python path with e.g.::
     import pypsa
 
 
-.. _upgrading-packages:
-
-Upgrading dependencies
-======================
-
-PyPSA is only tested with the latest stable versions of all the
-dependent packages for the respective Python versions. Therefore it is
-very important that you upgrade these packages; otherwise PyPSA may
-not work.
-
-To upgrade a package such as ``pandas`` with pip, do at the command
-line::
-
-    pip install -U pandas
-
-
-With ``conda/mamba`` upgrade packages with::
-
-    conda update pandas
-
-
 .. _upgrading-pypsa:
 
 Upgrading PyPSA
 ===============
 
-We recommend always keeping your PyPSA installation up-to-date, since
-bugs get fixed and new features are added.
+We recommend always keeping your PyPSA installation up-to-date, since bugs get
+fixed and new features are added. PyPSA is also only tested with the latest
+stable versions of all the dependent packages for the respective Python
+versions.
 
 To upgrade PyPSA with pip, do at the command line::
 
