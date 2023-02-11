@@ -1056,6 +1056,7 @@ def run_and_read_gurobi(
     constraint dual values. Gurobipy must be installed for using this function.
 
     For more information on solver options, see
+
     <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
