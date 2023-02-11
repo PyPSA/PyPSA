@@ -8,6 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * The model creation for large (sector-coupled) models was sped up.
+* The colors of borders and coastlines can now be controlled with ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
 
 
 PyPSA 0.22.0 (3rd February 2023)
