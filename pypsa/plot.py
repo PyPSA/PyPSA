@@ -54,6 +54,7 @@ def plot(
     bus_sizes=2e-2,
     bus_cmap=None,
     bus_norm=None,
+    bus_split_circles=False,
     line_colors="rosybrown",
     link_colors="darkseagreen",
     transformer_colors="orange",
@@ -111,6 +112,10 @@ def plot(
         If bus_colors are floats, this color map will assign the colors
     bus_norm : plt.Normalize|matplotlib.colors.*Norm
         The norm applied to the bus_cmap.
+    bus_split_circles : bool, default False
+        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+        If set to true, the upper half circle per bus then includes all positive values
+        of the series, the lower half circle all negative values. Defaults to False.
     line_colors : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
@@ -258,26 +263,39 @@ def plot(
 
         patches = []
         for b_i in bus_sizes.index.unique(level=0):
-            s = bus_sizes.loc[b_i]
-            radius = s.sum() ** 0.5
-            if radius == 0.0:
-                ratios = s
-            else:
-                ratios = s / s.sum()
+            s_base = bus_sizes.loc[b_i]
 
-            start = 0.25
-            for i, ratio in ratios.items():
-                patches.append(
-                    Wedge(
-                        (x.at[b_i], y.at[b_i]),
-                        radius,
-                        360 * start,
-                        360 * (start + ratio),
-                        facecolor=bus_colors[i],
-                        alpha=bus_alpha,
-                    )
+            if bus_split_circles:
+                s_base = (
+                    s_base[s_base > 0],
+                    s_base[s_base < 0],
                 )
-                start += ratio
+                starts = 0, 1
+                scope = 180
+            else:
+                s_base = (s_base[s_base > 0],)
+                starts = (0.25,)
+                scope = 360
+
+            for s, start in zip(s_base, starts):
+                radius = abs(s.sum()) ** 0.5
+                if radius == 0.0:
+                    ratios = s
+                else:
+                    ratios = s / abs(s.sum())
+
+                for i, ratio in ratios.items():
+                    patches.append(
+                        Wedge(
+                            (x.at[b_i], y.at[b_i]),
+                            radius,
+                            scope * start,
+                            scope * (start + ratio),
+                            facecolor=bus_colors[i],
+                            alpha=bus_alpha,
+                        )
+                    )
+                    start = start + ratio
         bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         ax.add_collection(bus_collection)
     else:

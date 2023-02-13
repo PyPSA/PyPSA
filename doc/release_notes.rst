@@ -11,6 +11,8 @@ Upcoming Release
 * The colors of borders and coastlines can now be controlled with ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
 * The Xpress solver interface now skips loading a basis if there is an error associated with the basis function and continues without it.
 * Plotting multiple legends was fixed for applying tight layout with matplotlib versions >=3.6.
+* The plotting function now supports plotting negative and positive values separately per bus using the argument `bus_split_circles`. This results in drawing separate half circles for positive and negative values.
+
 
 PyPSA 0.22.0 (3rd February 2023)
 ================================
