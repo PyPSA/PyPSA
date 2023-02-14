@@ -280,9 +280,9 @@ def plot(
             for s, start in zip(s_base, starts):
                 radius = abs(s.sum()) ** 0.5
                 if radius == 0.0:
-                    ratios = s
+                    ratios = abs(s)
                 else:
-                    ratios = s / abs(s.sum())
+                    ratios = s / s.sum()
 
                 for i, ratio in ratios.items():
                     patches.append(
