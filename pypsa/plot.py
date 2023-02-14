@@ -507,10 +507,10 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
         color_geomap = {}
     elif not isinstance(color_geomap, dict):
         color_geomap = {
-            "ocean"         : "lightblue",
-            "land"          : "whitesmoke",
-            "border"        : "darkgray",
-            "coastline"     : "black"
+            "ocean": "lightblue",
+            "land": "whitesmoke",
+            "border": "darkgray",
+            "coastline": "black",
         }
 
     if "land" in color_geomap:
@@ -588,7 +588,7 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
 
     legend = ax.legend(handles, labels, **legend_kw)
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
@@ -616,7 +616,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
 
     legend = ax.legend(handles, labels, **legend_kw)
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
@@ -650,7 +650,7 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
         handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
     )
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
