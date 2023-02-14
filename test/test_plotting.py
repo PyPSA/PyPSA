@@ -73,6 +73,28 @@ def test_plot_bus_circles(ac_dc_network):
     n.plot(bus_sizes=bus_sizes)
     plt.close()
 
+    # Retrieving the colors from carriers also should work
+    n.carriers["color"] = bus_colors
+    n.plot(bus_sizes=bus_sizes)
+    plt.close()
+
+
+def test_plot_split_circles(ac_dc_network):
+    n = ac_dc_network
+
+    gen_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.sum()
+    gen_sizes[:] = 500
+    n.loads.carrier = "load"
+    load_sizes = -n.loads_t.p_set.mean().groupby([n.loads.bus, n.loads.carrier]).max()
+    bus_sizes = pd.concat((gen_sizes, load_sizes)) / 1e3
+    bus_colors = pd.Series(
+        ["blue", "red", "green", "orange"], index=list(n.carriers.index) + ["load"]
+    )
+    n.plot(
+        bus_sizes=bus_sizes, bus_colors=bus_colors, bus_split_circles=True, geomap=False
+    )
+    plt.close()
+
 
 def test_plot_with_bus_cmap(ac_dc_network):
     n = ac_dc_network
