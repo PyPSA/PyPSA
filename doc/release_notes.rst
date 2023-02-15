@@ -7,11 +7,21 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The model creation for large (sector-coupled) models was sped up.
-* The colors of borders and coastlines can now be controlled with ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
-* The Xpress solver interface now skips loading a basis if there is an error associated with the basis function and continues without it.
-* Plotting multiple legends was fixed for applying tight layout with matplotlib versions >=3.6.
-* The plotting function now supports plotting negative and positive values separately per bus using the argument `bus_split_circles`. This results in drawing separate half circles for positive and negative values.
+* new feature
+
+
+PyPSA 0.22.1 (15th February 2023)
+=================================
+
+* The model creation for large, sector-coupled models is now much quicker.
+* The FICO Xpress solver interface now skips loading a basis if there is an
+  error associated with the basis function and continues without it.
+* The colors of borders and coastlines can now be controlled with
+  ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
+* Plotting multiple legends was fixed for applying a tight layout with ``matplotlib>=3.6``.
+* The plotting function now supports plotting negative and positive values
+  separately per bus using the argument ```n.plot(bus_split_circles=...)``. This
+  results in drawing separate half circles for positive and negative values.
 
 
 PyPSA 0.22.0 (3rd February 2023)
