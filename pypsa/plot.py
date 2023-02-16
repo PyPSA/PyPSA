@@ -542,19 +542,17 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
             facecolor=color_geomap["ocean"],
         )
 
-    if "border" in color_geomap:
-        ax.add_feature(
-            cartopy.feature.BORDERS.with_scale(resolution),
-            linewidth=0.3,
-            color=color_geomap["border"],
-        )
+    ax.add_feature(
+        cartopy.feature.BORDERS.with_scale(resolution),
+        linewidth=0.3,
+        color=color_geomap.get("border", 'k'),
+    )
 
-    if "coastline" in color_geomap:
-        ax.add_feature(
-            cartopy.feature.COASTLINE.with_scale(resolution),
-            linewidth=0.3,
-            color=color_geomap["coastline"],
-        )
+    ax.add_feature(
+        cartopy.feature.COASTLINE.with_scale(resolution),
+        linewidth=0.3,
+        color=color_geomap.get("coastline", 'k'),
+    )
 
 
 class HandlerCircle(HandlerPatch):
