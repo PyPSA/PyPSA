@@ -350,11 +350,8 @@ if has_xarray:
             # therefore we have to work-around. Note that this does not copy data
             index = df.index.copy()
             index.name = "snapshots"
-            df = pd.DataFrame(
-                df,
-                index=index,
-                columns=df.columns.rename(list_name + "_t_" + attr + "_i"),
-            )
+            columns = df.columns.rename(list_name + "_t_" + attr + "_i")
+            df = pd.DataFrame(df, index=index, columns=columns)
 
             self.ds[list_name + "_t_" + attr] = df
             if self.least_significant_digit is not None:
