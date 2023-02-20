@@ -412,8 +412,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
 
-        df = network.df(component)
-        pnl = network.pnl(component)
+        df = network.df(component).copy()
+        pnl = network.pnl(component).copy()
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
