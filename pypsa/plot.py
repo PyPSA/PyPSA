@@ -545,13 +545,13 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     ax.add_feature(
         cartopy.feature.BORDERS.with_scale(resolution),
         linewidth=0.3,
-        color=color_geomap.get("border", 'k'),
+        color=color_geomap.get("border", "k"),
     )
 
     ax.add_feature(
         cartopy.feature.COASTLINE.with_scale(resolution),
         linewidth=0.3,
-        color=color_geomap.get("coastline", 'k'),
+        color=color_geomap.get("coastline", "k"),
     )
 
 
