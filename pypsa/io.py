@@ -346,12 +346,9 @@ if has_xarray:
                 self.ds[list_name + "_" + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            # pd.DataFrame.rename_axis will not set a common name of a multi-index,
-            # therefore we have to work-around. Note that this does not copy data
-            index = df.index.copy()
-            index.name = "snapshots"
-            columns = df.columns.rename(list_name + "_t_" + attr + "_i")
-            df = pd.DataFrame(df, index=index, columns=columns)
+            df = df.rename_axis(
+                index="snapshots", columns=list_name + "_t_" + attr + "_i"
+            )
 
             self.ds[list_name + "_t_" + attr] = df
             if self.least_significant_digit is not None:
@@ -426,7 +423,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
             df = df.drop(network.components[component]["standard_types"].index)
 
         # first do static attributes
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         if df.empty:
             exporter.remove_static(list_name)
             continue
