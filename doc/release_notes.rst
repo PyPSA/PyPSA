@@ -8,6 +8,7 @@ Upcoming Release
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * new feature
+* Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
 
 
 PyPSA 0.22.1 (15th February 2023)
