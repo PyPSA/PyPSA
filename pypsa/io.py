@@ -33,6 +33,8 @@ try:
 except ImportError:
     has_xarray = False
 
+from pypsa.descriptors import rename_index
+
 
 class ImpExper(object):
     ds = None
@@ -328,7 +330,9 @@ if has_xarray:
             self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
-            snapshots = snapshots.rename_axis(index="snapshots")
+            snapshots = pd.DataFrame(
+                snapshots, index=rename_index(snapshots.index, "snapshots")
+            )
             for attr in snapshots.columns:
                 self.ds["snapshots_" + attr] = snapshots[attr]
 
@@ -346,12 +350,11 @@ if has_xarray:
                 self.ds[list_name + "_" + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            # pd.DataFrame.rename_axis will not set a common name of a multi-index,
-            # therefore we have to work-around. Note that this does not copy data
-            index = df.index.copy()
-            index.name = "snapshots"
-            columns = df.columns.rename(list_name + "_t_" + attr + "_i")
-            df = pd.DataFrame(df, index=index, columns=columns)
+            df = pd.DataFrame(
+                df,
+                index=rename_index(df.index, "snapshots"),
+                columns=rename_index(df.columns, list_name + "_t_" + attr + "_i"),
+            )
 
             self.ds[list_name + "_t_" + attr] = df
             if self.least_significant_digit is not None:

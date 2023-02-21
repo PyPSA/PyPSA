@@ -438,3 +438,27 @@ def additional_linkports(n):
         for i in n.links.columns
         if i.startswith("bus") and i not in ["bus0", "bus1"]
     ]
+
+
+def rename_index(index: pd.Index, name: str) -> pd.Index:
+    """
+    Create new `index` with the common name set to `name`
+
+    Parameters
+    ----------
+    index : pd.Index
+        Index of which to change the common name
+    name : str
+        New name
+
+    Returns
+    -------
+    pd.Index
+        Renamed index
+    """
+    if not isinstance(index, pd.MultiIndex):
+        return index.rename(name)
+
+    index = index.copy()
+    index.name = name
+    return index
