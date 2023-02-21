@@ -245,13 +245,13 @@ class ExporterHDF5(Exporter):
         )
 
     def save_static(self, list_name, df):
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
         self.ds.put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name, attr, df):
-        df.columns = self.index[list_name].get_indexer(df.columns)
+        df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
 
@@ -328,24 +328,31 @@ if has_xarray:
             self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
-            snapshots.index.name = "snapshots"
+            snapshots = snapshots.rename_axis(index="snapshots")
             for attr in snapshots.columns:
                 self.ds["snapshots_" + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.rename("investment_periods", inplace=True)
+            investment_periods = investment_periods.rename_axis(
+                index="investment_periods"
+            )
             for attr in investment_periods.columns:
                 self.ds["investment_periods_" + attr] = investment_periods[attr]
 
         def save_static(self, list_name, df):
-            df.index.name = list_name + "_i"
+            df = df.rename_axis(index=list_name + "_i")
             self.ds[list_name + "_i"] = df.index
             for attr in df.columns:
                 self.ds[list_name + "_" + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            df.index.name = "snapshots"
-            df.columns.name = list_name + "_t_" + attr + "_i"
+            # pd.DataFrame.rename_axis will not set a common name of a multi-index,
+            # therefore we have to work-around. Note that this does not copy data
+            index = df.index.copy()
+            index.name = "snapshots"
+            columns = df.columns.rename(list_name + "_t_" + attr + "_i")
+            df = pd.DataFrame(df, index=index, columns=columns)
+
             self.ds[list_name + "_t_" + attr] = df
             if self.least_significant_digit is not None:
                 print(self.least_significant_digit)
