@@ -16,5 +16,6 @@ dependencies:
 - glpk
 - linopy>=0.1.1
 - deprecation
+- validators
 #  - coincbc
 #  - gurobi::gurobi
