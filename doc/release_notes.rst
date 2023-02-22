@@ -7,7 +7,11 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+
 * NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly from URL: ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+
+* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now default to 'sum' rather than 'mean'.
+
 * Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
 
 

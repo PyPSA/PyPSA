@@ -268,7 +268,7 @@ class StatisticsAccessor:
     def opex(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -299,7 +299,7 @@ class StatisticsAccessor:
     def supply(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -330,7 +330,7 @@ class StatisticsAccessor:
     def withdrawal(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -361,7 +361,7 @@ class StatisticsAccessor:
     def curtailment(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -423,7 +423,7 @@ class StatisticsAccessor:
     def revenue(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
