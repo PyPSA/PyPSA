@@ -21,7 +21,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
-from matplotlib import colormaps
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
@@ -306,7 +305,7 @@ def plot(
 
         if bus_cmap is not None and c.dtype is np.dtype("float"):
             if isinstance(bus_cmap, str):
-                bus_cmap = colormaps.get_cmap(bus_cmap)
+                bus_cmap = plt.get_cmap(bus_cmap)
             if not bus_norm:
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
