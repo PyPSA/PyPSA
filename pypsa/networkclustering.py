@@ -298,6 +298,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
             sub_network=consense["sub_network"](l["sub_network"]),
             v_ang_min=l["v_ang_min"].max(),
             v_ang_max=l["v_ang_max"].min(),
+            lifetime=(l["lifetime"] * _normed(l["s_nom"])).sum(),
+            build_year=(l["build_year"] * _normed(l["s_nom"])).sum(),
         )
         data.update((f, consense[f](l[f])) for f in columns.difference(data))
         return pd.Series(data, index=[f for f in l.columns if f in columns])
