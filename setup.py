@@ -33,6 +33,7 @@ setup(
         "matplotlib",
         "networkx>=1.10",
         "deprecation",
+        "validators",
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],

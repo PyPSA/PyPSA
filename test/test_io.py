@@ -122,3 +122,8 @@ def test_import_from_pandapower_network(
         assert len(network.loads) == len(net.load)
         assert len(network.transformers) == len(net.trafo)
         assert len(network.shunt_impedances) == len(net.shunt)
+
+
+def test_netcdf_from_url():
+    url = "https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc"
+    pypsa.Network(url)

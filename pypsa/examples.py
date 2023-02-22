@@ -16,27 +16,14 @@ __copyright__ = (
 import logging
 import os
 from pathlib import Path
-from urllib.request import urlretrieve as _retrieve
+from urllib.request import urlretrieve
 
 import pandas as pd
 
 from pypsa.components import Network
+from pypsa.io import _data_dir
 
 logger = logging.getLogger(__name__)
-
-
-# for the writable data directory follow the XDG guidelines
-# https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-_writable_dir = os.path.join(os.path.expanduser("~"), ".local", "share")
-_data_dir = os.path.join(
-    os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)),
-    "pypsa-examples",
-)
-_data_dir = Path(_data_dir)
-try:
-    _data_dir.mkdir(exist_ok=True)
-except FileNotFoundError:
-    os.makedirs(_data_dir)
 
 
 def _repo_url(master=False):
@@ -54,7 +41,7 @@ def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
     if not path.exists() or update:
         url = _repo_url(from_master) + repofile
         logger.info(f"Retrieving network data from {url}")
-        _retrieve(url, path)
+        urlretrieve(url, path)
 
     return str(path)
 

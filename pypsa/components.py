@@ -17,6 +17,7 @@ __copyright__ = (
 
 import os
 import sys
+import validators
 from collections import namedtuple
 from pathlib import Path
 
@@ -137,7 +138,7 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data.
+        import network data. The string could be a URL.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -162,6 +163,7 @@ class Network(Basic):
     --------
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
+    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
     """
 
     # Spatial Reference System Identifier (SRID), defaults to longitude and latitude
@@ -332,10 +334,11 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
         if import_name:
-            import_name = Path(import_name)
-            if import_name.suffix == ".h5":
+            if not validators.url(str(import_name)):
+                import_name = Path(import_name)
+            if str(import_name).endswith(".h5"):
                 self.import_from_hdf5(import_name)
-            elif import_name.suffix == ".nc":
+            elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
             elif import_name.is_dir():
                 self.import_from_csv_folder(import_name)
