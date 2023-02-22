@@ -17,12 +17,12 @@ __copyright__ = (
 
 import os
 import sys
-import validators
 from collections import namedtuple
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import validators
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf

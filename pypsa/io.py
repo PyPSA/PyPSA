@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 import json
 import math
 import os
-import validators
 from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
 import numpy as np
 import pandas as pd
+import validators
 
 try:
     import xarray as xr
@@ -50,7 +50,7 @@ except FileNotFoundError:
 
 
 def _retrieve_from_url(path):
-    local_path = (_data_dir / os.path.basename(path))
+    local_path = _data_dir / os.path.basename(path)
     logger.info(f"Retrieving network data from {path}")
     urlretrieve(path, local_path)
     return str(local_path)
