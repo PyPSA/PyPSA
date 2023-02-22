@@ -14,6 +14,12 @@ Upcoming Release
 
 * Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
 
+* Efficiencies and standing losses of stores, storage units and generators can
+  now be specified as time-varying attributes (``efficiency``,
+  ``efficiency_dispatch``, ``efficiency_store``, ``standing_loss``). For
+  example, this allows specifying temperature-dependent generator efficiencies
+  or evaporation in hydro reservoirs.
+
 
 PyPSA 0.22.1 (15th February 2023)
 =================================

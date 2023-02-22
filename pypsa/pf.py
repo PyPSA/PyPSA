@@ -35,9 +35,9 @@ from pypsa.descriptors import (
     Dict,
     allocate_series_dataframes,
     degree,
-    get_switchable_as_dense,
     zsum,
 )
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 pd.Series.zsum = zsum
 
@@ -97,7 +97,7 @@ def _calculate_controllable_nodal_power_balance(
         for c in sub_network.iterate_components(
             network.controllable_one_port_components
         ):
-            c_n_set = get_switchable_as_dense(
+            c_n_set = get_as_dense(
                 network, c.name, n + "_set", snapshots, c.ind
             )
             network.pnl(c.name)[n].loc[snapshots, c.ind] = c_n_set
@@ -160,7 +160,7 @@ def _network_prepare_and_run_pf(
 
     # deal with links
     if not network.links.empty:
-        p_set = get_switchable_as_dense(network, "Link", "p_set", snapshots)
+        p_set = get_as_dense(network, "Link", "p_set", snapshots)
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
         for i in [
             int(col[3:])
@@ -168,7 +168,7 @@ def _network_prepare_and_run_pf(
             if col[:3] == "bus" and col != "bus0"
         ]:
             eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
-            efficiency = get_switchable_as_dense(network, "Link", eff_name, snapshots)
+            efficiency = get_as_dense(network, "Link", eff_name, snapshots)
             links = network.links.index[network.links["bus{}".format(i)] != ""]
             network.links_t["p{}".format(i)].loc[snapshots, links] = (
                 -network.links_t.p0.loc[snapshots, links]
@@ -387,7 +387,7 @@ def sub_network_pf_singlebus(
         sub_network, network, snapshots, buses_o
     )
 
-    v_mag_pu_set = get_switchable_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
+    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
     network.buses_t.v_mag_pu.loc[snapshots, sub_network.slack_bus] = v_mag_pu_set.loc[
         :, sub_network.slack_bus
     ]
@@ -408,7 +408,7 @@ def sub_network_pf_singlebus(
                     .fillna(0)
                 )
             elif slack_weights == "p_set":
-                generators_t_p_choice = get_switchable_as_dense(
+                generators_t_p_choice = get_as_dense(
                     network, "Generator", slack_weights, snapshots
                 )
                 assert (
@@ -623,7 +623,7 @@ def sub_network_pf(
         return J
 
     # Set what we know: slack V and v_mag_pu for PV buses
-    v_mag_pu_set = get_switchable_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
+    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
     network.buses_t.v_mag_pu.loc[snapshots, sub_network.pvs] = v_mag_pu_set.loc[
         :, sub_network.pvs
     ]
@@ -641,7 +641,7 @@ def sub_network_pf(
 
     if distribute_slack:
         if isinstance(slack_weights, str) and slack_weights == "p_set":
-            generators_t_p_choice = get_switchable_as_dense(
+            generators_t_p_choice = get_as_dense(
                 network, "Generator", slack_weights, snapshots
             )
             bus_generation = generators_t_p_choice.rename(
@@ -814,7 +814,7 @@ def sub_network_pf(
         )
         for bus, group in sub_network.generators().groupby("bus"):
             if isinstance(slack_weights, str) and slack_weights == "p_set":
-                generators_t_p_choice = get_switchable_as_dense(
+                generators_t_p_choice = get_as_dense(
                     network, "Generator", slack_weights, snapshots
                 )
                 bus_generator_shares = (
@@ -1504,7 +1504,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):
-        c_p_set = get_switchable_as_dense(network, c.name, "p_set", snapshots, c.ind)
+        c_p_set = get_as_dense(network, c.name, "p_set", snapshots, c.ind)
         network.pnl(c.name).p.loc[snapshots, c.ind] = c_p_set
 
     # set the power injection at each node

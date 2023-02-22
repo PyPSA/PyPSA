@@ -52,7 +52,7 @@ from pypsa.linopt import (
     write_objective,
 )
 from pypsa.pf import _as_snapshots
-from pypsa.pf import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 agg_group_kwargs = (
     dict(numeric_only=False) if parse(pd.__version__) >= Version("1.3") else {}
@@ -543,9 +543,9 @@ def define_storage_unit_constraints(n, sns):
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
     # efficiencies
-    eff_stand = expand_series(1 - n.df(c).standing_loss, sns).T.pow(eh)
-    eff_dispatch = expand_series(n.df(c).efficiency_dispatch, sns).T
-    eff_store = expand_series(n.df(c).efficiency_store, sns).T
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    eff_dispatch = get_as_dense(n, c, "efficiency_dispatch", sns)
+    eff_store = get_as_dense(n, c, "efficiency_store", sns)
 
     soc = get_var(n, c, "state_of_charge")
 
@@ -655,7 +655,7 @@ def define_store_constraints(n, sns):
 
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)  # elapsed hours
-    eff_stand = expand_series(1 - n.df(c).standing_loss, sns).T.pow(eh)
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
     e = get_var(n, c, "e")
 
@@ -821,11 +821,9 @@ def define_global_constraints(n, sns):
         # generators
         gens = n.generators.query("carrier in @emissions.index")
         if not gens.empty:
-            em_pu = gens.carrier.map(emissions) / gens.efficiency
-            em_pu = (
-                weightings["generators"].to_frame("weightings")
-                @ em_pu.to_frame("weightings").T
-            ).loc[period]
+            efficiency = get_as_dense(n, "Generator", "efficiency", inds=gens.index)
+            em_pu = gens.carrier.map(emissions) / efficiency
+            em_pu = em_pu.multiply(weightings.generators, axis=0).loc[period]
             p = get_var(n, "Generator", "p").loc[sns, gens.index].loc[period]
 
             vals = linexpr((em_pu, p), as_pandas=False)

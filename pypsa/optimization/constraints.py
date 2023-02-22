@@ -651,9 +651,9 @@ def define_storage_unit_constraints(n, sns):
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
     # efficiencies
-    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
-    eff_dispatch = expand_series(assets.efficiency_dispatch, sns).T
-    eff_store = expand_series(assets.efficiency_store, sns).T
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    eff_dispatch = get_as_dense(n, c, "efficiency_dispatch", sns)
+    eff_store = get_as_dense(n, c, "efficiency_store", sns)
 
     soc = m[f"{c}-state_of_charge"]
 
@@ -736,7 +736,7 @@ def define_store_constraints(n, sns):
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
     # efficiencies
-    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
     e = m[c + "-e"]
     p = m[c + "-p"]
