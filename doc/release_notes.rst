@@ -17,7 +17,7 @@ Upcoming Release
 * The attributes ``lifetime`` and ``build_year`` are now aggregated with a
   capacity-weighted mean when clustering the network. Previously, these
   attributes had to carry identical values for components that were to be
-  merged. 
+  merged.
 
 
 PyPSA 0.22.1 (15th February 2023)
