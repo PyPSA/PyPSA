@@ -31,13 +31,9 @@ from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import (
-    Dict,
-    allocate_series_dataframes,
-    degree,
-    zsum,
-)
+from pypsa.descriptors import Dict, allocate_series_dataframes, degree
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import zsum
 
 pd.Series.zsum = zsum
 
@@ -97,9 +93,7 @@ def _calculate_controllable_nodal_power_balance(
         for c in sub_network.iterate_components(
             network.controllable_one_port_components
         ):
-            c_n_set = get_as_dense(
-                network, c.name, n + "_set", snapshots, c.ind
-            )
+            c_n_set = get_as_dense(network, c.name, n + "_set", snapshots, c.ind)
             network.pnl(c.name)[n].loc[snapshots, c.ind] = c_n_set
 
         # set the power injection at each node from controllable components

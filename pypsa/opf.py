@@ -39,12 +39,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pypsa.descriptors import (
-    allocate_series_dataframes,
-    get_switchable_as_iter,
-    zsum,
-)
+from pypsa.descriptors import allocate_series_dataframes
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_switchable_as_iter, zsum
 from pypsa.opt import (
     LConstraint,
     LExpression,
@@ -1549,9 +1546,7 @@ def define_nodal_balances(network, snapshots):
         for col in network.links.columns
         if col[:3] == "bus" and col not in ["bus0", "bus1"]
     ]:
-        efficiency = get_as_dense(
-            network, "Link", "efficiency{}".format(i), snapshots
-        )
+        efficiency = get_as_dense(network, "Link", "efficiency{}".format(i), snapshots)
         for cb in network.links.index[network.links["bus{}".format(i)] != ""]:
             bus = network.links.at[cb, "bus{}".format(i)]
             for sn in snapshots:

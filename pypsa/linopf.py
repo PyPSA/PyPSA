@@ -29,8 +29,9 @@ from pypsa.descriptors import (
     get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
-    nominal_attrs,
 )
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 from pypsa.linopt import (
     align_with_static_component,
     define_binaries,
@@ -52,7 +53,6 @@ from pypsa.linopt import (
     write_objective,
 )
 from pypsa.pf import _as_snapshots
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 agg_group_kwargs = (
     dict(numeric_only=False) if parse(pd.__version__) >= Version("1.3") else {}
