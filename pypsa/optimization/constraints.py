@@ -499,7 +499,7 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     if empty_nodal_balance.any():
-        if (empty_nodal_balance & (rhs != 0)).any().item():
+        if (empty_nodal_balance.T & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
 
         mask = ~empty_nodal_balance
