@@ -221,6 +221,7 @@ def optimize_security_constrained(
     for sn in n.sub_networks.obj:
         branches_i = sn.branches_i()
         outages = branches_i.intersection(branch_outages)
+        num_parallel = sn.branches().loc[outages, "num_parallel"].fillna(1)
 
         if outages.empty:
             continue
@@ -235,7 +236,9 @@ def optimize_security_constrained(
 
             bodf = BODF.loc[c_affected, c_outage]
             bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
-            additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
+            additional_flow = (bodf * flow * 1 / num_parallel[c_outage]).rename(
+                {c_outage: c_outage + "-outage"}
+            )
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
                 constraint = c_affected + "-" + kind + "-s-" + bound
                 if constraint not in m.constraints:
