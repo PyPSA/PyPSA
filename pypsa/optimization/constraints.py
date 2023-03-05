@@ -440,7 +440,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns, transmission_losses, buses=None, suffix=""):
+def define_nodal_balance_constraints(
+    n, sns, transmission_losses, buses=None, suffix=""
+):
     """
     Defines nodal balance constraints.
     """
@@ -842,14 +844,12 @@ def define_loss_constraints(n, sns, c, transmission_losses):
     flow = get_var(n, c, "s")
 
     for k in range(1, tangents + 1):
-
         p_k = k / tangents * s_max_pu * s_nom_max
         loss_k = r_pu_eff * p_k**2
         slope_k = 2 * r_pu_eff * p_k
         offset_k = loss_k - slope_k * p_k
 
         for sign in [-1, 1]:
-
             lhs = linexpr((1, loss), (sign * slope_k, flow))
 
             define_constraints(

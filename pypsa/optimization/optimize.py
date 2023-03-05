@@ -234,8 +234,12 @@ def create_model(
     if not meshed_buses.empty and not weakly_meshed_buses.empty:
         # Write constraint for buses many terms and for buses with a few terms
         # separately. This reduces memory usage for large networks.
-        define_nodal_balance_constraints(n, sns, transmission_losses, buses=weakly_meshed_buses)
-        define_nodal_balance_constraints(n, sns, transmission_losses, buses=meshed_buses, suffix="-meshed")
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses, buses=weakly_meshed_buses
+        )
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses, buses=meshed_buses, suffix="-meshed"
+        )
     else:
         define_nodal_balance_constraints(n, sns, transmission_losses)
 

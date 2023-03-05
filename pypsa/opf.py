@@ -1637,7 +1637,6 @@ def define_loss_constraints(network, snapshots, transmission_losses):
     loss_tangents = {}
 
     for branch in passive_branches.index:
-
         bt = branch[0]
         bn = branch[1]
 
@@ -1655,7 +1654,6 @@ def define_loss_constraints(network, snapshots, transmission_losses):
         ), f"Infinite or NaN values found for 's_nom_max' at extendable line {bn}. Loss approximation requires finite 's_nom_max'"
 
         for sn in snapshots:
-
             s_max_pu = s_max_pus.loc[sn, bn]
 
             # upper loss limit
@@ -1667,14 +1665,12 @@ def define_loss_constraints(network, snapshots, transmission_losses):
 
             # loss tangents
             for k in positions:
-
                 p_k = k / tangents * s_max_pu * s_nom_max
                 loss_k = r_pu_eff * p_k**2
                 slope_k = 2 * r_pu_eff * p_k
                 offset_k = loss_k - slope_k * p_k
 
                 for sign in signs:
-
                     lhs = LExpression([(1, network.model.loss[bt, bn, sn])])
                     rhs = LExpression(
                         [(sign * slope_k, network.model.passive_branch_p[bt, bn, sn])],
