@@ -9,7 +9,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -268,7 +268,7 @@ class StatisticsAccessor:
     def opex(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -299,7 +299,7 @@ class StatisticsAccessor:
     def supply(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -330,7 +330,7 @@ class StatisticsAccessor:
     def withdrawal(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
@@ -361,14 +361,15 @@ class StatisticsAccessor:
     def curtailment(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):
         """
         Calculate the curtailment of components in the network.
 
-        The calculation only considers assets with a `p_max_pu` time series,
+        The calculation only considers assets with a `p_max_pu` time
+        series,
         which is used to quantify the available power potential.
 
         For information on the list of arguments, see the docs in
@@ -422,7 +423,7 @@ class StatisticsAccessor:
     def revenue(
         self,
         comps=None,
-        aggregate_time="mean",
+        aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
     ):

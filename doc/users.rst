@@ -57,6 +57,8 @@ Universities and Research Institutes
 
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
+* `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
+
 
 Companies and Non-Governmental Organisations
 ============================================
@@ -69,15 +71,28 @@ Companies and Non-Governmental Organisations
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
+* `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_
+
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
 * `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example this study from 2021: `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_
 
 * `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 
+* `GIZ <https://www.giz.de/en/html/index.html>`_, the  German Agency for
+  International Cooperation (Deutsche Gesellschaft für Internationale
+  Zusammenarbeit) published and supported several studies based on PyPSA for the
+  `integration of renewables into the Vietnamese power system
+  <http://gizenergy.org.vn/media/app/media/Research%20Cooperation%20Project%20Fact%20Sheet_final.pdf>`_,
+  `power sector analysis for Thailand <https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf>`_ within the CASE programme, `the
+  future of the Indonesian power system <https://energynautics.com/en/pypsa/>`_ within the "1000 Islands"
+  programme, and the `Brazilian electricity system <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
+
 * `Meridian Economics <https://meridianeconomics.co.za/>`_, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on `load shedding in 2021 <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_ and `a plan to resolve load shedding <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf>`_
 
 * `Energynautics GmbH <https://energynautics.com/>`_, a grid integration consultancy in Germany: used PyPSA for a study of decentral electricity and heat integration in power grids in a study for the Rhineland-Palatinate state government in 2021: `Pilotprojekt Dezentralisierung: Stärkere Dezentralisierung des bundesdeutschen Strom-Wärme-Systems: Rechtliche und organisatorische Rahmenbedingungen sowie infrastrukturelle Folgen <https://mkuem.rlp.de/fileadmin/mulewf/Themen/Energie_und_Strahlenschutz/Energie/Endbericht_Pilotprojekt_Dezentralisierung_2021_v2.pdf>`_ (`summary in English <https://energynautics.com/en/decentrality-study-for-rhineland-palatinate-completed/>`_)
+
+* `Witteveen+Bos <https://www.witteveenbos.com/about-us/>`_, a Dutch engineering and consultancy company, used PyPSA in 2022 to consult the Ministry of Economic Affairs and Climate Policy in Netherlands: `Scenario study on nuclear energy <https://eriskgroup.com/wp-content/uploads/2022/10/Scenario-study-nuclear-energy-Conclusions-and-Summary.pdf>`_
 
 * `Saudi Aramco <https://www.aramco.com/>`_: used PyPSA for an assessment of renewables integration in 2019, see `arXiv:1709.03761 <https://arxiv.org/abs/1709.03761>`_
 

@@ -5,6 +5,7 @@ Build optimisation problems from PyPSA networks with Linopy.
 """
 import logging
 import os
+from functools import wraps
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,7 @@ from pypsa.optimization.abstract import (
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
 )
-from pypsa.optimization.common import set_from_frame
+from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
@@ -36,6 +37,7 @@ from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
     define_primary_energy_limit,
+    define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
@@ -137,7 +139,6 @@ def define_objective(n, sns):
     # unit commitment
     keys = ["start_up", "shut_down"]
     for c, attr in lookup.query("variable in @keys").index:
-
         com_i = n.get_committable_i(c)
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
 
@@ -228,7 +229,16 @@ def create_model(
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
-    define_nodal_balance_constraints(n, sns, transmission_losses)
+    meshed_buses = get_strongly_meshed_buses(n)
+    weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+    if not meshed_buses.empty and not weakly_meshed_buses.empty:
+        # Write constraint for buses many terms and for buses with a few terms
+        # separately. This reduces memory usage for large networks.
+        define_nodal_balance_constraints(n, sns, transmission_losses, buses=weakly_meshed_buses)
+        define_nodal_balance_constraints(n, sns, transmission_losses, buses=meshed_buses, suffix="-meshed")
+    else:
+        define_nodal_balance_constraints(n, sns, transmission_losses)
+
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
@@ -241,6 +251,7 @@ def create_model(
     define_primary_energy_limit(n, sns)
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
+    define_tech_capacity_expansion_limit(n, sns)
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
 
@@ -254,10 +265,9 @@ def assign_solution(n):
     Map solution to network components.
     """
     m = n.model
-    sns = n.model.parameters.snapshots
+    sns = n.model.parameters.snapshots.to_index()
 
     for name, sol in m.solution.items():
-
         if name == "objective_constant":
             continue
 
@@ -265,7 +275,6 @@ def assign_solution(n):
         df = sol.to_pandas()
 
         if "snapshot" in sol.dims:
-
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(n, c, "p0", df)
                 set_from_frame(n, c, "p1", -df)
@@ -287,9 +296,10 @@ def assign_solution(n):
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal
-    for (c, attr) in lookup.query("nominal").index:
-        if f"{c}-{attr}" not in m.variables:
-            n.df(c)[attr + "_opt"] = n.df(c)[attr]
+    for c, attr in lookup.query("nominal").index:
+        fix_i = n.get_non_extendable_i(c)
+        if not fix_i.empty:
+            n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
 
     # recalculate storageunit net dispatch
     if not n.df("StorageUnit").empty:
@@ -307,14 +317,12 @@ def assign_duals(n):
     unassigned = []
 
     for name, dual in m.dual.items():
-
         try:
             c, attr = name.split("-", 1)
         except ValueError:
             continue
 
         if "snapshot" in dual.dims:
-
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
                 spec = attr.rsplit("-", 1)[-1]
@@ -331,7 +339,7 @@ def assign_duals(n):
 
                 if spec in assign:
                     set_from_frame(n, c, "mu_" + spec, df)
-                elif attr == "nodal_balance":
+                elif attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
             except:
                 unassigned.append(name)
@@ -485,14 +493,6 @@ def optimize(
     return status, condition
 
 
-def is_documented_by(original):
-    def wrapper(target):
-        target.__doc__ = original.__doc__
-        return target
-
-    return wrapper
-
-
 class OptimizationAccessor:
     """
     Optimization accessor for building and solving models using linopy.
@@ -501,14 +501,13 @@ class OptimizationAccessor:
     def __init__(self, network):
         self._parent = network
 
+    @wraps(optimize)
     def __call__(self, *args, **kwargs):
         return optimize(self._parent, *args, **kwargs)
 
-    __call__.__doc__ = optimize.__doc__
-
-    @is_documented_by(create_model)
-    def create_model(self, **kwargs):
-        return create_model(self._parent, **kwargs)
+    @wraps(create_model)
+    def create_model(self, *args, **kwargs):
+        return create_model(self._parent, *args, **kwargs)
 
     def solve_model(self, **kwargs):
         """
@@ -532,23 +531,23 @@ class OptimizationAccessor:
 
         return status, condition
 
-    @is_documented_by(assign_solution)
+    @wraps(assign_solution)
     def assign_solution(self, **kwargs):
         return assign_solution(self._parent, **kwargs)
 
-    @is_documented_by(assign_duals)
+    @wraps(assign_duals)
     def assign_duals(self, **kwargs):
         return assign_duals(self._parent, **kwargs)
 
-    @is_documented_by(post_processing)
+    @wraps(post_processing)
     def post_processing(self, **kwargs):
         return post_processing(self._parent, **kwargs)
 
-    @is_documented_by(optimize_transmission_expansion_iteratively)
+    @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
         optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
 
-    @is_documented_by(optimize_security_constrained)
+    @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
 

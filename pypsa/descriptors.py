@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -159,7 +159,6 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     --------
     >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
     """
-
     df = network.df(component)
     pnl = network.pnl(component)
 
@@ -211,7 +210,6 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     --------
     >>> get_switchable_as_iter(network, 'Generator', 'p_max_pu', snapshots)
     """
-
     df = network.df(component)
     pnl = network.pnl(component)
 
@@ -267,9 +265,7 @@ def allocate_series_dataframes(network, series):
     >>> allocate_series_dataframes(network, {'Generator': ['p'],
                                              'Load': ['p']})
     """
-
     for component, attributes in series.items():
-
         df = network.df(component)
         pnl = network.pnl(component)
 
@@ -368,7 +364,7 @@ def get_active_assets(n, c, investment_period):
         if period not in n.investment_periods:
             raise ValueError("Investment period not in `network.investment_periods`")
         active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
-    return pd.DataFrame(active).any(1)
+    return pd.DataFrame(active).any(axis=1)
 
 
 def get_activity_mask(n, c, sns=None, index=None):

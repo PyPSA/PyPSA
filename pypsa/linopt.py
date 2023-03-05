@@ -19,7 +19,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -790,7 +790,10 @@ def run_and_read_highs(
     trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     f.close()
 
-    sol = pd.read_csv(io.BytesIO(trimed_sol_fn), header=[1], sep=r"\s+")
+    sol = pd.read_fwf(io.BytesIO(trimed_sol_fn), header=[1])
+
+    sol = sol.iloc[:-2, :]  # last two rows are model info: status and objective value
+
     row_no = sol[sol["Index"] == "Rows"].index[0]
     sol = sol.drop(row_no + 1)  # Removes header line after "Rows"
     sol_rows = sol[(sol.index > row_no)]
@@ -1052,8 +1055,9 @@ def run_and_read_gurobi(
     solver. If the solution is successful it returns variable solutions and
     constraint dual values. Gurobipy must be installed for using this function.
 
-    For more information on solver options:
-    https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html
+    For more information on solver options, see
+
+    <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
         raise ModuleNotFoundError(
@@ -1137,8 +1141,9 @@ def run_and_read_xpress(
     constraint dual values. The xpress module must be installed for using this
     function.
 
-    For more information on solver options:
-    https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html
+    For more information on solver options, see
+
+    <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """
 
     import xpress
@@ -1152,12 +1157,17 @@ def run_and_read_xpress(
         m.setlogfile(solver_logfile)
 
     if warmstart:
-        m.readbasis(warmstart)
+        try:
+            m.readbasis(n.basis_fn)
+            logger.info("Model basis loaded")
+        except:
+            logger.info("No model basis loaded")
+            pass
 
     m.solve()
 
     if store_basis:
-        n.basis_fn = solution_fn.replace(".sol", ".bas")
+        n.basis_fn = solution_fn.replace(".sol", ".bss")
         try:
             m.writebasis(n.basis_fn)
         except:

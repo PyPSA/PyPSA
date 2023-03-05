@@ -11,7 +11,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import validators
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -137,7 +138,7 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data.
+        import network data. The string could be a URL.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -162,6 +163,7 @@ class Network(Basic):
     --------
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
+    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
     """
 
     # Spatial Reference System Identifier (SRID), defaults to longitude and latitude
@@ -232,7 +234,6 @@ class Network(Basic):
         override_component_attrs=None,
         **kwargs,
     ):
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -333,10 +334,11 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
         if import_name:
-            import_name = Path(import_name)
-            if import_name.suffix == ".h5":
+            if not validators.url(str(import_name)):
+                import_name = Path(import_name)
+            if str(import_name).endswith(".h5"):
                 self.import_from_hdf5(import_name)
-            elif import_name.suffix == ".nc":
+            elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
             elif import_name.is_dir():
                 self.import_from_csv_folder(import_name)
@@ -369,9 +371,7 @@ class Network(Basic):
         Function called when network is created to build component
         pandas.DataFrames.
         """
-
         for component in self.all_components:
-
             attrs = self.components[component]["attrs"]
 
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
@@ -396,9 +396,7 @@ class Network(Basic):
             setattr(self, self.components[component]["list_name"] + "_t", pnl)
 
     def read_in_default_standard_types(self):
-
         for std_type in self.standard_type_components:
-
             list_name = self.components[std_type]["list_name"]
 
             file_name = os.path.join(
@@ -803,7 +801,6 @@ class Network(Basic):
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
-
         assert class_name in self.components, "Component class {} not found".format(
             class_name
         )
@@ -874,7 +871,6 @@ class Network(Basic):
         --------
         >>> network.remove("Line", "my_line 12345")
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -955,7 +951,6 @@ class Network(Basic):
         ...        capital_cost=1e5,
         ...        p_max_pu=wind)
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -1006,7 +1001,6 @@ class Network(Basic):
         --------
         >>> network.mremove("Line", ["line x", "line y"])
         """
-
         if class_name not in self.components:
             logger.error("Component class {} not found".format(class_name))
             return None
@@ -1024,7 +1018,6 @@ class Network(Basic):
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     def _retrieve_overridden_components(self):
-
         components_index = list(self.components.keys())
 
         cols = ["list_name", "description", "type"]
@@ -1142,7 +1135,6 @@ class Network(Basic):
 
         >>> sub_network_0_with_only_10_snapshots = network[:10, network.buses.sub_network = "0"]
         """
-
         if isinstance(key, tuple):
             time_i, key = key
         else:
@@ -1228,7 +1220,9 @@ class Network(Basic):
             sort=True,
         )
 
-    def determine_network_topology(self, investment_period=None):
+    def determine_network_topology(
+        self, investment_period=None, skip_isolated_buses=False
+    ):
         """
         Build sub_networks from topology.
 
@@ -1238,7 +1232,6 @@ class Network(Basic):
         the network topology is determined on the basis of the active
         branches.
         """
-
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,
@@ -1256,6 +1249,10 @@ class Network(Basic):
         for i in np.arange(n_components):
             # index of first bus
             buses_i = (labels == i).nonzero()[0]
+
+            if skip_isolated_buses and (len(buses_i) == 1):
+                continue
+
             carrier = self.buses.carrier.iat[buses_i[0]]
 
             if carrier not in ["AC", "DC"] and len(buses_i) > 1:
@@ -1310,7 +1307,7 @@ class Network(Basic):
             if not (skip_empty and self.df(c).empty)
         )
 
-    def consistency_check(self):
+    def consistency_check(self, check_dtypes=False):
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1512,45 +1509,45 @@ class Network(Basic):
 
         # check all dtypes of component attributes
 
-        for c in self.iterate_components():
+        if check_dtypes:
+            for c in self.iterate_components():
+                # first check static attributes
 
-            # first check static attributes
-
-            dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
-            unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
-
-            if unmatched.any():
-                logger.warning(
-                    "The following attributes of the dataframe %s "
-                    "have the wrong dtype:\n%s\n"
-                    "They are:\n%s\nbut should be:\n%s",
-                    c.list_name,
-                    unmatched.index[unmatched],
-                    c.df.dtypes[dtypes_soll.index[unmatched]],
-                    dtypes_soll[unmatched],
-                )
-
-            # now check varying attributes
-
-            types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
-
-            for attr, typ, dtype in types_soll.itertuples():
-                if c.pnl[attr].empty:
-                    continue
-
-                unmatched = c.pnl[attr].dtypes != dtype
+                dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
+                unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
 
                 if unmatched.any():
                     logger.warning(
-                        "The following columns of time-varying attribute "
-                        "%s in %s_t have the wrong dtype:\n%s\n"
+                        "The following attributes of the dataframe %s "
+                        "have the wrong dtype:\n%s\n"
                         "They are:\n%s\nbut should be:\n%s",
-                        attr,
                         c.list_name,
                         unmatched.index[unmatched],
-                        c.pnl[attr].dtypes[unmatched],
-                        typ,
+                        c.df.dtypes[dtypes_soll.index[unmatched]],
+                        dtypes_soll[unmatched],
                     )
+
+                # now check varying attributes
+
+                types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
+
+                for attr, typ, dtype in types_soll.itertuples():
+                    if c.pnl[attr].empty:
+                        continue
+
+                    unmatched = c.pnl[attr].dtypes != dtype
+
+                    if unmatched.any():
+                        logger.warning(
+                            "The following columns of time-varying attribute "
+                            "%s in %s_t have the wrong dtype:\n%s\n"
+                            "They are:\n%s\nbut should be:\n%s",
+                            attr,
+                            c.list_name,
+                            unmatched.index[unmatched],
+                            c.pnl[attr].dtypes[unmatched],
+                            typ,
+                        )
 
         constraint_periods = set(
             self.global_constraints.investment_period.dropna().unique()

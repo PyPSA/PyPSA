@@ -50,7 +50,6 @@ for bus in network.buses.index:
     p1 = 0.0
 
     for c in network.iterate_components(network.branch_components):
-
         bs = c.df.bus0 == bus
 
         if bs.any():

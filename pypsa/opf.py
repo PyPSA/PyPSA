@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -72,7 +72,6 @@ def network_opf(network, snapshots=None):
     """
     Optimal power flow for snapshots.
     """
-
     raise NotImplementedError("Non-linear optimal power flow not supported yet")
 
 
@@ -265,7 +264,6 @@ def define_generator_variables_constraints(network, snapshots):
     must_stay_up_too_long = False
 
     for gen_i, gen in enumerate(up_time_gens):
-
         min_up_time = network.generators.at[gen, "min_up_time"]
 
         # find out how long the generator has been up before snapshots
@@ -335,7 +333,6 @@ def define_generator_variables_constraints(network, snapshots):
     ]
 
     for gen_i, gen in enumerate(down_time_gens):
-
         min_down_time = network.generators.at[gen, "min_down_time"]
 
         # find out how long the generator has been down before snapshots
@@ -415,7 +412,6 @@ def define_generator_variables_constraints(network, snapshots):
             ]
 
         for i, sn in enumerate(snapshots):
-
             if i == 0:
                 rhs = LExpression(
                     [(suc, network.model.generator_status[gen, sn])],
@@ -461,7 +457,6 @@ def define_generator_variables_constraints(network, snapshots):
             ]
 
         for i, sn in enumerate(snapshots):
-
             if i == 0:
                 rhs = LExpression(
                     [(-sdc, network.model.generator_status[gen, sn])],
@@ -845,7 +840,6 @@ def define_storage_variables_constraints(network, snapshots):
 
     for su in sus.index:
         for i, sn in enumerate(snapshots):
-
             soc[su, sn] = [[], "==", 0.0]
 
             elapsed_hours = network.snapshot_weightings.stores[sn]
@@ -986,7 +980,6 @@ def define_store_variables_constraints(network, snapshots):
 
     for store in stores.index:
         for i, sn in enumerate(snapshots):
-
             e[store, sn] = LConstraint(sense="==")
 
             e[store, sn].lhs.variables.append((-1, model.store_e[store, sn]))
@@ -1134,7 +1127,6 @@ def define_link_flows(network, snapshots):
 def define_passive_branch_flows(
     network, snapshots, formulation="angles", ptdf_tolerance=0.0
 ):
-
     if formulation == "angles":
         define_passive_branch_flows_with_angles(network, snapshots)
     elif formulation == "ptdf":
@@ -1391,7 +1383,6 @@ def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=Fal
     """
     define passive branch flows with the kirchoff method.
     """
-
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)
         find_cycles(sub_network)
@@ -1410,7 +1401,6 @@ def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=Fal
     cycle_constraints = {}
 
     for subnetwork in network.sub_networks.obj:
-
         attribute = (
             "r_pu_eff"
             if network.sub_networks.at[subnetwork.name, "carrier"] == "DC"
@@ -1503,7 +1493,6 @@ def define_nodal_balances(network, snapshots):
 
     Store the nodal balance expression in network._p_balance.
     """
-
     # dictionary for constraints
     network._p_balance = {
         (bus, sn): LExpression() for bus in network.buses.index for sn in snapshots
@@ -1738,7 +1727,6 @@ def define_global_constraints(network, snapshots):
 
     for gc in network.global_constraints.index:
         if network.global_constraints.loc[gc, "type"] == "primary_energy":
-
             c = LConstraint(sense=network.global_constraints.loc[gc, "sense"])
 
             c.rhs.constant = network.global_constraints.loc[gc, "constant"]
@@ -1948,7 +1936,6 @@ def extract_optimisation_results(
     free_pyomo=True,
     extra_postprocessing=None,
 ):
-
     allocate_series_dataframes(
         network,
         {
@@ -2073,7 +2060,7 @@ def extract_optimisation_results(
         efficiency = get_switchable_as_dense(network, "Link", "efficiency", snapshots)
 
         network.links_t.p1.loc[snapshots] = (
-            -network.links_t.p0.loc[snapshots] * efficiency.loc[snapshots, :]
+            -network.links_t.p0.loc[snapshots] * efficiency.loc[snapshots]
         )
 
         network.buses_t.p.loc[snapshots] -= (
@@ -2309,7 +2296,6 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
     -------
     None
     """
-
     network.opt = SolverFactory(solver_name, solver_io=solver_io)
 
     patch_optsolver_record_memusage_before_solving(network.opt, network)

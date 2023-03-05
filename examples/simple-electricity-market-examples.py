@@ -87,7 +87,6 @@ network = pypsa.Network()
 countries = ["Mozambique", "South Africa"]
 
 for country in countries:
-
     network.add("Bus", country)
 
     for tech in power_plant_p_nom[country]:
@@ -143,7 +142,6 @@ network = pypsa.Network()
 countries = ["Swaziland", "Mozambique", "South Africa"]
 
 for country in countries:
-
     network.add("Bus", country)
 
     for tech in power_plant_p_nom[country]:

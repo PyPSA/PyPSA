@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -21,10 +21,11 @@ import math
 import os
 from glob import glob
 from pathlib import Path
-from textwrap import dedent
+from urllib.request import urlretrieve
 
 import numpy as np
 import pandas as pd
+import validators
 
 try:
     import xarray as xr
@@ -32,6 +33,27 @@ try:
     has_xarray = True
 except ImportError:
     has_xarray = False
+
+
+# for the writable data directory follow the XDG guidelines
+# https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+_writable_dir = os.path.join(os.path.expanduser("~"), ".local", "share")
+_data_dir = os.path.join(
+    os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)),
+    "pypsa-networks",
+)
+_data_dir = Path(_data_dir)
+try:
+    _data_dir.mkdir(exist_ok=True)
+except FileNotFoundError:
+    os.makedirs(_data_dir)
+
+
+def _retrieve_from_url(path):
+    local_path = _data_dir / os.path.basename(path)
+    logger.info(f"Retrieving network data from {path}")
+    urlretrieve(path, local_path)
+    return str(local_path)
 
 
 class ImpExper(object):
@@ -178,7 +200,11 @@ class ExporterCSV(Exporter):
 
 class ImporterHDF5(Importer):
     def __init__(self, path):
-        self.ds = pd.HDFStore(path, mode="r")
+        self.path = path
+        if isinstance(path, (str, Path)):
+            if validators.url(str(path)):
+                path = _retrieve_from_url(path)
+            self.ds = pd.HDFStore(path, mode="r")
         self.index = {}
 
     def get_attributes(self):
@@ -245,13 +271,13 @@ class ExporterHDF5(Exporter):
         )
 
     def save_static(self, list_name, df):
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
         self.ds.put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name, attr, df):
-        df.columns = self.index[list_name].get_indexer(df.columns)
+        df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
 
@@ -261,6 +287,8 @@ if has_xarray:
         def __init__(self, path):
             self.path = path
             if isinstance(path, (str, Path)):
+                if validators.url(str(path)):
+                    path = _retrieve_from_url(path)
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
@@ -328,24 +356,28 @@ if has_xarray:
             self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
-            snapshots.index.name = "snapshots"
+            snapshots = snapshots.rename_axis(index="snapshots")
             for attr in snapshots.columns:
                 self.ds["snapshots_" + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.rename("investment_periods", inplace=True)
+            investment_periods = investment_periods.rename_axis(
+                index="investment_periods"
+            )
             for attr in investment_periods.columns:
                 self.ds["investment_periods_" + attr] = investment_periods[attr]
 
         def save_static(self, list_name, df):
-            df.index.name = list_name + "_i"
+            df = df.rename_axis(index=list_name + "_i")
             self.ds[list_name + "_i"] = df.index
             for attr in df.columns:
                 self.ds[list_name + "_" + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            df.index.name = "snapshots"
-            df.columns.name = list_name + "_t_" + attr + "_i"
+            df = df.rename_axis(
+                index="snapshots", columns=list_name + "_t_" + attr + "_i"
+            )
+
             self.ds[list_name + "_t_" + attr] = df
             if self.least_significant_digit is not None:
                 print(self.least_significant_digit)
@@ -378,7 +410,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
     """
-
     # exportable component types
     # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
@@ -410,7 +441,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
-
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
 
@@ -421,7 +451,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
             df = df.drop(network.components[component]["standard_types"].index)
 
         # first do static attributes
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         if df.empty:
             exporter.remove_static(list_name)
             continue
@@ -495,7 +525,6 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
     ----------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
-
     basename = Path(csv_folder_name).name
     with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -552,11 +581,10 @@ def import_from_hdf5(network, path, skip_time=False):
     Parameters
     ----------
     path : string, Path
-        Name of HDF5 store
+        Name of HDF5 store. The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-
     basename = Path(path).name
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -586,7 +614,6 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
     --------
     >>> network.export_to_hdf5(filename)
     """
-
     kwargs.setdefault("complevel", 4)
 
     basename = os.path.basename(path)
@@ -606,11 +633,11 @@ def import_from_netcdf(network, path, skip_time=False):
     Parameters
     ----------
     path : string|xr.Dataset
-        Path to netCDF dataset or instance of xarray Dataset
+        Path to netCDF dataset or instance of xarray Dataset.
+        The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = Path(path).name
@@ -681,7 +708,6 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     skip_time : bool
         Skip importing time
     """
-
     attrs = importer.get_attributes()
     network.meta = importer.get_meta()
 
@@ -816,7 +842,6 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     --------
     pypsa.Network.madd
     """
-
     attrs = network.components[cls_name]["attrs"]
 
     static_attrs = attrs[attrs.static].drop("name")
@@ -902,7 +927,6 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     --------
     pypsa.Network.madd()
     """
-
     df = network.df(cls_name)
     pnl = network.pnl(cls_name)
     list_name = network.components[cls_name]["list_name"]
@@ -965,7 +989,6 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     >>> ppc = case30()
     >>> network.import_from_pypower_ppc(ppc)
     """
-
     version = ppc["version"]
     if int(version) != 2:
         logger.warning(

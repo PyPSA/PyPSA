@@ -20,7 +20,6 @@ def process_org(org_name):
     """
     Build HTML page and write it.
     """
-
     html_name = org_name[:-4] + ".html"
 
     root_path = org_name.count("/") * "../"
@@ -50,7 +49,6 @@ def process_org(org_name):
     menu = ""
 
     for n, item in enumerate(hierarchy_path):
-
         bare_layer = [i[0] for i in layer]
 
         filled_layer = [
@@ -144,7 +142,6 @@ PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
 
 
 for path, sub_dirs, file_names in os.walk("."):
-
     if "/old" in path:
         continue
 

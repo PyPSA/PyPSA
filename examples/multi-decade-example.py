@@ -94,7 +94,7 @@ except Exception as e:
 # otherwise returns a typeError
 n.lopf(pyomo=False, multi_investment_periods=True)
 
-#%% small test network
+# %% small test network
 
 
 def get_social_discount(t, r=0.01):

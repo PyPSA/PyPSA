@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -136,7 +136,6 @@ def aggregategenerators(
 def aggregateoneport(
     network, busmap, component, with_time=True, custom_strategies=dict()
 ):
-
     if network.df(component).empty:
         return network.df(component), network.pnl(component)
 
@@ -265,7 +264,6 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
     }
 
     def aggregatelinegroup(l):
-
         # l.name is a tuple of the groupby index (bus0_s, bus1_s)
         length_s = (
             haversine_pts(
@@ -300,6 +298,8 @@ def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time
             sub_network=consense["sub_network"](l["sub_network"]),
             v_ang_min=l["v_ang_min"].max(),
             v_ang_max=l["v_ang_max"].min(),
+            lifetime=(l["lifetime"] * _normed(l["s_nom"])).sum(),
+            build_year=(l["build_year"] * _normed(l["s_nom"])).sum(),
         )
         data.update((f, consense[f](l[f])) for f in columns.difference(data))
         return pd.Series(data, index=[f for f in l.columns if f in columns])
@@ -374,7 +374,6 @@ def get_clustering_from_busmap(
     one_port_strategies=dict(),
     generator_strategies=dict(),
 ):
-
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
     )
@@ -501,7 +500,6 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
         Mapping of network.buses to k-means clusters (indexed by
         non-negative integers).
     """
-
     if find_spec("sklearn") is None:
         raise ModuleNotFoundError(
             "Optional dependency 'sklearn' not found."
@@ -521,6 +519,7 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
         bus_weightings.reindex(buses_i).astype(int), axis=0
     )
 
+    kwargs.setdefault("n_init", "auto")
     kmeans = KMeans(init="k-means++", n_clusters=n_clusters, **kwargs)
 
     kmeans.fit(points)
@@ -651,10 +650,11 @@ def busmap_by_hac(
         :, buses_x
     ]
 
+    # TODO: maybe change the deprecated argument 'affinity' to 'metric'
     labels = HAC(
         n_clusters=n_clusters,
         connectivity=A,
-        affinity=affinity,
+        metric=affinity,
         linkage=linkage,
         **kwargs,
     ).fit_predict(feature)
@@ -716,7 +716,14 @@ def hac_clustering(
     """
 
     busmap = busmap_by_hac(
-        network, n_clusters, buses_i, branch_components, feature, **kwargs
+        network,
+        n_clusters,
+        buses_i,
+        branch_components,
+        feature,
+        affinity,
+        linkage,
+        **kwargs,
     )
 
     return get_clustering_from_busmap(
@@ -751,7 +758,6 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
-
     if parse(nx.__version__) < Version("2.8"):
         raise NotImplementedError(
             "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
@@ -843,7 +849,6 @@ def busmap_by_stubs(network, matching_attrs=None):
         Mapping of network.buses to k-means clusters (indexed by
         non-negative integers).
     """
-
     busmap = pd.Series(network.buses.index, network.buses.index)
 
     G = network.graph()

@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -53,9 +53,13 @@ def plot(
     bus_sizes=2e-2,
     bus_cmap=None,
     bus_norm=None,
+    bus_split_circles=False,
     line_colors="rosybrown",
     link_colors="darkseagreen",
     transformer_colors="orange",
+    line_alpha=1,
+    link_alpha=1,
+    transformer_alpha=1,
     line_widths=1.5,
     link_widths=1.5,
     transformer_widths=1.5,
@@ -107,12 +111,22 @@ def plot(
         If bus_colors are floats, this color map will assign the colors
     bus_norm : plt.Normalize|matplotlib.colors.*Norm
         The norm applied to the bus_cmap.
+    bus_split_circles : bool, default False
+        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+        If set to true, the upper half circle per bus then includes all positive values
+        of the series, the lower half circle all negative values. Defaults to False.
     line_colors : str/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
     transfomer_colors : str/pandas.Series
         Colors for the transfomer, defaults to 'orange'.
+    line_alpha : str/pandas.Series
+        Alpha for the lines, defaults to 1.
+    link_alpha : str/pandas.Series
+        Alpha for the links, defaults to 1.
+    transfomer_alpha : str/pandas.Series
+        Alpha for the transfomer, defaults to 1.
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 1.5
     link_widths : dict/pandas.Series
@@ -248,26 +262,39 @@ def plot(
 
         patches = []
         for b_i in bus_sizes.index.unique(level=0):
-            s = bus_sizes.loc[b_i]
-            radius = s.sum() ** 0.5
-            if radius == 0.0:
-                ratios = s
-            else:
-                ratios = s / s.sum()
+            s_base = bus_sizes.loc[b_i]
 
-            start = 0.25
-            for i, ratio in ratios.iteritems():
-                patches.append(
-                    Wedge(
-                        (x.at[b_i], y.at[b_i]),
-                        radius,
-                        360 * start,
-                        360 * (start + ratio),
-                        facecolor=bus_colors[i],
-                        alpha=bus_alpha,
-                    )
+            if bus_split_circles:
+                s_base = (
+                    s_base[s_base > 0],
+                    s_base[s_base < 0],
                 )
-                start += ratio
+                starts = 0, 1
+                scope = 180
+            else:
+                s_base = (s_base[s_base > 0],)
+                starts = (0.25,)
+                scope = 360
+
+            for s, start in zip(s_base, starts):
+                radius = abs(s.sum()) ** 0.5
+                if radius == 0.0:
+                    ratios = abs(s)
+                else:
+                    ratios = s / s.sum()
+
+                for i, ratio in ratios.items():
+                    patches.append(
+                        Wedge(
+                            (x.at[b_i], y.at[b_i]),
+                            radius,
+                            scope * start,
+                            scope * (start + ratio),
+                            facecolor=bus_colors[i],
+                            alpha=bus_alpha,
+                        )
+                    )
+                    start = start + ratio
         bus_collection = PatchCollection(patches, match_original=True, zorder=5)
         ax.add_collection(bus_collection)
     else:
@@ -278,7 +305,7 @@ def plot(
 
         if bus_cmap is not None and c.dtype is np.dtype("float"):
             if isinstance(bus_cmap, str):
-                bus_cmap = plt.cm.get_cmap(bus_cmap)
+                bus_cmap = plt.get_cmap(bus_cmap)
             if not bus_norm:
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
@@ -320,6 +347,11 @@ def plot(
         "Link": link_colors,
         "Transformer": transformer_colors,
     }
+    branch_alpha = {
+        "Line": line_alpha,
+        "Link": link_alpha,
+        "Transformer": transformer_alpha,
+    }
     branch_widths = {
         "Line": line_widths,
         "Link": link_widths,
@@ -346,6 +378,7 @@ def plot(
     for c in n.iterate_components(branch_components):
         b_widths = as_branch_series(branch_widths[c.name], "width", c.name, n)
         b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
+        b_alpha = as_branch_series(branch_alpha[c.name], "color", c.name, n)
         b_nums = None
         b_cmap = branch_cmap[c.name]
         b_norm = branch_norm[c.name]
@@ -384,9 +417,11 @@ def plot(
             )
             b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
             # update the line width, allows to set line widths separately from flows
-            b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
+            # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)
-            f_collection = directed_flow(coords, b_flow, b_colors, area_factor, b_cmap)
+            f_collection = directed_flow(
+                coords, b_flow, b_colors, area_factor, b_cmap, b_alpha
+            )
             if b_nums is not None:
                 f_collection.set_array(np.asarray(b_nums))
                 f_collection.set_cmap(b_cmap)
@@ -400,6 +435,7 @@ def plot(
             linewidths=b_widths,
             antialiaseds=(1,),
             colors=b_colors,
+            alpha=b_alpha,
         )
 
         if b_nums is not None:
@@ -487,7 +523,12 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     if not color_geomap:
         color_geomap = {}
     elif not isinstance(color_geomap, dict):
-        color_geomap = {"ocean": "lightblue", "land": "whitesmoke"}
+        color_geomap = {
+            "ocean": "lightblue",
+            "land": "whitesmoke",
+            "border": "darkgray",
+            "coastline": "black",
+        }
 
     if "land" in color_geomap:
         ax.add_feature(
@@ -500,9 +541,17 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
             facecolor=color_geomap["ocean"],
         )
 
-    ax.coastlines(linewidth=0.4, zorder=2, resolution=resolution)
-    border = cartopy.feature.BORDERS.with_scale(resolution)
-    ax.add_feature(border, linewidth=0.3)
+    ax.add_feature(
+        cartopy.feature.BORDERS.with_scale(resolution),
+        linewidth=0.3,
+        color=color_geomap.get("border", "k"),
+    )
+
+    ax.add_feature(
+        cartopy.feature.COASTLINE.with_scale(resolution),
+        linewidth=0.3,
+        color=color_geomap.get("coastline", "k"),
+    )
 
 
 class HandlerCircle(HandlerPatch):
@@ -545,7 +594,6 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
@@ -555,7 +603,7 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
 
     legend = ax.legend(handles, labels, **legend_kw)
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
@@ -574,7 +622,6 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
 
@@ -584,7 +631,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
 
     legend = ax.legend(handles, labels, **legend_kw)
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
@@ -603,7 +650,6 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
     """
-
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
@@ -619,7 +665,7 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
         handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
     )
 
-    ax.add_artist(legend)
+    ax.get_figure().add_artist(legend)
 
 
 def _flow_ds_from_arg(flow, n, branch_components):
@@ -646,7 +692,7 @@ def _flow_ds_from_arg(flow, n, branch_components):
         ).agg(flow, axis=0)
 
 
-def directed_flow(coords, flow, color, area_factor=1, cmap=None):
+def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
     """
     Helper function to generate arrows from flow data.
     """
@@ -695,7 +741,7 @@ def directed_flow(coords, flow, color, area_factor=1, cmap=None):
     )
     data = data.dropna(subset=["arrows"])
     arrowcol = PatchCollection(
-        data.arrows, color=color, edgecolors="k", linewidths=0.0, zorder=4, alpha=1
+        data.arrows, color=color, alpha=alpha, edgecolors="k", linewidths=0.0, zorder=4
     )
     return arrowcol
 
@@ -730,7 +776,6 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     >>> autogenerate_coordinates(network)
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
     """
-
     G = n.graph()
 
     if layouter is None:

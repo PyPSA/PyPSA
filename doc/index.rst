@@ -45,10 +45,14 @@ PyPSA: Python for Power System Analysis
    :target: https://github.com/psf/black
    :alt: Code style: black
 
+.. image:: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
+   :target: code_of_conduct.md
+   :alt: Contributor Covenant 2.1
+
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is an open source toolbox for
-simulating and optimising modern power systems that include features
+simulating and optimising modern power and energy systems that include features
 such as conventional generators with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed

@@ -8,7 +8,6 @@ def test_344():
     """
     Overridden multi-links but empty n.links.
     """
-
     override = pypsa.descriptors.Dict(
         {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
     )
@@ -76,4 +75,21 @@ def test_nomansland_bus(caplog):
         n.lopf(pyomo=True)
     except:
         print("to be fixed - unconnected bus throws error in pyomo version.")
-    return True
+
+
+def test_515():
+    """
+    Time-varying marginal costs removed.
+    """
+    marginal_costs = [0, 10]
+
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=marginal_costs)
+    n.add("Load", "load", bus="bus", p_set=1)
+
+    n.lopf(pyomo=False)
+
+    assert n.objective == 10

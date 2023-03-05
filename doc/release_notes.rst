@@ -7,7 +7,61 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Add linearized unit commitment implementation in linopy.
+
+* NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly from URL: ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+
+* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now default to 'sum' rather than 'mean'.
+
+* Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
+
+* The attributes ``lifetime`` and ``build_year`` are now aggregated with a
+  capacity-weighted mean when clustering the network. Previously, these
+  attributes had to carry identical values for components that were to be
+  merged.
+
+
+PyPSA 0.22.1 (15th February 2023)
+=================================
+
+* The model creation for large, sector-coupled models is now much quicker.
+* The FICO Xpress solver interface now skips loading a basis if there is an
+  error associated with the basis function and continues without it.
+* The colors of borders and coastlines can now be controlled with
+  ``n.plot(color_geomap=dict(border='b', coastline='r'))``.
+* Plotting multiple legends was fixed for applying a tight layout with ``matplotlib>=3.6``.
+* The plotting function now supports plotting negative and positive values
+  separately per bus using the argument ```n.plot(bus_split_circles=...)``. This
+  results in drawing separate half circles for positive and negative values.
+
+
+PyPSA 0.22.0 (3rd February 2023)
+================================
+
+* Python 3.11 is now tested. The support of Python 3.7 was dropped. The minimum supported python version is now 3.8.
+* The linopy based optimization (``n.optimize()``) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by multiples of what was installed in the preceding investment period.
+* The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
+* Wrapped functions defined by the ``Network.optimize`` accessor are now wrapping meta information of the original functions more coherently. This enables better feedback in interactive sessions.
+* Checking of datatypes in the ``consistency_check`` is now deactivated by default. Set ``n.consistency_check(check_dtypes=True)`` to activate it.
+* The plotting functionality ``n.plot()`` now supports setting alpha values on the branch components individually.
+* The plotting functionality ``n.plot()`` now allows independent control of arrow size and branch width using ``line_widths`` and ``flow`` in conjunction.
+* The documentation shines in a new look using the ``sphinx-book-theme``. Limit ``sphinx`` to versions below 6.
+* Address various deprecation warnings.
+
+PyPSA 0.21.3 (16th December 2022)
+=================================
+
+* Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
+* Bugfix: Due to xarray's ``groupby`` operation not fully supporting multi-indexes in recent version (see https://github.com/pydata/xarray/issues/6836), parts of the multi investment optimization code was adjusted.
+* Update HiGHS parsing function in linopt for HiGHS version 1.4.0. Minimum version of HiGHS is v1.3.0. Older versions have not been tested.
+* Update of gas boiler example to ``linopy``.
+* New standard line types for DC lines.
+* Included code of conduct.
+
+PyPSA 0.21.2 (30th November 2022)
+=================================
+
+* Compatibility with ``pyomo>=6.4.3``.
+* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================

@@ -12,7 +12,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -27,9 +27,8 @@ import tempfile
 from contextlib import contextmanager
 
 from pyomo.core.base.constraint import _GeneralConstraintData
-from pyomo.core.expr.logical_expr import inequality
 from pyomo.core.expr.numeric_expr import LinearExpression
-from pyomo.environ import Constraint, Objective, Var, minimize
+from pyomo.environ import Constraint, Objective, Var, inequality, minimize
 from six.moves import cPickle as pickle
 
 # =============================================================================
@@ -53,7 +52,6 @@ class LExpression(object):
     """
 
     def __init__(self, variables=None, constant=0.0):
-
         if variables is None:
             self.variables = []
         else:
@@ -119,7 +117,6 @@ class LConstraint(object):
     """
 
     def __init__(self, lhs=None, sense="==", rhs=None):
-
         if lhs is None:
             self.lhs = LExpression()
         else:
@@ -184,7 +181,6 @@ def l_constraint(model, name, constraints, *args):
     *args :
         Indices of the constraints
     """
-
     setattr(model, name, Constraint(*args, noruleinit=True))
     v = getattr(model, name)
     for i in v._index_set:
@@ -243,7 +239,6 @@ def l_objective(model, objective=None, sense=minimize):
     objective : LExpression
     sense : minimize / maximize
     """
-
     if objective is None:
         objective = LExpression()
 

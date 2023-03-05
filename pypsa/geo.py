@@ -9,7 +9,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -40,7 +40,6 @@ def haversine_pts(a, b):
     --------
     haversine : Matrix of distances between all pairs in a and b
     """
-
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
 
@@ -80,6 +79,7 @@ def haversine(a, b):
     haversine_pts : Determine pointwise crow-fly distance
     """
 
+    #
     def ensure_dimensions(a):
         a = np.asarray(a)
 

@@ -13,6 +13,7 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
@@ -166,7 +167,14 @@ solvers [GLPK](https://www.gnu.org/software/glpk/) and
 [Gurobi](http://www.gurobi.com/) for which free academic licenses are
 available.
 
-## Mailing list
+## Documentation
+
+Please check the [documentation](https://pypsa.readthedocs.io).
+
+## Contributing and Support
+
+We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file
+issues or make pull requests on GitHub.
 
 PyPSA has a Google Group [forum / mailing
 list](https://groups.google.com/group/pypsa) where announcements of new
@@ -180,6 +188,10 @@ A `Discord server <https://discord.gg/AnuJBk23FU>` hosts every tool
 in the PyPSA ecosystem. We have there public voice and text channels
 that are suitable to organise projects, ask questions,
 share news, or chat with the community.
+
+## Code of Conduct
+
+Please respect our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Citing PyPSA
 
@@ -221,7 +233,7 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 # Licence
 
-Copyright 2015-2022 [PyPSA
+Copyright 2015-2023 [PyPSA
 Developers](https://pypsa.readthedocs.io/en/latest/developers.html)
 
 PyPSA is licensed under the open source [MIT

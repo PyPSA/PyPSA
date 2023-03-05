@@ -10,7 +10,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pypsa",
-    version="0.21.1",
+    version="0.22.1",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
@@ -20,19 +20,20 @@ setup(
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),
     include_package_data=True,
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
         "numpy",
         "scipy",
-        "pandas>=0.24.0",
+        "pandas>=0.24",
         "xarray",
         "netcdf4",
         "tables",
         "pyomo>=5.7",
-        "linopy>=0.0.13, <0.1",
+        "linopy>=0.1.1",
         "matplotlib",
         "networkx>=1.10",
         "deprecation",
+        "validators",
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],

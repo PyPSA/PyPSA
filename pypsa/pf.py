@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -92,7 +92,6 @@ def _allocate_pf_outputs(network, linear=False):
 def _calculate_controllable_nodal_power_balance(
     sub_network, network, snapshots, buses_o
 ):
-
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
         for c in sub_network.iterate_components(
@@ -145,7 +144,6 @@ def _network_prepare_and_run_pf(
     slack_weights="p_set",
     **kwargs
 ):
-
     if linear:
         sub_network_pf_fun = sub_network_lpf
         sub_network_prepare_fun = calculate_B_H
@@ -317,7 +315,6 @@ def newton_raphson_sparse(
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
     while diff > x_tol and n_iter < lim_iter:
-
         n_iter += 1
 
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
@@ -553,7 +550,6 @@ def sub_network_pf(
     )
 
     def f(guess, distribute_slack=False, slack_weights=None):
-
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)
@@ -580,7 +576,6 @@ def sub_network_pf(
         return F
 
     def dfdx(guess, distribute_slack=False, slack_weights=None):
-
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)
@@ -645,7 +640,6 @@ def sub_network_pf(
     slack_variable_b = 1 if distribute_slack else 0
 
     if distribute_slack:
-
         if isinstance(slack_weights, str) and slack_weights == "p_set":
             generators_t_p_choice = get_switchable_as_dense(
                 network, "Generator", slack_weights, snapshots
@@ -669,8 +663,8 @@ def sub_network_pf(
                 slack_weights
             )
             slack_weights_calc = (
-                network.generators.groupby("bus")
-                .sum()[slack_weights]
+                network.generators.groupby("bus")[slack_weights]
+                .sum()
                 .reindex(buses_o)
                 .pipe(normed)
                 .fillna(0)
@@ -887,7 +881,6 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     -------
     None
     """
-
     _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=True)
 
 
@@ -895,7 +888,6 @@ def apply_line_types(network):
     """
     Calculate line electrical parameters x, r, b, g from standard types.
     """
-
     lines_with_types_b = network.lines.type != ""
     if lines_with_types_b.zsum() == 0:
         return
@@ -935,7 +927,6 @@ def apply_transformer_types(network):
     """
     Calculate transformer electrical parameters x, r, b, g from standard types.
     """
-
     trafos_with_types_b = network.transformers.type != ""
     if trafos_with_types_b.zsum() == 0:
         return
@@ -996,7 +987,6 @@ def apply_transformer_t_model(network):
     Convert given T-model parameters to PI-model parameters using wye-delta
     transformation.
     """
-
     z_series = network.transformers.r_pu + 1j * network.transformers.x_pu
     y_shunt = network.transformers.g_pu + 1j * network.transformers.b_pu
 
@@ -1020,7 +1010,6 @@ def calculate_dependent_values(network):
     Calculate per unit impedances and append voltages to lines and shunt
     impedances.
     """
-
     apply_line_types(network)
     apply_transformer_types(network)
 
@@ -1073,7 +1062,6 @@ def find_slack_bus(sub_network):
     """
     Find the slack bus in a connected sub-network.
     """
-
     gens = sub_network.generators()
 
     if len(gens) == 0:
@@ -1082,7 +1070,6 @@ def find_slack_bus(sub_network):
         sub_network.slack_bus = sub_network.buses_i()[0]
 
     else:
-
         slacks = gens[gens.control == "Slack"].index
 
         if len(slacks) == 0:
@@ -1128,7 +1115,6 @@ def find_bus_controls(sub_network):
     This function also fixes sub_network.buses_o, a DataFrame ordered by
     control type.
     """
-
     network = sub_network.network
 
     find_slack_bus(sub_network)
@@ -1163,7 +1149,6 @@ def calculate_B_H(sub_network, skip_pre=False):
     """
     Calculate B and H matrices for AC or DC sub-networks.
     """
-
     network = sub_network.network
 
     if not skip_pre:
@@ -1177,13 +1162,14 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    # susceptances
-    b = 1.0 / np.concatenate(
+    z = np.concatenate(
         [
             (c.df.loc[c.ind, attribute]).values
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    # susceptances
+    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
     if np.isnan(b).any():
         logger.warning(
@@ -1199,7 +1185,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # weighted Laplacian
     sub_network.B = sub_network.K * sub_network.H
 
-    sub_network.p_branch_shift = -b * np.concatenate(
+    phase_shift = np.concatenate(
         [
             (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
             if c.name == "Transformer"
@@ -1207,6 +1193,7 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
+    sub_network.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
@@ -1224,7 +1211,6 @@ def calculate_PTDF(sub_network, skip_pre=False):
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
     """
-
     if not skip_pre:
         calculate_B_H(sub_network)
 
@@ -1254,7 +1240,6 @@ def calculate_Y(sub_network, skip_pre=False):
     """
     Calculate bus admittance matrices for AC sub-networks.
     """
-
     if not skip_pre:
         calculate_dependent_values(sub_network.network)
 
@@ -1346,7 +1331,6 @@ def aggregate_multi_graph(sub_network):
     Aggregate branches between same buses and replace with a single branch with
     aggregated properties (e.g. s_nom is summed, length is averaged).
     """
-
     network = sub_network.network
 
     count = 0
@@ -1399,7 +1383,6 @@ def find_tree(sub_network, weight="x_pu"):
     as a central "tree slack" and then see for each branch which paths from the
     slack to each node go through the branch.
     """
-
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
     buses_i = sub_network.buses_i()
@@ -1429,8 +1412,10 @@ def find_cycles(sub_network, weight="x_pu"):
     """
     Find all cycles in the sub_network and record them in sub_network.C.
 
-    networkx collects the cycles with more than 2 edges; then the 2-edge cycles
-    from the MultiGraph must be collected separately (for cases where there
+    networkx collects the cycles with more than 2 edges; then the 2-edge
+    cycles
+    from the MultiGraph must be collected separately (for cases where
+    there
     are multiple lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
@@ -1450,7 +1435,6 @@ def find_cycles(sub_network, weight="x_pu"):
     sub_network.C = dok_matrix((len(branches_bus0), len(cycles) + num_multi))
 
     for j, cycle in enumerate(cycles):
-
         for i in range(len(cycle)):
             branch = next(iter(mgraph[cycle[i]][cycle[(i + 1) % len(cycle)]].keys()))
             branch_i = branches_i.get_loc(branch)
@@ -1493,7 +1477,6 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     -------
     None
     """
-
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info(
         "Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
@@ -1593,5 +1576,4 @@ def network_batch_lpf(network, snapshots=None):
     """
     Batched linear power flow with numpy.dot for several snapshots.
     """
-
     raise NotImplementedError("Batch linear power flow not supported yet.")

@@ -66,7 +66,7 @@ import pandas as pd
 
 import pypsa
 
-#%matplotlib inline
+# %matplotlib inline
 
 # You may have to adjust this path to where
 # you downloaded the github repository

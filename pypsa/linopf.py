@@ -11,7 +11,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -209,7 +209,6 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     pnl : bool, default True
         Whether variable which should be fixed is time-dependent
     """
-
     if pnl:
         if attr + "_set" not in n.pnl(c):
             return
@@ -448,7 +447,6 @@ def define_ramp_limit_constraints(n, sns, c):
 def define_nominal_constraints_per_bus_carrier(n, sns):
     for carrier in n.carriers.index:
         for bound, sense in [("max", "<="), ("min", ">=")]:
-
             col = f"nom_{bound}_{carrier}"
             if col not in n.buses.columns:
                 continue
@@ -485,6 +483,7 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
     Defines nodal balance constraint.
     """
 
+    #
     def bus_injection(c, attr, groupcol="bus", sign=1):
         # additional sign only necessary for branches in reverse direction
         if "sign" in n.df(c):
@@ -810,6 +809,13 @@ def define_growth_limit(n, sns, c, attr):
     ext_i = get_extendable_i(n, c)
     if "carrier" not in n.df(c) or n.df(c).empty:
         return
+
+    if (n.carriers.max_relative_growth > 0).any():
+        logger.warning(
+            "Max relative growth is not implemented for the native pypsa optimization framework. "
+            "Use the linopy framework with `n.optimize` instead."
+        )
+
     with_limit = n.carriers.query("max_growth != inf").index
     limit_i = n.df(c).query("carrier in @with_limit").index.intersection(ext_i)
     if limit_i.empty:
@@ -852,7 +858,6 @@ def define_global_constraints(n, sns):
         technology in a certain region. Currently, only the
         capacities of extendable generators have to be below the set limit.
     """
-
     if n._multi_invest:
         period_weighting = n.investment_period_weightings["years"]
         weightings = n.snapshot_weightings.mul(period_weighting, level=0, axis=0).loc[
@@ -1043,7 +1048,6 @@ def define_objective(n, sns):
     """
     Defines and writes out the objective function.
     """
-
     if n._multi_invest:
         period_weighting = n.investment_period_weightings.objective[
             sns.unique("period")
@@ -1084,7 +1088,7 @@ def define_objective(n, sns):
     for c, attr in lookup.query("marginal_cost").index:
         cost = (
             get_as_dense(n, c, "marginal_cost", sns)
-            .loc[:, lambda ds: (ds != 0).all()]
+            .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
         if cost.empty:
@@ -1154,7 +1158,7 @@ def prepare_lopf(
     n.bounds_f = open(bounds_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
 
-    n.objective_f.write("\* LOPF *\n\nmin\nobj:\n")
+    n.objective_f.write("\ LOPF \n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
