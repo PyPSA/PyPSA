@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 from pathlib import Path
-from numpy.testing import assert_array_almost_equal as equal
 
 import pandas as pd
 import pytest
+from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
@@ -132,12 +132,19 @@ def test_netcdf_from_url():
 
 def test_io_time_dependent_efficiencies(tmpdir):
     n = pypsa.Network()
-    s = [1, .95, .99]
+    s = [1, 0.95, 0.99]
     n.snapshots = range(len(s))
-    n.add('Bus', 'bus')
-    n.add('Generator', 'gen', bus='bus', efficiency=s)
-    n.add('Store', "sto", bus='bus', standing_loss=s)
-    n.add('StorageUnit', 'su', bus='bus', efficiency_store=s, efficiency_dispatch=s, standing_loss=s)
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", efficiency=s)
+    n.add("Store", "sto", bus="bus", standing_loss=s)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        efficiency_store=s,
+        efficiency_dispatch=s,
+        standing_loss=s,
+    )
 
     fn = os.path.join(tmpdir, "network-time-eff.nc")
     n.export_to_netcdf(fn)
