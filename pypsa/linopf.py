@@ -148,7 +148,7 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr, transmission_l
     dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, **kwargs)
     dispatch_lower = linexpr((1, dispatch))
     dispatch_upper = linexpr((1, dispatch))
-    if c in n.passive_branch_components and transmission_losses:
+    if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
         loss = get_var(n, c, "loss")[fix_i]
         dispatch_lower = linexpr((1, dispatch), (-1, loss))
         dispatch_upper = linexpr((1, dispatch), (1, loss))
@@ -182,7 +182,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_los
 
     lhs_upper = [(max_pu, nominal_v), (-1, operational_ext_v)]
     lhs_lower = [(min_pu, nominal_v), (-1, operational_ext_v)]
-    if c in n.passive_branch_components and transmission_losses:
+    if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
         loss = get_var(n, c, "loss")[ext_i]
         lhs_upper.append((-1, loss))
         lhs_lower.append((-1, loss))
@@ -263,7 +263,7 @@ def define_loss_variables(n, sns, c, transmission_losses):
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
-    if not transmission_losses:
+    if not transmission_losses or n.df(c).empty:
         return
 
     tangents = transmission_losses
