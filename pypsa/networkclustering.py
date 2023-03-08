@@ -121,6 +121,9 @@ def aggregategenerators(
         for attr, df in network.generators_t.items():
             pnl_gens_agg_b = df.columns.to_series().map(gens_agg_b)
             df_agg = df.loc[:, pnl_gens_agg_b]
+            # If there are any generators to aggregate, do so and put
+            # the time-varying data for all generators (aggregated and
+            # non-aggregated) into `new_pnl`.
             if not df_agg.empty:
                 if attr == "p_max_pu":
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
@@ -129,6 +132,9 @@ def aggregategenerators(
                 new_pnl[attr] = pd.concat(
                     [df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False
                 )
+            # Even if no generators are aggregated, we still need to
+            # put the time-varying data for all non-aggregated
+            # generators into `new_pnl`.
             elif not df.empty:
                 new_pnl[attr] = df
 

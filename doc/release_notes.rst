@@ -19,6 +19,8 @@ Upcoming Release
   attributes had to carry identical values for components that were to be
   merged.
 
+* Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
+
 
 PyPSA 0.22.1 (15th February 2023)
 =================================
