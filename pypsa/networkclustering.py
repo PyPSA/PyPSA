@@ -129,6 +129,8 @@ def aggregategenerators(
                 new_pnl[attr] = pd.concat(
                     [df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False
                 )
+            elif not df.empty:
+                new_pnl[attr] = df
 
     return new_df, new_pnl
 
