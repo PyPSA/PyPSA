@@ -17,9 +17,9 @@ __copyright__ = (
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from numpy import inf
 from packaging.version import Version, parse
-from deprecation import deprecated
 
 from pypsa.descriptors import (
     Dict,
@@ -225,7 +225,11 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     set_conref(n, constraints, c, f"mu_{attr}_set")
 
 
-@deprecated(deprecated_in="0.23", removed_in="0.24", details="Use define_unit_commitment_status_variables instead.")
+@deprecated(
+    deprecated_in="0.23",
+    removed_in="0.24",
+    details="Use define_unit_commitment_status_variables instead.",
+)
 def define_generator_status_variables(n, sns):
     define_unit_commitment_status_variables(n, sns, "Generator")
 
@@ -249,7 +253,11 @@ def define_unit_commitment_status_variables(n, sns, c):
     define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
-@deprecated(deprecated_in="0.23", removed_in="0.24", details="Use define_unit_commitment_constraints instead.")
+@deprecated(
+    deprecated_in="0.23",
+    removed_in="0.24",
+    details="Use define_unit_commitment_constraints instead.",
+)
 def define_committable_generator_constraints(n, sns):
     define_unit_commitment_constraints(n, sns, "Generator")
 
