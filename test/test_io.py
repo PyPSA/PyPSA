@@ -131,7 +131,7 @@ def test_netcdf_from_url():
 
 def test_netcdf_io_compression(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
-    scipy_network.export_to_netcdf(fn, compression=True)
+    scipy_network.export_to_netcdf(fn, float32=True, compression=True)
     pypsa.Network(fn)
 
 
