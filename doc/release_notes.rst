@@ -21,6 +21,9 @@ Upcoming Release
 
 * Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
 
+* New argument for file compression in ``n.export_to_netcdf(path,  compress=True)``
+  will typecast network datasets to float32 and use ``zlib`` for compression.
+
 
 PyPSA 0.22.1 (15th February 2023)
 =================================

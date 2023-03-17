@@ -127,3 +127,15 @@ def test_import_from_pandapower_network(
 def test_netcdf_from_url():
     url = "https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc"
     pypsa.Network(url)
+
+
+def test_netcdf_io_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, compression=True)
+    pypsa.Network(fn)
+
+
+def test_netcdf_io_custom_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, compression=9)
+    pypsa.Network(fn)
