@@ -18,11 +18,23 @@ capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input 
 marginal_cost,static or series,currency/MWh,0,Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense in OPF if p_max_pu >= 0.,Input (optional)
 length,float,km,0,"Length of line, useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Input (optional)
+committable,boolean,n/a,False,Use unit commitment (only possible if p_nom is not extendable).,Input (optional)
+start_up_cost,float,currency,0,Cost to start up the link. Only read if committable is True.,Input (optional)
+shut_down_cost,float,currency,0,Cost to shut down the link. Only read if committable is True.,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only read if committable is True.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only read if committable is True.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the link was online before network.snapshots start. Only read if committable is True and min_up_time is non-zero.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the link was online before network.snapshots start. Only read if committable is True and min_down_time is non-zero.,Input (optional)
 ramp_limit_up,float,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
 ramp_limit_down,float,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
+ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power.   Only read if committable is True.",Input (optional)
+ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power.   Only read if committable is True.",Input (optional)
 p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MW,0,Optimised capacity for active power.,Output
+status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
 mu_lower,series,currency/MW,0,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
 mu_upper,series,currency/MW,0,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
 mu_p_set,series,currency/MWh,0,Shadow price of fixed power transmission p_set,Output
+mu_ramp_limit_up,series,currency/MWh,0,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,0,Shadow price of lower ramp down limit,Output

@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from numpy import inf
 from packaging.version import Version, parse
+from deprecation import deprecated
 
 from pypsa.descriptors import (
     Dict,
@@ -224,26 +225,38 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     set_conref(n, constraints, c, f"mu_{attr}_set")
 
 
+@deprecated(deprecated_in="0.23", removed_in="0.24", details="Use define_unit_commitment_status_variables instead.")
 def define_generator_status_variables(n, sns):
-    c = "Generator"
-    com_i = n.generators.query("committable").index
+    define_unit_commitment_status_variables(n, sns, "Generator")
+
+
+def define_unit_commitment_status_variables(n, sns, c):
+    allowed_c = {"Generator", "Link"}
+    assert c in allowed_c, f"Component {c} must be in {allowed_c}."
+    com_i = n.df(c).query("committable").index
     ext_i = get_extendable_i(n, c)
     if not (ext_i.intersection(com_i)).empty:
         logger.warning(
-            "The following generators have both investment optimisation"
+            f"The following {c} components have both investment optimisation"
             f" and unit commitment:\n\n\t{', '.join((ext_i.intersection(com_i)))}\n\nCurrently PyPSA cannot "
             "do both these functions, so PyPSA is choosing investment optimisation "
-            "for these generators."
+            f"for these {c} components."
         )
         com_i = com_i.difference(ext_i)
     if com_i.empty:
         return
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
-    define_binaries(n, (sns, com_i), "Generator", "status", mask=active)
+    define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
+@deprecated(deprecated_in="0.23", removed_in="0.24", details="Use define_unit_commitment_constraints instead.")
 def define_committable_generator_constraints(n, sns):
-    c, attr = "Generator", "status"
+    define_unit_commitment_constraints(n, sns, "Generator")
+
+
+def define_unit_commitment_constraints(n, sns, c):
+    allowed_c = {"Generator", "Link"}
+    assert c in allowed_c, f"Component {c} must be in {allowed_c}."
     com_i = n.df(c).query("committable and not p_nom_extendable").index
     if com_i.empty:
         return
@@ -252,15 +265,17 @@ def define_committable_generator_constraints(n, sns):
     lower = min_pu.mul(nominal)
     upper = max_pu.mul(nominal)
 
-    status = get_var(n, c, attr)
-    p = get_var(n, c, "p")[com_i]
+    status = get_var(n, c, "status")
+
+    attr = "p" if c == "Generator" else "p0"
+    p = get_var(n, c, attr)[com_i]
 
     lhs = linexpr((lower, status), (-1, p))
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
-    define_constraints(n, lhs, "<=", 0, "Generators", "committable_lb", mask=active)
+    define_constraints(n, lhs, "<=", 0, c, "committable_lb", mask=active)
 
     lhs = linexpr((upper, status), (-1, p))
-    define_constraints(n, lhs, ">=", 0, "Generators", "committable_ub", mask=active)
+    define_constraints(n, lhs, ">=", 0, c, "committable_ub", mask=active)
 
 
 def define_ramp_limit_constraints(n, sns, c):
@@ -1102,16 +1117,17 @@ def prepare_lopf(
         align_with_static_component(n, c, attr)
         define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr)
-    define_generator_status_variables(n, snapshots)
+    define_unit_commitment_status_variables(n, snapshots, c="Generator")
+    define_unit_commitment_status_variables(n, snapshots, c="Link")
     define_nominal_constraints_per_bus_carrier(n, snapshots)
 
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
 
-    define_committable_generator_constraints(n, snapshots)
-    define_ramp_limit_constraints(n, snapshots, c="Generator")
-    define_ramp_limit_constraints(n, snapshots, c="Link")
+    for c in {"Generator", "Link"}:
+        define_unit_commitment_constraints(n, snapshots, c)
+        define_ramp_limit_constraints(n, snapshots, c)
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
