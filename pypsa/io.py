@@ -382,8 +382,12 @@ if has_xarray:
 
         def set_compression_encoding(self):
             if isinstance(self.compression, bool):
-                self.compression = dict(zlib=True, complevel=4, least_significant_digit=10)
-            self.ds.encoding.update({var: self.compression for var in self.ds.data_vars})
+                self.compression = dict(
+                    zlib=True, complevel=4, least_significant_digit=10
+                )
+            self.ds.encoding.update(
+                {var: self.compression for var in self.ds.data_vars}
+            )
 
         def typecast(self):
             for var in self.ds.data_vars:
