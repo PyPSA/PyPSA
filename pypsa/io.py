@@ -342,8 +342,9 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, compression=False):
+        def __init__(self, path, least_significant_digit=None, compression=False):
             self.path = path
+            self.least_significant_digit = least_significant_digit
             self.compression = compression
             self.ds = xr.Dataset()
 
@@ -378,6 +379,13 @@ if has_xarray:
                 index="snapshots", columns=list_name + "_t_" + attr + "_i"
             )
             self.ds[list_name + "_t_" + attr] = df
+            if self.least_significant_digit is not None:
+                self.ds.encoding.update(
+                    {
+                        "zlib": True,
+                        "least_significant_digit": self.least_significant_digit,
+                    }
+                )
 
         def compress(self):
             for var in self.ds.data_vars:
@@ -651,6 +659,7 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
+    least_significant_digit=None,
     compression=False,
 ):
     """
@@ -675,6 +684,7 @@ def export_to_netcdf(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
+    least_significant_digit : int, default None
     compression : boolean|int, default False
         If True, measures for file compression will be taken, including
         typecasting to float32 and zlib compression up to level 4.
@@ -692,7 +702,7 @@ def export_to_netcdf(
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = os.path.basename(path) if path is not None else None
-    with ExporterNetCDF(path, compression) as exporter:
+    with ExporterNetCDF(path, least_significant_digit, compression) as exporter:
         _export_to_exporter(
             network,
             exporter,
