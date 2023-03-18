@@ -342,7 +342,9 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, compression={'zlib': True, 'complevel': 4}, float32=False):
+        def __init__(
+            self, path, compression={"zlib": True, "complevel": 4}, float32=False
+        ):
             self.path = path
             self.compression = compression
             self.float32 = float32

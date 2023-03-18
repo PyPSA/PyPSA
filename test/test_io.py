@@ -71,7 +71,8 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_netcdf(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p,
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
         check_dtype=False,
     )
     pd.testing.assert_frame_equal(
@@ -88,7 +89,8 @@ def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_csv_folder(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p,
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
         check_dtype=False,
     )
 
@@ -98,7 +100,8 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_hdf5(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p,
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
         check_dtype=False,
     )
 
