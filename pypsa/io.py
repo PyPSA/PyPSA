@@ -342,7 +342,7 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, compression=False, float32=False):
+        def __init__(self, path, compression={'zlib': True, 'complevel': 4}, float32=False):
             self.path = path
             self.compression = compression
             self.float32 = float32
@@ -381,18 +381,13 @@ if has_xarray:
             self.ds[list_name + "_t_" + attr] = df
 
         def set_compression_encoding(self):
-            if isinstance(self.compression, bool):
-                self.compression = dict(
-                    zlib=True, complevel=4, least_significant_digit=10
-                )
-            self.ds.encoding.update(
-                {var: self.compression for var in self.ds.data_vars}
-            )
+            for v in self.ds.data_vars:
+                self.ds[v].encoding.update(self.compression)
 
         def typecast(self):
-            for var in self.ds.data_vars:
-                if self.ds[var].dtype == np.float64:
-                    self.ds[var] = self.ds[var].astype(np.float32)
+            for v in self.ds.data_vars:
+                if self.ds[v].dtype == np.float64:
+                    self.ds[v] = self.ds[v].astype(np.float32)
 
         def finish(self):
             if self.compression:
@@ -659,8 +654,8 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    compression=False,
-    float32=False,
+    compression={"zlib": True, "complevel": 4},
+    float32=True,
 ):
     """
     Export network and components to a netCDF file.
@@ -684,10 +679,13 @@ def export_to_netcdf(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
-    compression : boolean|dict, default False
-        If not False, specifies encoding for file compression.
-        If True, defaults to dict(zlib=True, complevel=4, least_significant_digit=10).
-    float32 : boolean, default False
+    compression : dict|None
+        Compression level to use for all features which are being prepared.
+        The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
+        https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
+        To disable compression, set to None. As a trade-off between speed and
+        compression, the default is {'zlib': True, 'complevel': 4}.
+    float32 : boolean
         If True, typecasts values to float32.
 
     Returns

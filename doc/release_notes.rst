@@ -21,8 +21,15 @@ Upcoming Release
 
 * Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
 
-* New argument for file compression in ``n.export_to_netcdf(path,  compression=True)``
-  will typecast network datasets to float32 and use ``zlib`` for compression. The option `least_significant_digit` was removed.
+* Networks are now compressed when exporting the NetCDF
+  ``n.export_to_netcdf(...)`` step using the native compression feature of
+  netCDF files and typecasting any float64 to float 32. Existing network files
+  are not affected. To also compress existing networks, load and save them using
+  ``xarray`` with compression specified, see `the xarray documentation
+  <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
+  for details. The compression can be disabled with
+  ``n.export_to_netcdf(float32=False, compression=None)``. Use
+  ``n.export_to_netcdf(compression={'zlib': True, complevel=9})``.
 
 
 PyPSA 0.22.1 (15th February 2023)
