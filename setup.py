@@ -26,7 +26,7 @@ setup(
         "scipy",
         "pandas>=0.24",
         "xarray",
-        "netcdf4",
+        "netcdf4<=1.6.2",
         "tables",
         "pyomo>=5.7",
         "linopy>=0.1.1",
