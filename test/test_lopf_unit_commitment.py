@@ -432,7 +432,6 @@ def test_linearized_unit_commitment(api):
 
 @pytest.mark.parametrize("api", ["linopy"])
 def test_link_unit_commitment(api):
-
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -468,11 +467,11 @@ def test_link_unit_commitment(api):
 
     optimize(n, api)
 
-    expected_status = [1., 1., 1., 1.]
+    expected_status = [1.0, 1.0, 1.0, 1.0]
 
     equal(n.links_t.status["OCGT"].values, expected_status)
 
-    expected_dispatch = [3200., 5200., 600., 4200.]
+    expected_dispatch = [3200.0, 5200.0, 600.0, 4200.0]
 
     equal(-n.links_t.p1["OCGT"].values, expected_dispatch)
 
