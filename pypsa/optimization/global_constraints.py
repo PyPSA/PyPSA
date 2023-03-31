@@ -9,7 +9,7 @@ import re
 
 import pandas as pd
 from linopy.expressions import merge
-from numpy import isnan, nan
+from numpy import isnan
 from xarray import DataArray
 
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -323,7 +323,8 @@ def define_transmission_volume_expansion_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
 
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
 
     lhs = []
     for name, glc in glcs.iterrows():
@@ -378,7 +379,8 @@ def define_transmission_expansion_cost_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
 
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
 
     lhs = []
     for name, glc in glcs.iterrows():

@@ -530,7 +530,7 @@ def define_kirchhoff_constraints(n, sns):
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
             C_weighted = 1e5 * C.mul(weightings, axis=0)
             cycle_sum = C_weighted.apply(cycle_flow, sns=period)
-            snapshots = sns if period == None else sns[sns.get_loc(period)]
+            snapshots = sns if period is None else sns[sns.get_loc(period)]
             cycle_sum.set_index(snapshots, inplace=True)
 
             con = write_constraint(n, cycle_sum, "=", 0)
@@ -893,7 +893,10 @@ def define_global_constraints(n, sns):
     glcs = n.global_constraints.query(
         "type == " '"transmission_volume_expansion_limit"'
     )
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
+
     for name, glc in glcs.iterrows():
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
         lhs = ""
@@ -960,7 +963,9 @@ def define_global_constraints(n, sns):
 
     # (4) tech_capacity_expansion_limit
     # TODO: Generalize to carrier capacity expansion limit (i.e. also for stores etc.)
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
+
     glcs = n.global_constraints.query("type == " '"tech_capacity_expansion_limit"')
     c, attr = "Generator", "p_nom"
 
@@ -1252,7 +1257,7 @@ def assign_solution(
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
     # duals
-    if keep_shadowprices == False:
+    if keep_shadowprices is False:
         keep_shadowprices = []
 
     sp = n.constraints.index
@@ -1340,7 +1345,9 @@ def assign_solution(
     for i in additional_linkports(n):
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
-    sign = lambda c: n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+    def sign(c):
+        return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+
     n.buses_t.p = (
         pd.concat(
             [
@@ -1484,7 +1491,7 @@ def network_lopf(
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 
-    if warmstart == True:
+    if warmstart is True:
         warmstart = n.basis_fn
         logger.info("Solve linear problem using warmstart")
     else:

@@ -5,7 +5,6 @@ Created on Fri Jul  2 10:21:16 2021.
 
 @author: fabian
 """
-import os
 
 import pandas as pd
 import pytest

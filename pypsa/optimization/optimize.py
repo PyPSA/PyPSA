@@ -373,7 +373,9 @@ def post_processing(n):
     for i in additional_linkports(n):
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
-    sign = lambda c: n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+    def sign(c):
+        return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+
     n.buses_t.p = (
         pd.concat(
             [
