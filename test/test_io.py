@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
@@ -136,6 +137,7 @@ def test_netcdf_from_url():
     pypsa.Network(url)
 
 
+
 def test_netcdf_io_no_compression(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
     scipy_network.export_to_netcdf(fn, float32=False, compression=None)
@@ -147,3 +149,37 @@ def test_netcdf_io_custom_compression(scipy_network, tmpdir):
     compression = dict(zlib=True, complevel=9)
     scipy_network.export_to_netcdf(fn, compression=compression)
     pypsa.Network(fn)
+
+
+def test_io_time_dependent_efficiencies(tmpdir):
+    n = pypsa.Network()
+    s = [1, 0.95, 0.99]
+    n.snapshots = range(len(s))
+    n.add("Bus", "bus")
+    n.add("Generator", "gen", bus="bus", efficiency=s)
+    n.add("Store", "sto", bus="bus", standing_loss=s)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        efficiency_store=s,
+        efficiency_dispatch=s,
+        standing_loss=s,
+    )
+
+    fn = os.path.join(tmpdir, "network-time-eff.nc")
+    n.export_to_netcdf(fn)
+    m = pypsa.Network(fn)
+
+    assert not m.stores_t.standing_loss.empty
+    assert not m.storage_units_t.standing_loss.empty
+    assert not m.generators_t.efficiency.empty
+    assert not m.storage_units_t.efficiency_store.empty
+    assert not m.storage_units_t.efficiency_dispatch.empty
+
+    equal(m.stores_t.standing_loss, n.stores_t.standing_loss)
+    equal(m.storage_units_t.standing_loss, n.storage_units_t.standing_loss)
+    equal(m.generators_t.efficiency, n.generators_t.efficiency)
+    equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
+    equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+
