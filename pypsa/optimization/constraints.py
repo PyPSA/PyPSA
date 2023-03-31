@@ -6,7 +6,7 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy import LinearExpression, Variable, merge
+from linopy import LinearExpression, merge
 from numpy import inf
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
@@ -314,16 +314,23 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         active = get_activity_mask(n, c, sns)
         rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
-        p_actual = lambda idx: reindex(p, c, idx)
-        p_previous = lambda idx: reindex(p, c, idx).shift(snapshot=1)
+
+        def p_actual(idx):
+            return reindex(p, c, idx)
+
+        def p_previous(idx):
+            return reindex(p, c, idx).shift(snapshot=1)
+
     else:
         active = get_activity_mask(n, c, sns[1:])
         rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.df(c).index)
         rhs_start.index.name = "snapshot"
-        p_actual = lambda idx: reindex(p, c, idx).sel(snapshot=sns[1:])
-        p_previous = (
-            lambda idx: reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
-        )
+
+        def p_actual(idx):
+            return reindex(p, c, idx).sel(snapshot=sns[1:])
+
+        def p_previous(idx):
+            return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
     # ----------------------------- Fixed Generators ----------------------------- #
 

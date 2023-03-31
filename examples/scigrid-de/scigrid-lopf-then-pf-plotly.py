@@ -60,7 +60,6 @@
 
 import os
 
-import cufflinks as cf
 import numpy as np
 import pandas as pd
 import plotly.offline as pltly
