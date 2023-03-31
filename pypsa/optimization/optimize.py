@@ -106,7 +106,7 @@ def define_objective(n, sns):
     for c, attr in lookup.query("marginal_cost").index:
         cost = (
             get_as_dense(n, c, "marginal_cost", sns)
-            .loc[:, lambda ds: (ds != 0).all()]
+            .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
         if cost.empty:
