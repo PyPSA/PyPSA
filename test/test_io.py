@@ -137,7 +137,6 @@ def test_netcdf_from_url():
     pypsa.Network(url)
 
 
-
 def test_netcdf_io_no_compression(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
     scipy_network.export_to_netcdf(fn, float32=False, compression=None)
@@ -182,4 +181,3 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
-
