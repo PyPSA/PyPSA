@@ -428,3 +428,52 @@ def test_linearized_unit_commitment(api):
 
     MILP_objective = 1510000
     assert round(n.objective / MILP_objective, 2) == 1
+
+
+@pytest.mark.parametrize("api", ["linopy"])
+def test_link_unit_commitment(api):
+
+    n = pypsa.Network()
+
+    snapshots = range(4)
+
+    n.set_snapshots(snapshots)
+
+    n.madd("Bus", ["gas", "electricity"])
+
+    n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
+
+    n.add(
+        "Link",
+        "OCGT",
+        bus0="gas",
+        bus1="electricity",
+        committable=True,
+        p_min_pu=0.1,
+        efficiency=0.5,
+        up_time_before=0,
+        min_up_time=3,
+        start_up_cost=3333,
+        p_nom=12000,
+    )
+
+    n.add(
+        "Generator",
+        "wind",
+        bus="electricity",
+        p_nom=800,
+    )
+
+    n.add("Load", "load", bus="electricity", p_set=[4000, 6000, 800, 5000])
+
+    optimize(n, api)
+
+    expected_status = [1., 1., 1., 1.]
+
+    equal(n.links_t.status["OCGT"].values, expected_status)
+
+    expected_dispatch = [3200., 5200., 600., 4200.]
+
+    equal(-n.links_t.p1["OCGT"].values, expected_dispatch)
+
+    assert round(n.objective, 1) == 267333.0
