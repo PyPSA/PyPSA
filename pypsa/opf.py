@@ -39,12 +39,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pypsa.descriptors import (
-    allocate_series_dataframes,
-    get_switchable_as_dense,
-    get_switchable_as_iter,
-    zsum,
-)
+from pypsa.descriptors import allocate_series_dataframes
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import get_switchable_as_iter, zsum
 from pypsa.opt import (
     LConstraint,
     LExpression,
@@ -109,8 +106,8 @@ def define_generator_variables_constraints(network, snapshots):
 
     start_i = network.snapshots.get_loc(snapshots[0])
 
-    p_min_pu = get_switchable_as_dense(network, "Generator", "p_min_pu", snapshots)
-    p_max_pu = get_switchable_as_dense(network, "Generator", "p_max_pu", snapshots)
+    p_min_pu = get_as_dense(network, "Generator", "p_min_pu", snapshots)
+    p_max_pu = get_as_dense(network, "Generator", "p_max_pu", snapshots)
 
     ## Define generator dispatch variables ##
 
@@ -689,8 +686,8 @@ def define_storage_variables_constraints(network, snapshots):
 
     ## Define storage dispatch variables ##
 
-    p_max_pu = get_switchable_as_dense(network, "StorageUnit", "p_max_pu", snapshots)
-    p_min_pu = get_switchable_as_dense(network, "StorageUnit", "p_min_pu", snapshots)
+    p_max_pu = get_as_dense(network, "StorageUnit", "p_max_pu", snapshots)
+    p_min_pu = get_as_dense(network, "StorageUnit", "p_min_pu", snapshots)
 
     bounds = {(su, sn): (0, None) for su in ext_sus_i for sn in snapshots}
     bounds.update(
@@ -733,7 +730,7 @@ def define_storage_variables_constraints(network, snapshots):
     free_pyomo_initializers(network.model.storage_p_store)
 
     ## Define spillage variables only for hours with inflow>0. ##
-    inflow = get_switchable_as_dense(network, "StorageUnit", "inflow", snapshots)
+    inflow = get_as_dense(network, "StorageUnit", "inflow", snapshots)
     spill_sus_i = sus.index[inflow.max() > 0]  # skip storage units without any inflow
     inflow_gt0_b = inflow > 0
     spill_bounds = {
@@ -834,9 +831,13 @@ def define_storage_variables_constraints(network, snapshots):
     # store the combinations with a fixed soc
     fixed_soc = {}
 
-    state_of_charge_set = get_switchable_as_dense(
+    state_of_charge_set = get_as_dense(
         network, "StorageUnit", "state_of_charge_set", snapshots
     )
+
+    standing_loss = get_as_dense(network, "StorageUnit", "standing_loss").T
+    eff_dispatch = get_as_dense(network, "StorageUnit", "efficiency_dispatch").T
+    eff_store = get_as_dense(network, "StorageUnit", "efficiency_store").T
 
     for su in sus.index:
         for i, sn in enumerate(snapshots):
@@ -847,13 +848,13 @@ def define_storage_variables_constraints(network, snapshots):
             if i == 0 and not sus.at[su, "cyclic_state_of_charge"]:
                 previous_state_of_charge = sus.at[su, "state_of_charge_initial"]
                 soc[su, sn][2] -= (
-                    1 - sus.at[su, "standing_loss"]
+                    1 - standing_loss.at[su, sn]
                 ) ** elapsed_hours * previous_state_of_charge
             else:
                 previous_state_of_charge = model.state_of_charge[su, snapshots[i - 1]]
                 soc[su, sn][0].append(
                     (
-                        (1 - sus.at[su, "standing_loss"]) ** elapsed_hours,
+                        (1 - standing_loss.at[su, sn]) ** elapsed_hours,
                         previous_state_of_charge,
                     )
                 )
@@ -873,13 +874,13 @@ def define_storage_variables_constraints(network, snapshots):
 
             soc[su, sn][0].append(
                 (
-                    sus.at[su, "efficiency_store"] * elapsed_hours,
+                    eff_store.at[su, sn] * elapsed_hours,
                     model.storage_p_store[su, sn],
                 )
             )
             soc[su, sn][0].append(
                 (
-                    -(1 / sus.at[su, "efficiency_dispatch"]) * elapsed_hours,
+                    -(1 / eff_dispatch.at[su, sn]) * elapsed_hours,
                     model.storage_p_dispatch[su, sn],
                 )
             )
@@ -908,8 +909,8 @@ def define_store_variables_constraints(network, snapshots):
     ext_stores = stores.index[stores.e_nom_extendable]
     fix_stores = stores.index[~stores.e_nom_extendable]
 
-    e_max_pu = get_switchable_as_dense(network, "Store", "e_max_pu", snapshots)
-    e_min_pu = get_switchable_as_dense(network, "Store", "e_min_pu", snapshots)
+    e_max_pu = get_as_dense(network, "Store", "e_max_pu", snapshots)
+    e_min_pu = get_as_dense(network, "Store", "e_min_pu", snapshots)
 
     model = network.model
 
@@ -978,6 +979,8 @@ def define_store_variables_constraints(network, snapshots):
 
     e = {}
 
+    standing_loss = get_as_dense(network, "Store", "standing_loss").T
+
     for store in stores.index:
         for i, sn in enumerate(snapshots):
             e[store, sn] = LConstraint(sense="==")
@@ -989,13 +992,13 @@ def define_store_variables_constraints(network, snapshots):
             if i == 0 and not stores.at[store, "e_cyclic"]:
                 previous_e = stores.at[store, "e_initial"]
                 e[store, sn].lhs.constant += (
-                    1 - stores.at[store, "standing_loss"]
+                    1 - standing_loss.at[store, sn]
                 ) ** elapsed_hours * previous_e
             else:
                 previous_e = model.store_e[store, snapshots[i - 1]]
                 e[store, sn].lhs.variables.append(
                     (
-                        (1 - stores.at[store, "standing_loss"]) ** elapsed_hours,
+                        (1 - standing_loss.at[store, sn]) ** elapsed_hours,
                         previous_e,
                     )
                 )
@@ -1053,8 +1056,8 @@ def define_link_flows(network, snapshots):
 
     fixed_links_i = network.links.index[~network.links.p_nom_extendable]
 
-    p_max_pu = get_switchable_as_dense(network, "Link", "p_max_pu", snapshots)
-    p_min_pu = get_switchable_as_dense(network, "Link", "p_min_pu", snapshots)
+    p_max_pu = get_as_dense(network, "Link", "p_max_pu", snapshots)
+    p_min_pu = get_as_dense(network, "Link", "p_min_pu", snapshots)
 
     fixed_lower = p_min_pu.loc[:, fixed_links_i].multiply(
         network.links.loc[fixed_links_i, "p_nom"]
@@ -1429,7 +1432,7 @@ def define_passive_branch_constraints(network, snapshots):
 
     s_max_pu = pd.concat(
         {
-            c: get_switchable_as_dense(network, c, "s_max_pu", snapshots)
+            c: get_as_dense(network, c, "s_max_pu", snapshots)
             for c in network.passive_branch_components
         },
         axis=1,
@@ -1512,9 +1515,9 @@ def define_nodal_balances(network, snapshots):
         (bus, sn): LExpression() for bus in network.buses.index for sn in snapshots
     }
 
-    efficiency = get_switchable_as_dense(network, "Link", "efficiency", snapshots)
+    efficiency = get_as_dense(network, "Link", "efficiency", snapshots)
 
-    filter = (get_switchable_as_dense(network, "Link", "p_min_pu", snapshots) < 0) & (
+    filter = (get_as_dense(network, "Link", "p_min_pu", snapshots) < 0) & (
         efficiency < 1
     )
     links = filter[filter].dropna(how="all", axis=1)
@@ -1543,9 +1546,7 @@ def define_nodal_balances(network, snapshots):
         for col in network.links.columns
         if col[:3] == "bus" and col not in ["bus0", "bus1"]
     ]:
-        efficiency = get_switchable_as_dense(
-            network, "Link", "efficiency{}".format(i), snapshots
-        )
+        efficiency = get_as_dense(network, "Link", "efficiency{}".format(i), snapshots)
         for cb in network.links.index[network.links["bus{}".format(i)] != ""]:
             bus = network.links.at[cb, "bus{}".format(i)]
             for sn in snapshots:
@@ -1561,7 +1562,7 @@ def define_nodal_balances(network, snapshots):
                 (sign, network.model.generator_p[gen, sn])
             )
 
-    load_p_set = get_switchable_as_dense(network, "Load", "p_set", snapshots)
+    load_p_set = get_as_dense(network, "Load", "p_set", snapshots)
     for load in network.loads.index:
         bus = network.loads.at[load, "bus"]
         sign = network.loads.at[load, "sign"]
@@ -1659,11 +1660,12 @@ def define_global_constraints(network, snapshots):
                     continue
                 # for generators, use the prime mover carrier
                 gens = network.generators.index[network.generators.carrier == carrier]
+                efficiency = get_as_dense(network, "Generator", "efficiency").T
                 c.lhs.variables.extend(
                     [
                         (
                             attribute
-                            * (1 / network.generators.at[gen, "efficiency"])
+                            * (1 / efficiency.at[gen, sn])
                             * network.snapshot_weightings.generators[sn],
                             network.model.generator_p[gen, sn],
                         )
@@ -1927,7 +1929,7 @@ def extract_optimisation_results(
         set_from_series(network.stores_t.e, get_values(model.store_e))
 
     if len(network.loads):
-        load_p_set = get_switchable_as_dense(network, "Load", "p_set", snapshots)
+        load_p_set = get_as_dense(network, "Load", "p_set", snapshots)
         network.loads_t["p"].loc[snapshots] = load_p_set.loc[snapshots]
 
     if len(network.buses):
@@ -1965,7 +1967,7 @@ def extract_optimisation_results(
     if len(network.links):
         set_from_series(network.links_t.p0, get_values(model.link_p))
 
-        efficiency = get_switchable_as_dense(network, "Link", "efficiency", snapshots)
+        efficiency = get_as_dense(network, "Link", "efficiency", snapshots)
 
         network.links_t.p1.loc[snapshots] = (
             -network.links_t.p0.loc[snapshots] * efficiency.loc[snapshots]
@@ -1991,7 +1993,7 @@ def extract_optimisation_results(
             for col in network.links.columns
             if col[:3] == "bus" and col not in ["bus0", "bus1"]
         ]:
-            efficiency = get_switchable_as_dense(
+            efficiency = get_as_dense(
                 network, "Link", "efficiency{}".format(i), snapshots
             )
             p_name = "p{}".format(i)
