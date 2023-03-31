@@ -19,7 +19,7 @@ Overview
 
 * It is assumed that the load is inelastic and must be met in every snapshot (this will be relaxed in future versions).
 
-* The optimisation currently uses continuous variables for most functionality; unit commitment with binary variables is also implemented for generators.
+* The optimisation currently uses continuous variables for most functionality; unit commitment with binary variables is also implemented for generators and links.
 
 * The objective function is the total system cost for the snapshots optimised.
 
@@ -188,25 +188,25 @@ installable nominal power may also be introduced, e.g.
 
 .. _unit-commitment:
 
-Generator unit commitment constraints
--------------------------------------
+Unit commitment constraints for generators and links
+-----------------------------------------------------
 
-.. important:: Unit commitment constraints will only be build fully if pyomo is set to True. If pyomo is set to False a simplified version of the unit commitment is calculated by ignoring the parameters `min_up_time`, `min_down_time`, `start_up_cost`, `shut_down_cost`, `up_time_before` and `down_time_before`.
+.. important:: Unit commitment constraints will only be build fully for ``n.lopf(pyomo=True)`` or ``n.optimize()``. With ``n.lopf(pyomo=False)`` only a simplified version of the unit commitment is calculated by ignoring the parameters ``min_up_time``, ``min_down_time``, ``start_up_cost``, ``shut_down_cost``, ``up_time_before`` and ``down_time_before``.
 
 The implementation is a complete implementation of the unit commitment constraints defined in Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by Joshua Adam Taylor (CUP, 2015).
 
 
-Unit commitment can be turned on for any generator by setting ``committable`` to be ``True``. This introduces a
+Unit commitment can be turned on for any generator or link by setting ``committable`` to be ``True``. This introduces a
 times series of new binary status variables :math:`u_{n,s,t} \in \{0,1\}`, saved in ``network.generators_t.status``,
-which indicates whether the generator is running (1) or not (0) in
-period :math:`t`. The restrictions on generator output now become:
+which indicates whether the generator/link is running (1) or not (0) in
+period :math:`t`. The restrictions on generator/link  output now become:
 
 .. math::
    u_{n,s,t}*\tilde{g}_{n,s,t}*\bar{g}_{n,s} \leq g_{n,s,t} \leq   u_{n,s,t}*\bar{g}_{n,s,t}*\bar{g}_{n,s} \hspace{.5cm} \forall\, n,s,t
 
 so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
 
-Note that a generator cannot be both extendable (``generator.p_nom_extendable == True``) and committable (``generator.committable == True``) because of the coupling of the variables :math:`u_{n,s,t}`
+Note that a generator/link cannot be both extendable (``generator.p_nom_extendable == True``) and committable (``generator.committable == True``) because of the coupling of the variables :math:`u_{n,s,t}`
 and :math:`\bar{g}_{n,s}` here.
 
 If the minimum up time :math:`T_{\textrm{min_up}}` (``generator.min_up_time``) is set then we have for generic times
@@ -214,9 +214,9 @@ If the minimum up time :math:`T_{\textrm{min_up}}` (``generator.min_up_time``) i
 .. math::
    \sum_{t'=t}^{t+T_\textrm{min_up}} u_{n,s,t'}\geq T_\textrm{min_up} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
 
-i.e. if the generator has just started up at time :math:`t` then :math:`u_{n,s,t-1} = 0`, :math:`u_{n,s,t} = 1` and :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, so that it has to run for at least :math:`T_{\textrm{min_up}}` periods.
+i.e. if the generator/link has just started up at time :math:`t` then :math:`u_{n,s,t-1} = 0`, :math:`u_{n,s,t} = 1` and :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, so that it has to run for at least :math:`T_{\textrm{min_up}}` periods.
 
-The generator may have been up for some periods before the ``snapshots`` simulation period. If the up-time before ``snapshots`` starts is less than the minimum up-time, then the generator is forced to be up for the difference at the start of ``snapshots``. If the start of ``snapshots`` is the start of ``network.snapshots``, then the up-time before the simulation is read from the input variable ``generator.up_time_before``.  If ``snapshots`` falls in the middle of ``network.snapshots``, then PyPSA assumes the statuses for hours before ``snapshots`` have been set by previous simulations, and reads back the previous up-time by examining the previous statuses. If the start of ``snapshots`` is very close to the start of ``network.snapshots``, it will also take account of ``generator.up_time_before`` as well as the statuses in between.
+The generator/link may have been up for some periods before the ``snapshots`` simulation period. If the up-time before ``snapshots`` starts is less than the minimum up-time, then the generator/link  is forced to be up for the difference at the start of ``snapshots``. If the start of ``snapshots`` is the start of ``network.snapshots``, then the up-time before the simulation is read from the input variable ``generator.up_time_before``.  If ``snapshots`` falls in the middle of ``network.snapshots``, then PyPSA assumes the statuses for hours before ``snapshots`` have been set by previous simulations, and reads back the previous up-time by examining the previous statuses. If the start of ``snapshots`` is very close to the start of ``network.snapshots``, it will also take account of ``generator.up_time_before`` as well as the statuses in between.
 
 
 At the end of ``snapshots`` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than :math:`T_{\textrm{min_up}}`.
@@ -234,7 +234,7 @@ For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} 
 .. math::
    suc_{n,s,t} \geq suc_{n,s} (u_{n,s,t} - u_{n,s,t-1})   \hspace{.5cm} \forall\, n,s,t
 
-so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the generator has just started, in which case the inequality is saturated :math:`suc_{n,s,t} = suc_{n,s}`. Similarly for the shut down costs :math:`sdc_{n,s,t} \geq 0` we have
+so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the generator/link  has just started, in which case the inequality is saturated :math:`suc_{n,s,t} = suc_{n,s}`. Similarly for the shut down costs :math:`sdc_{n,s,t} \geq 0` we have
 
 .. math::
    sdc_{n,s,t} \geq sdc_{n,s} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
@@ -244,13 +244,13 @@ so that it is only non-zero if :math:`u_{n,s,t} - u_{n,s,t-1} = 1`, i.e. the gen
 
 .. _ramping:
 
-Generator ramping constraints
------------------------------
+Ramping constraints for generators and links
+--------------------------------------------
 
 The implementation follows Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by
 Joshua Adam Taylor (CUP, 2015).
 
-Ramp rate limits can be defined for increasing power output
+Ramp rate limits can be defined for generators and links for increasing power output
 :math:`ru_{n,s}` and decreasing power output :math:`rd_{n,s}`. By
 default these are null and ignored. They should be given per unit of
 the generator nominal power. The generator dispatch then obeys
@@ -260,7 +260,7 @@ the generator nominal power. The generator dispatch then obeys
 
 for :math:`t \in \{1,\dots |T|-1\}`.
 
-For generators with unit commitment you can also specify ramp limits
+For generators/links with unit commitment you can also specify ramp limits
 at start-up :math:`rusu_{n,s}` and shut-down :math:`rdsd_{n,s}`
 
 .. math::
