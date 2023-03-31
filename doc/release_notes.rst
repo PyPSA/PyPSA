@@ -21,6 +21,8 @@ Upcoming Release
 
 * Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
 
+* Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
+
 
 PyPSA 0.22.1 (15th February 2023)
 =================================
