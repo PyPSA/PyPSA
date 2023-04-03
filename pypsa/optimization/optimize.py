@@ -414,6 +414,8 @@ def optimize(
     linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
+    solver_name="glpk",
+    solver_options={},
     **kwargs,
 ):
     """
@@ -438,6 +440,10 @@ def optimize(
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    solver_name : str
+        Name of the solver to use.
+    solver_options : dict
+        Keyword arguments used by the solver. Can also be passed via **kwargs.
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
@@ -457,8 +463,7 @@ def optimize(
     )
     if extra_functionality:
         extra_functionality(n, sns)
-    kwargs.setdefault("solver_name", "glpk")
-    status, condition = m.solve(**kwargs)
+    status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
     if status == "ok":
         assign_solution(n)
@@ -484,20 +489,23 @@ class OptimizationAccessor:
     def create_model(self, *args, **kwargs):
         return create_model(self._parent, *args, **kwargs)
 
-    def solve_model(self, **kwargs):
+    def solve_model(self, solver_name="glpk", solver_options={}, **kwargs):
         """
         Solve an already created model and assign its solution to the network.
 
         Parameters
         ----------
+        solver_name : str
+            Name of the solver to use.
+        solver_options : dict
+            Keyword arguments used by the solver. Can also be passed via **kwargs.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
         """
         n = self._parent
         m = n.model
-        kwargs.setdefault("solver_name", "glpk")
-        status, condition = m.solve(**kwargs)
+        status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
         if status == "ok":
             assign_solution(n)
