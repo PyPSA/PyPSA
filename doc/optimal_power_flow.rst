@@ -21,9 +21,9 @@ Overview
 
 * This set-up can also be used for stochastic optimisation, if you interpret the weighting as a probability.
 
-* `Line` components have no marginal costs, only capital costs. They are bound to both the Kirchhoff-Voltage-Law (KVL) and Kirchhoff-Circuit-Law (KCL).
+* Passive branch components like `Line` and `Transformer` have no marginal costs, only capital costs. They are bound to both the Kirchhoff-Voltage-Law (KVL) and Kirchhoff-Circuit-Law (KCL).
 
-* `Generator`, `Link`, `Store` and `StorageUnit` components have a capital cost and a marginal cost. `Link` components can also have a controllable power flow and follow only the KCL.
+* The components `Generator`, `Link`, `Store` and `StorageUnit` components have a capital cost and a marginal cost.
 
 * Additional pre-defined constraints can be added to the optimisation problem via `GlobalConstraint` components.
 
@@ -34,14 +34,11 @@ Execute:
 
 .. code:: python
 
-    n.optimize(n.snapshots, solver_name="glpk",
-               extra_functionality=None, **solver_options)
+    n.optimize(n.snapshots, solver_name="glpk", solver_options={})
 
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a string,
-e.g. "gurobi" or "glpk", ``solver_io`` is a string, ``extra_functionality`` is a
-function of network and snapshots that is called before the solver (see below),
-``solver_options`` is a dictionary of flags to
+e.g. "gurobi" or "glpk", ``solver_io`` is a string, ``solver_options`` is a dictionary of flags to
 pass to the solver.
 
 
@@ -606,6 +603,8 @@ Once you have added your custom constraints to the Linopy model, use the `n.opti
   >>> n.optimize.solve_model()
 
 By following this workflow, you can create and modify optimization problems with custom constraints that better represent your specific requirements and scenarios using PyPSA and Linopy.
+
+Note that alternatively the `extra_functionality` argument can be used in the `optimize` function to add custom functions to the optimization problem. The function is called after the model is created and before it is solved. It takes the network and the snapshots as arguments. However, for ease of use, we recommend using the workflow described above.
 
 Further examples can be found in the examples section of the PyPSA documentation and in the `Linopy documentation <https://linopy.readthedocs.io/en/latest/>`_.
 
