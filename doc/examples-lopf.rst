@@ -3,20 +3,16 @@ Power System Optimization
 #########################
 
 
-This section provides examples related to network optimization with PyPSA. Note that PyPSA allows for optimising networks in three ways, first using the ``pyomo`` interface and second using the in-home implementation (which is way faster and memory-efficient). The third one is the new Linopy based implementation, which was inspired by the in-house optimization code. We are *slowly* moving towards using the linopy implementation only.
+This section contains examples of network optimization with PyPSA. PyPSA allows you to optimize networks in three ways: with `Linopy <https://linopy.readthedocs.io>`_, with `Pyomo <http://www.pyomo.org/>`_, and based on `custom code <https://github.com/PyPSA/PyPSA/blob/v0.22.1/pypsa/linopt.py>`_. The new default optimization framework is based on Linopy. In earlier versions, PyPSA used the ``pyomo`` interface and an in-house implementation, both available through the ``n.lopf()`` function. The previous options are still available but will be deprecated in the future. The following examples all use the Linopy-based implementation.
+
 
 .. toctree::
     :maxdepth: 1
-    :caption: No Pyomo
 
+    examples/optimization-with-linopy.ipynb
     examples/lopf_with_pyomo_False.ipynb
     examples/capacity-constraint-per-bus.ipynb
     examples/multi-investment-optimisation.ipynb
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Pyomo
-
     examples/chained-hydro-reservoirs.ipynb
     examples/generation-investment-screening-curve.ipynb
     examples/scigrid-lopf-then-pf.ipynb
@@ -25,10 +21,4 @@ This section provides examples related to network optimization with PyPSA. Note 
     examples/simple-electricity-market-examples.ipynb
     examples/transformer_example.ipynb
     examples/unit-commitment.ipynb
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Linopy
-
-    examples/optimization-with-linopy.ipynb
     examples/optimization-with-linopy-migrate-extra-functionalities.ipynb
