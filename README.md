@@ -61,7 +61,7 @@ It has models for:
     between AC and DC networks
 -   standard types for lines and transformers following the implementation in
     [pandapower](https://www.pandapower.org/)
--   conventional dispatchable generators with unit commitment
+-   conventional dispatchable generators and links with unit commitment
 -   generators with time-varying power availability, such as wind and solar
     generators
 -   storage units with efficiency losses

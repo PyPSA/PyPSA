@@ -106,7 +106,7 @@ def define_objective(n, sns):
     for c, attr in lookup.query("marginal_cost").index:
         cost = (
             get_as_dense(n, c, "marginal_cost", sns)
-            .loc[:, lambda ds: (ds != 0).all()]
+            .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
         if cost.empty:
@@ -373,7 +373,9 @@ def post_processing(n):
     for i in additional_linkports(n):
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
-    sign = lambda c: n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+    def sign(c):
+        return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+
     n.buses_t.p = (
         pd.concat(
             [
