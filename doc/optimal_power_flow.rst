@@ -384,17 +384,10 @@ This flow is the limited by the capacity :math:``F_l`` of the line
 Passive branch flow formulations
 --------------------------------
 
-
-
-PyPSA implements four formulations of the linear power flow equations
-that are mathematically equivalent, but may have different
-solving times. These different formulations are described and
-benchmarked in the arXiv preprint paper `Linear Optimal Power Flow Using
-Cycle Flows <https://arxiv.org/abs/1704.01881>`_.
-
-You can choose the formulation by passing ``network.lopf`` the
-argument ``formulation``, which must be in
-``["angles","cycles","kirchhoff","ptdf"]``.
+As described in `Linear Optimal Power Flow Using
+Cycle Flows <https://www.sciencedirect.com/science/article/abs/pii/S0378779617305138>`_, there are
+different power flow formulations that are mathematically equivalent, but may have different
+solving times:
 
 * ``angles`` is the standard formulations based on voltage angles described above, used for the linear power flow and found in textbooks.
 
@@ -402,12 +395,10 @@ argument ``formulation``, which must be in
 
 * ``kirchhoff`` and ``cycles`` are two new formulations based on a graph-theoretic decomposition of the network flows into a spanning tree and closed cycles.
 
-Based on the benchmarking in `Linear Optimal Power Flow Using Cycle
-Flows <https://arxiv.org/abs/1704.01881>`_ for standard networks,
-``kirchhoff`` almost always solves fastest, averaging 3 times faster
+As benchmarked in the paper, the ``kirchhoff`` formulation almost always solves fastest, averaging 3 times faster
 than the ``angles`` formulation and up to 20 times faster in specific
 cases. The speedup is higher for larger networks with dispatchable
-generators at most nodes.
+generators at most nodes. Therefore, the latest optimization formulation in PyPSA is only providing the ``kirchhoff`` formulation.
 
 
 .. _opf-links:
