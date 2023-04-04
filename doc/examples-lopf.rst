@@ -10,7 +10,6 @@ This section contains examples of network optimization with PyPSA. PyPSA allows 
     :maxdepth: 1
 
     examples/optimization-with-linopy.ipynb
-    examples/lopf_with_pyomo_False.ipynb
     examples/capacity-constraint-per-bus.ipynb
     examples/multi-investment-optimisation.ipynb
     examples/chained-hydro-reservoirs.ipynb
