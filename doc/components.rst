@@ -49,7 +49,7 @@ Network
 =======
 
 The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.lopf()`` and
+has the major functions as methods, such as ``network.optimize()`` and
 ``network.pf()``.
 
 .. csv-table::
@@ -160,7 +160,7 @@ Generators attach to a single bus and can feed in power. It converts
 energy from its ``carrier`` to the carrier-type of the bus to which it
 is attached.
 
-In the LOPF the limits which a generator can output are set by
+In the linear optimal power flow (LOPF) the limits which a generator can output are set by
 ``p_nom*p_max_pu`` and ``p_nom*p_min_pu``, i.e. by limits defined per
 unit of the nominal power ``p_nom``.
 
@@ -513,5 +513,5 @@ standard components.
 
 There are examples for defining new components in the git repository
 in ``examples/new_components/``, including an example of
-overriding e.g. ``network.lopf()`` for functionality for
+overriding e.g. ``network.optimize()`` for functionality for
 combined-heat-and-power (CHP) plants.

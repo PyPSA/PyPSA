@@ -93,7 +93,7 @@ It leans heavily on the following Python packages:
 * `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
 * `networkx <https://networkx.github.io/>`_ for some network calculations
-* `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `linopy <https://github.com/PyPSA/linopy>`_ for preparing optimisation problems (currently only linear and mixed-integer linear)
 * `pytest <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 
