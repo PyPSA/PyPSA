@@ -351,7 +351,7 @@ def get_buses_linemap_and_lines(
     lines, linemap_p, linemap_n, linemap, lines_t = aggregatelines(
         network, buses, interlines, line_length_factor, with_time
     )
-
+    # network can be reduced to a set of isolated nodes in course of clustering (e.g. Rwanda)
     if lines.empty:
         lines_res = (
             lines.drop(columns=["bus0", "bus1"])
@@ -368,8 +368,6 @@ def get_buses_linemap_and_lines(
         linemap,
         linemap_p,
         linemap_n,
-        #lines.reset_index()
-        #.rename(columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False)
         lines_res.set_index("name"),
         lines_t,
     )

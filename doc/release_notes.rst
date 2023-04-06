@@ -29,6 +29,7 @@ Upcoming Release
 
 * Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
 
+* Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering 
 
 PyPSA 0.22.1 (15th February 2023)
 =================================
