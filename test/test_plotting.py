@@ -17,11 +17,10 @@ import pytest
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
 
 try:
-    import cartopy
     import cartopy.crs as ccrs
 
     cartopy_present = True
-except ImportError as e:
+except ImportError:
     cartopy_present = False
 
 

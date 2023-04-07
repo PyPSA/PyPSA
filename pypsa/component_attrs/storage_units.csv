@@ -23,9 +23,9 @@ state_of_charge_set,static or series,MWh,NaN,State of charge set points for snap
 cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then state_of_charge_initial is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the OPF (soc[-1] = soc[len(snapshots)-1]).",Input (optional)
 cyclic_state_of_charge_per_period,boolean,n/a,True,"Switch: if True, then the cyclic constraints are applied to each period (first snapshot level if multiindexed) separately.",Input (optional)
 max_hours,float,hours,1,Maximum state of charge capacity in terms of hours at full output capacity p_nom,Input (optional)
-efficiency_store,float,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
-efficiency_dispatch,float,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
-standing_loss,float,per unit,0,Losses per hour to state of charge.,Input (optional)
+efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
+efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
+standing_loss,static or series,per unit,0,Losses per hour to state of charge.,Input (optional)
 inflow,static or series,MW,0,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir.",Input (optional)
 p,series,MW,0,active power at bus (positive if net generation),Output
 p_dispatch,series,MW,0,active power dispatch at bus,Output

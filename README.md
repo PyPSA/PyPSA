@@ -61,7 +61,7 @@ It has models for:
     between AC and DC networks
 -   standard types for lines and transformers following the implementation in
     [pandapower](https://www.pandapower.org/)
--   conventional dispatchable generators with unit commitment
+-   conventional dispatchable generators and links with unit commitment
 -   generators with time-varying power availability, such as wind and solar
     generators
 -   storage units with efficiency losses
@@ -110,7 +110,7 @@ n.add("Generator", "mygen", bus="mybus", p_nom=100, marginal_cost=20)
 n = pypsa.examples.ac_dc_meshed()
 
 # run the optimisation
-n.lopf()
+n.optimize()
 
 # plot results
 n.generators_t.p.plot()
@@ -152,15 +152,15 @@ It leans heavily on the following Python packages:
 -   [networkx](https://networkx.github.io/) for some network
     calculations
 -   [matplotlib](https://matplotlib.org/) for static plotting
--   [pyomo](http://www.pyomo.org/) for preparing optimisation problems
-    (currently only linear)
+-   [linpy](https://github.com/PyPSA/linopy) for preparing optimisation problems
+    (currently only linear and mixed integer linear optimisation)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
 -   [pytest](http://pytest.org/) for unit testing
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
-The optimisation uses interface libraries like `pyomo` which are
+The optimisation uses interface libraries like `linopy` which are
 independent of the preferred solver. You can use e.g. one of the free
 solvers [GLPK](https://www.gnu.org/software/glpk/) and
 [CLP/CBC](https://github.com/coin-or/Cbc/) or the commercial solver

@@ -14,12 +14,22 @@ Upcoming Release
 
 * Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
 
+* Efficiencies and standing losses of stores, storage units and generators can
+  now be specified as time-varying attributes (``efficiency``,
+  ``efficiency_dispatch``, ``efficiency_store``, ``standing_loss``). For
+  example, this allows specifying temperature-dependent generator efficiencies
+  or evaporation in hydro reservoirs.
+
 * The attributes ``lifetime`` and ``build_year`` are now aggregated with a
   capacity-weighted mean when clustering the network. Previously, these
   attributes had to carry identical values for components that were to be
   merged.
 
 * Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
+
+* Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
+
+* To enable better backwards compatibility with the `lopf` function, the ``Network.optimize`` functions has now the explicit keyword argument ``solver_options``. It takes a dictionary of options passed to the solver. Before, these were passed as keyword arguments to the ``Network.optimize`` function. Note that both functionalities are supported.
 
 
 PyPSA 0.22.1 (15th February 2023)

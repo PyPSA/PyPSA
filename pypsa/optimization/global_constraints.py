@@ -9,9 +9,10 @@ import re
 
 import pandas as pd
 from linopy.expressions import merge
-from numpy import isnan, nan
+from numpy import isnan
 from xarray import DataArray
 
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
@@ -268,9 +269,9 @@ def define_primary_energy_limit(n, sns):
         # generators
         gens = n.generators.query("carrier in @emissions.index")
         if not gens.empty:
-            w = weightings["generators"].to_frame("weight")
-            em_pu = (gens.carrier.map(emissions) / gens.efficiency).to_frame("weight")
-            em_pu = w @ em_pu.T
+            efficiency = get_as_dense(n, "Generator", "efficiency", inds=gens.index)
+            em_pu = gens.carrier.map(emissions) / efficiency
+            em_pu = em_pu.multiply(weightings.generators, axis=0)
             p = m["Generator-p"].loc[snapshots, gens.index]
             expr = (p * em_pu).sum()
             lhs.append(expr)
@@ -322,7 +323,8 @@ def define_transmission_volume_expansion_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
 
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
 
     lhs = []
     for name, glc in glcs.iterrows():
@@ -377,7 +379,8 @@ def define_transmission_expansion_cost_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
 
-    substr = lambda s: re.sub(r"[\[\]\(\)]", "", s)
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
 
     lhs = []
     for name, glc in glcs.iterrows():

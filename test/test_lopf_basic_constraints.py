@@ -38,10 +38,10 @@ def describe_storage_unit_contraints(n):
 
     description = {}
 
-    eh = expand_series(n.snapshot_weightings.stores, sus_i)
-    stand_eff = expand_series(1 - n.df(c).standing_loss, sns).T.pow(eh)
-    dispatch_eff = expand_series(n.df(c).efficiency_dispatch, sns).T
-    store_eff = expand_series(n.df(c).efficiency_store, sns).T
+    eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
+    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
+    store_eff = get_as_dense(n, c, "efficiency_store", sns)
     inflow = get_as_dense(n, c, "inflow") * eh
     spill = eh[pnl.spill.columns] * pnl.spill
 
@@ -161,8 +161,8 @@ def describe_store_contraints(n):
     c = "Store"
     pnl = n.pnl(c)
 
-    eh = expand_series(n.snapshot_weightings.stores, stores_i)
-    stand_eff = expand_series(1 - n.df(c).standing_loss, sns).T.pow(eh)
+    eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)
+    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
     start = pnl.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
     previous_e = stand_eff * pnl.e.shift().fillna(start)
