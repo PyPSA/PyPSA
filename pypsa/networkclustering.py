@@ -354,13 +354,13 @@ def get_buses_linemap_and_lines(
     # network can be reduced to a set of isolated nodes in course of clustering (e.g. Rwanda)
     if lines.empty:
         lines_res = (
-            lines.drop(columns=["bus0", "bus1"])
-            .rename(columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False)
+            lines.drop(columns=["bus0_s", "bus1_s"])     
             .reset_index(drop=True)
         )
     else:
-        lines_res = lines.reset_index().rename(
-            columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False
+        lines_res = (
+            lines.reset_index()
+            .rename(columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False)
         )
     return (
         buses,
