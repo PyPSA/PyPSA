@@ -144,6 +144,19 @@ def define_objective(n, sns):
             var = m[f"{c}-{attr}"]
             objective.append((var * cost).sum())
 
+    # marginal cost on energy storage for Stores
+    if not n.stores.empty:
+        e_marginal_cost = n.stores.e_marginal_cost
+        var = m["Store-e"]
+        objective.append((var * e_marginal_cost).sum())
+    
+    # marginal cost on energy storage for StorageUnits
+    if not n.storage_units.empty:
+        state_of_charge_marginal_cost = n.storage_units.state_of_charge_marginal_cost
+        var = m["StorageUnit-state_of_charge"]
+        objective.append((var * state_of_charge_marginal_cost).sum())
+
+
     if not len(objective):
         raise ValueError(
             "Objective function could not be created. "
