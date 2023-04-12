@@ -22,8 +22,7 @@ def test_mremove(ac_dc_network):
     WHEN    two components of Generator are removed with mremove
 
     THEN    the generator dataframe and the time-dependent generator
-    dataframe
-    should not contain the removed elements.
+    dataframe should not contain the removed elements.
     """
     network = ac_dc_network
 
@@ -42,8 +41,7 @@ def test_mremove_misspelled_component(ac_dc_network, caplog):
     WHEN    a misspelled component is removed with mremove
 
     THEN    the function should not change anything in the Line
-    component
-    dataframe and an error should be logged.
+    component dataframe and an error should be logged.
     """
     network = ac_dc_network
 
@@ -60,12 +58,10 @@ def test_madd_static(empty_network_5_buses):
     GIVEN   an empty PyPSA network with 5 buses.
 
     WHEN    multiple components of Load are added to the network with
-    madd and
-    attribute p_set
+    madd and attribute p_set
 
     THEN    the corresponding load components should be in the index of
-    the
-    static load dataframe. Also the column p_set should contain any
+    the static load dataframe. Also the column p_set should contain any
     value greater than 0.
     """
     buses = empty_network_5_buses.buses.index
@@ -88,12 +84,10 @@ def test_madd_t(empty_network_5_buses):
     GIVEN   an empty PyPSA network with 5 buses and 7 snapshots.
 
     WHEN    multiple components of Load are added to the network with
-    madd and
-    attribute p_set
+    madd and attribute p_set
 
     THEN    the corresponding load components should be in the columns
-    of the
-    time-dependent load_t dataframe. Also, the shape of the
+    of the time-dependent load_t dataframe. Also, the shape of the
     dataframe should resemble 7 snapshots x 5 buses.
     """
     # Set up empty network with 5 buses and 7 snapshots.
@@ -121,8 +115,7 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     WHEN    multiple components of a misspelled component are added
 
     THEN    the function should not change anything and an error should
-    be
-    logged.
+    be logged.
     """
     misspelled_component = "Generatro"
     empty_network_5_buses.madd(
@@ -196,8 +189,7 @@ def test_copy_default_behavior(ac_dc_network):
     WHEN    copying the network with timestamps
 
     THEN    the copied network should have the same generators, loads
-    and
-    timestamps.
+    and timestamps.
     """
     snapshot = ac_dc_network.snapshots[2]
     copied_network = ac_dc_network.copy()
