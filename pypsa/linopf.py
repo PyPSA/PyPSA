@@ -1463,7 +1463,7 @@ def network_lopf(
     if formulation != "kirchhoff":
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
-    if n.generators.committable.any():
+    if n.generators.committable.any() or n.links.committable.any():
         logger.warning(
             "Unit commitment is not yet completely implemented for "
             "optimising without pyomo. Thus minimum up time, minimum down time, "
