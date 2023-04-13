@@ -112,7 +112,9 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
     """
     ext_i = get_extendable_i(n, c)
     if c in {"Generator", "Link"}:
-        ext_i = ext_i.union(getattr(n, n.components[c]["list_name"]).query("committable").index)
+        ext_i = ext_i.union(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if ext_i.empty:
         return
     active = get_activity_mask(n, c, sns)[ext_i] if n._multi_invest else None
@@ -134,7 +136,9 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     """
     fix_i = get_non_extendable_i(n, c)
     if c in {"Generator", "Link"}:
-        fix_i = fix_i.difference(getattr(n, n.components[c]["list_name"]).query("committable").index)
+        fix_i = fix_i.difference(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if fix_i.empty:
         return
     nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
