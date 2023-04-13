@@ -39,6 +39,10 @@ Upcoming Release
 
 * Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
 
+* To enable better backwards compatibility with the `lopf` function, the ``Network.optimize`` functions has now the explicit keyword argument ``solver_options``. It takes a dictionary of options passed to the solver. Before, these were passed as keyword arguments to the ``Network.optimize`` function. Note that both functionalities are supported.
+
+* Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering. Previously, an empty ``Line`` component has lead to problems when processing empty lines-related dataframes. That has been fixed by introducing special treatment in case a lines dataframe is empty.
+
 
 
 PyPSA 0.22.1 (15th February 2023)

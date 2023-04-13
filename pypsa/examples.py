@@ -14,8 +14,6 @@ __copyright__ = (
 )
 
 import logging
-import os
-from pathlib import Path
 from urllib.request import urlretrieve
 
 import pandas as pd

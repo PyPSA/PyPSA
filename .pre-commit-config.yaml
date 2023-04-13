@@ -34,14 +34,14 @@ repos:
 
 # Make docstrings PEP 257 compliant
 - repo: https://github.com/PyCQA/docformatter
-  rev: v1.5.1
+  rev: v1.6.0
   hooks:
   - id: docformatter
     args: ['--in-place', '--make-summary-multi-line', '--pre-summary-newline']
 
 # Formatting with "black" coding style
 - repo: https://github.com/psf/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
   # Format Python files
   - id: black
