@@ -29,7 +29,8 @@ from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, eye
 from scipy.sparse import hstack as shstack
 from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
-from scipy.sparse.linalg import spsolve, inv as spinv
+from scipy.sparse.linalg import inv as spinv
+from scipy.sparse.linalg import spsolve
 
 from pypsa.descriptors import Dict, allocate_series_dataframes, degree
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -1211,18 +1212,19 @@ def calculate_PTDF(sub_network, skip_pre=False):
     # calculate inverse of B with slack removed
 
     n_pvpq = len(sub_network.pvpqs)
-    #index = np.r_[:n_pvpq]
-    #I = csc_matrix((np.ones(n_pvpq), (index, index)))
-    #I = eye(n_pvpq)
+    # index = np.r_[:n_pvpq]
+    # I = csc_matrix((np.ones(n_pvpq), (index, index)))
+    # I = eye(n_pvpq)
 
-    #B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
+    # B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
 
     # I noticed the inversion has issues with very small impedances, which can easily arise from artificial ac lines; very short lines and so forth.
     # Possibly upscaling of very small impedances would also help. The place to do this is probably the B and H calculation function.
     # for now:
     if sub_network.B[1:, 1:].max() > 1e9:
-        logger.warning('Large numbers in the B matrix detected - this could stem from very small impedances. Raising those could help (increase length if line type is set).')
-
+        logger.warning(
+            "Large numbers in the B matrix detected - this could stem from very small impedances. Raising those could help (increase length if line type is set)."
+        )
 
     B_inverse = spinv(csc_matrix(sub_network.B[1:, 1:]))
 
@@ -1236,7 +1238,11 @@ def calculate_PTDF(sub_network, skip_pre=False):
     B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
     B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
 
-    sub_network.PTDF = pd.DataFrame(data=sub_network.H * B_inverse, index=sub_network.branches_i(), columns=sub_network.buses_i())
+    sub_network.PTDF = pd.DataFrame(
+        data=sub_network.H * B_inverse,
+        index=sub_network.branches_i(),
+        columns=sub_network.buses_i(),
+    )
 
 
 def calculate_Y(sub_network, skip_pre=False):
