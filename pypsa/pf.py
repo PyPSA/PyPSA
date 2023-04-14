@@ -1179,6 +1179,9 @@ def calculate_B_H(sub_network, skip_pre=False):
     # weighted Laplacian
     sub_network.B = sub_network.K * sub_network.H
 
+    if sub_network.B.max() >= 1e9:
+        logger.warning('Large numbers in the B matrix detected - this could stem from very small impedances. Raising those could help (increase length if line type is set).')
+
     phase_shift = np.concatenate(
         [
             (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
@@ -1211,18 +1214,8 @@ def calculate_PTDF(sub_network, skip_pre=False):
     # calculate inverse of B with slack removed
 
     n_pvpq = len(sub_network.pvpqs)
-    #index = np.r_[:n_pvpq]
-    #I = csc_matrix((np.ones(n_pvpq), (index, index)))
     #I = eye(n_pvpq)
-
     #B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
-
-    # I noticed the inversion has issues with very small impedances, which can easily arise from artificial ac lines; very short lines and so forth.
-    # Possibly upscaling of very small impedances would also help. The place to do this is probably the B and H calculation function.
-    # for now:
-    if sub_network.B[1:, 1:].max() > 1e9:
-        logger.warning('Large numbers in the B matrix detected - this could stem from very small impedances. Raising those could help (increase length if line type is set).')
-
 
     B_inverse = spinv(csc_matrix(sub_network.B[1:, 1:]))
 

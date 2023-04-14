@@ -61,7 +61,7 @@ def calculate_BODF(sub_network, skip_pre=False):
     num_branches = sub_network.PTDF.shape[0]
 
     # build LxL version of PTDF
-    branch_PTDF = sub_network.PTDF * sub_network.K
+    branch_PTDF = sub_network.PTDF.to_numpy() * sub_network.K
 
     with np.errstate(divide="ignore"):
         denominator = csr_matrix(
