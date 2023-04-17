@@ -1164,7 +1164,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # susceptances
     b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
-    if np.isnan(b).any():
+    if np.isnan(b.astype(float)).any():
         logger.warning(
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
@@ -1177,9 +1177,6 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # weighted Laplacian
     sub_network.B = sub_network.K * sub_network.H
-
-    if sub_network.B.max() >= 1e9:
-        logger.warning('Large numbers in the B matrix detected - this could stem from very small impedances. Raising those could help (increase length if line type is set).')
 
     phase_shift = np.concatenate(
         [
