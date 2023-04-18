@@ -67,12 +67,13 @@ def calculate_BODF(sub_network, skip_pre=False):
     with np.errstate(divide="ignore"):
         denominator = diags(1 / (1 - np.diag(branch_PTDF)))
 
-
     # make sure the flow on the branch itself is zero
     BODF = np.fill_diagonal(branch_PTDF * denominator, -1)
 
-    sub_network.BODF = pd.DataFrame(data=BODF, index=sub_network.branches_i(), columns=sub_network.branches_i())
-    sub_network.BODF.columns.name = 'contingency'
+    sub_network.BODF = pd.DataFrame(
+        data=BODF, index=sub_network.branches_i(), columns=sub_network.branches_i()
+    )
+    sub_network.BODF.columns.name = "contingency"
 
 
 def network_lpf_contingency(network, snapshots=None, branch_outages=None):

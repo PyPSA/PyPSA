@@ -29,7 +29,8 @@ from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, eye, diags
 from scipy.sparse import hstack as shstack
 from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
-from scipy.sparse.linalg import spsolve, inv as spinv
+from scipy.sparse.linalg import inv as spinv
+from scipy.sparse.linalg import spsolve
 
 from pypsa.descriptors import Dict, allocate_series_dataframes, degree
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
