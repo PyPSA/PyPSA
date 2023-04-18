@@ -14,7 +14,7 @@ __copyright__ = (
 import logging
 
 from numpy import r_
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, diags
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +60,11 @@ def calculate_BODF(sub_network, skip_pre=False):
     num_branches = sub_network.PTDF.shape[0]
 
     # build LxL version of PTDF
+    # relying on consistent ordering of indexes:
     branch_PTDF = sub_network.PTDF.to_numpy() * sub_network.K
 
     with np.errstate(divide="ignore"):
-        denominator = csr_matrix(
-            (1 / (1 - np.diag(branch_PTDF)), (r_[:num_branches], r_[:num_branches]))
-        )
+        denominator = diags(1 / (1 - np.diag(branch_PTDF)))
 
 
     # make sure the flow on the branch itself is zero
