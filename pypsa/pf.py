@@ -25,7 +25,7 @@ import pandas as pd
 from numpy import ones, r_
 from numpy.linalg import norm
 from pandas.api.types import is_list_like
-from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, eye
+from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, eye, diags
 from scipy.sparse import hstack as shstack
 from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
@@ -1156,23 +1156,27 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    z = np.concatenate(
-        [
-            (c.df.loc[c.ind, attribute]).values
-            for c in sub_network.iterate_components(network.passive_branch_components)
-        ]
-    )
+    z = pd.concat([c.df.loc[c.ind, attribute] for c in sub_network.iterate_components(network.passive_branch_components)])
+    b = z.divide(1.0, fill_value=np.inf)
     # susceptances
-    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
+    #b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
-    if np.isnan(b.astype(float)).any():
+    if b.isna().any():
         logger.warning(
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
-    b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    #b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    b_diag = diags(b)
 
     # incidence matrix
     sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
+    # possibly a pandas version could work here as well, unordered buses, discarding any busorder
+    #incidence = pd.concat([
+    #    n.sub_networks.iloc[0,2].branches()[['bus0']].assign(val=1).rename(columns={'bus0':'bus'}),
+    #    n.sub_networks.iloc[0,2].branches()[['bus1']].assign(val=-1).rename(columns={'bus1':'bus'})
+    #])
+    #incidence.set_index('bus', append=True, inplace=True)
+    #for now, keep bus_order=index in mind
 
     sub_network.H = b_diag * sub_network.K.T
 
@@ -1226,7 +1230,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
     B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
     B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
 
-    sub_network.PTDF = pd.DataFrame(data=sub_network.H * B_inverse, index=sub_network.branches_i(), columns=sub_network.buses_i())
+    sub_network.PTDF = pd.DataFrame(data=sub_network.H * B_inverse, index=sub_network.branches_i(), columns=sub_network.buses_o)
 
 
 def calculate_Y(sub_network, skip_pre=False):
