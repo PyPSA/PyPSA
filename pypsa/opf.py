@@ -1218,9 +1218,10 @@ def define_passive_branch_flows_with_PTDF(network, snapshots, ptdf_tolerance=0.0
         branches_i = sub_network.branches_i()
         if len(branches_i) > 0:
             calculate_PTDF(sub_network)
+            PTDF = sub_network.PTDF[sub_network.buses_o].to_numpy()
 
             # kill small PTDF values
-            sub_network.PTDF[abs(sub_network.PTDF) < ptdf_tolerance] = 0
+            PTDF[abs(PTDF) < ptdf_tolerance] = 0
 
         for i, branch in enumerate(branches_i):
             bt = branch[0]
@@ -1228,9 +1229,9 @@ def define_passive_branch_flows_with_PTDF(network, snapshots, ptdf_tolerance=0.0
 
             for sn in snapshots:
                 lhs = sum(
-                    sub_network.PTDF[i, j] * network._p_balance[bus, sn]
+                    PTDF[i, j] * network._p_balance[bus, sn]
                     for j, bus in enumerate(sub_network.buses_o)
-                    if sub_network.PTDF[i, j] != 0
+                    if PTDF[i, j] != 0
                 )
                 rhs = LExpression([(1, network.model.passive_branch_p[bt, bn, sn])])
                 flows[bt, bn, sn] = LConstraint(lhs, "==", rhs)
