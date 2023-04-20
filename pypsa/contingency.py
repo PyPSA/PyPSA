@@ -72,7 +72,7 @@ def calculate_BODF(sub_network, skip_pre=False):
     sub_network.BODF = pd.DataFrame(
         data=BODF, index=sub_network.branches_i(), columns=sub_network.branches_i()
     )
-    sub_network.BODF.columns.name = "contingency"
+    sub_network.BODF.columns.name = ("contingency_type", "contingency")
 
 
 def network_lpf_contingency(network, snapshots=None, branch_outages=None):
@@ -154,7 +154,7 @@ def add_contingency_constraints(network, snapshots):
 
     for sn in network.sub_networks.obj:
         sn.calculate_BODF()
-
+        
         sn._branches = sn.branches()
         sn._branches["_i"] = range(sn._branches.shape[0])
 
@@ -172,6 +172,9 @@ def add_contingency_constraints(network, snapshots):
             branch = ("Line", branch)
 
         sub = network.sub_networks.at[passive_branches.at[branch, "sub_network"], "obj"]
+        # lazy fix
+        # index alined with branches_i
+        BODF = sub.BODF.to_numpy()
 
         branch_i = sub._branches.at[branch, "_i"]
 
@@ -185,7 +188,7 @@ def add_contingency_constraints(network, snapshots):
                     [
                         (1, network.model.passive_branch_p[b[0], b[1], sn]),
                         (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                            BODF[sub._branches.at[b, "_i"], branch_i],
                             network.model.passive_branch_p[branch[0], branch[1], sn],
                         ),
                     ],
@@ -203,7 +206,7 @@ def add_contingency_constraints(network, snapshots):
                     [
                         (1, network.model.passive_branch_p[b[0], b[1], sn]),
                         (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                            BODF[sub._branches.at[b, "_i"], branch_i],
                             network.model.passive_branch_p[branch[0], branch[1], sn],
                         ),
                         (-1, network.model.passive_branch_s_nom[b[0], b[1]]),
@@ -222,7 +225,7 @@ def add_contingency_constraints(network, snapshots):
                     [
                         (1, network.model.passive_branch_p[b[0], b[1], sn]),
                         (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                            BODF[sub._branches.at[b, "_i"], branch_i],
                             network.model.passive_branch_p[branch[0], branch[1], sn],
                         ),
                     ],
@@ -240,7 +243,7 @@ def add_contingency_constraints(network, snapshots):
                     [
                         (1, network.model.passive_branch_p[b[0], b[1], sn]),
                         (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                            BODF[sub._branches.at[b, "_i"], branch_i],
                             network.model.passive_branch_p[branch[0], branch[1], sn],
                         ),
                         (1, network.model.passive_branch_s_nom[b[0], b[1]]),
@@ -307,7 +310,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
 
         p = dispatch_vars[branches_i]
 
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
+        BODF = sn.BODF
 
         lhs = {}
         rhs = {}
