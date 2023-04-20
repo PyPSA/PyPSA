@@ -1171,7 +1171,7 @@ def calculate_B_H(sub_network, skip_pre=False):
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
     #b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
-    b_diag = diags(b.values)
+    b_diag = diags(b.to_numpy())
 
     # incidence matrix
     sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
