@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Functionality for contingency analysis, such as branch outages.
 """

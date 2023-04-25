@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Build optimisation problems from PyPSA networks without Pyomo.
 
