@@ -518,7 +518,7 @@ The objective function is then expressed by
 
 Where :math:`A` are the investment periods, :math:`w^o_a` the objective weighting of the investment period, :math:`b_s` is the build year of an
 asset :math:`s` with lifetime :math:`L_s`, :math:`c_{s,a}` the annualised
-investment costs, :math:`o_{s,a, t}` the operational cots and :math:`w^\tau_{s,a}`
+investment costs, :math:`o_{s,a, t}` the operational costs and :math:`w^\tau_{s,a}`
 the temporal weightings (including snapshot objective weightings and investment
 period temporal weightings).
 

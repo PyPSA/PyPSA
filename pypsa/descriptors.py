@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Descriptors for component attributes.
 """

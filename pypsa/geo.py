@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Functionality to help with georeferencing and calculate distances/areas.
 """
