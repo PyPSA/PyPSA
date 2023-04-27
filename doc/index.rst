@@ -144,6 +144,7 @@ Documentation
 * :doc:`troubleshooting`
 * :doc:`comparable_software`
 * :doc:`contributing`
+* :doc:`support`
 * :doc:`citing`
 * :doc:`unit_testing`
 * :doc:`mailing_list`
