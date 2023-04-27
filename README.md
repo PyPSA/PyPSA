@@ -14,6 +14,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+![Stack Exchange questions](https://img.shields.io/stackexchange/stackoverflow/t/pypsa)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
