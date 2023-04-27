@@ -173,21 +173,14 @@ Please check the [documentation](https://pypsa.readthedocs.io).
 
 ## Contributing and Support
 
-We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file
-issues or make pull requests on GitHub.
+We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on GitHub.
 
-PyPSA has a Google Group [forum / mailing
-list](https://groups.google.com/group/pypsa) where announcements of new
-releases can be made and questions can be asked.
+* In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
+* For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
+* To **discuss** with other PyPSA users, organise projects, ask questions, share news, or chat with the community
+use the [discord server](https://discord.gg/JTdvaEBb).
+* For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
 
-To discuss issues and suggest/contribute features for future development
-we prefer ticketing through the [PyPSA Github Issues
-page](https://github.com/PyPSA/PyPSA/issues).
-
-A `Discord server <https://discord.gg/AnuJBk23FU>` hosts every tool
-in the PyPSA ecosystem. We have there public voice and text channels
-that are suitable to organise projects, ask questions,
-share news, or chat with the community.
 
 ## Code of Conduct
 
