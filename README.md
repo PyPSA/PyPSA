@@ -175,12 +175,12 @@ Please check the [documentation](https://pypsa.readthedocs.io).
 
 We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on GitHub.
 
-* In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
-* For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
-* To **discuss** with other PyPSA users, organise projects, ask questions, share news, or chat with the community
+-   In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
+-   For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
+-   To **discuss** with other PyPSA users, organise projects, ask questions, share news, or chat with the community
 use the [discord server](https://discord.gg/JTdvaEBb).
-* For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
-
+-   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
+-   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
 ## Code of Conduct
 
