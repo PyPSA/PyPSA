@@ -58,6 +58,24 @@ float precision to save space and supports lazy loading.
 To export network and components to a netCDF file run
 :py:meth:`pypsa.Network.export_to_netcdf`.
 
+To enable lossless compression, set the ``complevel`` argument to an
+integer between 1 and 9 (inclusive). Lower values result in faster
+export times, while higher values give a better compression ratio.
+Improvements to the compression ratio are usually marginal with higher
+compression levels, so start by trying a compression level of 1.
+Regardless, this will make exporting the network a bit slower.
+
+Additionally, you may set the ``least_significant_digit`` option,
+which compresses the network further by effectively rounding all time
+series values to the given number of digits after the decimal point,
+throwing away the remaining digits (although the exact implementation
+is a bit more complicated). For example, when this value is set to 2,
+the value 42.12345 can become 42.12. The rounding is only applied to
+time-varying data. This is a lossy type of compression, but can save a
+significant amount of space. Compared to lossless compression, this
+can also save some time, although it is still slower than exporting
+without compression altogether.
+
 
 Import from netCDF
 ==================
