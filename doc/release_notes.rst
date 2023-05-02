@@ -33,7 +33,7 @@ Upcoming Release
 
 * Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering. Previously, an empty ``Line`` component has lead to problems when processing empty lines-related dataframes. That has been fixed by introducing special treatment in case a lines dataframe is empty.
 
-* Fix network compression using ``least_significant_digit`` option of ``Network.export_to_netcdf`` function, and add new ``complevel`` option (compression level between 1 and 9) to the same function, enabling lossless compression. 
+* Fix network compression using ``least_significant_digit`` option of ``Network.export_to_netcdf`` function, and add new ``complevel`` option (compression level between 1 and 9) to the same function, enabling lossless compression.
 
 
 PyPSA 0.22.1 (15th February 2023)
