@@ -1631,7 +1631,7 @@ def define_loss_constraints(network, snapshots, transmission_losses):
 
     passive_branches = network.passive_branches()
 
-    s_max_pus = get_switchable_as_dense(network, "Line", "s_max_pu")
+    s_max_pus = get_as_dense(network, "Line", "s_max_pu")
 
     loss_upper = {}
     loss_tangents = {}

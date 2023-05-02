@@ -841,14 +841,12 @@ def define_loss_constraints(n, sns, c, transmission_losses):
 
     r_pu_eff = n.df(c)["r_pu_eff"]
 
-    rhs = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
 
-    loss = get_var(n, c, "loss")
-    lhs = linexpr((1, loss))
+    loss = n.model[f"{c}-loss"]
+    flow = n.model[f"{c}-s"]
 
-    define_constraints(n, lhs, "<=", rhs, c, "loss_upper", mask=active)
-
-    flow = get_var(n, c, "s")
+    n.model.add_constraints(loss <= upper_limit, name=f"{c}-loss_upper", mask=active)
 
     for k in range(1, tangents + 1):
         p_k = k / tangents * s_max_pu * s_nom_max
@@ -857,8 +855,11 @@ def define_loss_constraints(n, sns, c, transmission_losses):
         offset_k = loss_k - slope_k * p_k
 
         for sign in [-1, 1]:
-            lhs = linexpr((1, loss), (sign * slope_k, flow))
 
-            define_constraints(
-                n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active
+            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+
+            n.model.add_constraints(
+                lhs >= offset_k,
+                name=f"{c}-loss_tangents-{k}-{sign}",
+                mask=active
             )
