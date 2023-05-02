@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Pyomo linear problem building.
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Power flow functionality.
 """
@@ -1407,10 +1406,8 @@ def find_cycles(sub_network, weight="x_pu"):
     Find all cycles in the sub_network and record them in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles
-    from the MultiGraph must be collected separately (for cases where
-    there
-    are multiple lines between the same pairs of buses).
+    cycles from the MultiGraph must be collected separately (for cases
+    where there are multiple lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
     """

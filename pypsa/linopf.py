@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Build optimisation problems from PyPSA networks without Pyomo.
 
@@ -111,8 +109,10 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
         name of the attribute, e.g. 'p'
     """
     ext_i = get_extendable_i(n, c)
-    if c == "Generator":
-        ext_i = ext_i.union(n.generators.query("committable").index)
+    if c in {"Generator", "Link"}:
+        ext_i = ext_i.union(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if ext_i.empty:
         return
     active = get_activity_mask(n, c, sns)[ext_i] if n._multi_invest else None
@@ -133,8 +133,10 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
         name of the attribute, e.g. 'p'
     """
     fix_i = get_non_extendable_i(n, c)
-    if c == "Generator":
-        fix_i = fix_i.difference(n.generators.query("committable").index)
+    if c in {"Generator", "Link"}:
+        fix_i = fix_i.difference(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if fix_i.empty:
         return
     nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
@@ -275,8 +277,7 @@ def define_unit_commitment_constraints(n, sns, c):
 
     status = get_var(n, c, "status")
 
-    attr = "p" if c == "Generator" else "p0"
-    p = get_var(n, c, attr)[com_i]
+    p = get_var(n, c, "p")[com_i]
 
     lhs = linexpr((lower, status), (-1, p))
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
@@ -1464,7 +1465,7 @@ def network_lopf(
     if formulation != "kirchhoff":
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
-    if n.generators.committable.any():
+    if n.generators.committable.any() or n.links.committable.any():
         logger.warning(
             "Unit commitment is not yet completely implemented for "
             "optimising without pyomo. Thus minimum up time, minimum down time, "
