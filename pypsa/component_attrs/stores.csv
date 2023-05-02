@@ -18,7 +18,7 @@ q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
 sign,float,n/a,1,power sign,Input (optional)
 marginal_cost,static or series,currency/MWh,0,Marginal cost of production of 1 MWh.,Input (optional)
 capital_cost,float,currency/MWh,0,Capital cost of extending e_nom by 1 MWh.,Input (optional)
-standing_loss,float,per unit,0,Losses per hour to energy.,Input (optional)
+standing_loss,static or series,per unit,0,Losses per hour to energy.,Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
 p,series,MW,0,active power at bus (positive if net generation),Output

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Functions for computing network clusters.
 """
@@ -121,6 +120,9 @@ def aggregategenerators(
         for attr, df in network.generators_t.items():
             pnl_gens_agg_b = df.columns.to_series().map(gens_agg_b)
             df_agg = df.loc[:, pnl_gens_agg_b]
+            # If there are any generators to aggregate, do so and put
+            # the time-varying data for all generators (aggregated and
+            # non-aggregated) into `new_pnl`.
             if not df_agg.empty:
                 if attr == "p_max_pu":
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
@@ -129,6 +131,11 @@ def aggregategenerators(
                 new_pnl[attr] = pd.concat(
                     [df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False
                 )
+            # Even if no generators are aggregated, we still need to
+            # put the time-varying data for all non-aggregated
+            # generators into `new_pnl`.
+            elif not df.empty:
+                new_pnl[attr] = df
 
     return new_df, new_pnl
 
@@ -343,14 +350,19 @@ def get_buses_linemap_and_lines(
     lines, linemap_p, linemap_n, linemap, lines_t = aggregatelines(
         network, buses, interlines, line_length_factor, with_time
     )
+    # network can be reduced to a set of isolated nodes in course of clustering (e.g. Rwanda)
+    if lines.empty:
+        lines_res = lines.drop(columns=["bus0_s", "bus1_s"]).reset_index(drop=True)
+    else:
+        lines_res = lines.reset_index().rename(
+            columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False
+        )
     return (
         buses,
         linemap,
         linemap_p,
         linemap_n,
-        lines.reset_index()
-        .rename(columns={"bus0_s": "bus0", "bus1_s": "bus1"}, copy=False)
-        .set_index("name"),
+        lines_res.set_index("name"),
         lines_t,
     )
 

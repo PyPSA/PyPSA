@@ -23,7 +23,7 @@ Functionality
 * meshed multiply-connected AC and DC networks, with controllable
   converters between AC and DC networks
 * standard types for lines and transformers following the implementation in `pandapower <https://www.pandapower.org>`_
-* conventional dispatchable generators with unit commitment
+* conventional dispatchable generators and links with unit commitment
 * generators with time-varying power availability, such as
   wind and solar generators
 * storage units with efficiency losses
@@ -93,7 +93,7 @@ It leans heavily on the following Python packages:
 * `matplotlib <https://matplotlib.org/>`_ for static plotting
 * `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
 * `networkx <https://networkx.github.io/>`_ for some network calculations
-* `pyomo <http://www.pyomo.org/>`_ for preparing optimisation problems (currently only linear)
+* `linopy <https://github.com/PyPSA/linopy>`_ for preparing optimisation problems (currently only linear and mixed-integer linear)
 * `pytest <http://pytest.org/>`_ for unit testing
 * `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
 

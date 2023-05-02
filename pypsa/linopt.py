@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Linear Problem file writing. This module contains.
 
@@ -432,10 +430,17 @@ def to_pandas(array, *axes):
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
 
-_to_float_str = lambda f: "%+f" % f
+def _to_float_str(f):
+    return "%+f" % f
+
+
 _v_to_float_str = np.vectorize(_to_float_str, otypes=[object])
 
-_to_int_str = lambda d: "%d" % d
+
+def _to_int_str(d):
+    return "%d" % d
+
+
 _v_to_int_str = np.vectorize(_to_int_str, otypes=[object])
 
 
@@ -759,7 +764,7 @@ def run_and_read_highs(
         # Function that reads line by line the command window
         while True:
             out = process.stdout.readline(1)
-            if out == "" and process.poll() != None:
+            if out == "" and process.poll() is not None:
                 break
             if out != "":
                 yield out
@@ -825,8 +830,8 @@ def run_and_read_cbc(
     """
     with open(problem_fn, "rb") as f:
         for str in f.readlines():
-            assert ("> " in str.decode("utf-8")) == False, ">, must be" "changed to >="
-            assert ("< " in str.decode("utf-8")) == False, "<, must be" "changed to <="
+            assert ("> " in str.decode("utf-8")) is False, ">, must be" "changed to >="
+            assert ("< " in str.decode("utf-8")) is False, "<, must be" "changed to <="
 
     # printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
@@ -1056,7 +1061,6 @@ def run_and_read_gurobi(
     constraint dual values. Gurobipy must be installed for using this function.
 
     For more information on solver options, see
-
     <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
@@ -1142,7 +1146,6 @@ def run_and_read_xpress(
     function.
 
     For more information on solver options, see
-
     <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """
 

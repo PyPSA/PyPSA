@@ -14,6 +14,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![Stack Exchange questions](https://img.shields.io/stackexchange/stackoverflow/t/pypsa)](https://stackoverflow.com/questions/tagged/pypsa)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
@@ -61,7 +62,7 @@ It has models for:
     between AC and DC networks
 -   standard types for lines and transformers following the implementation in
     [pandapower](https://www.pandapower.org/)
--   conventional dispatchable generators with unit commitment
+-   conventional dispatchable generators and links with unit commitment
 -   generators with time-varying power availability, such as wind and solar
     generators
 -   storage units with efficiency losses
@@ -110,7 +111,7 @@ n.add("Generator", "mygen", bus="mybus", p_nom=100, marginal_cost=20)
 n = pypsa.examples.ac_dc_meshed()
 
 # run the optimisation
-n.lopf()
+n.optimize()
 
 # plot results
 n.generators_t.p.plot()
@@ -152,15 +153,15 @@ It leans heavily on the following Python packages:
 -   [networkx](https://networkx.github.io/) for some network
     calculations
 -   [matplotlib](https://matplotlib.org/) for static plotting
--   [pyomo](http://www.pyomo.org/) for preparing optimisation problems
-    (currently only linear)
+-   [linpy](https://github.com/PyPSA/linopy) for preparing optimisation problems
+    (currently only linear and mixed integer linear optimisation)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
 -   [pytest](http://pytest.org/) for unit testing
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
-The optimisation uses interface libraries like `pyomo` which are
+The optimisation uses interface libraries like `linopy` which are
 independent of the preferred solver. You can use e.g. one of the free
 solvers [GLPK](https://www.gnu.org/software/glpk/) and
 [CLP/CBC](https://github.com/coin-or/Cbc/) or the commercial solver
@@ -173,21 +174,13 @@ Please check the [documentation](https://pypsa.readthedocs.io).
 
 ## Contributing and Support
 
-We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file
-issues or make pull requests on GitHub.
+We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on GitHub.
 
-PyPSA has a Google Group [forum / mailing
-list](https://groups.google.com/group/pypsa) where announcements of new
-releases can be made and questions can be asked.
-
-To discuss issues and suggest/contribute features for future development
-we prefer ticketing through the [PyPSA Github Issues
-page](https://github.com/PyPSA/PyPSA/issues).
-
-A `Discord server <https://discord.gg/AnuJBk23FU>` hosts every tool
-in the PyPSA ecosystem. We have there public voice and text channels
-that are suitable to organise projects, ask questions,
-share news, or chat with the community.
+-   In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
+-   For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
+-   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/JTdvaEBb).
+-   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
+-   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
 ## Code of Conduct
 

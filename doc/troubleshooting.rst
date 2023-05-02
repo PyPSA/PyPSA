@@ -72,7 +72,7 @@ There are some steps you can take to distinguish these two cases:
 Problems with optimisation convergence
 ======================================
 
-If your ``network.lopf()`` is not converging here are some suggestions:
+If your ``network.optimize()`` is not converging here are some suggestions:
 
 * Very small non-zero values, for example in
   ``network.generators_t.p_max_pu`` can confuse the

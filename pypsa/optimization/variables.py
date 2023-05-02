@@ -73,7 +73,7 @@ def define_shut_down_variables(n, sns, c):
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
     n.model.add_variables(
-        coords=coords, name=f"{c}-shut_down", binary=is_binary, **kwargs
+        coords=coords, name=f"{c}-shut_down", binary=is_binary, **kwargs, mask=active
     )
 
 

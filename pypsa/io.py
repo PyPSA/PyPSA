@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Functions for importing and exporting data.
 """
@@ -1282,7 +1281,7 @@ def import_from_pandapower_net(
         [_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index
     )
 
-    if extra_line_data == False:
+    if extra_line_data is False:
         d["Line"] = pd.DataFrame(
             {
                 "type": net.line.std_type.values,
