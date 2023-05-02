@@ -24,6 +24,32 @@ def test_netcdf_io_Path(scipy_network, tmpdir):
     pypsa.Network(fn)
 
 
+def test_netcdf_lossless_compress(scipy_network, tmpdir):
+    fn = Path(os.path.join(tmpdir, "netcdf_export_lossless.nc"))
+    scipy_network.export_to_netcdf(fn, complevel=1)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (scipy_network.loads_t.p_set == scipy_network_compressed.loads_t.p_set)
+        .all()
+        .all()
+    )
+
+
+def test_netcdf_lossy_compress(scipy_network, tmpdir):
+    fn = Path(os.path.join(tmpdir, "netcdf_export_lossy.nc"))
+    digits = 2
+    scipy_network.export_to_netcdf(fn, complevel=1, least_significant_digit=digits)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (
+            (scipy_network.loads_t.p_set - scipy_network_compressed.loads_t.p_set).abs()
+            < 1 / 10**digits
+        )
+        .all()
+        .all()
+    )
+
+
 def test_netcdf_io_datetime(tmpdir):
     fn = os.path.join(tmpdir, "temp.nc")
     exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
