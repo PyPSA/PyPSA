@@ -341,9 +341,12 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, least_significant_digit=None):
+        def __init__(self, path, complevel=None, least_significant_digit=None):
             self.path = path
+            self.complevel = complevel
             self.least_significant_digit = least_significant_digit
+            if least_significant_digit and not complevel:
+                self.complevel = 1
             self.ds = xr.Dataset()
 
         def save_attributes(self, attrs):
@@ -378,14 +381,13 @@ if has_xarray:
             )
 
             self.ds[list_name + "_t_" + attr] = df
-            if self.least_significant_digit is not None:
-                print(self.least_significant_digit)
-                self.ds.encoding.update(
-                    {
-                        "zlib": True,
-                        "least_significant_digit": self.least_significant_digit,
-                    }
-                )
+
+            # Optional compression:
+            if self.complevel is not None:
+                comp_args = {"zlib": True, "complevel": self.complevel}
+                if self.least_significant_digit is not None:
+                    comp_args["least_significant_digit"] = self.least_significant_digit
+                self.ds[list_name + "_t_" + attr].encoding.update(comp_args)
 
         def finish(self):
             if self.path is not None:
@@ -648,6 +650,7 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
+    complevel=None,
     least_significant_digit=None,
 ):
     """
@@ -672,9 +675,21 @@ def export_to_netcdf(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
-    least_significant_digit
-        This is passed to the netCDF exporter, but currently makes no difference
-        to file size or float accuracy. We're working on improving this...
+    complevel : int
+        Only when using the netCDF exporter, setting this option to an
+        integer between 1 and 9 (inclusive) enables compression of
+        time series at the given level. Lower values are faster. In
+        practice, higher levels only give marginal improvements, so
+        start by trying level 1.
+    least_significant_digit : int
+        Only when using the netCDF exporter, also enable
+        discretisation of time series data. The data is effectively
+        rounded to the given decimal place (e.g. when
+        "least_signifant_digit" is 2, 42.12345 becomes 42.12). This
+        can significantly reduce file sizes, but results in lossy
+        compression. The default (None) disables this feature so
+        compression is lossless. Setting this option without setting
+        "complevel" implies a compression level of 1.
 
     Returns
     -------
@@ -688,7 +703,7 @@ def export_to_netcdf(
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = os.path.basename(path) if path is not None else None
-    with ExporterNetCDF(path, least_significant_digit) as exporter:
+    with ExporterNetCDF(path, complevel, least_significant_digit) as exporter:
         _export_to_exporter(
             network,
             exporter,
