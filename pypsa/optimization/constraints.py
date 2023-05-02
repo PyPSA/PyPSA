@@ -855,11 +855,8 @@ def define_loss_constraints(n, sns, c, transmission_losses):
         offset_k = loss_k - slope_k * p_k
 
         for sign in [-1, 1]:
-
             lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
 
             n.model.add_constraints(
-                lhs >= offset_k,
-                name=f"{c}-loss_tangents-{k}-{sign}",
-                mask=active
+                lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
             )
