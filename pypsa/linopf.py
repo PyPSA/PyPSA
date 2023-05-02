@@ -315,6 +315,7 @@ def define_loss_constraints(n, sns, c, transmission_losses):
                 n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active
             )
 
+
 @deprecated(
     deprecated_in="0.23",
     removed_in="0.24",
