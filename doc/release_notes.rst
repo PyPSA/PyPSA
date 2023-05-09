@@ -33,6 +33,8 @@ Upcoming Release
 
 * Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering. Previously, an empty ``Line`` component has lead to problems when processing empty lines-related dataframes. That has been fixed by introducing special treatment in case a lines dataframe is empty.
 
+* A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
+
 
 PyPSA 0.22.1 (15th February 2023)
 =================================
