@@ -12,6 +12,7 @@ towards the development of PyPSA:
 * 2019-2023 Fabian Hofmann (FIAS, TUB)
 * 2018-2023 Fabian Neumann (KIT, TUB)
 * 2020-2023 Lisa Zeyen (KIT, TUB)
-* 2017-2018 Chloe Syranidis (FZJ)
 * 2020-2023 Martha Frysztacki (KIT)
+* 2022-2023 Philipp Glaum (TUB)
+* 2022-2023 Max Parzen (University of Edinburgh)
 * 2016 David Schlachberger (KIT)
