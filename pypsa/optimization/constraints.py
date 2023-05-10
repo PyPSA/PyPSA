@@ -448,7 +448,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
 
 def define_nodal_balance_constraints(
-    n, sns, transmission_losses, buses=None, suffix=""
+    n, sns, transmission_losses=0, buses=None, suffix=""
 ):
     """
     Defines nodal balance constraints.

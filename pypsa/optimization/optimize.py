@@ -235,13 +235,13 @@ def create_model(
         # Write constraint for buses many terms and for buses with a few terms
         # separately. This reduces memory usage for large networks.
         define_nodal_balance_constraints(
-            n, sns, transmission_losses, buses=weakly_meshed_buses
+            n, sns, transmission_losses=transmission_losses, buses=weakly_meshed_buses
         )
         define_nodal_balance_constraints(
-            n, sns, transmission_losses, buses=meshed_buses, suffix="-meshed"
+            n, sns, transmission_losses=transmission_losses, buses=meshed_buses, suffix="-meshed"
         )
     else:
-        define_nodal_balance_constraints(n, sns, transmission_losses)
+        define_nodal_balance_constraints(n, sns, transmission_losses=transmission_losses)
 
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
