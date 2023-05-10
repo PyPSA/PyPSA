@@ -34,6 +34,13 @@ PyPSA 0.23.0 (10th May 2023)
   model the operational restrictions of fuel synthesis plants. [`#582
   <https://github.com/PyPSA/PyPSA/pull/582>`_]
 
+* Added implementation for a linearized unit commitment approximation (LP-based)
+  that can be activated when calling ``n.lopf()`` or ``n.optimize()``, e.g.
+  ``n.optimize(linearized_unit_commitment=True)``. The implementation follows
+  Hua et al. (2017), `10.1109/TPWRS.2017.2735026
+  <https://doi.org/10.1109/TPWRS.2017.2735026>`_. [`#472
+  <https://github.com/PyPSA/PyPSA/pull/472>`_]
+
 * NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly
   from URL:
   ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
@@ -134,7 +141,6 @@ PyPSA 0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
-* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================
