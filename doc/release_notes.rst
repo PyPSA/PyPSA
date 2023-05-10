@@ -7,7 +7,11 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature
+* The function ``n.lopf()`` is deprecated in favour of the linopy-based
+  implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
+  have a generous transition period, but please start migrating your
+  ``extra_functionality`` functions, e.g. by following our `migration guide
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
 
 PyPSA 0.23.0 (10th May 2023)
 =================================
