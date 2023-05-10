@@ -13,24 +13,44 @@ Upcoming Release
   ``extra_functionality`` functions, e.g. by following our `migration guide
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
 
-* NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly from URL: ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+PyPSA 0.23.0 (10th May 2023)
+=================================
 
-* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now default to 'sum' rather than 'mean'.
-
-* Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
+* Transmission losses can now be represented during optimisation with
+  ``n.optimize()`` or ``n.lopf()`` using a piecewise linear approximation of the
+  loss parabola as presented in `this paper
+  <https://doi.org/10.1016/j.apenergy.2022.118859>`_. The number of segments can
+  be chosen with the argument ``n.optimize(transmission_losses=3)``. The default
+  remains that transmission losses are neglected with
+  ``n.optimize(transmission_losses=0)``, and analogously for
+  ``n.lopf(pyomo=True)`` and ``n.lopf(pyomo=False)``. [`#462
+  <https://github.com/PyPSA/PyPSA/pull/462>`_]
 
 * Efficiencies and standing losses of stores, storage units and generators can
   now be specified as time-varying attributes (``efficiency``,
   ``efficiency_dispatch``, ``efficiency_store``, ``standing_loss``). For
   example, this allows specifying temperature-dependent generator efficiencies
-  or evaporation in hydro reservoirs.
+  or evaporation in hydro reservoirs. [`#572
+  <https://github.com/PyPSA/PyPSA/pull/572>`_]
 
-* The attributes ``lifetime`` and ``build_year`` are now aggregated with a
-  capacity-weighted mean when clustering the network. Previously, these
-  attributes had to carry identical values for components that were to be
-  merged.
+* Unit commitment constraints (ramp limits, start up and shut down costs) can
+  now also be applied to links in addition to generators. This is useful to
+  model the operational restrictions of fuel synthesis plants. [`#582
+  <https://github.com/PyPSA/PyPSA/pull/582>`_]
 
-* Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
+* Added implementation for a linearized unit commitment approximation (LP-based)
+  that can be activated when calling
+  ``n.optimize(linearized_unit_commitment=True)``. The implementation follows
+  Hua et al. (2017), `10.1109/TPWRS.2017.2735026
+  <https://doi.org/10.1109/TPWRS.2017.2735026>`_. This functionality is not
+  implemented for ``n.lopf()``. [`#472
+  <https://github.com/PyPSA/PyPSA/pull/472>`_]
+
+* NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly
+  from URL:
+  ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+  [`#569
+  <https://github.com/PyPSA/PyPSA/pull/569>`_]
 
 * Networks are now compressed when exporting the NetCDF
   ``n.export_to_netcdf(...)`` step using the native compression feature of
@@ -41,24 +61,48 @@ Upcoming Release
   <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
   for details. The compression can be disabled with
   ``n.export_to_netcdf(compression=None)``. Use
-  ``n.export_to_netcdf(compression={'zlib': True, complevel=9, least_significant_digit=5})`` for high compression.
+  ``n.export_to_netcdf(float32=True, compression={'zlib': True, complevel=9, least_significant_digit=5})``
+  for high compression. [`#583
+  <https://github.com/PyPSA/PyPSA/pull/583>`_, `#614
+  <https://github.com/PyPSA/PyPSA/pull/614>`_]
 
-* Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
+* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now
+  default to 'sum' rather than 'mean'.
 
-* To enable better backwards compatibility with the `lopf` function, the ``Network.optimize`` functions has now the explicit keyword argument ``solver_options``. It takes a dictionary of options passed to the solver. Before, these were passed as keyword arguments to the ``Network.optimize`` function. Note that both functionalities are supported.
+* A new type of ``GlobalConstraint`` called `operational_limit` is now supported
+  through the ``n.optimize()`` function. It allows to limit the total
+  production of a carrier analogous to `primary_energy_limit` with the
+  difference that it applies directly to the production of a carrier rather than
+  to an attribute of the primary energy use. [`#618
+  <https://github.com/PyPSA/PyPSA/pull/618>`_]
 
-* Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering. Previously, an empty ``Line`` component has lead to problems when processing empty lines-related dataframes. That has been fixed by introducing special treatment in case a lines dataframe is empty.
+* The attributes ``lifetime`` and ``build_year`` are now aggregated with a
+  capacity-weighted mean when clustering the network. Previously, these
+  attributes had to carry identical values for components that were to be
+  merged. [`#571
+  <https://github.com/PyPSA/PyPSA/pull/571>`_]
 
-* Transmission losses can now be represented during optimisation with
-  ``n.optimize()`` or ``n.lopf()`` using a piecewise linear approximation of the
-  loss parabola as presented in `this paper
-  <https://doi.org/10.1016/j.apenergy.2022.118859>`_. The number of segments can
-  be chosen with the argument ``n.optimize(transmission_losses=3)``. The default
-  remains that transmission losses are neglected with
-  ``n.optimize(transmission_losses=0)``, and analogously for
-  ``n.lopf(pyomo=True)`` and ``n.lopf(pyomo=False)``.
+* To enable better backwards compatibility with the ``n.lopf()`` function, the
+  ``n.optimize()`` functions has now the explicit keyword argument
+  ``solver_options``. It takes a dictionary of options passed to the solver.
+  Before, these were passed as keyword arguments to the ``n.optimize()``
+  function. Note that both functionalities are supported. [`#595
+  <https://github.com/PyPSA/PyPSA/pull/595>`_]
 
-* A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
+* Fixed interference of io routines with linopy optimisation [`#564
+  <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567
+  <https://github.com/PyPSA/PyPSA/pull/567>`_]
+
+* Fix a bug where time-dependant generator variables could be forgotten during
+  aggregation in a particular case. [`#576
+  <https://github.com/PyPSA/PyPSA/pull/576>`_]
+
+* Fix an issue appeared when processing networks which were reduced to a set of
+  isolated nodes in course of clustering. Previously, an empty ``Line``
+  component has lead to problems when processing empty lines-related dataframes.
+  That has been fixed by introducing special treatment in case a lines dataframe
+  is empty. [`#599
+  <https://github.com/PyPSA/PyPSA/pull/599>`_]
 
 
 PyPSA 0.22.1 (15th February 2023)
@@ -102,7 +146,6 @@ PyPSA 0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
-* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================

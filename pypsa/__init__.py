@@ -2,7 +2,7 @@
 """
 Python for Power Systems Analysis (PyPSA)
 
-Grid calculation library.
+Energy system modelling library.
 """
 
 from pypsa import (
@@ -23,7 +23,7 @@ from pypsa import (
 )
 from pypsa.components import Network, SubNetwork
 
-__version__ = "0.22.1"
+__version__ = "0.23.0"
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
