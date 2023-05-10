@@ -36,6 +36,7 @@ from pypsa.optimization.constraints import (
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
+    define_operational_limit,
     define_primary_energy_limit,
     define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
@@ -262,6 +263,7 @@ def create_model(
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
     define_tech_capacity_expansion_limit(n, sns)
+    define_operational_limit(n, sns)
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
 
