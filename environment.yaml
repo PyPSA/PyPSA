@@ -8,7 +8,7 @@ dependencies:
 - pandas>=0.24.0
 - xarray
 - netcdf4
-- libnetcdf<4.9
+- libnetcdf
 - pytables
 - matplotlib
 - networkx>=1.10

@@ -382,10 +382,13 @@ if has_xarray:
             self.ds[list_name + "_t_" + attr] = df
 
         def set_compression_encoding(self):
+            logger.debug(f"Setting compression encodings: {self.compression}")
             for v in self.ds.data_vars:
-                self.ds[v].encoding.update(self.compression)
+                if self.ds[v].dtype.kind not in ["U", "O"]:
+                    self.ds[v].encoding.update(self.compression)
 
-        def typecast(self):
+        def typecast_float32(self):
+            logger.debug(f"Typecasting float64 to float32.")
             for v in self.ds.data_vars:
                 if self.ds[v].dtype == np.float64:
                     self.ds[v] = self.ds[v].astype(np.float32)
@@ -394,7 +397,7 @@ if has_xarray:
             if self.compression:
                 self.set_compression_encoding()
             if self.float32:
-                self.typecast()
+                self.typecast_float32()
             if self.path is not None:
                 self.ds.to_netcdf(self.path)
 
@@ -656,7 +659,7 @@ def export_to_netcdf(
     path=None,
     export_standard_types=False,
     compression={"zlib": True, "complevel": 4},
-    float32=True,
+    float32=False,
 ):
     """
     Export network and components to a netCDF file.
@@ -686,7 +689,7 @@ def export_to_netcdf(
         https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
         To disable compression, set to None. As a trade-off between speed and
         compression, the default is {'zlib': True, 'complevel': 4}.
-    float32 : boolean
+    float32 : boolean, default False
         If True, typecasts values to float32.
 
     Returns

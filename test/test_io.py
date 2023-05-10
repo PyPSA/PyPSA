@@ -74,14 +74,12 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p,
         ac_dc_network_multiindexed.generators_t.p,
-        check_dtype=False,
     )
     pd.testing.assert_frame_equal(
         m.snapshot_weightings,
         ac_dc_network_multiindexed.snapshot_weightings[
             m.snapshot_weightings.columns
         ],  # reset order
-        check_dtype=False,
     )
 
 
@@ -92,7 +90,6 @@ def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p,
         ac_dc_network_multiindexed.generators_t.p,
-        check_dtype=False,
     )
 
 
@@ -103,7 +100,6 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p,
         ac_dc_network_multiindexed.generators_t.p,
-        check_dtype=False,
     )
 
 
@@ -140,13 +136,39 @@ def test_netcdf_from_url():
 def test_netcdf_io_no_compression(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
     scipy_network.export_to_netcdf(fn, float32=False, compression=None)
-    pypsa.Network(fn)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (scipy_network.loads_t.p_set == scipy_network_compressed.loads_t.p_set)
+        .all()
+        .all()
+    )
 
 
 def test_netcdf_io_custom_compression(scipy_network, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
-    compression = dict(zlib=True, complevel=9)
+    digits = 5
+    compression = dict(zlib=True, complevel=9, least_significant_digit=digits)
     scipy_network.export_to_netcdf(fn, compression=compression)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (
+            (scipy_network.loads_t.p_set - scipy_network_compressed.loads_t.p_set).abs()
+            < 1 / 10**digits
+        )
+        .all()
+        .all()
+    )
+
+
+def test_netcdf_io_typecast(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, float32=True, compression=None)
+    pypsa.Network(fn)
+
+
+def test_netcdf_io_typecast_and_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, float32=True)
     pypsa.Network(fn)
 
 

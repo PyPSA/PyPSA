@@ -29,13 +29,14 @@ Upcoming Release
 
 * Networks are now compressed when exporting the NetCDF
   ``n.export_to_netcdf(...)`` step using the native compression feature of
-  netCDF files and typecasting any float64 to float 32. Existing network files
-  are not affected. To also compress existing networks, load and save them using
-  ``xarray`` with compression specified, see `the xarray documentation
+  netCDF files. Additionally, a typecasting option from float64 to float 32 was
+  added. Existing network files are not affected. To also compress existing
+  networks, load and save them using ``xarray`` with compression specified, see
+  `the xarray documentation
   <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
   for details. The compression can be disabled with
-  ``n.export_to_netcdf(float32=False, compression=None)``. Use
-  ``n.export_to_netcdf(compression={'zlib': True, complevel=9})``.
+  ``n.export_to_netcdf(compression=None)``. Use
+  ``n.export_to_netcdf(compression={'zlib': True, complevel=9, least_significant_digit=5})`` for high compression.
 
 * Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
 
