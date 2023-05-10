@@ -23,6 +23,7 @@ from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_loss_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -35,12 +36,14 @@ from pypsa.optimization.constraints import (
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
+    define_operational_limit,
     define_primary_energy_limit,
     define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_loss_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
@@ -157,6 +160,7 @@ def create_model(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    transmission_losses=0,
     linearized_unit_commitment=False,
     **kwargs,
 ):
@@ -174,6 +178,7 @@ def create_model(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimize in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
     linearized_unit_commitment : bool, default False
         Whether to optimise using the linearised unit commitment formulation or not.
     **kwargs:
@@ -205,14 +210,22 @@ def create_model(
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
 
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_variables(n, sns, c)
+
     # Define constraints
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_operational_constraints_for_non_extendables(n, sns, c, attr)
-        define_operational_constraints_for_extendables(n, sns, c, attr)
+        define_operational_constraints_for_non_extendables(
+            n, sns, c, attr, transmission_losses
+        )
+        define_operational_constraints_for_extendables(
+            n, sns, c, attr, transmission_losses
+        )
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
@@ -222,20 +235,35 @@ def create_model(
     if not meshed_buses.empty and not weakly_meshed_buses.empty:
         # Write constraint for buses many terms and for buses with a few terms
         # separately. This reduces memory usage for large networks.
-        define_nodal_balance_constraints(n, sns, buses=weakly_meshed_buses)
-        define_nodal_balance_constraints(n, sns, buses=meshed_buses, suffix="-meshed")
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses=transmission_losses, buses=weakly_meshed_buses
+        )
+        define_nodal_balance_constraints(
+            n,
+            sns,
+            transmission_losses=transmission_losses,
+            buses=meshed_buses,
+            suffix="-meshed",
+        )
     else:
-        define_nodal_balance_constraints(n, sns)
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses=transmission_losses
+        )
 
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
+
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_constraints(n, sns, c, transmission_losses)
 
     # Define global constraints
     define_primary_energy_limit(n, sns)
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
     define_tech_capacity_expansion_limit(n, sns)
+    define_operational_limit(n, sns)
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
 
@@ -411,6 +439,7 @@ def optimize(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    transmission_losses=0,
     linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
@@ -430,6 +459,11 @@ def optimize(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0, which ignores losses.
     linearized_unit_commitment : bool, default False
         Whether to optimise using the linearised unit commitment formulation or not.
     model_kwargs: dict
@@ -459,7 +493,12 @@ def optimize(
 
     n.consistency_check()
     m = create_model(
-        n, sns, multi_investment_periods, linearized_unit_commitment, **model_kwargs
+        n,
+        sns,
+        multi_investment_periods,
+        transmission_losses,
+        linearized_unit_commitment,
+        **model_kwargs,
     )
     if extra_functionality:
         extra_functionality(n, sns)

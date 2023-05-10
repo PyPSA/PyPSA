@@ -288,7 +288,6 @@ def define_primary_energy_limit(n, sns):
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
-        n.stores["carrier"] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
@@ -296,6 +295,73 @@ def define_primary_energy_limit(n, sns):
             e = e.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
+
+        if not lhs:
+            continue
+
+        lhs = merge(lhs)
+        sign = "=" if glc.sense == "==" else glc.sense
+        m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
+
+
+def define_operational_limit(n, sns):
+    """
+    Defines operational limit constraints. It limits the net production of a
+    carrier taking into account generator, storage units and stores.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
+    m = n.model
+    weightings = n.snapshot_weightings.loc[sns]
+    glcs = n.global_constraints.query('type == "operational_limit"')
+
+    if n._multi_invest:
+        period_weighting = n.investment_period_weightings.years[sns.unique("period")]
+        weightings = weightings.mul(period_weighting, level=0, axis=0)
+
+    for name, glc in glcs.iterrows():
+        if isnan(glc.investment_period):
+            snapshots = sns
+        else:
+            snapshots = sns[sns.get_loc(glc.investment_period)]
+
+        lhs = []
+        rhs = glc.constant
+
+        # generators
+        gens = n.generators.query("carrier == @glc.carrier_attribute")
+        if not gens.empty:
+            p = m["Generator-p"].loc[snapshots, gens.index]
+            weightings = DataArray(weightings.generators[snapshots])
+            expr = (p * weightings).sum()
+            lhs.append(expr)
+
+        # storage units
+        cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
+        sus = n.storage_units.query(cond)
+        sus_i = sus.index
+        if not sus.empty:
+            soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
+            soc = soc.ffill("snapshot").isel(snapshot=-1)
+            lhs.append(-1 * soc.sum())
+            rhs -= sus.state_of_charge_initial.sum()
+
+        # stores
+        n.stores["carrier"] = n.stores.bus.map(n.buses.carrier)
+        stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
+        if not stores.empty:
+            e = m["Store-e"].loc[snapshots, stores.index]
+            e = e.ffill("snapshot").isel(snapshot=-1)
+            lhs.append(-e.sum())
+            rhs -= stores.e_initial.sum()
 
         if not lhs:
             continue

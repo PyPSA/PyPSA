@@ -27,11 +27,33 @@ Upcoming Release
 
 * Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
 
+* Networks are now compressed when exporting the NetCDF
+  ``n.export_to_netcdf(...)`` step using the native compression feature of
+  netCDF files. Additionally, a typecasting option from float64 to float 32 was
+  added. Existing network files are not affected. To also compress existing
+  networks, load and save them using ``xarray`` with compression specified, see
+  `the xarray documentation
+  <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
+  for details. The compression can be disabled with
+  ``n.export_to_netcdf(compression=None)``. Use
+  ``n.export_to_netcdf(compression={'zlib': True, complevel=9, least_significant_digit=5})`` for high compression.
+
 * Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
 
 * To enable better backwards compatibility with the `lopf` function, the ``Network.optimize`` functions has now the explicit keyword argument ``solver_options``. It takes a dictionary of options passed to the solver. Before, these were passed as keyword arguments to the ``Network.optimize`` function. Note that both functionalities are supported.
 
 * Fix an issue appeared when processing networks which were reduced to a set of isolated nodes in course of clustering. Previously, an empty ``Line`` component has lead to problems when processing empty lines-related dataframes. That has been fixed by introducing special treatment in case a lines dataframe is empty.
+
+* Transmission losses can now be represented during optimisation with
+  ``n.optimize()`` or ``n.lopf()`` using a piecewise linear approximation of the
+  loss parabola as presented in `this paper
+  <https://doi.org/10.1016/j.apenergy.2022.118859>`_. The number of segments can
+  be chosen with the argument ``n.optimize(transmission_losses=3)``. The default
+  remains that transmission losses are neglected with
+  ``n.optimize(transmission_losses=0)``, and analogously for
+  ``n.lopf(pyomo=True)`` and ``n.lopf(pyomo=False)``.
+
+* A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
 
 
 PyPSA 0.22.1 (15th February 2023)
@@ -96,7 +118,6 @@ PyPSA 0.21.0 (7th November 2022)
 * Add reference to `Discord server <https://discord.gg/AnuJBk23FU>`_ for support and discussion.
 * Restore import of pandapower networks. Issues regarding the transformer component and indexing as well as missing imports for shunts are fixed. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
 * The import performance of networks was improved. With the changes, the import time for standard netcdf imports decreased by roughly 70%.
-
 
 PyPSA 0.20.1 (6th October 2022)
 ===============================

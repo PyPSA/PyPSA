@@ -64,6 +64,19 @@ def ac_dc_network_multiindexed(ac_dc_network):
 
 
 @pytest.fixture(scope="module")
+def storage_hvdc_network():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "opf-storage-hvdc",
+        "opf-storage-data",
+    )
+    n = pypsa.Network(csv_folder)
+    return n
+
+
+@pytest.fixture(scope="module")
 def pandapower_custom_network():
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
