@@ -636,6 +636,7 @@ class Network(Basic):
         solver_options={},
         solver_logfile=None,
         formulation="kirchhoff",
+        transmission_losses=0,
         keep_files=False,
         extra_functionality=None,
         multi_investment_periods=False,
@@ -666,6 +667,11 @@ class Network(Basic):
         formulation : string
             Formulation of the linear power flow equations to use; must be
             one of ["angles", "cycles", "kirchhoff", "ptdf"]
+        transmission_losses : int
+            Whether an approximation of transmission losses should be included
+            in the linearised power flow formulation. A passed number will denote
+            the number of tangents used for the piecewise linear approximation.
+            Defaults to 0, which ignores losses.
         extra_functionality : callable function
             This function must take two arguments
             `extra_functionality(network, snapshots)` and is called after
@@ -747,6 +753,7 @@ class Network(Basic):
             "keep_files": keep_files,
             "solver_options": solver_options,
             "formulation": formulation,
+            "transmission_losses": transmission_losses,
             "extra_functionality": extra_functionality,
             "multi_investment_periods": multi_investment_periods,
             "solver_name": solver_name,

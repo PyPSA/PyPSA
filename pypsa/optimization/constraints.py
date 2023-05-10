@@ -6,8 +6,8 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy import LinearExpression, merge
-from numpy import inf
+from linopy import LinearExpression, Variable, merge
+from numpy import arange, cumsum, inf, isfinite, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
@@ -20,11 +20,14 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
+from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
 
-def define_operational_constraints_for_non_extendables(n, sns, c, attr):
+def define_operational_constraints_for_non_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
@@ -52,12 +55,23 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, fix_i) if n._multi_invest else None
 
-    dispatch = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-    n.model.add_constraints(dispatch, ">=", lower, f"{c}-fix-{attr}-lower", active)
-    n.model.add_constraints(dispatch, "<=", upper, f"{c}-fix-{attr}-upper", active)
+    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, fix_i)
+        dispatch_lower = (1, dispatch_lower), (-1, loss)
+        dispatch_upper = (1, dispatch_upper), (1, loss)
+    n.model.add_constraints(
+        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+    )
+    n.model.add_constraints(
+        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+    )
 
 
-def define_operational_constraints_for_extendables(n, sns, c, attr):
+def define_operational_constraints_for_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -83,11 +97,15 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
 
-    lhs = (1, dispatch), (-min_pu, capacity)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    lhs_lower = (1, dispatch), (-min_pu, capacity)
+    lhs_upper = (1, dispatch), (-max_pu, capacity)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, ext_i)
+        lhs_upper += ((1, loss),)
+        lhs_lower += ((1, loss),)
 
-    lhs = (1, dispatch), (-max_pu, capacity)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-upper", active)
+    n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
 
 
 def define_operational_constraints_for_committables(n, sns, c):
@@ -429,7 +447,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
+def define_nodal_balance_constraints(
+    n, sns, transmission_losses=0, buses=None, suffix=""
+):
     """
     Defines nodal balance constraints.
     """
@@ -454,6 +474,14 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
         for i in additional_linkports(n):
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
+
+    if transmission_losses:
+        args.extend(
+            [
+                ["Line", "loss", "bus0", -0.5],
+                ["Line", "loss", "bus1", -0.5],
+            ]
+        )
 
     exprs = []
 
@@ -795,3 +823,40 @@ def define_store_constraints(n, sns):
     rhs = -e_init.where(~include_previous_e, 0)
 
     m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+
+
+def define_loss_constraints(n, sns, c, transmission_losses):
+    tangents = transmission_losses
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+
+    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+
+    s_nom_max = n.df(c)["s_nom_max"].where(
+        n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
+    )
+
+    assert isfinite(
+        s_nom_max
+    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+
+    r_pu_eff = n.df(c)["r_pu_eff"]
+
+    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+
+    loss = n.model[f"{c}-loss"]
+    flow = n.model[f"{c}-s"]
+
+    n.model.add_constraints(loss <= upper_limit, name=f"{c}-loss_upper", mask=active)
+
+    for k in range(1, tangents + 1):
+        p_k = k / tangents * s_max_pu * s_nom_max
+        loss_k = r_pu_eff * p_k**2
+        slope_k = 2 * r_pu_eff * p_k
+        offset_k = loss_k - slope_k * p_k
+
+        for sign in [-1, 1]:
+            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+
+            n.model.add_constraints(
+                lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
+            )
