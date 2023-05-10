@@ -6,6 +6,7 @@ Energy system modelling library.
 """
 
 from pypsa import (
+    clustering,
     components,
     contingency,
     descriptors,
