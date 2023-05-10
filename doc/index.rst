@@ -170,6 +170,7 @@ Documentation
    troubleshooting
    comparable_software
    contributing
+   support
    citing
    unit_testing
    mailing_list
