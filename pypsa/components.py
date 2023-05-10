@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 import validators
 from scipy.sparse import csgraph
 
@@ -628,6 +629,11 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
+    @deprecated(
+        deprecated_in="0.23",
+        removed_in="1.0",
+        details="Use linopy-based function ``n.optimize()`` instead. Migrate extra functionalities: https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html.",
+    )
     def lopf(
         self,
         snapshots=None,
