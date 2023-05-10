@@ -31,8 +31,8 @@ def test_operational_limit_ac_dc_meshed(ac_dc_network, api):
 
 
 @pytest.mark.parametrize("api", APIS)
-def test_operational_limit_storage_hvdc(storage_hvdc, api):
-    n = storage_hvdc
+def test_operational_limit_storage_hvdc(storage_hvdc_network, api):
+    n = storage_hvdc_network
 
     limit = 5_000
 
