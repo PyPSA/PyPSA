@@ -52,7 +52,7 @@ Upcoming Release
   remains that transmission losses are neglected with
   ``n.optimize(transmission_losses=0)``, and analogously for
   ``n.lopf(pyomo=True)`` and ``n.lopf(pyomo=False)``.
-  
+
 * A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
 
 
