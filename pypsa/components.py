@@ -21,8 +21,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 import validators
+from deprecation import deprecated
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
