@@ -14,6 +14,7 @@ from pypsa import (
     io,
     linopf,
     linopt,
+    clustering,
     networkclustering,
     opf,
     opt,
