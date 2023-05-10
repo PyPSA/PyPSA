@@ -238,10 +238,16 @@ def create_model(
             n, sns, transmission_losses=transmission_losses, buses=weakly_meshed_buses
         )
         define_nodal_balance_constraints(
-            n, sns, transmission_losses=transmission_losses, buses=meshed_buses, suffix="-meshed"
+            n,
+            sns,
+            transmission_losses=transmission_losses,
+            buses=meshed_buses,
+            suffix="-meshed",
         )
     else:
-        define_nodal_balance_constraints(n, sns, transmission_losses=transmission_losses)
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses=transmission_losses
+        )
 
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
