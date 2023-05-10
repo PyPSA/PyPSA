@@ -35,10 +35,11 @@ PyPSA 0.23.0 (10th May 2023)
   <https://github.com/PyPSA/PyPSA/pull/582>`_]
 
 * Added implementation for a linearized unit commitment approximation (LP-based)
-  that can be activated when calling ``n.lopf()`` or ``n.optimize()``, e.g.
+  that can be activated when calling
   ``n.optimize(linearized_unit_commitment=True)``. The implementation follows
   Hua et al. (2017), `10.1109/TPWRS.2017.2735026
-  <https://doi.org/10.1109/TPWRS.2017.2735026>`_. [`#472
+  <https://doi.org/10.1109/TPWRS.2017.2735026>`_. This functionality is not
+  implemented for ``n.lopf()``. [`#472
   <https://github.com/PyPSA/PyPSA/pull/472>`_]
 
 * NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly
