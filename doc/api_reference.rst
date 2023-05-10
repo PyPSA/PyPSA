@@ -145,7 +145,7 @@ Plotting Networks
 Network Clustering
 ------------------
 
-.. automodule:: pypsa.clustering.spatial
+.. automodule:: pypsa.networkclustering
     :members:
 
 

@@ -13,11 +13,6 @@ Upcoming Release
   ``extra_functionality`` functions, e.g. by following our `migration guide
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
 
-* The module ``pypsa.networkclustering`` was moved to
-  ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
-  deprecated but all functionality will continue to be accessible until the next
-  major version.
-
 PyPSA 0.23.0 (10th May 2023)
 =================================
 
@@ -101,8 +96,6 @@ PyPSA 0.23.0 (10th May 2023)
 * Fix a bug where time-dependant generator variables could be forgotten during
   aggregation in a particular case. [`#576
   <https://github.com/PyPSA/PyPSA/pull/576>`_]
-
-* A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
 
 * Fix an issue appeared when processing networks which were reduced to a set of
   isolated nodes in course of clustering. Previously, an empty ``Line``

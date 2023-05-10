@@ -9,7 +9,7 @@ Created on Mon Jan 31 18:11:09 2022.
 import numpy as np
 import pandas as pd
 
-from pypsa.clustering.spatial import (
+from pypsa.networkclustering import (
     busmap_by_hac,
     busmap_by_kmeans,
     get_clustering_from_busmap,
