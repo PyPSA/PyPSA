@@ -6,6 +6,7 @@ Grid calculation library.
 """
 
 from pypsa import (
+    clustering,
     components,
     contingency,
     descriptors,
@@ -14,7 +15,6 @@ from pypsa import (
     io,
     linopf,
     linopt,
-    clustering,
     networkclustering,
     opf,
     opt,

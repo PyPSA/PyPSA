@@ -7,10 +7,7 @@ Tests continued functioning of deprecated `networkclustering` module.
 import numpy as np
 import pandas as pd
 
-from pypsa.networkclustering import (
-    busmap_by_kmeans,
-    get_clustering_from_busmap,
-)
+from pypsa.networkclustering import busmap_by_kmeans, get_clustering_from_busmap
 
 
 def test_default_clustering_k_means(scipy_network):
