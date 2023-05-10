@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Optimal Power Flow functions.
 """
@@ -1385,7 +1384,7 @@ def define_passive_branch_flows_with_cycles(network, snapshots):
 
 def define_passive_branch_flows_with_kirchhoff(network, snapshots, skip_vars=False):
     """
-    define passive branch flows with the kirchoff method.
+    Define passive branch flows with the kirchoff method.
     """
     for sub_network in network.sub_networks.obj:
         find_tree(sub_network)

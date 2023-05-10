@@ -72,7 +72,8 @@ def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_netcdf(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
     )
     pd.testing.assert_frame_equal(
         m.snapshot_weightings,
@@ -87,7 +88,8 @@ def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_csv_folder(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
     )
 
 
@@ -96,7 +98,8 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     ac_dc_network_multiindexed.export_to_hdf5(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
-        m.generators_t.p, ac_dc_network_multiindexed.generators_t.p
+        m.generators_t.p,
+        ac_dc_network_multiindexed.generators_t.p,
     )
 
 
@@ -128,6 +131,45 @@ def test_import_from_pandapower_network(
 def test_netcdf_from_url():
     url = "https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc"
     pypsa.Network(url)
+
+
+def test_netcdf_io_no_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, float32=False, compression=None)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (scipy_network.loads_t.p_set == scipy_network_compressed.loads_t.p_set)
+        .all()
+        .all()
+    )
+
+
+def test_netcdf_io_custom_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    digits = 5
+    compression = dict(zlib=True, complevel=9, least_significant_digit=digits)
+    scipy_network.export_to_netcdf(fn, compression=compression)
+    scipy_network_compressed = pypsa.Network(fn)
+    assert (
+        (
+            (scipy_network.loads_t.p_set - scipy_network_compressed.loads_t.p_set).abs()
+            < 1 / 10**digits
+        )
+        .all()
+        .all()
+    )
+
+
+def test_netcdf_io_typecast(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, float32=True, compression=None)
+    pypsa.Network(fn)
+
+
+def test_netcdf_io_typecast_and_compression(scipy_network, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    scipy_network.export_to_netcdf(fn, float32=True)
+    pypsa.Network(fn)
 
 
 def test_io_time_dependent_efficiencies(tmpdir):

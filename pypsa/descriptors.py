@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Descriptors for component attributes.
 """
@@ -290,7 +289,7 @@ def free_output_series_dataframes(network, components=None):
 
 def zsum(s, *args, **kwargs):
     """
-    pandas 0.21.0 changes sum() behavior so that the result of applying sum
+    Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
 
     Meant to be set as pd.Series.zsum = zsum.

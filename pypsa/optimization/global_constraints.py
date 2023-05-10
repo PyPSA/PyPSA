@@ -288,7 +288,6 @@ def define_primary_energy_limit(n, sns):
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
-        n.stores["carrier"] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
