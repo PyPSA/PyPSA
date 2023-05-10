@@ -29,6 +29,10 @@ Universities and Research Institutes
 
 * `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
 
+* `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
+
+* `UiT The Arctic University of Norway (UiT) <https://uit.no/>`_ and the `University of Oslo (UiO) <https://www.uio.no/>`_ use PyPSA for studying near-optimal spaces in renewable electricity system planning: `doi.org:10.1016/j.eneco.2022.106496 <https://doi.org/10.1016/j.eneco.2022.106496>`_.
+
 * `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_, `doi:10.1016/j.apenergy.2021.116936 <https://doi.org/10.1016/j.apenergy.2021.116936>`_
 
 * `Kyoto University <https://www.kyoto-u.ac.jp/en>`_ in Japan: uses PyPSA to model several high PV penetration scenarios in Kyushu, the southernmost region of Japan, where PV capacity has been rapidly growing since 2012 and PV curtailment started in 2018: `doi:10.3390/en14092389 <https://doi.org/10.3390/en14092389>`_,  `doi:10.3390/en14154496 <https://doi.org/10.3390/en14154496>`_
