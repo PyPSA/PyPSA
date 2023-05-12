@@ -1159,10 +1159,10 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     z = pd.concat(
         [
-            c.df.loc[c.ind, attribute]
+            c.df.loc[c.ind, attribute].assign(type=c.name)
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
-    )
+    ).set_index('type', append=True).swaplevel()
     b = z.divide(1.0, fill_value=np.inf)
     # susceptances
     # b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
