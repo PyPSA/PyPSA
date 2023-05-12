@@ -57,7 +57,13 @@ def calculate_BODF(sub_network, skip_pre=False):
     if not skip_pre:
         calculate_PTDF(sub_network)
 
-    num_branches = sub_network.PTDF.shape[0]
+    # catch one bus systems
+    if len(sub_network.PTDF) == 0:
+        sub_network.BODF = pd.DataFrame(
+            index=pd.Index([], name=("type", 'name')),
+            columns=pd.Index([], name=("contingency_type", "contingency")),
+        )
+        return
 
     # build LxL version of PTDF
     # relying on consistent ordering of indexes:
@@ -67,7 +73,8 @@ def calculate_BODF(sub_network, skip_pre=False):
         denominator = diags(1 / (1 - np.diag(branch_PTDF)))
 
     # make sure the flow on the branch itself is zero
-    BODF = np.fill_diagonal(branch_PTDF * denominator, -1)
+    BODF = branch_PTDF * denominator
+    np.fill_diagonal(BODF, -1)
 
     sub_network.BODF = pd.DataFrame(
         data=BODF, index=sub_network.branches_i(), columns=sub_network.branches_i()

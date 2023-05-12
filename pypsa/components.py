@@ -53,6 +53,7 @@ from pypsa.pf import (
     calculate_B_H,
     calculate_dependent_values,
     calculate_PTDF,
+    get_network_ptdf,
     calculate_Y,
     find_bus_controls,
     find_cycles,
@@ -224,6 +225,8 @@ class Network(Basic):
     get_committable_i = get_committable_i
 
     get_active_assets = get_active_assets
+
+    PTDF = get_network_ptdf
 
     def __init__(
         self,
@@ -1615,6 +1618,12 @@ class SubNetwork(Common):
         ]
 
     def branches_i(self):
+
+        # possibly faster than python lists handling
+        return pd.MultiIndex.from_frame(
+            pd.concat([pd.DataFrame(data=c.ind.values, columns=['name']).assign(type=c.name).loc[:, ['type', 'name']] for c in self.iterate_components(self.network.passive_branch_components)])
+        )
+
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):

@@ -1149,6 +1149,7 @@ def calculate_B_H(sub_network, skip_pre=False):
         calculate_dependent_values(network)
         find_bus_controls(sub_network)
 
+
     if network.sub_networks.at[sub_network.name, "carrier"] == "DC":
         attribute = "r_pu_eff"
     else:
@@ -1176,11 +1177,6 @@ def calculate_B_H(sub_network, skip_pre=False):
     # incidence matrix
     sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
     # possibly a pandas version could work here as well, unordered buses, discarding any busorder
-    # incidence = pd.concat([
-    #    n.sub_networks.iloc[0,2].branches()[['bus0']].assign(val=1).rename(columns={'bus0':'bus'}),
-    #    n.sub_networks.iloc[0,2].branches()[['bus1']].assign(val=-1).rename(columns={'bus1':'bus'})
-    # ])
-    # incidence.set_index('bus', append=True, inplace=True)
     # for now, keep bus_order=index in mind
 
     sub_network.H = b_diag * sub_network.K.T
@@ -1214,6 +1210,14 @@ def calculate_PTDF(sub_network, skip_pre=False):
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
     """
+    # catch one bus systems
+    if len(sub_network.branches()) == 0:
+        sub_network.PTDF = pd.DataFrame(
+            index=pd.Index([], name=('type', 'name')),
+            columns=sub_network.buses_o,
+        )
+        return
+
     if not skip_pre:
         calculate_B_H(sub_network)
 
@@ -1330,6 +1334,21 @@ def calculate_Y(sub_network, skip_pre=False):
         + C1.T * sub_network.Y1
         + csr_matrix((Y_sh, (np.arange(num_buses), np.arange(num_buses))))
     )
+
+
+def get_network_ptdf(network):
+    # convenience function
+
+    network.determine_network_topology()
+    if len(network.sub_networks) > 1:
+        logger.warning('Network decays into subnetworks, PTDF will be decoupled (blocks).')
+
+    ptdfs = []
+    for s in network.sub_networks['obj']:
+        s.calculate_PTDF()
+        ptdfs.append(s.PTDF)
+
+    return pd.concat(ptdfs).fillna(0)
 
 
 def aggregate_multi_graph(sub_network):
