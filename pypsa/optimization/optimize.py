@@ -332,6 +332,7 @@ def assign_duals(n):
         try:
             c, attr = name.split("-", 1)
         except ValueError:
+            unassigned.append(name)
             continue
 
         if "snapshot" in dual.dims:
