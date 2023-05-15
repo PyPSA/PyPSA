@@ -339,23 +339,19 @@ def assign_duals(n):
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
                 spec = attr.rsplit("-", 1)[-1]
-                assign = [
-                    "upper",
-                    "lower",
-                    "ramp_limit_up",
-                    "ramp_limit_down",
-                    "p_set",
-                    "e_set",
-                    "s_set",
-                    "state_of_charge_set",
-                ]
-
-                if spec in assign:
-                    set_from_frame(n, c, "mu_" + spec, df)
-                elif attr.endswith("nodal_balance"):
+                
+                if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
+
+                else:
+                    set_from_frame(n, c, "mu_" + spec, df)
+           
             except:
                 unassigned.append(name)
+        elif (c=="GlobalConstraint") and (len(dual.dims)==0):
+            n.df(c).loc[attr, "mu"] = dual
+            n.df(c).loc[attr, "sense"] = m.constraints[name].sign.values.item()
+            n.df(c).loc[attr, "constant"] = m.constraints[name].rhs.values.item()
 
     if unassigned:
         logger.info(
