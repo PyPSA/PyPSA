@@ -327,14 +327,16 @@ def assign_duals(n, keep_shadowprices=None):
     """
     m = n.model
     unassigned = []
-    keep_shadowprices = n.components.keys() if not keep_shadowprices else keep_shadowprices
+    keep_shadowprices = (
+        n.components.keys() if not keep_shadowprices else keep_shadowprices
+    )
     for name, dual in m.dual.items():
         try:
             c, attr = name.split("-", 1)
         except ValueError:
             unassigned.append(name)
             continue
-        
+
         if c not in keep_shadowprices:
             unassigned.append(name)
             continue
@@ -343,16 +345,16 @@ def assign_duals(n, keep_shadowprices=None):
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
                 spec = attr.rsplit("-", 1)[-1]
-                
+
                 if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
 
                 else:
                     set_from_frame(n, c, "mu_" + spec, df)
-           
+
             except:
                 unassigned.append(name)
-        elif (c=="GlobalConstraint") and (len(dual.dims)==0):
+        elif (c == "GlobalConstraint") and (len(dual.dims) == 0):
             n.df(c).loc[attr, "mu"] = dual
             n.df(c).loc[attr, "sense"] = m.constraints[name].sign.values.item()
             n.df(c).loc[attr, "constant"] = m.constraints[name].rhs.values.item()
