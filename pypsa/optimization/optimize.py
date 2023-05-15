@@ -321,13 +321,13 @@ def assign_solution(n):
     n.objective = m.objective_value
 
 
-def assign_duals(n, keep_shadowprices):
+def assign_duals(n, keep_shadowprices=None):
     """
     Map dual values i.e. shadow prices to network components.
     """
     m = n.model
     unassigned = []
-
+    keep_shadowprices = n.components.keys() if not keep_shadowprices else keep_shadowprices
     for name, dual in m.dual.items():
         try:
             c, attr = name.split("-", 1)
@@ -446,7 +446,7 @@ def optimize(
     extra_functionality=None,
     solver_name="glpk",
     solver_options={},
-    keep_shadowprices=["Bus", "Line", "Transformer", "Link", "GlobalConstraint"],
+    keep_shadowprices=None,
     **kwargs,
 ):
     """
