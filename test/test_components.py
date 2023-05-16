@@ -236,7 +236,6 @@ def test_copy_no_snapshot(ac_dc_network):
 
 
 def test_network_ptdf(ac_dc_network):
-
     ptdf = ac_dc_network.PTDF()
     assert np.all([c in ac_dc_network.buses.index for c in ptdf.columns])
     assert np.all([c in ac_dc_network.branches().index for c in ptdf.index])

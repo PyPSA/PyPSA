@@ -60,7 +60,7 @@ def calculate_BODF(sub_network, skip_pre=False):
     # catch one bus systems
     if len(sub_network.PTDF) == 0:
         sub_network.BODF = pd.DataFrame(
-            index=pd.Index([], name=("type", 'name')),
+            index=pd.Index([], name=("type", "name")),
             columns=pd.Index([], name=("contingency_type", "contingency")),
         )
         return
@@ -157,7 +157,7 @@ def add_contingency_constraints(network, snapshots):
 
     for sn in network.sub_networks.obj:
         sn.calculate_BODF()
-        
+
         sn._branches = sn.branches()
         sn._branches["_i"] = range(sn._branches.shape[0])
 

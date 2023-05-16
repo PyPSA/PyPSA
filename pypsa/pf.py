@@ -1149,7 +1149,6 @@ def calculate_B_H(sub_network, skip_pre=False):
         calculate_dependent_values(network)
         find_bus_controls(sub_network)
 
-
     if network.sub_networks.at[sub_network.name, "carrier"] == "DC":
         attribute = "r_pu_eff"
     else:
@@ -1211,7 +1210,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
     # catch one bus systems
     if len(sub_network.branches()) == 0:
         sub_network.PTDF = pd.DataFrame(
-            index=pd.Index([], name=('type', 'name')),
+            index=pd.Index([], name=("type", "name")),
             columns=sub_network.buses_o,
         )
         return
@@ -1339,10 +1338,12 @@ def get_network_ptdf(network):
 
     network.determine_network_topology()
     if len(network.sub_networks) > 1:
-        logger.warning('Network decays into subnetworks, PTDF will be decoupled (blocks).')
+        logger.warning(
+            "Network decays into subnetworks, PTDF will be decoupled (blocks)."
+        )
 
     ptdfs = []
-    for s in network.sub_networks['obj']:
+    for s in network.sub_networks["obj"]:
         s.calculate_PTDF()
         ptdfs.append(s.PTDF)
 
