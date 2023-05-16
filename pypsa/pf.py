@@ -1158,7 +1158,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # following leans heavily on pypower.makeBdc
 
     z = sub_network.branches()[attribute]
-    b = z.divide(1.0, fill_value=np.inf)
+    b = 1. / z
     # susceptances
     # old: b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
