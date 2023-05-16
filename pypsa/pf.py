@@ -1157,12 +1157,7 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    z = pd.concat(
-        [
-            c.df.loc[c.ind, attribute].assign(type=c.name)
-            for c in sub_network.iterate_components(network.passive_branch_components)
-        ]
-    ).set_index('type', append=True).swaplevel()
+    z = sub_network.branches()[attribute]
     b = z.divide(1.0, fill_value=np.inf)
     # susceptances
     # b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
@@ -1175,9 +1170,8 @@ def calculate_B_H(sub_network, skip_pre=False):
     b_diag = diags(b.to_numpy())
 
     # incidence matrix
-    sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
     # possibly a pandas version could work here as well, unordered buses, discarding any busorder
-    # for now, keep bus_order=index in mind
+    sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
 
     sub_network.H = b_diag * sub_network.K.T
 

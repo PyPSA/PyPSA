@@ -1620,9 +1620,10 @@ class SubNetwork(Common):
     def branches_i(self):
 
         # possibly faster than python lists handling
+        # tried it out, zero difference. Matter of taste. Feel free to replace.
         return pd.MultiIndex.from_frame(
-            pd.concat([pd.DataFrame(data=c.ind.values, columns=['name']).assign(type=c.name).loc[:, ['type', 'name']] for c in self.iterate_components(self.network.passive_branch_components)])
-        )
+            pd.concat([pd.DataFrame(data=c.ind.values, columns=['name']).assign(type=c.name) for c in self.iterate_components(self.network.passive_branch_components)])
+        ).swaplevel()
 
         types = []
         names = []
