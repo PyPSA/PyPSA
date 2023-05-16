@@ -1157,7 +1157,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     # following leans heavily on pypower.makeBdc
 
     z = sub_network.branches()[attribute]
-    b = 1. / z
+    b = 1.0 / z
     # susceptances
     # old: b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
@@ -1165,8 +1165,8 @@ def calculate_B_H(sub_network, skip_pre=False):
         logger.warning(
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
-    
-    #old: b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+
+    # old: b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
     # b_diag is branches_i x branches_i
     b_diag = diags(b.loc[sub_network.branches_i()].to_numpy())
 
@@ -1189,7 +1189,9 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
-    sub_network.p_branch_shift = -b * phase_shift #np.multiply(-b, phase_shift, where=b != np.inf)
+    sub_network.p_branch_shift = (
+        -b * phase_shift
+    )  # np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
