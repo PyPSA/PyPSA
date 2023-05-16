@@ -1160,19 +1160,23 @@ def calculate_B_H(sub_network, skip_pre=False):
     z = sub_network.branches()[attribute]
     b = z.divide(1.0, fill_value=np.inf)
     # susceptances
-    # b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
+    # old: b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
     if b.isna().any():
         logger.warning(
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
-    #b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
-    b_diag = diags(b.to_numpy())
+    
+    #old: b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    # b_diag is branches_i x branches_i
+    b_diag = diags(b.loc[sub_network.branches_i()].to_numpy())
 
     # incidence matrix
     # possibly a pandas version could work here as well, unordered buses, discarding any busorder
+    # K is buses_o x branches_i (actually doesn't use the branches_i function, but equal iteration of passive branch components)
     sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
 
+    # ordering of H: branches_i x buses_o
     sub_network.H = b_diag * sub_network.K.T
 
     # weighted Laplacian
@@ -1186,7 +1190,7 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
-    sub_network.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
+    sub_network.p_branch_shift = -b * phase_shift #np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
