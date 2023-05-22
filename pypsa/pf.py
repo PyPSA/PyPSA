@@ -293,10 +293,11 @@ def newton_raphson_sparse(
     distribute_slack=False,
     slack_weights=None,
 ):
-    """Solve f(x) = 0 with initial guess for x and dfdx(x). dfdx(x) should
-    return a sparse Jacobian.  Terminate if error on norm of f(x) is <
-    x_tol or there were more than lim_iter iterations.
+    """
+    Solve f(x) = 0 with initial guess for x and dfdx(x).
 
+    dfdx(x) should return a sparse Jacobian.  Terminate if error on norm
+    of f(x) is < x_tol or there were more than lim_iter iterations.
     """
 
     slack_args = {"distribute_slack": distribute_slack, "slack_weights": slack_weights}
