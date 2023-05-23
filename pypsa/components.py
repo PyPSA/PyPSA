@@ -454,7 +454,7 @@ class Network(Basic):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
-    def set_snapshots(self, value):
+    def set_snapshots(self, snapshots, weightings_from_timedelta: bool = False):
         """
         Set the snapshots and reindex all time-dependent data.
 
@@ -463,24 +463,42 @@ class Network(Basic):
 
         Parameters
         ----------
-        snapshots : list or pandas.Index
+        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
             All time steps.
+        weightings_from_timedelta: bool
+            Use the timedelta of `snapshots` as `snapshot_weightings` if `snapshot` is of type `pd.DatetimeIndex`.  Defaults to false.
 
         Returns
         -------
         None
         """
-        if isinstance(value, pd.MultiIndex):
-            assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            value = value.rename(["period", "timestep"])
-            value.name = "snapshot"
-            self._snapshots = value
+        if isinstance(snapshots, pd.MultiIndex):
+            assert (
+                snapshots.nlevels == 2
+            ), "Maximally two levels of MultiIndex supported"
+            snapshots = snapshots.rename(["period", "timestep"])
+            snapshots.name = "snapshot"
+            self._snapshots = snapshots
         else:
-            self._snapshots = pd.Index(value, name="snapshot")
+            self._snapshots = pd.Index(snapshots, name="snapshot")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=1.0
         )
+
+        if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            hours_per_step = (
+                snapshots.to_series()
+                .diff(periods=1)
+                .shift(-1)
+                .ffill()  # fill last value by assuming same as the one before
+                .apply(lambda x: x.total_seconds() / 3600)
+            )
+            self._snapshot_weightings = pd.DataFrame(
+                {c: hours_per_step for c in self._snapshot_weightings.columns}
+            )
+        else:
+            logger.info("Using default `snapshot_weightings`.")
 
         for component in self.all_components:
             pnl = self.pnl(component)
