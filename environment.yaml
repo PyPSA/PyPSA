@@ -5,7 +5,7 @@ dependencies:
 - python>=3.8
 - numpy
 - scipy
-- pandas>=0.24.0
+- pandas>=0.24.0,<2.0
 - xarray
 - netcdf4
 - libnetcdf
@@ -18,5 +18,7 @@ dependencies:
 - linopy>=0.1.1
 - deprecation
 - validators
+- pandapower
+- scikit-learn
 #  - coincbc
 #  - gurobi::gurobi
