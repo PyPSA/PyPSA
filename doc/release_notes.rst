@@ -19,7 +19,7 @@ Upcoming Release
   major version.
 * The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
   that can be used to change the default snapshot weightings, and ``weightings_from_timedelta``
-  is a flag that can be used to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
+  to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 
 
 PyPSA 0.23.0 (10th May 2023)
