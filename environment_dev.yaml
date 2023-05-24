@@ -10,6 +10,7 @@ dependencies:
 - flake8
 - cartopy
 - scikit-learn
+- pandas>=0.24.0,<2.0
 - pip:
   - pypower
   - pandapower>=2.0

@@ -36,7 +36,7 @@ setup(
         "validators",
     ],
     extras_require={
-        "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
+        "dev": ["pytest", "pypower", "pandapower", "scikit-learn", "pandas>=0.24,<2.0"],
         "cartopy": ["cartopy>=0.16"],
         "docs": [
             "numpydoc",

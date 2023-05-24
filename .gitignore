@@ -49,3 +49,5 @@ website/examples/*.py
 .coverage
 
 dev-scripts
+
+.venv
