@@ -477,7 +477,7 @@ class Network(Basic):
         default_snapshot_weightings: float
             The default weight for each snapshot. Defaults to 1.0.
         weightings_from_timedelta: bool
-            Use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
