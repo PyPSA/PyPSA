@@ -17,6 +17,10 @@ Upcoming Release
   ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
   deprecated but all functionality will continue to be accessible until the next
   major version.
+* The function ``n.set_snapshots()`` now takes two arguments; ``default_snapshot_weightings``
+  that can be used to change the default snapshot weightings, and ``weightings_from_timedelta``
+  is a flag that can be used to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
+
 
 PyPSA 0.23.0 (10th May 2023)
 =================================
