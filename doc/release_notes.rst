@@ -18,7 +18,7 @@ Upcoming Release
   deprecated but all functionality will continue to be accessible until the next
   major version.
 * The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
-  that can be used to change the default snapshot weightings, and ``weightings_from_timedelta``
+  to change the default snapshot weightings, and ``weightings_from_timedelta``
   to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 
 
