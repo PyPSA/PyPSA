@@ -750,7 +750,7 @@ def define_storage_unit_constraints(n, sns):
         )
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
 
 
 def define_store_constraints(n, sns):
@@ -822,7 +822,7 @@ def define_store_constraints(n, sns):
     lhs += [(eff_stand, previous_e)]
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
