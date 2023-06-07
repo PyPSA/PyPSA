@@ -27,4 +27,4 @@ e,series,MWh,0,Energy as calculated by the OPF.,Output
 e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by OPF.,Output
 mu_upper,series,currency/MWh,0,Shadow price of upper e_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower e_nom limit,Output
-mu_e_set,series,currency/MWh,0,Shadow price of fixed energy level e_set,Output
+mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations,Output

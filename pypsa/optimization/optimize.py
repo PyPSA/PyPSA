@@ -345,15 +345,16 @@ def assign_duals(n):
                     "ramp_limit_up",
                     "ramp_limit_down",
                     "p_set",
-                    "e_set",
-                    "s_set",
                     "state_of_charge_set",
+                    "energy_balance",
                 ]
 
                 if spec in assign:
                     set_from_frame(n, c, "mu_" + spec, df)
                 elif attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
+                else:
+                    unassigned.append(name)
             except:
                 unassigned.append(name)
 
