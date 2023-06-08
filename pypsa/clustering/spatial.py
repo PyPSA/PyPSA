@@ -57,12 +57,22 @@ def _make_consense(component, attr):
 
 
 def aggregategenerators(
-    network, busmap, with_time=True, carriers=None, custom_strategies=dict()
+    network,
+    busmap,
+    with_time=True,
+    carriers=None,
+    custom_strategies=dict(),
+    buses=None,
 ):
     if carriers is None:
         carriers = network.generators.carrier.unique()
-
+    
     gens_agg_b = network.generators.carrier.isin(carriers)
+
+    if buses is not None:
+        # add all generators in buses that should be clustered
+        gens_agg_b += network.generators.bus.isin(buses)
+
     attrs = network.components["Generator"]["attrs"]
     generators = network.generators.loc[gens_agg_b].assign(
         bus=lambda df: df.bus.map(busmap)
@@ -385,6 +395,7 @@ def get_clustering_from_busmap(
     bus_strategies=dict(),
     one_port_strategies=dict(),
     generator_strategies=dict(),
+    aggregate_generator_buses=None,
 ):
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
@@ -415,6 +426,7 @@ def get_clustering_from_busmap(
             with_time=with_time,
             carriers=aggregate_generators_carriers,
             custom_strategies=generator_strategies,
+            aggregate_buses=aggregate_generator_buses,
         )
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
