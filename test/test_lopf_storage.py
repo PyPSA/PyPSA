@@ -39,3 +39,29 @@ def network():
 def test_lopf(network, target_gen_p, api):
     optimize(network, api)
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+
+
+@pytest.mark.parametrize("api", ["linopy"])
+def test_storage_energy_marginal_cost(api):
+    n = pypsa.Network()
+    n.snapshots = range(3)
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        marginal_cost=1,
+        bus="bus",
+        p_nom=3,
+        p_max_pu=[1, 0, 0],
+    )
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_marginal_cost=0.2,
+        e_initial=1,
+        e_nom=10,
+    )
+    optimize(n, api)
+    assert n.objective == 2.6
