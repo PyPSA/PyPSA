@@ -17,8 +17,11 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 
+import logging
+
 from pypsa.descriptors import nominal_attrs
 
+logger = logging.getLogger(__name__)
 
 def get_carrier(n, c):
     """
@@ -75,6 +78,8 @@ def aggregate_timeseries(df, weights, agg="sum"):
         return df.multiply(weights, axis=0).sum().div(weights.sum())
     elif agg == "sum":
         return weights @ df
+    elif not agg:
+        return df.T
     else:
         return df.agg(agg)
 
@@ -125,9 +130,9 @@ class StatisticsAccessor:
     def __call__(
         self,
         comps=None,
-        aggregate_time="mean",
         aggregate_groups="sum",
         groupby=get_carrier,
+        **kwargs,
     ):
         """
         Calculate statistical values for a network.
@@ -141,10 +146,6 @@ class StatisticsAccessor:
         comps: list-like
             Set of components to consider. Defaults to one-port and branch
             components.
-        aggregate_time : str, optional
-            Type of aggregation when aggregating time series.
-            Note that for {'mean', 'sum'} the time-series are aggregated
-            using snapshot weightings. The default is 'mean'.
         aggregate_groups : str, optional
             Type of aggregation when component groups. The default is 'sum'.
         groupby : callable, list, str, optional
@@ -159,12 +160,13 @@ class StatisticsAccessor:
         df :
             pandas.DataFrame with columns given the different quantities.
         """
-        static_funcs = [
+        if "aggregate_time" in kwargs:
+            logger.warn("Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults.")
+
+        funcs = [
             self.capex,
             self.optimal_capacity,
             self.installed_capacity,
-        ]
-        dynamic_funcs = [
             self.opex,
             self.supply,
             self.withdrawal,
@@ -175,10 +177,9 @@ class StatisticsAccessor:
         ]
         kwargs = dict(comps=comps, aggregate_groups=aggregate_groups, groupby=groupby)
         res = []
-        for func in static_funcs:
-            res.append(func(**kwargs))
-        for func in dynamic_funcs:
-            res.append(func(aggregate_time=aggregate_time, **kwargs))
+        for func in funcs:
+            df = func(**kwargs)
+            res.append(df.rename(df.attrs["name"]))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
     def get_carrier(self, c):
@@ -198,7 +199,7 @@ class StatisticsAccessor:
         Calculate the capital expenditure of the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -209,15 +210,16 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "€"
-        return df.rename("Capital Expenditure")
+        return df
 
     def optimal_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
         Calculate the optimal capacity of the network components.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -228,15 +230,16 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Optimal Capacity"
         df.attrs["unit"] = "MW"
-        return df.rename("Optimal Capacity")
+        return df
 
     def installed_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
         Calculate the installed capacity of the network components.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -247,8 +250,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Installed Capacity"
         df.attrs["unit"] = "MW"
-        return df.rename("Installed Capacity")
+        return df
 
     def expanded_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
@@ -262,8 +266,9 @@ class StatisticsAccessor:
         ) - self.installed_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Expanded Capacity"
         df.attrs["unit"] = "MW"
-        return df.rename("Expanded Capacity")
+        return df
 
     def opex(
         self,
@@ -276,7 +281,7 @@ class StatisticsAccessor:
         Calculate the operational expenditure in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -293,8 +298,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Operational Expenditure"
         df.attrs["unit"] = "€"
-        return df.rename("Operational Expenditure")
+        return df
 
     def supply(
         self,
@@ -307,7 +313,7 @@ class StatisticsAccessor:
         Calculate the supply of components in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -324,8 +330,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Supply"
         df.attrs["unit"] = "MWh"
-        return df.rename("Supply")
+        return df
 
     def withdrawal(
         self,
@@ -338,7 +345,7 @@ class StatisticsAccessor:
         Calculate the withdrawal of components in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -355,8 +362,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "MWh"
-        return df.rename("Withdrawal")
+        return df
 
     def curtailment(
         self,
@@ -372,7 +380,7 @@ class StatisticsAccessor:
         series, which is used to quantify the available power potential.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -385,8 +393,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Curtailment"
         df.attrs["unit"] = "MWh"
-        return df.rename("Curtailment")
+        return df
 
     def capacity_factor(
         self,
@@ -399,7 +408,7 @@ class StatisticsAccessor:
         Calculate the capacity factor of components in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -416,8 +425,9 @@ class StatisticsAccessor:
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
         df = df.div(capacity, fill_value=np.nan)
+        df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
-        return df.rename("Capacity Factor")
+        return df
 
     def revenue(
         self,
@@ -430,7 +440,7 @@ class StatisticsAccessor:
         Calculate the revenue of components in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
@@ -452,8 +462,9 @@ class StatisticsAccessor:
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
+        df.attrs["name"] = "Revenue"
         df.attrs["unit"] = "€"
-        return df.rename("Revenue")
+        return df
 
     def market_value(
         self,
@@ -466,7 +477,7 @@ class StatisticsAccessor:
         Calculate the market value of components in the network.
 
         For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         kwargs = dict(
             comps=comps,
@@ -475,5 +486,6 @@ class StatisticsAccessor:
             groupby=groupby,
         )
         df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "€ / MWh"
-        return df.rename("Market Value")
+        return df
