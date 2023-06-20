@@ -38,7 +38,15 @@ def test_default_solved(ac_dc_network_r):
 
     df = ac_dc_network_r.statistics.energy_balance()
     assert not df.empty
-    assert round(df.groupby(level="bus_carrier").sum().sum()/df.where(lambda x: x>0).groupby(level="bus_carrier").sum().sum(), 3) == 0
+    assert (
+        round(
+            df.groupby(level="bus_carrier").sum().sum()
+            / df.where(lambda x: x > 0).groupby(level="bus_carrier").sum().sum(),
+            3,
+        )
+        == 0
+    )
+
 
 def test_per_bus_carrier_unsolved(ac_dc_network):
     df = ac_dc_network.statistics(groupby=get_bus_and_carrier)
