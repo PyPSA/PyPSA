@@ -12,16 +12,16 @@ __copyright__ = (
     "MIT License"
 )
 
+import logging
 from functools import wraps
 
 import numpy as np
 import pandas as pd
 
-import logging
-
 from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
+
 
 def get_carrier(n, c):
     """
@@ -173,7 +173,9 @@ class StatisticsAccessor:
             pandas.DataFrame with columns given the different quantities.
         """
         if "aggregate_time" in kwargs:
-            logger.warn("Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults.")
+            logger.warn(
+                "Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults."
+            )
 
         funcs = [
             self.capex,
