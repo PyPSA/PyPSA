@@ -47,6 +47,14 @@ def get_bus_and_carrier(n, c):
         bus = "bus"
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
 
+def get_carrier_and_bus_carrier(n, c, port=""):
+    """
+    Get component carrier and bus carrier in one combined DataFrame.    
+    """
+    bus = f"bus{port}"
+    carrier = get_carrier(n, c)
+    bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
+    return pd.concat([carrier, bus_carrier], axis=1)
 
 def get_operation(n, c):
     """
@@ -89,6 +97,7 @@ def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
     Apply a function and group the result for a collection of components.
     """
     d = {}
+    kwargs = {}
     if comps is None:
         comps = n.branch_components | n.one_port_components
     if groupby is None:
@@ -100,11 +109,14 @@ def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
             grouping = [n.df(c)[key] for key in groupby]
         elif isinstance(groupby, str):
             grouping = n.df(c)[groupby]
+        elif isinstance(groupby, dict):
+            grouping = None
+            kwargs = groupby
         else:
             ValueError(
-                f"Argument `groupby` must be a function, list or string, got {type(groupby)}"
+                f"Argument `groupby` must be a function, list, string or dict, got {type(groupby)}"
             )
-        d[c] = func(n, c).groupby(grouping).agg(agg)
+        d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
     return pd.concat(d)
 
 
@@ -363,6 +375,43 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Withdrawal"
+        df.attrs["unit"] = "MWh"
+        return df
+    
+    def energy_balance(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+    ):
+        """
+        Calculate the energy balance of components in the network.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            sign = -1 if c in n.branch_components else n.df(c).get("sign",1)
+            ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
+            p = list()
+            for port in ports:
+                # filter links which have a bus attached for bus_i
+                mask = n.df(c)[f"bus{port}"] != ''
+                df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
+                index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
+                df.columns = pd.MultiIndex.from_frame(index)
+                p.append(df)
+            p = pd.concat(p, axis=1)
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n, func, comps=comps, agg=aggregate_groups, groupby={"level":["carrier", "bus_carrier"]},
+        )
+        df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "MWh"
         return df
 
