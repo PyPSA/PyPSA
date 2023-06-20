@@ -47,14 +47,16 @@ def get_bus_and_carrier(n, c):
         bus = "bus"
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
 
+
 def get_carrier_and_bus_carrier(n, c, port=""):
     """
-    Get component carrier and bus carrier in one combined DataFrame.    
+    Get component carrier and bus carrier in one combined DataFrame.
     """
     bus = f"bus{port}"
     carrier = get_carrier(n, c)
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
     return pd.concat([carrier, bus_carrier], axis=1)
+
 
 def get_operation(n, c):
     """
@@ -379,7 +381,7 @@ class StatisticsAccessor:
         df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "MWh"
         return df
-    
+
     def energy_balance(
         self,
         comps=None,
@@ -396,12 +398,12 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            sign = -1 if c in n.branch_components else n.df(c).get("sign",1)
+            sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
             ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
             p = list()
             for port in ports:
                 # filter links which have a bus attached for bus_i
-                mask = n.df(c)[f"bus{port}"] != ''
+                mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
                 index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
                 df.columns = pd.MultiIndex.from_frame(index)
@@ -411,7 +413,11 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby={"level":["carrier", "bus_carrier"]},
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby={"level": ["carrier", "bus_carrier"]},
         )
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "MWh"
