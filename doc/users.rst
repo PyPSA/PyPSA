@@ -66,8 +66,8 @@ Universities and Research Institutes
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
 
 
-Companies and Non-Governmental Organisations
-============================================
+Companies, Governmental and Non-Governmental Organisations
+==========================================================
 
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
 
@@ -93,6 +93,8 @@ Companies and Non-Governmental Organisations
   `power sector analysis for Thailand <https://static.agora-energiewende.de/fileadmin/Partnerpublikationen/2021/CASE_Beyond_Net_Zero_Empowering_Climate_Mitigation/Towards_a_collective_vision_of_Thai_energy_transition_full_report.pdf>`_ within the CASE programme, `the
   future of the Indonesian power system <https://energynautics.com/en/pypsa/>`_ within the "1000 Islands"
   programme, and the `Brazilian electricity system <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
+
+* The `Canada Energy Regulator (CER) <https://www.cer-rec.gc.ca/en/>`_, an agency of the Government of Canada, used PyPSA for its `Canada's Energy Future 2023 report <https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2023/appendix-3/>`_
 
 * `Meridian Economics <https://meridianeconomics.co.za/>`_, a consultancy based in South Africa, uses PyPSA ecosystem tools and PyPSA-Earth for South Africa. Studies published in June 2022 were on `load shedding in 2021 <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-A-2021-analysis-01.pdf>`_ and `a plan to resolve load shedding <https://meridianeconomics.co.za/wp-content/uploads/2022/06/Resolving-Load-Shedding-Part-B-The-Game-Plan-01.pdf>`_
 
