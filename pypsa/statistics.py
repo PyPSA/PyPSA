@@ -325,7 +325,8 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the dispatch of components in the network. Units depend on the regarded bus carrier.
+        Calculate the dispatch of components in the network. Units depend on
+        the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -354,7 +355,9 @@ class StatisticsAccessor:
         aggregate_groups="sum",
     ):
         """
-        Calculate the energy balance of components in the network. Positive values represent a supply and negative a withdrawal. Units depend on the regarded bus carrier.
+        Calculate the energy balance of components in the network. Positive
+        values represent a supply and negative a withdrawal. Units depend on
+        the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -494,7 +497,8 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the market value of components in the network in given currency/MWh.
+        Calculate the market value of components in the network in given
+        currency/MWh.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
