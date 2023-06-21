@@ -480,6 +480,8 @@ def define_nodal_balance_constraints(
             [
                 ["Line", "loss", "bus0", -0.5],
                 ["Line", "loss", "bus1", -0.5],
+                ["Transformer", "loss", "bus0", -0.5],
+                ["Transformer", "loss", "bus1", -0.5],
             ]
         )
 
@@ -826,6 +828,10 @@ def define_store_constraints(n, sns):
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
+
+    if n.df(c).empty or c not in n.passive_branch_components:
+        return
+
     tangents = transmission_losses
     active = get_activity_mask(n, c, sns) if n._multi_invest else None
 
