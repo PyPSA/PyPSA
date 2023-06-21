@@ -828,7 +828,6 @@ def define_store_constraints(n, sns):
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
-
     if n.df(c).empty or c not in n.passive_branch_components:
         return
 
