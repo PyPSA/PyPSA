@@ -184,8 +184,7 @@ class StatisticsAccessor:
             self.optimal_capacity,
             self.installed_capacity,
             self.opex,
-            self.supply,
-            self.withdrawal,
+            self.dispatch,
             self.curtailment,
             self.capacity_factor,
             self.revenue,
@@ -318,7 +317,7 @@ class StatisticsAccessor:
         df.attrs["unit"] = "€"
         return df
 
-    def supply(
+    def dispatch(
         self,
         comps=None,
         aggregate_time="sum",
@@ -326,7 +325,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the supply of components in the network.
+        Calculate the dispatch of components in the network.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -336,50 +335,16 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             if c in n.branch_components:
-                p = -n.pnl(c).p0.clip(upper=0)
-                p -= n.pnl(c).p1.clip(upper=0)
+                p = -n.pnl(c).p0
             else:
-                p = (n.pnl(c).p * n.df(c).sign).clip(lower=0)
+                p = n.pnl(c).p * n.df(c).sign
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
-        df.attrs["name"] = "Supply"
-        df.attrs["unit"] = "MWh"
-        return df
-
-    def withdrawal(
-        self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-    ):
-        """
-        Calculate the withdrawal of components in the network.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-        """
-        n = self._parent
-
-        @pass_empty_series_if_keyerror
-        def func(n, c):
-            if c in n.branch_components:
-                p = -(n.pnl(c).p0).clip(lower=0)
-                p -= n.pnl(c).p1.clip(lower=0)
-            else:
-                p = (n.pnl(c).p * n.df(c).sign).clip(upper=0)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
-
-        df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
-        )
-        df.attrs["name"] = "Withdrawal"
-        df.attrs["unit"] = "MWh"
+        df.attrs["name"] = "Dispatch"
         return df
 
     def energy_balance(
@@ -419,7 +384,6 @@ class StatisticsAccessor:
             groupby={"level": ["carrier", "bus_carrier"]},
         )
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "MWh"
         return df
 
     def curtailment(
@@ -541,7 +505,7 @@ class StatisticsAccessor:
             aggregate_groups=aggregate_groups,
             groupby=groupby,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df = self.revenue(**kwargs) / self.dispatch(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "€ / MWh"
         return df
