@@ -402,11 +402,10 @@ class StatisticsAccessor:
             ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
             p = list()
             for port in ports:
-                # filter links which have a bus attached for bus_i
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
                 index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
-                df.columns = pd.MultiIndex.from_frame(index)
+                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)
             weights = get_weightings(n, c)
