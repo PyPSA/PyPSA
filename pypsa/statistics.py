@@ -211,7 +211,7 @@ class StatisticsAccessor:
 
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
-        Calculate the capital expenditure of the network.
+        Calculate the capital expenditure of the network in given currency.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -226,12 +226,12 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Capital Expenditure"
-        df.attrs["unit"] = "€"
+        df.attrs["unit"] = "currency"
         return df
 
     def optimal_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
-        Calculate the optimal capacity of the network components.
+        Calculate the optimal capacity of the network components in MW.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -251,7 +251,7 @@ class StatisticsAccessor:
 
     def installed_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
-        Calculate the installed capacity of the network components.
+        Calculate the installed capacity of the network components in MW.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -271,7 +271,7 @@ class StatisticsAccessor:
 
     def expanded_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
-        Calculate the expanded capacity of the network components.
+        Calculate the expanded capacity of the network components in MW.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -293,7 +293,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the operational expenditure in the network.
+        Calculate the operational expenditure in the network in given currency.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -314,7 +314,7 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Operational Expenditure"
-        df.attrs["unit"] = "€"
+        df.attrs["unit"] = "currency"
         return df
 
     def dispatch(
@@ -325,7 +325,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the dispatch of components in the network.
+        Calculate the dispatch of components in the network. Units depend on the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -354,7 +354,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
     ):
         """
-        Calculate the energy balance of components in the network.
+        Calculate the energy balance of components in the network. Positive values represent a supply and negative a withdrawal. Units depend on the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -394,7 +394,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the curtailment of components in the network.
+        Calculate the curtailment of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
@@ -457,7 +457,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the revenue of components in the network.
+        Calculate the revenue of components in the network in given currency.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -483,7 +483,7 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Revenue"
-        df.attrs["unit"] = "€"
+        df.attrs["unit"] = "currency"
         return df
 
     def market_value(
@@ -494,7 +494,7 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the market value of components in the network.
+        Calculate the market value of components in the network in given currency/MWh.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -507,5 +507,5 @@ class StatisticsAccessor:
         )
         df = self.revenue(**kwargs) / self.dispatch(**kwargs)
         df.attrs["name"] = "Market Value"
-        df.attrs["unit"] = "€ / MWh"
+        df.attrs["unit"] = "currency / MWh"
         return df
