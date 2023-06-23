@@ -53,7 +53,9 @@ def get_bus_and_carrier(n, c, port=""):
 
 def get_carrier_and_bus_carrier(n, c, port=""):
     """
-    Get component carrier and bus carrier in one combined DataFrame. Used for MultiIndex in energy balance.
+    Get component carrier and bus carrier in one combined DataFrame.
+
+    Used for MultiIndex in energy balance.
     """
     bus = f"bus{port}"
     bus_and_carrier = pd.concat(get_bus_and_carrier(n, c, port), axis=1)
