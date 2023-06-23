@@ -303,7 +303,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
@@ -343,7 +343,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
@@ -438,7 +438,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
@@ -473,7 +473,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
@@ -512,7 +512,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
@@ -557,7 +557,7 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
-        Additional parameters
+        Parameters
         ----------
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
