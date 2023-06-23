@@ -254,7 +254,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             - p.shift(snapshot=1)
             - (lower_p + ramp_up_limit) * status
             + lower_p * status.shift(snapshot=1)
-            - (lower_p + ramp_up_limit - ramp_start_up) * start_up
+            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
