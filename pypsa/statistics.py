@@ -48,15 +48,15 @@ def get_bus_and_carrier(n, c, port=""):
             bus = "bus"
     else:
         bus = f"bus{port}"
-    return pd.concat([n.df(c)[bus].rename("bus"), get_carrier(n, c)], axis=1)
+    return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
 
 
 def get_carrier_and_bus_carrier(n, c, port=""):
     """
-    Get component carrier and bus carrier in one combined DataFrame.
+    Get component carrier and bus carrier in one combined DataFrame. Used for MultiIndex in energy balance.
     """
     bus = f"bus{port}"
-    bus_and_carrier = get_bus_and_carrier(n, c, port)
+    bus_and_carrier = pd.concat(get_bus_and_carrier(n, c, port), axis=1)
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
     return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
@@ -200,17 +200,17 @@ class StatisticsAccessor:
             res.append(df.rename(df.attrs["name"]))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
-    def get_carrier(self, c):
+    def get_carrier(self, n, c):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_carrier(self._parent, c)
+        return get_carrier(n, c)
 
-    def get_bus_and_carrier(self, c):
+    def get_bus_and_carrier(self, n, c):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_bus_and_carrier(self._parent, c)
+        return get_bus_and_carrier(n, c)
 
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
