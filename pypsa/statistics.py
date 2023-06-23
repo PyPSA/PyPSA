@@ -37,15 +37,18 @@ def get_carrier(n, c):
     )
 
 
-def get_bus_and_carrier(n, c):
+def get_bus_and_carrier(n, c, port=""):
     """
     Get the buses and nice carrier names for a component.
     """
-    if "bus" not in n.df(c):
-        bus = "bus0"
+    if port == "":
+        if "bus" not in n.df(c):
+            bus = "bus0"
+        else:
+            bus = "bus"
     else:
-        bus = "bus"
-    return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
+        bus = f"bus{port}"
+    return pd.concat([n.df(c)[bus].rename("bus"), get_carrier(n, c)], axis=1)
 
 
 def get_carrier_and_bus_carrier(n, c, port=""):
@@ -53,9 +56,9 @@ def get_carrier_and_bus_carrier(n, c, port=""):
     Get component carrier and bus carrier in one combined DataFrame.
     """
     bus = f"bus{port}"
-    carrier = get_carrier(n, c)
+    bus_and_carrier = get_bus_and_carrier(n, c, port)
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
-    return pd.concat([carrier, bus_carrier], axis=1)
+    return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
 
 def get_operation(n, c):
@@ -166,7 +169,7 @@ class StatisticsAccessor:
             Specification how to group assets within one component class.
             If a function is passed, it should have the arguments network and
             component name. If a list is passed it should contain
-            column names of the static dataframe, same for a single string.
+            column names of the static DataFrame, same for a single string.
             Defaults to `get_carrier`.
 
         Returns
@@ -297,6 +300,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated
+            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
         """
         n = self._parent
 
@@ -330,6 +340,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to MWh
+            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self._parent
 
@@ -353,6 +370,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
+        aggregate_bus=True,
     ):
         """
         Calculate the energy balance of components in the network. Positive
@@ -361,6 +379,15 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameter
+        ----------
+        aggregate_bus: bool, optional
+            Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to MWh
+            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self._parent
 
@@ -379,12 +406,16 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
+        groupby = ["carrier", "bus_carrier"]
+        if not aggregate_bus:
+            groupby.append("bus")
+
         df = aggregate_components(
             n,
             func,
             comps=comps,
             agg=aggregate_groups,
-            groupby={"level": ["carrier", "bus_carrier"]},
+            groupby={"level": groupby},
         )
         df.attrs["name"] = "Energy Balance"
         return df
@@ -404,6 +435,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to MWh
+            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self._parent
 
@@ -432,6 +470,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'mean'.
         """
         n = self._parent
 
@@ -464,6 +509,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
         """
         n = self._parent
 
@@ -502,6 +554,13 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Additional parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'mean'.
         """
         kwargs = dict(
             comps=comps,
