@@ -505,19 +505,7 @@ def define_nodal_balance_constraints(
         expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            # do a fast version of `expr.groupby(cbuses.to_xarray()).sum()`
-            idx = pd.MultiIndex.from_arrays(
-                [cbuses, cbuses.groupby(cbuses).cumcount()], names=["Bus", "_term"]
-            )
-            ds = (
-                expr.data.squeeze()
-                .assign_coords({c: idx})
-                .unstack(c)
-                .reset_index("_term")
-            )
-            expr = LinearExpression(ds, m)
-
-            exprs.append(expr)
+            exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(
         Bus=buses, fill_value=LinearExpression.fill_value
