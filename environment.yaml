@@ -15,7 +15,7 @@ dependencies:
 - pyomo>=5.7.0
 - cartopy>=0.16
 - glpk
-- linopy>=0.2.1
+- linopy>=0.2
 - deprecation
 - validators
 #  - coincbc
