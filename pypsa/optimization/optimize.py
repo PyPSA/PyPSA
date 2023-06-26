@@ -10,6 +10,7 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
+from linopy.expressions import LinearExpression, QuadraticExpression
 
 from pypsa.descriptors import additional_linkports
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -68,6 +69,7 @@ def define_objective(n, sns):
     """
     m = n.model
     objective = []
+    is_quadratic = False
 
     if n._multi_invest:
         periods = sns.unique("period")
@@ -117,6 +119,26 @@ def define_objective(n, sns):
         operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
         objective.append((operation * cost).sum())
 
+    # marginal cost quadratic
+    weighting = n.snapshot_weightings.objective
+    if n._multi_invest:
+        weighting = weighting.mul(period_weighting, level=0).loc[sns]
+    else:
+        weighting = weighting.loc[sns]
+
+    for c, attr in lookup.query("marginal_cost").index:
+        if "marginal_cost_quadratic" in n.df(c):
+            cost = (
+                get_as_dense(n, c, "marginal_cost_quadratic", sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+            if cost.empty:
+                continue
+            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            objective.append((operation * operation * cost).sum())
+            is_quadratic = True
+
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = n.get_extendable_i(c)
@@ -153,7 +175,10 @@ def define_objective(n, sns):
             "Please make sure the components have assigned costs."
         )
 
-    m.objective = merge(objective)
+    if is_quadratic:
+        m.objective = sum(objective)
+    else:
+        m.objective = merge(objective)  # use fast implementation
 
 
 def create_model(
@@ -332,6 +357,7 @@ def assign_duals(n):
         try:
             c, attr = name.split("-", 1)
         except ValueError:
+            unassigned.append(name)
             continue
 
         if "snapshot" in dual.dims:
@@ -344,15 +370,16 @@ def assign_duals(n):
                     "ramp_limit_up",
                     "ramp_limit_down",
                     "p_set",
-                    "e_set",
-                    "s_set",
                     "state_of_charge_set",
+                    "energy_balance",
                 ]
 
                 if spec in assign:
                     set_from_frame(n, c, "mu_" + spec, df)
                 elif attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
+                else:
+                    unassigned.append(name)
             except:
                 unassigned.append(name)
 

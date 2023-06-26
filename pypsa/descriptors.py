@@ -89,7 +89,7 @@ class Dict(dict):
 
     def __setattr__(self, name, value):
         """
-        setattr is called when the syntax a.b = 2 is used to set a value.
+        Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
             raise AttributeError(

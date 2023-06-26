@@ -171,6 +171,7 @@ class StatisticsAccessor:
             self.curtailment,
             self.capacity_factor,
             self.revenue,
+            self.market_value,
         ]
         kwargs = dict(comps=comps, aggregate_groups=aggregate_groups, groupby=groupby)
         res = []
