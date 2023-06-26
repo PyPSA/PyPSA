@@ -20,7 +20,7 @@ setup(
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
         "numpy",
         "scipy",
@@ -29,7 +29,7 @@ setup(
         "netcdf4",
         "tables",
         "pyomo>=5.7",
-        "linopy>=0.1.1",
+        "linopy>=0.2.1",
         "matplotlib",
         "networkx>=1.10",
         "deprecation",

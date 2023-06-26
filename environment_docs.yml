@@ -2,7 +2,7 @@ name: pypsa-doc
 channels:
 - conda-forge
 dependencies:
-- python>=3.8
+- python>=3.9
 - pip
 - python
 - six
@@ -24,6 +24,7 @@ dependencies:
 - pandoc
 - ipykernel   # for executing nbs
 - scikit-learn  # for spatial clustering
+- linopy>=0.2
 
 - pip:
   - .
