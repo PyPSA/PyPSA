@@ -7,6 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Drop support for python 3.8. The minimum required version of python is now 3.9.
 * The function ``n.lopf()`` is deprecated in favour of the linopy-based
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
@@ -22,6 +23,8 @@ Upcoming Release
   to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 * The statistics function ``n.statistics()`` now also supports the calculation of the ``Market Value`` of components.
 * The statistics function allows now calculating energy balances, as well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``). Furthermore, ``n.statistics.supply`` and ``n.statistics.withdrawal`` are removed and replaced by ``n.statistics.energy_balance()`` and ``n.statistics.dispatch()``.
+* PyPSA now supports quadratic marginal cost terms. A new column `marginal_cost_quadratic` was added to generators and links. The quadratic marginal cost is added to the objective function when calling ``n.optimize()``.
+* The minimum required version of ``linopy`` is now ``0.2.1``.
 
 
 PyPSA 0.23.0 (10th May 2023)

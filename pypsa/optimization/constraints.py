@@ -480,6 +480,8 @@ def define_nodal_balance_constraints(
             [
                 ["Line", "loss", "bus0", -0.5],
                 ["Line", "loss", "bus1", -0.5],
+                ["Transformer", "loss", "bus0", -0.5],
+                ["Transformer", "loss", "bus1", -0.5],
             ]
         )
 
@@ -505,19 +507,7 @@ def define_nodal_balance_constraints(
         expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            # do a fast version of `expr.groupby(cbuses.to_xarray()).sum()`
-            idx = pd.MultiIndex.from_arrays(
-                [cbuses, cbuses.groupby(cbuses).cumcount()], names=["Bus", "_term"]
-            )
-            ds = (
-                expr.data.squeeze()
-                .assign_coords({c: idx})
-                .unstack(c)
-                .reset_index("_term")
-            )
-            expr = LinearExpression(ds, m)
-
-            exprs.append(expr)
+            exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(
         Bus=buses, fill_value=LinearExpression.fill_value
@@ -741,10 +731,12 @@ def define_storage_unit_constraints(n, sns):
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
+        previous_soc_pp = previous_soc_pp.where(
+            include_previous_soc_pp.values, Variable.fill_value
+        )
 
         # update the previous_soc variables and right hand side
-        previous_soc = previous_soc.where(~per_period, previous_soc_pp.values)
+        previous_soc = previous_soc.where(~per_period, previous_soc_pp)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
@@ -813,10 +805,12 @@ def define_store_constraints(n, sns):
         include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
+        previous_e_pp = previous_e_pp.where(
+            include_previous_e_pp.values, Variable.fill_value
+        )
 
         # update the previous_e variables and right hand side
-        previous_e = previous_e.where(~per_period, previous_e_pp.values)
+        previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]
@@ -826,6 +820,9 @@ def define_store_constraints(n, sns):
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):
+    if n.df(c).empty or c not in n.passive_branch_components:
+        return
+
     tangents = transmission_losses
     active = get_activity_mask(n, c, sns) if n._multi_invest else None
 
