@@ -2,7 +2,7 @@ name: pypsa-doc
 channels:
 - conda-forge
 dependencies:
-- python>=3.8
+- python>=9
 - pip
 - python
 - six

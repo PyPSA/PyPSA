@@ -7,6 +7,7 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Drop support for python 3.8. The minimum required version of python is now 3.9.
 * The function ``n.lopf()`` is deprecated in favour of the linopy-based
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
