@@ -66,7 +66,7 @@ def aggregategenerators(
 ):
     if carriers is None:
         carriers = network.generators.carrier.unique()
-    
+
     gens_agg_b = network.generators.carrier.isin(carriers)
 
     if buses is not None:
