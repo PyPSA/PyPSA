@@ -37,6 +37,10 @@ PyPSA 0.24.0 (27th June 2023)
 * Bug fix in linearized unit commitment implementation correcting sign.
 * The minimum required version of ``linopy`` is now ``0.2.1``.
 * Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
+* The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and ``pypsa.clustering.spatial.aggregategenerators``
+  now allows the passing of a list of buses for which aggregation of __all__ carriers is desired. Generation from
+  a carrier at a bus is aggregated now if: It is __either__ in the passed list of aggregated carriers, __or__ in the
+  list of aggregated buses.
 
 
 PyPSA 0.23.0 (10th May 2023)
