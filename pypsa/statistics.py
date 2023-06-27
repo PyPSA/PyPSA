@@ -189,6 +189,8 @@ class StatisticsAccessor:
             self.optimal_capacity,
             self.installed_capacity,
             self.opex,
+            self.supply,
+            self.withdrawal,
             self.dispatch,
             self.curtailment,
             self.capacity_factor,
@@ -329,6 +331,73 @@ class StatisticsAccessor:
         df.attrs["unit"] = "currency"
         return df
 
+    def supply(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+        groupby=None,
+    ):
+        """
+        Calculate the supply of components in the network. Units depend on
+        the regarded bus carrier.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            if c in n.branch_components:
+                p = -n.pnl(c).p0.clip(upper=0)
+                p -= n.pnl(c).p1.clip(upper=0)
+            else:
+                p = (n.pnl(c).p * n.df(c).sign).clip(lower=0)
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+        )
+        df.attrs["name"] = "Supply"
+        df.attrs["unit"] = "carrier dependent"
+        return df
+    
+
+    def withdrawal(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+        groupby=None,
+    ):
+        """
+        Calculate the withdrawal of components in the network. Units depend on
+        the regarded bus carrier.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            if c in n.branch_components:
+                p = -(n.pnl(c).p0).clip(lower=0)
+                p -= n.pnl(c).p1.clip(lower=0)
+            else:
+                p = (n.pnl(c).p * n.df(c).sign).clip(upper=0)
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+        )
+        df.attrs["name"] = "Withdrawal"
+        df.attrs["unit"] = "carrier dependent"
+        return df
+
     def dispatch(
         self,
         comps=None,
@@ -365,6 +434,7 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Dispatch"
+        df.attrs["unit"] = "carrier dependent"
         return df
 
     def energy_balance(
@@ -420,6 +490,7 @@ class StatisticsAccessor:
             groupby={"level": groupby},
         )
         df.attrs["name"] = "Energy Balance"
+        df.attrs["unit"] = "carrier dependent"
         return df
 
     def curtailment(
