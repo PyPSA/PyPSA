@@ -7,25 +7,36 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Drop support for python 3.8. The minimum required version of python is now 3.9.
+* new feature
+
+PyPSA 0.24.0 (27th June 2023)
+=================================
+
+* PyPSA now supports quadratic marginal cost terms. A new column
+  `marginal_cost_quadratic` was added to generators and links. The quadratic
+  marginal cost is added to the objective function when calling
+  ``n.optimize()``.
+* The statistics function now allows calculating energy balances
+  ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as
+  well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``).
+  The energy balance can be configured to yield energy balance time series for
+  each bus.
+* The statistics function ``n.statistics()`` now also supports the calculation
+  of the market values of components.
+* The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
+  to change the default snapshot weightings, and ``weightings_from_timedelta``
+  to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 * The function ``n.lopf()`` is deprecated in favour of the linopy-based
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
   ``extra_functionality`` functions, e.g. by following our `migration guide
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
-
 * The module ``pypsa.networkclustering`` was moved to
   ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
-  deprecated but all functionality will continue to be accessible until the next
-  major version.
-* The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
-  to change the default snapshot weightings, and ``weightings_from_timedelta``
-  to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
-* The statistics function ``n.statistics()`` now also supports the calculation of the ``Market Value`` of components.
-* The statistics function allows now calculating energy balances ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``).
-* Bug fix in linearized unit commitment
-* PyPSA now supports quadratic marginal cost terms. A new column `marginal_cost_quadratic` was added to generators and links. The quadratic marginal cost is added to the objective function when calling ``n.optimize()``.
+  deprecated but all functionality will continue to be accessible until PyPSA v0.25.
+* Bug fix in linearized unit commitment implementation correcting sign.
 * The minimum required version of ``linopy`` is now ``0.2.1``.
+* Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
 
 
 PyPSA 0.23.0 (10th May 2023)

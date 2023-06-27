@@ -117,7 +117,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         elif col.startswith("nom_max_"):
             sign = "<="
         else:
-            logger.warn(msg)
+            logger.warning(msg)
             continue
         remainder = col[len("nom_max_") :]
         if remainder in n.carriers.index:
@@ -127,10 +127,10 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
-                logger.warn(msg)
+                logger.warning(msg)
                 continue
         else:
-            logger.warn(msg)
+            logger.warning(msg)
             continue
 
         lhs = []
