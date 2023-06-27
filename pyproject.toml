@@ -1,0 +1,8 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[tool.wheel]
+universal = 1
+
+[tool.black]
+line-length = 88
