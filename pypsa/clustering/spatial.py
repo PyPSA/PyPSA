@@ -395,7 +395,7 @@ def get_clustering_from_busmap(
     bus_strategies=dict(),
     one_port_strategies=dict(),
     generator_strategies=dict(),
-    aggregate_generator_buses=None,
+    aggregate_generators_buses=None,
 ):
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
@@ -426,7 +426,7 @@ def get_clustering_from_busmap(
             with_time=with_time,
             carriers=aggregate_generators_carriers,
             custom_strategies=generator_strategies,
-            aggregate_buses=aggregate_generator_buses,
+            aggregate_buses=aggregate_generators_buses,
         )
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:
