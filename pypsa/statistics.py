@@ -180,7 +180,7 @@ class StatisticsAccessor:
             pandas.DataFrame with columns given the different quantities.
         """
         if "aggregate_time" in kwargs:
-            logger.warn(
+            logger.warning(
                 "Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults."
             )
 
