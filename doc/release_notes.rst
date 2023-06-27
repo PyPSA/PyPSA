@@ -22,7 +22,7 @@ Upcoming Release
   to change the default snapshot weightings, and ``weightings_from_timedelta``
   to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 * The statistics function ``n.statistics()`` now also supports the calculation of the ``Market Value`` of components.
-* The statistics function allows now calculating energy balances, as well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``). Furthermore, ``n.statistics.supply`` and ``n.statistics.withdrawal`` are removed and replaced by ``n.statistics.energy_balance()`` and ``n.statistics.dispatch()``.
+* The statistics function allows now calculating energy balances ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``).
 * Bug fix in linearized unit commitment
 * PyPSA now supports quadratic marginal cost terms. A new column `marginal_cost_quadratic` was added to generators and links. The quadratic marginal cost is added to the objective function when calling ``n.optimize()``.
 * The minimum required version of ``linopy`` is now ``0.2.1``.
