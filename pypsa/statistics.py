@@ -339,8 +339,8 @@ class StatisticsAccessor:
         groupby=None,
     ):
         """
-        Calculate the supply of components in the network. Units depend on
-        the regarded bus carrier.
+        Calculate the supply of components in the network. Units depend on the
+        regarded bus carrier.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
@@ -363,7 +363,6 @@ class StatisticsAccessor:
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
         return df
-    
 
     def withdrawal(
         self,
