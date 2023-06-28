@@ -26,6 +26,7 @@ from pypsa.descriptors import (
     get_active_assets,
     get_activity_mask,
     get_bounds_pu,
+    get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
 )
@@ -1102,6 +1103,32 @@ def define_objective(n, sns):
             continue
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
+
+    # stand-by cost
+    allowed_c = {"Generator", "Link"}
+    for c in allowed_c:
+        com_i = get_committable_i(n, c)
+
+        if not com_i.empty:
+            stand_by_cost = (
+                get_as_dense(n, c, "stand_by_cost", sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+
+            c_our, attr_our = "Generator", "status"
+
+            com_and_stand_by_cost = com_i.intersection(stand_by_cost.columns)
+
+            if not com_and_stand_by_cost.empty:
+                terms = linexpr(
+                    (
+                        stand_by_cost[com_and_stand_by_cost],
+                        get_var(n, c_our, attr_our)[com_and_stand_by_cost],
+                    )
+                ).sum(1)
+
+                write_objective(n, terms)
 
     # investment
     for c, attr in nominal_attrs.items():
