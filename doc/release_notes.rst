@@ -7,6 +7,10 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* PyPSA now supports stand-by cost terms. A new column
+  `stand_by_cost` was added to generators and links. The stand-by
+  cost is added to the objective function when calling
+  ``n.optimize()``.
 * new feature
 
 PyPSA 0.24.0 (27th June 2023)
