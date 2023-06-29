@@ -148,21 +148,13 @@ def define_objective(n, sns):
             continue
 
         stand_by_cost = (
-            get_as_dense(n, c, "stand_by_cost", sns)
+            get_as_dense(n, c, "stand_by_cost", sns, com_i)
             .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
-
-        idx = stand_by_cost.columns
-        com_and_stand_by_cost = com_i.intersection(idx)
-        status = n.model.variables[f"{c}-status"].loc[:, com_and_stand_by_cost]
-        stand_by_cost.columns.set_names(
-            stand_by_cost.columns.name + "-com", inplace=True
-        )
-
-        m.objective = (
-            m.objective + (status * stand_by_cost.loc[:, com_and_stand_by_cost]).sum()
-        )
+        stand_by_cost.columns.name = f"{c}-com"
+        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
+        m.objective = m.objective + (status * stand_by_cost).sum()
 
     # investment
     for c, attr in nominal_attrs.items():
