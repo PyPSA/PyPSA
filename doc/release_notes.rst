@@ -10,7 +10,7 @@ Upcoming Release
 * The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and ``pypsa.clustering.spatial.aggregategenerators``
   now allows the passing of a list of buses for which aggregation of __all__ carriers is desired. Generation from
   a carrier at a bus is aggregated now if: It is __either__ in the passed list of aggregated carriers, __or__ in the
-  list of aggregated buses. 
+  list of aggregated buses.
 * PyPSA now supports stand-by cost terms. A new column
   `stand_by_cost` was added to generators and links. The stand-by
   cost is added to the objective function when calling
@@ -22,7 +22,7 @@ PyPSA 0.24.0 (27th June 2023)
 * PyPSA now supports quadratic marginal cost terms. A new column
   `marginal_cost_quadratic` was added to generators, links, stores and storage
   units. The quadratic marginal cost is added to the objective function when
-  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance, 
+  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance,
   HiGHS, Gurobi, Xpress, or CPLEX.
 * The statistics function now allows calculating energy balances
   ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as
