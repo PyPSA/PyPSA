@@ -12,7 +12,7 @@ import pandas as pd
 from linopy import Model, merge
 from linopy.expressions import LinearExpression, QuadraticExpression
 
-from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import additional_linkports, get_committable_i
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
@@ -138,6 +138,31 @@ def define_objective(n, sns):
             operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
             objective.append((operation * operation * cost).sum())
             is_quadratic = True
+
+    # stand-by cost
+    comps = {"Generator", "Link"}
+    for c in comps:
+        com_i = get_committable_i(n, c)
+
+        if com_i.empty:
+            continue
+
+        stand_by_cost = (
+            get_as_dense(n, c, "stand_by_cost", sns)
+            .loc[:, lambda ds: (ds != 0).any()]
+            .mul(weighting, axis=0)
+        )
+
+        idx = stand_by_cost.columns
+        com_and_stand_by_cost = com_i.intersection(idx)
+        status = n.model.variables[f"{c}-status"].loc[:, com_and_stand_by_cost]
+        stand_by_cost.columns.set_names(
+            stand_by_cost.columns.name + "-com", inplace=True
+        )
+
+        m.objective = (
+            m.objective + (status * stand_by_cost.loc[:, com_and_stand_by_cost]).sum()
+        )
 
     # investment
     for c, attr in nominal_attrs.items():
