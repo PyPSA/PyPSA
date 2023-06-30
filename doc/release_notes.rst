@@ -18,7 +18,7 @@ PyPSA 0.24.0 (27th June 2023)
 * PyPSA now supports quadratic marginal cost terms. A new column
   `marginal_cost_quadratic` was added to generators, links, stores and storage
   units. The quadratic marginal cost is added to the objective function when
-  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance, 
+  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance,
   HiGHS, Gurobi, Xpress, or CPLEX.
 * The statistics function now allows calculating energy balances
   ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as
