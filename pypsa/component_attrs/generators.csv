@@ -30,6 +30,7 @@ ramp_limit_up,float,per unit,NaN,"Maximum active power increase from one snapsho
 ramp_limit_down,float,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
 ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power.   Only read if committable is True.",Input (optional)
 ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power.   Only read if committable is True.",Input (optional)
+weight,float,n/a,1,"Weighting of a generator. Only used for network clustering.",Input (optional)
 p,series,MW,0,active power at bus (positive if net generation),Output
 q,series,MVar,0,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
