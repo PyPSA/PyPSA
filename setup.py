@@ -41,7 +41,7 @@ setup(
         "docs": [
             "numpydoc",
             "sphinx",
-            "sphinx_rtd_theme",
+            "sphinx-book-theme",
             "nbsphinx",
             "nbsphinx-link",
             "black",
