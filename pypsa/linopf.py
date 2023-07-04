@@ -35,7 +35,9 @@ from pypsa.linopt import (
     align_with_static_component,
     define_binaries,
     define_constraints,
+    define_integers,
     define_variables,
+    define_variables_integer,
     get_con,
     get_var,
     join_exprs,
@@ -87,6 +89,8 @@ def define_nominal_for_extendable_variables(n, c, attr):
     attr : str
         name of the variable, e.g. 'p_nom'
     """
+    if attr == "n_opt":
+        return  # mettendo n_opt tra le variabile, lui va a qui ad analizzarla. Potremmo metterla tra le varibili trattate separatamente e aggiungere una riga a parte per asseggnare il valore della soluzione
     ext_i = get_extendable_i(n, c)
     if ext_i.empty:
         return
@@ -255,6 +259,74 @@ def define_unit_commitment_status_variables(n, sns, c):
         return
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
     define_binaries(n, (sns, com_i), c, "status", mask=active)
+
+
+def define_generator_multiple_device(n):
+    c = "Generator"
+    p_nom_i = n.generators.index[n.generators.p_nom > 0]
+    ext_i = get_extendable_i(n, c)
+    if (ext_i.intersection(p_nom_i)).empty:
+        return
+    ##serve? a mio parere no, quindi silenzio
+    # active = get_activity_mask(n, c, sns)[ext_i.intersection(p_nom_i)] if n._multi_invest else None
+    var = define_integers(n, (ext_i.intersection(p_nom_i)), "Generator", "n_opt")
+    define_boundary_for_multiple_device(n, c, "p_nom", np.array(var))
+    lhs = linexpr(
+        (
+            n.generators.p_nom[ext_i.intersection(p_nom_i)],
+            get_var(n, c, "n_opt")[ext_i.intersection(p_nom_i)],
+        ),
+        (-1, get_var(n, c, "p_nom")[ext_i.intersection(p_nom_i)]),
+    )
+    write_constraint(n, lhs, "=", 0)
+
+
+def define_boundary_for_multiple_device(n, c, attr, variables):
+    """
+    Initializes variables for nominal capacities for a given component and a
+    given attribute.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        network component of which the nominal capacity should be defined
+    attr : str
+        name of the variable, e.g. 'p_nom'
+    """
+    p_nom_i = n.generators.index[n.generators.p_nom > 0]
+    ext_i = get_extendable_i(n, c)
+    if (ext_i.intersection(p_nom_i)).empty:
+        return
+    if not (
+        (
+            n.df(c)[attr][ext_i.intersection(p_nom_i)]
+            < n.df(c)[attr + "_max"][ext_i.intersection(p_nom_i)]
+        )
+    ).all():
+        return
+    lower = np.round(
+        n.df(c)[attr + "_min"][ext_i.intersection(p_nom_i)]
+        / n.df(c)[attr][ext_i.intersection(p_nom_i)]
+    )
+    upper = np.round(
+        n.df(c)[attr + "_max"][ext_i.intersection(p_nom_i)]
+        / n.df(c)[attr][ext_i.intersection(p_nom_i)]
+    )
+    define_variables_integer(n, lower, upper, c, variables, "n_opt")
+    """
+    #alternativa all'if che mi pare meno pulita ma che permette di agigornare
+    solo i generatori per cui la condizione è soddisfatta lower =
+    np.round(n.df(c)[attr+'_min'][((n.df(c)[attr][ext_i.intersection(p_nom_i)]<
+
+    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]/n.df(c)[attr][((n.df(c
+    )[attr][ext_i.intersection(p_nom_i)]<
+    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]) upper =
+    np.round(n.df(c)[attr+'_max'][((n.df(c)[attr][ext_i.intersection(p_nom_i)]<
+    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]/n.df(c)[attr][((n.df(c
+    )[attr][ext_i.intersection(p_nom_i)]<
+    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))])
+    """
 
 
 def define_loss_variables(n, sns, c, transmission_losses):
@@ -1157,17 +1229,20 @@ def prepare_lopf(
     fdo, objective_fn = mkstemp(".txt", "pypsa-objectve-", **tmpkwargs)
     fdc, constraints_fn = mkstemp(".txt", "pypsa-constraints-", **tmpkwargs)
     fdb, bounds_fn = mkstemp(".txt", "pypsa-bounds-", **tmpkwargs)
+    fdg, generals_fn = mkstemp(".txt", "pypsa-generals-", **tmpkwargs)
     fdi, binaries_fn = mkstemp(".txt", "pypsa-binaries-", **tmpkwargs)
     fdp, problem_fn = mkstemp(".lp", "pypsa-problem-", **tmpkwargs)
 
     n.objective_f = open(objective_fn, mode="w")
     n.constraints_f = open(constraints_fn, mode="w")
     n.bounds_f = open(bounds_fn, mode="w")
+    n.generals_f = open(generals_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
 
     n.objective_f.write("\ LOPF \n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
+    n.generals_f.write("\ngeneral\n")
     n.binaries_f.write("\nbinary\n")
 
     for c in n.passive_branch_components:
@@ -1194,6 +1269,7 @@ def prepare_lopf(
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
+    define_generator_multiple_device(n)
 
     for c in {"Generator", "Link"}:
         define_unit_commitment_constraints(n, snapshots, c)
@@ -1223,6 +1299,7 @@ def prepare_lopf(
         ("bounds_f", fdb),
         ("constraints_f", fdc),
         ("objective_f", fdo),
+        ("generals_f", fdg),
         ("binaries_f", fdi),
     ):
         getattr(n, f).close()
@@ -1231,7 +1308,7 @@ def prepare_lopf(
 
     # concatenate files
     with open(problem_fn, "wb") as wfd:
-        for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
+        for f in [objective_fn, constraints_fn, bounds_fn, generals_fn, binaries_fn]:
             with open(f, "rb") as fd:
                 shutil.copyfileobj(fd, wfd)
             if not keep_files:
@@ -1300,8 +1377,13 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = False
             sol = variables.map(variables_sol)
             if predefined:
-                non_ext = n.df(c)[attr]
-                n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
+                if not (
+                    attr == "n_opt"
+                ):  # if inserito perchè la seguente riga serve solo per far diventare quello che in pypsa viene ottimizzato come nominal optimal, quindi entravamo in conflitto
+                    non_ext = n.df(c)[attr]
+                    n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
+                else:
+                    n.generators.n_opt = sol
             else:
                 n.sols[c].df[attr] = sol
 

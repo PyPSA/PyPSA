@@ -330,6 +330,8 @@ def assign_solution(n):
             else:
                 set_from_frame(n, c, attr, df)
         else:
+            if attr == "n_opt":
+                return
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal

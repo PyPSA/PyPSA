@@ -138,6 +138,70 @@ def define_binaries(n, axes, name, attr="", spec="", mask=None):
     return var
 
 
+def define_variables_integer(
+    n, lower, upper, name, variables, attr="", axes=None, spec="", mask=None
+):
+    var = write_bound_integer(n, lower, upper, variables, axes, mask)
+    return var
+
+
+def write_bound_integer(n, lower, upper, variables, axes=None, mask=None):
+    """
+    Writer function for writing out multiple variables at a time.
+
+    If lower and upper are floats it demands to give pass axes, a tuple
+    of (index, columns) or (index), for creating the variable of same
+    upper and lower bounds. Return a series or frame with variable
+    references.
+    """
+    axes, shape, size = _get_handlers(axes, lower, upper)
+    if not size:
+        return pd.Series(dtype=float)
+    lower, upper = _str_array(lower), _str_array(upper)
+    exprs = lower + " <= x" + _str_array(variables, True) + " <= " + upper + "\n"
+    if mask is not None:
+        exprs = np.where(mask, exprs, "")
+        variables = np.where(mask, variables, -1)
+    n.bounds_f.write(join_exprs(exprs))
+    return to_pandas(variables, *axes)
+
+
+def define_integers(n, axes, name, attr="", spec=""):
+    """
+    Defines integer-variable(s) for pypsa-network. The variables are stored in
+    the network object under n.vars with key of the variable name. For each
+    entry for the pd.Series of pd.DataFrame spanned by the axes argument the
+    function defines a binary.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    axes : pd.Index or tuple of pd.Index objects
+        Specifies the axes and therefore the shape of the variables.
+    name : str
+        general name of the variable (or component which the variable is
+        referring to). The variable will then be stored under:
+
+            * n.vars[name].pnl if the variable is two-dimensional
+            * n.vars[name].df if the variable is one-dimensional
+
+    attr : str default ''
+        Specifying name of the variable, defines under which name the variable(s)
+        are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
+        if one-dimensional
+    mask: pd.DataFrame/np.array
+        Boolean mask with False values for variables which are skipped.
+        The shape of the mask has to match the shape given by axes.
+
+    See also
+    ---------
+    define_variables
+    """
+    var = write_general(n, axes)
+    set_varref(n, var, name, attr, spec=spec)
+    return var
+
+
 def define_constraints(
     n, lhs, sense, rhs, name, attr="", axes=None, spec="", mask=None
 ):
@@ -289,6 +353,25 @@ def write_binary(n, axes, mask=None):
         exprs = np.where(mask, exprs, "")
         variables = np.where(mask, variables, -1)
     n.binaries_f.write(join_exprs(exprs))
+    return to_pandas(variables, *axes)
+
+
+def write_general(n, axes, mask=None):
+    """
+    Writer function for writing out multiple binary-variables at a time.
+
+    According to the axes it writes out binaries for each entry the
+    pd.Series or pd.DataFrame spanned by axes. Returns a series or frame
+    with variable references.
+    """
+    axes, shape, size = _get_handlers(axes)
+    n._xCounter += size
+    variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
+    exprs = "x" + _str_array(variables, True) + "\n"
+    if mask is not None:
+        exprs = np.where(mask, exprs, "")
+        variables = np.where(mask, variables, -1)
+    n.generals_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
 
