@@ -26,7 +26,7 @@ shut_down_cost,float,currency,0,Cost to shut down the link. Only read if committ
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only read if committable is True.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only read if committable is True.,Input (optional)
 up_time_before,int,snapshots,1,Number of snapshots that the link was online before network.snapshots start. Only read if committable is True and min_up_time is non-zero.,Input (optional)
-down_time_before,int,snapshots,0,Number of snapshots that the link was online before network.snapshots start. Only read if committable is True and min_down_time is non-zero.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the link was offline before network.snapshots start. Only read if committable is True and min_down_time is non-zero.,Input (optional)
 ramp_limit_up,float,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of bus0 unit. Ignored if NaN.",Input (optional)
 ramp_limit_down,float,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of bus0 unit. Ignored if NaN.",Input (optional)
 ramp_limit_start_up,float,per unit,1,"Maximumincrease at start up, per unit of bus0 unit.   Only read if committable is True.",Input (optional)
