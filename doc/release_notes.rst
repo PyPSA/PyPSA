@@ -11,6 +11,10 @@ Upcoming Release
   now allows the passing of a list of buses for which aggregation of __all__ carriers is desired. Generation from
   a carrier at a bus is aggregated now if: It is __either__ in the passed list of aggregated carriers, __or__ in the
   list of aggregated buses.
+* PyPSA now supports stand-by cost terms. A new column
+  `stand_by_cost` was added to generators and links. The stand-by
+  cost is added to the objective function when calling
+  ``n.optimize()``.
 
 PyPSA 0.24.0 (27th June 2023)
 =================================
