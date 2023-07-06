@@ -250,7 +250,7 @@ def optimize_security_constrained(
     return n.optimize.solve_model(**kwargs)
 
 
-def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, **kwargs):
+def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **kwargs):
     """
     Optimizes the network in a rolling horizon fashion.
 
@@ -261,6 +261,8 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, **kwargs):
         Set of snapshots to consider in the optimization. The default is None.
     horizon : int
         Number of snapshots to consider in each iteration. Defaults to 100.
+    overlap : int
+        Number of snapshots to overlap between two iterations. Defaults to 0.
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -271,7 +273,10 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, **kwargs):
     if snapshots is None:
         snapshots = n.snapshots
 
-    for i in range(0, len(snapshots), horizon):
+    if horizon <= overlap:
+        raise ValueError("overlap must be smaller than horizon")
+
+    for i in range(0, len(snapshots), horizon - overlap):
         start = i
         end = min(len(snapshots), i + horizon)
 
