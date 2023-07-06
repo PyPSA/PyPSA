@@ -29,12 +29,12 @@ from scipy.sparse import csgraph
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
 from pypsa.descriptors import (
     Dict,
+    additional_linkports,
     get_active_assets,
     get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
-    additional_linkports,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -852,7 +852,7 @@ class Network(Basic):
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
 
-        if class_name == 'Link':
+        if class_name == "Link":
             additional_linkports(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]

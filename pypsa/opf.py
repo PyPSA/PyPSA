@@ -38,7 +38,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pypsa.descriptors import allocate_series_dataframes, additional_linkports
+from pypsa.descriptors import additional_linkports, allocate_series_dataframes
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import get_switchable_as_iter, zsum
 from pypsa.opt import (
@@ -1528,7 +1528,9 @@ def define_nodal_balances(network, snapshots):
     # Add any other buses to which the links are attached
     for i in additional_linkports(network):
         efficiency = get_as_dense(network, "Link", f"efficiency{i}", snapshots)
-        for cb in network.links.index[~network.links[f"bus{i}"].isna() & (network.links[f"bus{i}"] != "")]:
+        for cb in network.links.index[
+            ~network.links[f"bus{i}"].isna() & (network.links[f"bus{i}"] != "")
+        ]:
             bus = network.links.at[cb, f"bus{i}"]
             for sn in snapshots:
                 network._p_balance[bus, sn].variables.append(
@@ -2072,9 +2074,7 @@ def extract_optimisation_results(
 
         # Add any other buses to which the links are attached
         for i in additional_linkports(network):
-            efficiency = get_as_dense(
-                network, "Link", f"efficiency{i}", snapshots
-            )
+            efficiency = get_as_dense(network, "Link", f"efficiency{i}", snapshots)
             p_name = f"p{i}"
             links = network.links.index[network.links[f"bus{i}"] != ""]
             network.links_t[p_name].loc[snapshots, links] = (

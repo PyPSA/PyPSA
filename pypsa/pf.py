@@ -30,8 +30,14 @@ from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import Dict, allocate_series_dataframes, degree, additional_linkports, zsum
+from pypsa.descriptors import (
+    Dict,
+    additional_linkports,
+    allocate_series_dataframes,
+    degree,
+)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import zsum
 
 pd.Series.zsum = zsum
 
@@ -134,7 +140,7 @@ def _network_prepare_and_run_pf(
     linear=False,
     distribute_slack=False,
     slack_weights="p_set",
-    **kwargs
+    **kwargs,
 ):
     if linear:
         sub_network_pf_fun = sub_network_lpf
@@ -209,7 +215,7 @@ def _network_prepare_and_run_pf(
                     skip_pre=True,
                     distribute_slack=distribute_slack,
                     slack_weights=sn_slack_weights,
-                    **kwargs
+                    **kwargs,
                 )
         else:
             sub_network_pf_fun(

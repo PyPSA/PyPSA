@@ -8,7 +8,6 @@ import pypsa
 
 @pytest.fixture
 def network():
-
     n = pypsa.Network()
     n.set_snapshots(range(10))
 

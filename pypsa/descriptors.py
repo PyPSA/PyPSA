@@ -14,7 +14,7 @@ __copyright__ = (
 import logging
 import re
 from collections import OrderedDict
-from itertools import repeat, product
+from itertools import product, repeat
 
 import networkx as nx
 import numpy as np
@@ -439,11 +439,15 @@ def update_linkports_component_attrs(n, ports):
         if not isinstance(s, str):
             return s
         return s.replace(j, str(i)).replace("required", "optional")
-    
+
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         j = "1" if attr != "efficiency" else ""
-        n.components[c]["attrs"].loc[f"{attr}{i}"] = n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
-        n.component_attrs[c].loc[f"{attr}{i}"] = n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
+        n.components[c]["attrs"].loc[f"{attr}{i}"] = (
+            n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
+        )
+        n.component_attrs[c].loc[f"{attr}{i}"] = (
+            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
+        )
         if attr in ["efficiency", "p"]:
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
@@ -454,10 +458,6 @@ def update_linkports_component_attrs(n, ports):
 def additional_linkports(n, where=None):
     if not where:
         where = n.links.columns
-    ports = [
-        i[3:]
-        for i in where
-        if i.startswith("bus") and i not in ["bus0", "bus1"]
-    ]
+    ports = [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
     update_linkports_component_attrs(n, ports)
     return ports
