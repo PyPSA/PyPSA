@@ -96,6 +96,7 @@ def aggregategenerators(
         "weight": pd.Series.sum,
         "p_nom": pd.Series.sum,
         "capital_cost": pd.Series.sum,
+        "marginal_cost": "mean",
         "efficiency": pd.Series.mean,
         "ramp_limit_up": pd.Series.mean,
         "ramp_limit_down": pd.Series.mean,
@@ -103,9 +104,10 @@ def aggregategenerators(
         "ramp_limit_shut_down": pd.Series.mean,
         "build_year": lambda x: 0,
         "lifetime": lambda x: np.inf,
+        "p_max_pu": "sum",  # weighted
     }
     strategies.update(custom_strategies)
-    if strategies["p_nom_max"] is pd.Series.min:
+    if strategies["p_nom_max"] in (pd.Series.min, "min"):
         generators["p_nom_max"] /= weighting
     strategies.update(
         (attr, _make_consense("Generator", attr))
@@ -136,7 +138,8 @@ def aggregategenerators(
             if not df_agg.empty:
                 if attr == "p_max_pu":
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
-                pnl_df = df_agg.groupby(grouper, axis=1).sum()
+                strategy = strategies.get(attr, "sum")
+                pnl_df = df_agg.groupby(grouper, axis=1).agg(strategy)
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pd.concat(
                     [df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False
