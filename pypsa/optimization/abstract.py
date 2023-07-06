@@ -271,7 +271,17 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, **kwargs):
     if snapshots is None:
         snapshots = n.snapshots
 
-    n_snapshots = len(snapshots)
     for i in range(0, len(snapshots), horizon):
-        n.optimize(snapshots[i : min(n_snapshots, i + horizon)], **kwargs)
+        start = i
+        end = min(len(snapshots), i + horizon)
+
+        if i:
+            if not n.stores.empty:
+                n.stores.e_initial = n.stores_t.e.loc[snapshots[i - 1]]
+            if not n.storage_units.empty:
+                n.storage_units.state_of_charge_initial = (
+                    n.storage_units_t.state_of_charge.loc[snapshots[i - 1]]
+                )
+
+        n.optimize(snapshots[start:end], **kwargs)
     return n
