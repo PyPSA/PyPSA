@@ -116,6 +116,10 @@ n.optimize()
 # plot results
 n.generators_t.p.plot()
 n.plot()
+
+# get statistics
+n.statistics()
+n.statistics.energy_balance()
 ```
 
 There are [more extensive
