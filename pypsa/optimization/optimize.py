@@ -18,6 +18,7 @@ from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
+    optimize_with_rolling_horizon,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
@@ -599,6 +600,10 @@ class OptimizationAccessor:
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
+
+    @wraps(optimize_with_rolling_horizon)
+    def optimize_with_rolling_horizon(self, *args, **kwargs):
+        optimize_with_rolling_horizon(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

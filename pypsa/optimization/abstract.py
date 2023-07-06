@@ -248,3 +248,30 @@ def optimize_security_constrained(
                 m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
 
     return n.optimize.solve_model(**kwargs)
+
+
+def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, **kwargs):
+    """
+    Optimizes the network in a rolling horizon fashion.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    snapshots : list-like
+        Set of snapshots to consider in the optimization. The default is None.
+    horizon : int
+        Number of snapshots to consider in each iteration. Defaults to 100.
+    **kwargs:
+        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+
+    Returns
+    -------
+    None
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    n_snapshots = len(snapshots)
+    for i in range(0, len(snapshots), horizon):
+        n.optimize(snapshots[i : min(n_snapshots, i + horizon)], **kwargs)
+    return n
