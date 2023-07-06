@@ -30,9 +30,8 @@ from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import Dict, allocate_series_dataframes, degree
+from pypsa.descriptors import Dict, allocate_series_dataframes, degree, additional_linkports, zsum
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import zsum
 
 pd.Series.zsum = zsum
 
@@ -155,15 +154,11 @@ def _network_prepare_and_run_pf(
     if not network.links.empty:
         p_set = get_as_dense(network, "Link", "p_set", snapshots)
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
-        for i in [
-            int(col[3:])
-            for col in network.links.columns
-            if col[:3] == "bus" and col != "bus0"
-        ]:
-            eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
+        for i in ["1"] + additional_linkports(network):
+            eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(network, "Link", eff_name, snapshots)
-            links = network.links.index[network.links["bus{}".format(i)] != ""]
-            network.links_t["p{}".format(i)].loc[snapshots, links] = (
+            links = network.links.index[network.links[f"bus{i}"] != ""]
+            network.links_t[f"p{i}"].loc[snapshots, links] = (
                 -network.links_t.p0.loc[snapshots, links]
                 * efficiency.loc[snapshots, links]
             )
