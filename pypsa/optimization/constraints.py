@@ -286,8 +286,6 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if attr == "n_opt":
-        return
     ext_i = n.get_extendable_i(c)
 
     if ext_i.empty:

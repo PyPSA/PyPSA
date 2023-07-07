@@ -35,9 +35,8 @@ from pypsa.linopt import (
     align_with_static_component,
     define_binaries,
     define_constraints,
-    define_integers,
+    define_integer,
     define_variables,
-    define_variables_integer,
     get_con,
     get_var,
     join_exprs,
@@ -261,30 +260,11 @@ def define_unit_commitment_status_variables(n, sns, c):
     define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
-def define_generator_multiple_device(n):
-    c = "Generator"
-    p_nom_i = n.generators.index[n.generators.p_nom > 0]
-    ext_i = get_extendable_i(n, c)
-    if (ext_i.intersection(p_nom_i)).empty:
-        return
-    ##serve? a mio parere no, quindi silenzio
-    # active = get_activity_mask(n, c, sns)[ext_i.intersection(p_nom_i)] if n._multi_invest else None
-    var = define_integers(n, (ext_i.intersection(p_nom_i)), "Generator", "n_opt")
-    define_boundary_for_multiple_device(n, c, "p_nom", np.array(var))
-    lhs = linexpr(
-        (
-            n.generators.p_nom[ext_i.intersection(p_nom_i)],
-            get_var(n, c, "n_opt")[ext_i.intersection(p_nom_i)],
-        ),
-        (-1, get_var(n, c, "p_nom")[ext_i.intersection(p_nom_i)]),
-    )
-    write_constraint(n, lhs, "=", 0)
-
-
-def define_boundary_for_multiple_device(n, c, attr, variables):
+def define_modular_nominal(n, c, attr, attr_nom):
     """
-    Initializes variables for nominal capacities for a given component and a
-    given attribute.
+    Initializes variables 'attr' for a given component c to allow a modular
+    expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
+    optimal number of installed modules.
 
     Parameters
     ----------
@@ -292,41 +272,27 @@ def define_boundary_for_multiple_device(n, c, attr, variables):
     c : str
         network component of which the nominal capacity should be defined
     attr : str
-        name of the variable, e.g. 'p_nom'
+        name of the variable, e.g. 'n_opt'
+    attr_nom : str
+        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
     """
-    p_nom_i = n.generators.index[n.generators.p_nom > 0]
-    ext_i = get_extendable_i(n, c)
-    if (ext_i.intersection(p_nom_i)).empty:
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    if (mod_i).empty:
         return
-    if not (
-        (
-            n.df(c)[attr][ext_i.intersection(p_nom_i)]
-            < n.df(c)[attr + "_max"][ext_i.intersection(p_nom_i)]
-        )
-    ).all():
-        return
-    lower = np.round(
-        n.df(c)[attr + "_min"][ext_i.intersection(p_nom_i)]
-        / n.df(c)[attr][ext_i.intersection(p_nom_i)]
-    )
-    upper = np.round(
-        n.df(c)[attr + "_max"][ext_i.intersection(p_nom_i)]
-        / n.df(c)[attr][ext_i.intersection(p_nom_i)]
-    )
-    define_variables_integer(n, lower, upper, c, variables, "n_opt")
-    """
-    #alternativa all'if che mi pare meno pulita ma che permette di agigornare
-    solo i generatori per cui la condizione è soddisfatta lower =
-    np.round(n.df(c)[attr+'_min'][((n.df(c)[attr][ext_i.intersection(p_nom_i)]<
 
-    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]/n.df(c)[attr][((n.df(c
-    )[attr][ext_i.intersection(p_nom_i)]<
-    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]) upper =
-    np.round(n.df(c)[attr+'_max'][((n.df(c)[attr][ext_i.intersection(p_nom_i)]<
-    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))]/n.df(c)[attr][((n.df(c
-    )[attr][ext_i.intersection(p_nom_i)]<
-    n.df(c)[attr+'_max'][ext_i.intersection(p_nom_i)]))])
-    """
+    lower = np.round(n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom][mod_i])
+    upper = np.round(n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom][mod_i])
+
+    define_integer(n, lower, upper, c, attr, axes=mod_i)
+
+    lhs = linexpr(
+        (
+            n.df(c).p_nom[mod_i],
+            get_var(n, c, attr)[mod_i],
+        ),
+        (-1, get_var(n, c, "p_nom")[mod_i]),
+    )
+    write_constraint(n, lhs, "=", 0)
 
 
 def define_loss_variables(n, sns, c, transmission_losses):
@@ -1269,7 +1235,7 @@ def prepare_lopf(
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
-    define_generator_multiple_device(n)
+    define_modular_nominal(n, c="Generator", attr="n_opt", attr_nom="p_nom")
 
     for c in {"Generator", "Link"}:
         define_unit_commitment_constraints(n, snapshots, c)
@@ -1377,13 +1343,11 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = False
             sol = variables.map(variables_sol)
             if predefined:
-                if not (
-                    attr == "n_opt"
-                ):  # if inserito perchè la seguente riga serve solo per far diventare quello che in pypsa viene ottimizzato come nominal optimal, quindi entravamo in conflitto
+                if not (attr == "n_opt"):
                     non_ext = n.df(c)[attr]
                     n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
                 else:
-                    n.generators.n_opt = sol
+                    n.df(c).n_opt = sol
             else:
                 n.sols[c].df[attr] = sol
 

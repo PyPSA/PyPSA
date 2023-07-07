@@ -4,7 +4,7 @@ Generator,status,False,False,True
 Generator,start_up,False,False,True
 Generator,shut_down,False,False,True
 Generator,p_nom,False,True,False
-Generator,n_opt,False,True,False
+Generator,n_opt,False,False,True
 Line,s,False,False,False
 Line,s_nom,False,True,False
 Transformer,s,False,False,False
