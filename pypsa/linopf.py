@@ -88,8 +88,6 @@ def define_nominal_for_extendable_variables(n, c, attr):
     attr : str
         name of the variable, e.g. 'p_nom'
     """
-    if attr == "n_opt":
-        return  # mettendo n_opt tra le variabile, lui va a qui ad analizzarla. Potremmo metterla tra le varibili trattate separatamente e aggiungere una riga a parte per asseggnare il valore della soluzione
     ext_i = get_extendable_i(n, c)
     if ext_i.empty:
         return
