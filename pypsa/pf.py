@@ -35,10 +35,9 @@ from pypsa.descriptors import (
     additional_linkports,
     allocate_series_dataframes,
     degree,
-    update_linkports_component_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import zsum
+from pypsa.descriptors import update_linkports_component_attrs, zsum
 
 pd.Series.zsum = zsum
 

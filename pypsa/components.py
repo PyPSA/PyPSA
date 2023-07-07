@@ -29,12 +29,12 @@ from scipy.sparse import csgraph
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
 from pypsa.descriptors import (
     Dict,
-    update_linkports_component_attrs,
     get_active_assets,
     get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
