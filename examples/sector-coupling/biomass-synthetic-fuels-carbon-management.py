@@ -18,7 +18,7 @@ import numpy as np
 
 import pypsa
 
-n = pypsa.Network(ogit )
+n = pypsa.Network()
 
 n.set_snapshots(range(10))
 
