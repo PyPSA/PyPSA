@@ -431,8 +431,8 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def update_linkports_component_attrs(n, ports):
-    ports = np.atleast_1d(ports)
+def update_linkports_component_attrs(n, where=None):
+    ports = additional_linkports(n, where)
     c = "Link"
 
     def doc_changes(s, j, i):
@@ -441,23 +441,23 @@ def update_linkports_component_attrs(n, ports):
         return s.replace(j, str(i)).replace("required", "optional")
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
+        target = f"{attr}{i}"
         j = "1" if attr != "efficiency" else ""
-        n.components[c]["attrs"].loc[f"{attr}{i}"] = (
+        n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
         )
-        n.component_attrs[c].loc[f"{attr}{i}"] = (
+        n.component_attrs[c].loc[target] = (
             n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
         )
-        if attr in ["efficiency", "p"]:
+        if attr in ["efficiency", "p"] and not target in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
             df.columns.name = c
-            n.pnl(c)[f"{attr}{i}"] = df
+            n.pnl(c)[target] = df
 
 
 def additional_linkports(n, where=None):
     if not where:
         where = n.links.columns
     ports = [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
-    update_linkports_component_attrs(n, ports)
     return ports

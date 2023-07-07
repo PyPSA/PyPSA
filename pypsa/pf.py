@@ -35,6 +35,7 @@ from pypsa.descriptors import (
     additional_linkports,
     allocate_series_dataframes,
     degree,
+    update_linkports_component_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import zsum
@@ -1051,6 +1052,8 @@ def calculate_dependent_values(network):
     network.stores.loc[
         network.stores.carrier == "", "carrier"
     ] = network.stores.bus.map(network.buses.carrier)
+
+    update_linkports_component_attrs(network)
 
 
 def find_slack_bus(sub_network):
