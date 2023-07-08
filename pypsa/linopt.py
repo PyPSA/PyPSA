@@ -141,26 +141,24 @@ def define_binaries(n, axes, name, attr="", spec="", mask=None):
 def define_integer(n, lower, upper, name, attr="", axes=None, spec=""):
     """
     Defines integer-variable(s) for pypsa-network. The variables are stored in
-    the network object under n.vars with key of the variable name. For each
-    entry for the pd.Series of pd.DataFrame spanned by the axes argument the
-    function defines a binary.
+    the network object under n.vars with key of the variable name.
 
     Parameters
     ----------
     n : pypsa.Network
-    axes : pd.Index or tuple of pd.Index objects
-        Specifies the axes and therefore the shape of the variables.
+    lower, upper: lower bound (lb) and upper bound (ub) and pass it to define_integer
     name : str
         general name of the variable (or component which the variable is
         referring to). The variable will then be stored under:
 
             * n.vars[name].pnl if the variable is two-dimensional
             * n.vars[name].df if the variable is one-dimensional
-
     attr : str default ''
         Specifying name of the variable, defines under which name the variable(s)
         are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
-        if one-dimensional
+        if one-dimensional. e.g. 'n_opt'
+    axes : pd.Index or tuple of pd.Index objects
+        Specifies the axes and therefore the shape of the variables.
     """
     var = write_integer(n, lower, upper, axes, mask=None)
 

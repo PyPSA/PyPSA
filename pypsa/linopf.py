@@ -258,7 +258,7 @@ def define_unit_commitment_status_variables(n, sns, c):
     define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
-def define_modular_nominal(n, c, attr, attr_nom):
+def define_modular_variables(n, c, attr, attr_nom):
     """
     Initializes variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
@@ -283,12 +283,33 @@ def define_modular_nominal(n, c, attr, attr_nom):
 
     define_integer(n, lower, upper, c, attr, axes=mod_i)
 
+
+def define_modular_constraints(n, c, attr, attr_nom):
+    """
+    Sets constraints for fixing modular variables of a given component. It
+    allows to define optimal capacity of a component as multiple of the nominal
+    capacity of the single module.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the variable, e.g. 'n_opt'
+    attr_nom : str
+        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
+    """
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+
+    if (mod_i).empty:
+        return
     lhs = linexpr(
         (
-            n.df(c).p_nom[mod_i],
+            n.df(c)[attr_nom][mod_i],
             get_var(n, c, attr)[mod_i],
         ),
-        (-1, get_var(n, c, "p_nom")[mod_i]),
+        (-1, get_var(n, c, attr_nom)[mod_i]),
     )
     write_constraint(n, lhs, "=", 0)
 
@@ -1233,7 +1254,9 @@ def prepare_lopf(
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
-    define_modular_nominal(n, c="Generator", attr="n_opt", attr_nom="p_nom")
+    for c, attr_nom in lookup.query("nominal and not handle_separately").index:
+        define_modular_variables(n, c, "n_opt", attr_nom)
+        define_modular_constraints(n, c, "n_opt", attr_nom)
 
     for c in {"Generator", "Link"}:
         define_unit_commitment_constraints(n, snapshots, c)

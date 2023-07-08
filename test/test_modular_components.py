@@ -28,14 +28,26 @@ def test_stand_by_cost(api):
         bus="bus",
         p_nom_extendable=True,
         marginal_cost=10,
-        p_max_nom=6000,
+        p_nom_max=5000,
         p_nom=1000,
     )
 
-    n.add("Load", "load", bus="bus", p_set=[4000, 5500, 5000, 800])
+    n.add(
+        "Store",
+        "Store_unit",
+        bus="bus",
+        e_nom_extendable=True,
+        e_nom_max=2000,
+        e_nom=100,
+        capital_cost=100,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[4000, 5000, 6000, 800])
 
     n.lopf(n.snapshots, pyomo=False)
 
-    expected_n_opt = np.array([6], dtype=float).T
+    expected_n_opt_gen = np.array([5], dtype=float).T
+    expected_n_opt_store = np.array([10], dtype=float).T
 
-    equal(n.generators.n_opt, expected_n_opt)
+    equal(n.generators.n_opt, expected_n_opt_gen)
+    equal(n.stores.n_opt, expected_n_opt_store)
