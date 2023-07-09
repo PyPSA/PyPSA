@@ -339,7 +339,7 @@ def assign_solution(n):
                 set_from_frame(n, c, attr, df)
         else:
             if attr == "n_opt":
-                return  # at the moment, we still need to work out how to attribute the solution to n_opt
+                n.df(c)[attr] = df
             else:
                 n.df(c)[attr + "_opt"].update(df)
 

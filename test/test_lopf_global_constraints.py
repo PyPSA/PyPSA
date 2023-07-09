@@ -49,6 +49,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network, api):
 
     n.storage_units["state_of_charge_initial"] = 1_000
     n.storage_units.p_nom_extendable = True
+    n.storage_units.p_nom = 0
     n.storage_units.cyclic_state_of_charge = False
 
     optimize(n, api)
