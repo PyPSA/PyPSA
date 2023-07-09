@@ -10,7 +10,6 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
-
 from linopy import merge
 
 from pypsa.descriptors import nominal_attrs
@@ -257,14 +256,14 @@ def optimize_mga(
     snapshots=None,
     multi_investment_periods=False,
     weights=None,
-    sense='min',
+    sense="min",
     slack=0.05,
     model_kwargs={},
-    **kwargs
+    **kwargs,
 ):
     """
-    Run modelling-to-generate-alternatives (MGA) on network to find near-optimal
-    solutions.
+    Run modelling-to-generate-alternatives (MGA) on network to find near-
+    optimal solutions.
 
     Parameters
     ----------
@@ -311,19 +310,23 @@ def optimize_mga(
         weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))
 
     # check that network has been solved
-    assert hasattr(n, 'objective'), "Network needs to be solved with `n.optimize()` before running MGA."
+    assert hasattr(
+        n, "objective"
+    ), "Network needs to be solved with `n.optimize()` before running MGA."
 
     # create basic model
     m = n.optimize.create_model(
         snapshots=snapshots,
         multi_investment_periods=multi_investment_periods,
-        **model_kwargs
+        **model_kwargs,
     )
 
     # build budget constraint
     optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
     fixed_cost = n.statistics.capex_fixed().sum()
-    m.add_constraints(m.objective + fixed_cost <= (1 + slack) * optimal_cost, name='budget')
+    m.add_constraints(
+        m.objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+    )
 
     # parse optimization sense
     if sense.startswith("min") or sense > 0:
