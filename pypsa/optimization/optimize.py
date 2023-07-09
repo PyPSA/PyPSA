@@ -25,6 +25,7 @@ from pypsa.optimization.constraints import (
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
+    define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -45,6 +46,7 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.variables import (
     define_loss_variables,
+    define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
@@ -239,6 +241,9 @@ def create_model(
         for c in n.passive_branch_components:
             define_loss_variables(n, sns, c)
 
+    for c, attr_nom in lookup.query("nominal and not handle_separately").index:
+        define_modular_variables(n, c, "n_opt", attr_nom)
+
     # Define constraints
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
@@ -254,6 +259,9 @@ def create_model(
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
+
+    for c, attr_nom in lookup.query("nominal and not handle_separately").index:
+        define_modular_constraints(n, c, "n_opt", attr_nom)
 
     meshed_buses = get_strongly_meshed_buses(n)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)
@@ -330,7 +338,10 @@ def assign_solution(n):
             else:
                 set_from_frame(n, c, attr, df)
         else:
-            n.df(c)[attr + "_opt"].update(df)
+            if attr == "n_opt":
+                return  # at the moment, we still need to work out how to attribute the solution to n_opt
+            else:
+                n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:

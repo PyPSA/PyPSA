@@ -5,6 +5,8 @@ Define optimisation variables from PyPSA networks with Linopy.
 """
 import logging
 
+import numpy as np
+
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
@@ -95,6 +97,34 @@ def define_nominal_variables(n, c, attr):
         return
 
     n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
+
+
+def define_modular_variables(n, c, attr, attr_nom):
+    """
+    Initializes variables 'attr' for a given component c to allow a modular
+    expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
+    optimal number of installed modules.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        network component of which the nominal capacity should be defined
+    attr : str
+        name of the variable, e.g. 'n_opt'
+    attr_nom : str
+        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
+    """
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    if (mod_i).empty:
+        return
+
+    lower = np.round(n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom][mod_i])
+    upper = np.round(n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom][mod_i])
+
+    n.model.add_variables(
+        lower, upper, coords=[mod_i], name=f"{c}-{attr}", integer=True
+    )
 
 
 def define_spillage_variables(n, sns):
