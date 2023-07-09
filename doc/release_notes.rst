@@ -15,6 +15,10 @@ Upcoming Release
   `stand_by_cost` was added to generators and links. The stand-by
   cost is added to the objective function when calling
   ``n.optimize()``.
+* The ``n.optimize`` accessor now provides functionality for running
+  modelling-to-generate-alternatives (MGA) on previously solved networks using
+  ``n.optimize.optimize_mga(slack=..., weights=...)``. This is useful for
+  exploring the near-optimal feasible space of the network.
 
 PyPSA 0.24.0 (27th June 2023)
 =================================
