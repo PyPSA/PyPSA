@@ -16,9 +16,9 @@ from pypsa.descriptors import additional_linkports, get_committable_i
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
+    optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
-    optimize_mga,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
