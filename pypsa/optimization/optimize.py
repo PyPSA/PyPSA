@@ -619,15 +619,13 @@ class OptimizationAccessor:
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
 
-<<<<<<< HEAD
-    @wraps(optimize_mga)
-    def optimize_mga(self, *args, **kwargs):
-        optimize_mga(self._parent, *args, **kwargs)
-=======
     @wraps(optimize_with_rolling_horizon)
     def optimize_with_rolling_horizon(self, *args, **kwargs):
         optimize_with_rolling_horizon(self._parent, *args, **kwargs)
->>>>>>> master
+
+    @wraps(optimize_mga)
+    def optimize_mga(self, *args, **kwargs):
+        optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """
