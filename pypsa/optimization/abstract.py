@@ -248,3 +248,45 @@ def optimize_security_constrained(
                 m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
 
     return n.optimize.solve_model(**kwargs)
+
+
+def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **kwargs):
+    """
+    Optimizes the network in a rolling horizon fashion.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    snapshots : list-like
+        Set of snapshots to consider in the optimization. The default is None.
+    horizon : int
+        Number of snapshots to consider in each iteration. Defaults to 100.
+    overlap : int
+        Number of snapshots to overlap between two iterations. Defaults to 0.
+    **kwargs:
+        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+
+    Returns
+    -------
+    None
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    if horizon <= overlap:
+        raise ValueError("overlap must be smaller than horizon")
+
+    for i in range(0, len(snapshots), horizon - overlap):
+        start = i
+        end = min(len(snapshots), i + horizon)
+
+        if i:
+            if not n.stores.empty:
+                n.stores.e_initial = n.stores_t.e.loc[snapshots[i - 1]]
+            if not n.storage_units.empty:
+                n.storage_units.state_of_charge_initial = (
+                    n.storage_units_t.state_of_charge.loc[snapshots[i - 1]]
+                )
+
+        n.optimize(snapshots[start:end], **kwargs)
+    return n
