@@ -10,37 +10,7 @@ import pandas as pd
 
 import pypsa
 
-# First tell PyPSA that links will have a 2nd bus by
-# overriding the component_attrs. This is needed so that
-# water can both go through a turbine AND feed the next reservoir
-
-override_component_attrs = pypsa.descriptors.Dict(
-    {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
-)
-override_component_attrs["Link"].loc["bus2"] = [
-    "string",
-    np.nan,
-    np.nan,
-    "2nd bus",
-    "Input (optional)",
-]
-override_component_attrs["Link"].loc["efficiency2"] = [
-    "static or series",
-    "per unit",
-    1.0,
-    "2nd bus efficiency",
-    "Input (optional)",
-]
-override_component_attrs["Link"].loc["p2"] = [
-    "series",
-    "MW",
-    0.0,
-    "2nd bus output",
-    "Output",
-]
-
-
-network = pypsa.Network(override_component_attrs=override_component_attrs)
+network = pypsa.Network()
 
 network.set_snapshots(pd.date_range("2016-01-01 00:00", "2016-01-01 03:00", freq="H"))
 
