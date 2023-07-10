@@ -28,6 +28,7 @@ Upcoming Release
   whole optimization of the whole time span into multiple subproblems which are
   solved consecutively. This is useful for operational optimizations with a high
   spatial resolution.
+* The deprecated ``networkclustering`` module was removed.
 
 
 PyPSA 0.24.0 (27th June 2023)
