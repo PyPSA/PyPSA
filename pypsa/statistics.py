@@ -236,7 +236,7 @@ class StatisticsAccessor:
         df.attrs["unit"] = "currency"
         return df
 
-    def capex_fixed(self, comps=None, aggregate_groups="sum", groupby=None):
+    def installed_capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
         Calculate the capital expenditure of already built components of the
         network in given currency.

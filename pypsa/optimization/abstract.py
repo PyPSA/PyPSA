@@ -323,7 +323,7 @@ def optimize_mga(
 
     # build budget constraint
     optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
-    fixed_cost = n.statistics.capex_fixed().sum()
+    fixed_cost = n.statistics.installed_capex().sum()
     m.add_constraints(
         m.objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
     )
