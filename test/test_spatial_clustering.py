@@ -12,7 +12,8 @@ import pytest
 
 import pypsa
 from pypsa.clustering.spatial import (
-    aggregategenerators,
+    aggregatebuses,
+    aggregatelines,
     aggregateoneport,
     busmap_by_hac,
     busmap_by_kmeans,
@@ -21,7 +22,7 @@ from pypsa.clustering.spatial import (
 )
 
 
-def test_aggregategenerators(ac_dc_network):
+def test_aggregate_generators(ac_dc_network):
     n = ac_dc_network
     busmap = pd.Series("all", n.buses.index)
     df, pnl = aggregateoneport(n, busmap, "Generator")
@@ -45,14 +46,14 @@ def test_aggregategenerators(ac_dc_network):
     )
 
 
-def test_aggregategenerators_custom_strategies(ac_dc_network):
+def test_aggregate_generators_custom_strategies(ac_dc_network):
     n = ac_dc_network
     n.generators.loc["Frankfurt Wind", "p_nom_max"] = 100
 
     busmap = pd.Series("all", n.buses.index)
 
     strategies = {"p_max_pu": "max", "p_nom_max": "weighted_min"}
-    df, pnl = aggregategenerators(n, busmap, custom_strategies=strategies)
+    df, pnl = aggregateoneport(n, busmap, "Generator", custom_strategies=strategies)
 
     assert (
         df.loc["all gas", "p_nom"] == n.generators.query("carrier == 'gas'").p_nom.sum()
@@ -68,7 +69,7 @@ def test_aggregategenerators_custom_strategies(ac_dc_network):
     assert np.allclose(pnl["p_max_pu"]["all wind"], n.generators_t.p_max_pu.max(axis=1))
 
 
-def test_aggregategenerators_consent_error(ac_dc_network):
+def test_aggregate_generators_consent_error(ac_dc_network):
     n = ac_dc_network
     n.add(
         "Generator",
@@ -81,10 +82,10 @@ def test_aggregategenerators_consent_error(ac_dc_network):
     busmap = pd.Series("all", n.buses.index)
 
     with pytest.raises(AssertionError):
-        df, pnl = aggregategenerators(n, busmap)
+        df, pnl = aggregateoneport(n, busmap, "Generator")
 
 
-def test_aggregateoneport(ac_dc_network):
+def test_aggregate_storage_units(ac_dc_network):
     n = ac_dc_network
 
     n.add(
@@ -126,7 +127,7 @@ def test_aggregateoneport(ac_dc_network):
     )
 
 
-def test_aggregateoneport_consent_error(ac_dc_network):
+def test_aggregate_storage_units_consent_error(ac_dc_network):
     n = ac_dc_network
     n.add("StorageUnit", "Bremen Storage", bus="Bremen", p_nom_extendable=False)
 

@@ -13,6 +13,7 @@ __copyright__ = (
 
 import logging
 from collections import namedtuple
+from dataclasses import dataclass
 from functools import reduce
 from importlib.util import find_spec
 
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 from pypsa import io
 from pypsa.components import Network
-from pypsa.geo import haversine_pts
+from pypsa.geo import haversine, haversine_pts
 
 DEFAULT_ONE_PORT_STRATEGIES = dict(
     p="sum",
@@ -64,6 +65,26 @@ DEFAULT_BUS_STRATEGIES = dict(
     v_mag_pu_min="max",
 )
 
+DEFAULT_LINE_STRATEGIES = dict(
+    r="reciprocal_voltage_weighted_average",
+    x="reciprocal_voltage_weighted_average",
+    g="voltage_weighted_average",
+    b="voltage_weighted_average",
+    terrain_factor="mean",
+    s_min_pu="capacity_weighted_average",
+    s_max_pu="capacity_weighted_average",
+    s_nom="sum",
+    s_nom_min="sum",
+    s_nom_max="sum",
+    s_nom_extendable="any",
+    num_parallel="sum",
+    capital_cost="length_capacity_weighted_average",
+    v_ang_min="max",
+    v_ang_max="min",
+    lifetime="capacity_weighted_average",
+    build_year="capacity_weighted_average",
+)
+
 
 def normed_or_uniform(x):
     """
@@ -84,30 +105,6 @@ def normed_or_uniform(x):
         return x / x.sum()
     else:
         return pd.Series(1.0 / len(x), x.index)
-
-
-def weighted_average(key: str, weights: str) -> float:
-    """
-    Define a function to calculate the weighted average of a given key in a
-    pandas DataFrame group.
-
-    Parameters
-    ----------
-    key : str
-        The key of the column to calculate the weighted average on.
-    weights : str
-        The key of the column to use as weights for the weighted average.
-
-    Returns
-    -------
-    float
-        The weighted average of the given key in the pandas DataFrame group.
-    """
-
-    def weighted_average_func(group: pd.DataFrame) -> float:
-        return (group[key] * normed_or_uniform(group[weights])).sum()
-
-    return weighted_average_func
 
 
 def make_consense(component: str, attr: str) -> callable:
@@ -172,6 +169,9 @@ def _make_consense(component: str, attr: str) -> callable:
 
 
 def flatten_multiindex(m, join=" "):
+    """
+    Flatten a multiindex by joining the levels with the given string.
+    """
     if m.nlevels <= 1:
         return m
     return m.to_flat_index().str.join(join).str.strip()
@@ -333,107 +333,107 @@ def aggregatebuses(n, busmap, custom_strategies=dict()):
     return aggregated
 
 
-def aggregatelines(network, buses, interlines, line_length_factor=1.0, with_time=True):
-    # make sure all lines have same bus ordering
-    positive_order = interlines.bus0_s < interlines.bus1_s
-    interlines_p = interlines[positive_order]
-    interlines_n = interlines[~positive_order].rename(
-        columns={"bus0_s": "bus1_s", "bus1_s": "bus0_s"}
+def aggregatelines(
+    n,
+    busmap,
+    line_length_factor=1.0,
+    with_time=True,
+    custom_strategies={},
+    bus_strategies={},
+):
+    """
+    Aggregate lines in the network based on the given busmap.
+
+    Parameters
+    ----------
+    n : Network
+        The network containing the lines.
+    busmap : dict
+        A dictionary mapping old bus IDs to new bus IDs.
+    line_length_factor : float, optional
+        A factor to multiply the length of each line by (default is 1.0).
+    with_time : bool, optional
+        Whether to aggregate dynamic data (default is True).
+    custom_strategies : dict, optional
+        Custom aggregation strategies (default is empty dict).
+    bus_strategies : dict, optional
+        Custom aggregation strategies for buses (default is empty dict).
+
+    Returns
+    -------
+    df : DataFrame
+        DataFrame of the aggregated lines.
+    pnl : dict
+        Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
+    """
+    attrs = n.components["Line"]["attrs"]
+    df = n.df("Line")
+    df = df[df.bus0.map(busmap) != df.bus1.map(busmap)]
+
+    orig_coords = n.buses[["x", "y"]]
+    orig_length = haversine_pts(orig_coords.loc[df.bus0], orig_coords.loc[df.bus1])
+    orig_v_nom = df.bus0.map(n.buses.v_nom)
+
+    bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
+    cols = ["x", "y", "v_nom"]
+    buses = n.buses[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+
+    df = df.assign(bus0=df.bus0.map(busmap), bus1=df.bus1.map(busmap))
+    reverse_order = df.bus0 > df.bus1
+    reverse_values = df.loc[reverse_order, ["bus1", "bus0"]].values
+    df.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
+
+    columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
+    columns = columns & set(df.columns)
+
+    strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
+    static_strategies = align_strategies(strategies, columns, "Line")
+
+    grouper = df.groupby(["bus0", "bus1"]).ngroup()
+
+    coords = buses[["x", "y"]]
+    length = (
+        haversine_pts(coords.loc[df.bus0], coords.loc[df.bus1]) * line_length_factor
     )
-    interlines_c = pd.concat((interlines_p, interlines_n), sort=False)
+    df = df.assign(length=length)
 
-    attrs = network.components["Line"]["attrs"]
-    columns = set(
-        attrs.index[attrs.static & attrs.status.str.startswith("Input")]
-    ).difference(("name", "bus0", "bus1"))
+    length_factor = (df.length / orig_length).replace(np.inf, 1)
+    voltage_factor = orig_v_nom / df.bus0.map(buses.v_nom) ** 2
+    capacity_weights = df.groupby(grouper).s_nom.transform(normed_or_uniform)
 
-    consense = {
-        attr: _make_consense("Bus", attr)
-        for attr in (
-            columns
-            | {"sub_network"}
-            - {
-                "r",
-                "x",
-                "g",
-                "b",
-                "terrain_factor",
-                "s_nom",
-                "s_nom_min",
-                "s_nom_max",
-                "s_nom_extendable",
-                "length",
-                "v_ang_min",
-                "v_ang_max",
-            }
-        )
-    }
+    for col, strategy in static_strategies.items():
+        if strategy == "capacity_weighted_average":
+            df[col] = df[col] * capacity_weights
+            static_strategies[col] = "sum"
+        elif strategy == "reciprocal_voltage_weighted_average":
+            df[col] = 1.0 / (voltage_factor / (length_factor * df[col]))
+            static_strategies[col] = "sum"
+        elif strategy == "voltage_weighted_average":
+            df[col] = voltage_factor * length_factor * df[col]
+            static_strategies[col] = "sum"
+        elif strategy == "length_capacity_weighted_average":
+            df[col] = df[col] * length_factor * capacity_weights
+            static_strategies[col] = "sum"
 
-    def aggregatelinegroup(l):
-        # l.name is a tuple of the groupby index (bus0_s, bus1_s)
-        length_s = (
-            haversine_pts(
-                buses.loc[l.name[0], ["x", "y"]], buses.loc[l.name[1], ["x", "y"]]
-            )
-            * line_length_factor
-        )
-        v_nom_s = buses.loc[list(l.name), "v_nom"].max()
+    df = df.groupby(grouper, axis=0).agg(static_strategies)
 
-        voltage_factor = (np.asarray(network.buses.loc[l.bus0, "v_nom"]) / v_nom_s) ** 2
-        non_zero_len = l.length != 0
-        length_factor = (length_s / l.length[non_zero_len]).reindex(
-            l.index, fill_value=1
-        )
-
-        data = dict(
-            r=1.0 / (voltage_factor / (length_factor * l["r"])).sum(),
-            x=1.0 / (voltage_factor / (length_factor * l["x"])).sum(),
-            g=(voltage_factor * length_factor * l["g"]).sum(),
-            b=(voltage_factor * length_factor * l["b"]).sum(),
-            terrain_factor=l["terrain_factor"].mean(),
-            s_max_pu=(l["s_max_pu"] * normed_or_uniform(l["s_nom"])).sum(),
-            s_nom=l["s_nom"].sum(),
-            s_nom_min=l["s_nom_min"].sum(),
-            s_nom_max=l["s_nom_max"].sum(),
-            s_nom_extendable=l["s_nom_extendable"].any(),
-            num_parallel=l["num_parallel"].sum(),
-            capital_cost=(
-                length_factor * normed_or_uniform(l["s_nom"]) * l["capital_cost"]
-            ).sum(),
-            length=length_s,
-            sub_network=consense["sub_network"](l["sub_network"]),
-            v_ang_min=l["v_ang_min"].max(),
-            v_ang_max=l["v_ang_max"].min(),
-            lifetime=(l["lifetime"] * normed_or_uniform(l["s_nom"])).sum(),
-            build_year=(l["build_year"] * normed_or_uniform(l["s_nom"])).sum(),
-        )
-        data.update((f, consense[f](l[f])) for f in columns.difference(data))
-        return pd.Series(data, index=[f for f in l.columns if f in columns])
-
-    lines = interlines_c.groupby(["bus0_s", "bus1_s"]).apply(aggregatelinegroup)
-    lines["name"] = [str(i + 1) for i in range(len(lines))]
-
-    linemap_p = interlines_p.join(lines["name"], on=["bus0_s", "bus1_s"])["name"]
-    linemap_n = interlines_n.join(lines["name"], on=["bus0_s", "bus1_s"])["name"]
-    linemap = pd.concat((linemap_p, linemap_n), sort=False)
-
-    lines_t = dict()
-
+    pnl = dict()
     if with_time:
-        for attr, df in network.lines_t.items():
-            lines_agg_b = df.columns.to_series().map(linemap).dropna()
-            df_agg = df.loc[:, lines_agg_b.index]
-            if not df_agg.empty:
-                if (attr == "s_max_pu") or (attr == "s_min_pu"):
-                    weighting = network.lines.groupby(linemap).s_nom.apply(
-                        normed_or_uniform
-                    )
-                    df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
-                pnl_df = df_agg.groupby(linemap, axis=1).sum()
-                pnl_df.columns = flatten_multiindex(pnl_df.columns).rename("name")
-                lines_t[attr] = pnl_df
+        dynamic_strategies = align_strategies(strategies, n.pnl("Line"), "Line")
 
-    return lines, linemap_p, linemap_n, linemap, lines_t
+        for attr, data in n.lines_t.items():
+            strategy = dynamic_strategies[attr]
+            cols = data.columns
+
+            if strategy == "capacity_weighted_average":
+                data = data * capacity_weights[cols]
+                data = data.groupby(grouper, axis=1).sum()
+            else:
+                data = data.groupby(grouper, axis=1).agg(strategy)
+
+            pnl[attr] = data
+
+    return df, pnl, grouper
 
 
 def get_buses_linemap_and_lines(
@@ -464,34 +464,22 @@ def get_buses_linemap_and_lines(
     tuple
         A tuple containing the new buses, the line map, the positive line map, the negative line map, the new lines, and the time-dependent lines.
     """
-    # Compute new buses
     buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
-
-    lines = n.lines.assign(
-        bus0_s=n.lines.bus0.map(busmap), bus1_s=n.lines.bus1.map(busmap)
+    lines, lines_t, linemap = aggregatelines(
+        n,
+        busmap,
+        line_length_factor,
+        with_time=with_time,
+        bus_strategies=bus_strategies,
     )
-    interlines = lines.loc[lines["bus0_s"] != lines["bus1_s"]]
-
-    # Aggregate lines
-    lines, linemap_p, linemap_n, linemap, lines_t = aggregatelines(
-        n, buses, interlines, line_length_factor, with_time=with_time
-    )
-
-    # If there are no lines, return an empty DataFrame
-    if lines.empty:
-        lines = lines.drop(columns=["bus0_s", "bus1_s"]).reset_index(drop=True)
-    else:
-        lines = lines.reset_index()
-        lines = lines.rename(columns={"bus0_s": "bus0", "bus1_s": "bus1"})
-    lines = lines.set_index("name").rename_axis(index="Line")
-
-    return (buses, linemap, linemap_p, linemap_n, lines, lines_t)
+    return buses, lines, lines_t, linemap
 
 
-Clustering = namedtuple(
-    "Clustering",
-    ["network", "busmap", "linemap", "linemap_positive", "linemap_negative"],
-)
+@dataclass
+class Clustering:
+    network: "Network"
+    busmap: pd.Series
+    linemap: pd.Series
 
 
 def get_clustering_from_busmap(
@@ -508,7 +496,7 @@ def get_clustering_from_busmap(
     generator_strategies=dict(),
     aggregate_generators_buses=None,
 ):
-    buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
+    buses, lines, lines_t, linemap = get_buses_linemap_and_lines(
         n, busmap, line_length_factor, bus_strategies, with_time
     )
 
@@ -530,6 +518,7 @@ def get_clustering_from_busmap(
     one_port_components = n.one_port_components.copy()
 
     if aggregate_generators_weighted:
+        # TODO: Remove this in favour of the more general approach below.
         one_port_components.remove("Generator")
         generators, generators_pnl = aggregateoneport(
             n,
@@ -604,7 +593,7 @@ def get_clustering_from_busmap(
 
     clustered.determine_network_topology()
 
-    return Clustering(clustered, busmap, linemap, linemap_p, linemap_n)
+    return Clustering(clustered, busmap, linemap)
 
 
 ################
