@@ -38,7 +38,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from pypsa.descriptors import allocate_series_dataframes
+from pypsa.descriptors import additional_linkports, allocate_series_dataframes
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import get_switchable_as_iter, zsum
 from pypsa.opt import (
@@ -1527,14 +1527,12 @@ def define_nodal_balances(network, snapshots):
             )
 
     # Add any other buses to which the links are attached
-    for i in [
-        int(col[3:])
-        for col in network.links.columns
-        if col[:3] == "bus" and col not in ["bus0", "bus1"]
-    ]:
-        efficiency = get_as_dense(network, "Link", "efficiency{}".format(i), snapshots)
-        for cb in network.links.index[network.links["bus{}".format(i)] != ""]:
-            bus = network.links.at[cb, "bus{}".format(i)]
+    for i in additional_linkports(network):
+        efficiency = get_as_dense(network, "Link", f"efficiency{i}", snapshots)
+        for cb in network.links.index[
+            ~network.links[f"bus{i}"].isna() & (network.links[f"bus{i}"] != "")
+        ]:
+            bus = network.links.at[cb, f"bus{i}"]
             for sn in snapshots:
                 network._p_balance[bus, sn].variables.append(
                     (efficiency.at[sn, cb], network.model.link_p[cb, sn])
@@ -1944,7 +1942,7 @@ def extract_optimisation_results(
             "Bus": ["p", "v_ang", "v_mag_pu", "marginal_price"],
             "Line": ["p0", "p1", "mu_lower", "mu_upper"],
             "Transformer": ["p0", "p1", "mu_lower", "mu_upper"],
-            "Link": ["p" + col[3:] for col in network.links.columns if col[:3] == "bus"]
+            "Link": [f"p{i}" for i in ["0", "1"] + additional_linkports(network)]
             + ["mu_lower", "mu_upper"],
         },
     )
@@ -2076,16 +2074,10 @@ def extract_optimisation_results(
         )
 
         # Add any other buses to which the links are attached
-        for i in [
-            int(col[3:])
-            for col in network.links.columns
-            if col[:3] == "bus" and col not in ["bus0", "bus1"]
-        ]:
-            efficiency = get_as_dense(
-                network, "Link", "efficiency{}".format(i), snapshots
-            )
-            p_name = "p{}".format(i)
-            links = network.links.index[network.links["bus{}".format(i)] != ""]
+        for i in additional_linkports(network):
+            efficiency = get_as_dense(network, "Link", f"efficiency{i}", snapshots)
+            p_name = f"p{i}"
+            links = network.links.index[network.links[f"bus{i}"] != ""]
             network.links_t[p_name].loc[snapshots, links] = (
                 -network.links_t.p0.loc[snapshots, links]
                 * efficiency.loc[snapshots, links]
@@ -2093,7 +2085,7 @@ def extract_optimisation_results(
             network.buses_t.p.loc[snapshots] -= (
                 network.links_t[p_name]
                 .loc[snapshots, links]
-                .groupby(network.links["bus{}".format(i)], axis=1)
+                .groupby(network.links[f"bus{i}"], axis=1)
                 .sum()
                 .reindex(columns=network.buses_t.p.columns, fill_value=0.0)
             )

@@ -34,6 +34,7 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -853,6 +854,9 @@ class Network(Basic):
             f"Failed to add {class_name} component {name} because there is already "
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
+
+        if class_name == "Link":
+            update_linkports_component_attrs(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]
 

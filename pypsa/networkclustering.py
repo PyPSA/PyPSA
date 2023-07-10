@@ -11,4 +11,9 @@ __copyright__ = (
     "MIT License"
 )
 
+import warnings
+
+warnings.warn(
+    "The namespace `pypsa.networkclustering` is deprecated and will be removed in PyPSA v0.24. Please use `pypsa.clustering.spatial instead`. "
+)
 from pypsa.clustering.spatial import *

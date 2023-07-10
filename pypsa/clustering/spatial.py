@@ -57,12 +57,22 @@ def _make_consense(component, attr):
 
 
 def aggregategenerators(
-    network, busmap, with_time=True, carriers=None, custom_strategies=dict()
+    network,
+    busmap,
+    with_time=True,
+    carriers=None,
+    custom_strategies=dict(),
+    buses=None,
 ):
     if carriers is None:
         carriers = network.generators.carrier.unique()
 
     gens_agg_b = network.generators.carrier.isin(carriers)
+
+    if buses is not None:
+        # add all generators in buses that should be clustered
+        gens_agg_b += network.generators.bus.isin(buses)
+
     attrs = network.components["Generator"]["attrs"]
     generators = network.generators.loc[gens_agg_b].assign(
         bus=lambda df: df.bus.map(busmap)
@@ -86,6 +96,7 @@ def aggregategenerators(
         "weight": pd.Series.sum,
         "p_nom": pd.Series.sum,
         "capital_cost": pd.Series.sum,
+        "marginal_cost": "mean",
         "efficiency": pd.Series.mean,
         "ramp_limit_up": pd.Series.mean,
         "ramp_limit_down": pd.Series.mean,
@@ -93,9 +104,10 @@ def aggregategenerators(
         "ramp_limit_shut_down": pd.Series.mean,
         "build_year": lambda x: 0,
         "lifetime": lambda x: np.inf,
+        "p_max_pu": "sum",  # weighted
     }
     strategies.update(custom_strategies)
-    if strategies["p_nom_max"] is pd.Series.min:
+    if strategies["p_nom_max"] in (pd.Series.min, "min"):
         generators["p_nom_max"] /= weighting
     strategies.update(
         (attr, _make_consense("Generator", attr))
@@ -126,7 +138,8 @@ def aggregategenerators(
             if not df_agg.empty:
                 if attr == "p_max_pu":
                     df_agg = df_agg.multiply(weighting.loc[df_agg.columns], axis=1)
-                pnl_df = df_agg.groupby(grouper, axis=1).sum()
+                strategy = strategies.get(attr, "sum")
+                pnl_df = df_agg.groupby(grouper, axis=1).agg(strategy)
                 pnl_df.columns = _flatten_multiindex(pnl_df.columns).rename("name")
                 new_pnl[attr] = pd.concat(
                     [df.loc[:, ~pnl_gens_agg_b], pnl_df], axis=1, sort=False
@@ -385,6 +398,7 @@ def get_clustering_from_busmap(
     bus_strategies=dict(),
     one_port_strategies=dict(),
     generator_strategies=dict(),
+    aggregate_generators_buses=None,
 ):
     buses, linemap, linemap_p, linemap_n, lines, lines_t = get_buses_linemap_and_lines(
         network, busmap, line_length_factor, bus_strategies, with_time
@@ -415,6 +429,7 @@ def get_clustering_from_busmap(
             with_time=with_time,
             carriers=aggregate_generators_carriers,
             custom_strategies=generator_strategies,
+            buses=aggregate_generators_buses,
         )
         io.import_components_from_dataframe(network_c, generators, "Generator")
         if with_time:

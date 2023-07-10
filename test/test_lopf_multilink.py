@@ -8,53 +8,7 @@ import pypsa
 
 @pytest.fixture
 def network():
-    override_component_attrs = pypsa.descriptors.Dict(
-        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
-    )
-    override_component_attrs["Link"].loc["bus2"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "2nd bus",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["bus3"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "3rd bus",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["efficiency2"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "2nd bus efficiency",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["efficiency3"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "3rd bus efficiency",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["p2"] = [
-        "series",
-        "MW",
-        0.0,
-        "2nd bus output",
-        "Output",
-    ]
-    override_component_attrs["Link"].loc["p3"] = [
-        "series",
-        "MW",
-        0.0,
-        "3rd bus output",
-        "Output",
-    ]
-
-    n = pypsa.Network(override_component_attrs=override_component_attrs)
+    n = pypsa.Network()
     n.set_snapshots(range(10))
 
     n.add("Bus", "bus")
