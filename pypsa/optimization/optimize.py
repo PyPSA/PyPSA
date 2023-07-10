@@ -16,6 +16,7 @@ from pypsa.descriptors import additional_linkports, get_committable_i
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
+    optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
     optimize_with_rolling_horizon,
@@ -621,6 +622,10 @@ class OptimizationAccessor:
     @wraps(optimize_with_rolling_horizon)
     def optimize_with_rolling_horizon(self, *args, **kwargs):
         optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+
+    @wraps(optimize_mga)
+    def optimize_mga(self, *args, **kwargs):
+        optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

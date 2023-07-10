@@ -236,6 +236,27 @@ class StatisticsAccessor:
         df.attrs["unit"] = "currency"
         return df
 
+    def installed_capex(self, comps=None, aggregate_groups="sum", groupby=None):
+        """
+        Calculate the capital expenditure of already built components of the
+        network in given currency.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            return n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
+
+        df = aggregate_components(
+            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+        )
+        df.attrs["name"] = "Capital Expenditure Fixed"
+        df.attrs["unit"] = "currency"
+        return df
+
     def optimal_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
         """
         Calculate the optimal capacity of the network components in MW.
