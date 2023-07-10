@@ -155,3 +155,20 @@ def test_default_clustering_hac(scipy_network):
     C = get_clustering_from_busmap(n, busmap)
     nc = C.network
     assert len(nc.buses) == 50
+
+
+def test_cluster_accessor(scipy_network):
+    n = scipy_network
+    # delete the 'type' specifications to make this example easier
+    n.lines["type"] = np.nan
+    weighting = pd.Series(1, n.buses.index)
+
+    busmap = n.cluster.busmap_by_kmeans(
+        bus_weightings=weighting, n_clusters=50, random_state=42
+    )
+    buses = n.cluster.cluster_by_busmap(busmap).buses
+
+    buses_direct = n.cluster.cluster_spatially_by_kmeans(
+        bus_weightings=weighting, n_clusters=50, random_state=42
+    ).buses
+    assert buses.equals(buses_direct)

@@ -6,6 +6,8 @@ Power system components.
 
 from weakref import ref
 
+from pypsa.clustering import ClusteringAccessor
+
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
@@ -258,6 +260,8 @@ class Network(Basic):
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
         self.optimize = OptimizationAccessor(self)
+
+        self.cluster = ClusteringAccessor(self)
 
         if override_components is None:
             self.components = components

@@ -16,6 +16,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from functools import reduce
 from importlib.util import find_spec
+from typing import Any
 
 import networkx as nx
 import numpy as np
@@ -28,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 from pypsa import io
-from pypsa.components import Network
 from pypsa.geo import haversine, haversine_pts
 
 DEFAULT_ONE_PORT_STRATEGIES = dict(
@@ -437,7 +437,7 @@ def aggregatelines(
 
 
 def get_buses_linemap_and_lines(
-    n: Network,
+    n: Any,
     busmap: pd.DataFrame,
     line_length_factor: float = 1.0,
     bus_strategies={},
@@ -477,7 +477,7 @@ def get_buses_linemap_and_lines(
 
 @dataclass
 class Clustering:
-    network: "Network"
+    network: Any
     busmap: pd.Series
     linemap: pd.Series
 
@@ -496,6 +496,8 @@ def get_clustering_from_busmap(
     generator_strategies=dict(),
     aggregate_generators_buses=None,
 ):
+    from pypsa.components import Network
+
     buses, lines, lines_t, linemap = get_buses_linemap_and_lines(
         n, busmap, line_length_factor, bus_strategies, with_time
     )
@@ -548,7 +550,6 @@ def get_clustering_from_busmap(
         for attr, df in new_pnl.items():
             io.import_series_from_dataframe(clustered, df, one_port, attr)
 
-    ##
     # Collect remaining one ports
 
     for c in n.iterate_components(one_port_components):
