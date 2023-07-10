@@ -19,6 +19,16 @@ Upcoming Release
   modelling-to-generate-alternatives (MGA) on previously solved networks using
   ``n.optimize.optimize_mga(slack=..., weights=...)``. This is useful for
   exploring the near-optimal feasible space of the network.
+* Links with multiple inputs/outputs are now supported by default. The Link
+  component attributes are automatically extended if a link with ``bus2``,
+  ``bus3``, etc. are added to the network. Overriding component attributes
+  at network initialisation is no longer required.
+* The ``n.optimize`` accessor now provides functionality for rolling horizon
+  optimisation using ``n.optimize.optimize_with_rolling_horizon()`` which splits
+  whole optimization of the whole time span into multiple subproblems which are
+  solved consecutively. This is useful for operational optimizations with a high
+  spatial resolution.
+  
 
 PyPSA 0.24.0 (27th June 2023)
 =================================

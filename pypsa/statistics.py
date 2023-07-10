@@ -339,6 +339,8 @@ class StatisticsAccessor:
         def func(n, c):
             if c in n.branch_components:
                 p = n.pnl(c).p0
+            elif c == "StorageUnit":
+                p = n.pnl(c).p_dispatch
             else:
                 p = n.pnl(c).p
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")

@@ -19,6 +19,7 @@ from pypsa.optimization.abstract import (
     optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
+    optimize_with_rolling_horizon,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
@@ -618,9 +619,15 @@ class OptimizationAccessor:
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
 
+<<<<<<< HEAD
     @wraps(optimize_mga)
     def optimize_mga(self, *args, **kwargs):
         optimize_mga(self._parent, *args, **kwargs)
+=======
+    @wraps(optimize_with_rolling_horizon)
+    def optimize_with_rolling_horizon(self, *args, **kwargs):
+        optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+>>>>>>> master
 
     def fix_optimal_capacities(self):
         """
