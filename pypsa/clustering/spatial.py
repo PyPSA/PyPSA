@@ -370,8 +370,7 @@ def aggregatelines(
     df = n.df("Line")
     df = df[df.bus0.map(busmap) != df.bus1.map(busmap)]
 
-    orig_coords = n.buses[["x", "y"]]
-    orig_length = haversine_pts(orig_coords.loc[df.bus0], orig_coords.loc[df.bus1])
+    orig_length = df.length
     orig_v_nom = df.bus0.map(n.buses.v_nom)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
@@ -389,7 +388,7 @@ def aggregatelines(
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
 
-    grouper = df.groupby(["bus0", "bus1"]).ngroup()
+    grouper = df.groupby(["bus0", "bus1"]).ngroup().astype(str)
 
     coords = buses[["x", "y"]]
     length = (
@@ -397,8 +396,11 @@ def aggregatelines(
     )
     df = df.assign(length=length)
 
-    length_factor = (df.length / orig_length).replace(np.inf, 1)
-    voltage_factor = orig_v_nom / df.bus0.map(buses.v_nom) ** 2
+    length_factor = (df.length / orig_length).where(orig_length > 0, df.length)
+    v_nom = pd.concat([df.bus0.map(buses.v_nom), df.bus1.map(buses.v_nom)], axis=1).max(
+        1
+    )
+    voltage_factor = (orig_v_nom / v_nom) ** 2
     capacity_weights = df.groupby(grouper).s_nom.transform(normed_or_uniform)
 
     for col, strategy in static_strategies.items():
@@ -406,8 +408,8 @@ def aggregatelines(
             df[col] = df[col] * capacity_weights
             static_strategies[col] = "sum"
         elif strategy == "reciprocal_voltage_weighted_average":
-            df[col] = 1.0 / (voltage_factor / (length_factor * df[col]))
-            static_strategies[col] = "sum"
+            df[col] = voltage_factor / (length_factor * df[col])
+            static_strategies[col] = lambda x: 1.0 / x.sum()
         elif strategy == "voltage_weighted_average":
             df[col] = voltage_factor * length_factor * df[col]
             static_strategies[col] = "sum"
