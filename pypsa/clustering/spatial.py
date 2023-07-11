@@ -172,9 +172,7 @@ def flatten_multiindex(m, join=" "):
     """
     Flatten a multiindex by joining the levels with the given string.
     """
-    if m.nlevels <= 1:
-        return m
-    return m.to_flat_index().str.join(join).str.strip()
+    return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
 
 
 def aggregateoneport(
@@ -342,8 +340,8 @@ def aggregatelines(
     busmap,
     line_length_factor=1.0,
     with_time=True,
-    custom_strategies={},
-    bus_strategies={},
+    custom_strategies=None,
+    bus_strategies=None,
 ):
     """
     Aggregate lines in the network based on the given busmap.
@@ -370,6 +368,10 @@ def aggregatelines(
     pnl : dict
         Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
     """
+    if custom_strategies is None:
+        custom_strategies = {}
+    if bus_strategies is None:
+        bus_strategies = {}
     attrs = n.components["Line"]["attrs"]
     df = n.df("Line")
     df = df[df.bus0.map(busmap) != df.bus1.map(busmap)]
@@ -423,7 +425,7 @@ def aggregatelines(
 
     df = df.groupby(grouper, axis=0).agg(static_strategies)
 
-    pnl = dict()
+    pnl = {}
     if with_time:
         dynamic_strategies = align_strategies(strategies, n.pnl("Line"), "Line")
 
@@ -446,7 +448,7 @@ def get_buses_linemap_and_lines(
     n: Any,
     busmap: pd.DataFrame,
     line_length_factor: float = 1.0,
-    bus_strategies={},
+    bus_strategies=None,
     with_time: bool = True,
 ):
     """
@@ -470,6 +472,8 @@ def get_buses_linemap_and_lines(
     tuple
         A tuple containing the new buses, the line map, the positive line map, the negative line map, the new lines, and the time-dependent lines.
     """
+    if bus_strategies is None:
+        bus_strategies = {}
     buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
     lines, lines_t, linemap = aggregatelines(
         n,
@@ -494,7 +498,7 @@ def get_clustering_from_busmap(
     with_time=True,
     line_length_factor=1.0,
     aggregate_generators_weighted=False,
-    aggregate_one_ports={},
+    aggregate_one_ports=None,
     aggregate_generators_carriers=None,
     scale_link_capital_costs=True,
     bus_strategies=dict(),
@@ -502,6 +506,8 @@ def get_clustering_from_busmap(
     generator_strategies=dict(),
     aggregate_generators_buses=None,
 ):
+    if aggregate_one_ports is None:
+        aggregate_one_ports = {}
     from pypsa.components import Network
 
     buses, lines, lines_t, linemap = get_buses_linemap_and_lines(
@@ -654,12 +660,10 @@ def busmap_by_kmeans(n, bus_weightings, n_clusters, buses_i=None, **kwargs):
 
     kmeans.fit(points)
 
-    busmap = pd.Series(
+    return pd.Series(
         data=kmeans.predict(n.buses.loc[buses_i, ["x", "y"]].values),
         index=buses_i,
     ).astype(str)
-
-    return busmap
 
 
 def kmeans_clustering(n, bus_weightings, n_clusters, line_length_factor=1.0, **kwargs):
@@ -785,9 +789,7 @@ def busmap_by_hac(
         **kwargs,
     ).fit_predict(feature)
 
-    busmap = pd.Series(labels, index=buses_i, dtype=str)
-
-    return busmap
+    return pd.Series(labels, index=buses_i, dtype=str)
 
 
 def hac_clustering(
@@ -989,6 +991,6 @@ def busmap_by_stubs(n, matching_attrs=None):
                     busmap[busmap == u] = v
                     stubs.append(u)
         G.remove_nodes_from(stubs)
-        if len(stubs) == 0:
+        if not stubs:
             break
     return busmap
