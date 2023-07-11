@@ -12,9 +12,7 @@ __copyright__ = (
 )
 
 import logging
-from collections import namedtuple
 from dataclasses import dataclass
-from functools import reduce
 from importlib.util import find_spec
 from typing import Any
 
@@ -29,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 from pypsa import io
-from pypsa.geo import haversine, haversine_pts
+from pypsa.geo import haversine_pts
 
 DEFAULT_ONE_PORT_STRATEGIES = dict(
     p="sum",
@@ -609,13 +607,13 @@ def get_clustering_from_busmap(
 # k-Means clustering based on bus properties
 
 
-def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs):
+def busmap_by_kmeans(n, bus_weightings, n_clusters, buses_i=None, **kwargs):
     """
     Create a bus map from the clustering of buses in space with a weighting.
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
         The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
@@ -642,12 +640,12 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
     from sklearn.cluster import KMeans
 
     if buses_i is None:
-        buses_i = network.buses.index
+        buses_i = n.buses.index
 
     # since one cannot weight points directly in the scikit-learn
     # implementation of k-means, just add additional points at
     # same position
-    points = network.buses.loc[buses_i, ["x", "y"]].values.repeat(
+    points = n.buses.loc[buses_i, ["x", "y"]].values.repeat(
         bus_weightings.reindex(buses_i).astype(int), axis=0
     )
 
@@ -657,16 +655,14 @@ def busmap_by_kmeans(network, bus_weightings, n_clusters, buses_i=None, **kwargs
     kmeans.fit(points)
 
     busmap = pd.Series(
-        data=kmeans.predict(network.buses.loc[buses_i, ["x", "y"]].values),
+        data=kmeans.predict(n.buses.loc[buses_i, ["x", "y"]].values),
         index=buses_i,
     ).astype(str)
 
     return busmap
 
 
-def kmeans_clustering(
-    network, bus_weightings, n_clusters, line_length_factor=1.0, **kwargs
-):
+def kmeans_clustering(n, bus_weightings, n_clusters, line_length_factor=1.0, **kwargs):
     """
     Cluster the network according to k-means clustering of the buses.
 
@@ -676,7 +672,7 @@ def kmeans_clustering(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
         The buses must have coordinates x, y.
     bus_weightings : pandas.Series
         Series of integer weights for buses, indexed by bus names.
@@ -694,17 +690,15 @@ def kmeans_clustering(
         A named tuple containing network, busmap and linemap
     """
 
-    busmap = busmap_by_kmeans(network, bus_weightings, n_clusters, **kwargs)
+    busmap = busmap_by_kmeans(n, bus_weightings, n_clusters, **kwargs)
 
-    return get_clustering_from_busmap(
-        network, busmap, line_length_factor=line_length_factor
-    )
+    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
 ################
 # Hierarchical Clustering
 def busmap_by_hac(
-    network,
+    n,
     n_clusters,
     buses_i=None,
     branch_components=None,
@@ -718,7 +712,7 @@ def busmap_by_hac(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -762,10 +756,10 @@ def busmap_by_hac(
     from sklearn.cluster import AgglomerativeClustering as HAC
 
     if buses_i is None:
-        buses_i = network.buses.index
+        buses_i = n.buses.index
 
     if branch_components is None:
-        branch_components = network.branch_components
+        branch_components = n.branch_components
 
     if feature is None:
         logger.warning(
@@ -776,9 +770,9 @@ def busmap_by_hac(
 
         feature = pd.DataFrame(index=buses_i, columns=[""], data=0)
 
-    buses_x = network.buses.index.get_indexer(buses_i)
+    buses_x = n.buses.index.get_indexer(buses_i)
 
-    A = network.adjacency_matrix(branch_components=branch_components).tocsc()[buses_x][
+    A = n.adjacency_matrix(branch_components=branch_components).tocsc()[buses_x][
         :, buses_x
     ]
 
@@ -797,7 +791,7 @@ def busmap_by_hac(
 
 
 def hac_clustering(
-    network,
+    n,
     n_clusters,
     buses_i=None,
     branch_components=None,
@@ -812,7 +806,7 @@ def hac_clustering(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
         The buses must have coordinates x, y.
     buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
@@ -848,7 +842,7 @@ def hac_clustering(
     """
 
     busmap = busmap_by_hac(
-        network,
+        n,
         n_clusters,
         buses_i,
         branch_components,
@@ -858,21 +852,19 @@ def hac_clustering(
         **kwargs,
     )
 
-    return get_clustering_from_busmap(
-        network, busmap, line_length_factor=line_length_factor
-    )
+    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
 ################
 # Cluserting based on Modularity (on electrical parameters of the network)
-def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
+def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
     maximization [1].
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -897,11 +889,11 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
         )
 
     if buses_i is None:
-        buses_i = network.buses.index
+        buses_i = n.buses.index
 
-    network.calculate_dependent_values()
+    n.calculate_dependent_values()
 
-    lines = network.lines.query("bus0 in @buses_i and bus1 in @buses_i")
+    lines = n.lines.query("bus0 in @buses_i and bus1 in @buses_i")
     lines = (
         lines[["bus0", "bus1"]]
         .assign(weight=lines.s_nom / abs(lines.r + 1j * lines.x))
@@ -923,16 +915,14 @@ def busmap_by_greedy_modularity(network, n_clusters, buses_i=None):
     return busmap
 
 
-def greedy_modularity_clustering(
-    network, n_clusters, buses_i=None, line_length_factor=1.0
-):
+def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor=1.0):
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
     maximization [1].
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -952,25 +942,23 @@ def greedy_modularity_clustering(
        Physical Review E 70(6), 2004.
     """
 
-    busmap = busmap_by_greedy_modularity(network, n_clusters, buses_i)
+    busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)
 
-    return get_clustering_from_busmap(
-        network, busmap, line_length_factor=line_length_factor
-    )
+    return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
 ################
 # Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
 
 
-def busmap_by_stubs(network, matching_attrs=None):
+def busmap_by_stubs(n, matching_attrs=None):
     """
     Create a busmap by reducing stubs and stubby trees (i.e. sequentially
     reducing dead-ends).
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
 
     matching_attrs : None|[str]
         bus attributes clusters have to agree on
@@ -981,17 +969,14 @@ def busmap_by_stubs(network, matching_attrs=None):
         Mapping of network.buses to k-means clusters (indexed by
         non-negative integers).
     """
-    busmap = pd.Series(network.buses.index, network.buses.index)
+    busmap = pd.Series(n.buses.index, n.buses.index)
 
-    G = network.graph()
+    G = n.graph()
 
     def attrs_match(u, v):
         return (
             matching_attrs is None
-            or (
-                network.buses.loc[u, matching_attrs]
-                == network.buses.loc[v, matching_attrs]
-            ).all()
+            or (n.buses.loc[u, matching_attrs] == n.buses.loc[v, matching_attrs]).all()
         )
 
     while True:
