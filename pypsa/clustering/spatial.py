@@ -49,12 +49,14 @@ DEFAULT_ONE_PORT_STRATEGIES = dict(
     ramp_limit_shut_down="mean",
     build_year=lambda x: 0,
     lifetime=lambda x: np.inf,
+    control=lambda x: "",
     p_max_pu="capacity_weighted_average",
     p_min_pu="capacity_weighted_average",
     capital_cost="capacity_weighted_average",
     marginal_cost="capacity_weighted_average",
     efficiency="capacity_weighted_average",
     max_hours="capacity_weighted_average",
+    inflow="sum",
 )
 
 DEFAULT_BUS_STRATEGIES = dict(
@@ -160,7 +162,7 @@ def align_strategies(strategies, keys, component):
     strategies |= {
         k: make_consense(component, k) for k in set(keys).difference(strategies)
     }
-    return {k: v for k, v in strategies.items() if k in keys}
+    return {k: strategies[k] for k in keys}
 
 
 @deprecated(details="Use `make_consense` instead.")
@@ -229,13 +231,17 @@ def aggregateoneport(
     df = df.assign(bus=df.bus.map(busmap))
 
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = columns & set(df.columns)
+    columns = [c for c in df.columns if c in columns]
 
     strategies = {**DEFAULT_ONE_PORT_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, c)
 
     grouper = [df.bus, df.carrier] if "carrier" in df.columns else df.bus
-    capacity_weights = df.p_nom.groupby(grouper, axis=0).transform(normed_or_uniform)
+    capacity = df.columns.intersection({"p_nom", "e_nom"})
+    if len(capacity):
+        capacity_weights = (
+            df[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+        )
     if "weight" in df.columns:
         weights = df.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
 
@@ -322,7 +328,7 @@ def aggregatebuses(n, busmap, custom_strategies=dict()):
     attrs = n.components[c]["attrs"]
 
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = columns & set(n.buses.columns)
+    columns = [c for c in n.buses.columns if c in columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
     strategies = align_strategies(strategies, columns, c)
@@ -383,7 +389,7 @@ def aggregatelines(
     df.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
 
     columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = columns & set(df.columns)
+    columns = [c for c in df.columns if c in columns]
 
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
