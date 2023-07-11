@@ -438,18 +438,10 @@ these are used in the LOPF and the `example of a CHP with a fixed
 power-heat ratio
 <https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
 
-To define the new columns ``bus2``, ``efficiency2``, ``bus3``,
-``efficiency3``, etc. in ``network.links`` you need to override the
-standard component attributes by passing ``pypsa.Network()`` an
-``override_component_attrs`` argument. See the section
-:ref:`custom_components` and the `example of a CHP with a fixed
-power-heat ratio
-<https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
-
-
-If the column ``bus2`` exists, values in the column are not compulsory
-for all links; if the link has no 2nd output, simply leave it empty
-``network.links.at["my_link","bus2"] = ""``.
+The columns ``bus2``, ``efficiency2``, ``bus3``, ``efficiency3``, etc. in
+``network.links`` are automatically added to the component attributes. The
+values in these columns are not compulsory; if the link has no 2nd output,
+simply leave it empty ``network.links.at["my_link","bus2"] = ""`` or as NaN.
 
 For links with multiple inputs in fixed ratio to one of the inputs,
 you can define the other inputs as outputs with a negative efficiency
