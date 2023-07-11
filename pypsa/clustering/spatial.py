@@ -63,6 +63,7 @@ DEFAULT_BUS_STRATEGIES = dict(
     v_nom="max",
     v_mag_pu_max="min",
     v_mag_pu_min="max",
+    generator=lambda x: "",
 )
 
 DEFAULT_LINE_STRATEGIES = dict(
@@ -226,8 +227,8 @@ def aggregateoneport(
     df = df[to_aggregate]
     df = df.assign(bus=df.bus.map(busmap))
 
-    columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = [c for c in df.columns if c in columns]
+    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    columns = [c for c in df.columns if c not in output_columns]
 
     strategies = {**DEFAULT_ONE_PORT_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, c)
@@ -323,8 +324,8 @@ def aggregatebuses(n, busmap, custom_strategies=dict()):
     c = "Bus"
     attrs = n.components[c]["attrs"]
 
-    columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = [c for c in n.buses.columns if c in columns]
+    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    columns = [c for c in n.buses.columns if c not in output_columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
     strategies = align_strategies(strategies, columns, c)
@@ -388,8 +389,8 @@ def aggregatelines(
     reverse_values = df.loc[reverse_order, ["bus1", "bus0"]].values
     df.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
 
-    columns = set(attrs.index[attrs.static & attrs.status.str.startswith("Input")])
-    columns = [c for c in df.columns if c in columns]
+    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    columns = [c for c in df.columns if c not in output_columns]
 
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")

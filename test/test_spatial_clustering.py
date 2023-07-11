@@ -136,10 +136,16 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
         df, pnl = aggregateoneport(n, busmap, "StorageUnit")
 
 
+def prepare_network_for_aggregation(n):
+    n.lines = n.lines.reindex(columns=n.components["Line"]["attrs"].index[1:])
+    n.lines["type"] = np.nan
+    n.buses = n.buses.reindex(columns=n.components["Bus"]["attrs"].index[1:])
+    n.buses["frequency"] = 50
+
+
 def test_default_clustering_k_means(scipy_network):
     n = scipy_network
-    # delete the 'type' specifications to make this example easier
-    n.lines["type"] = np.nan
+    prepare_network_for_aggregation(n)
     weighting = pd.Series(1, n.buses.index)
     busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
@@ -149,8 +155,7 @@ def test_default_clustering_k_means(scipy_network):
 
 def test_default_clustering_hac(scipy_network):
     n = scipy_network
-    # delete the 'type' specifications to make this example easier
-    n.lines["type"] = np.nan
+    prepare_network_for_aggregation(n)
     busmap = busmap_by_hac(n, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
     nc = C.network
@@ -159,10 +164,9 @@ def test_default_clustering_hac(scipy_network):
 
 def test_cluster_accessor(scipy_network):
     n = scipy_network
-    # delete the 'type' specifications to make this example easier
-    n.lines["type"] = np.nan
-    weighting = pd.Series(1, n.buses.index)
+    prepare_network_for_aggregation(n)
 
+    weighting = pd.Series(1, n.buses.index)
     busmap = n.cluster.busmap_by_kmeans(
         bus_weightings=weighting, n_clusters=50, random_state=42
     )
