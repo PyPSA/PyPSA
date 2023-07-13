@@ -15,7 +15,6 @@ __copyright__ = (
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 from numpy import inf
 from packaging.version import Version, parse
 
