@@ -2,41 +2,90 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and ``pypsa.clustering.spatial.aggregategenerators``
-  now allows the passing of a list of buses for which aggregation of __all__ carriers is desired. Generation from
-  a carrier at a bus is aggregated now if: It is __either__ in the passed list of aggregated carriers, __or__ in the
-  list of aggregated buses.
-* The ``n.optimize`` accessor now provides functionality for rolling horizon optimisation using ``n.optimize.optimize_with_rolling_horizon()`` which splits whole optimization of the whole time span into multiple subproblems which are solved consecutively. This is useful for operational optimizations with a high spatial resolution.
-* PyPSA now supports stand-by cost terms. A new column`stand_by_cost` was added to generators and links. The stand-by cost is added to the objective function when calling ``n.optimize()``.
-* The spatial clustering module was refactored. The changes lead to performance improvements and a more consistent clustering API.
-  * The network object has a new accessor ``cluster`` which allows accessing clustering routines from the network itself. For example, ``n.cluster.cluster_spatially_by_kmeans`` returns a spatially clustered version of the network.
-  * The default clustering strategies were refined. Per default, columns like ``efficiency`` and ``p_max_pu`` are now aggregated by the capacity weighted mean.
-  * The clustering module now applies the custom strategies to time-dependant data.
-  * **Breaking change:** The ``Clustering`` class no longer contains a positive and negative linemap.
-* PyPSA now supports stand-by cost terms. A new column
-  `stand_by_cost` was added to generators and links. The stand-by
-  cost is added to the objective function when calling
-  ``n.optimize()``.
-* The ``n.optimize`` accessor now provides functionality for running
+
+PyPSA 0.25.0 (13th July 2023)
+=============================
+
+**New Features**
+
+* **Stand-by costs:** PyPSA now supports stand-by cost terms. A new column
+  ``stand_by_cost`` was added to generators and links. The stand-by cost is
+  added to the objective function when calling ``n.optimize()``.
+  (https://github.com/PyPSA/PyPSA/pull/659)
+
+* **Rolling horizon function:** The ``n.optimize`` accessor now provides
+  functionality for rolling horizon optimisation using
+  ``n.optimize.optimize_with_rolling_horizon()`` which splits whole optimization
+  of the whole time span into multiple subproblems which are solved
+  consecutively. This is useful for operational optimizations with a high
+  spatial resolution. (https://github.com/PyPSA/PyPSA/pull/668)
+
+* **Modelling-to-generate-alternatives (MGA) function** The ``n.optimize``
+  accessor now provides functionality for running
   modelling-to-generate-alternatives (MGA) on previously solved networks using
   ``n.optimize.optimize_mga(slack=..., weights=...)``. This is useful for
   exploring the near-optimal feasible space of the network.
-* Links with multiple inputs/outputs are now supported by default. The Link
-  component attributes are automatically extended if a link with ``bus2``,
-  ``bus3``, etc. are added to the network. Overriding component attributes
-  at network initialisation is no longer required.
-* The ``n.optimize`` accessor now provides functionality for rolling horizon
-  optimisation using ``n.optimize.optimize_with_rolling_horizon()`` which splits
-  whole optimization of the whole time span into multiple subproblems which are
-  solved consecutively. This is useful for operational optimizations with a high
-  spatial resolution.
-* The deprecated ``networkclustering`` module was removed.
-* A new function `get_country_and_carrier` was added to the statistics module in order to group statistics by country and carrier.
+  (https://github.com/PyPSA/PyPSA/pull/672)
+
+**Changes**
+
+* **Multilinks by default:** Links with multiple inputs/outputs are now
+  supported by default. The Link component attributes are automatically extended
+  if a link with ``bus2``, ``bus3``, etc. are added to the network. Overriding
+  component attributes at network initialisation is no longer required.
+  (https://github.com/PyPSA/PyPSA/pull/669)
+
+* **Spatial clustering refactored:** The spatial clustering module was
+  refactored. The changes lead to performance improvements and a more consistent
+  clustering API. (https://github.com/PyPSA/PyPSA/pull/673)
+
+  * The network object has a new accessor ``cluster`` which allows accessing
+    clustering routines from the network itself. For example,
+    ``n.cluster.cluster_spatially_by_kmeans`` returns a spatially clustered
+    version of the network.
+
+  * The default clustering strategies were refined. Per default, columns like
+    ``efficiency`` and ``p_max_pu`` are now aggregated by the capacity weighted
+    mean.
+
+  * The clustering module now applies the custom strategies to time-dependant
+    data.
+
+  * The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and
+    ``pypsa.clustering.spatial.aggregategenerators`` now allows the passing of a
+    list of buses for which aggregation of all carriers is desired. Generation
+    from a carrier at a bus is aggregated now if: It is either in the passed
+    list of aggregated carriers, or in the list of aggregated buses.
+
+  * Take generator strategies for time-series into account. Before, time-series
+    would always be aggregated by summing.
+    (https://github.com/PyPSA/PyPSA/pull/670)
+
+  * The deprecated ``networkclustering`` module was removed.
+    (https://github.com/PyPSA/PyPSA/pull/675)
+
+* A new function `get_country_and_carrier` was added to the statistics module in
+  order to group statistics by country and carrier.
+  (https://github.com/PyPSA/PyPSA/pull/678)
+
+* NetCDF file compression is now disabled by default when exporting networks.
+  (https://github.com/PyPSA/PyPSA/pull/679)
+
+**Breaking Changes**
+
+* The ``Clustering`` class no longer contains a positive and negative linemap.
+
+* Outdated examples were removed. (https://github.com/PyPSA/PyPSA/pull/674)
+
+**Bugfixes**
+
+* In the statistics module, the calculation of operational costs of storage
+  units was corrected. (https://github.com/PyPSA/PyPSA/pull/671)
 
 
 PyPSA 0.24.0 (27th June 2023)
