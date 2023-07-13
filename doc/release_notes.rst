@@ -43,16 +43,16 @@ PyPSA 0.25.0 (13th July 2023)
 * **Spatial clustering refactored:** The spatial clustering module was
   refactored. The changes lead to performance improvements and a more consistent
   clustering API. (https://github.com/PyPSA/PyPSA/pull/673)
-  
+
   * The network object has a new accessor ``cluster`` which allows accessing
     clustering routines from the network itself. For example,
     ``n.cluster.cluster_spatially_by_kmeans`` returns a spatially clustered
     version of the network.
-  
+
   * The default clustering strategies were refined. Per default, columns like
     ``efficiency`` and ``p_max_pu`` are now aggregated by the capacity weighted
     mean.
-  
+
   * The clustering module now applies the custom strategies to time-dependant
     data.
 
