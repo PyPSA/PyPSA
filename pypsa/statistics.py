@@ -51,6 +51,16 @@ def get_bus_and_carrier(n, c, port=""):
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
 
 
+def get_country_and_carrier(n, c, port=""):
+    """
+    Get component country and carrier.
+    """
+    bus = f"bus{port}"
+    bus, carrier = get_bus_and_carrier(n, c, port)
+    country = bus.map(n.buses.country).rename("country")
+    return [country, carrier]
+
+
 def get_carrier_and_bus_carrier(n, c, port=""):
     """
     Get component carrier and bus carrier in one combined DataFrame.
@@ -215,6 +225,12 @@ class StatisticsAccessor:
         Get the buses and nice carrier names for a component.
         """
         return get_bus_and_carrier(n, c)
+
+    def get_country_and_carrier(self, n, c):
+        """
+        Get the country and nice carrier names for a component.
+        """
+        return get_country_and_carrier(n, c)
 
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
