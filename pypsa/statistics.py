@@ -23,118 +23,126 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_carrier(n, c):
-    """
-    Get the nice carrier names for a component.
-    """
-    df = n.df(c)
-    fall_back = pd.Series("", index=df.index)
-    return (
-        df.get("carrier", fall_back)
-        .replace(n.carriers.nice_name[lambda ds: ds != ""])
-        .replace("", "-")
-        .rename("carrier")
-    )
+def nice_names_decorator(nice_names):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(nice_names=nice_names, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
-def get_bus_and_carrier(n, c, port=""):
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    if port == "":
-        if "bus" not in n.df(c):
-            bus = "bus0"
-        else:
-            bus = "bus"
-    else:
-        bus = f"bus{port}"
-    return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
+# def get_carrier(n, c, nice_names=False):
+#     """
+#     Get the nice carrier names for a component.
+#     """
+#     df = n.df(c)
+#     fall_back = pd.Series("", index=df.index)
+#     carrier = df.get("carrier", fall_back).rename("carrier")
+#     if nice_names:
+#         carrier.replace(
+#             n.carriers.nice_name[lambda ds: ds != ""]).replace("", "-")
+#     return carrier
 
 
-def get_country_and_carrier(n, c, port=""):
-    """
-    Get component country and carrier.
-    """
-    bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port)
-    country = bus.map(n.buses.country).rename("country")
-    return [country, carrier]
+# def get_bus_and_carrier(n, c, nice_names=False, port=""):
+#     """
+#     Get the buses and nice carrier names for a component.
+#     """
+#     if port == "":
+#         if "bus" not in n.df(c):
+#             bus = "bus0"
+#         else:
+#             bus = "bus"
+#     else:
+#         bus = f"bus{port}"
+#     return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names)]
 
 
-def get_carrier_and_bus_carrier(n, c, port=""):
-    """
-    Get component carrier and bus carrier in one combined DataFrame.
-
-    Used for MultiIndex in energy balance.
-    """
-    bus = f"bus{port}"
-    bus_and_carrier = pd.concat(get_bus_and_carrier(n, c, port), axis=1)
-    bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
-    return pd.concat([bus_and_carrier, bus_carrier], axis=1)
+# def get_country_and_carrier(n, c, nice_names=False, port=""):
+#     """
+#     Get component country and carrier.
+#     """
+#     bus = f"bus{port}"
+#     bus, carrier = get_bus_and_carrier(n, c, nice_names, port)
+#     country = bus.map(n.buses.country).rename("country")
+#     return [country, carrier]
 
 
-def get_operation(n, c):
-    """
-    Get the operation time series of a component.
-    """
-    if c in n.branch_components:
-        return n.pnl(c).p0
-    elif c == "Store":
-        return n.pnl(c).e
-    else:
-        return n.pnl(c).p
+# def get_carrier_and_bus_carrier(n, c, nice_names=False, port=""):
+#     """
+#     Get component carrier and bus carrier in one combined DataFrame.
+
+#     Used for MultiIndex in energy balance.
+#     """
+#     bus = f"bus{port}"
+#     bus_and_carrier = pd.concat(
+#         get_bus_and_carrier(n, c, nice_names, port), axis=1)
+#     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
+#     return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
 
-def get_weightings(n, c):
-    """
-    Get the relevant snapshot weighting for a component.
-    """
-    if c == "Generator":
-        return n.snapshot_weightings["generators"]
-    elif c in ["StorageUnit", "Store"]:
-        return n.snapshot_weightings["stores"]
-    else:
-        return n.snapshot_weightings["objective"]
+# def get_operation(n, c):
+#     """
+#     Get the operation time series of a component.
+#     """
+#     if c in n.branch_components:
+#         return n.pnl(c).p0
+#     elif c == "Store":
+#         return n.pnl(c).e
+#     else:
+#         return n.pnl(c).p
 
 
-def aggregate_timeseries(df, weights, agg="sum"):
-    "Calculate the weighed sum or average of a DataFrame or Series."
-    if agg == "mean":
-        return df.multiply(weights, axis=0).sum().div(weights.sum())
-    elif agg == "sum":
-        return weights @ df
-    elif not agg:
-        return df.T
-    else:
-        return df.agg(agg)
+# def get_weightings(n, c):
+#     """
+#     Get the relevant snapshot weighting for a component.
+#     """
+#     if c == "Generator":
+#         return n.snapshot_weightings["generators"]
+#     elif c in ["StorageUnit", "Store"]:
+#         return n.snapshot_weightings["stores"]
+#     else:
+#         return n.snapshot_weightings["objective"]
 
 
-def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
-    """
-    Apply a function and group the result for a collection of components.
-    """
-    d = {}
-    kwargs = {}
-    if comps is None:
-        comps = n.branch_components | n.one_port_components
-    if groupby is None:
-        groupby = get_carrier
-    for c in comps:
-        if callable(groupby):
-            grouping = groupby(n, c)
-        elif isinstance(groupby, list):
-            grouping = [n.df(c)[key] for key in groupby]
-        elif isinstance(groupby, str):
-            grouping = n.df(c)[groupby]
-        elif isinstance(groupby, dict):
-            grouping = None
-            kwargs = groupby
-        else:
-            ValueError(
-                f"Argument `groupby` must be a function, list, string or dict, got {type(groupby)}"
-            )
-        d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
-    return pd.concat(d)
+# def aggregate_timeseries(df, weights, agg="sum"):
+#     "Calculate the weighed sum or average of a DataFrame or Series."
+#     if agg == "mean":
+#         return df.multiply(weights, axis=0).sum().div(weights.sum())
+#     elif agg == "sum":
+#         return weights @ df
+#     elif not agg:
+#         return df.T
+#     else:
+#         return df.agg(agg)
+
+
+# def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
+#     """
+#     Apply a function and group the result for a collection of components.
+#     """
+#     d = {}
+#     kwargs = {}
+#     if comps is None:
+#         comps = n.branch_components | n.one_port_components
+#     if groupby is None:
+#         groupby = get_carrier
+#     for c in comps:
+#         if callable(groupby):
+#             grouping = groupby(n, c)
+#         elif isinstance(groupby, list):
+#             grouping = [n.df(c)[key] for key in groupby]
+#         elif isinstance(groupby, str):
+#             grouping = n.df(c)[groupby]
+#         elif isinstance(groupby, dict):
+#             grouping = None
+#             kwargs = groupby
+#         else:
+#             ValueError(
+#                 f"Argument `groupby` must be a function, list, string or dict, got {type(groupby)}"
+#             )
+#         d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
+#     return pd.concat(d)
 
 
 def pass_empty_series_if_keyerror(func):
@@ -160,7 +168,7 @@ class StatisticsAccessor:
         self,
         comps=None,
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=None,
         **kwargs,
     ):
         """
@@ -207,30 +215,135 @@ class StatisticsAccessor:
             self.revenue,
             self.market_value,
         ]
-        kwargs = dict(comps=comps, aggregate_groups=aggregate_groups, groupby=groupby)
+        kwargs = dict(
+            comps=comps, aggregate_groups=aggregate_groups, groupby=self.get_carrier())
         res = []
         for func in funcs:
             df = func(**kwargs)
             res.append(df.rename(df.attrs["name"]))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
-    def get_carrier(self, n, c):
+    def get_carrier(self, nice_names=False):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_carrier(n, c)
+        @nice_names_decorator(nice_names=nice_names)
+        def get_carrier(n, c, nice_names):
+            """
+            Get the nice carrier names for a component.
+            """
+            df = n.df(c)
+            fall_back = pd.Series("", index=df.index)
+            carrier = df.get("carrier", fall_back).rename("carrier")
+            if nice_names:
+                carrier = carrier.replace(
+                    n.carriers.nice_name[lambda ds: ds != ""]).replace("", "-")
+            return carrier
+        return get_carrier
 
-    def get_bus_and_carrier(self, n, c):
+    def get_bus_and_carrier(self, nice_names=False):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_bus_and_carrier(n, c)
+        @nice_names_decorator(nice_names=nice_names)
+        def get_bus_and_carrier(n, c, nice_names=False, port=""):
+            if port == "":
+                if "bus" not in n.df(c):
+                    bus = "bus0"
+                else:
+                    bus = "bus"
+            else:
+                bus = f"bus{port}"
+            return [n.df(c)[bus].rename("bus"), self.get_carrier(n, c, nice_names)]
+        return get_bus_and_carrier
 
-    def get_country_and_carrier(self, n, c):
+    def get_country_and_carrier(self, nice_names=False):
         """
         Get the country and nice carrier names for a component.
         """
-        return get_country_and_carrier(n, c)
+        @nice_names_decorator(nice_names=nice_names)
+        def get_country_and_carrier(n, c, nice_names=False, port=""):
+            bus = f"bus{port}"
+            bus, carrier = self.get_bus_and_carrier(n, c, nice_names, port)
+            country = bus.map(n.buses.country).rename("country")
+            return [country, carrier]
+        return get_country_and_carrier
+
+    def get_carrier_and_bus_carrier(self, nice_names=False):
+        """
+        Get component carrier and bus carrier in one combined DataFrame.
+
+        Used for MultiIndex in energy balance.
+        """
+        @nice_names_decorator(nice_names=nice_names)
+        def get_carrier_and_bus_carrier(n, c, nice_names=False, port=""):
+            bus = f"bus{port}"
+            bus_and_carrier = pd.concat(
+                self.get_bus_and_carrier(n, c, nice_names, port), axis=1)
+            bus_carrier = n.df(c)[bus].map(
+                n.buses.carrier).rename("bus_carrier")
+            return pd.concat([bus_and_carrier, bus_carrier], axis=1)
+        return get_carrier_and_bus_carrier
+
+    def get_operation(self, n, c):
+        """
+        Get the operation time series of a component.
+        """
+        if c in n.branch_components:
+            return n.pnl(c).p0
+        elif c == "Store":
+            return n.pnl(c).e
+        else:
+            return n.pnl(c).p
+
+    def get_weightings(self, n, c):
+        """
+        Get the relevant snapshot weighting for a component.
+        """
+        if c == "Generator":
+            return n.snapshot_weightings["generators"]
+        elif c in ["StorageUnit", "Store"]:
+            return n.snapshot_weightings["stores"]
+        else:
+            return n.snapshot_weightings["objective"]
+
+    def aggregate_timeseries(self, df, weights, agg="sum"):
+        "Calculate the weighed sum or average of a DataFrame or Series."
+        if agg == "mean":
+            return df.multiply(weights, axis=0).sum().div(weights.sum())
+        elif agg == "sum":
+            return weights @ df
+        elif not agg:
+            return df.T
+        else:
+            return df.agg(agg)
+
+    def aggregate_components(self, n, func, agg="sum", comps=None, groupby=None):
+        """
+        Apply a function and group the result for a collection of components.
+        """
+        d = {}
+        kwargs = {}
+        if comps is None:
+            comps = n.branch_components | n.one_port_components
+        if groupby is None:
+            groupby = self.get_carrier()
+        for c in comps:
+            if callable(groupby):
+                grouping = groupby(n, c)
+            elif isinstance(groupby, list):
+                grouping = [n.df(c)[key] for key in groupby]
+            elif isinstance(groupby, str):
+                grouping = n.df(c)[groupby]
+            elif isinstance(groupby, dict):
+                grouping = None
+                kwargs = groupby
+            else:
+                ValueError(
+                    f"Argument `groupby` must be a function, list, string or dict, got {type(groupby)}"
+                )
+            d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
+        return pd.concat(d)
 
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
@@ -245,7 +358,7 @@ class StatisticsAccessor:
         def func(n, c):
             return n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Capital Expenditure"
@@ -266,7 +379,7 @@ class StatisticsAccessor:
         def func(n, c):
             return n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Capital Expenditure Fixed"
@@ -286,7 +399,7 @@ class StatisticsAccessor:
         def func(n, c):
             return n.df(c)[f"{nominal_attrs[c]}_opt"]
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Optimal Capacity"
@@ -306,7 +419,7 @@ class StatisticsAccessor:
         def func(n, c):
             return n.df(c)[f"{nominal_attrs[c]}"]
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Installed Capacity"
@@ -360,10 +473,10 @@ class StatisticsAccessor:
             else:
                 p = n.pnl(c).p
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(opex, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(opex, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Operational Expenditure"
@@ -393,10 +506,10 @@ class StatisticsAccessor:
                 p -= n.pnl(c).p1.clip(upper=0)
             else:
                 p = (n.pnl(c).p * n.df(c).sign).clip(lower=0)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Supply"
@@ -426,10 +539,10 @@ class StatisticsAccessor:
                 p -= n.pnl(c).p1.clip(lower=0)
             else:
                 p = (n.pnl(c).p * n.df(c).sign).clip(upper=0)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Withdrawal"
@@ -465,10 +578,10 @@ class StatisticsAccessor:
                 p = -n.pnl(c).p0
             else:
                 p = n.pnl(c).p * n.df(c).sign
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Dispatch"
@@ -510,17 +623,18 @@ class StatisticsAccessor:
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
                 index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
-                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
+                df.columns = pd.MultiIndex.from_frame(
+                    index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
         groupby = ["carrier", "bus_carrier"]
         if not aggregate_bus:
             groupby.append("bus")
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n,
             func,
             comps=comps,
@@ -559,10 +673,10 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Curtailment"
@@ -593,11 +707,11 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            p = get_operation(n, c).abs()
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            p = self.get_operation(n, c).abs()
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         capacity = self.optimal_capacity(
@@ -637,15 +751,17 @@ class StatisticsAccessor:
                 prices.columns = n.df(c).index
                 revenue = n.pnl(c).p * prices
             else:
-                prices0 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus0)
+                prices0 = n.buses_t.marginal_price.reindex(
+                    columns=n.df(c).bus0)
                 prices0.columns = n.df(c).index
-                prices1 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus1)
+                prices1 = n.buses_t.marginal_price.reindex(
+                    columns=n.df(c).bus1)
                 prices1.columns = n.df(c).index
                 revenue = -(n.pnl(c).p0 * prices0 + n.pnl(c).p1 * prices1)
-            weights = get_weightings(n, c)
-            return aggregate_timeseries(revenue, weights, agg=aggregate_time)
+            weights = self.get_weightings(n, c)
+            return self.aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
-        df = aggregate_components(
+        df = self.aggregate_components(
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Revenue"
