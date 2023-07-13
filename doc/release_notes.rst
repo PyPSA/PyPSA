@@ -16,6 +16,7 @@ PyPSA 0.25.0 (13th July 2023)
 * **Stand-by costs:** PyPSA now supports stand-by cost terms. A new column
   ``stand_by_cost`` was added to generators and links. The stand-by cost is
   added to the objective function when calling ``n.optimize()``.
+  (https://github.com/PyPSA/PyPSA/pull/659)
 
 * **Rolling horizon function:** The ``n.optimize`` accessor now provides
   functionality for rolling horizon optimisation using
