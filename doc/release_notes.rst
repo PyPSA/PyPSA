@@ -36,6 +36,7 @@ Upcoming Release
   solved consecutively. This is useful for operational optimizations with a high
   spatial resolution.
 * The deprecated ``networkclustering`` module was removed.
+* A new function `get_country_and_carrier` was added to the statistics module in order to group statistics by country and carrier.
 
 
 PyPSA 0.24.0 (27th June 2023)
