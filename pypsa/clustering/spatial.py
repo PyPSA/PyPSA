@@ -34,11 +34,11 @@ DEFAULT_ONE_PORT_STRATEGIES = dict(
     q="sum",
     p_set="sum",
     q_set="sum",
-    p_nom="sum",
-    p_nom_max="sum",
+    p_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    p_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     p_nom_min="sum",
-    e_nom="sum",
-    e_nom_max="sum",
+    e_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    e_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     e_nom_min="sum",
     weight="sum",
     ramp_limit_up="mean",
@@ -74,9 +74,9 @@ DEFAULT_LINE_STRATEGIES = dict(
     terrain_factor="mean",
     s_min_pu="capacity_weighted_average",
     s_max_pu="capacity_weighted_average",
-    s_nom="sum",
+    s_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     s_nom_min="sum",
-    s_nom_max="sum",
+    s_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
     s_nom_extendable="any",
     num_parallel="sum",
     capital_cost="length_capacity_weighted_average",
@@ -445,6 +445,7 @@ def aggregatelines(
     return df, pnl, grouper
 
 
+@deprecated
 def get_buses_linemap_and_lines(
     n: Any,
     busmap: pd.DataFrame,
@@ -505,14 +506,21 @@ def get_clustering_from_busmap(
     bus_strategies=dict(),
     one_port_strategies=dict(),
     generator_strategies=dict(),
+    line_strategies=dict(),
     aggregate_generators_buses=None,
 ):
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
     from pypsa.components import Network
 
-    buses, lines, lines_t, linemap = get_buses_linemap_and_lines(
-        n, busmap, line_length_factor, bus_strategies, with_time
+    buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
+    lines, lines_t, linemap = aggregatelines(
+        n,
+        busmap,
+        line_length_factor,
+        with_time=with_time,
+        custom_strategies=line_strategies,
+        bus_strategies=bus_strategies,
     )
 
     clustered = Network()
