@@ -445,6 +445,7 @@ def aggregatelines(
     return df, pnl, grouper
 
 
+@deprecated
 def get_buses_linemap_and_lines(
     n: Any,
     busmap: pd.DataFrame,
@@ -505,14 +506,21 @@ def get_clustering_from_busmap(
     bus_strategies=dict(),
     one_port_strategies=dict(),
     generator_strategies=dict(),
+    line_strategies=dict(),
     aggregate_generators_buses=None,
 ):
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
     from pypsa.components import Network
 
-    buses, lines, lines_t, linemap = get_buses_linemap_and_lines(
-        n, busmap, line_length_factor, bus_strategies, with_time
+    buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
+    lines, lines_t, linemap = aggregatelines(
+        n,
+        busmap,
+        line_length_factor,
+        with_time=with_time,
+        custom_strategies=line_strategies,
+        bus_strategies=bus_strategies,
     )
 
     clustered = Network()
