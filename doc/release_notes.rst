@@ -5,18 +5,124 @@ Release Notes
 Upcoming Release
 ================
 
+* The aggregation functions in the clustering module were adjusted to correctly handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161 for more details).
+* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of direct use of ``aggregatebuses`` and ``aggregate_lines``.
+* The function ``get_clustering_from_busmap`` has a new argument ``line_strategies``.
+
+
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+
+PyPSA 0.25.0 (13th July 2023)
+=============================
+
+**New Features**
+
+* **Stand-by costs:** PyPSA now supports stand-by cost terms. A new column
+  ``stand_by_cost`` was added to generators and links. The stand-by cost is
+  added to the objective function when calling ``n.optimize()``.
+  (https://github.com/PyPSA/PyPSA/pull/659)
+
+* **Rolling horizon function:** The ``n.optimize`` accessor now provides
+  functionality for rolling horizon optimisation using
+  ``n.optimize.optimize_with_rolling_horizon()`` which splits whole optimization
+  of the whole time span into multiple subproblems which are solved
+  consecutively. This is useful for operational optimizations with a high
+  spatial resolution. (https://github.com/PyPSA/PyPSA/pull/668)
+
+* **Modelling-to-generate-alternatives (MGA) function** The ``n.optimize``
+  accessor now provides functionality for running
+  modelling-to-generate-alternatives (MGA) on previously solved networks using
+  ``n.optimize.optimize_mga(slack=..., weights=...)``. This is useful for
+  exploring the near-optimal feasible space of the network.
+  (https://github.com/PyPSA/PyPSA/pull/672)
+
+**Changes**
+
+* **Multilinks by default:** Links with multiple inputs/outputs are now
+  supported by default. The Link component attributes are automatically extended
+  if a link with ``bus2``, ``bus3``, etc. are added to the network. Overriding
+  component attributes at network initialisation is no longer required.
+  (https://github.com/PyPSA/PyPSA/pull/669)
+
+* **Spatial clustering refactored:** The spatial clustering module was
+  refactored. The changes lead to performance improvements and a more consistent
+  clustering API. (https://github.com/PyPSA/PyPSA/pull/673)
+
+  * The network object has a new accessor ``cluster`` which allows accessing
+    clustering routines from the network itself. For example,
+    ``n.cluster.cluster_spatially_by_kmeans`` returns a spatially clustered
+    version of the network.
+
+  * The default clustering strategies were refined. Per default, columns like
+    ``efficiency`` and ``p_max_pu`` are now aggregated by the capacity weighted
+    mean.
+
+  * The clustering module now applies the custom strategies to time-dependant
+    data.
+
+  * The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and
+    ``pypsa.clustering.spatial.aggregategenerators`` now allows the passing of a
+    list of buses for which aggregation of all carriers is desired. Generation
+    from a carrier at a bus is aggregated now if: It is either in the passed
+    list of aggregated carriers, or in the list of aggregated buses.
+
+  * Take generator strategies for time-series into account. Before, time-series
+    would always be aggregated by summing.
+    (https://github.com/PyPSA/PyPSA/pull/670)
+
+  * The deprecated ``networkclustering`` module was removed.
+    (https://github.com/PyPSA/PyPSA/pull/675)
+
+* A new function `get_country_and_carrier` was added to the statistics module in
+  order to group statistics by country and carrier.
+  (https://github.com/PyPSA/PyPSA/pull/678)
+
+* NetCDF file compression is now disabled by default when exporting networks.
+  (https://github.com/PyPSA/PyPSA/pull/679)
+
+**Breaking Changes**
+
+* The ``Clustering`` class no longer contains a positive and negative linemap.
+
+* Outdated examples were removed. (https://github.com/PyPSA/PyPSA/pull/674)
+
+**Bugfixes**
+
+* In the statistics module, the calculation of operational costs of storage
+  units was corrected. (https://github.com/PyPSA/PyPSA/pull/671)
+
+
+PyPSA 0.24.0 (27th June 2023)
+=================================
+
+* PyPSA now supports quadratic marginal cost terms. A new column
+  `marginal_cost_quadratic` was added to generators, links, stores and storage
+  units. The quadratic marginal cost is added to the objective function when
+  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance,
+  HiGHS, Gurobi, Xpress, or CPLEX.
+* The statistics function now allows calculating energy balances
+  ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as
+  well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``).
+  The energy balance can be configured to yield energy balance time series for
+  each bus.
+* The statistics function ``n.statistics()`` now also supports the calculation
+  of the market values of components.
+* The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
+  to change the default snapshot weightings, and ``weightings_from_timedelta``
+  to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
 * The function ``n.lopf()`` is deprecated in favour of the linopy-based
   implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
   have a generous transition period, but please start migrating your
   ``extra_functionality`` functions, e.g. by following our `migration guide
   <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
-
 * The module ``pypsa.networkclustering`` was moved to
   ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
-  deprecated but all functionality will continue to be accessible until the next
-  major version.
+  deprecated but all functionality will continue to be accessible until PyPSA v0.25.
+* Bug fix in linearized unit commitment implementation correcting sign.
+* The minimum required version of ``linopy`` is now ``0.2.1``.
+* Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
+
 
 PyPSA 0.23.0 (10th May 2023)
 =================================

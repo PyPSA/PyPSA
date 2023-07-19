@@ -10,13 +10,16 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
+from linopy.expressions import LinearExpression, QuadraticExpression
 
-from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import additional_linkports, get_committable_i
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
+    optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
+    optimize_with_rolling_horizon,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
@@ -68,6 +71,7 @@ def define_objective(n, sns):
     """
     m = n.model
     objective = []
+    is_quadratic = False
 
     if n._multi_invest:
         periods = sns.unique("period")
@@ -117,6 +121,43 @@ def define_objective(n, sns):
         operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
         objective.append((operation * cost).sum())
 
+    # marginal cost quadratic
+    weighting = n.snapshot_weightings.objective
+    if n._multi_invest:
+        weighting = weighting.mul(period_weighting, level=0).loc[sns]
+    else:
+        weighting = weighting.loc[sns]
+
+    for c, attr in lookup.query("marginal_cost").index:
+        if "marginal_cost_quadratic" in n.df(c):
+            cost = (
+                get_as_dense(n, c, "marginal_cost_quadratic", sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+            if cost.empty:
+                continue
+            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            objective.append((operation * operation * cost).sum())
+            is_quadratic = True
+
+    # stand-by cost
+    comps = {"Generator", "Link"}
+    for c in comps:
+        com_i = get_committable_i(n, c)
+
+        if com_i.empty:
+            continue
+
+        stand_by_cost = (
+            get_as_dense(n, c, "stand_by_cost", sns, com_i)
+            .loc[:, lambda ds: (ds != 0).any()]
+            .mul(weighting, axis=0)
+        )
+        stand_by_cost.columns.name = f"{c}-com"
+        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
+        m.objective = m.objective + (status * stand_by_cost).sum()
+
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = n.get_extendable_i(c)
@@ -153,7 +194,10 @@ def define_objective(n, sns):
             "Please make sure the components have assigned costs."
         )
 
-    m.objective = merge(objective)
+    if is_quadratic:
+        m.objective = sum(objective)
+    else:
+        m.objective = merge(objective)  # use fast implementation
 
 
 def create_model(
@@ -300,7 +344,7 @@ def assign_solution(n):
                     set_from_frame(n, c, f"p{i}", -df * eff)
                     n.pnl(c)[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
+                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
 
             else:
                 set_from_frame(n, c, attr, df)
@@ -344,6 +388,7 @@ def assign_duals(n, assign_all_duals=False):
         if "snapshot" in dual.dims:
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
+
                 try:
                     spec = attr.rsplit("-", 1)[-1]
                 except ValueError:
@@ -353,6 +398,8 @@ def assign_duals(n, assign_all_duals=False):
                     set_from_frame(n, c, "marginal_price", df)
                 elif assign_all_duals or f"mu_{spec}" in n.df(c):
                     set_from_frame(n, c, "mu_" + spec, df)
+                else:
+                    unassigned.append(name)
 
             except:
                 unassigned.append(name)
@@ -589,6 +636,14 @@ class OptimizationAccessor:
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
+
+    @wraps(optimize_with_rolling_horizon)
+    def optimize_with_rolling_horizon(self, *args, **kwargs):
+        optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+
+    @wraps(optimize_mga)
+    def optimize_mga(self, *args, **kwargs):
+        optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

@@ -6,6 +6,8 @@ Power system components.
 
 from weakref import ref
 
+from pypsa.clustering import ClusteringAccessor
+
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
@@ -18,6 +20,7 @@ import os
 import sys
 from collections import namedtuple
 from pathlib import Path
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -33,6 +36,7 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -258,6 +262,8 @@ class Network(Basic):
 
         self.optimize = OptimizationAccessor(self)
 
+        self.cluster = ClusteringAccessor(self)
+
         if override_components is None:
             self.components = components
         else:
@@ -454,33 +460,63 @@ class Network(Basic):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
-    def set_snapshots(self, value):
+    def set_snapshots(
+        self,
+        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        default_snapshot_weightings: float = 1.0,
+        weightings_from_timedelta: bool = False,
+    ) -> None:
         """
-        Set the snapshots and reindex all time-dependent data.
+        Set the snapshots/time steps and reindex all time-dependent data.
 
-        This will reindex all pandas.Panels of time-dependent data; NaNs are filled
+        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
+        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+
+        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
         with the default value for that quantity.
 
         Parameters
         ----------
-        snapshots : list or pandas.Index
+        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
             All time steps.
+        default_snapshot_weightings: float
+            The default weight for each snapshot. Defaults to 1.0.
+        weightings_from_timedelta: bool
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
         None
         """
-        if isinstance(value, pd.MultiIndex):
-            assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            value = value.rename(["period", "timestep"])
-            value.name = "snapshot"
-            self._snapshots = value
+        if isinstance(snapshots, pd.MultiIndex):
+            assert (
+                snapshots.nlevels == 2
+            ), "Maximally two levels of MultiIndex supported"
+            snapshots = snapshots.rename(["period", "timestep"])
+            snapshots.name = "snapshot"
+            self._snapshots = snapshots
         else:
-            self._snapshots = pd.Index(value, name="snapshot")
+            self._snapshots = pd.Index(snapshots, name="snapshot")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
-            self._snapshots, fill_value=1.0
+            self._snapshots, fill_value=default_snapshot_weightings
         )
+
+        if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            hours_per_step = (
+                snapshots.to_series()
+                .diff(periods=1)
+                .shift(-1)
+                .ffill()  # fill last value by assuming same as the one before
+                .apply(lambda x: x.total_seconds() / 3600)
+            )
+            self._snapshot_weightings = pd.DataFrame(
+                {c: hours_per_step for c in self._snapshot_weightings.columns}
+            )
+        elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            logger.info(
+                "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
+            )
 
         for component in self.all_components:
             pnl = self.pnl(component)
@@ -819,6 +855,9 @@ class Network(Basic):
             f"Failed to add {class_name} component {name} because there is already "
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
+
+        if class_name == "Link":
+            update_linkports_component_attrs(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]
 

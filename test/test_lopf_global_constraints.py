@@ -27,7 +27,7 @@ def test_operational_limit_ac_dc_meshed(ac_dc_network, api):
     )
 
     optimize(n, api)
-    assert n.statistics.supply().loc[:, "gas"].sum().round(3) == limit
+    assert n.statistics.dispatch().loc[:, "gas"].sum().round(3) == limit
 
 
 @pytest.mark.parametrize("api", APIS)

@@ -14,6 +14,7 @@ q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
 sign,float,n/a,1,power sign,Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in OPF",Input (optional)
 marginal_cost,static or series,currency/MWh,0,Marginal cost of production of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
 capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
@@ -37,3 +38,4 @@ p_nom_opt,float,MW,0,Optimised nominal power.,Output
 mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,0,Shadow price of fixed state of charge state_of_charge_set,Output
+mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations,Output

@@ -14,7 +14,7 @@ __copyright__ = (
 import logging
 import re
 from collections import OrderedDict
-from itertools import repeat
+from itertools import product, repeat
 
 import networkx as nx
 import numpy as np
@@ -89,7 +89,7 @@ class Dict(dict):
 
     def __setattr__(self, name, value):
         """
-        setattr is called when the syntax a.b = 2 is used to set a value.
+        Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
             raise AttributeError(
@@ -431,9 +431,33 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def additional_linkports(n):
-    return [
-        i[3:]
-        for i in n.links.columns
-        if i.startswith("bus") and i not in ["bus0", "bus1"]
-    ]
+def update_linkports_component_attrs(n, where=None):
+    ports = additional_linkports(n, where)
+    c = "Link"
+
+    def doc_changes(s, j, i):
+        if not isinstance(s, str):
+            return s
+        return s.replace(j, str(i)).replace("required", "optional")
+
+    for i, attr in product(ports, ["bus", "efficiency", "p"]):
+        target = f"{attr}{i}"
+        j = "1" if attr != "efficiency" else ""
+        n.components[c]["attrs"].loc[target] = (
+            n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
+        )
+        n.component_attrs[c].loc[target] = (
+            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
+        )
+        if attr in ["efficiency", "p"] and not target in n.pnl(c).keys():
+            df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
+            df.index.name = "snapshot"
+            df.columns.name = c
+            n.pnl(c)[target] = df
+
+
+def additional_linkports(n, where=None):
+    if not where:
+        where = n.links.columns
+    ports = [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+    return ports

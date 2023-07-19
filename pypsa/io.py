@@ -658,7 +658,7 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    compression={"zlib": True, "complevel": 4},
+    compression=None,
     float32=False,
 ):
     """
