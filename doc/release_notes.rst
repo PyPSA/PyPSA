@@ -5,9 +5,21 @@ Release Notes
 Upcoming Release
 ================
 
-* The aggregation functions in the clustering module were adjusted to correctly handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161 for more details).
-* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of direct use of ``aggregatebuses`` and ``aggregate_lines``.
+
+**New Features**
+
 * The function ``get_clustering_from_busmap`` has a new argument ``line_strategies``.
+
+
+**Changes**
+
+* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of direct use of ``aggregatebuses`` and ``aggregate_lines``.
+
+
+**Bugfixes**
+
+* The aggregation functions in the clustering module were adjusted to correctly handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161 for more details).
+* The unit commitment formulation with a rolling horizon horizon was fixed in case of non-committable and committable generators with ramp limits.
 
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
