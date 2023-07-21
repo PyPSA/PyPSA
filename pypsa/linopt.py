@@ -837,8 +837,11 @@ def run_and_read_cbc(
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
         command += f"-basisI {warmstart} "
-    if (solver_options is not None) and (solver_options != {}):
-        command += solver_options
+    if solver_options:
+        command += (
+            " ".join("-" + " ".join([k, str(v)]) for k, v in solver_options.items())
+            + " "
+        )
     command += f"-solve -solu {solution_fn} "
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
@@ -912,9 +915,11 @@ def run_and_read_glpk(
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
         command += f" -w {n.basis_fn}"
-    if (solver_options is not None) and (solver_options != {}):
-        command += solver_options
-
+    if solver_options:
+        command += (
+            " ".join("-" + " ".join([k, str(v)]) for k, v in solver_options.items())
+            + " "
+        )
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
     result.wait()
 
