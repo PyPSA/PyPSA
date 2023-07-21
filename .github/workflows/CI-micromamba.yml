@@ -15,10 +15,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 5
+      max-parallel: 3
       matrix:
-        python-version:
-        - "3.10"
         os:
         - ubuntu-latest
         - macos-latest
@@ -32,20 +30,18 @@ jobs:
 
     - uses: actions/checkout@v2
 
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2
-      with: # checks out environment 'test' by default
-        miniconda-version: latest
-        python-version: ${{ matrix.python-version }}
-        mamba-version: "*"
-        channels: conda-forge
-        auto-activate-base: false
+    - name: Setup micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        micromamba-version: latest
+        environment-file: environment_dev.yaml
+        log-level: debug
+        cache-enabled: false
+        cache-download: false
+        init-shell: bash
 
-    - name: Install dependencies
+    - name: Install PyPSA commit
       run: |
-        conda config --add pinned_packages python=${{ matrix.python-version }}
-        mamba env update --file environment.yaml --name test
-        mamba env update --file environment_dev.yaml --name test
         pip install --no-cache-dir --no-deps -e .
 
     - name: Lint with flake8
@@ -58,5 +54,5 @@ jobs:
         pytest --cov=./ --cov-report=xml
 
     - name: Upload code coverage report
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
-      uses: codecov/codecov-action@v1
+      if: matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v3
