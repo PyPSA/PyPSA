@@ -72,6 +72,10 @@ jobs:
         # ensure up-to-date environment with clean PyPSA dev installation
         cache-environment: false
         cache-downloads: true
+    
+    - name: Print installed dependencies
+      run: |
+        micromamba list
 
     - name: Install remaining packages
       run: |
