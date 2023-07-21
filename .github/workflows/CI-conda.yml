@@ -38,8 +38,7 @@ jobs:
         miniconda-version: latest
         python-version: ${{ matrix.python-version }}
         mamba-version: "*"
-        channels: conda-forge,defaults
-        channel-priority: true
+        channels: conda-forge
         auto-activate-base: false
 
     - name: Install dependencies
