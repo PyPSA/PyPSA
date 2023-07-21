@@ -365,13 +365,19 @@ def assign_solution(n):
     n.objective = m.objective_value
 
 
-def assign_duals(n):
+def assign_duals(n, assign_all_duals=False):
     """
     Map dual values i.e. shadow prices to network components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     """
     m = n.model
     unassigned = []
-
     for name, dual in m.dual.items():
         try:
             c, attr = name.split("-", 1)
@@ -382,25 +388,28 @@ def assign_duals(n):
         if "snapshot" in dual.dims:
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
-                spec = attr.rsplit("-", 1)[-1]
-                assign = [
-                    "upper",
-                    "lower",
-                    "ramp_limit_up",
-                    "ramp_limit_down",
-                    "p_set",
-                    "state_of_charge_set",
-                    "energy_balance",
-                ]
 
-                if spec in assign:
-                    set_from_frame(n, c, "mu_" + spec, df)
-                elif attr.endswith("nodal_balance"):
+                try:
+                    spec = attr.rsplit("-", 1)[-1]
+                except ValueError:
+                    spec = attr
+
+                if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
+                elif assign_all_duals or f"mu_{spec}" in n.df(c):
+                    set_from_frame(n, c, "mu_" + spec, df)
                 else:
                     unassigned.append(name)
+
             except:
                 unassigned.append(name)
+
+        elif (c == "GlobalConstraint") and (
+            (assign_all_duals or attr in n.df(c).index)
+        ):
+            n.df(c).loc[attr, "mu"] = dual
+            n.df(c).loc[attr, "sense"] = m.constraints[name].sign.values.item()
+            n.df(c).loc[attr, "constant"] = m.constraints[name].rhs.values.item()
 
     if unassigned:
         logger.info(
@@ -489,6 +498,7 @@ def optimize(
     linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
+    assign_all_duals=False,
     solver_name="glpk",
     solver_options={},
     **kwargs,
@@ -520,6 +530,9 @@ def optimize(
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     solver_name : str
         Name of the solver to use.
     solver_options : dict
@@ -552,7 +565,7 @@ def optimize(
 
     if status == "ok":
         assign_solution(n)
-        assign_duals(n)
+        assign_duals(n, assign_all_duals)
         post_processing(n)
 
     return status, condition
@@ -574,7 +587,9 @@ class OptimizationAccessor:
     def create_model(self, *args, **kwargs):
         return create_model(self._parent, *args, **kwargs)
 
-    def solve_model(self, solver_name="glpk", solver_options={}, **kwargs):
+    def solve_model(
+        self, solver_name="glpk", solver_options={}, assign_all_duals=False, **kwargs
+    ):
         """
         Solve an already created model and assign its solution to the network.
 
@@ -584,6 +599,9 @@ class OptimizationAccessor:
             Name of the solver to use.
         solver_options : dict
             Keyword arguments used by the solver. Can also be passed via **kwargs.
+        assign_all_duals : bool, default False
+            Whether to assign all dual values or only those that already
+            have a designated place in the network.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -594,7 +612,7 @@ class OptimizationAccessor:
 
         if status == "ok":
             assign_solution(n)
-            assign_duals(n)
+            assign_duals(n, assign_all_duals)
             post_processing(n)
 
         return status, condition
