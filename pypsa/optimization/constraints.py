@@ -350,9 +350,13 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         def p_previous(idx):
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
+    com_i = n.get_committable_i(c)
+    fix_i = n.get_non_extendable_i(c)
+    fix_i = fix_i.difference(com_i).rename(fix_i.name)
+    ext_i = n.get_extendable_i(c)
+
     # ----------------------------- Fixed Generators ----------------------------- #
 
-    fix_i = n.get_non_extendable_i(c)
     assets = n.df(c).reindex(fix_i)
 
     # fix up
@@ -373,7 +377,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # ----------------------------- Extendable Generators ----------------------------- #
 
-    ext_i = n.get_extendable_i(c)
     assets = n.df(c).reindex(ext_i)
 
     # ext up
@@ -396,7 +399,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # ----------------------------- Committable Generators ----------------------------- #
 
-    com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
 
     # com up
