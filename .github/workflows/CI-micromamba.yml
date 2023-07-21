@@ -36,9 +36,10 @@ jobs:
         micromamba-version: latest
         environment-file: environment_dev.yaml
         log-level: debug
-        cache-enabled: false
-        cache-download: false
         init-shell: bash
+        # ensure up-to-date environment with clean PyPSA dev installation
+        cache-environment: false
+        cache-downloads: true
 
     - name: Install PyPSA commit
       run: |
