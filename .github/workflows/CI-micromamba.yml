@@ -17,6 +17,10 @@ jobs:
     strategy:
       max-parallel: 3
       matrix:
+        python-version:
+        - "3.9"
+        - "3.10"
+        - "3.11"
         os:
         - ubuntu-latest
         - macos-latest
@@ -34,13 +38,45 @@ jobs:
       uses: mamba-org/setup-micromamba@v1
       with:
         micromamba-version: latest
-        environment-file: environment_dev.yaml
+        # environment-file: environment_dev.yaml
+        # Instead of environment file, specify packages here in order to 
+        # install also different python versions; create-args currently not compatible with environmen-file
+        # by default conda-forge is used.
+        # Packages are taken from environment.yaml and environment_dev.yaml
+        create-args: >-
+            python=${{ matrix.python-version }}
+            numpy
+            scipy
+            pandas>=0.24.0
+            xarray
+            netcdf4
+            libnetcdf
+            pytables
+            matplotlib
+            networkx>=1.10
+            pyomo>=5.7.0
+            cartopy>=0.16
+            glpk
+            linopy>=0.2
+            deprecation
+            validators
+            pytest
+            pytest-cov
+            twine
+            flake8
+            cartopy
+            scikit-learn
+            pip
         log-level: debug
         init-shell: bash
         # ensure up-to-date environment with clean PyPSA dev installation
         cache-environment: false
         cache-downloads: true
 
+    - name: Install remaining packages
+      run: |
+        pip install pypower "pandapower>=2.0"
+    
     - name: Install PyPSA commit
       run: |
         pip install --no-cache-dir --no-deps -e .
