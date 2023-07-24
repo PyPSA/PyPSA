@@ -238,11 +238,13 @@ def define_operational_constraints_for_committables(n, sns, c):
     )
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal:
-        logger.warning("The linear relaxation of the unit commitment cannot be "
-                       "tightened since the start up costs are not equal to the "
-                      "shut down costs. Proceed with the linear relaxation "
-                      "without the tightening by additional constraints. "
-                      "This might result in a longer solving time.")
+        logger.warning(
+            "The linear relaxation of the unit commitment cannot be "
+            "tightened since the start up costs are not equal to the "
+            "shut down costs. Proceed with the linear relaxation "
+            "without the tightening by additional constraints. "
+            "This might result in a longer solving time."
+        )
     if n._linearized_uc and cost_equal:
         # dispatch limit for partly start up/shut down for t-1
         lhs = (
