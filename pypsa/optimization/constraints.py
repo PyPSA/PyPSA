@@ -310,12 +310,15 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         name of the network component
     """
     m = n.model
-    
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
-    ramp_attr = ["ramp_limit_up", "ramp_limit_start_up",
-                 "ramp_limit_down", "ramp_limit_shut_down"]
+    ramp_attr = [
+        "ramp_limit_up",
+        "ramp_limit_start_up",
+        "ramp_limit_down",
+        "ramp_limit_shut_down",
+    ]
     if n.df(c)[ramp_attr].isnull().all().all():
         return
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
@@ -407,7 +410,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # com up
     if not assets[["ramp_limit_up", "ramp_limit_start_up"]].isnull().all().all():
         limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom").fillna(1.).to_xarray()
+        limit_up = assets.eval("ramp_limit_up * p_nom").fillna(1.0).to_xarray()
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
         lhs = (
@@ -428,7 +431,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # com down
     if not assets[["ramp_limit_down", "ramp_limit_shut_down"]].isnull().all().all():
         limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").fillna(1.).to_xarray()
+        limit_down = assets.eval("ramp_limit_down * p_nom").fillna(1.0).to_xarray()
 
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
