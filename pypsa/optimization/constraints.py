@@ -234,9 +234,10 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     # linearized approximation because committable can partly start up and shut down
     # only valid additional constraints if start up costs equal to shut down costs
-    cost_equal = all(n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"])
+    cost_equal = all(
+        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
+    )
     if n._linearized_uc and cost_equal:
-        
         # dispatch limit for partly start up/shut down for t-1
         lhs = (
             p.shift(snapshot=1)
