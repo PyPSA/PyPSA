@@ -334,10 +334,23 @@ def define_ramp_limit_constraints(n, sns, c):
     """
     Defines ramp limits for a given component with valid ramplimit.
     """
+    
+    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
+        return
+    ramp_attr = [
+        "ramp_limit_up",
+        "ramp_limit_start_up",
+        "ramp_limit_down",
+        "ramp_limit_shut_down",
+    ]
+    if n.df(c)[ramp_attr].isnull().all().all():
+        return
+    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
+        return
+    
     rup_i = n.df(c).query("ramp_limit_up == ramp_limit_up").index
     rdown_i = n.df(c).query("ramp_limit_down == ramp_limit_down").index
-    if rup_i.empty & rdown_i.empty:
-        return
+
     fix_i = get_non_extendable_i(n, c)
     ext_i = get_extendable_i(n, c)
     if "committable" in n.df(c):
