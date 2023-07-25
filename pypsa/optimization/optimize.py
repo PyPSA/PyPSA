@@ -327,8 +327,11 @@ def assign_solution(n):
         if name == "objective_constant":
             continue
 
-        c, attr = name.split("-", 1)
-        df = sol.to_pandas()
+        try:
+            c, attr = name.split("-", 1)
+            df = sol.to_pandas()
+        except ValueError:
+            continue
 
         if "snapshot" in sol.dims:
             if c in n.passive_branch_components and attr == "s":
