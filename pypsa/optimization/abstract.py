@@ -280,8 +280,9 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
     starting_points = range(0, len(snapshots), horizon - overlap)
     for i, start in enumerate(starting_points):
         end = min(len(snapshots), start + horizon)
+        sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{start}:{end}] ({i+1}/{len(starting_points)})."
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
         )
 
         if i:
@@ -292,7 +293,7 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
                     n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
                 )
 
-        status, condition = n.optimize(snapshots[start:end], **kwargs)
+        status, condition = n.optimize(sns, **kwargs)
         if status != "ok":
             logger.warning("Optimization failed with status %s and condition %s")
     return n
