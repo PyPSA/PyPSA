@@ -270,13 +270,13 @@ def aggregateoneport(
             aggregated = data.loc[:, to_aggregate[cols]]
 
             if strategy == "weighted_average":
-                aggregated = aggregated * weights[cols]
+                aggregated = aggregated * weights[aggregated.columns]
                 aggregated = aggregated.groupby(grouper, axis=1).sum()
             elif strategy == "capacity_weighted_average":
-                aggregated = aggregated * capacity_weights[cols]
+                aggregated = aggregated * capacity_weights[aggregated.columns]
                 aggregated = aggregated.groupby(grouper, axis=1).sum()
             elif strategy == "weighted_min":
-                aggregated = aggregated / weights[cols]
+                aggregated = aggregated / weights[aggregated.columns]
                 aggregated = aggregated.groupby(grouper, axis=1).min()
             else:
                 aggregated = aggregated.groupby(grouper, axis=1).agg(strategy)
