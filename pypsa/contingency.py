@@ -389,7 +389,7 @@ def network_sclopf(
         If None, it's take as all network.passive_branches_i()
     solver_name : string
         Must be a solver name that pyomo recognises and that is
-        installed, e.g. "glpk", "gurobi"
+        installed, e.g. "highs", "glpk", "gurobi"
     pyomo : bool, default True
         Whether to use pyomo for building and solving the model, setting
         this to False saves a lot of memory and time.

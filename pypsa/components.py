@@ -697,7 +697,7 @@ class Network(Basic):
             this to False saves a lot of memory and time.
         solver_name : string
             Must be a solver name that pyomo recognises and that is
-            installed, e.g. "glpk", "gurobi"
+            installed, e.g. "highs", "glpk", "gurobi"
         solver_options : dictionary
             A dictionary with additional options that get passed to the solver.
             (e.g. {'threads':2} tells gurobi to use only 2 cpus)
