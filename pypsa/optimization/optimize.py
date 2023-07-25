@@ -423,7 +423,7 @@ def assign_duals(n, assign_all_duals=False):
 
 def post_processing(n):
     """
-    Post-process the optimzed network.
+    Post-process the optimized network.
 
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
