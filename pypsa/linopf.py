@@ -1494,7 +1494,7 @@ def network_lopf(
         network.snapshots, defaults to network.snapshots
     solver_name : string
         Must be a solver name that pyomo recognises and that is
-        installed, e.g. "glpk", "gurobi"
+        installed, e.g. "highs", "glpk", "gurobi"
     solver_logfile : None|string
         If not None, sets the logfile option of the solver.
     solver_options : dictionary

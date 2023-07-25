@@ -17,7 +17,7 @@ import pytest
 import pypsa
 
 SUPPORTED_APIS = ["pyomo", "linopy", "native"]
-SOLVER_NAME = "glpk"
+SOLVER_NAME = "highs"
 
 
 def optimize(n, api, *args, **kwargs):

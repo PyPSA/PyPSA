@@ -2268,7 +2268,7 @@ def network_lopf_build_model(
     return network.model
 
 
-def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
+def network_lopf_prepare_solver(network, solver_name="highs", solver_io=None):
     """
     Prepare solver for linear optimal power flow.
 
@@ -2276,7 +2276,7 @@ def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
     ----------
     solver_name : string
         Must be a solver name that pyomo recognises and that is
-        installed, e.g. "glpk", "gurobi"
+        installed, e.g. "highs", "glpk", "gurobi"
     solver_io : string, default None
         Solver Input-Output option, e.g. "python" to use "gurobipy" for
         solver_name="gurobi"
@@ -2414,7 +2414,7 @@ def network_lopf_solve(
 def network_lopf(
     network,
     snapshots=None,
-    solver_name="glpk",
+    solver_name="highs",
     solver_io=None,
     skip_pre=False,
     extra_functionality=None,
@@ -2438,7 +2438,7 @@ def network_lopf(
         network.snapshots, defaults to network.snapshots
     solver_name : string
         Must be a solver name that pyomo recognises and that is
-        installed, e.g. "glpk", "gurobi"
+        installed, e.g. "highs", "glpk", "gurobi"
     solver_io : string, default None
         Solver Input-Output option, e.g. "python" to use "gurobipy" for
         solver_name="gurobi"

@@ -674,7 +674,7 @@ class Network(Basic):
         self,
         snapshots=None,
         pyomo=False,
-        solver_name="glpk",
+        solver_name="highs",
         solver_options={},
         solver_logfile=None,
         formulation="kirchhoff",

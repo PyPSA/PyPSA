@@ -502,7 +502,7 @@ def optimize(
     model_kwargs={},
     extra_functionality=None,
     assign_all_duals=False,
-    solver_name="glpk",
+    solver_name="highs",
     solver_options={},
     **kwargs,
 ):
@@ -591,7 +591,7 @@ class OptimizationAccessor:
         return create_model(self._parent, *args, **kwargs)
 
     def solve_model(
-        self, solver_name="glpk", solver_options={}, assign_all_duals=False, **kwargs
+        self, solver_name="highs", solver_options={}, assign_all_duals=False, **kwargs
     ):
         """
         Solve an already created model and assign its solution to the network.
