@@ -448,7 +448,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # com down
     if not assets[["ramp_limit_down", "ramp_limit_shut_down"]].isnull().all().all():
         limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").fillna(assets.p_nom).to_xarray()
+        limit_down = (
+            assets.eval("ramp_limit_down * p_nom").fillna(assets.p_nom).to_xarray()
+        )
 
         status = m[f"{c}-status"]
         status_prev = m[f"{c}-status"].shift(snapshot=1)
@@ -469,7 +471,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             rhs.loc[sns[0]] += -limit_shut * status_start
 
         # TODO
-        #m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down")
+        # m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down")
 
 
 def define_nodal_balance_constraints(

@@ -334,7 +334,7 @@ def define_ramp_limit_constraints(n, sns, c):
     """
     Defines ramp limits for a given component with valid ramplimit.
     """
-    
+
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
     ramp_attr = [
@@ -347,7 +347,7 @@ def define_ramp_limit_constraints(n, sns, c):
         return
     if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
         return
-    
+
     rup_i = n.df(c).query("ramp_limit_up == ramp_limit_up").index
     rdown_i = n.df(c).query("ramp_limit_down == ramp_limit_down").index
 
