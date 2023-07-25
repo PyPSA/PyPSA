@@ -21,6 +21,7 @@ Upcoming Release
 * The aggregation functions in the clustering module were adjusted to correctly handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161 for more details).
 * The unit commitment formulation with a rolling horizon horizon was fixed in case of non-committable and committable generators with ramp limits.
 * The clustering functionality was fixed in case of passing a subset of carriers that should be aggregated.
+* When assigning a new user-defined variable to the underlying optimization model, the assignment of the solution resulted in an error if the variable name did not match the pattern `{Component}-{Varname}`. This has been fixed by ignoring variables that do not match the pattern during solution assignment.
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
