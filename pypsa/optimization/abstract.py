@@ -295,7 +295,9 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
 
         status, condition = n.optimize(sns, **kwargs)
         if status != "ok":
-            logger.warning("Optimization failed with status %s and condition %s")
+            logger.warning(
+                f"Optimization failed with status {status} and condition {condition}"
+            )
     return n
 
 
