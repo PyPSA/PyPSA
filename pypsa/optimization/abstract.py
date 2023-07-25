@@ -280,7 +280,9 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
     starting_points = range(0, len(snapshots), horizon - overlap)
     for i, start in enumerate(starting_points):
         end = min(len(snapshots), start + horizon)
-        logger.info(f"Optimizing network for horizon {i+1}/{len(starting_points)}.")
+        logger.info(
+            f"Optimizing network for snapshot horizon [{start}:{end}] ({i+1}/{len(starting_points)})."
+        )
 
         if i:
             if not n.stores.empty:
