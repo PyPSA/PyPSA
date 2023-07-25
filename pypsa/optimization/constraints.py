@@ -422,12 +422,15 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # com up
     if not assets[["ramp_limit_up", "ramp_limit_start_up"]].isnull().all().all():
         limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom").fillna(1.0).to_xarray()
-        status = m[f"{c}-status"].sel(snapshot=active.index)
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
+        limit_up = assets.eval("ramp_limit_up * p_nom").fillna(assets.p_nom).to_xarray()
+        status = m[f"{c}-status"]
+        status_prev = status.shift(snapshot=1)
+        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        p_now = reindex(p, c, com_i)
+        p_prev = p_now.shift(snapshot=1)
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
+            (1, p_now),
+            (-1, p_prev),
             (limit_start - limit_up, status_prev),
             (-limit_start, status),
         )
@@ -436,21 +439,26 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         if is_rolling_horizon:
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
-
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask=mask)
+        else:
+            # TODO
+            status_start = 0
+            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
+        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up")
 
     # com down
     if not assets[["ramp_limit_down", "ramp_limit_shut_down"]].isnull().all().all():
         limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").fillna(1.0).to_xarray()
+        limit_down = assets.eval("ramp_limit_down * p_nom").fillna(assets.p_nom).to_xarray()
 
-        status = m[f"{c}-status"].sel(snapshot=active.index)
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
+        status = m[f"{c}-status"]
+        status_prev = m[f"{c}-status"].shift(snapshot=1)
+        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        p_now = reindex(p, c, com_i)
+        p_prev = p_now.shift(snapshot=1)
 
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
+            (1, p_now),
+            (-1, p_prev),
             (limit_down - limit_shut, status),
             (limit_shut, status_prev),
         )
@@ -460,9 +468,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += -limit_shut * status_start
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
-
-        m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
+        # TODO
+        #m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down")
 
 
 def define_nodal_balance_constraints(
