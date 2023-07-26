@@ -445,7 +445,9 @@ def update_linkports_component_attrs(n, where=None):
         to_replace = "1"
         j = "1" if attr != "efficiency" else ""
         n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(to_replace, i))
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(doc_changes, args=(to_replace, i))
         )
         n.component_attrs[c].loc[target] = (
             n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(to_replace, i))
