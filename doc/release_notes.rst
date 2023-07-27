@@ -56,7 +56,7 @@ PyPSA 0.25.1 (27th July 2023)
 
 * Multilinks are now also handled automatically when importing a network from
   file. (https://github.com/PyPSA/PyPSA/pull/702)
-  
+
 * Multilink default efficiencies are always set to 1.0.
   (https://github.com/PyPSA/PyPSA/pull/701)
 
