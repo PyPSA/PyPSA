@@ -436,18 +436,21 @@ def update_linkports_component_attrs(n, where=None):
     c = "Link"
 
     def doc_changes(s, j, i):
-        if not isinstance(s, str):
+        if not isinstance(s, str) or len(s) == 1:
             return s
         return s.replace(j, str(i)).replace("required", "optional")
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
+        to_replace = "1"
         j = "1" if attr != "efficiency" else ""
         n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(doc_changes, args=(to_replace, i))
         )
         n.component_attrs[c].loc[target] = (
-            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
+            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(to_replace, i))
         )
         if attr in ["efficiency", "p"] and not target in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)

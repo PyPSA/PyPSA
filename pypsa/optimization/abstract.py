@@ -277,19 +277,27 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
     if horizon <= overlap:
         raise ValueError("overlap must be smaller than horizon")
 
-    for i in range(0, len(snapshots), horizon - overlap):
-        start = i
-        end = min(len(snapshots), i + horizon)
+    starting_points = range(0, len(snapshots), horizon - overlap)
+    for i, start in enumerate(starting_points):
+        end = min(len(snapshots), start + horizon)
+        sns = snapshots[start:end]
+        logger.info(
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
+        )
 
         if i:
             if not n.stores.empty:
-                n.stores.e_initial = n.stores_t.e.loc[snapshots[i - 1]]
+                n.stores.e_initial = n.stores_t.e.loc[snapshots[start - 1]]
             if not n.storage_units.empty:
                 n.storage_units.state_of_charge_initial = (
-                    n.storage_units_t.state_of_charge.loc[snapshots[i - 1]]
+                    n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
                 )
 
-        n.optimize(snapshots[start:end], **kwargs)
+        status, condition = n.optimize(sns, **kwargs)
+        if status != "ok":
+            logger.warning(
+                f"Optimization failed with status {status} and condition {condition}"
+            )
     return n
 
 

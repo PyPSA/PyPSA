@@ -265,26 +265,34 @@ def aggregateoneport(
     if with_time:
         dynamic_strategies = align_strategies(strategies, n.pnl(c), c)
         for attr, data in n.pnl(c).items():
+            if data.empty:
+                pnl[attr] = data
+                continue
             strategy = dynamic_strategies[attr]
-            cols = data.columns
-            aggregated = data.loc[:, to_aggregate[cols]]
+            data = n.get_switchable_as_dense(c, attr)
+            aggregated = data.loc[:, to_aggregate]
 
             if strategy == "weighted_average":
-                aggregated = aggregated * weights[cols]
+                aggregated = aggregated * weights
                 aggregated = aggregated.groupby(grouper, axis=1).sum()
             elif strategy == "capacity_weighted_average":
-                aggregated = aggregated * capacity_weights[cols]
+                aggregated = aggregated * capacity_weights
                 aggregated = aggregated.groupby(grouper, axis=1).sum()
             elif strategy == "weighted_min":
-                aggregated = aggregated / weights[cols]
+                aggregated = aggregated / weights
                 aggregated = aggregated.groupby(grouper, axis=1).min()
             else:
                 aggregated = aggregated.groupby(grouper, axis=1).agg(strategy)
             aggregated.columns = flatten_multiindex(aggregated.columns).rename(c)
 
-            non_aggregated = data.loc[:, ~to_aggregate[cols]]
+            non_aggregated = data.loc[:, ~to_aggregate]
 
             pnl[attr] = pd.concat([aggregated, non_aggregated], axis=1, sort=False)
+
+            # filter out static values
+            if attr in df:
+                is_static = (pnl[attr] == df[attr]).all()
+                pnl[attr] = pnl[attr].loc[:, ~is_static]
 
     return df, pnl
 
@@ -375,7 +383,8 @@ def aggregatelines(
         bus_strategies = {}
     attrs = n.components["Line"]["attrs"]
     df = n.df("Line")
-    df = df[df.bus0.map(busmap) != df.bus1.map(busmap)]
+    idx = df.index[df.bus0.map(busmap) != df.bus1.map(busmap)]
+    df = df.loc[idx]
 
     orig_length = df.length
     orig_v_nom = df.bus0.map(n.buses.v_nom)
@@ -431,16 +440,25 @@ def aggregatelines(
         dynamic_strategies = align_strategies(strategies, n.pnl("Line"), "Line")
 
         for attr, data in n.lines_t.items():
+            if data.empty:
+                pnl[attr] = data
+                continue
+
             strategy = dynamic_strategies[attr]
-            cols = data.columns
+            data = n.get_switchable_as_dense("Line", attr, inds=idx)
 
             if strategy == "capacity_weighted_average":
-                data = data * capacity_weights[cols]
+                data = data * capacity_weights
                 data = data.groupby(grouper, axis=1).sum()
             else:
                 data = data.groupby(grouper, axis=1).agg(strategy)
 
             pnl[attr] = data
+
+            # filter out static values
+            if attr in df:
+                is_static = (pnl[attr] == df[attr]).all()
+                pnl[attr] = pnl[attr].loc[:, ~is_static]
 
     return df, pnl, grouper
 

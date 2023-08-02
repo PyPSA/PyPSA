@@ -233,7 +233,19 @@ def define_operational_constraints_for_committables(n, sns, c):
         n.model.add_constraints(status, "=", 0, name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    if n._linearized_uc:
+    cost_equal = all(
+        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
+    )
+    # only valid additional constraints if start up costs equal to shut down costs
+    if n._linearized_uc and not cost_equal:
+        logger.warning(
+            "The linear relaxation of the unit commitment cannot be "
+            "tightened since the start up costs are not equal to the "
+            "shut down costs. Proceed with the linear relaxation "
+            "without the tightening by additional constraints. "
+            "This might result in a longer solving time."
+        )
+    if n._linearized_uc and cost_equal:
         # dispatch limit for partly start up/shut down for t-1
         lhs = (
             p.shift(snapshot=1)
