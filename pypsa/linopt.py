@@ -839,7 +839,7 @@ def run_and_read_cbc(
         command += f"-basisI {warmstart} "
     if solver_options:
         if isinstance(solver_options, dict):
-            solver_options = " ".join(f"-{k} {v}" for k, v in solver_options.items())
+            solver_options = " ".join(f"-{k} {v}" for k, v in solver_options.items()) + " "
         command += solver_options
     command += f"-solve -solu {solution_fn} "
     if store_basis:
