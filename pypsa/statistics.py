@@ -51,6 +51,16 @@ def get_bus_and_carrier(n, c, port=""):
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
 
 
+def get_country_and_carrier(n, c, port=""):
+    """
+    Get component country and carrier.
+    """
+    bus = f"bus{port}"
+    bus, carrier = get_bus_and_carrier(n, c, port)
+    country = bus.map(n.buses.country).rename("country")
+    return [country, carrier]
+
+
 def get_carrier_and_bus_carrier(n, c, port=""):
     """
     Get component carrier and bus carrier in one combined DataFrame.
@@ -216,6 +226,12 @@ class StatisticsAccessor:
         """
         return get_bus_and_carrier(n, c)
 
+    def get_country_and_carrier(self, n, c):
+        """
+        Get the country and nice carrier names for a component.
+        """
+        return get_country_and_carrier(n, c)
+
     def capex(self, comps=None, aggregate_groups="sum", groupby=None):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -233,6 +249,27 @@ class StatisticsAccessor:
             n, func, comps=comps, agg=aggregate_groups, groupby=groupby
         )
         df.attrs["name"] = "Capital Expenditure"
+        df.attrs["unit"] = "currency"
+        return df
+
+    def installed_capex(self, comps=None, aggregate_groups="sum", groupby=None):
+        """
+        Calculate the capital expenditure of already built components of the
+        network in given currency.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            return n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
+
+        df = aggregate_components(
+            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+        )
+        df.attrs["name"] = "Capital Expenditure Fixed"
         df.attrs["unit"] = "currency"
         return df
 
@@ -318,6 +355,8 @@ class StatisticsAccessor:
         def func(n, c):
             if c in n.branch_components:
                 p = n.pnl(c).p0
+            elif c == "StorageUnit":
+                p = n.pnl(c).p_dispatch
             else:
                 p = n.pnl(c).p
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
@@ -564,7 +603,7 @@ class StatisticsAccessor:
         capacity = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
-        df = df.div(capacity, fill_value=np.nan)
+        df = df.div(capacity, axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df

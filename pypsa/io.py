@@ -26,6 +26,8 @@ import numpy as np
 import pandas as pd
 import validators
 
+from pypsa.descriptors import update_linkports_component_attrs
+
 try:
     import xarray as xr
 
@@ -658,7 +660,7 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    compression={"zlib": True, "complevel": 4},
+    compression=None,
     float32=False,
 ):
     """
@@ -808,6 +810,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             continue
 
         import_components_from_dataframe(network, df, component)
+
+        if component == "Link":
+            update_linkports_component_attrs(network)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
