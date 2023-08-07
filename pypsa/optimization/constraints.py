@@ -655,7 +655,7 @@ def define_modular_constraints(n, c, attr, attr_nom):
         name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
     """
     m = n.model
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
 
     if (mod_i).empty:
         return
@@ -663,7 +663,7 @@ def define_modular_constraints(n, c, attr, attr_nom):
     for i in mod_i:
         lhs = n.model.linexpr(
             (
-                n.df(c)[attr_nom].loc[i],
+                n.df(c)[attr_nom + "_mod"].loc[i],
                 m[f"{c}-{attr}"].loc[i],
             ),
             (-1, m[f"{c}-{attr_nom}"].loc[i]),

@@ -274,12 +274,16 @@ def define_modular_variables(n, c, attr, attr_nom):
     attr_nom : str
         name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
     if (mod_i).empty:
         return
 
-    lower = np.round(n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom][mod_i])
-    upper = np.round(n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom][mod_i])
+    lower = np.round(
+        n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
+    )
+    upper = np.round(
+        n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
+    )
 
     define_integer(n, lower, upper, c, attr, axes=mod_i)
 
@@ -300,13 +304,13 @@ def define_modular_constraints(n, c, attr, attr_nom):
     attr_nom : str
         name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
 
     if (mod_i).empty:
         return
     lhs = linexpr(
         (
-            n.df(c)[attr_nom][mod_i],
+            n.df(c)[attr_nom + "_mod"][mod_i],
             get_var(n, c, attr)[mod_i],
         ),
         (-1, get_var(n, c, attr_nom)[mod_i]),
@@ -1281,8 +1285,8 @@ def prepare_lopf(
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
     for c, attr_nom in lookup.query("nominal and not handle_separately").index:
-        define_modular_variables(n, c, "n_opt", attr_nom)
-        define_modular_constraints(n, c, "n_opt", attr_nom)
+        define_modular_variables(n, c, "n_mod", attr_nom)
+        define_modular_constraints(n, c, "n_mod", attr_nom)
 
     for c in {"Generator", "Link"}:
         define_unit_commitment_constraints(n, snapshots, c)
@@ -1390,11 +1394,8 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = False
             sol = variables.map(variables_sol)
             if predefined:
-                if not (attr == "n_opt"):
-                    non_ext = n.df(c)[attr]
-                    n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
-                else:
-                    n.df(c).n_opt = sol
+                non_ext = n.df(c)[attr]
+                n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
             else:
                 n.sols[c].df[attr] = sol
 

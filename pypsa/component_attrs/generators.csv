@@ -4,6 +4,7 @@ bus,string,n/a,n/a,name of bus to which generator is attached,Input (required)
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
 type,string,n/a,n/a,Placeholder for generator type. Not yet implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits in optimization.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the generator module.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in optimization.,Input (optional)
 p_nom_min,float,MW,0,"If p_nom is extendable in optimization, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
@@ -35,7 +36,8 @@ weight,float,n/a,1,"Weighting of a generator. Only used for network clustering."
 p,series,MW,0,active power at bus (positive if net generation),Output
 q,series,MVar,0,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
-n_opt,int,n/a,0,Optimised number of generators.,Output
+n_mod,int,n/a,0,Variable used to optimize the number of generators.,Output
+n_mod_opt,int,n/a,0,Optimised number of generators.,Output
 status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
 mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output

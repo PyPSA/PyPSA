@@ -115,12 +115,16 @@ def define_modular_variables(n, c, attr, attr_nom):
     attr_nom : str
         name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}>0)").index
+    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
     if (mod_i).empty:
         return
 
-    lower = np.round(n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom][mod_i])
-    upper = np.round(n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom][mod_i])
+    lower = np.round(
+        n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
+    )
+    upper = np.round(
+        n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
+    )
 
     n.model.add_variables(
         lower, upper, coords=[mod_i], name=f"{c}-{attr}", integer=True

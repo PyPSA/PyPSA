@@ -261,7 +261,7 @@ def create_model(
             define_loss_variables(n, sns, c)
 
     for c, attr_nom in lookup.query("nominal and not handle_separately").index:
-        define_modular_variables(n, c, "n_opt", attr_nom)
+        define_modular_variables(n, c, "n_mod", attr_nom)
 
     # Define constraints
     for c, attr in lookup.query("nominal").index:
@@ -280,7 +280,7 @@ def create_model(
         define_fixed_operation_constraints(n, sns, c, attr)
 
     for c, attr_nom in lookup.query("nominal and not handle_separately").index:
-        define_modular_constraints(n, c, "n_opt", attr_nom)
+        define_modular_constraints(n, c, "n_mod", attr_nom)
 
     meshed_buses = get_strongly_meshed_buses(n)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)
@@ -360,10 +360,7 @@ def assign_solution(n):
             else:
                 set_from_frame(n, c, attr, df)
         else:
-            if attr == "n_opt":
-                n.df(c)[attr] = df
-            else:
-                n.df(c)[attr + "_opt"].update(df)
+            n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:

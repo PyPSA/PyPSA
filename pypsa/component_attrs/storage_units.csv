@@ -4,6 +4,7 @@ bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (require
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
 type,string,n/a,n/a,Placeholder for storage unit type. Not yet implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits in OPF.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the storage unit module.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
 p_nom_min,float,MW,0,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
@@ -35,7 +36,8 @@ q,series,MVar,0,reactive power (positive if net generation),Output
 state_of_charge,series,MWh,NaN,State of charge as calculated by the OPF.,Output
 spill,series,MW,0,Spillage for each snapshot.,Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
-n_opt,int,n/a,0,Optimised number of storage units.,Output
+n_mod,int,n/a,0,Variable used to optimize the number of storage units.,Output
+n_mod_opt,int,n/a,0,Optimised number of storage units.,Output
 mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,0,Shadow price of fixed state of charge state_of_charge_set,Output

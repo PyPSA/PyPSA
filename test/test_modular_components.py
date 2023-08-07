@@ -9,7 +9,7 @@ import pypsa
 
 
 @pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_stand_by_cost(api):
+def test_modular_components(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -29,7 +29,7 @@ def test_stand_by_cost(api):
         p_nom_extendable=True,
         marginal_cost=10,
         p_nom_max=5000,
-        p_nom=1000,
+        p_nom_mod=1000,
     )
 
     n.add(
@@ -38,7 +38,7 @@ def test_stand_by_cost(api):
         bus="bus",
         e_nom_extendable=True,
         e_nom_max=2000,
-        e_nom=100,
+        e_nom_mod=100,
         capital_cost=100,
     )
 
@@ -49,5 +49,5 @@ def test_stand_by_cost(api):
     expected_n_opt_gen = np.array([5], dtype=float).T
     expected_n_opt_store = np.array([10], dtype=float).T
 
-    equal(n.generators.n_opt, expected_n_opt_gen)
-    equal(n.stores.n_opt, expected_n_opt_store)
+    equal(n.generators.n_mod_opt, expected_n_opt_gen)
+    equal(n.stores.n_mod_opt, expected_n_opt_store)

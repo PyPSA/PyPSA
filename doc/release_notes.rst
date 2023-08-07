@@ -20,6 +20,12 @@ PyPSA 0.25.1 (27th July 2023)
   those that already have a designated place in the network are assigned.
   (https://github.com/PyPSA/PyPSA/pull/635)
 
+* Added features ``p_nom_mod``, ``e_nom_mod``, and ``s_nom_mod`` to consider
+  capacity modularity of components. When such feature is non-zero and
+  ``exentability`` is true, the component's optimal nominal capacity becomes
+  a multiple of the capacity of the single component. The optimal number of
+  components is ``n_mod_opt`` (such that p_nom_mod*n_mod_opt=p_nom_opt).
+
 **Changes**
 
 * The function ``get_buses_linemap_and_lines`` was deprecated, in favor of
