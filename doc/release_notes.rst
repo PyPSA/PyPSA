@@ -2,28 +2,71 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
+.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+PyPSA 0.25.1 (27th July 2023)
+=============================
 
 **New Features**
 
-* The function ``get_clustering_from_busmap`` has a new argument ``line_strategies``.
+* The function ``get_clustering_from_busmap`` has a new argument
+  ``line_strategies``.
 
+* The ``n.optimize()`` function gets a new keyword argument
+  ``assign_all_duals=False`` which controls whether all dual values or only
+  those that already have a designated place in the network are assigned.
+  (https://github.com/PyPSA/PyPSA/pull/635)
 
 **Changes**
 
-* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of direct use of ``aggregatebuses`` and ``aggregate_lines``.
+* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of
+  direct use of ``aggregatebuses`` and ``aggregate_lines``.
 
+* Improve logging printout for rolling horizon optimization.
+  (https://github.com/PyPSA/PyPSA/pull/697,
+  https://github.com/PyPSA/PyPSA/pull/699)
+
+* The CI environment handling was migrated to ``micromamba``
+  (https://github.com/PyPSA/PyPSA/pull/688).
 
 **Bugfixes**
 
-* The aggregation functions in the clustering module were adjusted to correctly handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161 for more details).
-* The unit commitment formulation with a rolling horizon horizon was fixed in case of non-committable and committable generators with ramp limits.
-* The clustering functionality was fixed in case of passing a subset of carriers that should be aggregated.
-* When assigning a new user-defined variable to the underlying optimization model, the assignment of the solution resulted in an error if the variable name did not match the pattern `{Component}-{Varname}`. This has been fixed by ignoring variables that do not match the pattern during solution assignment.
+* The aggregation functions in the clustering module were adjusted to correctly
+  handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161
+  for more details). (https://github.com/PyPSA/PyPSA/pull/684)
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+* The unit commitment formulation with a rolling horizon horizon was fixed in
+  case of non-committable and committable generators with ramp limits.
+  (https://github.com/PyPSA/PyPSA/pull/686)
+
+* The clustering functionality was fixed in case of passing a subset of carriers
+  that should be aggregated. (https://github.com/PyPSA/PyPSA/pull/696)
+
+* When clustering, allow safe clustering of component attributes which are both
+  static and dynamic. (https://github.com/PyPSA/PyPSA/pull/700)
+
+* When assigning a new user-defined variable to the underlying optimization
+  model, the assignment of the solution resulted in an error if the variable
+  name did not match the pattern ``{Component}-{Varname}``. This has been fixed
+  by ignoring variables that do not match the pattern during solution
+  assignment. (https://github.com/PyPSA/PyPSA/pull/693)
+
+* Multilinks are now also handled automatically when importing a network from
+  file. (https://github.com/PyPSA/PyPSA/pull/702)
+
+* Multilink default efficiencies are always set to 1.0.
+  (https://github.com/PyPSA/PyPSA/pull/701)
+
+* For linearized unit commitment relaxation, some tightening additional
+  constraints are only valid if start-up and shut-down costs are equal. These
+  constraints are now skipped if this is not the case and a warning message is
+  printed. (https://github.com/PyPSA/PyPSA/pull/690)
+
+* Fix division in capacity factor calculation in statistics module when not
+  aggregating in the time dimension. (https://github.com/PyPSA/PyPSA/pull/687)
 
 
 PyPSA 0.25.0 (13th July 2023)
