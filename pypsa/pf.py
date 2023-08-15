@@ -883,7 +883,7 @@ def apply_line_types(network):
     """
     Calculate line electrical parameters x, r, b, g from standard types.
     """
-    lines_with_types_b = network.lines.type != ""
+    lines_with_types_b = network.lines["type"] != ""
     if lines_with_types_b.zsum() == 0:
         return
 
@@ -922,7 +922,7 @@ def apply_transformer_types(network):
     """
     Calculate transformer electrical parameters x, r, b, g from standard types.
     """
-    trafos_with_types_b = network.transformers.type != ""
+    trafos_with_types_b = network.transformers["type"] != ""
     if trafos_with_types_b.zsum() == 0:
         return
 

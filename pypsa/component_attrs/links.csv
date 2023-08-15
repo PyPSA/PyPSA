@@ -31,6 +31,7 @@ ramp_limit_up,float,per unit,NaN,"Maximum increase from one snapshot to the next
 ramp_limit_down,float,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of bus0 unit. Ignored if NaN.",Input (optional)
 ramp_limit_start_up,float,per unit,1,"Maximumincrease at start up, per unit of bus0 unit.   Only read if committable is True.",Input (optional)
 ramp_limit_shut_down,float,per unit,1,"Maximum decrease at shut down, per unit of bus0 unit.   Only read if committable is True.",Input (optional)
+geometry,shapely.Geometry,n/a,"None","A shapely geometry.",Input (optional)
 p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MW,0,Optimised capacity for active power.,Output

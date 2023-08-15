@@ -21,6 +21,7 @@ terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Inpu
 num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel lines (can also be fractional). If ""type"" is empty """" this value is ignored.",Input (optional)
 v_ang_min,float,Degrees,-inf,Minimum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
 v_ang_max,float,Degrees,inf,Maximum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
+geometry,shapely.Geometry,n/a,None,"A shapely geometry.",Input (optional)
 sub_network,string,n/a,n/a,Name of connected sub-network to which lines belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.,Output
 p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 q0,series,MVar,0,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output

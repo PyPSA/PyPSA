@@ -24,6 +24,7 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import validators
 from deprecation import deprecated
 from scipy.sparse import csgraph
@@ -290,6 +291,10 @@ class Network(Basic):
             self.passive_branch_components | self.controllable_branch_components
         )
 
+        self.geo_components = (
+            {"Bus", "Line", "Link", "Transformer"}
+        )
+
         self.all_components = set(self.components.index) - {"Network"}
 
         self.components = Dict(self.components.T.to_dict())
@@ -304,7 +309,7 @@ class Network(Basic):
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
                 attrs["type"]
-                .map({"boolean": bool, "int": int, "string": str})
+                .map({"boolean": bool, "int": int, "string": str, "shapely.Geometry": str})
                 .fillna(float)
             )
             attrs["dtype"] = (
@@ -314,6 +319,7 @@ class Network(Basic):
                         "boolean": np.dtype(bool),
                         "int": np.dtype(int),
                         "string": np.dtype("O"),
+                        "shapely.Geometry": np.dtype("O"),
                     }
                 )
                 .fillna(np.dtype(float))
@@ -386,6 +392,10 @@ class Network(Basic):
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
+
+            if component in self.geo_components:
+                geometry = df.geometry.map(lambda g: None if g in {"None", "", np.nan, 'nan'} else g)
+                df = gpd.GeoDataFrame(df, geometry=geometry, crs=self.srid)
 
             df.index.name = component
             setattr(self, self.components[component]["list_name"], df)
@@ -868,6 +878,9 @@ class Network(Basic):
             data=[static_attrs.default], index=[name], columns=static_attrs.index
         )
         new_df = pd.concat([cls_df, obj_df], sort=False)
+        if class_name in self.geo_components:
+            geometry = new_df.geometry.map(lambda g: None if g in {"None", "", np.nan, 'nan'} else g)
+            new_df = gpd.GeoDataFrame(new_df, geometry=geometry, crs=self.srid)
 
         new_df.index.name = class_name
         setattr(self, self.components[class_name]["list_name"], new_df)
@@ -879,7 +892,9 @@ class Network(Basic):
                 )
                 continue
             typ = attrs.at[k, "typ"]
-            if not attrs.at[k, "varying"]:
+            if k == 'geometry':
+                new_df.at[name, k] = v
+            elif not attrs.at[k, "varying"]:
                 new_df.at[name, k] = typ(v)
             elif attrs.at[k, "static"] and not isinstance(
                 v, (pd.Series, pd.DataFrame, np.ndarray, list)

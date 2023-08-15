@@ -2,10 +2,12 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* Added functionality to store ``shapely.Geometry`` objects with buses, lines, links and transformers. These DataFrames are now GeoDataFrames.
 
 PyPSA 0.25.1 (27th July 2023)
 =============================

@@ -32,6 +32,8 @@ setup(
         "linopy>=0.2.1",
         "matplotlib",
         "networkx>=1.10",
+        "geopandas>=0.9",
+        "pygeos",
         "deprecation",
         "validators",
     ],
