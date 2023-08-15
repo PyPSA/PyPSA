@@ -2268,7 +2268,7 @@ def network_lopf_build_model(
     return network.model
 
 
-def network_lopf_prepare_solver(network, solver_name="highs", solver_io=None):
+def network_lopf_prepare_solver(network, solver_name="glpk", solver_io=None):
     """
     Prepare solver for linear optimal power flow.
 
@@ -2414,7 +2414,7 @@ def network_lopf_solve(
 def network_lopf(
     network,
     snapshots=None,
-    solver_name="highs",
+    solver_name="glpk",
     solver_io=None,
     skip_pre=False,
     extra_functionality=None,

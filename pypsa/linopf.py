@@ -1467,7 +1467,7 @@ def assign_solution(
 def network_lopf(
     n,
     snapshots=None,
-    solver_name="cbc",
+    solver_name="glpk",
     solver_logfile=None,
     extra_functionality=None,
     multi_investment_periods=False,

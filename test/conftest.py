@@ -17,12 +17,13 @@ import pytest
 import pypsa
 
 SUPPORTED_APIS = ["pyomo", "linopy", "native"]
-SOLVER_NAME = "highs"
+SOLVER_NAME = "glpk"
+SOLVER_NAME_LINOPY = "highs"
 
 
 def optimize(n, api, *args, **kwargs):
     if api == "linopy":
-        return n.optimize(solver_name=SOLVER_NAME, *args, **kwargs)
+        return n.optimize(solver_name=SOLVER_NAME_LINOPY, *args, **kwargs)
     elif api == "pyomo":
         return n.lopf(pyomo=True, solver_name=SOLVER_NAME, *args, **kwargs)
     elif api == "native":

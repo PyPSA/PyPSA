@@ -365,7 +365,7 @@ def network_sclopf(
     network,
     snapshots=None,
     branch_outages=None,
-    solver_name="highs",
+    solver_name="glpk",
     pyomo=True,
     skip_pre=False,
     extra_functionality=None,
