@@ -22,9 +22,9 @@ from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import validators
 from deprecation import deprecated
 from scipy.sparse import csgraph
@@ -291,9 +291,7 @@ class Network(Basic):
             self.passive_branch_components | self.controllable_branch_components
         )
 
-        self.geo_components = (
-            {"Bus", "Line", "Link", "Transformer"}
-        )
+        self.geo_components = {"Bus", "Line", "Link", "Transformer"}
 
         self.all_components = set(self.components.index) - {"Network"}
 
@@ -309,7 +307,14 @@ class Network(Basic):
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
                 attrs["type"]
-                .map({"boolean": bool, "int": int, "string": str, "shapely.Geometry": str})
+                .map(
+                    {
+                        "boolean": bool,
+                        "int": int,
+                        "string": str,
+                        "shapely.Geometry": str,
+                    }
+                )
                 .fillna(float)
             )
             attrs["dtype"] = (
@@ -394,7 +399,9 @@ class Network(Basic):
             )
 
             if component in self.geo_components:
-                geometry = df.geometry.map(lambda g: None if g in {"None", "", np.nan, 'nan'} else g)
+                geometry = df.geometry.map(
+                    lambda g: None if g in {"None", "", np.nan, "nan"} else g
+                )
                 df = gpd.GeoDataFrame(df, geometry=geometry, crs=self.srid)
 
             df.index.name = component
@@ -879,7 +886,9 @@ class Network(Basic):
         )
         new_df = pd.concat([cls_df, obj_df], sort=False)
         if class_name in self.geo_components:
-            geometry = new_df.geometry.map(lambda g: None if g in {"None", "", np.nan, 'nan'} else g)
+            geometry = new_df.geometry.map(
+                lambda g: None if g in {"None", "", np.nan, "nan"} else g
+            )
             new_df = gpd.GeoDataFrame(new_df, geometry=geometry, crs=self.srid)
 
         new_df.index.name = class_name
@@ -892,7 +901,7 @@ class Network(Basic):
                 )
                 continue
             typ = attrs.at[k, "typ"]
-            if k == 'geometry':
+            if k == "geometry":
                 new_df.at[name, k] = v
             elif not attrs.at[k, "varying"]:
                 new_df.at[name, k] = typ(v)

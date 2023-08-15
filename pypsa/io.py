@@ -22,9 +22,9 @@ from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import validators
 
 from pypsa.descriptors import update_linkports_component_attrs
@@ -465,7 +465,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         if component in network.geo_components:
             if isinstance(df.geometry, gpd.GeoSeries):
                 df["geometry"] = df.geometry.to_wkt().astype(str)
-                df = pd.DataFrame(df) # convert GeoDataFrame to DataFrame
+                df = pd.DataFrame(df)  # convert GeoDataFrame to DataFrame
 
         # first do static attributes
         df = df.rename_axis(index="name")
@@ -908,7 +908,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     if cls_name in network.geo_components:
-        wkts = new_df.geometry.map(lambda g: None if g in {"None", "", np.nan, 'nan'} else g)
+        wkts = new_df.geometry.map(
+            lambda g: None if g in {"None", "", np.nan, "nan"} else g
+        )
         geometry = gpd.GeoSeries.from_wkt(wkts)
         new_df = gpd.GeoDataFrame(new_df, geometry=geometry, crs=network.srid)
 
