@@ -32,7 +32,7 @@ and the non-free software, commercial software (for which free academic licenses
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
 - `FICO Xpress <https://www.fico.com/en/products/fico-xpress-optimization>`_
 
-For installation instructions of these solvers for your operating system, follow the links above.
+An installation of PyPSA will also install HiGHS. For installation instructions of other solvers for your operating system, follow the links above.
 
 Depending on your operating system, you can also install some of the open-source solvers in a ``conda`` or ``pip`` environment.
 
