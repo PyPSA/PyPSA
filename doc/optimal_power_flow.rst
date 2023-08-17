@@ -453,35 +453,35 @@ Currently 4 global constraint types are defined. They are activated if a
 global constraint with the corresponding ``type`` is added to the network.
 By default, the constraint applies to all investment periods. For multi-decade
 optimisation, a global constraint can be set for one investment period only
-(e.g. a :math:`CO_2` limit for a specific investment year) by specifying this in the
+(e.g. a :math:`\mathrm{CO}_2` limit for a specific investment year) by specifying this in the
 attribute ``investment_period``.
 
-
+.. _primary_energy_constraint:
 Primary energy
 ^^^^^^^^^^^^^^
 The primary energy constraints (``type=primary_energy``) depend on the power plant efficiency and carrier-specific attributes such as
-specific :math:`CO_2` emissions.
+specific :math:`\mathrm{CO}_2` emissions.
 
 
-Suppose there is a global constraint defined for :math:`CO_2` emissions with
+Suppose there is a global constraint defined for :math:`\mathrm{CO}_2` emissions with
 sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
-from generators whose energy carriers have :math:`CO_2` emissions and from
-stores and storage units whose storage medium releases or absorbs :math:`CO_2`
+from generators whose energy carriers have :math:`\mathrm{CO}_2` emissions and from
+stores and storage units whose storage medium releases or absorbs :math:`\mathrm{CO}_2`
 when it is converted. Only stores and storage units with non-cyclic
 state of charge that is different at the start and end of the
 simulation can contribute.
 
 If the specific emissions of energy carrier :math:`s` is :math:`e_s`
-(``carrier.co2_emissions``) :math:`CO_2`-equivalent-tonne-per-MWh and the
+(``carrier.co2_emissions``) :math:`\mathrm{CO}_2`-equivalent-tonne-per-MWh and the
 generator with carrier :math:`s` at node :math:`n` has efficiency
-:math:`\eta_{n,s}` then the :math:`CO_2` constraint is
+:math:`\eta_{n,s}` then the :math:`\mathrm{CO}_2` constraint is
 
 .. math::
    \sum_{n,s,t} \frac{1}{\eta_{n,s}} w_t\cdot g_{n,s,t}\cdot e_{n,s} + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot e_{n,s} \leq  \textrm{CAP}_{CO2}  \hspace{.4cm} \leftrightarrow  \hspace{.4cm} \mu
 
 The first sum is over generators; the second sum is over stores and
 storage units. :math:`\mu` is the shadow price of the constraint,
-i.e. the :math:`CO_2` price in this case. :math:`\mu` is an output of the
+i.e. the :math:`\mathrm{CO}_2` price in this case. :math:`\mu` is an output of the
 optimisation stored in ``network.global_constraints.mu``.
 
 Transmission Volume Expansion Limit
@@ -494,6 +494,7 @@ Transmission Expansion Cost Limit
 This global constraint can limit the maximum cost of line expansion
 (``type=transmission_expansion_cost_limit``). Possible carriers are 'AC' and 'DC'.
 
+.. _tech_expansion_limit:
 Technology Capacity Expansion Limit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This global constraint can limit the maximum summed capacity of active assets
@@ -534,7 +535,7 @@ as a subset of the investment periods.
 The investment periods are defined in the component ``investment_periods``.
 They have to be integer and increasing (e.g. [2020, 2030, 2040, 2050]).
 The investment periods can be weighted both in time called ``years``
-(e.g. for global constraints such as :math:`CO_2` emissions) and in the objective function
+(e.g. for global constraints such as :math:`\mathrm{CO}_2` emissions) and in the objective function
 ``objective`` (e.g. for a social discount rate) using the
 ``investment_period_weightings``.
 
@@ -553,6 +554,21 @@ period temporal weightings).
 <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_ and python
 script ``examples/multi-decade-example.py``.
 
+Useful constraints for multi-investment optimisation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Growth Limit per Carrier
+""""""""""""""""""""""""
+A growth limit per carrier which constraints new installed capacities for each
+investment period can be defined by setting the attribute ``max_growth`` for the
+PyPSA component ``carrier``.
+
+Technology Capacity Expansion Limit
+"""""""""""""""""""""""""""""""""""
+See above description :ref:`tech_expansion_limit`.
+
+:math:`\mathrm{CO}_2` targets for single investment periods
+""""""""""""""""""""""""""""""""""""""""""""""""""
+This can be implemented via a global primary energy constraint, see above description :ref:`primary_energy_constraint`.
 
 Abstract problem formulations
 -----------------------------
