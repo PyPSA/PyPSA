@@ -653,7 +653,7 @@ def sub_network_pf(
 
         elif isinstance(slack_weights, str) and slack_weights in ["p_nom", "p_nom_opt"]:
             assert (
-                not all(network.generators[slack_weights]) == 0
+                not all(network.generators[slack_weights] == 0)
             ), "Invalid slack weights! Generator attribute {} is always zero.".format(
                 slack_weights
             )
