@@ -507,10 +507,12 @@ Currently, only the capacities of extendable generators have to be below the set
 
 Operational Limit
 ^^^^^^^^^^^^^^^^^
+.. note::
+ Be aware, this global constraint type is only implemented in ``linopy`` and only
+activated when calling  ``n.optimize``.
+
 This global constraint can limit the net production of a carrier taking into
-account generator, storage units and stores (``type=operational_limit``). This
-global constraint is only implemented in ``linopy`` and is only activated with
-``n.optimize``.
+account generator, storage units and stores (``type=operational_limit``).
 
 
 .. _multi-horizon:
