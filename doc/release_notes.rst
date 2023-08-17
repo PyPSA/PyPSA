@@ -228,7 +228,7 @@ PyPSA 0.23.0 (10th May 2023)
   <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
   for details. The compression can be disabled with
   ``n.export_to_netcdf(compression=None)``. Use
-  ``n.export_to_netcdf(float32=True, compression={'zlib': True, complevel=9, least_significant_digit=5})``
+  ``n.export_to_netcdf(float32=True, compression={'zlib': True, 'complevel': 9, 'least_significant_digit': 5})``
   for high compression. [`#583
   <https://github.com/PyPSA/PyPSA/pull/583>`_, `#614
   <https://github.com/PyPSA/PyPSA/pull/614>`_]
