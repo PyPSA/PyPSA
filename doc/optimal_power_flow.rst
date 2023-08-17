@@ -454,10 +454,11 @@ global constraint with the corresponding ``type`` is added to the network.
 By default, the constraint applies to all investment periods. For multi-decade
 optimisation, a global constraint can be set for one investment period only
 (e.g. a :math:`\mathrm{CO}_2` limit for a specific investment year) by specifying this in the
-attribute ``investment_period``.
+attribute ``investment_period``. The shadow price of each global constraint is
+stored in  :math:`\mu` which is an output of the optimisation stored in ``network.global_constraints.mu``.
 
 .. _primary_energy_constraint:
-Primary energy
+Primary Energy
 ^^^^^^^^^^^^^^
 The primary energy constraints (``type=primary_energy``) depend on the power plant efficiency and carrier-specific attributes such as
 specific :math:`\mathrm{CO}_2` emissions.
@@ -481,8 +482,7 @@ generator with carrier :math:`s` at node :math:`n` has efficiency
 
 The first sum is over generators; the second sum is over stores and
 storage units. :math:`\mu` is the shadow price of the constraint,
-i.e. the :math:`\mathrm{CO}_2` price in this case. :math:`\mu` is an output of the
-optimisation stored in ``network.global_constraints.mu``.
+i.e. the :math:`\mathrm{CO}_2` price in this case.
 
 Transmission Volume Expansion Limit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -503,6 +503,10 @@ of a carrier (e.g. onshore wind) for an investment period at a chosen node
 This constraint is mainly used for multi-investments. It can represent land
 resource/ building restrictions for a technology in a certain region.
 Currently, only the capacities of extendable generators have to be below the set limit.
+
+Where :math:`A` are the investment periods
+.. math::
+  [\sum_{s | b_s<=a<b_s+L_s} \bar{g}_{n,s} \leq  \textrm{Limit} a \in A
 
 
 Operational Limit
@@ -573,11 +577,12 @@ PyPSA component ``carrier``.
 
 Technology Capacity Expansion Limit
 """""""""""""""""""""""""""""""""""
-See above description :ref:`_tech_expansion_limit`.
+See above description in Global Constraints for `Technology  Capacity Expansion Limit <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#technology-capacity-expansion-limit>`_.
 
 :math:`\mathrm{CO}_2` targets for single investment periods
-""""""""""""""""""""""""""""""""""""""""""""""""""
-This can be implemented via a global primary energy constraint, see above description :ref:`_primary_energy_constraint`.
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+This can be implemented via a global primary energy constraint, see above description for `Primary Energy Constraint <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#primary-energy>`_.
+
 
 Abstract problem formulations
 -----------------------------
@@ -586,13 +591,13 @@ Through the ``pypsa.optimization.abstract`` module, PyPSA provides a number of p
 
 
 Iterative transmission capacity expansion
-========================================
+-----------------------------------------
 
 If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is not reflected in the ordinary optimization, however ``Network.optimize.optimize_transmission_expansion_iteratively`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
 Security-Constrained Power Flow
-===============================
+-------------------------------
 
 
 To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`Contingency Analysis` for more details.
