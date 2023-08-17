@@ -396,10 +396,10 @@ if has_xarray:
                     self.ds[v] = self.ds[v].astype(np.float32)
 
         def finish(self):
-            if self.compression:
-                self.set_compression_encoding()
             if self.float32:
                 self.typecast_float32()
+            if self.compression:
+                self.set_compression_encoding()
             if self.path is not None:
                 self.ds.to_netcdf(self.path)
 
