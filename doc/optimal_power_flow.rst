@@ -449,7 +449,7 @@ Global constraints
 ------------------
 
 Global constraints apply to more than one component.
-Currently 4 global constraint types are defined. They are activated if a
+Currently 5 global constraint types are defined. They are activated if a
 global constraint with the corresponding ``type`` is added to the network.
 By default, the constraint applies to all investment periods. For multi-decade
 optimisation, a global constraint can be set for one investment period only
@@ -503,6 +503,14 @@ of a carrier (e.g. onshore wind) for an investment period at a chosen node
 This constraint is mainly used for multi-investments. It can represent land
 resource/ building restrictions for a technology in a certain region.
 Currently, only the capacities of extendable generators have to be below the set limit.
+
+
+Operational Limit
+^^^^^^^^^^^^^^^^^
+This global constraint can limit the net production of a carrier taking into
+account generator, storage units and stores (``type=operational_limit``). This
+global constraint is only implemented in ``linopy`` and is only activated with
+``n.optimize``.
 
 
 .. _multi-horizon:
