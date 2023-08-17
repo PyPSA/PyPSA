@@ -508,8 +508,7 @@ Currently, only the capacities of extendable generators have to be below the set
 Operational Limit
 ^^^^^^^^^^^^^^^^^
 .. note::
- Be aware, this global constraint type is only implemented in ``linopy`` and only
-activated when calling  ``n.optimize``.
+ Be aware, this global constraint type is only implemented in ``linopy`` and only activated when calling  ``n.optimize``.
 
 This global constraint can limit the net production of a carrier taking into
 account generator, storage units and stores (``type=operational_limit``).
@@ -574,11 +573,11 @@ PyPSA component ``carrier``.
 
 Technology Capacity Expansion Limit
 """""""""""""""""""""""""""""""""""
-See above description :ref:`tech_expansion_limit`.
+See above description :ref:`_tech_expansion_limit`.
 
 :math:`\mathrm{CO}_2` targets for single investment periods
 """"""""""""""""""""""""""""""""""""""""""""""""""
-This can be implemented via a global primary energy constraint, see above description :ref:`primary_energy_constraint`.
+This can be implemented via a global primary energy constraint, see above description :ref:`_primary_energy_constraint`.
 
 Abstract problem formulations
 -----------------------------
