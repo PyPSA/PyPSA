@@ -392,7 +392,7 @@ def sub_network_pf_singlebus(
         for bus, group in sub_network.generators().groupby("bus"):
             if slack_weights in ["p_nom", "p_nom_opt"]:
                 assert (
-                    not all(network.generators[slack_weights]) == 0
+                    not all(network.generators[slack_weights] == 0)
                 ), "Invalid slack weights! Generator attribute {} is always zero.".format(
                     slack_weights
                 )
