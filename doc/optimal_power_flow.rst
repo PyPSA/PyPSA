@@ -457,7 +457,6 @@ optimisation, a global constraint can be set for one investment period only
 attribute ``investment_period``. The shadow price of each global constraint is
 stored in  :math:`\mu` which is an output of the optimisation stored in ``network.global_constraints.mu``.
 
-.. _primary_energy_constraint:
 Primary Energy
 ^^^^^^^^^^^^^^
 The primary energy constraints (``type=primary_energy``) depend on the power plant efficiency and carrier-specific attributes such as
@@ -465,7 +464,7 @@ specific :math:`\mathrm{CO}_2` emissions.
 
 
 Suppose there is a global constraint defined for :math:`\mathrm{CO}_2` emissions with
-sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
+sense ``<=`` and constant :math:`\textrm{CAP}_{CO2}`. Emissions can come
 from generators whose energy carriers have :math:`\mathrm{CO}_2` emissions and from
 stores and storage units whose storage medium releases or absorbs :math:`\mathrm{CO}_2`
 when it is converted. Only stores and storage units with non-cyclic
@@ -494,7 +493,7 @@ Transmission Expansion Cost Limit
 This global constraint can limit the maximum cost of line expansion
 (``type=transmission_expansion_cost_limit``). Possible carriers are 'AC' and 'DC'.
 
-.. _tech_expansion_limit:
+
 Technology Capacity Expansion Limit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This global constraint can limit the maximum summed capacity of active assets
@@ -504,9 +503,19 @@ This constraint is mainly used for multi-investments. It can represent land
 resource/ building restrictions for a technology in a certain region.
 Currently, only the capacities of extendable generators have to be below the set limit.
 
-Where :math:`A` are the investment periods
+For example, the capacities of all onshore wind generators (``carrier_attribute="onshore wind"``) at a certain bus
+(``bus="DE"``) should be smaller (``sense="<="``) than the technical potential for onshore wind
+in the specific region (``constant=Limit``). Then the technology capacity expansion constraint is
+
 .. math::
-  [\sum_{s | b_s<=a<b_s+L_s} \bar{g}_{n,s} \leq  \textrm{Limit} a \in A
+  \sum_{s | b_s<=a<b_s+L_s} \bar{g}_{n,s} \leq  \textrm{Limit} \hspace{.4cm} a \in A.
+
+Where :math:`A` are the investment periods,
+:math:`s` are all extendable generators of the specified carrier, :math:`b_s` is the build year of an
+asset :math:`s` with lifetime :math:`L_s`.
+
+The constraint can also be formulated with the opposite sense, so that,
+a minimum expansion of a certain technology is required on a certain bus.
 
 
 Operational Limit
@@ -562,6 +571,24 @@ asset :math:`s` with lifetime :math:`L_s`, :math:`c_{s,a}` the annualised
 investment costs, :math:`o_{s,a, t}` the operational costs and :math:`w^\tau_{s,a}`
 the temporal weightings (including snapshot objective weightings and investment
 period temporal weightings).
+
+The general procedure for modelling multi-investment periods in PyPSA is to add
+an asset for each investment period whose capacity is to be expandable at that time.
+For example, if you want to optimise onshore wind development in the period 2025-2040
+with investment periods every 5 years, you add a generator with a corresponding
+construction year and lifetime for each investment period
+(``onwind-2025``, ``onwind-2030``, ``onwind-2035``, ``onwind-2040``).
+This allows one to specify different technological assumptions for the respective
+investment period (for example, decreasing investment costs, increasing efficiencies,
+improved capacity factors due to higher hub heights of wind turbines, extended lifetimes).
+The generators are only available for use after the year of construction and before
+the end of their lifetime, for example, the onwind-2030 generator built in 2030
+cannot contribute to electricity generation in the 2025 investment period.
+To ensure that the technical potential for onshore wind in the region is not
+exceeded by the 4 onshore wind generators in our example, one has to add an
+additional global constraint (``type=tech_capacity_expansion_limit``, see further description above).
+
+Note that the ``capital_cost`` of the assets is now the fixed annual costs, including annuity and FOM.
 
 `Example jupyter notebook for multi-investment
 <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_ and python
