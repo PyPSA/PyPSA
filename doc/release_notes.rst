@@ -9,6 +9,7 @@ Upcoming Release
 
 * Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
 * Add example in documentation for the statistics module.
+* Add option to enable or disable nice carrier name in the statics module (e.g.``n.statistics(nice_name=False)``).
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
