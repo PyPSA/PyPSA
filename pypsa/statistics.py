@@ -608,8 +608,7 @@ class StatisticsAccessor:
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
                 index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
-                df.columns = pd.MultiIndex.from_frame(
-                    index.reindex(df.columns))
+                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)
             weights = get_weightings(n, c)
@@ -750,11 +749,9 @@ class StatisticsAccessor:
                 prices.columns = n.df(c).index
                 revenue = n.pnl(c).p * prices
             else:
-                prices0 = n.buses_t.marginal_price.reindex(
-                    columns=n.df(c).bus0)
+                prices0 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus0)
                 prices0.columns = n.df(c).index
-                prices1 = n.buses_t.marginal_price.reindex(
-                    columns=n.df(c).bus1)
+                prices1 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus1)
                 prices1.columns = n.df(c).index
                 revenue = -(n.pnl(c).p0 * prices0 + n.pnl(c).p1 * prices1)
             weights = get_weightings(n, c)
