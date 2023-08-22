@@ -35,6 +35,7 @@ setup(
         "deprecation",
         "validators",
         "highspy>=1.5.3",
+        "numexpr<=2.8.4",  # until https://github.com/pandas-dev/pandas/issues/54449 resolved
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
