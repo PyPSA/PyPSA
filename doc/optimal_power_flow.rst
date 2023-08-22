@@ -449,7 +449,7 @@ Global constraints
 ------------------
 
 Global constraints apply to more than one component.
-Currently 5 global constraint types are defined. They are activated if a
+Currently, five global constraint types are defined. They are activated if a
 global constraint with the corresponding ``type`` is added to the network.
 By default, the constraint applies to all investment periods. For multi-decade
 optimisation, a global constraint can be set for one investment period only
@@ -485,7 +485,7 @@ i.e. the :math:`\mathrm{CO}_2` price in this case.
 
 Transmission Volume Expansion Limit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-This global constraint can limit the maximum line volume expansion
+This global constraint can limit the maximum line volume expansion in MWkm
 (``type=transmission_volume_expansion_limit``). Possible carriers are 'AC' and 'DC'.
 
 Transmission Expansion Cost Limit
@@ -499,8 +499,8 @@ Technology Capacity Expansion Limit
 This global constraint can limit the maximum summed capacity of active assets
 of a carrier (e.g. onshore wind) for an investment period at a chosen node
 (``type=tech_capacity_expansion_limit``).
-This constraint is mainly used for multi-investments. It can represent land
-resource/ building restrictions for a technology in a certain region.
+This constraint is mainly used for multi-decade investment planning. It can represent land
+resource or building rate restrictions for a technology in a certain region.
 Currently, only the capacities of extendable generators have to be below the set limit.
 
 For example, the capacities of all onshore wind generators (``carrier_attribute="onshore wind"``) at a certain bus
@@ -520,7 +520,7 @@ a minimum expansion of a certain technology is required on a certain bus.
 
 Operational Limit
 ^^^^^^^^^^^^^^^^^
-.. note::
+.. warning::
  Be aware, this global constraint type is only implemented in ``linopy`` and only activated when calling  ``n.optimize``.
 
 This global constraint can limit the net production of a carrier taking into
@@ -573,7 +573,7 @@ the temporal weightings (including snapshot objective weightings and investment
 period temporal weightings).
 
 The general procedure for modelling multi-investment periods in PyPSA is to add
-an asset for each investment period whose capacity is to be expandable at that time.
+an asset for each investment period, in which its capacity should be expandable.
 For example, if you want to optimise onshore wind development in the period 2025-2040
 with investment periods every 5 years, you add a generator with a corresponding
 construction year and lifetime for each investment period
@@ -618,13 +618,13 @@ Through the ``pypsa.optimization.abstract`` module, PyPSA provides a number of p
 
 
 Iterative transmission capacity expansion
------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is not reflected in the ordinary optimization, however ``Network.optimize.optimize_transmission_expansion_iteratively`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
 Security-Constrained Power Flow
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`Contingency Analysis` for more details.
