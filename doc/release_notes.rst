@@ -10,6 +10,7 @@ Upcoming Release
 * HiGHS becomes the new default solver for ``n.optimize()``.
 * Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
 * Add example in documentation for the statistics module.
+* Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
