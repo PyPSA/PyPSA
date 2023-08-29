@@ -919,6 +919,11 @@ def run_and_read_glpk(
     if solver_options:
         if isinstance(solver_options, dict):
             solver_options = "".join(f" -{k} {v}" for k, v in solver_options.items())
+        logger.info(f"Solver options command: {solver_options}. " 
+                    "Make sure that the defined options are available when using glpk. " 
+                    "If the options are not available but are still passed, "
+                    "solving the problem will take forever. "
+                    "Use the command ‘glpsol –-help’ for help.")
         command += solver_options
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
