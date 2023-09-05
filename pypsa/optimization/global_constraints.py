@@ -407,10 +407,10 @@ def define_transmission_volume_expansion_limit(n, sns):
             ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
                 ext_i.name
             )
-            
+
             if ext_i.empty:
                 continue
-                
+
             if not isnan(period):
                 ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
