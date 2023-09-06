@@ -43,7 +43,7 @@ Universities and Research Institutes
 
 * `Fraunhofer Institute for Solar Energy Systems <https://www.ise.fraunhofer.de/>`_ (ISE): uses PyPSA for grid modelling, research paper: `doi:/10.1016/j.epsr.2020.106349 <https://doi.org/10.1016/j.epsr.2020.106349>`_
 
-* `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_
+* `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
