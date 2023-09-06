@@ -4,7 +4,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/pypsa.svg)](https://pypi.python.org/pypi/pypsa)
 [![Conda version](https://img.shields.io/conda/vn/conda-forge/pypsa.svg)](https://anaconda.org/conda-forge/pypsa)
 [![CI](https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI.yml)
-[![CI with micromamba](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml)
+[![CI with micromamba](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml)
 [![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![Documentation Status](https://readthedocs.org/projects/pypsa/badge/?version=latest)](https://pypsa.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE.txt)
