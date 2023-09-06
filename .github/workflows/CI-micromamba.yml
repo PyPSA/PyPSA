@@ -1,4 +1,4 @@
-name: CI with micromamba/conda-forge
+name: CI with micromamba
 
 on:
   push:
