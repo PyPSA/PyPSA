@@ -2,10 +2,14 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
+* Add example in documentation for the statistics module.
+* Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
@@ -228,7 +232,7 @@ PyPSA 0.23.0 (10th May 2023)
   <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
   for details. The compression can be disabled with
   ``n.export_to_netcdf(compression=None)``. Use
-  ``n.export_to_netcdf(float32=True, compression={'zlib': True, complevel=9, least_significant_digit=5})``
+  ``n.export_to_netcdf(float32=True, compression={'zlib': True, 'complevel': 9, 'least_significant_digit': 5})``
   for high compression. [`#583
   <https://github.com/PyPSA/PyPSA/pull/583>`_, `#614
   <https://github.com/PyPSA/PyPSA/pull/614>`_]

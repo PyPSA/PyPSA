@@ -5,14 +5,14 @@ dependencies:
 - python>=3.9
 - numpy
 - scipy
-- pandas>=0.24.0
+- pandas>=0.24.0,<2.1
 - xarray
 - netcdf4
 - libnetcdf
 - pytables
 - matplotlib
 - networkx>=1.10
-- pyomo>=5.7.0
+- pyomo>=5.7.0,<6.6.2
 - cartopy>=0.16
 - glpk
 - linopy>=0.2
@@ -20,3 +20,4 @@ dependencies:
 - validators
 #  - coincbc
 #  - gurobi::gurobi
+- numexpr<=2.8.4 # until https://github.com/pandas-dev/pandas/issues/54449 resolved

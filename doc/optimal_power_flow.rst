@@ -449,32 +449,82 @@ Global constraints
 ------------------
 
 Global constraints apply to more than one component.
+Currently, five global constraint types are defined. They are activated if a
+global constraint with the corresponding ``type`` is added to the network.
+By default, the constraint applies to all investment periods. For multi-decade
+optimisation, a global constraint can be set for one investment period only
+(e.g. a :math:`\mathrm{CO}_2` limit for a specific investment year) by specifying this in the
+attribute ``investment_period``. The shadow price of each global constraint is
+stored in  :math:`\mu` which is an output of the optimisation stored in ``network.global_constraints.mu``.
 
-Currently only "primary energy" constraints are defined. They depend
-on the power plant efficiency and carrier-specific attributes such as
-specific CO2 emissions.
+Primary Energy
+^^^^^^^^^^^^^^
+The primary energy constraints (``type=primary_energy``) depend on the power plant efficiency and carrier-specific attributes such as
+specific :math:`\mathrm{CO}_2` emissions.
 
 
-Suppose there is a global constraint defined for CO2 emissions with
-sense ``<=`` and constant ``\textrm{CAP}_{CO2}``. Emissions can come
-from generators whose energy carriers have CO2 emissions and from
-stores and storage units whose storage medium releases or absorbs CO2
+Suppose there is a global constraint defined for :math:`\mathrm{CO}_2` emissions with
+sense ``<=`` and constant :math:`\textrm{CAP}_{CO2}`. Emissions can come
+from generators whose energy carriers have :math:`\mathrm{CO}_2` emissions and from
+stores and storage units whose storage medium releases or absorbs :math:`\mathrm{CO}_2`
 when it is converted. Only stores and storage units with non-cyclic
 state of charge that is different at the start and end of the
 simulation can contribute.
 
 If the specific emissions of energy carrier :math:`s` is :math:`e_s`
-(``carrier.co2_emissions``) CO2-equivalent-tonne-per-MWh and the
+(``carrier.co2_emissions``) :math:`\mathrm{CO}_2`-equivalent-tonne-per-MWh and the
 generator with carrier :math:`s` at node :math:`n` has efficiency
-:math:`\eta_{n,s}` then the CO2 constraint is
+:math:`\eta_{n,s}` then the :math:`\mathrm{CO}_2` constraint is
 
 .. math::
    \sum_{n,s,t} \frac{1}{\eta_{n,s}} w_t\cdot g_{n,s,t}\cdot e_{n,s} + \sum_{n,s}\left(e_{n,s,t=-1} - e_{n,s,t=|T|-1}\right) \cdot e_{n,s} \leq  \textrm{CAP}_{CO2}  \hspace{.4cm} \leftrightarrow  \hspace{.4cm} \mu
 
 The first sum is over generators; the second sum is over stores and
 storage units. :math:`\mu` is the shadow price of the constraint,
-i.e. the CO2 price in this case. :math:`\mu` is an output of the
-optimisation stored in ``network.global_constraints.mu``.
+i.e. the :math:`\mathrm{CO}_2` price in this case.
+
+Transmission Volume Expansion Limit
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This global constraint can limit the maximum line volume expansion in MWkm
+(``type=transmission_volume_expansion_limit``). Possible carriers are 'AC' and 'DC'.
+
+Transmission Expansion Cost Limit
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This global constraint can limit the maximum cost of line expansion
+(``type=transmission_expansion_cost_limit``). Possible carriers are 'AC' and 'DC'.
+
+
+Technology Capacity Expansion Limit
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This global constraint can limit the maximum summed capacity of active assets
+of a carrier (e.g. onshore wind) for an investment period at a chosen node
+(``type=tech_capacity_expansion_limit``).
+This constraint is mainly used for multi-decade investment planning. It can represent land
+resource or building rate restrictions for a technology in a certain region.
+Currently, only the capacities of extendable generators have to be below the set limit.
+
+For example, the capacities of all onshore wind generators (``carrier_attribute="onshore wind"``) at a certain bus
+(``bus="DE"``) should be smaller (``sense="<="``) than the technical potential for onshore wind
+in the specific region (``constant=Limit``). Then the technology capacity expansion constraint is
+
+.. math::
+  \sum_{s | b_s<=a<b_s+L_s} \bar{g}_{n,s} \leq  \textrm{Limit} \hspace{.4cm} a \in A.
+
+Where :math:`A` are the investment periods,
+:math:`s` are all extendable generators of the specified carrier, :math:`b_s` is the build year of an
+asset :math:`s` with lifetime :math:`L_s`.
+
+The constraint can also be formulated with the opposite sense, so that,
+a minimum expansion of a certain technology is required on a certain bus.
+
+
+Operational Limit
+^^^^^^^^^^^^^^^^^
+.. warning::
+ Be aware, this global constraint type is only implemented in ``linopy`` and only activated when calling  ``n.optimize``.
+
+This global constraint can limit the net production of a carrier taking into
+account generator, storage units and stores (``type=operational_limit``).
 
 
 .. _multi-horizon:
@@ -507,7 +557,7 @@ as a subset of the investment periods.
 The investment periods are defined in the component ``investment_periods``.
 They have to be integer and increasing (e.g. [2020, 2030, 2040, 2050]).
 The investment periods can be weighted both in time called ``years``
-(e.g. for global constraints such as CO2 emissions) and in the objective function
+(e.g. for global constraints such as :math:`\mathrm{CO}_2` emissions) and in the objective function
 ``objective`` (e.g. for a social discount rate) using the
 ``investment_period_weightings``.
 
@@ -522,9 +572,43 @@ investment costs, :math:`o_{s,a, t}` the operational costs and :math:`w^\tau_{s,
 the temporal weightings (including snapshot objective weightings and investment
 period temporal weightings).
 
+The general procedure for modelling multi-investment periods in PyPSA is to add
+an asset for each investment period, in which its capacity should be expandable.
+For example, if you want to optimise onshore wind development in the period 2025-2040
+with investment periods every 5 years, you add a generator with a corresponding
+construction year and lifetime for each investment period
+(``onwind-2025``, ``onwind-2030``, ``onwind-2035``, ``onwind-2040``).
+This allows one to specify different technological assumptions for the respective
+investment period (for example, decreasing investment costs, increasing efficiencies,
+improved capacity factors due to higher hub heights of wind turbines, extended lifetimes).
+The generators are only available for use after the year of construction and before
+the end of their lifetime, for example, the onwind-2030 generator built in 2030
+cannot contribute to electricity generation in the 2025 investment period.
+To ensure that the technical potential for onshore wind in the region is not
+exceeded by the 4 onshore wind generators in our example, one has to add an
+additional global constraint (``type=tech_capacity_expansion_limit``, see further description above).
+
+Note that the ``capital_cost`` of the assets is now the fixed annual costs, including annuity and FOM.
+
 `Example jupyter notebook for multi-investment
 <https://pypsa.readthedocs.io/en/latest/examples/multi-investment-optimisation.html>`_ and python
 script ``examples/multi-decade-example.py``.
+
+Useful constraints for multi-investment optimisation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Growth Limit per Carrier
+""""""""""""""""""""""""
+A growth limit per carrier which constraints new installed capacities for each
+investment period can be defined by setting the attribute ``max_growth`` for the
+PyPSA component ``carrier``.
+
+Technology Capacity Expansion Limit
+"""""""""""""""""""""""""""""""""""
+See above description in Global Constraints for `Technology  Capacity Expansion Limit <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#technology-capacity-expansion-limit>`_.
+
+:math:`\mathrm{CO}_2` targets for single investment periods
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+This can be implemented via a global primary energy constraint, see above description for `Primary Energy Constraint <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#primary-energy>`_.
 
 
 Abstract problem formulations
@@ -534,13 +618,13 @@ Through the ``pypsa.optimization.abstract`` module, PyPSA provides a number of p
 
 
 Iterative transmission capacity expansion
-========================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the transmission capacity is changed in passive networks, then the impedance will also change (i.e. if parallel lines are installed). This is not reflected in the ordinary optimization, however ``Network.optimize.optimize_transmission_expansion_iteratively`` covers this through an iterative process as done `in here <http://www.sciencedirect.com/science/article/pii/S0360544214000322#>`_.
 
 
 Security-Constrained Power Flow
-===============================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`Contingency Analysis` for more details.
