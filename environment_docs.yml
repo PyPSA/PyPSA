@@ -9,13 +9,13 @@ dependencies:
 - numpy
 - pyomo>=5.7.0
 - scipy
-- pandas>=1.1.0
+- pandas>=1.1.0,<2.1
 - xarray
 - netcdf4
 - pytables
 - matplotlib
 - networkx>=1.10
-- pyomo
+- pyomo<6.6.2
 - cartopy>=0.16
 - coincbc
 - glpk
