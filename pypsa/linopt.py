@@ -829,15 +829,19 @@ def run_and_read_cbc(
     For more information on the solver options, run 'cbc' in your shell
     """
     with open(problem_fn, "rb") as f:
-        for str in f.readlines():
-            assert ("> " in str.decode("utf-8")) is False, ">, must be" "changed to >="
-            assert ("< " in str.decode("utf-8")) is False, "<, must be" "changed to <="
+        for line in f.readlines():
+            assert ("> " in line.decode("utf-8")) is False, ">, must be" "changed to >="
+            assert ("< " in line.decode("utf-8")) is False, "<, must be" "changed to <="
 
     # printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
         command += f"-basisI {warmstart} "
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = (
+                " ".join(f"-{k} {v}" for k, v in solver_options.items()) + " "
+            )
         command += solver_options
     command += f"-solve -solu {solution_fn} "
     if store_basis:
@@ -912,7 +916,16 @@ def run_and_read_glpk(
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
         command += f" -w {n.basis_fn}"
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = "".join(f" -{k} {v}" for k, v in solver_options.items())
+        logger.info(
+            f"Solver options command: {solver_options}. "
+            "Make sure that the defined options are available when using glpk. "
+            "If the options are not available but are still passed, "
+            "solving the problem will take forever. "
+            "Use the command ‘glpsol –-help’ for help."
+        )
         command += solver_options
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)

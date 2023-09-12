@@ -24,11 +24,11 @@ setup(
     install_requires=[
         "numpy",
         "scipy",
-        "pandas>=0.24",
+        "pandas>=0.24,<2.1",
         "xarray",
         "netcdf4",
         "tables",
-        "pyomo>=5.7",
+        "pyomo>=5.7,<6.6.2",
         "linopy>=0.2.1",
         "matplotlib",
         "networkx>=1.10",

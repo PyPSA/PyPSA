@@ -4,7 +4,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/pypsa.svg)](https://pypi.python.org/pypi/pypsa)
 [![Conda version](https://img.shields.io/conda/vn/conda-forge/pypsa.svg)](https://anaconda.org/conda-forge/pypsa)
 [![CI](https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI.yml)
-[![CI with conda](https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml)
+[![CI with micromamba](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml)
 [![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![Documentation Status](https://readthedocs.org/projects/pypsa/badge/?version=latest)](https://pypsa.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE.txt)
@@ -182,7 +182,7 @@ We strongly welcome anyone interested in contributing to this project. If you ha
 
 -   In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
 -   For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
--   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/JTdvaEBb).
+-   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/AnuJBk23FU).
 -   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
 -   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
