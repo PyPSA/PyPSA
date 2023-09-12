@@ -23,6 +23,7 @@ from pypsa.optimization.abstract import (
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
+    define_coupled_operation_constraints,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -273,6 +274,7 @@ def create_model(
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
+        define_coupled_operation_constraints(n, sns, c, attr)
 
     meshed_buses = get_strongly_meshed_buses(n)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)

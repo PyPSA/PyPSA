@@ -50,7 +50,7 @@ def define_operational_constraints_for_non_extendables(
 
     nominal_fix = n.df(c)[nominal_attrs[c]].reindex(fix_i)
     min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
-    lower = min_pu.mul(nominal_fix)
+    lower = min_pu.mul(nominal_fix).fillna(min_pu)
     upper = max_pu.mul(nominal_fix)
 
     active = get_activity_mask(n, c, sns, fix_i) if n._multi_invest else None
@@ -61,11 +61,13 @@ def define_operational_constraints_for_non_extendables(
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
         dispatch_lower = (1, dispatch_lower), (-1, loss)
         dispatch_upper = (1, dispatch_upper), (1, loss)
+    mask = (lower != -inf) & active if active is not None else lower != -inf
     n.model.add_constraints(
-        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=mask
     )
+    mask = (upper != inf) & active if active is not None else upper != inf
     n.model.add_constraints(
-        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=mask
     )
 
 
@@ -670,6 +672,44 @@ def define_fixed_operation_constraints(n, sns, c, attr):
 
     var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
     n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask=mask)
+
+
+def define_coupled_operation_constraints(n, sns, c, attr):
+    """
+    Sets constraints for coupling the operation of two components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the attribute, e.g. 'p'
+    """
+    if attr + "_coupling" not in n.df(c):
+        return
+
+    dim = f"{c}-{attr}_coupling_i"
+    coupling = n.df(c)[attr + "_coupling"]
+    coupling = coupling[coupling != ""].rename_axis(dim)
+    idx = coupling.index
+    to = coupling.values
+
+    if coupling.empty:
+        return
+
+    var = n.model[f"{c}-{attr}"].loc[:, idx].rename({c: dim})
+    couple_to = n.model[f"{c}-{attr}"].loc[:, to].rename({c: dim})
+    coeff = n.df(c).loc[idx, attr + "_coupling_coeff"]
+    sign = n.df(c).loc[idx, attr + "_coupling_sign"]
+
+    if n._multi_invest:
+        mask = get_activity_mask(n, c, sns, index=idx)
+    else:
+        mask = None
+
+    con = (1 * var).to_constraint(sign, couple_to * coeff)
+    n.model.add_constraints(con, name=f"{c}-{attr}_coupling", mask=mask)
 
 
 def define_storage_unit_constraints(n, sns):
