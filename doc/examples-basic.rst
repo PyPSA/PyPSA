@@ -12,3 +12,4 @@ This section provides examples for learning the basics of PyPSA:
 
    examples/minimal_example_pf.ipynb
    examples/ac-dc-lopf.ipynb
+   examples/statistics.ipynb
