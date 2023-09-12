@@ -6,4 +6,4 @@ carrier_attribute,string,n/a,co2_emissions,"If the global constraint is connecte
 sense,string,n/a,==,"Constraint sense; must be one of <=, == or >=",Input (optional)
 constant,float,n/a,0,"Constant for right-hand-side of constraint for optimisation period. For a CO2 constraint, this would be tonnes of CO2-equivalent emissions.",Input (optional)
 mu,float,currency/constant,0,Shadow price of global constraint,Output
-bus,string,n/a,n/a,"name of bus for which global constraint applies, only read if type=""tech_capacity_expansion_limit""",Input (required)
+bus,string,n/a,n/a,"name of bus for which global constraint applies, only read if type='tech_capacity_expansion_limit'",Input (optional)
