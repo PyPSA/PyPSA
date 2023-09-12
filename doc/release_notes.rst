@@ -12,6 +12,7 @@ Upcoming Release
 * New attribute ``bus`` is added to global constraints for constraints of type "tech_capacity_expansion_limit" which limit (e.g. because of resource limitations) the extension of one carrier (e.g. onshore wind) for a certain bus
 
 * Add example in documentation for the statistics module.
+* Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
 
 
 PyPSA 0.25.1 (27th July 2023)

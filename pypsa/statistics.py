@@ -23,21 +23,21 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_carrier(n, c):
+def get_carrier(n, c, nice_names=True):
     """
     Get the nice carrier names for a component.
     """
     df = n.df(c)
     fall_back = pd.Series("", index=df.index)
-    return (
-        df.get("carrier", fall_back)
-        .replace(n.carriers.nice_name[lambda ds: ds != ""])
-        .replace("", "-")
-        .rename("carrier")
-    )
+    carrier_series = df.get("carrier", fall_back).rename("carrier")
+    if nice_names:
+        carrier_series = carrier_series.replace(
+            n.carriers.nice_name[lambda ds: ds != ""]
+        ).replace("", "-")
+    return carrier_series
 
 
-def get_bus_and_carrier(n, c, port=""):
+def get_bus_and_carrier(n, c, port="", nice_names=True):
     """
     Get the buses and nice carrier names for a component.
     """
@@ -48,27 +48,29 @@ def get_bus_and_carrier(n, c, port=""):
             bus = "bus"
     else:
         bus = f"bus{port}"
-    return [n.df(c)[bus].rename("bus"), get_carrier(n, c)]
+    return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
 
 
-def get_country_and_carrier(n, c, port=""):
+def get_country_and_carrier(n, c, port="", nice_names=True):
     """
     Get component country and carrier.
     """
     bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port)
+    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
     country = bus.map(n.buses.country).rename("country")
     return [country, carrier]
 
 
-def get_carrier_and_bus_carrier(n, c, port=""):
+def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     """
     Get component carrier and bus carrier in one combined DataFrame.
 
     Used for MultiIndex in energy balance.
     """
     bus = f"bus{port}"
-    bus_and_carrier = pd.concat(get_bus_and_carrier(n, c, port), axis=1)
+    bus_and_carrier = pd.concat(
+        get_bus_and_carrier(n, c, port, nice_names=nice_names), axis=1
+    )
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
     return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
@@ -109,7 +111,14 @@ def aggregate_timeseries(df, weights, agg="sum"):
         return df.agg(agg)
 
 
-def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
+def aggregate_components(
+    n,
+    func,
+    agg="sum",
+    comps=None,
+    groupby=None,
+    nice_names=True,
+):
     """
     Apply a function and group the result for a collection of components.
     """
@@ -121,7 +130,7 @@ def aggregate_components(n, func, agg="sum", comps=None, groupby=None):
         groupby = get_carrier
     for c in comps:
         if callable(groupby):
-            grouping = groupby(n, c)
+            grouping = groupby(n, c, nice_names=nice_names)
         elif isinstance(groupby, list):
             grouping = [n.df(c)[key] for key in groupby]
         elif isinstance(groupby, str):
@@ -161,6 +170,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=get_carrier,
+        nice_names=True,
         **kwargs,
     ):
         """
@@ -183,6 +193,8 @@ class StatisticsAccessor:
             component name. If a list is passed it should contain
             column names of the static DataFrame, same for a single string.
             Defaults to `get_carrier`.
+        nice_names : bool, optional
+            Whether to use the nice names of the carrier. Defaults to True.
 
         Returns
         -------
@@ -207,7 +219,12 @@ class StatisticsAccessor:
             self.revenue,
             self.market_value,
         ]
-        kwargs = dict(comps=comps, aggregate_groups=aggregate_groups, groupby=groupby)
+        kwargs = dict(
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
+        )
         res = []
         for func in funcs:
             df = func(**kwargs)
@@ -232,7 +249,13 @@ class StatisticsAccessor:
         """
         return get_country_and_carrier(n, c)
 
-    def capex(self, comps=None, aggregate_groups="sum", groupby=None):
+    def capex(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+    ):
         """
         Calculate the capital expenditure of the network in given currency.
 
@@ -246,13 +269,24 @@ class StatisticsAccessor:
             return n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
         return df
 
-    def installed_capex(self, comps=None, aggregate_groups="sum", groupby=None):
+    def installed_capex(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+    ):
         """
         Calculate the capital expenditure of already built components of the
         network in given currency.
@@ -267,13 +301,24 @@ class StatisticsAccessor:
             return n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure Fixed"
         df.attrs["unit"] = "currency"
         return df
 
-    def optimal_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
+    def optimal_capacity(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+    ):
         """
         Calculate the optimal capacity of the network components in MW.
 
@@ -287,13 +332,24 @@ class StatisticsAccessor:
             return n.df(c)[f"{nominal_attrs[c]}_opt"]
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Optimal Capacity"
         df.attrs["unit"] = "MW"
         return df
 
-    def installed_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
+    def installed_capacity(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+    ):
         """
         Calculate the installed capacity of the network components in MW.
 
@@ -307,13 +363,24 @@ class StatisticsAccessor:
             return n.df(c)[f"{nominal_attrs[c]}"]
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Installed Capacity"
         df.attrs["unit"] = "MW"
         return df
 
-    def expanded_capacity(self, comps=None, aggregate_groups="sum", groupby=None):
+    def expanded_capacity(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+    ):
         """
         Calculate the expanded capacity of the network components in MW.
 
@@ -321,9 +388,15 @@ class StatisticsAccessor:
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         df = self.optimal_capacity(
-            comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         ) - self.installed_capacity(
-            comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Expanded Capacity"
         df.attrs["unit"] = "MW"
@@ -335,6 +408,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the operational expenditure in the network in given currency.
@@ -364,7 +438,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Operational Expenditure"
         df.attrs["unit"] = "currency"
@@ -376,6 +455,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the supply of components in the network. Units depend on the
@@ -397,7 +477,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
@@ -409,6 +494,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the withdrawal of components in the network. Units depend on
@@ -430,7 +516,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "carrier dependent"
@@ -442,6 +533,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the dispatch of components in the network. Units depend on
@@ -469,7 +561,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Dispatch"
         df.attrs["unit"] = "carrier dependent"
@@ -481,6 +578,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         aggregate_bus=True,
+        nice_names=True,
     ):
         """
         Calculate the energy balance of components in the network. Positive
@@ -526,6 +624,7 @@ class StatisticsAccessor:
             comps=comps,
             agg=aggregate_groups,
             groupby={"level": groupby},
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "carrier dependent"
@@ -537,6 +636,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the curtailment of components in the network in MWh.
@@ -563,7 +663,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Curtailment"
         df.attrs["unit"] = "MWh"
@@ -575,6 +680,7 @@ class StatisticsAccessor:
         aggregate_time="mean",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -598,7 +704,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         capacity = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
@@ -614,6 +725,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the revenue of components in the network in given currency.
@@ -646,7 +758,12 @@ class StatisticsAccessor:
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
         df = aggregate_components(
-            n, func, comps=comps, agg=aggregate_groups, groupby=groupby
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
         )
         df.attrs["name"] = "Revenue"
         df.attrs["unit"] = "currency"
@@ -658,6 +775,7 @@ class StatisticsAccessor:
         aggregate_time="mean",
         aggregate_groups="sum",
         groupby=None,
+        nice_names=True,
     ):
         """
         Calculate the market value of components in the network in given
@@ -678,6 +796,7 @@ class StatisticsAccessor:
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
             groupby=groupby,
+            nice_names=nice_names,
         )
         df = self.revenue(**kwargs) / self.dispatch(**kwargs)
         df.attrs["name"] = "Market Value"

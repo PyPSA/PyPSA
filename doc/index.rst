@@ -17,8 +17,8 @@ PyPSA: Python for Power System Analysis
 .. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml
 
 .. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
@@ -132,7 +132,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: User Guide
 
    design
