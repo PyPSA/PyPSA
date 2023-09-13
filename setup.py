@@ -33,7 +33,6 @@ setup(
         "matplotlib",
         "networkx>=1.10",
         "geopandas>=0.9",
-        "pygeos",
         "deprecation",
         "validators",
         "numexpr<=2.8.4",  # until https://github.com/pandas-dev/pandas/issues/54449 resolved

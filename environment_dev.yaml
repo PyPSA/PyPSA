@@ -1,4 +1,4 @@
-name: pypsa-geo-dev
+name: pypsa
 channels:
 - conda-forge
 dependencies:

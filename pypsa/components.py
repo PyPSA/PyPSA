@@ -899,7 +899,7 @@ class Network(Basic):
                 continue
             typ = attrs.at[k, "typ"]
             if k == "geometry":
-                new_df.at[name, k] = v
+                new_df.at[name, k] = clean_geometry(v)
             elif not attrs.at[k, "varying"]:
                 new_df.at[name, k] = typ(v)
             elif attrs.at[k, "static"] and not isinstance(

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+import geopandas
 import numpy as np
 import pytest
+import shapely
+from shapely.geometry import Point
 
 import pypsa
 
@@ -13,6 +16,41 @@ def empty_network_5_buses():
     for i in range(n_buses):
         network.add("Bus", f"bus_{i}")
     return network
+
+
+def test_geo_components_gpd_df(geo_components_network):
+    # Test whether 'geo_components' are 'geopandas.DataFrame' and conatin a 'geopandas.GeoSeries' in the 'geometry' column.
+    # geo_components = {"Bus", "Line", "Link", "Transformer"}
+
+    assert isinstance(geo_components_network.buses, geopandas.GeoDataFrame)
+    assert isinstance(geo_components_network.lines, geopandas.GeoDataFrame)
+    assert isinstance(geo_components_network.links, geopandas.GeoDataFrame)
+    assert isinstance(geo_components_network.transformers, geopandas.GeoDataFrame)
+
+    assert isinstance(geo_components_network.buses.geometry, geopandas.GeoSeries)
+    assert isinstance(geo_components_network.lines.geometry, geopandas.GeoSeries)
+    assert isinstance(geo_components_network.links.geometry, geopandas.GeoSeries)
+    assert isinstance(geo_components_network.transformers.geometry, geopandas.GeoSeries)
+
+
+def test_geo_component_add():
+    # Test whether 'geo_components' can be added to the network by add function.
+    # geo_components = {"Bus", "Line", "Link", "Transformer"}
+    # Point(0,1) and 'POINT (1 4)'(wkt_string) are valid and will be converted to shapely.geometry objects.
+    # {"None", "", np.nan, "nan"} are also valid values for geometry column while adding using add function and will be added as None.
+    # note - invalid strings will also be added as None.
+
+    network = pypsa.Network()
+
+    # {"None", "", np.nan, "nan"}
+    network.add("Bus", "bus_1", geometry="")
+    assert network.buses.geometry.values[0] == None
+
+    network.add("Bus", "bus_2", geometry=Point(0, 1))
+    assert isinstance(network.buses.geometry.values[1], shapely.geometry.point.Point)
+
+    network.add("Bus", "bus_3", geometry="POINT (1 4)")
+    assert isinstance(network.buses.geometry.values[2], shapely.geometry.point.Point)
 
 
 def test_mremove(ac_dc_network):

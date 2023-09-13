@@ -45,6 +45,40 @@ def scipy_network():
     return n
 
 
+@pytest.fixture(scope="function")
+def geo_components_network():
+    # Constructing a basic network using all 'geo_components'.
+    # geo_components = {"Bus", "Line", "Link", "Transformer"}
+    network = pypsa.Network()
+    num_components = 5
+
+    for i in range(num_components):
+        network.add("Bus", f"bus_{i}")
+
+    for i in range(num_components):
+        network.add(
+            "Line",
+            "My line {}".format(i),
+            bus0="bus_{}".format(i),
+            bus1="bus_{}".format((i + 1) % num_components),
+            x=0.1,
+            r=0.01,
+        )
+
+        network.add(
+            "Link", f"link_{i}", bus0=f"bus_{i}", bus1=f"bus_{(i + 1) % num_components}"
+        )
+
+        network.add(
+            "Transformer",
+            f"transformer_{i}",
+            bus0=f"bus_{i}",
+            bus1=f"bus_{(i + 1) % num_components}",
+        )
+
+    return network
+
+
 @pytest.fixture(scope="module")
 def ac_dc_network():
     csv_folder = os.path.join(

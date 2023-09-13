@@ -2,9 +2,11 @@
 import os
 from pathlib import Path
 
+import geopandas
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+from shapely.geometry import Point
 
 import pypsa
 
@@ -16,6 +18,43 @@ def test_netcdf_io(scipy_network, tmpdir, meta):
     scipy_network.export_to_netcdf(fn)
     reloaded = pypsa.Network(fn)
     assert reloaded.meta == scipy_network.meta
+
+
+def test_geo_wkt_netcdf(geo_components_network, tmpdir):
+    # This function validates the conversion of shapely.Geometry to and from WKT strings during the process of writing and reading to a netCDF file.
+    # It appends a GeoSeries to all geo_components and verifies its consistency after writing to and reading from the netCDF file.
+
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+
+    num_components = len(geo_components_network.buses)
+
+    geo_series = geopandas.GeoSeries([])
+
+    for i in range(num_components):
+        geo_series[i] = Point(i, i)
+
+    network_buses_gpd = geo_components_network.buses
+
+    # making sure the index and crs is same as in the network
+    geo_series.index = network_buses_gpd.index
+    geo_series.crs = network_buses_gpd.crs
+    geo_series = geo_series.to_crs(network_buses_gpd.crs)
+
+    geo_components_network.buses.set_geometry(geo_series)
+    geo_components_network.lines.set_geometry(geo_series)
+    geo_components_network.links.set_geometry(geo_series)
+    geo_components_network.transformers.set_geometry(geo_series)
+
+    geo_components_network.export_to_netcdf(fn)
+    reloaded = pypsa.Network(fn)
+
+    # geom_euals_exact gives us a array of boolean values for each value of the GeoSeries
+    assert False not in reloaded.buses.geometry.geom_equals_exact(geo_series, 0.000001)
+    assert False not in reloaded.lines.geometry.geom_equals_exact(geo_series, 0.000001)
+    assert False not in reloaded.links.geometry.geom_equals_exact(geo_series, 0.000001)
+    assert False not in reloaded.transformers.geometry.geom_equals_exact(
+        geo_series, 0.000001
+    )
 
 
 def test_netcdf_io_Path(scipy_network, tmpdir):
