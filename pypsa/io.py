@@ -25,7 +25,9 @@ from urllib.request import urlretrieve
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 import validators
+from shapely import wkt
 
 from pypsa.descriptors import update_linkports_component_attrs
 
@@ -835,6 +837,19 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     )
 
 
+def clean_geometry(geom):
+    null_types = {"None", "", np.nan, "nan"}
+
+    if geom in null_types:
+        return None
+    if isinstance(geom, shapely.Geometry):
+        return geom
+    try:
+        return wkt.loads(geom)
+    except:
+        return None
+
+
 def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
@@ -908,11 +923,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     if cls_name in network.geo_components:
-        wkts = new_df.geometry.map(
-            lambda g: None if g in {"None", "", np.nan, "nan"} else g
-        )
-        geometry = gpd.GeoSeries.from_wkt(wkts)
-        new_df = gpd.GeoDataFrame(new_df, geometry=geometry, crs=network.srid)
+        new_df["geometry"] = new_df["geometry"].apply(clean_geometry)
+        new_df = gpd.GeoDataFrame(new_df, geometry="geometry", crs=network.srid)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)

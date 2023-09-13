@@ -1,4 +1,4 @@
-name: pypsa
+name: pypsa-geo-dev
 channels:
 - conda-forge
 dependencies:
@@ -20,6 +20,7 @@ dependencies:
 - linopy>=0.2
 - deprecation
 - validators
+- geopandas>=0.9
 
 # development dependencies required for CI
 - pytest

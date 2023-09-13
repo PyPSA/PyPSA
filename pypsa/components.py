@@ -41,6 +41,7 @@ from pypsa.descriptors import (
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
+    clean_geometry,
     export_to_csv_folder,
     export_to_hdf5,
     export_to_netcdf,
@@ -386,7 +387,7 @@ class Network(Basic):
     def _build_dataframes(self):
         """
         Function called when network is created to build component
-        pandas.DataFrames.
+        pandas.DataFrames and GeoPandas.GeoDataFrames for geo components.
         """
         for component in self.all_components:
             attrs = self.components[component]["attrs"]
@@ -399,10 +400,8 @@ class Network(Basic):
             )
 
             if component in self.geo_components:
-                geometry = df.geometry.map(
-                    lambda g: None if g in {"None", "", np.nan, "nan"} else g
-                )
-                df = gpd.GeoDataFrame(df, geometry=geometry, crs=self.srid)
+                df["geometry"] = df["geometry"].apply(clean_geometry)
+                df = gpd.GeoDataFrame(df, geometry="geometry", crs=self.srid)
 
             df.index.name = component
             setattr(self, self.components[component]["list_name"], df)
@@ -886,10 +885,8 @@ class Network(Basic):
         )
         new_df = pd.concat([cls_df, obj_df], sort=False)
         if class_name in self.geo_components:
-            geometry = new_df.geometry.map(
-                lambda g: None if g in {"None", "", np.nan, "nan"} else g
-            )
-            new_df = gpd.GeoDataFrame(new_df, geometry=geometry, crs=self.srid)
+            new_df["geometry"] = new_df["geometry"].apply(clean_geometry)
+            new_df = gpd.GeoDataFrame(new_df, geometry="geometry", crs=self.srid)
 
         new_df.index.name = class_name
         setattr(self, self.components[class_name]["list_name"], new_df)
