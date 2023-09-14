@@ -501,11 +501,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
                 else:
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
-            if len(col_export) > 0:
-                df = pnl[attr].reset_index()[col_export]
-                exporter.save_series(list_name, attr, df)
-            else:
-                exporter.remove_series(list_name, attr)
+            df = pnl[attr].reset_index()[col_export]
+            exporter.save_series(list_name, attr, df)
 
         exported_components.append(list_name)
 
