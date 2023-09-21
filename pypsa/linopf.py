@@ -1318,7 +1318,7 @@ def assign_solution(
                     set_from_frame(pnl, f"p{i}", -values * eff)
                     pnl[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
+                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
             else:
                 set_from_frame(pnl, attr, values)
         else:
