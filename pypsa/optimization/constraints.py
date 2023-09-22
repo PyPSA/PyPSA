@@ -528,9 +528,9 @@ def define_nodal_balance_constraints(
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=buses, fill_value=0)
+        .T.reindex(columns=buses, fill_value=0)
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0

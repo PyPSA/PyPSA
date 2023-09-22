@@ -274,15 +274,15 @@ def aggregateoneport(
 
             if strategy == "weighted_average":
                 aggregated = aggregated * weights
-                aggregated = aggregated.groupby(grouper, axis=1).sum()
+                aggregated = aggregated.T.groupby(grouper).sum().T
             elif strategy == "capacity_weighted_average":
                 aggregated = aggregated * capacity_weights
-                aggregated = aggregated.groupby(grouper, axis=1).sum()
+                aggregated = aggregated.T.groupby(grouper).sum().T
             elif strategy == "weighted_min":
                 aggregated = aggregated / weights
-                aggregated = aggregated.groupby(grouper, axis=1).min()
+                aggregated = aggregated.T.groupby(grouper).min().T
             else:
-                aggregated = aggregated.groupby(grouper, axis=1).agg(strategy)
+                aggregated = aggregated.T.groupby(grouper).agg(strategy).T
             aggregated.columns = flatten_multiindex(aggregated.columns).rename(c)
 
             non_aggregated = data.loc[:, ~to_aggregate]
@@ -449,9 +449,9 @@ def aggregatelines(
 
             if strategy == "capacity_weighted_average":
                 data = data * capacity_weights
-                data = data.groupby(grouper, axis=1).sum()
+                data = data.T.groupby(grouper).sum().T
             else:
-                data = data.groupby(grouper, axis=1).agg(strategy)
+                data = data.T.groupby(grouper).agg(strategy).T
 
             pnl[attr] = data
 

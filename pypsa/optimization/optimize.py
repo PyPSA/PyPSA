@@ -470,9 +470,9 @@ def post_processing(n):
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     def v_ang_for_(sub):

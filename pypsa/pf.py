@@ -105,9 +105,9 @@ def _calculate_controllable_nodal_power_balance(
             [
                 (
                     (c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                    .groupby(c.df.loc[c.ind, "bus"], axis=1)
+                    .T.groupby(c.df.loc[c.ind, "bus"])
                     .sum()
-                    .reindex(columns=buses_o, fill_value=0.0)
+                    .T.reindex(columns=buses_o, fill_value=0.0)
                 )
                 for c in sub_network.iterate_components(
                     network.controllable_one_port_components
@@ -121,9 +121,9 @@ def _calculate_controllable_nodal_power_balance(
                     (
                         -c.pnl[n + str(i)]
                         .loc[snapshots]
-                        .groupby(c.df["bus" + str(i)], axis=1)
+                        .T.groupby(c.df["bus" + str(i)])
                         .sum()
-                        .reindex(columns=buses_o, fill_value=0)
+                        .T.reindex(columns=buses_o, fill_value=0)
                     )
                     for c in network.iterate_components(
                         network.controllable_branch_components
@@ -644,7 +644,7 @@ def sub_network_pf(
             )
             slack_weights_calc = (
                 pd.DataFrame(
-                    bus_generation.groupby(bus_generation.columns, axis=1).sum(),
+                    bus_generation.T.groupby(bus_generation.columns).sum().T,
                     columns=buses_o,
                 )
                 .apply(normed, axis=1)
@@ -1130,6 +1130,7 @@ def find_bus_controls(sub_network):
         network.buses.loc[pvs.index, "generator"] = pvs
 
     network.buses.loc[sub_network.slack_bus, "control"] = "Slack"
+    breakpoint()
     network.buses.loc[sub_network.slack_bus, "generator"] = sub_network.slack_generator
 
     buses_control = network.buses.loc[buses_i, "control"]
@@ -1507,9 +1508,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         [
             (
                 (c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                .groupby(c.df.loc[c.ind, "bus"], axis=1)
+                .T.groupby(c.df.loc[c.ind, "bus"])
                 .sum()
-                .reindex(columns=buses_o, fill_value=0.0)
+                .T.reindex(columns=buses_o, fill_value=0.0)
             )
             for c in sub_network.iterate_components(network.one_port_components)
         ]
@@ -1517,9 +1518,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
             (
                 -c.pnl["p" + str(i)]
                 .loc[snapshots]
-                .groupby(c.df["bus" + str(i)], axis=1)
+                .T.groupby(c.df["bus" + str(i)])
                 .sum()
-                .reindex(columns=buses_o, fill_value=0)
+                .T.reindex(columns=buses_o, fill_value=0)
             )
             for c in network.iterate_components(network.controllable_branch_components)
             for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]

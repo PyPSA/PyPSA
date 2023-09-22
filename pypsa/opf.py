@@ -2016,8 +2016,9 @@ def extract_optimisation_results(
                 {
                     c.name: c.pnl.p.loc[snapshots]
                     .multiply(c.df.sign, axis=1)
-                    .groupby(c.df.bus, axis=1)
+                    .T.groupby(c.df.bus)
                     .sum()
+                    .T
                     for c in network.iterate_components(
                         network.controllable_one_port_components
                     )
@@ -2060,16 +2061,16 @@ def extract_optimisation_results(
 
         network.buses_t.p.loc[snapshots] -= (
             network.links_t.p0.loc[snapshots]
-            .groupby(network.links.bus0, axis=1)
+            .T.groupby(network.links.bus0)
             .sum()
-            .reindex(columns=network.buses_t.p.columns, fill_value=0.0)
+            .T.reindex(columns=network.buses_t.p.columns, fill_value=0.0)
         )
 
         network.buses_t.p.loc[snapshots] -= (
             network.links_t.p1.loc[snapshots]
-            .groupby(network.links.bus1, axis=1)
+            .T.groupby(network.links.bus1)
             .sum()
-            .reindex(columns=network.buses_t.p.columns, fill_value=0.0)
+            .T.reindex(columns=network.buses_t.p.columns, fill_value=0.0)
         )
 
         # Add any other buses to which the links are attached
@@ -2084,9 +2085,9 @@ def extract_optimisation_results(
             network.buses_t.p.loc[snapshots] -= (
                 network.links_t[p_name]
                 .loc[snapshots, links]
-                .groupby(network.links[f"bus{i}"], axis=1)
+                .T.groupby(network.links[f"bus{i}"])
                 .sum()
-                .reindex(columns=network.buses_t.p.columns, fill_value=0.0)
+                .T.reindex(columns=network.buses_t.p.columns, fill_value=0.0)
             )
 
         set_from_series(network.links_t.mu_lower, get_shadows(model.link_p_lower))

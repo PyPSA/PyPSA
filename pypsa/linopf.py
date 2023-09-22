@@ -528,17 +528,17 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
 
     lhs = (
         pd.concat([bus_injection(*arg) for arg in args], axis=1)
-        .groupby(axis=1, level=0)
+        .T.groupby(level=0)
         .sum(**agg_group_kwargs)
-        .reindex(columns=n.buses.index, fill_value="")
+        .T.reindex(columns=n.buses.index, fill_value="")
     )
 
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     if (lhs == "").any(axis=None):
@@ -836,7 +836,7 @@ def define_growth_limit(n, sns, c, attr):
         },
         axis=1,
     ).T[limit_i]
-    lhs = caps.groupby(carriers, axis=1).sum(**agg_group_kwargs)
+    lhs = caps.T.groupby(carriers).sum(**agg_group_kwargs).T
     rhs = n.carriers.max_growth[with_limit]
 
     define_constraints(n, lhs, "<=", rhs, "Carrier", "growth_limit_{}".format(c))
@@ -1143,7 +1143,7 @@ def define_objective(n, sns):
                     for period in sns.unique("period")
                 },
                 axis=1,
-            )
+            ).astype(float)
             cost = active @ period_weighting * cost
 
         caps = get_var(n, c, attr).loc[ext_i]
@@ -1445,9 +1445,9 @@ def assign_solution(
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     def v_ang_for_(sub):
