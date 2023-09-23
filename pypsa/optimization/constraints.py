@@ -326,7 +326,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
 
-    ramp_limit_up =  get_as_dense(n, c, "ramp_limit_up", sns)
+    ramp_limit_up = get_as_dense(n, c, "ramp_limit_up", sns)
     ramp_limit_down = get_as_dense(n, c, "ramp_limit_down", sns)
 
     if (ramp_limit_up.isnull().all() & ramp_limit_down.isnull().all()).all():
@@ -373,21 +373,29 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # ----------------------------- Fixed Generators ----------------------------- #
 
     assets = n.df(c).reindex(fix_i)
-    
+
     p_nom = n.df(c)[nominal_attrs[c]].reindex(fix_i)
 
     # fix up
     if not ramp_limit_up[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (ramp_limit_up * p_nom).reindex(columns=fix_i) + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(active.index, columns=fix_i)
+        rhs = (ramp_limit_up * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
+            columns=fix_i
+        )
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=fix_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask=mask)
 
     # fix down
     if not ramp_limit_down[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (-ramp_limit_down * p_nom).reindex(columns=fix_i) + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(active.index, columns=fix_i)
+        rhs = (-ramp_limit_down * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
+            columns=fix_i
+        )
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=fix_i
+        )
         m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Extendable Generators ----------------------------- #
@@ -400,18 +408,21 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         limit_pu = DataArray(ramp_limit_up.reindex(active.index, columns=ext_i))
         lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(active.index, columns=ext_i)
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask=mask)
 
     # ext down
     if not ramp_limit_down[ext_i].isnull().all().all():
         p_nom = m[f"{c}-p_nom"]
-        limit_pu  = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
+        limit_pu = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
         lhs = p_actual(ext_i) - p_previous(ext_i) + limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(active.index, columns=ext_i)
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask=mask)
-
 
     # ----------------------------- Committable Generators ----------------------------- #
 
