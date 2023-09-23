@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Linear Problem file writing. This module contains.
 
@@ -19,7 +17,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -432,10 +430,17 @@ def to_pandas(array, *axes):
     return pd.Series(array, *axes) if array.ndim == 1 else pd.DataFrame(array, *axes)
 
 
-_to_float_str = lambda f: "%+f" % f
+def _to_float_str(f):
+    return "%+f" % f
+
+
 _v_to_float_str = np.vectorize(_to_float_str, otypes=[object])
 
-_to_int_str = lambda d: "%d" % d
+
+def _to_int_str(d):
+    return "%d" % d
+
+
 _v_to_int_str = np.vectorize(_to_int_str, otypes=[object])
 
 
@@ -759,7 +764,7 @@ def run_and_read_highs(
         # Function that reads line by line the command window
         while True:
             out = process.stdout.readline(1)
-            if out == "" and process.poll() != None:
+            if out == "" and process.poll() is not None:
                 break
             if out != "":
                 yield out
@@ -824,15 +829,19 @@ def run_and_read_cbc(
     For more information on the solver options, run 'cbc' in your shell
     """
     with open(problem_fn, "rb") as f:
-        for str in f.readlines():
-            assert ("> " in str.decode("utf-8")) == False, ">, must be" "changed to >="
-            assert ("< " in str.decode("utf-8")) == False, "<, must be" "changed to <="
+        for line in f.readlines():
+            assert ("> " in line.decode("utf-8")) is False, ">, must be" "changed to >="
+            assert ("< " in line.decode("utf-8")) is False, "<, must be" "changed to <="
 
     # printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
         command += f"-basisI {warmstart} "
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = (
+                " ".join(f"-{k} {v}" for k, v in solver_options.items()) + " "
+            )
         command += solver_options
     command += f"-solve -solu {solution_fn} "
     if store_basis:
@@ -907,7 +916,16 @@ def run_and_read_glpk(
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
         command += f" -w {n.basis_fn}"
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = "".join(f" -{k} {v}" for k, v in solver_options.items())
+        logger.info(
+            f"Solver options command: {solver_options}. "
+            "Make sure that the defined options are available when using glpk. "
+            "If the options are not available but are still passed, "
+            "solving the problem will take forever. "
+            "Use the command ‘glpsol –-help’ for help."
+        )
         command += solver_options
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
@@ -1056,8 +1074,6 @@ def run_and_read_gurobi(
     constraint dual values. Gurobipy must be installed for using this function.
 
     For more information on solver options, see
-
-
     <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
@@ -1143,8 +1159,6 @@ def run_and_read_xpress(
     function.
 
     For more information on solver options, see
-
-
     <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """
 
@@ -1159,12 +1173,17 @@ def run_and_read_xpress(
         m.setlogfile(solver_logfile)
 
     if warmstart:
-        m.readbasis(warmstart)
+        try:
+            m.readbasis(n.basis_fn)
+            logger.info("Model basis loaded")
+        except:
+            logger.info("No model basis loaded")
+            pass
 
     m.solve()
 
     if store_basis:
-        n.basis_fn = solution_fn.replace(".sol", ".bas")
+        n.basis_fn = solution_fn.replace(".sol", ".bss")
         try:
             m.writebasis(n.basis_fn)
         except:

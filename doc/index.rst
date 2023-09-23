@@ -17,8 +17,8 @@ PyPSA: Python for Power System Analysis
 .. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml
 
 .. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
@@ -49,11 +49,16 @@ PyPSA: Python for Power System Analysis
    :target: code_of_conduct.md
    :alt: Contributor Covenant 2.1
 
+.. image:: https://img.shields.io/stackexchange/stackoverflow/t/pypsa
+   :target: https://stackoverflow.com/questions/tagged/pypsa
+   :alt: Stackoverflow
+
+
 PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
 PyPSA is an open source toolbox for
-simulating and optimising modern power systems that include features
-such as conventional generators with unit commitment, variable wind
+simulating and optimising modern power and energy systems that include features
+such as conventional generators and links with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
 and mixed alternating and direct current networks.  PyPSA is designed
 to scale well with large networks and long time series.
@@ -127,7 +132,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: User Guide
 
    design
@@ -148,6 +153,7 @@ Documentation
 * :doc:`troubleshooting`
 * :doc:`comparable_software`
 * :doc:`contributing`
+* :doc:`support`
 * :doc:`citing`
 * :doc:`unit_testing`
 * :doc:`mailing_list`
@@ -164,6 +170,7 @@ Documentation
    troubleshooting
    comparable_software
    contributing
+   support
    citing
    unit_testing
    mailing_list

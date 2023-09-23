@@ -6,6 +6,7 @@
 PyPSA represents the power system using the following components:
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/components.csv
 
@@ -48,10 +49,11 @@ Network
 =======
 
 The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.lopf()`` and
+has the major functions as methods, such as ``network.optimize()`` and
 ``network.pf()``.
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/networks.csv
 
@@ -79,6 +81,7 @@ Sub-Network are determined by calling
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/sub_networks.csv
 
@@ -98,6 +101,7 @@ energy conservation for all elements feeding in and out of it
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/buses.csv
 
@@ -118,6 +122,7 @@ relevant for limits on CO2 emissions.
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/carriers.csv
 
@@ -143,6 +148,7 @@ on the total expansion of lines and links).
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/global_constraints.csv
 
@@ -154,7 +160,7 @@ Generators attach to a single bus and can feed in power. It converts
 energy from its ``carrier`` to the carrier-type of the bus to which it
 is attached.
 
-In the LOPF the limits which a generator can output are set by
+In the linear optimal power flow (LOPF) the limits which a generator can output are set by
 ``p_nom*p_max_pu`` and ``p_nom*p_min_pu``, i.e. by limits defined per
 unit of the nominal power ``p_nom``.
 
@@ -188,6 +194,7 @@ to the bus and if :math:`q>0` it is supplying reactive power
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/generators.csv
 
@@ -215,6 +222,7 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/storage_units.csv
 
@@ -240,6 +248,7 @@ generators and storage units with fundamental links and stores
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/stores.csv
 
@@ -255,6 +264,7 @@ like an inductor).
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/loads.csv
 
@@ -275,6 +285,7 @@ an capacitor).
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/shunt_impedances.csv
 
@@ -291,6 +302,7 @@ imbalances. To see how the impedances are used in the power flow, see
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/lines.csv
 
@@ -315,6 +327,7 @@ PowerFactory
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/line_types.csv
 
@@ -324,6 +337,7 @@ standard types using the following table. We thank the pandapower team for allow
 We take no responsibility for the accuracy of the values.
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/standard_types/line_types.csv
 
@@ -340,6 +354,7 @@ the power flow, see :ref:`transformer-model`.
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/transformers.csv
 
@@ -364,6 +379,7 @@ PowerFactory
 <http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/transformer_types.csv
 
@@ -378,6 +394,7 @@ We take no responsibility for the accuracy of the values.
 
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/standard_types/transformer_types.csv
 
@@ -401,6 +418,7 @@ lossy HVDC link, a converter between an AC and a DC network, a heat
 pump or resistive heater from an AC/DC bus to a heat bus, etc.
 
 .. csv-table::
+   :class: full-width
    :header-rows: 1
    :file: ../pypsa/component_attrs/links.csv
 
@@ -420,18 +438,10 @@ these are used in the LOPF and the `example of a CHP with a fixed
 power-heat ratio
 <https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
 
-To define the new columns ``bus2``, ``efficiency2``, ``bus3``,
-``efficiency3``, etc. in ``network.links`` you need to override the
-standard component attributes by passing ``pypsa.Network()`` an
-``override_component_attrs`` argument. See the section
-:ref:`custom_components` and the `example of a CHP with a fixed
-power-heat ratio
-<https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
-
-
-If the column ``bus2`` exists, values in the column are not compulsory
-for all links; if the link has no 2nd output, simply leave it empty
-``network.links.at["my_link","bus2"] = ""``.
+The columns ``bus2``, ``efficiency2``, ``bus3``, ``efficiency3``, etc. in
+``network.links`` are automatically added to the component attributes. The
+values in these columns are not compulsory; if the link has no 2nd output,
+simply leave it empty ``network.links.at["my_link","bus2"] = ""`` or as NaN.
 
 For links with multiple inputs in fixed ratio to one of the inputs,
 you can define the other inputs as outputs with a negative efficiency
@@ -495,5 +505,5 @@ standard components.
 
 There are examples for defining new components in the git repository
 in ``examples/new_components/``, including an example of
-overriding e.g. ``network.lopf()`` for functionality for
+overriding e.g. ``network.optimize()`` for functionality for
 combined-heat-and-power (CHP) plants.

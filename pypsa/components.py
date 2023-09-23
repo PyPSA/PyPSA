@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Power system components.
 """
@@ -7,11 +6,13 @@ Power system components.
 
 from weakref import ref
 
+from pypsa.clustering import ClusteringAccessor
+
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -19,9 +20,12 @@ import os
 import sys
 from collections import namedtuple
 from pathlib import Path
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
+import validators
+from deprecation import deprecated
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -32,6 +36,7 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -137,7 +142,7 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data.
+        import network data. The string could be a URL.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -162,6 +167,7 @@ class Network(Basic):
     --------
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
+    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
     """
 
     # Spatial Reference System Identifier (SRID), defaults to longitude and latitude
@@ -232,7 +238,6 @@ class Network(Basic):
         override_component_attrs=None,
         **kwargs,
     ):
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -256,6 +261,8 @@ class Network(Basic):
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
         self.optimize = OptimizationAccessor(self)
+
+        self.cluster = ClusteringAccessor(self)
 
         if override_components is None:
             self.components = components
@@ -333,10 +340,11 @@ class Network(Basic):
             self.read_in_default_standard_types()
 
         if import_name:
-            import_name = Path(import_name)
-            if import_name.suffix == ".h5":
+            if not validators.url(str(import_name)):
+                import_name = Path(import_name)
+            if str(import_name).endswith(".h5"):
                 self.import_from_hdf5(import_name)
-            elif import_name.suffix == ".nc":
+            elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
             elif import_name.is_dir():
                 self.import_from_csv_folder(import_name)
@@ -370,7 +378,6 @@ class Network(Basic):
         pandas.DataFrames.
         """
         for component in self.all_components:
-
             attrs = self.components[component]["attrs"]
 
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
@@ -396,7 +403,6 @@ class Network(Basic):
 
     def read_in_default_standard_types(self):
         for std_type in self.standard_type_components:
-
             list_name = self.components[std_type]["list_name"]
 
             file_name = os.path.join(
@@ -454,33 +460,63 @@ class Network(Basic):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
-    def set_snapshots(self, value):
+    def set_snapshots(
+        self,
+        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        default_snapshot_weightings: float = 1.0,
+        weightings_from_timedelta: bool = False,
+    ) -> None:
         """
-        Set the snapshots and reindex all time-dependent data.
+        Set the snapshots/time steps and reindex all time-dependent data.
 
-        This will reindex all pandas.Panels of time-dependent data; NaNs are filled
+        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
+        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+
+        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
         with the default value for that quantity.
 
         Parameters
         ----------
-        snapshots : list or pandas.Index
+        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
             All time steps.
+        default_snapshot_weightings: float
+            The default weight for each snapshot. Defaults to 1.0.
+        weightings_from_timedelta: bool
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
         None
         """
-        if isinstance(value, pd.MultiIndex):
-            assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            value = value.rename(["period", "timestep"])
-            value.name = "snapshot"
-            self._snapshots = value
+        if isinstance(snapshots, pd.MultiIndex):
+            assert (
+                snapshots.nlevels == 2
+            ), "Maximally two levels of MultiIndex supported"
+            snapshots = snapshots.rename(["period", "timestep"])
+            snapshots.name = "snapshot"
+            self._snapshots = snapshots
         else:
-            self._snapshots = pd.Index(value, name="snapshot")
+            self._snapshots = pd.Index(snapshots, name="snapshot")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
-            self._snapshots, fill_value=1.0
+            self._snapshots, fill_value=default_snapshot_weightings
         )
+
+        if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            hours_per_step = (
+                snapshots.to_series()
+                .diff(periods=1)
+                .shift(-1)
+                .ffill()  # fill last value by assuming same as the one before
+                .apply(lambda x: x.total_seconds() / 3600)
+            )
+            self._snapshot_weightings = pd.DataFrame(
+                {c: hours_per_step for c in self._snapshot_weightings.columns}
+            )
+        elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            logger.info(
+                "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
+            )
 
         for component in self.all_components:
             pnl = self.pnl(component)
@@ -629,6 +665,11 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
+    @deprecated(
+        deprecated_in="0.24",
+        removed_in="1.0",
+        details="Use linopy-based function ``n.optimize()`` instead. Migrate extra functionalities: https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html.",
+    )
     def lopf(
         self,
         snapshots=None,
@@ -637,6 +678,7 @@ class Network(Basic):
         solver_options={},
         solver_logfile=None,
         formulation="kirchhoff",
+        transmission_losses=0,
         keep_files=False,
         extra_functionality=None,
         multi_investment_periods=False,
@@ -667,6 +709,11 @@ class Network(Basic):
         formulation : string
             Formulation of the linear power flow equations to use; must be
             one of ["angles", "cycles", "kirchhoff", "ptdf"]
+        transmission_losses : int
+            Whether an approximation of transmission losses should be included
+            in the linearised power flow formulation. A passed number will denote
+            the number of tangents used for the piecewise linear approximation.
+            Defaults to 0, which ignores losses.
         extra_functionality : callable function
             This function must take two arguments
             `extra_functionality(network, snapshots)` and is called after
@@ -748,6 +795,7 @@ class Network(Basic):
             "keep_files": keep_files,
             "solver_options": solver_options,
             "formulation": formulation,
+            "transmission_losses": transmission_losses,
             "extra_functionality": extra_functionality,
             "multi_investment_periods": multi_investment_periods,
             "solver_name": solver_name,
@@ -807,6 +855,9 @@ class Network(Basic):
             f"Failed to add {class_name} component {name} because there is already "
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
+
+        if class_name == "Link":
+            update_linkports_component_attrs(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]
 
@@ -1213,7 +1264,9 @@ class Network(Basic):
             sort=True,
         )
 
-    def determine_network_topology(self, investment_period=None):
+    def determine_network_topology(
+        self, investment_period=None, skip_isolated_buses=False
+    ):
         """
         Build sub_networks from topology.
 
@@ -1240,6 +1293,10 @@ class Network(Basic):
         for i in np.arange(n_components):
             # index of first bus
             buses_i = (labels == i).nonzero()[0]
+
+            if skip_isolated_buses and (len(buses_i) == 1):
+                continue
+
             carrier = self.buses.carrier.iat[buses_i[0]]
 
             if carrier not in ["AC", "DC"] and len(buses_i) > 1:
@@ -1294,7 +1351,7 @@ class Network(Basic):
             if not (skip_empty and self.df(c).empty)
         )
 
-    def consistency_check(self):
+    def consistency_check(self, check_dtypes=False):
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1496,45 +1553,45 @@ class Network(Basic):
 
         # check all dtypes of component attributes
 
-        for c in self.iterate_components():
+        if check_dtypes:
+            for c in self.iterate_components():
+                # first check static attributes
 
-            # first check static attributes
-
-            dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
-            unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
-
-            if unmatched.any():
-                logger.warning(
-                    "The following attributes of the dataframe %s "
-                    "have the wrong dtype:\n%s\n"
-                    "They are:\n%s\nbut should be:\n%s",
-                    c.list_name,
-                    unmatched.index[unmatched],
-                    c.df.dtypes[dtypes_soll.index[unmatched]],
-                    dtypes_soll[unmatched],
-                )
-
-            # now check varying attributes
-
-            types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
-
-            for attr, typ, dtype in types_soll.itertuples():
-                if c.pnl[attr].empty:
-                    continue
-
-                unmatched = c.pnl[attr].dtypes != dtype
+                dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
+                unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
 
                 if unmatched.any():
                     logger.warning(
-                        "The following columns of time-varying attribute "
-                        "%s in %s_t have the wrong dtype:\n%s\n"
+                        "The following attributes of the dataframe %s "
+                        "have the wrong dtype:\n%s\n"
                         "They are:\n%s\nbut should be:\n%s",
-                        attr,
                         c.list_name,
                         unmatched.index[unmatched],
-                        c.pnl[attr].dtypes[unmatched],
-                        typ,
+                        c.df.dtypes[dtypes_soll.index[unmatched]],
+                        dtypes_soll[unmatched],
                     )
+
+                # now check varying attributes
+
+                types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
+
+                for attr, typ, dtype in types_soll.itertuples():
+                    if c.pnl[attr].empty:
+                        continue
+
+                    unmatched = c.pnl[attr].dtypes != dtype
+
+                    if unmatched.any():
+                        logger.warning(
+                            "The following columns of time-varying attribute "
+                            "%s in %s_t have the wrong dtype:\n%s\n"
+                            "They are:\n%s\nbut should be:\n%s",
+                            attr,
+                            c.list_name,
+                            unmatched.index[unmatched],
+                            c.pnl[attr].dtypes[unmatched],
+                            typ,
+                        )
 
         constraint_periods = set(
             self.global_constraints.investment_period.dropna().unique()

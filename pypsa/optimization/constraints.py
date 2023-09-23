@@ -7,7 +7,7 @@ import logging
 
 import pandas as pd
 from linopy import LinearExpression, Variable, merge
-from numpy import inf
+from numpy import arange, cumsum, inf, isfinite, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
@@ -20,11 +20,14 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
+from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
 
-def define_operational_constraints_for_non_extendables(n, sns, c, attr):
+def define_operational_constraints_for_non_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
@@ -52,12 +55,23 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, fix_i) if n._multi_invest else None
 
-    dispatch = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-    n.model.add_constraints(dispatch, ">=", lower, f"{c}-fix-{attr}-lower", active)
-    n.model.add_constraints(dispatch, "<=", upper, f"{c}-fix-{attr}-upper", active)
+    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, fix_i)
+        dispatch_lower = (1, dispatch_lower), (-1, loss)
+        dispatch_upper = (1, dispatch_upper), (1, loss)
+    n.model.add_constraints(
+        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+    )
+    n.model.add_constraints(
+        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+    )
 
 
-def define_operational_constraints_for_extendables(n, sns, c, attr):
+def define_operational_constraints_for_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -83,11 +97,15 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
 
-    lhs = (1, dispatch), (-min_pu, capacity)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    lhs_lower = (1, dispatch), (-min_pu, capacity)
+    lhs_upper = (1, dispatch), (-max_pu, capacity)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, ext_i)
+        lhs_upper += ((1, loss),)
+        lhs_lower += ((1, loss),)
 
-    lhs = (1, dispatch), (-max_pu, capacity)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-upper", active)
+    n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
 
 
 def define_operational_constraints_for_committables(n, sns, c):
@@ -181,7 +199,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     if not min_up_time_i.empty:
         for g in min_up_time_i:
             su = start_up.loc[:, g]
-            expr.append(su.rolling_sum(snapshot=min_up_time_set[g]))
+            expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
@@ -192,7 +210,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     if not min_down_time_i.empty:
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
-            expr.append(su.rolling_sum(snapshot=min_down_time_set[g]))
+            expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
@@ -215,7 +233,19 @@ def define_operational_constraints_for_committables(n, sns, c):
         n.model.add_constraints(status, "=", 0, name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    if n._linearized_uc:
+    cost_equal = all(
+        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
+    )
+    # only valid additional constraints if start up costs equal to shut down costs
+    if n._linearized_uc and not cost_equal:
+        logger.warning(
+            "The linear relaxation of the unit commitment cannot be "
+            "tightened since the start up costs are not equal to the "
+            "shut down costs. Proceed with the linear relaxation "
+            "without the tightening by additional constraints. "
+            "This might result in a longer solving time."
+        )
+    if n._linearized_uc and cost_equal:
         # dispatch limit for partly start up/shut down for t-1
         lhs = (
             p.shift(snapshot=1)
@@ -236,7 +266,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             - p.shift(snapshot=1)
             - (lower_p + ramp_up_limit) * status
             + lower_p * status.shift(snapshot=1)
-            - (lower_p + ramp_up_limit - ramp_start_up) * start_up
+            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
@@ -318,20 +348,32 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         active = get_activity_mask(n, c, sns)
         rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
-        p_actual = lambda idx: reindex(p, c, idx)
-        p_previous = lambda idx: reindex(p, c, idx).shift(snapshot=1)
+
+        def p_actual(idx):
+            return reindex(p, c, idx)
+
+        def p_previous(idx):
+            return reindex(p, c, idx).shift(snapshot=1)
+
     else:
         active = get_activity_mask(n, c, sns[1:])
         rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.df(c).index)
         rhs_start.index.name = "snapshot"
-        p_actual = lambda idx: reindex(p, c, idx).sel(snapshot=sns[1:])
-        p_previous = (
-            lambda idx: reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
-        )
+
+        def p_actual(idx):
+            return reindex(p, c, idx).sel(snapshot=sns[1:])
+
+        def p_previous(idx):
+            return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
+
+    com_i = n.get_committable_i(c)
+    fix_i = fix_i.difference(com_i).rename(fix_i.name)
+    ext_i = n.get_extendable_i(c)
 
     # ----------------------------- Fixed Generators ----------------------------- #
 
-    fix_i = n.get_non_extendable_i(c)
+    assets = n.df(c).reindex(fix_i)
+    
     p_nom = n.df(c)[nominal_attrs[c]].reindex(fix_i)
 
     # fix up
@@ -350,7 +392,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # ----------------------------- Extendable Generators ----------------------------- #
 
-    ext_i = n.get_extendable_i(c)
+    assets = n.df(c).reindex(ext_i)
 
     # ext up
     if not ramp_limit_up[ext_i].isnull().all().all():
@@ -373,7 +415,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # ----------------------------- Committable Generators ----------------------------- #
 
-    com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
 
     # com up
@@ -424,7 +465,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
+def define_nodal_balance_constraints(
+    n, sns, transmission_losses=0, buses=None, suffix=""
+):
     """
     Defines nodal balance constraints.
     """
@@ -450,6 +493,16 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
+    if transmission_losses:
+        args.extend(
+            [
+                ["Line", "loss", "bus0", -0.5],
+                ["Line", "loss", "bus1", -0.5],
+                ["Transformer", "loss", "bus0", -0.5],
+                ["Transformer", "loss", "bus1", -0.5],
+            ]
+        )
+
     exprs = []
 
     for arg in args:
@@ -472,10 +525,7 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
         expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            # eventually do a separation of short and long linear expressions
-            expr = expr.groupby(cbuses.to_xarray()).sum()
-
-            exprs.append(expr)
+            exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(
         Bus=buses, fill_value=LinearExpression.fill_value
@@ -491,6 +541,7 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
     rhs.index.name = "snapshot"
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
+    rhs = DataArray(rhs)
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
@@ -501,7 +552,7 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
 
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
-        rhs.columns.name = f"Bus{suffix}"
+        rhs = rhs.rename(Bus=f"Bus{suffix}")
     n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
@@ -525,7 +576,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
     periods = sns.unique("period") if n._multi_invest else [None]
 
     for period in periods:
-        n.determine_network_topology(investment_period=period)
+        n.determine_network_topology(investment_period=period, skip_isolated_buses=True)
 
         snapshots = sns if period is None else sns[sns.get_loc(period)]
 
@@ -644,9 +695,9 @@ def define_storage_unit_constraints(n, sns):
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
     # efficiencies
-    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
-    eff_dispatch = expand_series(assets.efficiency_dispatch, sns).T
-    eff_store = expand_series(assets.efficiency_store, sns).T
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    eff_dispatch = get_as_dense(n, c, "efficiency_dispatch", sns)
+    eff_store = get_as_dense(n, c, "efficiency_store", sns)
 
     soc = m[f"{c}-state_of_charge"]
 
@@ -689,28 +740,27 @@ def define_storage_unit_constraints(n, sns):
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
-        previous_soc_pp = concat(
-            [soc.data.sel(period=p, drop=True).roll(timestep=1) for p in ps],
-            dim="timestep",
-        )
-        previous_soc_pp = previous_soc_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=soc.coords["snapshot"]
-        )
+        sl = slice(None, None)
+        previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
+        previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
+
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
+        previous_soc_pp = previous_soc_pp.where(
+            include_previous_soc_pp.values, Variable.fill_value
+        )
 
         # update the previous_soc variables and right hand side
-        previous_soc = previous_soc.where(~per_period, previous_soc_pp.values)
+        previous_soc = previous_soc.where(~per_period, previous_soc_pp)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
 
 
 def define_store_constraints(n, sns):
@@ -732,7 +782,7 @@ def define_store_constraints(n, sns):
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
     # efficiencies
-    eff_stand = expand_series(1 - assets.standing_loss, sns).T.pow(eh)
+    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
     e = m[c + "-e"]
     p = m[c + "-p"]
@@ -764,26 +814,64 @@ def define_store_constraints(n, sns):
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
         ps = n.investment_periods.rename("period")
-        previous_e_pp = concat(
-            [e.labels.sel(period=p, drop=True).roll(timestep=1) for p in ps],
-            dim="timestep",
-        )
-        previous_e_pp = previous_e_pp.rename(timestep="snapshot").assign_coords(
-            snapshot=e.coords["snapshot"]
-        )
+        sl = slice(None, None)
+        previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
+        previous_e_pp = concat(previous_e_pp, dim="snapshot")
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
         include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
+        previous_e_pp = previous_e_pp.where(
+            include_previous_e_pp.values, Variable.fill_value
+        )
 
         # update the previous_e variables and right hand side
-        previous_e = previous_e.where(~per_period, previous_e_pp.values)
+        previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
+
+
+def define_loss_constraints(n, sns, c, transmission_losses):
+    if n.df(c).empty or c not in n.passive_branch_components:
+        return
+
+    tangents = transmission_losses
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+
+    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+
+    s_nom_max = n.df(c)["s_nom_max"].where(
+        n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
+    )
+
+    assert isfinite(
+        s_nom_max
+    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+
+    r_pu_eff = n.df(c)["r_pu_eff"]
+
+    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+
+    loss = n.model[f"{c}-loss"]
+    flow = n.model[f"{c}-s"]
+
+    n.model.add_constraints(loss <= upper_limit, name=f"{c}-loss_upper", mask=active)
+
+    for k in range(1, tangents + 1):
+        p_k = k / tangents * s_max_pu * s_nom_max
+        loss_k = r_pu_eff * p_k**2
+        slope_k = 2 * r_pu_eff * p_k
+        offset_k = loss_k - slope_k * p_k
+
+        for sign in [-1, 1]:
+            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+
+            n.model.add_constraints(
+                lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
+            )

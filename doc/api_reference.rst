@@ -52,6 +52,7 @@ Power Flow
 .. automodule:: pypsa.pf
     :members:
 
+
 Linopy Optimisation Module
 --------------------------
 
@@ -144,7 +145,7 @@ Plotting Networks
 Network Clustering
 ------------------
 
-.. automodule:: pypsa.networkclustering
+.. automodule:: pypsa.clustering.spatial
     :members:
 
 

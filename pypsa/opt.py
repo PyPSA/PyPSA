@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Pyomo linear problem building.
 
@@ -12,7 +10,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -134,10 +132,12 @@ class LConstraint(object):
 
 
 def _build_sum_expression(variables, constant=0.0):
-    expr = LinearExpression()
-    expr.linear_vars = [item[1] for item in variables]
-    expr.linear_coefs = [item[0] for item in variables]
-    expr.constant = constant
+    linear_vars = [item[1] for item in variables]
+    linear_coefs = [item[0] for item in variables]
+    constant = constant
+    expr = LinearExpression(
+        constant=constant, linear_coefs=linear_coefs, linear_vars=linear_vars
+    )
     return expr
 
 

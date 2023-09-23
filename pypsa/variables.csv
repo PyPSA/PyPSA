@@ -9,6 +9,9 @@ Line,s_nom,False,True,False
 Transformer,s,False,False,False
 Transformer,s_nom,False,True,False
 Link,p,True,False,False
+Link,status,False,False,True
+Link,start_up,False,False,True
+Link,shut_down,False,False,True
 Link,p_nom,False,True,False
 Store,e,False,False,False
 Store,p,True,False,True

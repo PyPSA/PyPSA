@@ -10,7 +10,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pypsa",
-    version="0.21.3",
+    version="0.25.1",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
@@ -20,19 +20,21 @@ setup(
     license="MIT",
     packages=find_packages(exclude=["doc", "test"]),
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
         "numpy",
         "scipy",
-        "pandas>=0.24",
+        "pandas>=0.24,<2.1",
         "xarray",
         "netcdf4",
         "tables",
-        "pyomo>=5.7",
-        "linopy>=0.1.1",
+        "pyomo>=5.7,<6.6.2",
+        "linopy>=0.2.1",
         "matplotlib",
         "networkx>=1.10",
         "deprecation",
+        "validators",
+        "numexpr<=2.8.4",  # until https://github.com/pandas-dev/pandas/issues/54449 resolved
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
@@ -40,7 +42,7 @@ setup(
         "docs": [
             "numpydoc",
             "sphinx",
-            "sphinx_rtd_theme",
+            "sphinx-book-theme",
             "nbsphinx",
             "nbsphinx-link",
             "black",

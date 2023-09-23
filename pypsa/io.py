@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Functions for importing and exporting data.
 """
@@ -8,7 +7,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2022 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -21,10 +20,13 @@ import math
 import os
 from glob import glob
 from pathlib import Path
-from textwrap import dedent
+from urllib.request import urlretrieve
 
 import numpy as np
 import pandas as pd
+import validators
+
+from pypsa.descriptors import update_linkports_component_attrs
 
 try:
     import xarray as xr
@@ -32,6 +34,27 @@ try:
     has_xarray = True
 except ImportError:
     has_xarray = False
+
+
+# for the writable data directory follow the XDG guidelines
+# https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+_writable_dir = os.path.join(os.path.expanduser("~"), ".local", "share")
+_data_dir = os.path.join(
+    os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)),
+    "pypsa-networks",
+)
+_data_dir = Path(_data_dir)
+try:
+    _data_dir.mkdir(exist_ok=True)
+except FileNotFoundError:
+    os.makedirs(_data_dir)
+
+
+def _retrieve_from_url(path):
+    local_path = _data_dir / os.path.basename(path)
+    logger.info(f"Retrieving network data from {path}")
+    urlretrieve(path, local_path)
+    return str(local_path)
 
 
 class ImpExper(object):
@@ -178,7 +201,11 @@ class ExporterCSV(Exporter):
 
 class ImporterHDF5(Importer):
     def __init__(self, path):
-        self.ds = pd.HDFStore(path, mode="r")
+        self.path = path
+        if isinstance(path, (str, Path)):
+            if validators.url(str(path)):
+                path = _retrieve_from_url(path)
+            self.ds = pd.HDFStore(path, mode="r")
         self.index = {}
 
     def get_attributes(self):
@@ -245,13 +272,13 @@ class ExporterHDF5(Exporter):
         )
 
     def save_static(self, list_name, df):
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
         self.ds.put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name, attr, df):
-        df.columns = self.index[list_name].get_indexer(df.columns)
+        df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
 
@@ -261,6 +288,8 @@ if has_xarray:
         def __init__(self, path):
             self.path = path
             if isinstance(path, (str, Path)):
+                if validators.url(str(path)):
+                    path = _retrieve_from_url(path)
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
@@ -314,9 +343,12 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, least_significant_digit=None):
+        def __init__(
+            self, path, compression={"zlib": True, "complevel": 4}, float32=False
+        ):
             self.path = path
-            self.least_significant_digit = least_significant_digit
+            self.compression = compression
+            self.float32 = float32
             self.ds = xr.Dataset()
 
         def save_attributes(self, attrs):
@@ -328,35 +360,46 @@ if has_xarray:
             self.ds.attrs["meta"] = json.dumps(meta)
 
         def save_snapshots(self, snapshots):
-            snapshots.index.name = "snapshots"
+            snapshots = snapshots.rename_axis(index="snapshots")
             for attr in snapshots.columns:
                 self.ds["snapshots_" + attr] = snapshots[attr]
 
         def save_investment_periods(self, investment_periods):
-            investment_periods.index.rename("investment_periods", inplace=True)
+            investment_periods = investment_periods.rename_axis(
+                index="investment_periods"
+            )
             for attr in investment_periods.columns:
                 self.ds["investment_periods_" + attr] = investment_periods[attr]
 
         def save_static(self, list_name, df):
-            df.index.name = list_name + "_i"
+            df = df.rename_axis(index=list_name + "_i")
             self.ds[list_name + "_i"] = df.index
             for attr in df.columns:
                 self.ds[list_name + "_" + attr] = df[attr]
 
         def save_series(self, list_name, attr, df):
-            df.index.name = "snapshots"
-            df.columns.name = list_name + "_t_" + attr + "_i"
+            df = df.rename_axis(
+                index="snapshots", columns=list_name + "_t_" + attr + "_i"
+            )
             self.ds[list_name + "_t_" + attr] = df
-            if self.least_significant_digit is not None:
-                print(self.least_significant_digit)
-                self.ds.encoding.update(
-                    {
-                        "zlib": True,
-                        "least_significant_digit": self.least_significant_digit,
-                    }
-                )
+
+        def set_compression_encoding(self):
+            logger.debug(f"Setting compression encodings: {self.compression}")
+            for v in self.ds.data_vars:
+                if self.ds[v].dtype.kind not in ["U", "O"]:
+                    self.ds[v].encoding.update(self.compression)
+
+        def typecast_float32(self):
+            logger.debug(f"Typecasting float64 to float32.")
+            for v in self.ds.data_vars:
+                if self.ds[v].dtype == np.float64:
+                    self.ds[v] = self.ds[v].astype(np.float32)
 
         def finish(self):
+            if self.float32:
+                self.typecast_float32()
+            if self.compression:
+                self.set_compression_encoding()
             if self.path is not None:
                 self.ds.to_netcdf(self.path)
 
@@ -409,7 +452,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
     exported_components = []
     for component in network.all_components - {"SubNetwork"}:
-
         list_name = network.components[component]["list_name"]
         attrs = network.components[component]["attrs"]
 
@@ -420,7 +462,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
             df = df.drop(network.components[component]["standard_types"].index)
 
         # first do static attributes
-        df.index.name = "name"
+        df = df.rename_axis(index="name")
         if df.empty:
             exporter.remove_static(list_name)
             continue
@@ -550,7 +592,7 @@ def import_from_hdf5(network, path, skip_time=False):
     Parameters
     ----------
     path : string, Path
-        Name of HDF5 store
+        Name of HDF5 store. The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
@@ -602,7 +644,8 @@ def import_from_netcdf(network, path, skip_time=False):
     Parameters
     ----------
     path : string|xr.Dataset
-        Path to netCDF dataset or instance of xarray Dataset
+        Path to netCDF dataset or instance of xarray Dataset.
+        The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
@@ -617,7 +660,8 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    least_significant_digit=None,
+    compression=None,
+    float32=False,
 ):
     """
     Export network and components to a netCDF file.
@@ -641,9 +685,14 @@ def export_to_netcdf(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
-    least_significant_digit
-        This is passed to the netCDF exporter, but currently makes no difference
-        to file size or float accuracy. We're working on improving this...
+    compression : dict|None
+        Compression level to use for all features which are being prepared.
+        The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
+        https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
+        An example compression directive is ``{'zlib': True, 'complevel': 4}``.
+        The default is None which disables compression.
+    float32 : boolean, default False
+        If True, typecasts values to float32.
 
     Returns
     -------
@@ -657,7 +706,7 @@ def export_to_netcdf(
     assert has_xarray, "xarray must be installed for netCDF support."
 
     basename = os.path.basename(path) if path is not None else None
-    with ExporterNetCDF(path, least_significant_digit) as exporter:
+    with ExporterNetCDF(path, compression, float32) as exporter:
         _export_to_exporter(
             network,
             exporter,
@@ -761,6 +810,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             continue
 
         import_components_from_dataframe(network, df, component)
+
+        if component == "Link":
+            update_linkports_component_attrs(network)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
@@ -1250,7 +1302,7 @@ def import_from_pandapower_net(
         [_tmp_gen, _tmp_sgen, _tmp_ext_grid], ignore_index=use_pandapower_index
     )
 
-    if extra_line_data == False:
+    if extra_line_data is False:
         d["Line"] = pd.DataFrame(
             {
                 "type": net.line.std_type.values,
