@@ -367,6 +367,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
     com_i = n.get_committable_i(c)
+    fix_i = n.get_non_extendable_i(c)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
     ext_i = n.get_extendable_i(c)
 
