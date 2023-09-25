@@ -47,8 +47,10 @@ def scipy_network():
 
 @pytest.fixture(scope="function")
 def geo_components_network():
-    # Constructing a basic network using all 'geo_components'.
-    # geo_components = {"Bus", "Line", "Link", "Transformer"}
+    """
+    Constructing a basic network using all 'geo_components'.
+    geo_components = {"Bus", "Line", "Link", "Transformer"}
+    """
     network = pypsa.Network()
     num_components = 5
 
