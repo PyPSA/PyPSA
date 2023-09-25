@@ -22,9 +22,11 @@ def test_netcdf_io(scipy_network, tmpdir, meta):
 
 def test_geo_wkt_netcdf(geo_components_network, tmpdir):
     """
-    This function validates the conversion of shapely.Geometry to and from WKT strings during the process of writing and reading to a netCDF file.
+    This function validates the conversion of shapely.Geometry to and from WKT
+    strings during the process of writing and reading to a netCDF file.
 
-    It appends a GeoSeries to all geo_components and verifies its consistency after writing to and reading from the netCDF file.
+    It appends a GeoSeries to all geo_components and verifies its
+    consistency after writing to and reading from the netCDF file.
     """
     fn = os.path.join(tmpdir, "netcdf_export.nc")
 

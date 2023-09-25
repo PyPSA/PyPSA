@@ -49,6 +49,7 @@ def scipy_network():
 def geo_components_network():
     """
     Constructing a basic network using all 'geo_components'.
+
     geo_components = {"Bus", "Line", "Link", "Transformer"}
     """
     network = pypsa.Network()

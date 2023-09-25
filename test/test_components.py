@@ -3,7 +3,7 @@ import geopandas
 import numpy as np
 import pytest
 import shapely
-from shapely.geometry import Point , LineString, Polygon, MultiPoint
+from shapely.geometry import LineString, MultiPoint, Point, Polygon
 
 import pypsa
 
@@ -20,7 +20,8 @@ def empty_network_5_buses():
 
 def test_geo_components_gpd_df(geo_components_network):
     """
-    GIVEN   exemplary pypsa network with geo_components = {"Bus", "Line", "Link", "Transformer"}.
+    GIVEN   exemplary pypsa network with geo_components = {"Bus", "Line",
+    "Link", "Transformer"}.
 
     THEN    these components should be of type geopandas.GeoDataFrame.
     and the geometry column should be of type geopandas.GeoSeries.
@@ -39,9 +40,10 @@ def test_geo_components_gpd_df(geo_components_network):
 
 def test_geo_component_add():
     """
-    GIVEN   exemplary pypsa network with geo_components = {"Bus", "Line", "Link", "Transformer"}.
+    GIVEN   exemplary pypsa network with geo_components = {"Bus", "Line",
+    "Link", "Transformer"}.
 
-    WHEN    Point(0,1) and 'POINT (1 4)' (wkt_string) should be recognized as   valid and transformed into shapely.geometry objects. 
+    WHEN    Point(0,1) and 'POINT (1 4)' (wkt_string) should be recognized as   valid and transformed into shapely.geometry objects.
     Meanwhile, {"None", "", np.nan, "nan"} and any invalid strings should be added as None in the geometry column.
     note - invalid strings will also be added as None.
 
@@ -59,16 +61,40 @@ def test_geo_component_add():
     network.add("Bus", "bus_3", geometry="POINT (1 4)")
     assert isinstance(network.buses.geometry.values[2], shapely.geometry.point.Point)
 
-    network.add("Line", "line_1",bus0="bus_1",bus1="bus_2",x=0.1,r=0.01, geometry=LineString([(0,0),(1,1)]))
-    assert isinstance(network.lines.geometry.values[0], shapely.geometry.linestring.LineString)
+    network.add(
+        "Line",
+        "line_1",
+        bus0="bus_1",
+        bus1="bus_2",
+        x=0.1,
+        r=0.01,
+        geometry=LineString([(0, 0), (1, 1)]),
+    )
+    assert isinstance(
+        network.lines.geometry.values[0], shapely.geometry.linestring.LineString
+    )
 
-    network.add("Link","link_1",bus0="bus_1",bus1="bus_2", geometry=Polygon([(0,0),(1,1),(1,0)]))
-    assert isinstance(network.links.geometry.values[0], shapely.geometry.polygon.Polygon)
+    network.add(
+        "Link",
+        "link_1",
+        bus0="bus_1",
+        bus1="bus_2",
+        geometry=Polygon([(0, 0), (1, 1), (1, 0)]),
+    )
+    assert isinstance(
+        network.links.geometry.values[0], shapely.geometry.polygon.Polygon
+    )
 
-    network.add("Transformer","transformer_1",bus0="bus_1",bus1="bus_2", geometry=MultiPoint([(0,0),(1,1)]))
-    assert isinstance(network.transformers.geometry.values[0], shapely.geometry.multipoint.MultiPoint)
-
-
+    network.add(
+        "Transformer",
+        "transformer_1",
+        bus0="bus_1",
+        bus1="bus_2",
+        geometry=MultiPoint([(0, 0), (1, 1)]),
+    )
+    assert isinstance(
+        network.transformers.geometry.values[0], shapely.geometry.multipoint.MultiPoint
+    )
 
 
 def test_mremove(ac_dc_network):
