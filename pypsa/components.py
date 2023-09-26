@@ -1551,6 +1551,14 @@ class Network(Basic):
                         " This could cause an infeasibility."
                     )
 
+            if "p_coupling" in c.df.columns:
+                bad = ~c.df["p_coupling"].isin(list(c.df.index) + [""])
+                if bad.any():
+                    logger.warning(
+                        f"The following {c.list_name} are coupled via p_coupling "
+                        f"to assets which are not in index:\n{c.df.index[bad]}"
+                    )
+
         # check all dtypes of component attributes
 
         if check_dtypes:

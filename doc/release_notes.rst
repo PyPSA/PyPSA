@@ -10,6 +10,7 @@ Upcoming Release
 * Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
 * Add example in documentation for the statistics module.
 * Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
+* It is now possible to couple the dispatch of generators. For this purpose, three new columns `p_coupling`, `p_coupling_coeff` and `p_coupling_sign` have been added to the generator component. They allow coupling the dispatch of one generator to another generator by adding a linear constraint to the optimization problem. The condition is of the form ``p {p_coupling_sign} {p_coupling_sign} * p_{p_coupling}``. The coupling is applied only when the coupling generator is active.
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
