@@ -5,11 +5,11 @@ from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
-COUPLING_LINK_APIS = ["linopy"]
+COUPLING_COMPONENTS_APIS = ["linopy"]
 
 
-@pytest.mark.parametrize("api", COUPLING_LINK_APIS)
-def network(api):
+@pytest.mark.parametrize("api", COUPLING_COMPONENTS_APIS)
+def test_generator_p_coupling(api):
     n = pypsa.Network(snapshots=range(3))
 
     n.add("Bus", "bus")
