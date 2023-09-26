@@ -60,7 +60,7 @@ PyPSA is an open source toolbox for
 simulating and optimising modern power and energy systems that include features
 such as conventional generators and links with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
-and mixed alternating and direct current networks.  PyPSA is designed
+and mixed alternating and direct current networks.  PyPSA is graph-based and designed
 to scale well with large networks and long time series.
 
 This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`_
