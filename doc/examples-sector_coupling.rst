@@ -16,3 +16,4 @@ This section provides examples related to coupling different energy sectors in a
     examples/lopf-with-heating.ipynb
     examples/power-to-gas-boiler-chp.ipynb
     examples/power-to-heat-water-tank.ipynb
+    examples/generator_coupling.ipynb
