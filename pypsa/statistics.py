@@ -607,7 +607,9 @@ class StatisticsAccessor:
             for port in ports:
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
-                index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
+                index = get_carrier_and_bus_carrier(
+                    n, c, port=port, nice_names=nice_names
+                )[mask]
                 df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)
