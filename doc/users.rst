@@ -25,15 +25,13 @@ Universities and Research Institutes
 
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
-* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/bitstream/JRC132896/JRC132896_01.pdf>`_
 
 * `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
 
 * `UiT The Arctic University of Norway (UiT) <https://uit.no/>`_ and the `University of Oslo (UiO) <https://www.uio.no/>`_ use PyPSA for studying near-optimal spaces in renewable electricity system planning: `doi.org:10.1016/j.eneco.2022.106496 <https://doi.org/10.1016/j.eneco.2022.106496>`_.
 
-* The `University of Edinburgh <https://www.ed.ac.uk/>`_ uses PyPSA within the `PyPSA-meets-Earth initiative <https://pypsa-meets-earth.github.io/>`_.
-
-* The `University of Pisa <https://www.unipi.it/index.php/english/>`_ uses PyPSA within the `PyPSA-meets-Earth initiative <https://pypsa-meets-earth.github.io/>`_.
+* `PyPSA-meets-Earth initiative <https://pypsa-meets-earth.github.io/>`_ including `University of Edinburgh <https://www.ed.ac.uk/>`_, `University of Pisa <https://www.unipi.it/index.php/english/>`_ and `others <https://pypsa-earth.readthedocs.io/en/latest/project_structure_and_credits.html>`_, uses PyPSA for joint research. Example publications: `PyPSA-Earth. A new global open energy system optimization model demonstrated in Africa <https://doi.org/10.1016/j.apenergy.2023.121096>`_
 
 * `Reiner Lemoine Institute <https://reiner-lemoine-institut.de/>`_, `Center for Sustainable Energy Systems <https://www.znes-flensburg.de/>`_ in Flensburg, Germany: consortial project `open-Ego <https://github.com/openego>`_, multiple publications: `doi:10.3390/en12112091 <https://doi.org/10.3390/en12112091>`_, `doi:10.1088/1742-6596/977/1/012007 <https://doi.org/10.1088/1742-6596/977/1/012007>`_, `doi:10.1016/j.apenergy.2021.116936 <https://doi.org/10.1016/j.apenergy.2021.116936>`_
 
@@ -43,7 +41,7 @@ Universities and Research Institutes
 
 * `Fraunhofer Institute for Solar Energy Systems <https://www.ise.fraunhofer.de/>`_ (ISE): uses PyPSA for grid modelling, research paper: `doi:/10.1016/j.epsr.2020.106349 <https://doi.org/10.1016/j.epsr.2020.106349>`_
 
-* `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_
+* `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
@@ -70,6 +68,8 @@ Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
+
+* `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
 
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, and for a study in 2021 `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_
 

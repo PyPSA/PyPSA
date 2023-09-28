@@ -18,6 +18,6 @@ This section provides examples of open-source models using PyPSA:
 - Vietnamese electricity model `PyPSA-VN <https://github.com/fiasresna/pypsa-vn>`_
 - Transport of chemical energy carriers to Germany `TRACE <https://github.com/euronion/trace>`_
 - Polish power system model `PyPSA-PL <https://github.com/instrat-pl/pypsa-pl>`_
-- Brazilian power system model `PyPSA-Brazil <https://www.energy-proceedings.org/wp-content/uploads/2022/03/Y.Deng_PyPSA-Brazil_ICAE2021_final_revised.pdf>`_
+- Brazilian power system model `PyPSA-Brazil <https://doi.org/10.1038/s41597-023-01992-9>`_
 - `Japanese power system model <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>`_
 - `Chinese model for hydro power and storage <https://arxiv.org/abs/1810.10347>`_
