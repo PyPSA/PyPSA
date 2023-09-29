@@ -44,6 +44,7 @@ def test_modular_components(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 5000, 6000, 800])
 
+    optimize(n, api)
     n.lopf(n.snapshots, pyomo=False)
 
     expected_n_opt_gen = np.array([5], dtype=float).T
