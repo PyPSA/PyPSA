@@ -417,8 +417,6 @@ def assign_duals(n, assign_all_duals=False):
             (assign_all_duals or attr in n.df(c).index)
         ):
             n.df(c).loc[attr, "mu"] = dual
-            n.df(c).loc[attr, "sense"] = m.constraints[name].sign.values.item()
-            n.df(c).loc[attr, "constant"] = m.constraints[name].rhs.values.item()
 
     if unassigned:
         logger.info(

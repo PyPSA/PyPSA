@@ -7,9 +7,11 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Fix bug with nice_names in n.statistics.energy_balance and improve statistics documentation.
 * Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
 * Add example in documentation for the statistics module.
 * Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
+* After the optimization the rhs and sign of global constraints were overwritten by altered values. This is now fixed.
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
