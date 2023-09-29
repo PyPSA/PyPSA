@@ -300,6 +300,7 @@ class Network(Basic):
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
 
+            attrs['default'] = attrs['default'].astype('object')
             attrs["static"] = attrs["type"] != "series"
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
