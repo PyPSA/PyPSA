@@ -849,6 +849,7 @@ def sub_network_pf(
         network.buses_t.q.loc[snapshots, sub_network.slack_bus]
         - ss[:, slack_index].imag
     )
+
     network.generators_t.q.loc[
         snapshots, network.buses.loc[sub_network.pvs, "generator"]
     ] += np.asarray(
@@ -1130,6 +1131,7 @@ def find_bus_controls(sub_network):
         network.buses.loc[pvs.index, "generator"] = pvs
 
     network.buses.loc[sub_network.slack_bus, "control"] = "Slack"
+    network.buses.loc[sub_network.slack_bus, "generator"] = sub_network.slack_generator
 
     buses_control = network.buses.loc[buses_i, "control"]
     sub_network.pvs = buses_control.index[buses_control == "PV"]

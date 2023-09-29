@@ -253,7 +253,7 @@ def aggregateoneport(
             df["p_nom_max"] /= weights
             static_strategies[k] = "min"
 
-    aggregated = df.groupby(grouper, axis=0).agg(static_strategies)
+    aggregated = df.groupby(grouper).agg(static_strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
     non_aggregated = n.df(c)[~to_aggregate]
@@ -433,7 +433,7 @@ def aggregatelines(
             df[col] = df[col] * length_factor * capacity_weights
             static_strategies[col] = "sum"
 
-    df = df.groupby(grouper, axis=0).agg(static_strategies)
+    df = df.groupby(grouper).agg(static_strategies)
 
     pnl = {}
     if with_time:

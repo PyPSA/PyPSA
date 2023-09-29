@@ -476,7 +476,7 @@ def post_processing(n):
         )
         .T.groupby(level=0)
         .sum()
-        .T.reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0.0)
     )
 
     def v_ang_for_(sub):
@@ -494,7 +494,7 @@ def post_processing(n):
     if "obj" in n.sub_networks:
         n.buses_t.v_ang = pd.concat(
             [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        ).reindex(columns=n.buses.index, fill_value=0)
+        ).reindex(columns=n.buses.index, fill_value=0.0)
 
 
 def optimize(
