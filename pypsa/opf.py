@@ -2043,9 +2043,10 @@ def extract_optimisation_results(
 
         if transmission_losses:
             c.pnl["loss"] = pd.DataFrame(
-                0, index=snapshots, columns=network.lines.index
+                0, index=snapshots, columns=network.lines.index, dtype=float
             )
             loss_values = get_values(network.model.loss)
+
             set_from_series(c.pnl.loss, loss_values.loc[c.name])
     del flow_lower, flow_upper
 

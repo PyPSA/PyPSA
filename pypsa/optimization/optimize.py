@@ -323,7 +323,8 @@ def assign_solution(n):
     m = n.model
     sns = n.model.parameters.snapshots.to_index()
 
-    for name, sol in m.solution.items():
+    for name, variable in m.variables.items():
+        sol = variable.solution
         if name == "objective_constant":
             continue
 
@@ -381,7 +382,12 @@ def assign_duals(n, assign_all_duals=False):
     """
     m = n.model
     unassigned = []
-    for name, dual in m.dual.items():
+    if not any("dual" in constraint for _, constraint in m.constraints.items()):
+        logger.info("No shadow prices were assigned to the network.")
+        return
+
+    for name, constraint in m.constraints.items():
+        dual = constraint.dual
         try:
             c, attr = name.split("-", 1)
         except ValueError:

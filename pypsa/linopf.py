@@ -1304,7 +1304,7 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             variables_sol.loc[-1] = 0
-            values = variables.applymap(lambda x: variables_sol.loc[x])
+            values = variables.map(lambda x: variables_sol.loc[x])
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, "p0", values)
                 set_from_frame(pnl, "p1", -values)
@@ -1366,7 +1366,7 @@ def assign_solution(
         to_component = c in n.all_components
         if is_pnl:
             n.dualvalues.at[(c, attr), "in_comp"] = to_component
-            duals = constraints.applymap(
+            duals = constraints.map(
                 lambda x: sign * constraints_dual.loc[x]
                 if x in constraints_dual.index
                 else np.nan

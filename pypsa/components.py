@@ -587,7 +587,7 @@ class Network(Basic):
         """
         periods = pd.Index(periods)
         if not (
-            periods.is_integer()
+            pd.api.types.is_integer_dtype(periods)
             and periods.is_unique
             and periods.is_monotonic_increasing
         ):

@@ -1130,8 +1130,6 @@ def find_bus_controls(sub_network):
         network.buses.loc[pvs.index, "generator"] = pvs
 
     network.buses.loc[sub_network.slack_bus, "control"] = "Slack"
-    breakpoint()
-    network.buses.loc[sub_network.slack_bus, "generator"] = sub_network.slack_generator
 
     buses_control = network.buses.loc[buses_i, "control"]
     sub_network.pvs = buses_control.index[buses_control == "PV"]
