@@ -36,6 +36,8 @@ PyPSA 0.25.2 (30th September 2023)
 * Bugfix: Handle cases with multi-decade optimisation, activated transmission
   limit and an empty list of lines or DC links.
 
+* Add example for load modelling with PyPSA to the examples' notebooks
+
 PyPSA 0.25.1 (27th July 2023)
 =============================
 
