@@ -30,9 +30,14 @@ from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import Dict, allocate_series_dataframes, degree
+from pypsa.descriptors import (
+    Dict,
+    additional_linkports,
+    allocate_series_dataframes,
+    degree,
+)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import zsum
+from pypsa.descriptors import update_linkports_component_attrs, zsum
 
 pd.Series.zsum = zsum
 
@@ -135,7 +140,7 @@ def _network_prepare_and_run_pf(
     linear=False,
     distribute_slack=False,
     slack_weights="p_set",
-    **kwargs
+    **kwargs,
 ):
     if linear:
         sub_network_pf_fun = sub_network_lpf
@@ -155,15 +160,11 @@ def _network_prepare_and_run_pf(
     if not network.links.empty:
         p_set = get_as_dense(network, "Link", "p_set", snapshots)
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
-        for i in [
-            int(col[3:])
-            for col in network.links.columns
-            if col[:3] == "bus" and col != "bus0"
-        ]:
-            eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
+        for i in ["1"] + additional_linkports(network):
+            eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(network, "Link", eff_name, snapshots)
-            links = network.links.index[network.links["bus{}".format(i)] != ""]
-            network.links_t["p{}".format(i)].loc[snapshots, links] = (
+            links = network.links.index[network.links[f"bus{i}"] != ""]
+            network.links_t[f"p{i}"].loc[snapshots, links] = (
                 -network.links_t.p0.loc[snapshots, links]
                 * efficiency.loc[snapshots, links]
             )
@@ -214,7 +215,7 @@ def _network_prepare_and_run_pf(
                     skip_pre=True,
                     distribute_slack=distribute_slack,
                     slack_weights=sn_slack_weights,
-                    **kwargs
+                    **kwargs,
                 )
         else:
             sub_network_pf_fun(
@@ -390,8 +391,8 @@ def sub_network_pf_singlebus(
     if distribute_slack:
         for bus, group in sub_network.generators().groupby("bus"):
             if slack_weights in ["p_nom", "p_nom_opt"]:
-                assert (
-                    not all(network.generators[slack_weights]) == 0
+                assert not all(
+                    network.generators[slack_weights] == 0
                 ), "Invalid slack weights! Generator attribute {} is always zero.".format(
                     slack_weights
                 )
@@ -651,8 +652,8 @@ def sub_network_pf(
             )
 
         elif isinstance(slack_weights, str) and slack_weights in ["p_nom", "p_nom_opt"]:
-            assert (
-                not all(network.generators[slack_weights]) == 0
+            assert not all(
+                network.generators[slack_weights] == 0
             ), "Invalid slack weights! Generator attribute {} is always zero.".format(
                 slack_weights
             )
@@ -1050,6 +1051,8 @@ def calculate_dependent_values(network):
     network.stores.loc[
         network.stores.carrier == "", "carrier"
     ] = network.stores.bus.map(network.buses.carrier)
+
+    update_linkports_component_attrs(network)
 
 
 def find_slack_bus(sub_network):

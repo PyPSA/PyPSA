@@ -6,6 +6,8 @@ Power system components.
 
 from weakref import ref
 
+from pypsa.clustering import ClusteringAccessor
+
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
@@ -34,6 +36,7 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -258,6 +261,8 @@ class Network(Basic):
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
         self.optimize = OptimizationAccessor(self)
+
+        self.cluster = ClusteringAccessor(self)
 
         if override_components is None:
             self.components = components
@@ -850,6 +855,9 @@ class Network(Basic):
             f"Failed to add {class_name} component {name} because there is already "
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
+
+        if class_name == "Link":
+            update_linkports_component_attrs(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]
 

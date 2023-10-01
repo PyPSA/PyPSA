@@ -12,12 +12,14 @@ import pandas as pd
 from linopy import Model, merge
 from linopy.expressions import LinearExpression, QuadraticExpression
 
-from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import additional_linkports, get_committable_i
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
+    optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
+    optimize_with_rolling_horizon,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
@@ -138,6 +140,23 @@ def define_objective(n, sns):
             operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
             objective.append((operation * operation * cost).sum())
             is_quadratic = True
+
+    # stand-by cost
+    comps = {"Generator", "Link"}
+    for c in comps:
+        com_i = get_committable_i(n, c)
+
+        if com_i.empty:
+            continue
+
+        stand_by_cost = (
+            get_as_dense(n, c, "stand_by_cost", sns, com_i)
+            .loc[:, lambda ds: (ds != 0).any()]
+            .mul(weighting, axis=0)
+        )
+        stand_by_cost.columns.name = f"{c}-com"
+        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
+        m.objective = m.objective + (status * stand_by_cost).sum()
 
     # investment
     for c, attr in nominal_attrs.items():
@@ -308,8 +327,11 @@ def assign_solution(n):
         if name == "objective_constant":
             continue
 
-        c, attr = name.split("-", 1)
-        df = sol.to_pandas()
+        try:
+            c, attr = name.split("-", 1)
+            df = sol.to_pandas()
+        except ValueError:
+            continue
 
         if "snapshot" in sol.dims:
             if c in n.passive_branch_components and attr == "s":
@@ -325,7 +347,7 @@ def assign_solution(n):
                     set_from_frame(n, c, f"p{i}", -df * eff)
                     n.pnl(c)[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
+                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
 
             else:
                 set_from_frame(n, c, attr, df)
@@ -346,13 +368,19 @@ def assign_solution(n):
     n.objective = m.objective_value
 
 
-def assign_duals(n):
+def assign_duals(n, assign_all_duals=False):
     """
     Map dual values i.e. shadow prices to network components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     """
     m = n.model
     unassigned = []
-
     for name, dual in m.dual.items():
         try:
             c, attr = name.split("-", 1)
@@ -363,25 +391,26 @@ def assign_duals(n):
         if "snapshot" in dual.dims:
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
-                spec = attr.rsplit("-", 1)[-1]
-                assign = [
-                    "upper",
-                    "lower",
-                    "ramp_limit_up",
-                    "ramp_limit_down",
-                    "p_set",
-                    "state_of_charge_set",
-                    "energy_balance",
-                ]
 
-                if spec in assign:
-                    set_from_frame(n, c, "mu_" + spec, df)
-                elif attr.endswith("nodal_balance"):
+                try:
+                    spec = attr.rsplit("-", 1)[-1]
+                except ValueError:
+                    spec = attr
+
+                if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
+                elif assign_all_duals or f"mu_{spec}" in n.df(c):
+                    set_from_frame(n, c, "mu_" + spec, df)
                 else:
                     unassigned.append(name)
+
             except:
                 unassigned.append(name)
+
+        elif (c == "GlobalConstraint") and (
+            (assign_all_duals or attr in n.df(c).index)
+        ):
+            n.df(c).loc[attr, "mu"] = dual
 
     if unassigned:
         logger.info(
@@ -392,7 +421,7 @@ def assign_duals(n):
 
 def post_processing(n):
     """
-    Post-process the optimzed network.
+    Post-process the optimized network.
 
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
@@ -470,6 +499,7 @@ def optimize(
     linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
+    assign_all_duals=False,
     solver_name="glpk",
     solver_options={},
     **kwargs,
@@ -501,6 +531,9 @@ def optimize(
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     solver_name : str
         Name of the solver to use.
     solver_options : dict
@@ -533,7 +566,7 @@ def optimize(
 
     if status == "ok":
         assign_solution(n)
-        assign_duals(n)
+        assign_duals(n, assign_all_duals)
         post_processing(n)
 
     return status, condition
@@ -555,7 +588,9 @@ class OptimizationAccessor:
     def create_model(self, *args, **kwargs):
         return create_model(self._parent, *args, **kwargs)
 
-    def solve_model(self, solver_name="glpk", solver_options={}, **kwargs):
+    def solve_model(
+        self, solver_name="glpk", solver_options={}, assign_all_duals=False, **kwargs
+    ):
         """
         Solve an already created model and assign its solution to the network.
 
@@ -565,6 +600,9 @@ class OptimizationAccessor:
             Name of the solver to use.
         solver_options : dict
             Keyword arguments used by the solver. Can also be passed via **kwargs.
+        assign_all_duals : bool, default False
+            Whether to assign all dual values or only those that already
+            have a designated place in the network.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
@@ -575,7 +613,7 @@ class OptimizationAccessor:
 
         if status == "ok":
             assign_solution(n)
-            assign_duals(n)
+            assign_duals(n, assign_all_duals)
             post_processing(n)
 
         return status, condition
@@ -599,6 +637,14 @@ class OptimizationAccessor:
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
         optimize_security_constrained(self._parent, *args, **kwargs)
+
+    @wraps(optimize_with_rolling_horizon)
+    def optimize_with_rolling_horizon(self, *args, **kwargs):
+        optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+
+    @wraps(optimize_mga)
+    def optimize_mga(self, *args, **kwargs):
+        optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

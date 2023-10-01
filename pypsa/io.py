@@ -26,6 +26,8 @@ import numpy as np
 import pandas as pd
 import validators
 
+from pypsa.descriptors import update_linkports_component_attrs
+
 try:
     import xarray as xr
 
@@ -394,10 +396,10 @@ if has_xarray:
                     self.ds[v] = self.ds[v].astype(np.float32)
 
         def finish(self):
-            if self.compression:
-                self.set_compression_encoding()
             if self.float32:
                 self.typecast_float32()
+            if self.compression:
+                self.set_compression_encoding()
             if self.path is not None:
                 self.ds.to_netcdf(self.path)
 
@@ -658,7 +660,7 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    compression={"zlib": True, "complevel": 4},
+    compression=None,
     float32=False,
 ):
     """
@@ -687,8 +689,8 @@ def export_to_netcdf(
         Compression level to use for all features which are being prepared.
         The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
         https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
-        To disable compression, set to None. As a trade-off between speed and
-        compression, the default is {'zlib': True, 'complevel': 4}.
+        An example compression directive is ``{'zlib': True, 'complevel': 4}``.
+        The default is None which disables compression.
     float32 : boolean, default False
         If True, typecasts values to float32.
 
@@ -808,6 +810,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
             continue
 
         import_components_from_dataframe(network, df, component)
+
+        if component == "Link":
+            update_linkports_component_attrs(network)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):

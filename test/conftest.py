@@ -40,8 +40,9 @@ def scipy_network():
         "scigrid-de",
         "scigrid-with-load-gen-trafos",
     )
-
-    return pypsa.Network(csv_folder)
+    n = pypsa.Network(csv_folder)
+    n.calculate_dependent_values()
+    return n
 
 
 @pytest.fixture(scope="module")
