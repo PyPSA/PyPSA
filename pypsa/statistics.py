@@ -746,25 +746,34 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.one_port_components:
-                prices = n.buses_t.marginal_price.reindex(columns=n.df(c).bus)
-                prices.columns = n.df(c).index
-                revenue = n.pnl(c).p * prices
-            else:
-                prices0 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus0)
-                prices0.columns = n.df(c).index
-                prices1 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus1)
-                prices1.columns = n.df(c).index
-                revenue = -(n.pnl(c).p0 * prices0 + n.pnl(c).p1 * prices1)
+            sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
+            ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
+            revenue = list()
+            for port in ports:
+                mask = n.df(c)[f"bus{port}"] != ""
+                index = get_carrier_and_bus_carrier(
+                    n, c, port=port, nice_names=nice_names
+                )[mask]
+                if port == "0" or port=="" or c in ["Line", "Transformer"]:
+                    efficiency=1
+                else:
+                    efficiency = n.df(c)[f"efficiency{port}".replace("1","")].loc[mask]
+                df = sign * n.pnl(c)[f"p{port}"].loc[:, mask] * efficiency
+                df = df * n.buses_t.marginal_price.reindex(columns=n.df(c)[f"bus{port}"][mask]).values
+                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
+                revenue.append(df)
+            revenue = pd.concat(revenue, axis=1)
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
+        groupby = ["carrier", "bus_carrier"]
+       
         df = aggregate_components(
             n,
             func,
             comps=comps,
             agg=aggregate_groups,
-            groupby=groupby,
+            groupby={"level": groupby},
             nice_names=nice_names,
         )
         df.attrs["name"] = "Revenue"
