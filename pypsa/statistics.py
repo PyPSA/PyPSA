@@ -754,12 +754,17 @@ class StatisticsAccessor:
                 index = get_carrier_and_bus_carrier(
                     n, c, port=port, nice_names=nice_names
                 )[mask]
-                if port == "0" or port=="" or c in ["Line", "Transformer"]:
-                    efficiency=1
+                if port == "0" or port == "" or c in ["Line", "Transformer"]:
+                    efficiency = 1
                 else:
-                    efficiency = n.df(c)[f"efficiency{port}".replace("1","")].loc[mask]
+                    efficiency = n.df(c)[f"efficiency{port}".replace("1", "")].loc[mask]
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask] * efficiency
-                df = df * n.buses_t.marginal_price.reindex(columns=n.df(c)[f"bus{port}"][mask]).values
+                df = (
+                    df
+                    * n.buses_t.marginal_price.reindex(
+                        columns=n.df(c)[f"bus{port}"][mask]
+                    ).values
+                )
                 df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 revenue.append(df)
             revenue = pd.concat(revenue, axis=1)
@@ -767,7 +772,7 @@ class StatisticsAccessor:
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
         groupby = ["carrier", "bus_carrier"]
-       
+
         df = aggregate_components(
             n,
             func,
