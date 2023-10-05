@@ -771,7 +771,7 @@ class StatisticsAccessor:
             return aggregate_timeseries(df, weights, agg=aggregate_time)
 
         groupby = ["carrier", "bus_carrier"]
-       
+
         df = aggregate_components(
             n,
             func,
