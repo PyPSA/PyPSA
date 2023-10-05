@@ -35,9 +35,9 @@ PyPSA 0.25.2 (30th September 2023)
 
 * Bugfix: Handle cases with multi-decade optimisation, activated transmission
   limit and an empty list of lines or DC links.
-  
+
  * Added functionality to store ``shapely.Geometry`` objects with buses, lines, links and transformers. These DataFrames are now GeoDataFrames.
- 
+
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
