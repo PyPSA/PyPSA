@@ -346,7 +346,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     if is_rolling_horizon:
         active = get_activity_mask(n, c, sns)
-        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        rhs_start = pd.DataFrame(0.0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
 
         def p_actual(idx):
@@ -544,9 +544,9 @@ def define_nodal_balance_constraints(
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=buses, fill_value=0)
+        .T.reindex(columns=buses, fill_value=0)
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
@@ -601,7 +601,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
             carrier = n.sub_networks.carrier[sub.name]
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings) * sub.C
+            C = 1e5 * sparse.diags(weightings.values) * sub.C
             ssub = s.loc[snapshots, branches.index].values
 
             ncycles = C.shape[1]

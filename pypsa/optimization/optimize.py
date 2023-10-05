@@ -323,7 +323,8 @@ def assign_solution(n):
     m = n.model
     sns = n.model.parameters.snapshots.to_index()
 
-    for name, sol in m.solution.items():
+    for name, variable in m.variables.items():
+        sol = variable.solution
         if name == "objective_constant":
             continue
 
@@ -381,7 +382,12 @@ def assign_duals(n, assign_all_duals=False):
     """
     m = n.model
     unassigned = []
-    for name, dual in m.dual.items():
+    if not any("dual" in constraint for _, constraint in m.constraints.items()):
+        logger.info("No shadow prices were assigned to the network.")
+        return
+
+    for name, constraint in m.constraints.items():
+        dual = constraint.dual
         try:
             c, attr = name.split("-", 1)
         except ValueError:
@@ -411,8 +417,6 @@ def assign_duals(n, assign_all_duals=False):
             (assign_all_duals or attr in n.df(c).index)
         ):
             n.df(c).loc[attr, "mu"] = dual
-            n.df(c).loc[attr, "sense"] = m.constraints[name].sign.values.item()
-            n.df(c).loc[attr, "constant"] = m.constraints[name].rhs.values.item()
 
     if unassigned:
         logger.info(
@@ -470,9 +474,9 @@ def post_processing(n):
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0.0)
     )
 
     def v_ang_for_(sub):
@@ -490,7 +494,7 @@ def post_processing(n):
     if "obj" in n.sub_networks:
         n.buses_t.v_ang = pd.concat(
             [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        ).reindex(columns=n.buses.index, fill_value=0)
+        ).reindex(columns=n.buses.index, fill_value=0.0)
 
 
 def optimize(

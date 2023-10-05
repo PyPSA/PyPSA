@@ -678,8 +678,11 @@ def _flow_ds_from_arg(flow, n, branch_components):
         return flow
     if flow in n.snapshots:
         return pd.concat(
-            [n.pnl(c).p0.loc[flow] for c in branch_components],
-            keys=branch_components,
+            {
+                c: n.pnl(c).p0.loc[flow]
+                for c in branch_components
+                if not n.pnl(c).p0.empty
+            },
             sort=True,
         )
     if isinstance(flow, str) or callable(flow):

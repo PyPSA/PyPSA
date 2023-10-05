@@ -84,8 +84,9 @@ def describe_nodal_balance_constraint(n):
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
+        .T
     )
     return (
         (n.buses_t.p - network_injection)
@@ -184,7 +185,7 @@ def describe_cycle_constraints(n):
 
     return (
         pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)
-        .unstack()
+        .stack()
         .describe()
         .to_frame("Cycle Constr.")
     )
