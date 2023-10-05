@@ -7,10 +7,37 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
+PyPSA 0.25.2 (30th September 2023)
+==================================
+
+* Add option to enable or disable nice carrier name in the statistics module
+  (e.g.``n.statistics(nice_name=False)``).
+
 * Add example in documentation for the statistics module.
-* Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
-* Added functionality to store ``shapely.Geometry`` objects with buses, lines, links and transformers. These DataFrames are now GeoDataFrames.
+
+* Add example for stochastic optimization with PyPSA to the documentation.
+
+* Extended documentation for multi-decade optimization.
+
+* Bugfix: Use of ``nice_names`` keyword argument in
+  ``n.statistics.energy_balance()``.
+
+* Bugfix: Correctly handle ``p_nom`` or ``p_nom_opt`` in power flow distributed
+  slack.
+
+* Bugfix: After the optimization the right-hand side and sign of global
+  constraints were previously overwritten by altered values.
+
+* Bugfix: In netCDF export, typecasting to float32 after setting the compression
+  encoding led to ignored compression encodings.
+
+* Bugfix: Handle solver options for CBC and GLPK for ``n.lopf(pyomo=False)``.
+
+* Bugfix: Handle cases with multi-decade optimisation, activated transmission
+  limit and an empty list of lines or DC links.
+  
+ * Added functionality to store ``shapely.Geometry`` objects with buses, lines, links and transformers. These DataFrames are now GeoDataFrames.
+ 
 
 PyPSA 0.25.1 (27th July 2023)
 =============================
