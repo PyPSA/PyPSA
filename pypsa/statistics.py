@@ -74,6 +74,35 @@ def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
     return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
+def process_attribute(n, c, attr, pnl, consider_efficiency, nice_names=True):
+    if pnl and consider_efficiency:
+        raise ValueError("Cannot consider efficiency for dynamic attributes")
+    sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
+    ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
+    res = list()
+    for port in ports:
+        mask = n.df(c)[f"bus{port}"] != ""
+        if pnl:
+            df = sign * n.pnl(c)[f"{attr}{port}"].loc[:, mask]
+        else:
+            df = sign * n.df(c)[mask][f"{attr}"]
+        
+        if consider_efficiency:
+            if port == "0" or port=="" or "efficiency" not in n.df(c):
+                efficiency = 1
+            elif port == "1":
+                efficiency = n.df(c)["efficiency"].loc[mask]
+            else:
+                efficiency = n.df(c)[f"efficiency{port}"].loc[mask]
+        else:
+            efficiency = 1
+        df = df * efficiency
+        index = get_carrier_and_bus_carrier(
+            n, c, port=port, nice_names=nice_names
+        )[mask]
+        df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
+        res.append(df)
+    return pd.concat(res, axis=1)
 
 def get_operation(n, c):
     """
@@ -468,13 +497,10 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.branch_components:
-                p = -n.pnl(c).p0.clip(upper=0)
-                p -= n.pnl(c).p1.clip(upper=0)
-            else:
-                p = (n.pnl(c).p * n.df(c).sign).clip(lower=0)
+            df = process_attribute(n, c, attr="p", pnl=True, consider_efficiency=False, nice_names=True)
+            df = df[df>0]
             weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return aggregate_timeseries(df, weights, agg=aggregate_time)
 
         df = aggregate_components(
             n,
@@ -579,6 +605,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         aggregate_bus=True,
         nice_names=True,
+        groupby = None
     ):
         """
         Calculate the energy balance of components in the network. Positive
@@ -601,23 +628,15 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
-            ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
-            p = list()
-            for port in ports:
-                mask = n.df(c)[f"bus{port}"] != ""
-                df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
-                index = get_carrier_and_bus_carrier(
-                    n, c, port=port, nice_names=nice_names
-                )[mask]
-                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
-                p.append(df)
-            p = pd.concat(p, axis=1)
+            p = process_attribute(n, c, attr="p", pnl=True, consider_efficiency=False, nice_names=nice_names)
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        groupby = ["carrier", "bus_carrier"]
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         if not aggregate_bus:
+            if not isinstance(groupby, list):
+                raise ValueError("If aggregate_bus is True, groupby must be a list")
             groupby.append("bus")
 
         df = aggregate_components(
@@ -746,25 +765,10 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
-            ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
-            revenue = list()
-            for port in ports:
-                mask = n.df(c)[f"bus{port}"] != ""
-                index = get_carrier_and_bus_carrier(
-                    n, c, port=port, nice_names=nice_names
-                )[mask]
-                if port == "0" or port=="" or c in ["Line", "Transformer"]:
-                    efficiency=1
-                else:
-                    efficiency = n.df(c)[f"efficiency{port}".replace("1","")].loc[mask]
-                df = sign * n.pnl(c)[f"p{port}"].loc[:, mask] * efficiency
-                df = df * n.buses_t.marginal_price.reindex(columns=n.df(c)[f"bus{port}"][mask]).values
-                df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
-                revenue.append(df)
-            revenue = pd.concat(revenue, axis=1)
+            p = process_attribute(n, c, attr="p", pnl=True, consider_efficiency=False, nice_names=True)
+            df = p * n.buses_t.marginal_price.reindex(columns=p.columns.get_level_values("bus")).values
             weights = get_weightings(n, c)
-            return aggregate_timeseries(revenue, weights, agg=aggregate_time)
+            return aggregate_timeseries(df, weights, agg=aggregate_time)
 
         groupby = ["carrier", "bus_carrier"]
        
