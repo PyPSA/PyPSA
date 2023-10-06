@@ -26,7 +26,6 @@ def test_geo_components_gpd_df(geo_components_network):
     THEN    these components should be of type geopandas.GeoDataFrame.
     and the geometry column should be of type geopandas.GeoSeries.
     """
-
     assert isinstance(geo_components_network.buses, geopandas.GeoDataFrame)
     assert isinstance(geo_components_network.lines, geopandas.GeoDataFrame)
     assert isinstance(geo_components_network.links, geopandas.GeoDataFrame)
@@ -60,6 +59,9 @@ def test_geo_component_add():
 
     network.add("Bus", "bus_3", geometry="POINT (1 4)")
     assert isinstance(network.buses.geometry.values[2], shapely.geometry.point.Point)
+
+    network.add("Bus", "bus_4", geometry="INVALID_WKT_STRING")
+    assert network.buses.geometry.values[3] == None
 
     network.add(
         "Line",
