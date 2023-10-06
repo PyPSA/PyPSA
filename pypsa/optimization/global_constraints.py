@@ -418,7 +418,7 @@ def define_transmission_volume_expansion_limit(n, sns):
                     ext_i.name
                 )
 
-            length = n.df(c).length.reindex(ext_i)
+            length = n.df(c).loc[ext_i,"length"].reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((length, vars)).sum())
 
