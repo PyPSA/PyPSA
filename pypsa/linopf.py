@@ -962,7 +962,8 @@ def define_global_constraints(n, sns):
             if ext_i.empty:
                 continue
             v = linexpr(
-                (n.df(c).loc[ext_i,"length"], get_var(n, c, attr)[ext_i]), as_pandas=False
+                (n.df(c).loc[ext_i, "length"], get_var(n, c, attr)[ext_i]),
+                as_pandas=False,
             )
             lhs += "\n" + join_exprs(v)
         if lhs == "":
