@@ -304,6 +304,7 @@ class Network(Basic):
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
 
+            attrs["default"] = attrs.default.astype(object)
             attrs["static"] = attrs["type"] != "series"
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
@@ -332,17 +333,20 @@ class Network(Basic):
             )
 
             bool_b = attrs.type == "boolean"
-            attrs.loc[bool_b, "default"] = attrs.loc[bool_b].isin({True, "True"})
+            if bool_b.any():
+                attrs.loc[bool_b, "default"] = attrs.loc[bool_b, "default"].isin(
+                    {True, "True"}
+                )
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                attrs.loc[attrs.typ == str, "default"] = attrs.loc[
-                    attrs.typ == str, "default"
-                ].replace({np.nan: ""})
+                str_b = attrs.typ == str
+                attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
-                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[
-                        attrs.typ == typ, "default"
-                    ].astype(typ)
+                    typ_b = attrs.typ == typ
+                    attrs.loc[typ_b, "default"] = attrs.loc[typ_b, "default"].astype(
+                        typ
+                    )
 
             self.components[component]["attrs"] = attrs
 
@@ -599,7 +603,7 @@ class Network(Basic):
         """
         periods = pd.Index(periods)
         if not (
-            periods.is_integer()
+            pd.api.types.is_integer_dtype(periods)
             and periods.is_unique
             and periods.is_monotonic_increasing
         ):

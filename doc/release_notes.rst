@@ -693,7 +693,7 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
 
-* Added support for the FICO Xpress commercial solver for optimization withhout pyomo, i.e. ``pyomo=False``.
+* Added support for the FICO Xpress commercial solver for optimization without pyomo, i.e. ``pyomo=False``.
 
 * There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were

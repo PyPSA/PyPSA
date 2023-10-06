@@ -12,12 +12,12 @@ p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended
 p_nom_min,float,MW,0,"If p_nom is extendable, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable, set its maximum value (e.g. limited by potential).",Input (optional)
 p_set,static or series,MW,0,The dispatch set point for p0 of the link in PF.,Input (optional)
-p_min_pu,static or series,per unit of p_nom,0,Minimal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
-p_max_pu,static or series,per unit of p_nom,1,Maximal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
+p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
+p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
 capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input (optional)
-marginal_cost,static or series,currency/MWh,0,Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense if p_max_pu >= 0.,Input (optional)
-marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost for transferring 1 MWh (before efficiency losses) from bus0 to bus1.,Input (optional)
-stand_by_cost,static or series,currency/h,0,Stand-by cost for operating the link at null power flow.,Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense if p_max_pu >= 0.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for transferring 1 MWh (before efficiency losses) from bus0 to bus1.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the link at null power flow.,Input (optional)
 length,float,km,0,"Length of line, useful for calculating the capital cost.",Input (optional)
 terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Input (optional)
 committable,boolean,n/a,False,Use unit commitment (only possible if p_nom is not extendable).,Input (optional)
@@ -35,9 +35,9 @@ geometry,shapely.Geometry,n/a,"None","A shapely geometry.",Input (optional)
 p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MW,0,Optimised capacity for active power.,Output
-status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
-mu_lower,series,currency/MW,0,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
-mu_upper,series,currency/MW,0,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
-mu_p_set,series,currency/MWh,0,Shadow price of fixed power transmission p_set,Output
-mu_ramp_limit_up,series,currency/MWh,0,Shadow price of upper ramp up limit,Output
-mu_ramp_limit_down,series,currency/MWh,0,Shadow price of lower ramp down limit,Output
+status,series,n/a,1.,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
+mu_lower,series,currency/MW,0.,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MW,0.,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
+mu_p_set,series,currency/MWh,0.,Shadow price of fixed power transmission p_set,Output
+mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output
