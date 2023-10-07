@@ -114,9 +114,7 @@ def get_investment_weighting(energy_weighting, r=0.01):
     end = energy_weighting.cumsum()
     start = energy_weighting.cumsum().shift().fillna(0)
     return pd.concat([start, end], axis=1).apply(
-        lambda x: sum(
-            get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))
-        ),
+        lambda x: sum(get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))),
         axis=1,
     )
 

@@ -195,7 +195,9 @@ def l_constraint(model, name, constraints, *args):
             lo, hi = constant
             constr_expr = inequality(lo, sum_expr, hi)
         else:
-            raise KeyError(f'`sense` must be one of "==", "<=", ">=", "><"; got: {sense}')
+            raise KeyError(
+                f'`sense` must be one of "==", "<=", ">=", "><"; got: {sense}'
+            )
 
         v._data[i] = _GeneralConstraintData(constr_expr, v)
 

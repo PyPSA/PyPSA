@@ -123,9 +123,7 @@ def _calculate_controllable_nodal_power_balance(
                 for c in network.iterate_components(
                     network.controllable_branch_components
                 )
-                for i in [
-                    int(col[3:]) for col in c.df.columns if col[:3] == "bus"
-                ]
+                for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
             )
 
 
@@ -1485,9 +1483,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
                     .sum()
                     .T.reindex(columns=buses_o, fill_value=0.0)
                 )
-                for c in sub_network.iterate_components(
-                    network.one_port_components
-                )
+                for c in sub_network.iterate_components(network.one_port_components)
             ]
             + [
                 -c.pnl[f"p{str(i)}"]
@@ -1498,9 +1494,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
                 for c in network.iterate_components(
                     network.controllable_branch_components
                 )
-                for i in [
-                    int(col[3:]) for col in c.df.columns if col[:3] == "bus"
-                ]
+                for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
             ]
         )
     )

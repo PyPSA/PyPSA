@@ -1162,9 +1162,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ] = 1.0
 
     # name them nicely
-    pdf["transformers"].index = [
-        f"T{str(i)}" for i in range(len(pdf["transformers"]))
-    ]
+    pdf["transformers"].index = [f"T{str(i)}" for i in range(len(pdf["transformers"]))]
     pdf["lines"].index = [f"L{str(i)}" for i in range(len(pdf["lines"]))]
 
     # TODO

@@ -461,8 +461,4 @@ def update_linkports_component_attrs(n, where=None):
 def additional_linkports(n, where=None):
     if not where:
         where = n.links.columns
-    return [
-        i[3:]
-        for i in where
-        if i.startswith("bus") and i not in ["bus0", "bus1"]
-    ]
+    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
