@@ -67,7 +67,7 @@ def test_madd_static(empty_network_5_buses):
     buses = empty_network_5_buses.buses.index
 
     # Add load components at every bus with attribute p_set.
-    load_names = "load_" + buses
+    load_names = f"load_{buses}"
     empty_network_5_buses.madd(
         "Load",
         load_names,
@@ -96,7 +96,7 @@ def test_madd_t(empty_network_5_buses):
     buses = empty_network_5_buses.buses.index
 
     # Add load component at every bus with time-dependent attribute p_set.
-    load_names = "load_" + buses
+    load_names = f"load_{buses}"
     empty_network_5_buses.madd(
         "Load",
         load_names,
