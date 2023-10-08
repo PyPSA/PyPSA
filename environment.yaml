@@ -5,7 +5,7 @@ dependencies:
 - python>=3.9
 - numpy
 - scipy
-- pandas>=0.24.0,<2.1
+- pandas>=0.24.0
 - xarray
 - netcdf4
 - libnetcdf
