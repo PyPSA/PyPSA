@@ -587,7 +587,7 @@ def define_kirchhoff_constraints(n, sns):
 
             con = write_constraint(n, cycle_sum, "=", 0)
             subconstraints.append(con)
-        if len(subconstraints) == 0:
+        if not subconstraints:
             continue
         constraints.append(pd.concat(subconstraints, axis=1, ignore_index=True))
     if constraints:
@@ -839,7 +839,7 @@ def define_growth_limit(n, sns, c, attr):
     lhs = caps.T.groupby(carriers).sum(**agg_group_kwargs).T
     rhs = n.carriers.max_growth[with_limit]
 
-    define_constraints(n, lhs, "<=", rhs, "Carrier", "growth_limit_{}".format(c))
+    define_constraints(n, lhs, "<=", rhs, "Carrier", f"growth_limit_{c}")
 
 
 def define_global_constraints(n, sns):

@@ -194,10 +194,7 @@ def define_objective(n, sns):
             "Please make sure the components have assigned costs."
         )
 
-    if is_quadratic:
-        m.objective = sum(objective)
-    else:
-        m.objective = merge(objective)  # use fast implementation
+    m.objective = sum(objective) if is_quadratic else merge(objective)
 
 
 def create_model(
@@ -382,7 +379,9 @@ def assign_duals(n, assign_all_duals=False):
     """
     m = n.model
     unassigned = []
-    if not any("dual" in constraint for _, constraint in m.constraints.items()):
+    if all(
+        "dual" not in constraint for _, constraint in m.constraints.items()
+    ):
         logger.info("No shadow prices were assigned to the network.")
         return
 

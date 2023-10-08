@@ -127,7 +127,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
-            logger.warning("No type given for {}, assuming it is a line".format(branch))
+            logger.warning(f"No type given for {branch}, assuming it is a line")
             branch = ("Line", branch)
 
         sn = network.sub_networks.obj[passive_branches.sub_network[branch]]
@@ -166,7 +166,7 @@ def add_contingency_constraints(network, snapshots):
 
     for branch in branch_outages:
         if type(branch) is not tuple:
-            logger.warning("No type given for {}, assuming it is a line".format(branch))
+            logger.warning(f"No type given for {branch}, assuming it is a line")
             branch = ("Line", branch)
 
         sub = network.sub_networks.at[passive_branches.at[branch, "sub_network"], "obj"]
@@ -345,7 +345,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 lhs[key] = lhs_flow_ext + linexpr((1, s_nom_ext))
                 rhs[key] = 0
 
-        for k in lhs.keys():
+        for k in lhs:
             sense = "<=" if k[0] == "upper" else ">="
             axes = (lhs[k].index, lhs[k].columns)
             con = write_constraint(n, lhs[k], sense, rhs[k], axes)
