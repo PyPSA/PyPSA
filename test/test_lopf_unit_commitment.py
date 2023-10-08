@@ -385,7 +385,7 @@ def test_linearized_unit_commitment(api):
     n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
 
     load = np.zeros(len(n.snapshots))
-    load[0:5] = 5
+    load[:5] = 5
     load[5:10] = 6
     load[10:15] = 8
     load[15:20] = 10
@@ -395,8 +395,7 @@ def test_linearized_unit_commitment(api):
 
     n.add("Bus", "bus")
 
-    seed = 1
-    for i in range(40):
+    for seed, i in enumerate(range(40), start=1):
         np.random.seed(seed)
         p_min_pu = np.random.randint(1, 5) / 10
         marginal_cost = np.random.randint(1, 11) * 10
@@ -420,8 +419,6 @@ def test_linearized_unit_commitment(api):
             start_up_cost=start_up_cost,
             shut_down_cost=shut_down_cost,
         )
-        seed += 1
-
     n.add("Load", "load", bus="bus", p_set=load)
 
     optimize(n, api, linearized_unit_commitment=True)
@@ -499,7 +496,7 @@ def test_dynamic_ramp_rates(api):
     static_ramp_up = 0.8
     static_ramp_down = 1
     p_max_pu = pd.Series(1, index=n.snapshots)
-    p_max_pu.loc[n.snapshots[0:6]] = 0.5  # 50% capacity outage for 6 periods
+    p_max_pu.loc[n.snapshots[:6]] = 0.5
 
     n.add(
         "Generator",
