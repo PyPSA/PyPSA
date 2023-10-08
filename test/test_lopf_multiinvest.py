@@ -504,7 +504,7 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n, api):
     # make the constraint non-binding and check that the shadow price is zero
     n.buses.at["1", "nom_min_gencarrier_2020"] = 100
     status, cond = optimize(n, api, **kwargs)
-    assert (n.model.dual["Bus-nom_min_gencarrier_2020"]).item() == 0
+    assert (n.model.constraints["Bus-nom_min_gencarrier_2020"].dual).item() == 0
 
 
 @pytest.mark.parametrize("api", MULTIINVEST_APIS)

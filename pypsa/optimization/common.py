@@ -33,10 +33,10 @@ def set_from_frame(n, c, attr, df):
     """
     pnl = n.pnl(c)
     if (attr not in pnl) or (pnl[attr].empty):
-        pnl[attr] = df.reindex(n.snapshots).fillna(0)
+        pnl[attr] = df.reindex(n.snapshots).fillna(0.0)
     else:
         pnl[attr].loc[df.index, df.columns] = df
-        pnl[attr] = pnl[attr].fillna(0)
+        pnl[attr] = pnl[attr].fillna(0.0)
 
 
 def get_strongly_meshed_buses(n, threshold=45):
