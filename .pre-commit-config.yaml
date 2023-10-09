@@ -44,7 +44,6 @@ repos:
   rev: v1.10.1
   hooks:
     - id: sourcery
-      # The best way to use Sourcery in a pre-commit hook:
       # * review only changed lines:
       # * omit the summary
       # args: [--diff=git diff HEAD, --no-summary]
