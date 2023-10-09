@@ -112,7 +112,7 @@ class Basic(object):
         self.name = name
 
     def __repr__(self):
-        return "%s %s" % (self.__class__.__name__, self.name)
+        return f"{self.__class__.__name__} {self.name}"
 
 
 class Common(Basic):
@@ -300,6 +300,7 @@ class Network(Basic):
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
 
+            attrs["default"] = attrs.default.astype(object)
             attrs["static"] = attrs["type"] != "series"
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
@@ -320,17 +321,20 @@ class Network(Basic):
             )
 
             bool_b = attrs.type == "boolean"
-            attrs.loc[bool_b, "default"] = attrs.loc[bool_b].isin({True, "True"})
+            if bool_b.any():
+                attrs.loc[bool_b, "default"] = attrs.loc[bool_b, "default"].isin(
+                    {True, "True"}
+                )
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                attrs.loc[attrs.typ == str, "default"] = attrs.loc[
-                    attrs.typ == str, "default"
-                ].replace({np.nan: ""})
+                str_b = attrs.typ == str
+                attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
-                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[
-                        attrs.typ == typ, "default"
-                    ].astype(typ)
+                    typ_b = attrs.typ == typ
+                    attrs.loc[typ_b, "default"] = attrs.loc[typ_b, "default"].astype(
+                        typ
+                    )
 
             self.components[component]["attrs"] = attrs
 
@@ -358,10 +362,11 @@ class Network(Basic):
 
     def __repr__(self):
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
-        comps = {}
-        for c in self.iterate_components():
-            if "Type" not in c.name and len(c.df):
-                comps[c.name] = f" - {c.name}: {len(c.df)}"
+        comps = {
+            c.name: f" - {c.name}: {len(c.df)}"
+            for c in self.iterate_components()
+            if "Type" not in c.name and len(c.df)
+        }
         content = "\nComponents:"
         if comps:
             content += "\n" + "\n".join(comps[c] for c in sorted(comps))
@@ -583,7 +588,7 @@ class Network(Basic):
         """
         periods = pd.Index(periods)
         if not (
-            periods.is_integer()
+            pd.api.types.is_integer_dtype(periods)
             and periods.is_unique
             and periods.is_monotonic_increasing
         ):
@@ -842,9 +847,7 @@ class Network(Basic):
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
-        assert class_name in self.components, "Component class {} not found".format(
-            class_name
-        )
+        assert class_name in self.components, f"Component class {class_name} not found"
 
         cls_df = self.df(class_name)
         cls_pnl = self.pnl(class_name)
@@ -916,7 +919,7 @@ class Network(Basic):
         >>> network.remove("Line", "my_line 12345")
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         cls_df = self.df(class_name)
@@ -996,7 +999,7 @@ class Network(Basic):
         ...        p_max_pu=wind)
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         if not isinstance(names, pd.Index):
@@ -1046,7 +1049,7 @@ class Network(Basic):
         >>> network.mremove("Line", ["line x", "line y"])
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         if not isinstance(names, pd.Index):

@@ -111,12 +111,12 @@ def network():
     biomass_stored = [40.0, 15.0]
 
     for i in range(2):
-        n.add("Bus", "biomass" + str(i))
+        n.add("Bus", f"biomass{str(i)}")
 
         n.add(
             "Store",
-            "biomass" + str(i),
-            bus="biomass" + str(i),
+            f"biomass{str(i)}",
+            bus=f"biomass{str(i)}",
             e_nom_extendable=True,
             marginal_cost=biomass_marginal_cost[i],
             e_nom=biomass_stored[i],
@@ -126,8 +126,8 @@ def network():
         # simultaneously empties and refills co2 atmosphere
         n.add(
             "Link",
-            "biomass" + str(i),
-            bus0="biomass" + str(i),
+            f"biomass{str(i)}",
+            bus0=f"biomass{str(i)}",
             bus1="bus",
             p_nom_extendable=True,
             efficiency=0.5,
@@ -135,8 +135,8 @@ def network():
 
         n.add(
             "Link",
-            "biomass+CCS" + str(i),
-            bus0="biomass" + str(i),
+            f"biomass+CCS{str(i)}",
+            bus0=f"biomass{str(i)}",
             bus1="bus",
             bus2="co2 stored",
             bus3="co2 atmosphere",

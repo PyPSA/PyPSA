@@ -7,7 +7,7 @@ dependencies:
 # Copy from regular environment.yaml
 - numpy
 - scipy
-- pandas>=0.24.0,<2.1
+- pandas>=0.24.0
 - xarray
 - netcdf4
 - libnetcdf

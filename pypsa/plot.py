@@ -239,6 +239,7 @@ def plot(
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
+    patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
         assert (
@@ -259,7 +260,6 @@ def plot(
         if geomap:
             bus_sizes = bus_sizes * projected_area_factor(ax, n.srid) ** 2
 
-        patches = []
         for b_i in bus_sizes.index.unique(level=0):
             s_base = bus_sizes.loc[b_i]
 
@@ -277,11 +277,7 @@ def plot(
 
             for s, start in zip(s_base, starts):
                 radius = abs(s.sum()) ** 0.5
-                if radius == 0.0:
-                    ratios = abs(s)
-                else:
-                    ratios = s / s.sum()
-
+                ratios = abs(s) if radius == 0.0 else s / s.sum()
                 for i, ratio in ratios.items():
                     patches.append(
                         Wedge(
@@ -294,8 +290,6 @@ def plot(
                         )
                     )
                     start = start + ratio
-        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-        ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=n.buses.index)
         s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
@@ -309,7 +303,6 @@ def plot(
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
-        patches = []
         for b_i in s.index[s != 0]:
             radius = s.at[b_i] ** 0.5
             patches.append(
@@ -317,9 +310,8 @@ def plot(
                     (x.at[b_i], y.at[b_i]), radius, facecolor=c.at[b_i], alpha=bus_alpha
                 )
             )
-        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-        ax.add_collection(bus_collection)
-
+    bus_collection = PatchCollection(patches, match_original=True, zorder=5)
+    ax.add_collection(bus_collection)
     # Plot branches:
     if isinstance(line_widths, pd.Series):
         if isinstance(line_widths.index, pd.MultiIndex):
@@ -678,8 +670,11 @@ def _flow_ds_from_arg(flow, n, branch_components):
         return flow
     if flow in n.snapshots:
         return pd.concat(
-            [n.pnl(c).p0.loc[flow] for c in branch_components],
-            keys=branch_components,
+            {
+                c: n.pnl(c).p0.loc[flow]
+                for c in branch_components
+                if not n.pnl(c).p0.empty
+            },
             sort=True,
         )
     if isinstance(flow, str) or callable(flow):
@@ -739,10 +734,14 @@ def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
         axis=1,
     )
     data = data.dropna(subset=["arrows"])
-    arrowcol = PatchCollection(
-        data.arrows, color=color, alpha=alpha, edgecolors="k", linewidths=0.0, zorder=4
+    return PatchCollection(
+        data.arrows,
+        color=color,
+        alpha=alpha,
+        edgecolors="k",
+        linewidths=0.0,
+        zorder=4,
     )
-    return arrowcol
 
 
 def autogenerate_coordinates(n, assign=False, layouter=None):
@@ -778,8 +777,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     G = n.graph()
 
     if layouter is None:
-        is_planar = nx.check_planarity(G)[0]
-        if is_planar:
+        if is_planar := nx.check_planarity(G)[0]:
             layouter = nx.planar_layout
         else:
             layouter = nx.kamada_kawai_layout

@@ -7,11 +7,39 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Bugfix in power flow distributed slack if ``p_nom`` or ``p_nom_opt`` are used as weights.
-* Add example in documentation for the statistics module.
-* Add option to enable or disable nice carrier name in the statistics module (e.g.``n.statistics(nice_name=False)``).
+* Add option to specify time-varying ramp rates for generators and links (``ramp_limit_up`` and ``ramp_limit_down``).
+
 * It is now possible to couple the dispatch of generators. For this purpose, three new columns `p_coupling`, `p_coupling_coeff` and `p_coupling_sign` have been added to the generator component. They allow coupling the dispatch of one generator to another generator by adding a linear constraint to the optimization problem. The condition is of the form ``p {p_coupling_sign} {p_coupling_sign} * p_{p_coupling}``. The coupling is applied only when the coupling generator is active.
 
+PyPSA 0.25.2 (30th September 2023)
+==================================
+
+* Add option to enable or disable nice carrier name in the statistics module
+  (e.g.``n.statistics(nice_name=False)``).
+
+* Add example in documentation for the statistics module.
+
+* Add example for stochastic optimization with PyPSA to the documentation.
+
+* Extended documentation for multi-decade optimization.
+
+* Bugfix: Use of ``nice_names`` keyword argument in
+  ``n.statistics.energy_balance()``.
+
+* Bugfix: Correctly handle ``p_nom`` or ``p_nom_opt`` in power flow distributed
+  slack.
+
+* Bugfix: After the optimization the right-hand side and sign of global
+  constraints were previously overwritten by altered values.
+
+* Bugfix: In netCDF export, typecasting to float32 after setting the compression
+  encoding led to ignored compression encodings.
+
+* Bugfix: Handle solver options for CBC and GLPK for ``n.lopf(pyomo=False)``.
+
+* Bugfix: Handle cases with multi-decade optimisation, activated transmission
+  limit and an empty list of lines or DC links.
+  
 PyPSA 0.25.1 (27th July 2023)
 =============================
 
@@ -666,7 +694,7 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
 
-* Added support for the FICO Xpress commercial solver for optimization withhout pyomo, i.e. ``pyomo=False``.
+* Added support for the FICO Xpress commercial solver for optimization without pyomo, i.e. ``pyomo=False``.
 
 * There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were

@@ -528,17 +528,17 @@ def define_nodal_balance_constraints(n, sns, transmission_losses):
 
     lhs = (
         pd.concat([bus_injection(*arg) for arg in args], axis=1)
-        .groupby(axis=1, level=0)
+        .T.groupby(level=0)
         .sum(**agg_group_kwargs)
-        .reindex(columns=n.buses.index, fill_value="")
+        .T.reindex(columns=n.buses.index, fill_value="")
     )
 
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     if (lhs == "").any(axis=None):
@@ -587,7 +587,7 @@ def define_kirchhoff_constraints(n, sns):
 
             con = write_constraint(n, cycle_sum, "=", 0)
             subconstraints.append(con)
-        if len(subconstraints) == 0:
+        if not subconstraints:
             continue
         constraints.append(pd.concat(subconstraints, axis=1, ignore_index=True))
     if constraints:
@@ -836,10 +836,10 @@ def define_growth_limit(n, sns, c, attr):
         },
         axis=1,
     ).T[limit_i]
-    lhs = caps.groupby(carriers, axis=1).sum(**agg_group_kwargs)
+    lhs = caps.T.groupby(carriers).sum(**agg_group_kwargs).T
     rhs = n.carriers.max_growth[with_limit]
 
-    define_constraints(n, lhs, "<=", rhs, "Carrier", "growth_limit_{}".format(c))
+    define_constraints(n, lhs, "<=", rhs, "Carrier", f"growth_limit_{c}")
 
 
 def define_global_constraints(n, sns):
@@ -1143,7 +1143,7 @@ def define_objective(n, sns):
                     for period in sns.unique("period")
                 },
                 axis=1,
-            )
+            ).astype(float)
             cost = active @ period_weighting * cost
 
         caps = get_var(n, c, attr).loc[ext_i]
@@ -1304,7 +1304,7 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             variables_sol.loc[-1] = 0
-            values = variables.applymap(lambda x: variables_sol.loc[x])
+            values = variables.map(lambda x: variables_sol.loc[x])
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, "p0", values)
                 set_from_frame(pnl, "p1", -values)
@@ -1366,7 +1366,7 @@ def assign_solution(
         to_component = c in n.all_components
         if is_pnl:
             n.dualvalues.at[(c, attr), "in_comp"] = to_component
-            duals = constraints.applymap(
+            duals = constraints.map(
                 lambda x: sign * constraints_dual.loc[x]
                 if x in constraints_dual.index
                 else np.nan
@@ -1445,9 +1445,9 @@ def assign_solution(
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     def v_ang_for_(sub):

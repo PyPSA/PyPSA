@@ -385,7 +385,7 @@ def test_linearized_unit_commitment(api):
     n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
 
     load = np.zeros(len(n.snapshots))
-    load[0:5] = 5
+    load[:5] = 5
     load[5:10] = 6
     load[10:15] = 8
     load[15:20] = 10
@@ -395,8 +395,7 @@ def test_linearized_unit_commitment(api):
 
     n.add("Bus", "bus")
 
-    seed = 1
-    for i in range(40):
+    for seed, i in enumerate(range(40), start=1):
         np.random.seed(seed)
         p_min_pu = np.random.randint(1, 5) / 10
         marginal_cost = np.random.randint(1, 11) * 10
@@ -420,8 +419,6 @@ def test_linearized_unit_commitment(api):
             start_up_cost=start_up_cost,
             shut_down_cost=shut_down_cost,
         )
-        seed += 1
-
     n.add("Load", "load", bus="bus", p_set=load)
 
     optimize(n, api, linearized_unit_commitment=True)
@@ -476,3 +473,47 @@ def test_link_unit_commitment(api):
     equal(-n.links_t.p1["OCGT"].values, expected_dispatch)
 
     assert round(n.objective, 1) == 267333.0
+
+
+@pytest.mark.parametrize("api", ["linopy"])
+def test_dynamic_ramp_rates(api):
+    """
+    This test checks that dynamic ramp rates are correctly applied when
+    considering a unit outage represented by p_max_pu.
+    """
+
+    n = pypsa.Network()
+
+    snapshots = range(0, 15)
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    # vary marginal price of gen1 to induce ramping
+    gen1_marginal = pd.Series(100, index=n.snapshots)
+    gen1_marginal[[4, 5, 6, 10, 11, 12]] = 200
+
+    static_ramp_up = 0.8
+    static_ramp_down = 1
+    p_max_pu = pd.Series(1, index=n.snapshots)
+    p_max_pu.loc[n.snapshots[0:6]] = 0.5  # 50% capacity outage for 6 periods
+
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus",
+        p_nom=100,
+        p_max_pu=p_max_pu,
+        ramp_limit_up=static_ramp_up * p_max_pu,
+        ramp_limit_down=static_ramp_down * p_max_pu,
+        marginal_cost=gen1_marginal,
+    )
+
+    n.add("Generator", "gen2", bus="bus", p_nom=100, marginal_cost=150)
+
+    optimize(n, api)
+
+    assert (n.generators_t.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80
+    assert (n.generators_t.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
+    assert (n.generators_t.p.diff().loc[6:, "gen1"]).max() <= 80
+    assert (n.generators_t.p.diff().loc[6:, "gen1"]).min() >= -100

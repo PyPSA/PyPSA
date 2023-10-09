@@ -42,10 +42,7 @@ def get_bus_and_carrier(n, c, port="", nice_names=True):
     Get the buses and nice carrier names for a component.
     """
     if port == "":
-        if "bus" not in n.df(c):
-            bus = "bus0"
-        else:
-            bus = "bus"
+        bus = "bus0" if "bus" not in n.df(c) else "bus"
     else:
         bus = f"bus{port}"
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
@@ -553,10 +550,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.branch_components:
-                p = -n.pnl(c).p0
-            else:
-                p = n.pnl(c).p * n.df(c).sign
+            p = -n.pnl(c).p0 if c in n.branch_components else n.pnl(c).p * n.df(c).sign
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -603,11 +597,13 @@ class StatisticsAccessor:
         def func(n, c):
             sign = -1 if c in n.branch_components else n.df(c).get("sign", 1)
             ports = [col[3:] for col in n.df(c).columns if col[:3] == "bus"]
-            p = list()
+            p = []
             for port in ports:
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
-                index = get_carrier_and_bus_carrier(n, c, port=port)[mask]
+                index = get_carrier_and_bus_carrier(
+                    n, c, port=port, nice_names=nice_names
+                )[mask]
                 df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)

@@ -22,10 +22,10 @@ num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel l
 v_ang_min,float,Degrees,-inf,Minimum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
 v_ang_max,float,Degrees,inf,Maximum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
 sub_network,string,n/a,n/a,Name of connected sub-network to which lines belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.,Output
-p0,series,MW,0,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
-q0,series,MVar,0,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
-p1,series,MW,0,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
-q1,series,MVar,0,Reactive power at bus1 (positive if branch is withdrawing power from bus1).,Output
+p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
+q0,series,MVar,0.,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
+p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
+q1,series,MVar,0.,Reactive power at bus1 (positive if branch is withdrawing power from bus1).,Output
 x_pu,float,per unit,0,Per unit series reactance calculated by PyPSA from x and bus.v_nom.,Output
 r_pu,float,per unit,0,Per unit series resistance calculated by PyPSA from r and bus.v_nom,Output
 g_pu,float,per unit,0,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output
@@ -33,5 +33,5 @@ b_pu,float,per unit,0,Per unit shunt susceptance calculated by PyPSA from b and 
 x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by PyPSA from x, tap_ratio for transformers and bus.v_nom.",Output
 r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by PyPSA from x, tap_ratio for transformers and bus.v_nom.",Output
 s_nom_opt,float,MVA,0,Optimised capacity for apparent power.,Output
-mu_lower,series,currency/MVA,0,Shadow price of lower s_nom limit  -F \leq f. Always non-negative.,Output
-mu_upper,series,currency/MVA,0,Shadow price of upper s_nom limit f \leq F. Always non-negative.,Output
+mu_lower,series,currency/MVA,0.,Shadow price of lower s_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MVA,0.,Shadow price of upper s_nom limit f \leq F. Always non-negative.,Output
