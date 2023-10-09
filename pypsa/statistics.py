@@ -221,7 +221,10 @@ def aggregate_components(
             d[c] = func(n, c).rename_axis("name")
         else:
             d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
-    return pd.concat(d, names=["component", *d[c].index.names])
+
+    if d == {}:
+        return pd.DataFrame()
+    return pd.concat(d, names=["component", *d[list(d.keys())[0]].index.names])
 
 
 def pass_empty_series_if_keyerror(func):
