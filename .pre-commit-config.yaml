@@ -39,6 +39,16 @@ repos:
   - id: docformatter
     args: ['--in-place', '--make-summary-multi-line', '--pre-summary-newline']
 
+# Sourcery
+- repo: https://github.com/sourcery-ai/sourcery
+  rev: v1.10.1
+  hooks:
+    - id: sourcery
+      # The best way to use Sourcery in a pre-commit hook:
+      # * review only changed lines:
+      # * omit the summary
+      args: [--diff=git diff HEAD, --no-summary]
+
 # Formatting with "black" coding style
 - repo: https://github.com/psf/black
   rev: 23.9.1
