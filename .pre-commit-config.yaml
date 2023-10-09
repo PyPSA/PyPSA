@@ -43,7 +43,7 @@ repos:
 - repo: https://github.com/sourcery-ai/sourcery
   rev: v1.10.1
   hooks:
-    - id: sourcery
+  - id: sourcery
       # * review only changed lines:
       # * omit the summary
       # args: [--diff=git diff HEAD, --no-summary]
