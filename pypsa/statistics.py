@@ -223,7 +223,7 @@ def aggregate_components(
             d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
 
     if d == {}:
-        return pd.DataFrame()
+        return pd.Series([])
     return pd.concat(d, names=["component", *d[list(d.keys())[0]].index.names])
 
 
