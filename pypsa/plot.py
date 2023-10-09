@@ -241,8 +241,8 @@ def plot(
 
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert (
-            len(bus_sizes.index.levels[0].difference(n.buses.index)) == 0
+        assert set(bus_sizes.index.get_level_values(0)).issubset(
+            n.buses.index
         ), "The first MultiIndex level of bus_sizes must contain buses"
         if isinstance(bus_colors, dict):
             bus_colors = pd.Series(bus_colors)
@@ -375,13 +375,29 @@ def plot(
         flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
 
     for c in n.iterate_components(branch_components):
-        b_widths = as_branch_series(branch_widths[c.name], "width", c.name, n)
-        b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
-        b_alpha = as_branch_series(branch_alpha[c.name], "color", c.name, n)
+        d = dict(
+            width=branch_widths[c.name],
+            color=branch_colors[c.name],
+            alpha=branch_alpha[c.name],
+        )
+        if flow is not None and flow.get(c.name) is not None:
+            d["flow"] = flow[c.name]
+
+        if any([isinstance(v, pd.Series) for _, v in d.items()]):
+            df = pd.DataFrame(d)
+        else:
+            df = pd.DataFrame(d, index=c.df.index)
+
+        if df.empty:
+            continue
+
+        b_widths = df.width
+        b_colors = df.color
+        b_alpha = df.alpha
         b_nums = None
         b_cmap = branch_cmap[c.name]
         b_norm = branch_norm[c.name]
-        b_flow = flow.get(c.name, None) if flow is not None else None
+        b_flow = df.get("flow")
 
         if issubclass(b_colors.dtype.type, np.number):
             b_nums = b_colors
@@ -390,8 +406,8 @@ def plot(
         if not geometry:
             segments = np.asarray(
                 (
-                    (c.df.bus0.map(x), c.df.bus0.map(y)),
-                    (c.df.bus1.map(x), c.df.bus1.map(y)),
+                    (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
+                    (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
                 )
             ).transpose(2, 0, 1)
         else:
@@ -414,7 +430,7 @@ def plot(
                     "y2": c.df.bus1.map(y),
                 }
             )
-            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
+            b_flow = b_flow.mul(b_widths, fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)

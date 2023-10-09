@@ -79,3 +79,20 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
     df = ac_dc_network_r.statistics(aggregate_time="sum")
     df = df.loc[["Line", "Link"]]
     assert np.allclose(df["Revenue"], df["Capital Expenditure"])
+
+
+def test_no_grouping(ac_dc_network_r):
+    df = ac_dc_network_r.statistics(groupby=False)
+    assert not df.empty
+
+
+def test_bus_carrier_selection(ac_dc_network_r):
+    df = ac_dc_network_r.statistics.supply(groupby=False, bus_carrier="AC")
+    assert not df.empty
+
+
+def test_bus_carrier_selection(ac_dc_network_r):
+    df = ac_dc_network_r.statistics.supply(
+        groupby=get_bus_and_carrier, bus_carrier=["AC", "DC"]
+    )
+    assert not df.empty

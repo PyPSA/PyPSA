@@ -135,6 +135,37 @@ def test_plot_alpha(ac_dc_network):
     plt.close()
 
 
+def test_plot_line_subset(ac_dc_network):
+    n = ac_dc_network
+
+    lines = n.lines.index[:2]
+    colors = pd.Series(np.random.rand(len(lines)), lines)
+    n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    plt.close()
+
+
+def test_plot_bus_subset(ac_dc_network):
+    n = ac_dc_network
+
+    buses = n.buses.index[:2]
+    colors = pd.Series(np.random.rand(len(buses)), buses)
+    n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    plt.close()
+
+    bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()[:3]
+    bus_sizes[:] = 1
+    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    n.plot(
+        bus_sizes=bus_sizes,
+        bus_colors=bus_colors,
+        geomap=False,
+        bus_alpha=0.5,
+        line_alpha=0.5,
+        link_alpha=0.5,
+    )
+    plt.close()
+
+
 def test_plot_layouter(ac_dc_network):
     n = ac_dc_network
 

@@ -71,6 +71,7 @@ def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     bus_and_carrier = pd.concat(
         get_bus_and_carrier(n, c, port, nice_names=nice_names), axis=1
     )
+
     bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
     return pd.concat([bus_and_carrier, bus_carrier], axis=1)
 
@@ -97,6 +98,77 @@ def get_weightings(n, c):
         return n.snapshot_weightings["stores"]
     else:
         return n.snapshot_weightings["objective"]
+
+
+def mask_buses(n, c, port="", bus_carrier=None):
+    """
+    Get a mask of components which are optionally connected to a bus with a
+    given carrier.
+    """
+    if bus_carrier is None:
+        mask = n.df(c)[f"bus{port}"] != ""
+    elif isinstance(bus_carrier, str):
+        mask = n.df(c)[f"bus{port}"].map(n.buses.carrier).eq(bus_carrier)
+    elif isinstance(bus_carrier, list):
+        mask = n.df(c)[f"bus{port}"].map(n.buses.carrier).isin(bus_carrier)
+    else:
+        raise ValueError(
+            f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+        )
+    return mask.astype(int)
+
+
+def efficiency_mask(n, c, port="", bus_carrier=None):
+    mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+    if (port == "") or "efficiency" not in n.df(c):
+        efficiency = 1
+    elif port == "0":
+        efficiency = -1
+    elif port == "1":
+        efficiency = n.df(c)["efficiency"]
+    else:
+        efficiency = n.df(c)[f"efficiency{port}"]
+    return mask * efficiency
+
+
+def get_transmission_branches(n, bus_carrier=None):
+    """
+    Get the list of assets which transport between buses of the carrier
+    `bus_carrier`.
+    """
+
+    index = {}
+    for c in n.branch_components:
+        bus_map = n.df(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+        if isinstance(bus_carrier, str):
+            bus_carrier = [bus_carrier]
+        elif bus_carrier is None:
+            bus_carrier = n.buses.carrier.unique()
+        res = set()
+        for carrier in bus_carrier:
+            res |= set(
+                bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+            )
+        index[c] = pd.Index(res)
+    return pd.MultiIndex.from_tuples(
+        [(c, i) for c, idx in index.items() for i in idx], names=["component", "name"]
+    )
+
+
+def get_transmission_carriers(n, bus_carrier=None):
+    """
+    Get the carriers which transport between buses of the carrier
+    `bus_carrier`.
+    """
+    branches = get_transmission_branches(n, bus_carrier)
+    carriers = {}
+    for c in branches.unique(0):
+        idx = branches[branches.get_loc(c)].get_level_values(1)
+        carriers[c] = n.df(c).carrier[idx].unique()
+    return pd.MultiIndex.from_tuples(
+        [(c, i) for c, idx in carriers.items() for i in idx],
+        names=["component", "name"],
+    )
 
 
 def aggregate_timeseries(df, weights, agg="sum"):
@@ -129,6 +201,9 @@ def aggregate_components(
     if groupby is None:
         groupby = get_carrier
     for c in comps:
+        if n.df(c).empty:
+            continue
+
         if callable(groupby):
             grouping = groupby(n, c, nice_names=nice_names)
         elif isinstance(groupby, list):
@@ -138,12 +213,15 @@ def aggregate_components(
         elif isinstance(groupby, dict):
             grouping = None
             kwargs = groupby
-        else:
+        elif groupby is not False:
             ValueError(
-                f"Argument `groupby` must be a function, list, string or dict, got {type(groupby)}"
+                f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
             )
-        d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
-    return pd.concat(d)
+        if groupby is False:
+            d[c] = func(n, c).rename_axis("name")
+        else:
+            d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
+    return pd.concat(d, names=["component", *d[c].index.names])
 
 
 def pass_empty_series_if_keyerror(func):
@@ -231,23 +309,29 @@ class StatisticsAccessor:
             res.append(df.rename(df.attrs["name"]))
         return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
 
-    def get_carrier(self, n, c):
+    def get_carrier(self, n, c, **kwargs):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_carrier(n, c)
+        return get_carrier(n, c, **kwargs)
 
-    def get_bus_and_carrier(self, n, c):
+    def get_bus_and_carrier(self, n, c, **kwargs):
         """
         Get the buses and nice carrier names for a component.
         """
-        return get_bus_and_carrier(n, c)
+        return get_bus_and_carrier(n, c, **kwargs)
 
-    def get_country_and_carrier(self, n, c):
+    def get_carrier_and_bus_carrier(self, n, c, **kwargs):
+        """
+        Get the carriers and bus carriers for a component.
+        """
+        return get_carrier_and_bus_carrier(n, c, **kwargs)
+
+    def get_country_and_carrier(self, n, c, **kwargs):
         """
         Get the country and nice carrier names for a component.
         """
-        return get_country_and_carrier(n, c)
+        return get_country_and_carrier(n, c, **kwargs)
 
     def capex(
         self,
@@ -255,6 +339,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -266,7 +351,19 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            return n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
+            col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
+            if bus_carrier is None:
+                return col
+            else:
+                sign = n.df(c).get("sign", 1)
+                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ds = pd.Series(0, index=n.df(c).index)
+                for port in ports:
+                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    df = sign * mask * col
+                    df.clip(lower=0, inplace=True)
+                    ds = ds.add(df, fill_value=0.0)
+                return ds[ds != 0]
 
         df = aggregate_components(
             n,
@@ -286,6 +383,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the capital expenditure of already built components of the
@@ -298,7 +396,19 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            return n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
+            col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
+            if bus_carrier is None:
+                return col
+            else:
+                sign = n.df(c).get("sign", 1)
+                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ds = pd.Series(0, index=n.df(c).index)
+                for port in ports:
+                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    df = sign * mask * col
+                    df.clip(lower=0, inplace=True)
+                    ds = ds.add(df, fill_value=0.0)
+                return ds[ds != 0]
 
         df = aggregate_components(
             n,
@@ -318,6 +428,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the optimal capacity of the network components in MW.
@@ -329,7 +440,19 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            return n.df(c)[f"{nominal_attrs[c]}_opt"]
+            col = n.df(c)[f"{nominal_attrs[c]}_opt"]
+            if bus_carrier is None:
+                return col
+            else:
+                sign = n.df(c).get("sign", 1)
+                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ds = pd.Series(0, index=n.df(c).index)
+                for port in ports:
+                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    df = sign * mask * col
+                    df.clip(lower=0, inplace=True)
+                    ds = ds.add(df, fill_value=0.0)
+                return ds[ds != 0]
 
         df = aggregate_components(
             n,
@@ -349,6 +472,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the installed capacity of the network components in MW.
@@ -360,7 +484,19 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            return n.df(c)[f"{nominal_attrs[c]}"]
+            col = n.df(c)[f"{nominal_attrs[c]}"]
+            if bus_carrier is None:
+                return col
+            else:
+                sign = n.df(c).get("sign", 1)
+                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ds = pd.Series(0, index=n.df(c).index)
+                for port in ports:
+                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    df = sign * mask * col
+                    df.clip(lower=0, inplace=True)
+                    ds = ds.add(df, fill_value=0.0)
+                return ds[ds != 0]
 
         df = aggregate_components(
             n,
@@ -380,6 +516,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the expanded capacity of the network components in MW.
@@ -392,11 +529,16 @@ class StatisticsAccessor:
             aggregate_groups=aggregate_groups,
             groupby=groupby,
             nice_names=nice_names,
-        ) - self.installed_capacity(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            nice_names=nice_names,
+            bus_carrier=bus_carrier,
+        ).sub(
+            self.installed_capacity(
+                comps=comps,
+                aggregate_groups=aggregate_groups,
+                groupby=groupby,
+                nice_names=nice_names,
+                bus_carrier=bus_carrier,
+            ),
+            fill_value=0,
         )
         df.attrs["name"] = "Expanded Capacity"
         df.attrs["unit"] = "MW"
@@ -456,6 +598,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the supply of components in the network. Units depend on the
@@ -468,11 +611,16 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.branch_components:
-                p = -n.pnl(c).p0.clip(upper=0)
-                p -= n.pnl(c).p1.clip(upper=0)
-            else:
-                p = (n.pnl(c).p * n.df(c).sign).clip(lower=0)
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
+            for port in ports:
+                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df.clip(lower=0, inplace=True)
+                p = p.add(df, fill_value=0.0)
+            p = p.loc[:, (p != 0).any()]
+
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -495,6 +643,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the withdrawal of components in the network. Units depend on
@@ -507,11 +656,16 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.branch_components:
-                p = -(n.pnl(c).p0).clip(lower=0)
-                p -= n.pnl(c).p1.clip(lower=0)
-            else:
-                p = (n.pnl(c).p * n.df(c).sign).clip(upper=0)
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
+            for port in ports:
+                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df = -df.clip(upper=0)
+                p = p.add(df, fill_value=0.0)
+            p = p.loc[:, (p != 0).any()]
+
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -534,6 +688,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the dispatch of components in the network. Units depend on
@@ -553,10 +708,15 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.branch_components:
-                p = -n.pnl(c).p0
-            else:
-                p = n.pnl(c).p * n.df(c).sign
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
+            for port in ports:
+                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                df = sign * mask * n.pnl(c)[f"p{port}"]
+                p = p.add(df, fill_value=0.0)
+            p = p.loc[:, (p != 0).any()]
+
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -716,7 +876,7 @@ class StatisticsAccessor:
         capacity = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
-        df = df.div(capacity, axis=0)
+        df = df.div(capacity, axis=0, fill_value=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
@@ -728,6 +888,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the revenue of components in the network in given currency.
@@ -746,16 +907,20 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c):
-            if c in n.one_port_components:
-                prices = n.buses_t.marginal_price.reindex(columns=n.df(c).bus)
-                prices.columns = n.df(c).index
-                revenue = n.pnl(c).p * prices
-            else:
-                prices0 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus0)
-                prices0.columns = n.df(c).index
-                prices1 = n.buses_t.marginal_price.reindex(columns=n.df(c).bus1)
-                prices1.columns = n.df(c).index
-                revenue = -(n.pnl(c).p0 * prices0 + n.pnl(c).p1 * prices1)
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            revenue = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
+            for port in ports:
+                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                df = sign * mask * n.pnl(c)[f"p{port}"]
+                buses = n.df(c)[f"bus{port}"][df.columns]
+                prices = n.buses_t.marginal_price.reindex(
+                    columns=buses, fill_value=0
+                ).values
+                df = df * prices
+                revenue = revenue.add(df, fill_value=0.0)
+
+            revenue = revenue.loc[:, (revenue != 0).any()]
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
