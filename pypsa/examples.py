@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 def _repo_url(master=False):
     url = "https://github.com/PyPSA/PyPSA/raw/"
     if master:
-        return url + "master/"
+        return f"{url}master/"
     from pypsa import __version__  # avoid cyclic imports
 
-    return url + f"v{__version__}/"
+    return f"{url}v{__version__}/"
 
 
 def _retrieve_if_not_local(name, repofile, update=False, from_master=False):

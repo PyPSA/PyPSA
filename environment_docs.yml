@@ -15,7 +15,7 @@ dependencies:
 - pytables
 - matplotlib
 - networkx>=1.10
-- pyomo
+- pyomo<6.6.2
 - cartopy>=0.16
 - coincbc
 - glpk
@@ -32,3 +32,4 @@ dependencies:
   - sphinx-book-theme
   - nbsphinx
   - nbsphinx_link
+  - highspy

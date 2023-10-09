@@ -2,14 +2,34 @@ name: pypsa
 channels:
 - conda-forge
 dependencies:
-- python>=3.9
-- pip
+- python>=3.11
+
+# Copy from regular environment.yaml
+- numpy
+- scipy
+- pandas>=0.24.0
+- xarray
+- netcdf4
+- libnetcdf
+- pytables
+- matplotlib
+- networkx>=1.10
+- pyomo>=5.7.0,<6.6.2
+- cartopy>=0.16
+- glpk
+- linopy>=0.2
+- deprecation
+- validators
+
+# development dependencies required for CI
 - pytest
 - pytest-cov
 - twine
 - flake8
 - cartopy
 - scikit-learn
+
+- pip
 - pip:
   - pypower
   - pandapower>=2.0

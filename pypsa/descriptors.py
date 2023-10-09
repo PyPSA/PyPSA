@@ -123,8 +123,7 @@ class Dict(dict):
         dict_keys = []
         for k in self.keys():
             if isinstance(k, str):
-                m = self._re_pattern.match(k)
-                if m:
+                if m := self._re_pattern.match(k):
                     dict_keys.append(m.string)
 
         obj_attrs = list(dir(Dict))
@@ -436,20 +435,23 @@ def update_linkports_component_attrs(n, where=None):
     c = "Link"
 
     def doc_changes(s, j, i):
-        if not isinstance(s, str):
+        if not isinstance(s, str) or len(s) == 1:
             return s
         return s.replace(j, str(i)).replace("required", "optional")
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
+        to_replace = "1"
         j = "1" if attr != "efficiency" else ""
         n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"].loc[attr + j].apply(doc_changes, args=(j, i))
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(doc_changes, args=(to_replace, i))
         )
         n.component_attrs[c].loc[target] = (
-            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(j, i))
+            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(to_replace, i))
         )
-        if attr in ["efficiency", "p"] and not target in n.pnl(c).keys():
+        if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
             df.columns.name = c
@@ -459,5 +461,4 @@ def update_linkports_component_attrs(n, where=None):
 def additional_linkports(n, where=None):
     if not where:
         where = n.links.columns
-    ports = [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
-    return ports
+    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]

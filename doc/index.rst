@@ -17,8 +17,8 @@ PyPSA: Python for Power System Analysis
 .. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
     :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml
 
 .. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
@@ -60,7 +60,7 @@ PyPSA is an open source toolbox for
 simulating and optimising modern power and energy systems that include features
 such as conventional generators and links with unit commitment, variable wind
 and solar generation, storage units, coupling to other energy sectors,
-and mixed alternating and direct current networks.  PyPSA is designed
+and mixed alternating and direct current networks.  PyPSA is graph-based and designed
 to scale well with large networks and long time series.
 
 This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`_
@@ -132,7 +132,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: User Guide
 
    design

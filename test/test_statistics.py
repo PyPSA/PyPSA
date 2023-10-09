@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import pypsa
-from pypsa.statistics import get_bus_and_carrier
+from pypsa.statistics import get_bus_and_carrier, get_country_and_carrier
 
 
 @pytest.fixture
@@ -50,6 +50,13 @@ def test_default_solved(ac_dc_network_r):
 
 def test_per_bus_carrier_unsolved(ac_dc_network):
     df = ac_dc_network.statistics(groupby=get_bus_and_carrier)
+    assert not df.empty
+
+
+def test_per_country_carrier_unsolved(ac_dc_network):
+    n = ac_dc_network
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    df = n.statistics(groupby=get_country_and_carrier)
     assert not df.empty
 
 
