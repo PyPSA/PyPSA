@@ -66,13 +66,10 @@ def test_pf_distributed_slack(scipy_network):
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1),
     )
 
-    # by custom weights (mirror 'capacity' via custom slack weights by generators)
-    custom_weights = {}
-    for sub_network in network.sub_networks.obj:
-        custom_weights[
-            sub_network.name
-        ] = sub_network.generators().p_nom  # weights do not sum up to 1
-
+    custom_weights = {
+        sub_network.name: sub_network.generators().p_nom
+        for sub_network in network.sub_networks.obj
+    }
     network.pf(distribute_slack=True, slack_weights=custom_weights)
 
     equal(
