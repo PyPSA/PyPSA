@@ -47,7 +47,7 @@ repos:
       # The best way to use Sourcery in a pre-commit hook:
       # * review only changed lines:
       # * omit the summary
-      args: [--diff=git diff HEAD, --no-summary]
+      # args: [--diff=git diff HEAD, --no-summary]
 
 # Formatting with "black" coding style
 - repo: https://github.com/psf/black
