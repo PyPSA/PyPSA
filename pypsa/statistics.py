@@ -120,7 +120,7 @@ def get_ports(n, c):
     return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
-def mask_buses(n, c, port="", bus_carrier=None):
+def port_mask(n, c, port="", bus_carrier=None):
     """
     Get a mask of components which are optionally connected to a bus with a
     given carrier.
@@ -138,8 +138,8 @@ def mask_buses(n, c, port="", bus_carrier=None):
     return mask.astype(int)
 
 
-def efficiency_mask(n, c, port="", bus_carrier=None):
-    mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+def port_efficiency(n, c, port="", bus_carrier=None):
+    mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
     if (port == "") or "efficiency" not in n.df(c):
         efficiency = 1
     elif port == "0":
@@ -193,14 +193,23 @@ def get_transmission_carriers(n, bus_carrier=None):
 
 def aggregate_timeseries(df, weights, agg="sum"):
     "Calculate the weighed sum or average of a DataFrame or Series."
-    if agg == "mean":
-        return df.multiply(weights, axis=0).sum().div(weights.sum())
-    elif agg == "sum":
-        return weights @ df
-    elif not agg:
-        return df.T
+    if isinstance(df.index, pd.MultiIndex):
+        weights = weights.groupby(level=0).sum()
+        if agg == "mean":
+            weights = weights.div(weights.groupby(level=0).sum(), level=0)
+            return df.multiply(weights, axis=0).groupby(level=0).sum().T
+        elif agg == "sum":
+            return df.multiply(weights, axis=0).groupby(level=0).sum().T
+        elif not agg:
+            return df.T
     else:
-        return df.agg(agg)
+        if agg == "mean":
+            return (weights / weights.sum()) @ df
+        elif agg == "sum":
+            return weights @ df
+        elif not agg:
+            return df.T
+    return df.agg(agg)
 
 
 def aggregate_components(
@@ -237,10 +246,19 @@ def aggregate_components(
             ValueError(
                 f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
             )
-        if groupby is False:
-            d[c] = func(n, c).rename_axis("name")
-        else:
-            d[c] = func(n, c).groupby(grouping, **kwargs).agg(agg)
+
+        df = func(n, c)
+        if not n.investment_periods.empty and not isinstance(df, pd.DataFrame):
+            # for static values we have to iterate over periods and concat
+            per_period = {}
+            for p in n.investment_periods:
+                per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
+            df = pd.concat(per_period, axis=1)
+        d[c] = (
+            df.rename_axis("name")
+            if groupby is False
+            else df.groupby(grouping, **kwargs).agg(agg)
+        )
 
     if d == {}:
         return pd.Series([])
@@ -321,6 +339,7 @@ class StatisticsAccessor:
             logger.warning(
                 "Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults."
             )
+            kwargs.pop("aggregate_time")
 
         funcs = [
             self.installed_capacity,
@@ -336,24 +355,18 @@ class StatisticsAccessor:
             self.market_value,
         ]
 
-        res = []
+        res = {}
         for func in funcs:
-            # check if aggregate_time is in functions arguments
-            if "aggregate_time" not in func.__code__.co_varnames:
-                tmp_kwargs = kwargs.copy()
-                tmp_kwargs.pop("aggregate_time", None)
-            else:
-                tmp_kwargs = kwargs
             df = func(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
                 groupby=groupby,
                 nice_names=nice_names,
-                **tmp_kwargs,
+                **kwargs,
             )
-            res.append(df.rename(df.attrs["name"]))
-        index = pd.Index(set.union(*[set(df.index) for df in res]))
-        res = [df.reindex(index, fill_value=0.0) for df in res]
+            res[df.attrs["name"]] = df
+        index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
+        res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
     @deprecated("Use `groupers.get_carrier` instead.")
@@ -408,7 +421,7 @@ class StatisticsAccessor:
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
             if bus_carrier is not None:
                 masks = [
-                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
@@ -457,7 +470,7 @@ class StatisticsAccessor:
                 ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
-                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    mask = port_efficiency(n, c, port=port, bus_carrier=bus_carrier)
                     df = sign * mask * col
                     df.clip(lower=0, inplace=True)
                     ds = ds.add(df, fill_value=0.0)
@@ -504,7 +517,7 @@ class StatisticsAccessor:
                 ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
-                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    mask = port_efficiency(n, c, port=port, bus_carrier=bus_carrier)
                     df = sign * mask * col
                     df.clip(lower=0, inplace=True)
                     ds = ds.add(df, fill_value=0.0)
@@ -551,7 +564,7 @@ class StatisticsAccessor:
                 ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
-                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    mask = port_efficiency(n, c, port=port, bus_carrier=bus_carrier)
                     df = sign * mask * col
                     df.clip(lower=0, inplace=True)
                     ds = ds.add(df, fill_value=0.0)
@@ -643,7 +656,7 @@ class StatisticsAccessor:
                 p = n.pnl(c).p
             if bus_carrier is not None:
                 masks = [
-                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
@@ -693,7 +706,7 @@ class StatisticsAccessor:
             ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
-                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 df.clip(lower=0, inplace=True)
@@ -742,7 +755,7 @@ class StatisticsAccessor:
             ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
-                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 df = -df.clip(upper=0)
@@ -798,7 +811,7 @@ class StatisticsAccessor:
             ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
-                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 p = p.add(df, fill_value=0.0)
@@ -915,7 +928,7 @@ class StatisticsAccessor:
             p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
             if bus_carrier is not None:
                 masks = [
-                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
@@ -968,7 +981,7 @@ class StatisticsAccessor:
             p = get_operation(n, c).abs()
             if bus_carrier is not None:
                 masks = [
-                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
@@ -1026,7 +1039,7 @@ class StatisticsAccessor:
             ports = get_ports(n, c)
             revenue = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
-                mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * mask * df.reindex(columns=revenue.columns, fill_value=0)
                 buses = n.df(c)[f"bus{port}"][df.columns]

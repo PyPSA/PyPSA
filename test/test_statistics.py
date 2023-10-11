@@ -43,7 +43,6 @@ def test_per_bus_carrier_unsolved(ac_dc_network):
 
 def test_per_country_carrier_unsolved(ac_dc_network):
     n = ac_dc_network
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
     df = n.statistics(groupby=get_country_and_carrier)
     assert not df.empty
 
@@ -64,9 +63,11 @@ def test_column_grouping_solved(ac_dc_network_r):
 
 
 def test_zero_profit_rule_branches(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(aggregate_time="sum")
-    df = df.loc[["Line", "Link"]]
-    assert np.allclose(df["Revenue"], df["Capital Expenditure"])
+    n = ac_dc_network_r
+    revenue = n.statistics.revenue(aggregate_time="sum")
+    capex = n.statistics.capex()
+    comps = ["Line", "Link"]
+    assert np.allclose(revenue[comps], capex[comps])
 
 
 def test_no_grouping(ac_dc_network_r):
@@ -84,6 +85,14 @@ def test_bus_carrier_selection_with_list(ac_dc_network_r):
         groupby=get_bus_and_carrier, bus_carrier=["AC", "DC"]
     )
     assert not df.empty
+
+
+def test_multiindexed(ac_dc_network_multiindexed):
+    n = ac_dc_network_multiindexed
+    df = n.statistics()
+    assert not df.empty
+    assert df.columns.nlevels == 2
+    assert df.columns.unique(1)[0] == 2013
 
 
 def test_transmission_carriers(ac_dc_network_r):

@@ -361,7 +361,12 @@ def get_active_assets(n, c, investment_period):
     for period in periods:
         if period not in n.investment_periods:
             raise ValueError("Investment period not in `network.investment_periods`")
-        active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
+        if not {"build_year", "lifetime"}.issubset(n.df(c)):
+            active[period] = pd.Series(True, index=n.df(c).index)
+        else:
+            active[period] = n.df(c).eval(
+                "build_year <= @period < build_year + lifetime"
+            )
     return pd.DataFrame(active).any(axis=1)
 
 
