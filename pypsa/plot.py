@@ -422,7 +422,7 @@ def plot(
                     "y2": c.df.bus1.map(y),
                 }
             )
-            b_flow = b_flow.mul(b_widths, fill_value=0)
+            b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)

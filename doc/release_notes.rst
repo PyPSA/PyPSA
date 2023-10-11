@@ -15,6 +15,7 @@ Upcoming Release
 
 * The statistics module now supports the consideration of investment periods. Therefore, as soon as ``n.snapshots`` is a MultiIndex, the statistics are calculated for each period in the first level of the index separately.
 
+* A new function ``transmission`` was added to the statistics accessor. This function considers all lines and links that connect buses of the same carrier.
 
 PyPSA 0.25.2 (30th September 2023)
 ==================================
