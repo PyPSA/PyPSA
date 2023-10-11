@@ -342,10 +342,11 @@ class StatisticsAccessor:
             kwargs.pop("aggregate_time")
 
         funcs = [
-            self.installed_capacity,
             self.optimal_capacity,
+            self.installed_capacity,
             self.capacity_factor,
             self.dispatch,
+            self.transmission,
             self.withdrawal,
             self.supply,
             self.curtailment,
@@ -829,6 +830,56 @@ class StatisticsAccessor:
             nice_names=nice_names,
         )
         df.attrs["name"] = "Dispatch"
+        df.attrs["unit"] = "carrier dependent"
+        return df
+
+    def transmission(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+        groupby=None,
+        nice_names=True,
+        bus_carrier=None,
+    ):
+        """
+        Calculate the transmission of branch components in the network. Units
+        depend on the regarded bus carrier.
+
+        If `bus_carrier` is given, only the flow between buses with
+        carrier `bus_carrier` is calculated.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to MWh
+            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+        """
+        n = self._parent
+        if comps is None:
+            comps = n.branch_components
+
+        transmission_branches = get_transmission_branches(n, bus_carrier)
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            p = n.pnl(c).p0[transmission_branches.get_loc_level(c)[1]]
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            nice_names=nice_names,
+        )
+        df.attrs["name"] = "Transmission"
         df.attrs["unit"] = "carrier dependent"
         return df
 

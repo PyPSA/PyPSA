@@ -190,7 +190,6 @@ def test_plot_from_statistics(ac_dc_network):
         bus_sizes=bus_sizes * bus_scale,
         bus_alpha=0.8,
         bus_colors=bus_colors,
-        projection=ccrs.EqualEarth(),
         link_widths=branch_widths.get("Link", 0) * branch_scale,
         line_widths=branch_widths.get("Line", 0) * branch_scale,
     )
