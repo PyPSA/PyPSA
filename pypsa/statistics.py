@@ -248,7 +248,7 @@ def aggregate_components(
             )
 
         df = func(n, c)
-        if not n.investment_periods.empty and not isinstance(df, pd.DataFrame):
+        if isinstance(n.snapshots, pd.MultiIndex) and not isinstance(df, pd.DataFrame):
             # for static values we have to iterate over periods and concat
             per_period = {}
             for p in n.investment_periods:
