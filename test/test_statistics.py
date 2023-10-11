@@ -87,6 +87,24 @@ def test_bus_carrier_selection_with_list(ac_dc_network_r):
     assert not df.empty
 
 
+def test_storage_capacity(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(storage=True)
+    assert df.empty
+
+    df = n.statistics.optimal_capacity(storage=True)
+    assert df.empty
+
+    n.add("Store", "example", carrier="any", bus="Manchester", e_nom=10, e_nom_opt=5)
+    df = n.statistics.installed_capacity(storage=True)
+    assert not df.empty
+    assert df.sum() == 10
+
+    df = n.statistics.optimal_capacity(storage=True)
+    assert not df.empty
+    assert df.sum() == 5
+
+
 def test_multiindexed(ac_dc_network_multiindexed):
     n = ac_dc_network_multiindexed
     df = n.statistics()

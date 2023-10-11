@@ -403,8 +403,8 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -446,8 +446,8 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the capital expenditure of already built components of the
@@ -464,18 +464,14 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
-            if bus_carrier is None:
-                return col
-            else:
-                sign = n.df(c).get("sign", 1)
-                ports = get_ports(n, c)
-                ds = pd.Series(0, index=n.df(c).index)
-                for port in ports:
-                    mask = port_efficiency(n, c, port=port, bus_carrier=bus_carrier)
-                    df = sign * mask * col
-                    df.clip(lower=0, inplace=True)
-                    ds = ds.add(df, fill_value=0.0)
-                return ds[ds != 0]
+            if bus_carrier is not None:
+                masks = [
+                    port_mask(n, c, port=port, bus_carrier=bus_carrier)
+                    for port in get_ports(n, c)
+                ]
+                mask = reduce(np.logical_or, masks)
+                col = col[mask.astype(bool)]
+            return col
 
         df = aggregate_components(
             n,
@@ -494,8 +490,9 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        storage=False,
+        nice_names=True,
     ):
         """
         Calculate the optimal capacity of the network components in MW.
@@ -503,14 +500,22 @@ class StatisticsAccessor:
         If `bus_carrier` is given, the capacity is weighed by the output efficiency
         of components at buses with carrier `bus_carrier`.
 
+        If storage is set to True, only storage capacities of the component
+        `Store` and `StorageUnit` are taken into account.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
+        if storage:
+            comps = ("Store", "StorageUnit")
+
         @pass_empty_series_if_keyerror
         def func(n, c):
             col = n.df(c)[f"{nominal_attrs[c]}_opt"]
+            if storage and (c == "StorageUnit"):
+                col = col * n.df(c).max_hours
             if bus_carrier is None:
                 return col
             else:
@@ -541,8 +546,9 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        storage=False,
+        nice_names=True,
     ):
         """
         Calculate the installed capacity of the network components in MW.
@@ -550,14 +556,22 @@ class StatisticsAccessor:
         If `bus_carrier` is given, the capacity is weighed by the output efficiency
         of components at buses with carrier `bus_carrier`.
 
+        If storage is set to True, only storage capacities of the component
+        `Store` and `StorageUnit` are taken into account.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
         n = self._parent
 
+        if storage:
+            comps = ("Store", "StorageUnit")
+
         @pass_empty_series_if_keyerror
         def func(n, c):
             col = n.df(c)[f"{nominal_attrs[c]}"]
+            if storage and (c == "StorageUnit"):
+                col = col * n.df(c).max_hours
             if bus_carrier is None:
                 return col
             else:
@@ -588,8 +602,8 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the expanded capacity of the network components in MW.
@@ -626,8 +640,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the operational expenditure in the network in given currency.
@@ -686,8 +700,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the supply of components in the network. Units depend on the
@@ -735,8 +749,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the withdrawal of components in the network. Units depend on
@@ -784,8 +798,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the dispatch of components in the network. Units depend on
@@ -839,8 +853,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the transmission of branch components in the network. Units
@@ -950,8 +964,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the curtailment of components in the network in MWh.
@@ -1006,8 +1020,8 @@ class StatisticsAccessor:
         aggregate_time="mean",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -1063,8 +1077,8 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the revenue of components in the network in given currency.
@@ -1122,8 +1136,8 @@ class StatisticsAccessor:
         aggregate_time="mean",
         aggregate_groups="sum",
         groupby=None,
-        nice_names=True,
         bus_carrier=None,
+        nice_names=True,
     ):
         """
         Calculate the market value of components in the network in given
