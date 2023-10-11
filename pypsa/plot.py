@@ -250,7 +250,7 @@ def plot(
         # case bus_colors isn't a series or dict: look in n.carriers for existent colors
         if not isinstance(bus_colors, pd.Series):
             bus_colors = n.carriers.color.dropna()
-        assert bus_sizes.index.levels[1].isin(bus_colors.index).all(), (
+        assert bus_sizes.index.get_level_values(1).isin(bus_colors.index).all(), (
             "Colors not defined for all elements in the second MultiIndex "
             "level of bus_sizes, please make sure that all the elements are "
             "included in bus_colors or in n.carriers.color"
