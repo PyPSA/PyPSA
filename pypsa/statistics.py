@@ -13,10 +13,11 @@ __copyright__ = (
 )
 
 import logging
-from functools import wraps
+from functools import reduce, wraps
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -48,6 +49,16 @@ def get_bus_and_carrier(n, c, port="", nice_names=True):
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
 
 
+def get_name_bus_and_carrier(n, c, port="", nice_names=True):
+    """
+    Get the name, buses and nice carrier names for a component.
+    """
+    return [
+        n.df(c).index.to_series().rename("name"),
+        *get_bus_and_carrier(n, c, port, nice_names=nice_names),
+    ]
+
+
 def get_country_and_carrier(n, c, port="", nice_names=True):
     """
     Get component country and carrier.
@@ -58,19 +69,24 @@ def get_country_and_carrier(n, c, port="", nice_names=True):
     return [country, carrier]
 
 
-def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     """
-    Get component carrier and bus carrier in one combined DataFrame.
+    Get component's carrier, bus and bus carrier in one combined list.
 
     Used for MultiIndex in energy balance.
     """
-    bus = f"bus{port}"
-    bus_and_carrier = pd.concat(
-        get_bus_and_carrier(n, c, port, nice_names=nice_names), axis=1
-    )
+    bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
+    bus_carrier = bus_and_carrier[0].map(n.buses.carrier).rename("bus_carrier")
+    return [*bus_and_carrier, bus_carrier]
 
-    bus_carrier = n.df(c)[bus].map(n.buses.carrier).rename("bus_carrier")
-    return pd.concat([bus_and_carrier, bus_carrier], axis=1)
+
+def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+    """
+    Get component carrier and bus carrier in one combined list.
+    """
+    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
+    bus_carrier = bus.map(n.buses.carrier).rename("bus_carrier")
+    return [carrier, bus_carrier]
 
 
 def get_operation(n, c):
@@ -95,6 +111,13 @@ def get_weightings(n, c):
         return n.snapshot_weightings["stores"]
     else:
         return n.snapshot_weightings["objective"]
+
+
+def get_ports(n, c):
+    """
+    Get a list of existent ports of a component.
+    """
+    return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
 def mask_buses(n, c, port="", bus_carrier=None):
@@ -240,8 +263,23 @@ class StatisticsAccessor:
     Accessor to calculate different statistical values.
     """
 
+    class Groupers:
+        """
+        Container for all the 'get_' methods.
+        """
+
+        get_carrier = staticmethod(get_carrier)
+        get_bus_and_carrier = staticmethod(get_bus_and_carrier)
+        get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
+        get_country_and_carrier = staticmethod(get_country_and_carrier)
+        get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
+        get_bus_and_carrier_and_bus_carrier = staticmethod(
+            get_bus_and_carrier_and_bus_carrier
+        )
+
     def __init__(self, network):
         self._parent = network
+        self.groupers = self.Groupers()  # Create an instance of the Groupers class
 
     def __call__(
         self,
@@ -285,48 +323,61 @@ class StatisticsAccessor:
             )
 
         funcs = [
-            self.capex,
-            self.optimal_capacity,
             self.installed_capacity,
-            self.opex,
-            self.supply,
-            self.withdrawal,
-            self.dispatch,
-            self.curtailment,
+            self.optimal_capacity,
             self.capacity_factor,
+            self.dispatch,
+            self.withdrawal,
+            self.supply,
+            self.curtailment,
+            self.capex,
+            self.opex,
             self.revenue,
             self.market_value,
         ]
-        kwargs = dict(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            nice_names=nice_names,
-        )
+
         res = []
         for func in funcs:
-            df = func(**kwargs)
+            # check if aggregate_time is in functions arguments
+            if "aggregate_time" not in func.__code__.co_varnames:
+                tmp_kwargs = kwargs.copy()
+                tmp_kwargs.pop("aggregate_time", None)
+            else:
+                tmp_kwargs = kwargs
+            df = func(
+                comps=comps,
+                aggregate_groups=aggregate_groups,
+                groupby=groupby,
+                nice_names=nice_names,
+                **tmp_kwargs,
+            )
             res.append(df.rename(df.attrs["name"]))
-        return pd.concat(res, axis=1).sort_index(axis=0).sort_index(axis=1)
+        index = pd.Index(set.union(*[set(df.index) for df in res]))
+        res = [df.reindex(index, fill_value=0.0) for df in res]
+        return pd.concat(res, axis=1).sort_index(axis=0)
 
+    @deprecated("Use `groupers.get_carrier` instead.")
     def get_carrier(self, n, c, **kwargs):
         """
         Get the buses and nice carrier names for a component.
         """
         return get_carrier(n, c, **kwargs)
 
+    @deprecated("Use `groupers.get_bus_and_carrier` instead.")
     def get_bus_and_carrier(self, n, c, **kwargs):
         """
         Get the buses and nice carrier names for a component.
         """
         return get_bus_and_carrier(n, c, **kwargs)
 
+    @deprecated("Use `groupers.get_carrier_and_bus_carrier` instead.")
     def get_carrier_and_bus_carrier(self, n, c, **kwargs):
         """
         Get the carriers and bus carriers for a component.
         """
         return get_carrier_and_bus_carrier(n, c, **kwargs)
 
+    @deprecated("Use `groupers.get_name_bus_and_carrier` instead.")
     def get_country_and_carrier(self, n, c, **kwargs):
         """
         Get the country and nice carrier names for a component.
@@ -344,6 +395,9 @@ class StatisticsAccessor:
         """
         Calculate the capital expenditure of the network in given currency.
 
+        If `bus_carrier` is given, only components which are connected to buses
+        with carrier `bus_carrier` are considered.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
@@ -352,18 +406,14 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
-            if bus_carrier is None:
-                return col
-            else:
-                sign = n.df(c).get("sign", 1)
-                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
-                ds = pd.Series(0, index=n.df(c).index)
-                for port in ports:
-                    mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
-                    df = sign * mask * col
-                    df.clip(lower=0, inplace=True)
-                    ds = ds.add(df, fill_value=0.0)
-                return ds[ds != 0]
+            if bus_carrier is not None:
+                masks = [
+                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    for port in get_ports(n, c)
+                ]
+                mask = reduce(np.logical_or, masks)
+                col = col[mask.astype(bool)]
+            return col
 
         df = aggregate_components(
             n,
@@ -389,6 +439,9 @@ class StatisticsAccessor:
         Calculate the capital expenditure of already built components of the
         network in given currency.
 
+        If `bus_carrier` is given, the capacity is weighed by the output efficiency
+        of components at buses with carrier `bus_carrier`.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
@@ -401,7 +454,7 @@ class StatisticsAccessor:
                 return col
             else:
                 sign = n.df(c).get("sign", 1)
-                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
                     mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
@@ -433,6 +486,9 @@ class StatisticsAccessor:
         """
         Calculate the optimal capacity of the network components in MW.
 
+        If `bus_carrier` is given, the capacity is weighed by the output efficiency
+        of components at buses with carrier `bus_carrier`.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
@@ -445,7 +501,7 @@ class StatisticsAccessor:
                 return col
             else:
                 sign = n.df(c).get("sign", 1)
-                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
                     mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
@@ -477,6 +533,9 @@ class StatisticsAccessor:
         """
         Calculate the installed capacity of the network components in MW.
 
+        If `bus_carrier` is given, the capacity is weighed by the output efficiency
+        of components at buses with carrier `bus_carrier`.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
@@ -489,7 +548,7 @@ class StatisticsAccessor:
                 return col
             else:
                 sign = n.df(c).get("sign", 1)
-                ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+                ports = get_ports(n, c)
                 ds = pd.Series(0, index=n.df(c).index)
                 for port in ports:
                     mask = efficiency_mask(n, c, port=port, bus_carrier=bus_carrier)
@@ -521,6 +580,9 @@ class StatisticsAccessor:
         """
         Calculate the expanded capacity of the network components in MW.
 
+        If `bus_carrier` is given, the capacity is weighed by the output efficiency
+        of components at buses with carrier `bus_carrier`.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
@@ -551,9 +613,13 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the operational expenditure in the network in given currency.
+
+        If `bus_carrier` is given, only components which are connected to buses
+        with carrier `bus_carrier` are considered.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -575,7 +641,16 @@ class StatisticsAccessor:
                 p = n.pnl(c).p_dispatch
             else:
                 p = n.pnl(c).p
+            if bus_carrier is not None:
+                masks = [
+                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    for port in get_ports(n, c)
+                ]
+                mask = reduce(np.logical_or, masks)
+                p = p * mask
+
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
+            opex = opex.loc[:, (opex != 0).any()]
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
@@ -604,6 +679,9 @@ class StatisticsAccessor:
         Calculate the supply of components in the network. Units depend on the
         regarded bus carrier.
 
+        If `bus_carrier` is given, only the supply to buses with carrier
+        `bus_carrier` is calculated.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
@@ -612,11 +690,12 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
                 mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
-                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df = n.pnl(c)[f"p{port}"]
+                df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 df.clip(lower=0, inplace=True)
                 p = p.add(df, fill_value=0.0)
             p = p.loc[:, (p != 0).any()]
@@ -649,6 +728,9 @@ class StatisticsAccessor:
         Calculate the withdrawal of components in the network. Units depend on
         the regarded bus carrier.
 
+        If `bus_carrier` is given, only the withdrawal from buses with
+        carrier `bus_carrier` is calculated.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
@@ -657,11 +739,12 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
                 mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
-                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df = n.pnl(c)[f"p{port}"]
+                df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 df = -df.clip(upper=0)
                 p = p.add(df, fill_value=0.0)
             p = p.loc[:, (p != 0).any()]
@@ -694,6 +777,9 @@ class StatisticsAccessor:
         Calculate the dispatch of components in the network. Units depend on
         the regarded bus carrier.
 
+        If `bus_carrier` is given, only the dispatch to and from buses with
+        carrier `bus_carrier` is calculated.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
@@ -709,11 +795,12 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            ports = get_ports(n, c)
             p = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
                 mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
-                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df = n.pnl(c)[f"p{port}"]
+                df = sign * mask * df.reindex(columns=p.columns, fill_value=0)
                 p = p.add(df, fill_value=0.0)
             p = p.loc[:, (p != 0).any()]
 
@@ -767,9 +854,10 @@ class StatisticsAccessor:
             for port in ports:
                 mask = n.df(c)[f"bus{port}"] != ""
                 df = sign * n.pnl(c)[f"p{port}"].loc[:, mask]
-                index = get_carrier_and_bus_carrier(
+                index = get_bus_and_carrier_and_bus_carrier(
                     n, c, port=port, nice_names=nice_names
-                )[mask]
+                )
+                index = pd.concat(index, axis=1)[mask]
                 df.columns = pd.MultiIndex.from_frame(index.reindex(df.columns))
                 p.append(df)
             p = pd.concat(p, axis=1)
@@ -799,12 +887,16 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the curtailment of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
+
+        If `bus_carrier` is given, only the assets are considered which are
+        connected to buses with carrier `bus_carrier`.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -821,6 +913,14 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
+            if bus_carrier is not None:
+                masks = [
+                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    for port in get_ports(n, c)
+                ]
+                mask = reduce(np.logical_or, masks)
+                p = p.loc[:, mask]
+
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -843,9 +943,13 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the capacity factor of components in the network.
+
+        If `bus_carrier` is given, only the assets are considered which are
+        connected to buses with carrier `bus_carrier`.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -862,6 +966,14 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             p = get_operation(n, c).abs()
+            if bus_carrier is not None:
+                masks = [
+                    mask_buses(n, c, port=port, bus_carrier=bus_carrier)
+                    for port in get_ports(n, c)
+                ]
+                mask = reduce(np.logical_or, masks)
+                p = p.loc[:, mask]
+
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -876,7 +988,7 @@ class StatisticsAccessor:
         capacity = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
-        df = df.div(capacity, axis=0, fill_value=0)
+        df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
@@ -893,6 +1005,9 @@ class StatisticsAccessor:
         """
         Calculate the revenue of components in the network in given currency.
 
+        If `bus_carrier` is given, only the revenue resulting from buses with carrier
+        `bus_carrier` is considered.
+
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
@@ -908,11 +1023,12 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            ports = get_ports(n, c)
             revenue = pd.DataFrame(0, index=n.snapshots, columns=n.df(c).index)
             for port in ports:
                 mask = mask_buses(n, c, port=port, bus_carrier=bus_carrier)
-                df = sign * mask * n.pnl(c)[f"p{port}"]
+                df = n.pnl(c)[f"p{port}"]
+                df = sign * mask * df.reindex(columns=revenue.columns, fill_value=0)
                 buses = n.df(c)[f"bus{port}"][df.columns]
                 prices = n.buses_t.marginal_price.reindex(
                     columns=buses, fill_value=0
@@ -943,10 +1059,15 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         nice_names=True,
+        bus_carrier=None,
     ):
         """
         Calculate the market value of components in the network in given
-        currency/MWh.
+        currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier} is
+        the unit of the bus carrier.
+
+        If `bus_carrier` is given, only the market value resulting from buses with
+        carrier `bus_carrier` are calculated.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -964,8 +1085,9 @@ class StatisticsAccessor:
             aggregate_groups=aggregate_groups,
             groupby=groupby,
             nice_names=nice_names,
+            bus_carrier=bus_carrier,
         )
-        df = self.revenue(**kwargs) / self.dispatch(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df

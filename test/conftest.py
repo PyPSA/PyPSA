@@ -51,6 +51,23 @@ def ac_dc_network():
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
     n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
+
+
+@pytest.fixture(scope="module")
+def ac_dc_network_r():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "ac-dc-meshed",
+        "ac-dc-data",
+        "results-lopf",
+    )
+    n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
     n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
     return n
 

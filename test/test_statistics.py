@@ -2,23 +2,11 @@
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
 from pypsa.statistics import get_bus_and_carrier, get_country_and_carrier
-
-
-@pytest.fixture
-def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lopf",
-    )
-    return pypsa.Network(csv_folder)
 
 
 def test_default_unsolved(ac_dc_network):
@@ -87,12 +75,47 @@ def test_no_grouping(ac_dc_network_r):
 
 
 def test_bus_carrier_selection(ac_dc_network_r):
-    df = ac_dc_network_r.statistics.supply(groupby=False, bus_carrier="AC")
+    df = ac_dc_network_r.statistics(groupby=False, bus_carrier="AC")
     assert not df.empty
 
 
-def test_bus_carrier_selection(ac_dc_network_r):
-    df = ac_dc_network_r.statistics.supply(
+def test_bus_carrier_selection_with_list(ac_dc_network_r):
+    df = ac_dc_network_r.statistics(
         groupby=get_bus_and_carrier, bus_carrier=["AC", "DC"]
     )
     assert not df.empty
+
+
+def test_transmission_carriers(ac_dc_network_r):
+    n = ac_dc_network_r
+    n.lines["carrier"] = "AC"
+    df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
+    assert "AC" in df.unique(1)
+
+
+def test_groupers(ac_dc_network_r):
+    n = ac_dc_network_r
+    c = "Generator"
+
+    grouper = n.statistics.groupers.get_carrier(n, c)
+    assert isinstance(grouper, pd.Series)
+
+    grouper = n.statistics.groupers.get_bus_and_carrier(n, c)
+    assert isinstance(grouper, list)
+    assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+    grouper = n.statistics.groupers.get_name_bus_and_carrier(n, c)
+    assert isinstance(grouper, list)
+    assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+    grouper = n.statistics.groupers.get_country_and_carrier(n, c)
+    assert isinstance(grouper, list)
+    assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+    grouper = n.statistics.groupers.get_carrier_and_bus_carrier(n, c)
+    assert isinstance(grouper, list)
+    assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+    grouper = n.statistics.groupers.get_bus_and_carrier_and_bus_carrier(n, c)
+    assert isinstance(grouper, list)
+    assert all(isinstance(ds, pd.Series) for ds in grouper)
