@@ -188,6 +188,12 @@ def plot(
         margin = 0.05
 
     x, y = _get_coordinates(n, layouter=layouter)
+    if isinstance(bus_sizes, pd.Series):
+        buses = bus_sizes.index
+        if isinstance(buses, pd.MultiIndex):
+            buses = buses.unique(0)
+        x, y = x[buses], y[buses]
+
     if boundaries is None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
@@ -214,8 +220,8 @@ def plot(
                 'subplot_kw={"projection":ccrs.PlateCarree()})'
             )
 
-        x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
-        x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+        x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
+        x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
 
         if color_geomap is not False:
             draw_map_cartopy(ax, geomap, color_geomap)

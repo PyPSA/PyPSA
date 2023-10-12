@@ -281,28 +281,29 @@ def pass_empty_series_if_keyerror(func):
     return wrapper
 
 
+class Groupers:
+    """
+    Container for all the 'get_' methods.
+    """
+
+    get_carrier = staticmethod(get_carrier)
+    get_bus_and_carrier = staticmethod(get_bus_and_carrier)
+    get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
+    get_country_and_carrier = staticmethod(get_country_and_carrier)
+    get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
+    get_bus_and_carrier_and_bus_carrier = staticmethod(
+        get_bus_and_carrier_and_bus_carrier
+    )
+
+
 class StatisticsAccessor:
     """
     Accessor to calculate different statistical values.
     """
 
-    class Groupers:
-        """
-        Container for all the 'get_' methods.
-        """
-
-        get_carrier = staticmethod(get_carrier)
-        get_bus_and_carrier = staticmethod(get_bus_and_carrier)
-        get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
-        get_country_and_carrier = staticmethod(get_country_and_carrier)
-        get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
-        get_bus_and_carrier_and_bus_carrier = staticmethod(
-            get_bus_and_carrier_and_bus_carrier
-        )
-
     def __init__(self, network):
         self._parent = network
-        self.groupers = self.Groupers()  # Create an instance of the Groupers class
+        self.groupers = Groupers()  # Create an instance of the Groupers class
 
     def __call__(
         self,
