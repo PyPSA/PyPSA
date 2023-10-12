@@ -17,6 +17,9 @@ Upcoming Release
 
 * A new function ``transmission`` was added to the statistics accessor. This function considers all lines and links that connect buses of the same carrier.
 
+* The statistics functions now support single components in the ``comps`` argument.
+
+
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 

@@ -105,6 +105,13 @@ def test_storage_capacity(ac_dc_network_r):
     assert df.sum() == 5
 
 
+def test_single_component(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(comps="Generator")
+    assert not df.empty
+    assert df.index.nlevels == 1
+
+
 def test_multiindexed(ac_dc_network_multiindexed):
     n = ac_dc_network_multiindexed
     df = n.statistics()

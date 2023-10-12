@@ -225,6 +225,9 @@ def aggregate_components(
     """
     d = {}
     kwargs = {}
+
+    if is_one_component := isinstance(comps, str):
+        comps = [comps]
     if comps is None:
         comps = n.branch_components | n.one_port_components
     if groupby is None:
@@ -262,6 +265,8 @@ def aggregate_components(
 
     if d == {}:
         return pd.Series([])
+    if is_one_component:
+        return d[c]
     return pd.concat(d, names=["component", *d[list(d.keys())[0]].index.names])
 
 
