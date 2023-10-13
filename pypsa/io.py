@@ -418,7 +418,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     # exportable component types
-    # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
@@ -455,7 +454,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         pnl = network.pnl(component)
 
         if component == "Shape":
-            df["geometry"] = df["geometry"].to_wkt()
+            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
@@ -874,10 +873,11 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-            if static_attrs.at[k, "type"] == "geometry":
-                dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k])
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
-                dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+                if static_attrs.at[k, "type"] == "geometry":
+                    dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k])
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
