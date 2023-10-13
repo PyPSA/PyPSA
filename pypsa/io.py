@@ -431,6 +431,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     }
     exporter.save_attributes(attrs)
 
+    if network.crs is not None:
+        network.meta["_crs"] = network.crs.to_dict()
+
     exporter.save_meta(network.meta)
 
     # now export snapshots
@@ -875,7 +878,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
-                    dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k])
+                    crs = network.meta.pop("_crs", None)
+                    dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k], crs=crs)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 

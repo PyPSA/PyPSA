@@ -394,6 +394,7 @@ class Network(Basic):
                 df = gpd.GeoDataFrame(
                     {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
                     columns=static_dtypes.index,
+                    crs="epsg:4326",
                 )
             else:
                 df = pd.DataFrame(
@@ -473,6 +474,13 @@ class Network(Basic):
         if not isinstance(new, (dict, Dict)):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
+
+    @property
+    def crs(self):
+        """
+        Coordinate reference system of the network.
+        """
+        return self.shapes.crs
 
     def set_snapshots(
         self,
