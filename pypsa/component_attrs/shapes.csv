@@ -2,4 +2,5 @@
 "name","string","n/a","n/a","Unique name","Input (required)"
 "geometry","geometry","n/a","n/a","Geometry","Input (required)"
 "component","string","n/a","n/a","Component","Input (required)"
+"name","string","n/a","n/a","Name of the component","Input (required)"
 "type","string","n/a","n/a","Type of geometry","Input (required)"
