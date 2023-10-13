@@ -108,7 +108,7 @@ def ac_dc_network_shapes(ac_dc_network):
         "Shape",
         names=geo_series.index,
         geometry=geo_series,
-        identifier=geo_series.index,
+        idx=geo_series.index,
         component="Bus",
     )
 
