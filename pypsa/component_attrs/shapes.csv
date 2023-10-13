@@ -1,0 +1,5 @@
+"attribute","type","unit","default","description","status"
+"name","string","n/a","n/a","Unique name","Input (required)"
+"geometry","geometry","n/a","n/a","Geometry","Input (required)"
+"component","string","n/a","n/a","Component","Input (required)"
+"type","string","n/a","n/a","Type of geometry","Input (required)"

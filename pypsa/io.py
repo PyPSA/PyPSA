@@ -22,6 +22,7 @@ from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
@@ -870,8 +871,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-
-            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
@@ -893,6 +894,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     if not new_df.index.is_unique:
         logger.error(f"Error, new components for {cls_name} are not unique")
         return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)

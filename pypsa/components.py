@@ -22,6 +22,7 @@ from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
@@ -305,7 +306,9 @@ class Network(Basic):
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
                 attrs["type"]
-                .map({"boolean": bool, "int": int, "string": str})
+                .map(
+                    {"boolean": bool, "int": int, "string": str, "geometry": "geometry"}
+                )
                 .fillna(float)
             )
             attrs["dtype"] = (
@@ -387,10 +390,16 @@ class Network(Basic):
 
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
 
-            df = pd.DataFrame(
-                {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
-                columns=static_dtypes.index,
-            )
+            if component == "Shape":
+                df = gpd.GeoDataFrame(
+                    {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
+                    columns=static_dtypes.index,
+                )
+            else:
+                df = pd.DataFrame(
+                    {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
+                    columns=static_dtypes.index,
+                )
 
             df.index.name = component
             setattr(self, self.components[component]["list_name"], df)
