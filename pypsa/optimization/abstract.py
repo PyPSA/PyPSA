@@ -199,8 +199,7 @@ def optimize_security_constrained(
     elif isinstance(branch_outages, (list, pd.Index)):
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
-        diff = set(branch_outages) - set(all_passive_branches)
-        if diff:
+        if diff := set(branch_outages) - set(all_passive_branches):
             raise ValueError(
                 f"The following passive branches are not in the network: {diff}"
             )

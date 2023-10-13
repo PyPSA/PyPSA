@@ -279,9 +279,9 @@ def define_primary_energy_limit(n, sns):
         # storage units
         cond = "carrier in @emissions.index and not cyclic_state_of_charge"
         sus = n.storage_units.query(cond)
-        sus_i = sus.index
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
+            sus_i = sus.index
             soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
             soc = soc.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, soc)).sum())
@@ -327,12 +327,14 @@ def define_operational_limit(n, sns):
         period_weighting = n.investment_period_weightings.years[sns.unique("period")]
         weightings = weightings.mul(period_weighting, level=0, axis=0)
 
+    # storage units
+    cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
     for name, glc in glcs.iterrows():
-        if isnan(glc.investment_period):
-            snapshots = sns
-        else:
-            snapshots = sns[sns.get_loc(glc.investment_period)]
-
+        snapshots = (
+            sns
+            if isnan(glc.investment_period)
+            else sns[sns.get_loc(glc.investment_period)]
+        )
         lhs = []
         rhs = glc.constant
 
@@ -344,11 +346,9 @@ def define_operational_limit(n, sns):
             expr = (p * weightings).sum()
             lhs.append(expr)
 
-        # storage units
-        cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
         sus = n.storage_units.query(cond)
-        sus_i = sus.index
         if not sus.empty:
+            sus_i = sus.index
             soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
             soc = soc.ffill("snapshot").isel(snapshot=-1)
             lhs.append(-1 * soc.sum())

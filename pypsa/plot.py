@@ -188,6 +188,12 @@ def plot(
         margin = 0.05
 
     x, y = _get_coordinates(n, layouter=layouter)
+    if isinstance(bus_sizes, pd.Series):
+        buses = bus_sizes.index
+        if isinstance(buses, pd.MultiIndex):
+            buses = buses.unique(0)
+        x, y = x[buses], y[buses]
+
     if boundaries is None:
         boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
 
@@ -214,8 +220,8 @@ def plot(
                 'subplot_kw={"projection":ccrs.PlateCarree()})'
             )
 
-        x, y, z = ax.projection.transform_points(transform, x.values, y.values).T
-        x, y = pd.Series(x, n.buses.index), pd.Series(y, n.buses.index)
+        x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
+        x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
 
         if color_geomap is not False:
             draw_map_cartopy(ax, geomap, color_geomap)
@@ -239,17 +245,18 @@ def plot(
         x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
 
+    patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert (
-            len(bus_sizes.index.levels[0].difference(n.buses.index)) == 0
+        assert set(bus_sizes.index.get_level_values(0)).issubset(
+            n.buses.index
         ), "The first MultiIndex level of bus_sizes must contain buses"
         if isinstance(bus_colors, dict):
             bus_colors = pd.Series(bus_colors)
         # case bus_colors isn't a series or dict: look in n.carriers for existent colors
         if not isinstance(bus_colors, pd.Series):
             bus_colors = n.carriers.color.dropna()
-        assert bus_sizes.index.levels[1].isin(bus_colors.index).all(), (
+        assert bus_sizes.index.get_level_values(1).isin(bus_colors.index).all(), (
             "Colors not defined for all elements in the second MultiIndex "
             "level of bus_sizes, please make sure that all the elements are "
             "included in bus_colors or in n.carriers.color"
@@ -259,7 +266,6 @@ def plot(
         if geomap:
             bus_sizes = bus_sizes * projected_area_factor(ax, n.srid) ** 2
 
-        patches = []
         for b_i in bus_sizes.index.unique(level=0):
             s_base = bus_sizes.loc[b_i]
 
@@ -277,11 +283,7 @@ def plot(
 
             for s, start in zip(s_base, starts):
                 radius = abs(s.sum()) ** 0.5
-                if radius == 0.0:
-                    ratios = abs(s)
-                else:
-                    ratios = s / s.sum()
-
+                ratios = abs(s) if radius == 0.0 else s / s.sum()
                 for i, ratio in ratios.items():
                     patches.append(
                         Wedge(
@@ -294,8 +296,6 @@ def plot(
                         )
                     )
                     start = start + ratio
-        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-        ax.add_collection(bus_collection)
     else:
         c = pd.Series(bus_colors, index=n.buses.index)
         s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
@@ -309,7 +309,6 @@ def plot(
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
-        patches = []
         for b_i in s.index[s != 0]:
             radius = s.at[b_i] ** 0.5
             patches.append(
@@ -317,9 +316,8 @@ def plot(
                     (x.at[b_i], y.at[b_i]), radius, facecolor=c.at[b_i], alpha=bus_alpha
                 )
             )
-        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-        ax.add_collection(bus_collection)
-
+    bus_collection = PatchCollection(patches, match_original=True, zorder=5)
+    ax.add_collection(bus_collection)
     # Plot branches:
     if isinstance(line_widths, pd.Series):
         if isinstance(line_widths.index, pd.MultiIndex):
@@ -375,13 +373,29 @@ def plot(
         flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
 
     for c in n.iterate_components(branch_components):
-        b_widths = as_branch_series(branch_widths[c.name], "width", c.name, n)
-        b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
-        b_alpha = as_branch_series(branch_alpha[c.name], "color", c.name, n)
+        d = dict(
+            width=branch_widths[c.name],
+            color=branch_colors[c.name],
+            alpha=branch_alpha[c.name],
+        )
+        if flow is not None and flow.get(c.name) is not None:
+            d["flow"] = flow[c.name]
+
+        if any([isinstance(v, pd.Series) for _, v in d.items()]):
+            df = pd.DataFrame(d)
+        else:
+            df = pd.DataFrame(d, index=c.df.index)
+
+        if df.empty:
+            continue
+
+        b_widths = df.width
+        b_colors = df.color
+        b_alpha = df.alpha
         b_nums = None
         b_cmap = branch_cmap[c.name]
         b_norm = branch_norm[c.name]
-        b_flow = flow.get(c.name, None) if flow is not None else None
+        b_flow = df.get("flow")
 
         if issubclass(b_colors.dtype.type, np.number):
             b_nums = b_colors
@@ -390,8 +404,8 @@ def plot(
         if not geometry:
             segments = np.asarray(
                 (
-                    (c.df.bus0.map(x), c.df.bus0.map(y)),
-                    (c.df.bus1.map(x), c.df.bus1.map(y)),
+                    (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
+                    (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
                 )
             ).transpose(2, 0, 1)
         else:
@@ -414,7 +428,7 @@ def plot(
                     "y2": c.df.bus1.map(y),
                 }
             )
-            b_flow = b_flow.mul(b_widths[b_flow.index], fill_value=0)
+            b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
             area_factor = projected_area_factor(ax, n.srid)
@@ -742,10 +756,14 @@ def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
         axis=1,
     )
     data = data.dropna(subset=["arrows"])
-    arrowcol = PatchCollection(
-        data.arrows, color=color, alpha=alpha, edgecolors="k", linewidths=0.0, zorder=4
+    return PatchCollection(
+        data.arrows,
+        color=color,
+        alpha=alpha,
+        edgecolors="k",
+        linewidths=0.0,
+        zorder=4,
     )
-    return arrowcol
 
 
 def autogenerate_coordinates(n, assign=False, layouter=None):
@@ -781,8 +799,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     G = n.graph()
 
     if layouter is None:
-        is_planar = nx.check_planarity(G)[0]
-        if is_planar:
+        if is_planar := nx.check_planarity(G)[0]:
             layouter = nx.planar_layout
         else:
             layouter = nx.kamada_kawai_layout
