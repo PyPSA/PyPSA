@@ -454,6 +454,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         df = network.df(component)
         pnl = network.pnl(component)
 
+        if component == "Shape":
+            df["geometry"] = df["geometry"].to_wkt()
+
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
 
@@ -871,6 +874,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
+            if static_attrs.at[k, "type"] == "geometry":
+                dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k])
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
