@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
+from pypsa.statistics import get_transmission_branches
 
 try:
     import cartopy.crs as ccrs
@@ -132,6 +133,66 @@ def test_plot_alpha(ac_dc_network):
     # Retrieving the colors from carriers also should work
     n.carriers["color"] = bus_colors
     n.plot(bus_sizes=bus_sizes)
+    plt.close()
+
+
+def test_plot_line_subset(ac_dc_network):
+    n = ac_dc_network
+
+    lines = n.lines.index[:2]
+    colors = pd.Series(np.random.rand(len(lines)), lines)
+    n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    plt.close()
+
+
+def test_plot_bus_subset(ac_dc_network):
+    n = ac_dc_network
+
+    buses = n.buses.index[:2]
+    colors = pd.Series(np.random.rand(len(buses)), buses)
+    n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    plt.close()
+
+    bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()[:3]
+    bus_sizes[:] = 1
+    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    n.plot(
+        bus_sizes=bus_sizes,
+        bus_colors=bus_colors,
+        geomap=False,
+        bus_alpha=0.5,
+        line_alpha=0.5,
+        link_alpha=0.5,
+    )
+    plt.close()
+
+
+def test_plot_from_statistics(ac_dc_network):
+    n = ac_dc_network
+    bus_carrier = "AC"
+
+    grouper = n.statistics.groupers.get_bus_and_carrier
+    bus_sizes = n.statistics.installed_capacity(
+        bus_carrier=bus_carrier, groupby=grouper, nice_names=False
+    )
+    bus_sizes = bus_sizes.Generator
+
+    transmission_branches = get_transmission_branches(n, bus_carrier=bus_carrier)
+    branch_widths = n.statistics.installed_capacity(groupby=False).loc[
+        transmission_branches
+    ]
+
+    bus_scale = 5e-6
+    branch_scale = 1e-4
+    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+
+    n.plot(
+        bus_sizes=bus_sizes * bus_scale,
+        bus_alpha=0.8,
+        bus_colors=bus_colors,
+        link_widths=branch_widths.get("Link", 0) * branch_scale,
+        line_widths=branch_widths.get("Line", 0) * branch_scale,
+    )
     plt.close()
 
 

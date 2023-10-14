@@ -11,6 +11,17 @@ Upcoming Release
 
 * It is now possible to couple the dispatch of generators. For this purpose, three new columns `p_coupling`, `p_coupling_coeff` and `p_coupling_sign` have been added to the generator component. They allow coupling the dispatch of one generator to another generator by adding a linear constraint to the optimization problem. The condition is of the form ``p {p_coupling_sign} {p_coupling_sign} * p_{p_coupling}``. The coupling is applied only when the coupling generator is active.
 
+* The statistics module now supports the consideration of multi-port links. An additional argument `bus_carrier` was added to the functions to select the components that are attached to buses of a certain carrier.
+
+* The plotting routine now supports the plotting of a subset of buses/lines/links/transformers. This is useful for plotting only a subset of the network. Therefore, the arguments ``bus_sizes``, ``link_widths``, ``link_colors`` etc. do not require to contain the full set of indexes of a component.
+
+* The statistics module now supports the consideration of investment periods. Therefore, as soon as ``n.snapshots`` is a MultiIndex, the statistics are calculated for each period in the first level of the index separately.
+
+* A new function ``transmission`` was added to the statistics accessor. This function considers all lines and links that connect buses of the same carrier.
+
+* The statistics functions now support single components in the ``comps`` argument.
+
+
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 
