@@ -102,7 +102,7 @@ def ac_dc_network_shapes(ac_dc_network):
     bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
-    geo_series = gpd.GeoSeries(bboxes)
+    geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
 
     n.madd(
         "Shape",

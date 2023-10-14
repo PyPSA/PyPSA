@@ -26,6 +26,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
 
@@ -432,7 +433,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     exporter.save_attributes(attrs)
 
     if network.crs is not None:
-        network.meta["_crs"] = network.crs.to_dict()
+        network.meta["_crs"] = network.crs.to_wkt()
 
     exporter.save_meta(network.meta)
 
@@ -879,6 +880,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
                     crs = network.meta.pop("_crs", None)
+                    if crs is not None:
+                        crs = CRS.from_wkt(crs)
                     dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k], crs=crs)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
