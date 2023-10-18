@@ -24,6 +24,9 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+import shapely
+from shapely import wkt
 import validators
 from deprecation import deprecated
 from scipy.sparse import csgraph
@@ -68,6 +71,7 @@ from pypsa.pf import (
 )
 from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
+from pypsa.geo import clean_geometry
 
 if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
@@ -291,6 +295,8 @@ class Network(Basic):
         )
 
         self.all_components = set(self.components.index) - {"Network"}
+        
+        self.geo_components = set()
 
         self.components = Dict(self.components.T.to_dict())
 
@@ -405,7 +411,44 @@ class Network(Basic):
                 pnl[k] = df
 
             setattr(self, self.components[component]["list_name"] + "_t", pnl)
+        
+    def enable_geometries(self, components={"Bus", "Line", "Link", "Transformer"}):
+        geo_components = getattr(self, "geo_components")
+        
+        new_components = components.difference(geo_components)
+        
+        setattr(self, "geo_components", geo_components.union(new_components))
+        
+        for component in new_components:
+            
+            current_pd_df=getattr(self, self.components[component]["list_name"])
+            
+            current_pd_df['geometry']=current_pd_df['geometry'].apply(clean_geometry)
+                
+            gpd_df=gpd.GeoDataFrame(current_pd_df, geometry="geometry", crs=self.srid)
+            
+            setattr(self, self.components[component]["list_name"], gpd_df)
+    
+    def disable_geometries(self, components={"Bus", "Line", "Link", "Transformer"}):
+        geo_components = getattr(self, "geo_components")
+        
+        setattr(self, "geo_components", geo_components.difference(components))
 
+        relevant_components = geo_components.intersection(components)
+
+        for component in relevant_components:
+
+            gpd_df = getattr(self, self.components[component]["list_name"])
+
+
+            # Convert the geometry GeoSeries to WKT strings
+            gpd_df['geometry'] = gpd_df['geometry'].apply(lambda x: wkt.dumps(x))
+
+            # Convert the GeoDataFrame back to a pandas DataFrame
+            pd_df = pd.DataFrame(gpd_df)
+
+            setattr(self, self.components[component]["list_name"], pd_df)
+          
     def read_in_default_standard_types(self):
         for std_type in self.standard_type_components:
             list_name = self.components[std_type]["list_name"]
@@ -882,7 +925,13 @@ class Network(Basic):
                 )
                 continue
             typ = attrs.at[k, "typ"]
-            if not attrs.at[k, "varying"]:
+            if k == "geometry":
+                geo = clean_geometry(v)
+                if class_name in self.geo_components:
+                   new_df.at[name, k]=geo
+                else:
+                   new_df.at[name, k]=wkt.dumps(geo)        
+            elif not attrs.at[k, "varying"]:
                 new_df.at[name, k] = typ(v)
             elif attrs.at[k, "static"] and not isinstance(
                 v, (pd.Series, pd.DataFrame, np.ndarray, list)

@@ -7,6 +7,7 @@ model,string,n/a,t,"Model used for admittance matrix; can be ""t"" or ""pi""; si
 x,float,per unit,0,"Series reactance (per unit, using s_nom as base power); must be non-zero for AC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
 r,float,per unit,0,"Series resistance (per unit, using s_nom as base power); must be non-zero for DC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
 g,float,per unit,0,"Shunt conductivity (per unit, using s_nom as base power). Ignored if type defined.",Input (optional)
+geometry,string,"n/a","None","A shapely geometry when geometry is enabled and WKT string when disabled.",Input (optional)
 b,float,per unit,0,"Shunt susceptance (per unit, using s_nom as base power). Ignored if type defined.",Input (optional)
 s_nom,float,MVA,0,Limit of apparent power which can pass through branch.,Input (optional)
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity s_nom to be extended in OPF.,Input (optional)

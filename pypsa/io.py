@@ -419,6 +419,8 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     # exportable component types
     # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
+    # disable geometries
+    network.disable_geometries()
 
     # first export network properties
     attrs = {

@@ -20,6 +20,7 @@ dependencies:
 - linopy>=0.2
 - deprecation
 - validators
+- geopandas>=0.9
 
 # development dependencies required for CI
 - pytest

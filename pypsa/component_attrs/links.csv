@@ -8,6 +8,7 @@ efficiency,static or series,per unit,1,Efficiency of power transfer from bus0 to
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
 p_nom,float,MW,0,Limit of active power which can pass through link.,Input (optional)
+geometry,string,"n/a","None","A shapely geometry when geometry is enabled and WKT string when disabled.",Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended.,Input (optional)
 p_nom_min,float,MW,0,"If p_nom is extendable, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable, set its maximum value (e.g. limited by potential).",Input (optional)

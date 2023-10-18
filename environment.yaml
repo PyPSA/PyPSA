@@ -16,6 +16,7 @@ dependencies:
 - cartopy>=0.16
 - glpk
 - linopy>=0.2
+- geopandas>=0.9
 - deprecation
 - validators
 #  - coincbc

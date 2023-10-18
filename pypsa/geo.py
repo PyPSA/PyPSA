@@ -14,6 +14,8 @@ __copyright__ = (
 import logging
 
 import numpy as np
+import shapely
+from shapely import wkt
 
 logger = logging.getLogger(__name__)
 
@@ -92,3 +94,17 @@ def haversine(a, b):
     b = ensure_dimensions(b)
 
     return haversine_pts(a[np.newaxis, :], b[:, np.newaxis])
+
+def clean_geometry(geom):
+    null_types = {"None", "", np.nan, "nan"}
+    if geom in null_types:
+        return None
+    if isinstance(geom, shapely.Geometry):
+        return geom
+    try:
+        return wkt.loads(geom)
+    except:
+        logger.warning(
+            f"{geom} is invalid string adding geometry value as null."
+            ) 
+        return None

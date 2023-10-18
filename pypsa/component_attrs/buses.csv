@@ -12,6 +12,7 @@
 "control","string","n/a","PQ","P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"". Note that this attribute is an output inherited from the controls of the generators attached to the bus; setting it directly on the bus will not have any effect.","Output"
 "generator",string,"n/a","n/a","Name of slack generator attached to slack bus.","Output"
 "sub_network","string","n/a","n/a","Name of connected sub-network to which bus belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.","Output"
+"geometry","string","n/a","None","A shapely geometry when geometry is enabled and WKT string when disabled.","Input (optional)"
 "p","series","MW",0.,"active power at bus (positive if net generation at bus)","Output"
 "q","series","MVar",0.,"reactive power (positive if net generation at bus)","Output"
 "v_mag_pu","series","per unit",1.,"Voltage magnitude, per unit of v_nom","Output"

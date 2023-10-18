@@ -25,6 +25,7 @@ dependencies:
 - ipykernel   # for executing nbs
 - scikit-learn  # for spatial clustering
 - linopy>=0.2
+- geopandas>=0.9
 
 - pip:
   - .
