@@ -14,6 +14,7 @@ __copyright__ = (
 
 import logging
 from functools import reduce, wraps
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -211,6 +212,32 @@ def aggregate_timeseries(df, weights, agg="sum"):
     return df.agg(agg)
 
 
+def as_list(x):
+    return x if isinstance(x, list) else [x]
+
+
+def to_groupby_kwargs(groupby, n, c, nice_names):
+    if groupby is None:
+        groupby = get_carrier
+
+    if callable(groupby):
+        kwargs = dict(by=as_list(groupby(n, c, nice_names=nice_names)))
+    elif isinstance(groupby, list):
+        kwargs = dict(by=[n.df(c)[key] for key in groupby])
+    elif isinstance(groupby, str):
+        kwargs = dict(by=[n.df(c)[groupby]])
+    elif isinstance(groupby, dict):
+        kwargs = groupby
+    elif groupby is False:
+        kwargs = None
+    else:
+        ValueError(
+            f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
+        )
+
+    return kwargs
+
+
 def aggregate_components(
     n,
     func,
@@ -218,12 +245,12 @@ def aggregate_components(
     comps=None,
     groupby=None,
     nice_names=True,
+    when: Literal["active", "build_year", "retirement"] = "active",
 ):
     """
     Apply a function and group the result for a collection of components.
     """
     d = {}
-    kwargs = {}
 
     if is_one_component := isinstance(comps, str):
         comps = [comps]
@@ -235,31 +262,41 @@ def aggregate_components(
         if n.df(c).empty:
             continue
 
-        if callable(groupby):
-            grouping = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, list):
-            grouping = [n.df(c)[key] for key in groupby]
-        elif isinstance(groupby, str):
-            grouping = n.df(c)[groupby]
-        elif isinstance(groupby, dict):
-            grouping = None
-            kwargs = groupby
-        elif groupby is not False:
-            ValueError(
-                f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
-            )
+        groupby_kwargs = to_groupby_kwargs(groupby, n, c, nice_names)
 
         df = func(n, c)
-        if isinstance(n.snapshots, pd.MultiIndex) and not isinstance(df, pd.DataFrame):
-            # for static values we have to iterate over periods and concat
-            per_period = {}
-            for p in n.investment_periods:
-                per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
-            df = pd.concat(per_period, axis=1)
+
+        if isinstance(n.snapshots, pd.MultiIndex):
+            if when == "active" and not isinstance(df, pd.DataFrame):
+                # for static values we have to iterate over periods and concat
+                per_period = {}
+                for p in n.investment_periods:
+                    per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
+                df = pd.concat(per_period, axis=1)
+            elif when in ("build_year", "retirement") and groupby_kwargs is not None:
+                # TODO uses 9999 as the sentinel value for after modelling period
+                investment_periods = pd.Index(np.r_[n.investment_periods, 9999])
+                if "build_year" not in n.df(c):
+                    period = investment_periods[0 if when == "build_year" else -1]
+                else:
+                    year = n.df(c)["build_year"]
+                    if when == "retirement":
+                        year += n.df(c)["lifetime"]
+
+                    period = investment_periods[
+                        np.searchsorted(investment_periods, year, side="left")
+                    ]
+                groupby_kwargs.setdefault("by", []).append(pd.Series(period, df.index))
+            elif when not in ("active", "build_year", "retirement"):
+                raise ValueError(
+                    '`when` must be one of "active", "build_year"'
+                    f' or "retirement", not: {when}'
+                )
+
         d[c] = (
             df.rename_axis("name")
-            if groupby is False
-            else df.groupby(grouping, **kwargs).agg(agg)
+            if groupby_kwargs is None
+            else df.groupby(**groupby_kwargs).agg(agg)
         )
 
     if d == {}:
@@ -498,6 +535,7 @@ class StatisticsAccessor:
         bus_carrier=None,
         storage=False,
         nice_names=True,
+        when: Literal["active", "build_year", "retirement"] = "active",
     ):
         """
         Calculate the optimal capacity of the network components in MW.
@@ -541,6 +579,7 @@ class StatisticsAccessor:
             agg=aggregate_groups,
             groupby=groupby,
             nice_names=nice_names,
+            when=when,
         )
         df.attrs["name"] = "Optimal Capacity"
         df.attrs["unit"] = "MW"
