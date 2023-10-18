@@ -95,6 +95,7 @@ def haversine(a, b):
 
     return haversine_pts(a[np.newaxis, :], b[:, np.newaxis])
 
+
 def clean_geometry(geom):
     null_types = {"None", "", np.nan, "nan"}
     if geom in null_types:
@@ -104,7 +105,5 @@ def clean_geometry(geom):
     try:
         return wkt.loads(geom)
     except:
-        logger.warning(
-            f"{geom} is invalid string adding geometry value as null."
-            ) 
+        logger.warning(f"{geom} is invalid string adding geometry value as null.")
         return None

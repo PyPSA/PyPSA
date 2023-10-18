@@ -2,10 +2,10 @@
 import os
 from pathlib import Path
 
+import geopandas
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
-import geopandas
 from shapely.geometry import Point
 
 import pypsa
@@ -25,10 +25,12 @@ def test_netcdf_io_Path(scipy_network, tmpdir):
     scipy_network.export_to_netcdf(fn)
     pypsa.Network(fn)
 
+
 def test_geo_wkt_netcdf(geo_components_network, tmpdir):
     """
     This function validates the conversion of shapely.Geometry to and from WKT
     strings during the process of writing and reading to a netCDF file.
+
     It appends a GeoSeries to all geo_components and verifies its
     consistency after writing to and reading from the netCDF file.
     """
@@ -65,6 +67,7 @@ def test_geo_wkt_netcdf(geo_components_network, tmpdir):
     assert False not in reloaded.transformers.geometry.geom_equals_exact(
         geo_series, 0.000001
     )
+
 
 def test_netcdf_io_datetime(tmpdir):
     fn = os.path.join(tmpdir, "temp.nc")

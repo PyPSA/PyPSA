@@ -44,10 +44,12 @@ def scipy_network():
     n.calculate_dependent_values()
     return n
 
+
 @pytest.fixture(scope="function")
 def geo_components_network():
     """
     Constructing a basic network using all 'geo_components'.
+
     geo_components = {"Bus", "Line", "Link", "Transformer"}
     """
     network = pypsa.Network()
@@ -78,6 +80,7 @@ def geo_components_network():
         )
 
     return network
+
 
 @pytest.fixture(scope="module")
 def ac_dc_network():
