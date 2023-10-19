@@ -192,11 +192,10 @@ def get_transmission_carriers(n, bus_carrier=None):
 
 
 def aggregate_timeseries(df, weights, agg="sum"):
-    "Calculate the weighed sum or average of a DataFrame or Series."
+    "Calculate the weighted sum or average of a DataFrame or Series."
     if isinstance(df.index, pd.MultiIndex):
-        weights = weights.groupby(level=0).sum()
         if agg == "mean":
-            weights = weights.div(weights.groupby(level=0).sum(), level=0)
+            weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
         elif agg == "sum":
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
