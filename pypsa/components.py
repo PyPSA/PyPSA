@@ -900,7 +900,7 @@ class Network(Basic):
                 continue
             typ = attrs.at[k, "typ"]
             if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v)
+                new_df.at[name, k] = typ(v) if typ != "geometry" else v
             elif attrs.at[k, "static"] and not isinstance(
                 v, (pd.Series, pd.DataFrame, np.ndarray, list)
             ):
