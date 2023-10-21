@@ -51,6 +51,23 @@ def ac_dc_network():
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
     n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
+
+
+@pytest.fixture(scope="module")
+def ac_dc_network_r():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "ac-dc-meshed",
+        "ac-dc-data",
+        "results-lopf",
+    )
+    n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
     n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
     return n
 
@@ -59,6 +76,7 @@ def ac_dc_network():
 def ac_dc_network_multiindexed(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
+    n.investment_periods = [2013]
     gens_i = n.generators.index
     n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
     return n
@@ -73,8 +91,7 @@ def storage_hvdc_network():
         "opf-storage-hvdc",
         "opf-storage-data",
     )
-    n = pypsa.Network(csv_folder)
-    return n
+    return pypsa.Network(csv_folder)
 
 
 @pytest.fixture(scope="module")
@@ -104,5 +121,4 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
-    net = pn.create_cigre_network_mv(with_der="all")
-    return net
+    return pn.create_cigre_network_mv(with_der="all")

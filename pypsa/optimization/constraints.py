@@ -577,7 +577,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
     comps = [c for c in n.passive_branch_components if not n.df(c).empty]
 
-    if len(comps) == 0:
+    if not comps:
         return
 
     names = ["component", "name"]
@@ -715,12 +715,12 @@ def define_storage_unit_constraints(n, sns):
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[c + "-p_dispatch"]),
-        (eff_store * eh, m[c + "-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{c}-p_dispatch"]),
+        (eff_store * eh, m[f"{c}-p_store"]),
     ]
 
     if f"{c}-spill" in m.variables:
-        lhs += [(-eh, m[c + "-spill"])]
+        lhs += [(-eh, m[f"{c}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets.
@@ -796,8 +796,8 @@ def define_store_constraints(n, sns):
     # efficiencies
     eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
-    e = m[c + "-e"]
-    p = m[c + "-p"]
+    e = m[f"{c}-e"]
+    p = m[f"{c}-p"]
 
     lhs = [(-1, e), (-eh, p)]
 

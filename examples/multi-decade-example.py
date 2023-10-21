@@ -114,7 +114,7 @@ def get_investment_weighting(energy_weighting, r=0.01):
     end = energy_weighting.cumsum()
     start = energy_weighting.cumsum().shift().fillna(0)
     return pd.concat([start, end], axis=1).apply(
-        lambda x: sum([get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))]),
+        lambda x: sum(get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))),
         axis=1,
     )
 
@@ -131,8 +131,8 @@ freq = "24"
 snapshots = pd.DatetimeIndex([])
 for year in years:
     period = pd.date_range(
-        start="{}-01-01 00:00".format(year),
-        freq="{}H".format(freq),
+        start=f"{year}-01-01 00:00",
+        freq=f"{freq}H",
         periods=8760 / float(freq),
     )
     snapshots = snapshots.append(period)
@@ -159,7 +159,7 @@ print(n.investment_period_weightings)
 
 # add three buses
 for i in range(3):
-    n.add("Bus", "bus {}".format(i))
+    n.add("Bus", f"bus {i}")
 
 
 # There are 2 new attribute for the components ("Line", "Link", "Generator", Storage", ...) <br>
@@ -227,7 +227,7 @@ n.lines.loc["line 2->0", "build_year"] = 2020
 
 # add some generators
 p_nom_max = pd.Series(
-    (np.random.uniform() for sn in range(len(n.snapshots))),
+    (np.random.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="generator ext 2020",
 )
@@ -389,12 +389,12 @@ n.add(
 
 # add a Load
 load_var = pd.Series(
-    (100 * np.random.uniform() for sn in range(len(n.snapshots))),
+    (100 * np.random.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="load",
 )
 load_fix = pd.Series(
-    [250 for sn in range(len(n.snapshots))], index=n.snapshots, name="load"
+    [250 for _ in range(len(n.snapshots))], index=n.snapshots, name="load"
 )
 
 # add a load at bus 2
