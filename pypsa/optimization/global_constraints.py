@@ -453,8 +453,8 @@ def define_transmission_expansion_cost_limit(n, sns):
     def substr(s):
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
-    lhs = []
     for name, glc in glcs.iterrows():
+        lhs = []
         car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
         period = glc.investment_period
 
