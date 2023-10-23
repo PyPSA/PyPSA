@@ -391,8 +391,12 @@ def define_transmission_volume_expansion_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
 
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
+
     for name, glc in glcs.iterrows():
         lhs = []
+        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
         period = glc.investment_period
 
         for c in ["Line", "Link"]:
