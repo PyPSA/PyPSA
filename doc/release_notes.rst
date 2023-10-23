@@ -19,6 +19,7 @@ Upcoming Release
 
 * The statistics functions now support single components in the ``comps`` argument.
 
+* Bugfix: Fix primary energy limit and transmission volume limit global constraints for multi-period optimisations.
 
 PyPSA 0.25.2 (30th September 2023)
 ==================================
