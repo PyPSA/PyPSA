@@ -362,11 +362,11 @@ class Network(Basic):
                 raise ValueError(
                     f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
                 )
-        
-        crs=self.meta.get("_crs")
+
+        crs = self.meta.get("_crs")
         if crs is not None:
-            self.shapes=self.shapes.to_crs(crs)
-        
+            self.shapes = self.shapes.to_crs(crs)
+
         for key, value in kwargs.items():
             setattr(self, key, value)
 

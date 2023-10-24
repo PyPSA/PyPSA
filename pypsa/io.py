@@ -880,10 +880,10 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
-                    crs=None
+                    crs = None
                     if network.crs is not None:
                         crs = network.crs
-                    else:    
+                    else:
                         crs = network.meta.get("_crs")
                         if crs is not None:
                             crs = CRS.from_wkt(crs)
