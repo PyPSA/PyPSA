@@ -6,7 +6,8 @@ import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
-
+from pyproj import CRS
+import pyproj
 import pypsa
 
 
@@ -106,8 +107,12 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
 
 def test_netcdf_io_shapes(ac_dc_network_shapes, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
+    web_mercator = CRS("EPSG:3857")
+    ac_dc_network_shapes.crs=3857
+    assert ac_dc_network_shapes.crs == web_mercator
     ac_dc_network_shapes.export_to_netcdf(fn)
     m = pypsa.Network(fn)
+    assert m.crs == web_mercator
     assert_geodataframe_equal(
         m.shapes,
         ac_dc_network_shapes.shapes,

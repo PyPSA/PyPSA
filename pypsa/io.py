@@ -29,6 +29,7 @@ import validators
 from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
+from pypsa.geo import clean_geometry
 
 try:
     import xarray as xr
@@ -882,7 +883,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                     crs = network.meta.pop("_crs", None)
                     if crs is not None:
                         crs = CRS.from_wkt(crs)
-                    dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k], crs=crs)
+                        dataframe[k] = dataframe[k].apply(clean_geometry)
+                        dataframe[k] = gpd.GeoSeries(dataframe[k], crs=crs)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 

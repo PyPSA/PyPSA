@@ -53,6 +53,7 @@ from pypsa.io import (
     import_series_from_dataframe,
 )
 from pypsa.opf import network_lopf, network_opf
+from pypsa.geo import clean_geometry, consistency_check_shapes_df
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
@@ -229,6 +230,8 @@ class Network(Basic):
     get_committable_i = get_committable_i
 
     get_active_assets = get_active_assets
+    
+    consistency_check_shapes_df = consistency_check_shapes_df
 
     def __init__(
         self,
@@ -480,6 +483,13 @@ class Network(Basic):
         """
         Coordinate reference system of the network.
         """
+        return self.shapes.crs
+    
+    @crs.setter
+    def crs(self, new):
+        
+        setattr(self,'shapes', self.shapes.to_crs(new))
+
         return self.shapes.crs
 
     def set_snapshots(
@@ -900,7 +910,7 @@ class Network(Basic):
                 continue
             typ = attrs.at[k, "typ"]
             if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v) if typ != "geometry" else v
+                new_df.at[name, k] = typ(v) if typ != "geometry" else clean_geometry(v)
             elif attrs.at[k, "static"] and not isinstance(
                 v, (pd.Series, pd.DataFrame, np.ndarray, list)
             ):
