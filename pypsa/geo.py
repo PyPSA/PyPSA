@@ -95,6 +95,7 @@ def haversine(a, b):
 
     return haversine_pts(a[np.newaxis, :], b[:, np.newaxis])
 
+
 def clean_geometry(geom):
     null_types = {"None", "", np.nan, "nan"}
     if geom in null_types:
@@ -106,12 +107,12 @@ def clean_geometry(geom):
     except:
         logger.warning(f"{geom} is invalid string adding geometry value as null.")
         return None
-    
+
+
 def consistency_check_shapes_df(network):
-    
-    n_gpd_df=network.shapes
-    grouped = n_gpd_df.groupby('component type')['idx'].apply(list).to_dict()
-    
+    n_gpd_df = network.shapes
+    grouped = n_gpd_df.groupby("component type")["idx"].apply(list).to_dict()
+
     for component, idx_values in grouped.items():
         idx_values_from_shapes_set = set(idx_values)
 
@@ -119,8 +120,12 @@ def consistency_check_shapes_df(network):
 
         missing_in_df = idx_values_from_shapes_set - idx_values_from_df_set
         if missing_in_df:
-            logging.warning(f"For '{component}', these idx values from n.shapes are not present in n.df('{component}'): {', '.join(missing_in_df)}")
+            logging.warning(
+                f"For '{component}', these idx values from n.shapes are not present in n.df('{component}'): {', '.join(missing_in_df)}"
+            )
 
         missing_in_shapes = idx_values_from_df_set - idx_values_from_shapes_set
         if missing_in_shapes:
-            logging.warning(f"For '{component}', these idx values from n.df('{component}') are not present in n.shapes: {', '.join(missing_in_shapes)}")
+            logging.warning(
+                f"For '{component}', these idx values from n.df('{component}') are not present in n.shapes: {', '.join(missing_in_shapes)}"
+            )

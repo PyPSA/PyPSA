@@ -39,6 +39,7 @@ from pypsa.descriptors import (
     get_switchable_as_dense,
     update_linkports_component_attrs,
 )
+from pypsa.geo import clean_geometry, consistency_check_shapes_df
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
     export_to_csv_folder,
@@ -53,7 +54,6 @@ from pypsa.io import (
     import_series_from_dataframe,
 )
 from pypsa.opf import network_lopf, network_opf
-from pypsa.geo import clean_geometry, consistency_check_shapes_df
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
@@ -230,7 +230,7 @@ class Network(Basic):
     get_committable_i = get_committable_i
 
     get_active_assets = get_active_assets
-    
+
     consistency_check_shapes_df = consistency_check_shapes_df
 
     def __init__(
@@ -484,11 +484,10 @@ class Network(Basic):
         Coordinate reference system of the network.
         """
         return self.shapes.crs
-    
+
     @crs.setter
     def crs(self, new):
-        
-        setattr(self,'shapes', self.shapes.to_crs(new))
+        setattr(self, "shapes", self.shapes.to_crs(new))
 
         return self.shapes.crs
 

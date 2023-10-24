@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pytest
+import shapely.geometry
+from shapely.geometry import Point
 
 import pypsa
-import shapely.geometry 
-from shapely.geometry import Point
+
 
 @pytest.fixture
 def empty_network_5_buses():
@@ -244,21 +245,31 @@ def test_add_shapes():
 
     THEN    the network should have the added shapes.
     """
-    network=pypsa.Network()
-    
+    network = pypsa.Network()
+
     network.add("Shape", name="bus_1", geometry="", idx="bus_1", component="Bus")
     assert network.shapes.geometry.values[0] == None
 
-    network.add("Shape", name="bus_2", geometry=Point(0, 1), idx="bus_2", component="Bus")
+    network.add(
+        "Shape", name="bus_2", geometry=Point(0, 1), idx="bus_2", component="Bus"
+    )
     assert isinstance(network.shapes.geometry.values[1], shapely.geometry.point.Point)
 
-    network.add("Shape", name="bus_3", geometry="POINT (1 4)", idx="bus_3", component="Bus")
+    network.add(
+        "Shape", name="bus_3", geometry="POINT (1 4)", idx="bus_3", component="Bus"
+    )
     assert isinstance(network.shapes.geometry.values[2], shapely.geometry.point.Point)
 
-    network.add("Shape", name="bus_4", geometry="INVALID_WKT_STRING", idx="bus_4", component="Bus")
+    network.add(
+        "Shape",
+        name="bus_4",
+        geometry="INVALID_WKT_STRING",
+        idx="bus_4",
+        component="Bus",
+    )
     assert network.shapes.geometry.values[3] == None
-    
-    
+
+
 def test_madd_shapes():
     """
     GIVEN   an empty PyPSA network.
@@ -267,12 +278,12 @@ def test_madd_shapes():
 
     THEN    the network should have the added shapes.
     """
-    network=pypsa.Network()
-    
+    network = pypsa.Network()
+
     names = ["bus_1", "bus_2", "bus_3", "bus_4"]
     geometries = ["", Point(0, 1), "POINT (1 4)", "INVALID_WKT_STRING"]
-    
-    network.madd("Shape",names=names , geometry=geometries, idx=names, component="Bus")
+
+    network.madd("Shape", names=names, geometry=geometries, idx=names, component="Bus")
     assert network.shapes.geometry.values[0] == None
     assert isinstance(network.shapes.geometry.values[1], shapely.geometry.point.Point)
     assert isinstance(network.shapes.geometry.values[2], shapely.geometry.point.Point)
