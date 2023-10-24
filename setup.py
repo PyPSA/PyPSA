@@ -31,7 +31,7 @@ setup(
         "pyomo>=5.7,<6.6.2",
         "linopy>=0.2.1",
         "matplotlib",
-        "geopandas",
+        "geopandas>=0.9",
         "networkx>=1.10",
         "deprecation",
         "validators",

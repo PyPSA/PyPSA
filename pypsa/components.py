@@ -394,7 +394,7 @@ class Network(Basic):
                 df = gpd.GeoDataFrame(
                     {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
                     columns=static_dtypes.index,
-                    crs="epsg:4326",
+                    crs=self.srid,
                 )
             else:
                 df = pd.DataFrame(
@@ -478,7 +478,7 @@ class Network(Basic):
     @property
     def crs(self):
         """
-        Coordinate reference system of the network.
+        Coordinate reference system of the network's geometries (n.shapes).
         """
         return self.shapes.crs
 
