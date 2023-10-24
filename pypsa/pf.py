@@ -24,10 +24,11 @@ import pandas as pd
 from numpy import ones, r_
 from numpy.linalg import norm
 from pandas.api.types import is_list_like
-from scipy.sparse import csc_matrix, csr_matrix, dok_matrix
+from scipy.sparse import csc_matrix, csr_matrix, diags, dok_matrix, eye
 from scipy.sparse import hstack as shstack
 from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
+from scipy.sparse.linalg import inv as spinv
 from scipy.sparse.linalg import spsolve
 
 from pypsa.descriptors import (
@@ -1134,24 +1135,26 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     # following leans heavily on pypower.makeBdc
 
-    z = np.concatenate(
-        [
-            (c.df.loc[c.ind, attribute]).values
-            for c in sub_network.iterate_components(network.passive_branch_components)
-        ]
-    )
+    z = sub_network.branches()[attribute]
+    b = 1.0 / z
     # susceptances
-    b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
+    # old: b = np.divide(1.0, z, out=np.full_like(z, np.inf), where=z != 0)
 
-    if np.isnan(b).any():
+    if b.isna().any():
         logger.warning(
             "Warning! Some series impedances are zero - this will cause a singularity in LPF!"
         )
-    b_diag = csr_matrix((b, (r_[: len(b)], r_[: len(b)])))
+
+    # old: b_diag = csr_matrix((b, (np.r_[: len(b)], np.r_[: len(b)])))
+    # b_diag is branches_i x branches_i
+    b_diag = diags(b.loc[sub_network.branches_i()].to_numpy())
 
     # incidence matrix
+    # possibly a pandas version could work here as well, unordered buses, discarding any busorder
+    # K is buses_o x branches_i (actually doesn't use the branches_i function, but equal iteration of passive branch components)
     sub_network.K = sub_network.incidence_matrix(busorder=sub_network.buses_o)
 
+    # ordering of H: branches_i x buses_o
     sub_network.H = b_diag * sub_network.K.T
 
     # weighted Laplacian
@@ -1165,7 +1168,9 @@ def calculate_B_H(sub_network, skip_pre=False):
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
-    sub_network.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
+    sub_network.p_branch_shift = (
+        -b * phase_shift
+    )  # np.multiply(-b, phase_shift, where=b != np.inf)
 
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
@@ -1183,17 +1188,24 @@ def calculate_PTDF(sub_network, skip_pre=False):
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
     """
+    # catch one bus systems
+    if len(sub_network.branches()) == 0:
+        sub_network.PTDF = pd.DataFrame(
+            index=pd.Index([], name=("type", "name")),
+            columns=sub_network.buses_o,
+        )
+        return
+
     if not skip_pre:
         calculate_B_H(sub_network)
 
     # calculate inverse of B with slack removed
 
     n_pvpq = len(sub_network.pvpqs)
-    index = np.r_[:n_pvpq]
+    # I = eye(n_pvpq)
+    # B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
 
-    I = csc_matrix((np.ones(n_pvpq), (index, index)))
-
-    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
+    B_inverse = spinv(csc_matrix(sub_network.B[1:, 1:]))
 
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):
@@ -1205,7 +1217,11 @@ def calculate_PTDF(sub_network, skip_pre=False):
     B_inverse = np.hstack((np.zeros((n_pvpq, 1)), B_inverse))
     B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
 
-    sub_network.PTDF = sub_network.H * B_inverse
+    sub_network.PTDF = pd.DataFrame(
+        data=sub_network.H * B_inverse,
+        index=sub_network.branches_i(),
+        columns=sub_network.buses_o,
+    )
 
 
 def calculate_Y(sub_network, skip_pre=False):
@@ -1296,6 +1312,23 @@ def calculate_Y(sub_network, skip_pre=False):
         + C1.T * sub_network.Y1
         + csr_matrix((Y_sh, (np.arange(num_buses), np.arange(num_buses))))
     )
+
+
+def get_network_ptdf(network):
+    # convenience function
+
+    network.determine_network_topology()
+    if len(network.sub_networks) > 1:
+        logger.warning(
+            "Network decays into subnetworks, PTDF will be decoupled (blocks)."
+        )
+
+    ptdfs = []
+    for s in network.sub_networks["obj"]:
+        s.calculate_PTDF()
+        ptdfs.append(s.PTDF)
+
+    return pd.concat(ptdfs).fillna(0)
 
 
 def aggregate_multi_graph(sub_network):
