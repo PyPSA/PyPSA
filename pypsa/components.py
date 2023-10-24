@@ -628,7 +628,7 @@ class Network(Basic):
                 raise ValueError(
                     "Not all investment periods are in level `period` " "of snapshots."
                 )
-            if len(periods) < len(self.snapshots.levels[0]):
+            if len(periods) < len(self.snapshots.unique(level="period")):
                 raise NotImplementedError(
                     "Investment periods do not equal first level "
                     "values of snapshots."

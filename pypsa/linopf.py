@@ -556,7 +556,7 @@ def define_kirchhoff_constraints(n, sns):
     """
     Defines Kirchhoff voltage constraints.
     """
-    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
     if len(comps) == 0:
         return
     branch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
@@ -1572,7 +1572,7 @@ def network_lopf(
         logger.info("Perform multi-investment optimization.")
         assert not n.investment_periods.empty, "No investment periods defined."
         assert (
-            n.snapshots.levels[0].difference(n.investment_periods).empty
+            n.snapshots.unique(level="period").difference(n.investment_periods).empty
         ), "Not all first-level snapshots values in investment periods."
     n._multi_invest = int(multi_investment_periods)
 
