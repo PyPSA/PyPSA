@@ -1629,6 +1629,18 @@ class Network(Basic):
                     "not multi-indexed."
                 )
 
+        shape_components = self.shapes.component.unique()
+        for c in set(shape_components) & set(self.all_components):
+            geos = self.shapes.query("component == @c")
+            not_included = geos.index[~geos.idx.isin(self.df(c).index)]
+
+            if not not_included.empty:
+                logger.warning(
+                    f"The following shapes are related to component {c} and have"
+                    f" idx values that are not included in the component's index:\n"
+                    f"{not_included}"
+                )
+
 
 class SubNetwork(Common):
     """
