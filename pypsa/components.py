@@ -482,6 +482,10 @@ class Network(Basic):
         """
         return self.shapes.crs
 
+    @crs.setter
+    def crs(self, new):
+        self.shapes.to_crs(new, inplace=True)
+
     def set_snapshots(
         self,
         snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
