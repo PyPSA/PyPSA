@@ -248,15 +248,15 @@ def plot(
     patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert set(bus_sizes.index.get_level_values(0)).issubset(
-            n.buses.index
+        assert (
+            len(bus_sizes.index.unique(level=0).difference(n.buses.index)) == 0
         ), "The first MultiIndex level of bus_sizes must contain buses"
         if isinstance(bus_colors, dict):
             bus_colors = pd.Series(bus_colors)
         # case bus_colors isn't a series or dict: look in n.carriers for existent colors
         if not isinstance(bus_colors, pd.Series):
             bus_colors = n.carriers.color.dropna()
-        assert bus_sizes.index.get_level_values(1).isin(bus_colors.index).all(), (
+        assert bus_sizes.index.unique(level=1).isin(bus_colors.index).all(), (
             "Colors not defined for all elements in the second MultiIndex "
             "level of bus_sizes, please make sure that all the elements are "
             "included in bus_colors or in n.carriers.color"
