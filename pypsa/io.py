@@ -882,7 +882,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                     crs = network.meta.pop("_crs", None)
                     if crs is not None:
                         crs = CRS.from_wkt(crs)
-                    dataframe[k] = gpd.GeoSeries.from_wkt(dataframe[k], crs=crs)
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry, crs=crs)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 

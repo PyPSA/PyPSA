@@ -137,6 +137,45 @@ def test_hdf5_io_shapes(ac_dc_network_shapes, tmpdir):
     )
 
 
+def test_netcdf_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_netcdf(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_csv_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "csv_export")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_csv_folder(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_hdf5_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "hdf5_export.h5")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_hdf5(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
+    )
+
+
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_import_from_pandapower_network(
