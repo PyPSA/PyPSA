@@ -17,6 +17,7 @@ dependencies:
 - networkx>=1.10
 - pyomo<6.6.2
 - cartopy>=0.16
+- geopandas>=0.9
 - coincbc
 - glpk
 - deprecation
