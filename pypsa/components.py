@@ -482,9 +482,10 @@ class Network(Basic):
         """
         return self.shapes.crs
 
-    @crs.setter
-    def crs(self, new):
-        self.shapes.to_crs(new, inplace=True)
+    # TODO: structure SRID and CRS in alignment with shapes and bus coordinates.
+    # @crs.setter
+    # def crs(self, new):
+    #     self.shapes.to_crs(new, inplace=True)
 
     def set_snapshots(
         self,

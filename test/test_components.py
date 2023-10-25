@@ -235,13 +235,13 @@ def test_copy_no_snapshot(ac_dc_network):
     assert snapshot not in copied_network.snapshots
 
 
-def test_shape_reprojection(ac_dc_network_shapes):
-    n = ac_dc_network_shapes
+# def test_shape_reprojection(ac_dc_network_shapes):
+#     n = ac_dc_network_shapes
 
-    area_before = n.shapes.geometry.area.sum()
+#     area_before = n.shapes.geometry.area.sum()
 
-    n.crs = "epsg:3035"
+#     n.crs = "epsg:3035"
 
-    assert n.shapes.crs == "epsg:3035"
-    assert n.crs == "epsg:3035"
-    assert area_before != n.shapes.geometry.area.sum()
+#     assert n.shapes.crs == "epsg:3035"
+#     assert n.crs == "epsg:3035"
+#     assert area_before != n.shapes.geometry.area.sum()
