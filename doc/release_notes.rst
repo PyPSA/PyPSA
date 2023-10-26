@@ -23,6 +23,10 @@ Upcoming Release
 
 * Bugfix: Fix primary energy limit and transmission volume limit global constraints for multi-period optimisations.
 
+* Regression fix: Fix multi-decade optimisations in highly meshed networks.
+
+* Enhancement: Allow optimising dispatch of only a subset of investment periods.
+
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 
