@@ -108,7 +108,7 @@ class ImporterCSV(Importer):
     def get_meta(self):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
-    
+
     def get_crs(self):
         fn = os.path.join(self.csv_folder_name, "crs.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
@@ -175,7 +175,7 @@ class ExporterCSV(Exporter):
     def save_crs(self, crs):
         fn = os.path.join(self.csv_folder_name, "crs.json")
         open(fn, "w").write(json.dumps(crs))
-    
+
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
@@ -218,7 +218,7 @@ class ImporterHDF5(Importer):
 
     def get_meta(self):
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
-    
+
     def get_crs(self):
         return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
@@ -267,7 +267,7 @@ class ExporterHDF5(Exporter):
 
     def save_meta(self, meta):
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
-        
+
     def save_crs(self, crs):
         self.ds.put("/crs", pd.Series(json.dumps(crs)))
 
@@ -323,7 +323,7 @@ if has_xarray:
 
         def get_meta(self):
             return json.loads(self.ds.attrs.get("meta", "{}"))
-        
+
         def get_crs(self):
             return json.loads(self.ds.attrs.get("crs", "{}"))
 
@@ -372,7 +372,7 @@ if has_xarray:
 
         def save_meta(self, meta):
             self.ds.attrs["meta"] = json.dumps(meta)
-            
+
         def save_crs(self, crs):
             self.ds.attrs["crs"] = json.dumps(crs)
 
@@ -452,9 +452,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     }
     exporter.save_attributes(attrs)
 
-    _crs={}
+    _crs = {}
     if network.crs is not None:
-        _crs["_crs"]=network.crs.to_wkt()
+        _crs["_crs"] = network.crs.to_wkt()
     exporter.save_crs(_crs)
 
     exporter.save_meta(network.meta)
@@ -756,7 +756,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     if crs is not None:
         crs = CRS.from_wkt(crs)
         network.crs = crs
-    else :
+    else:
         network.crs = 4326
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
@@ -935,10 +935,10 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     if cls_name == "Shape":
-        crs=network.crs
+        crs = network.crs
         if crs is None:
-            crs=4326
-        new_df = gpd.GeoDataFrame(new_df ,crs=network.crs)
+            crs = 4326
+        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
