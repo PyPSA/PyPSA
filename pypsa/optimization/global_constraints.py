@@ -256,8 +256,10 @@ def define_primary_energy_limit(n, sns):
     for name, glc in glcs.iterrows():
         if isnan(glc.investment_period):
             sns_sel = slice(None)
-        else:
+        elif glc.investment_period in sns.unique("period"):
             sns_sel = sns.get_loc(glc.investment_period)
+        else:
+            continue
 
         lhs = []
         rhs = glc.constant
