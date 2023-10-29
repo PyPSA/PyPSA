@@ -458,6 +458,23 @@ for each unit of hydrogen), ``bus2`` connects to methane with
 
 The example `Biomass, synthetic fuels and carbon management <https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
 
+.. _components-shapes
+
+Shapes
+======
+
+Shapes is of a geopandas dataframe which can be used to store network-related
+geographical data (for plotting, calculating potentials, etc.). The dataframe has
+the columns geometry, component, idx and type. The columns component, idx and
+type do not require specific values, but give the user the possibility to store
+additional information about the shapes.
+
+.. csv-table::
+   :class: full-width
+   :header-rows: 1
+   :file: ../pypsa/component_attrs/shapes.csv
+
+
 Groups of Components
 ====================
 

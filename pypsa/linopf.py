@@ -556,7 +556,7 @@ def define_kirchhoff_constraints(n, sns):
     """
     Defines Kirchhoff voltage constraints.
     """
-    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
     if len(comps) == 0:
         return
     branch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
@@ -587,7 +587,7 @@ def define_kirchhoff_constraints(n, sns):
 
             con = write_constraint(n, cycle_sum, "=", 0)
             subconstraints.append(con)
-        if len(subconstraints) == 0:
+        if not subconstraints:
             continue
         constraints.append(pd.concat(subconstraints, axis=1, ignore_index=True))
     if constraints:
@@ -839,7 +839,7 @@ def define_growth_limit(n, sns, c, attr):
     lhs = caps.T.groupby(carriers).sum(**agg_group_kwargs).T
     rhs = n.carriers.max_growth[with_limit]
 
-    define_constraints(n, lhs, "<=", rhs, "Carrier", "growth_limit_{}".format(c))
+    define_constraints(n, lhs, "<=", rhs, "Carrier", f"growth_limit_{c}")
 
 
 def define_global_constraints(n, sns):
@@ -1572,7 +1572,7 @@ def network_lopf(
         logger.info("Perform multi-investment optimization.")
         assert not n.investment_periods.empty, "No investment periods defined."
         assert (
-            n.snapshots.levels[0].difference(n.investment_periods).empty
+            n.snapshots.unique(level="period").difference(n.investment_periods).empty
         ), "Not all first-level snapshots values in investment periods."
     n._multi_invest = int(multi_investment_periods)
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -100,6 +101,78 @@ def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
     pd.testing.assert_frame_equal(
         m.generators_t.p,
         ac_dc_network_multiindexed.generators_t.p,
+    )
+
+
+def test_netcdf_io_shapes(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    ac_dc_network_shapes.export_to_netcdf(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        ac_dc_network_shapes.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_csv_io_shapes(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "csv_export")
+    ac_dc_network_shapes.export_to_csv_folder(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        ac_dc_network_shapes.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_hdf5_io_shapes(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "hdf5_export.h5")
+    ac_dc_network_shapes.export_to_hdf5(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        ac_dc_network_shapes.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_netcdf_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "netcdf_export.nc")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_netcdf(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_csv_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "csv_export")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_csv_folder(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
+    )
+
+
+def test_hdf5_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    fn = os.path.join(tmpdir, "hdf5_export.h5")
+    n = ac_dc_network_shapes.copy()
+    n.shapes.loc["Manchester", "geometry"] = None
+    n.export_to_hdf5(fn)
+    m = pypsa.Network(fn)
+    assert_geodataframe_equal(
+        m.shapes,
+        n.shapes,
+        check_less_precise=True,
     )
 
 

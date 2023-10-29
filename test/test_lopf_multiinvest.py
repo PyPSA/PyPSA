@@ -128,7 +128,7 @@ def test_single_to_multi_level_snapshots():
     years = [2030, 2040]
     n.investment_periods = years
     assert isinstance(n.snapshots, pd.MultiIndex)
-    equal(n.snapshots.levels[0], years)
+    equal(n.snapshots.unique(level="period"), years)
 
 
 def test_investment_period_values():

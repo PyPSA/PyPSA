@@ -565,6 +565,8 @@ def define_nodal_balance_constraints(
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
         rhs = rhs.rename(Bus=f"Bus{suffix}")
+        if mask is not None:
+            mask = mask.rename(Bus=f"Bus{suffix}")
     n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
@@ -577,7 +579,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
     comps = [c for c in n.passive_branch_components if not n.df(c).empty]
 
-    if len(comps) == 0:
+    if not comps:
         return
 
     names = ["component", "name"]
@@ -715,12 +717,12 @@ def define_storage_unit_constraints(n, sns):
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[c + "-p_dispatch"]),
-        (eff_store * eh, m[c + "-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{c}-p_dispatch"]),
+        (eff_store * eh, m[f"{c}-p_store"]),
     ]
 
     if f"{c}-spill" in m.variables:
-        lhs += [(-eh, m[c + "-spill"])]
+        lhs += [(-eh, m[f"{c}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets.
@@ -751,8 +753,8 @@ def define_storage_unit_constraints(n, sns):
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
 
@@ -796,8 +798,8 @@ def define_store_constraints(n, sns):
     # efficiencies
     eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
-    e = m[c + "-e"]
-    p = m[c + "-p"]
+    e = m[f"{c}-e"]
+    p = m[f"{c}-p"]
 
     lhs = [(-1, e), (-eh, p)]
 
@@ -825,8 +827,8 @@ def define_store_constraints(n, sns):
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_e_pp = concat(previous_e_pp, dim="snapshot")
 
