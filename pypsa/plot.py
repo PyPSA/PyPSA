@@ -309,7 +309,7 @@ def plot(
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
-        for b_i in s.index[s != 0]:
+        for b_i in s.index[(s != 0) & ~s.isna()]:
             radius = s.at[b_i] ** 0.5
             patches.append(
                 Circle(
