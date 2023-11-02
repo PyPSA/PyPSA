@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 import validators
 from deprecation import deprecated
+from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -171,8 +172,7 @@ class Network(Basic):
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
     """
 
-    # Spatial Reference System Identifier (SRID), defaults to longitude and latitude
-    srid = 4326
+    _crs = CRS.from_epsg(4326)
 
     # methods imported from other sub-modules
 
@@ -480,12 +480,59 @@ class Network(Basic):
         """
         Coordinate reference system of the network's geometries (n.shapes).
         """
-        return self.shapes.crs
+        return self._crs
 
-    # TODO: structure SRID and CRS in alignment with shapes and bus coordinates.
+    @property
+    def srid(self):
+        """
+        Spatial Reference System Identifier (SRID) of the network's geometries
+        (n.shapes).
+        """
+        return self._crs.to_epsg()
+
     @crs.setter
     def crs(self, new):
-        self.shapes.to_crs(new, inplace=True)
+        """
+        Set the coordinate reference system of the network's geometries
+        (n.shapes).
+        """
+        self._update_components_geometry(new)
+
+    @srid.setter
+    def srid(self, new):
+        """
+        Set the coordinate reference system of the network's geometries
+        (n.shapes).
+        """
+        self._update_components_geometry(new)
+
+    def to_crs(self, new):
+        """
+        Set the coordinate reference system of the network's geometries
+        (n.shapes).
+        """
+        self._update_components_geometry(new)
+
+    def _update_components_geometry(self, new_crs):
+        """
+        Update the bus geometries from the shapes DataFrame.
+        """
+
+        self._crs = CRS.from_user_input(new_crs)
+
+        if not self.buses.empty:
+            transformer_bus_xy = Transformer.from_crs(self.shapes.crs, self._crs)
+
+            def trans_cords(lat, long):
+                return transformer_bus_xy.transform(lat, long)
+
+            self.buses[["y", "x"]] = self.buses.apply(
+                lambda row: trans_cords(row["y"], row["x"]),
+                axis=1,
+                result_type="expand",
+            )
+
+        self.shapes.to_crs(new_crs, inplace=True)
 
     def set_snapshots(
         self,

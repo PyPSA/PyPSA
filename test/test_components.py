@@ -238,10 +238,14 @@ def test_copy_no_snapshot(ac_dc_network):
 def test_shape_reprojection(ac_dc_network_shapes):
     n = ac_dc_network_shapes
 
-    area_before = n.shapes.geometry.area.sum()
+    with pytest.warns(UserWarning):
+        area_before = n.shapes.geometry.area.sum()
+    x, y = n.buses.x.values, n.buses.y.values
 
-    n.crs = "epsg:3035"
+    n.to_crs("epsg:3035")
 
     assert n.shapes.crs == "epsg:3035"
     assert n.crs == "epsg:3035"
     assert area_before != n.shapes.geometry.area.sum()
+    assert not np.allclose(x, n.buses.x.values)
+    assert not np.allclose(y, n.buses.y.values)

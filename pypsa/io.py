@@ -755,9 +755,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     crs = crs.pop("_crs", None)
     if crs is not None:
         crs = CRS.from_wkt(crs)
-        network.crs = crs
-    else:
-        network.crs = 4326
+        network._crs = crs
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
@@ -935,9 +933,6 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     if cls_name == "Shape":
-        crs = network.crs
-        if crs is None:
-            crs = 4326
         new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
 
     new_df.index.name = cls_name
