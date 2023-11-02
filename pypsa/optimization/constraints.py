@@ -203,7 +203,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=mask)
+        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=mask[min_up_time_i])
 
     # min down time
     expr = []
