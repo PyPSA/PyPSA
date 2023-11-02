@@ -192,10 +192,11 @@ def plot(
         buses = bus_sizes.index
         if isinstance(buses, pd.MultiIndex):
             buses = buses.unique(0)
-        x, y = x[buses], y[buses]
 
     if boundaries is None:
-        boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
+        boundaries = sum(
+            zip(*compute_bbox_with_margins(margin, x[buses], y[buses])), ()
+        )
 
     if geomap and not cartopy_present:
         logger.warning("Cartopy needs to be installed to use `geomap=True`.")
@@ -428,6 +429,7 @@ def plot(
                     "y2": c.df.bus1.map(y),
                 }
             )
+            coords = coords.dropna(axis=0)
             b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
