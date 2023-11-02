@@ -58,3 +58,17 @@ def test_nans_in_capacity_limits(consistent_network, caplog):
     consistent_network.generators.loc["gen_one", "p_nom_max"] = np.nan
     consistent_network.consistency_check()
     assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog):
+    n = ac_dc_network_shapes
+    n.add(
+        "Shape",
+        "missing_idx",
+        geometry=n.shapes.geometry[0],
+        component="Bus",
+        idx="missing_idx",
+    )
+    n.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"
+    assert caplog.records[-1].message.startswith("The following shapes")

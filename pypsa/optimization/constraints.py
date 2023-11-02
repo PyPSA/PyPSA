@@ -566,6 +566,8 @@ def define_nodal_balance_constraints(
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
         rhs = rhs.rename(Bus=f"Bus{suffix}")
+        if mask is not None:
+            mask = mask.rename(Bus=f"Bus{suffix}")
     n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
@@ -752,8 +754,8 @@ def define_storage_unit_constraints(n, sns):
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
 
@@ -826,8 +828,8 @@ def define_store_constraints(n, sns):
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_e_pp = concat(previous_e_pp, dim="snapshot")
 
