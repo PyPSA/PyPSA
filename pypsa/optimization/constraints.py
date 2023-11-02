@@ -216,7 +216,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=mask[min_down_time_i])
+        n.model.add_constraints(
+            lhs, "<=", 1, f"{c}-com-down-time", mask=mask[min_down_time_i]
+        )
 
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
