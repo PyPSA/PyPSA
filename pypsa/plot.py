@@ -188,6 +188,7 @@ def plot(
         margin = 0.05
 
     x, y = _get_coordinates(n, layouter=layouter)
+    buses = n.buses.index
     if isinstance(bus_sizes, pd.Series):
         buses = bus_sizes.index
         if isinstance(buses, pd.MultiIndex):
@@ -429,7 +430,6 @@ def plot(
                     "y2": c.df.bus1.map(y),
                 }
             )
-            coords = coords.dropna(axis=0)
             b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
