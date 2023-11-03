@@ -539,7 +539,6 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
-
     def addNetwork(self, network, *args):
         """
         Function: Add all components from a new network into this network.
@@ -574,20 +573,21 @@ class Network(Basic):
         for component_name in args:
             to_skip.append(component_name)
         if network.srid != self.srid:
-            logger.warning(f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used.")
-        for component in network.iterate_components(network.components.keys()-to_skip):
-            #import static data for component
-            import_components_from_dataframe(network, component.df, component.name)    
-            #import time series data for component
+            logger.warning(
+                f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used."
+            )
+        for component in network.iterate_components(
+            network.components.keys() - to_skip
+        ):
+            # import static data for component
+            import_components_from_dataframe(network, component.df, component.name)
+            # import time series data for component
             for k, v in component.pnl.items():
                 import_series_from_dataframe(v, component.name, k)
-            
-    
 
     @property
     def snapshot_weightings(self):
         """
-
         Weightings applied to each snapshots during the optimization (LOPF).
 
         * Objective weightings multiply the operational cost in the
