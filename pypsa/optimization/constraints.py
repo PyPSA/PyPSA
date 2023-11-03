@@ -385,9 +385,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # fix up
     if not ramp_limit_up[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (ramp_limit_up * p_nom).reindex(active.index, columns=fix_i) + rhs_start.reindex(
-            columns=fix_i
-        )
+        rhs = (ramp_limit_up * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
         mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
             active.index, columns=fix_i
         )
@@ -396,9 +396,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # fix down
     if not ramp_limit_down[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (-ramp_limit_down * p_nom).reindex(active.index, columns=fix_i) + rhs_start.reindex(
-            columns=fix_i
-        )
+        rhs = (-ramp_limit_down * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
         mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
             active.index, columns=fix_i
         )
