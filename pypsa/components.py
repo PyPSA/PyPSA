@@ -539,9 +539,55 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
+
+    def addNetwork(self, network, *args):
+        """
+        Function: Add all components from a new network into this network.
+
+        Notes:
+        If two components in different networks have the same index value then the component in
+        the new network will not be added to this network.
+
+        For static data:
+        If a component in the new network does not have values for attributes present in
+        this network then default values are set. If a component in the new network has attributes
+        which are not present in this network then these attributes will not be present in the
+        final network.
+
+        For time-varying data:
+        When adding time-varying data (as pandas DataFrames), if the new data is missing time snapshots
+        compared to the current network, default values will be set. If the new data has additional time
+        snapshots then the attributes for these snapshots will not be present in the final network.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+        *args : list
+            List of names of components in new network which are not to be merged
+            e.g. "Buses"
+
+        Returns
+        -------
+        None.
+        """
+        to_skip = ["Network"]
+        for component_name in args:
+            to_skip.append(component_name)
+        if network.srid != self.srid:
+            logger.warning(f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used.")
+        for component in network.iterate_components(network.components.keys()-to_skip):
+            #import static data for component
+            import_components_from_dataframe(network, component.df, component.name)    
+            #import time series data for component
+            for k, v in component.pnl.items():
+                import_series_from_dataframe(v, component.name, k)
+            
+    
+
     @property
     def snapshot_weightings(self):
         """
+
         Weightings applied to each snapshots during the optimization (LOPF).
 
         * Objective weightings multiply the operational cost in the
