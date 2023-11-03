@@ -10,7 +10,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import merge
+from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
 
@@ -373,8 +373,12 @@ def optimize_mga(
     # build budget constraint
     optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
     fixed_cost = n.statistics.installed_capex().sum()
+    objective = m.objective
+    if not isinstance(objective, (LinearExpression, QuadraticExpression)):
+        objective = objective.expression
+
     m.add_constraints(
-        m.objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+        objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
     )
 
     # parse optimization sense
