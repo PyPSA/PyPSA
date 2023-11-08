@@ -127,7 +127,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
-            logger.warning("No type given for {}, assuming it is a line".format(branch))
+            logger.warning(f"No type given for {branch}, assuming it is a line")
             branch = ("Line", branch)
 
         sn = network.sub_networks.obj[passive_branches.sub_network[branch]]
@@ -166,7 +166,7 @@ def add_contingency_constraints(network, snapshots):
 
     for branch in branch_outages:
         if type(branch) is not tuple:
-            logger.warning("No type given for {}, assuming it is a line".format(branch))
+            logger.warning(f"No type given for {branch}, assuming it is a line")
             branch = ("Line", branch)
 
         sub = network.sub_networks.at[passive_branches.at[branch, "sub_network"], "obj"]
@@ -278,7 +278,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
         b if isinstance(b, tuple) else ("Line", b) for b in n._branch_outages
     ]
 
-    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
     if len(comps) == 0:
         return
     dispatch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
@@ -345,7 +345,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
                 lhs[key] = lhs_flow_ext + linexpr((1, s_nom_ext))
                 rhs[key] = 0
 
-        for k in lhs.keys():
+        for k in lhs:
             sense = "<=" if k[0] == "upper" else ">="
             axes = (lhs[k].index, lhs[k].columns)
             con = write_constraint(n, lhs[k], sense, rhs[k], axes)
@@ -356,7 +356,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
     for (bound, spec, outage), constr in constraints.items():
         constr = pd.concat(constr, axis=1)
         for c in comps:
-            if c in constr.columns.levels[0]:
+            if c in constr.columns.unique(level=0):
                 constr_name = "_".join([bound, *outage])
                 set_conref(n, constr[c], c, f"mu_contingency_{constr_name}", spec=spec)
 

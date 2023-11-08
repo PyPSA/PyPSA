@@ -22,9 +22,11 @@ from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
 
@@ -93,9 +95,9 @@ class ImporterCSV(Importer):
         self.csv_folder_name = csv_folder_name
         self.encoding = encoding
 
-        assert os.path.isdir(csv_folder_name), "Directory {} does not exist.".format(
+        assert os.path.isdir(
             csv_folder_name
-        )
+        ), f"Directory {csv_folder_name} does not exist."
 
     def get_attributes(self):
         fn = os.path.join(self.csv_folder_name, "network.csv")
@@ -105,9 +107,7 @@ class ImporterCSV(Importer):
 
     def get_meta(self):
         fn = os.path.join(self.csv_folder_name, "meta.json")
-        if not os.path.isfile(fn):
-            return {}
-        return json.loads(open(fn).read())
+        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
@@ -155,9 +155,7 @@ class ExporterCSV(Exporter):
 
         # make sure directory exists
         if not os.path.isdir(csv_folder_name):
-            logger.warning(
-                "Directory {} does not exist, creating it".format(csv_folder_name)
-            )
+            logger.warning(f"Directory {csv_folder_name} does not exist, creating it")
             os.mkdir(csv_folder_name)
 
     def save_attributes(self, attrs):
@@ -187,11 +185,10 @@ class ExporterCSV(Exporter):
         df.to_csv(fn, encoding=self.encoding)
 
     def remove_static(self, list_name):
-        fns = glob(os.path.join(self.csv_folder_name, list_name) + "*.csv")
-        if fns:
+        if fns := glob(os.path.join(self.csv_folder_name, list_name) + "*.csv"):
             for fn in fns:
                 os.unlink(fn)
-            logger.warning("Stale csv file(s) {} removed".format(", ".join(fns)))
+            logger.warning(f'Stale csv file(s) {", ".join(fns)} removed')
 
     def remove_series(self, list_name, attr):
         fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
@@ -390,7 +387,7 @@ if has_xarray:
                     self.ds[v].encoding.update(self.compression)
 
         def typecast_float32(self):
-            logger.debug(f"Typecasting float64 to float32.")
+            logger.debug("Typecasting float64 to float32.")
             for v in self.ds.data_vars:
                 if self.ds[v].dtype == np.float64:
                     self.ds[v] = self.ds[v].astype(np.float32)
@@ -422,19 +419,21 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     # exportable component types
-    # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
-    attrs = dict(
-        (attr, getattr(network, attr))
+    attrs = {
+        attr: getattr(network, attr)
         for attr in dir(network)
         if (
             not attr.startswith("__")
             and isinstance(getattr(network, attr), allowed_types)
         )
-    )
+    }
     exporter.save_attributes(attrs)
+
+    if network.crs is not None:
+        network.meta["_crs"] = network.crs.to_wkt()
 
     exporter.save_meta(network.meta)
 
@@ -457,6 +456,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
         df = network.df(component)
         pnl = network.pnl(component)
+
+        if component == "Shape":
+            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
@@ -766,11 +768,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     df = importer.get_snapshots()
 
     if df is not None:
-        # check if imported snapshots have MultiIndex
-        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(
+        if snapshot_levels := {"period", "timestep", "snapshot"}.intersection(
             df.columns
-        )
-        if snapshot_levels:
+        ):
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
 
@@ -877,8 +877,15 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-
-            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                if static_attrs.at[k, "type"] == "geometry":
+                    crs = network.meta.pop("_crs", None)
+                    if crs is not None:
+                        crs = CRS.from_wkt(crs)
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry, crs=crs)
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
@@ -898,8 +905,11 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         new_df = pd.concat((old_df, new_df), sort=False)
 
     if not new_df.index.is_unique:
-        logger.error("Error, new components for {} are not unique".format(cls_name))
+        logger.error(f"Error, new components for {cls_name} are not unique")
         return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
@@ -1021,9 +1031,6 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     baseMVA = ppc["baseMVA"]
 
-    # dictionary to store pandas DataFrames of PyPower data
-    pdf = {}
-
     # add buses
 
     # integer numbering will be bus names
@@ -1044,10 +1051,13 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         "v_mag_pu_min",
     ]
 
-    pdf["buses"] = pd.DataFrame(
-        index=index, columns=columns, data=ppc["bus"][:, 1 : len(columns) + 1]
-    )
-
+    pdf = {
+        "buses": pd.DataFrame(
+            index=index,
+            columns=columns,
+            data=ppc["bus"][:, 1 : len(columns) + 1],
+        )
+    }
     if (pdf["buses"]["v_nom"] == 0.0).any():
         logger.warning(
             "Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1."
@@ -1064,7 +1074,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     ]
     pdf["loads"]["bus"] = pdf["loads"].index
     pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"}, inplace=True)
-    pdf["loads"].index = ["L" + str(i) for i in range(len(pdf["loads"]))]
+    pdf["loads"].index = [f"L{str(i)}" for i in range(len(pdf["loads"]))]
 
     # add shunt impedances for any buses with Gs or Bs
 
@@ -1078,7 +1088,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     pdf["shunt_impedances"] = shunt.reindex(columns=["g", "b"])
     pdf["shunt_impedances"]["bus"] = pdf["shunt_impedances"].index
     pdf["shunt_impedances"].index = [
-        "S" + str(i) for i in range(len(pdf["shunt_impedances"]))
+        f"S{str(i)}" for i in range(len(pdf["shunt_impedances"]))
     ]
 
     # add gens
@@ -1091,7 +1101,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ", "
     )
 
-    index = ["G" + str(i) for i in range(len(ppc["gen"]))]
+    index = [f"G{str(i)}" for i in range(len(ppc["gen"]))]
 
     pdf["generators"] = pd.DataFrame(
         index=index, columns=columns, data=ppc["gen"][:, : len(columns)]
@@ -1124,10 +1134,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
             pdf["branches"].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
         else:
             logger.warning(
-                "Warning: there are {} branches with s_nom equal to zero, "
-                "they will probably lead to infeasibilities and should be "
-                "replaced with a high value using the `overwrite_zero_s_nom` "
-                "argument.".format(zero_s_nom.sum())
+                f"Warning: there are {zero_s_nom.sum()} branches with s_nom equal to zero, they will probably lead to infeasibilities and should be replaced with a high value using the `overwrite_zero_s_nom` argument."
             )
 
     # determine bus voltages of branches to detect transformers
@@ -1172,8 +1179,8 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ] = 1.0
 
     # name them nicely
-    pdf["transformers"].index = ["T" + str(i) for i in range(len(pdf["transformers"]))]
-    pdf["lines"].index = ["L" + str(i) for i in range(len(pdf["lines"]))]
+    pdf["transformers"].index = [f"T{str(i)}" for i in range(len(pdf["transformers"]))]
+    pdf["lines"].index = [f"L{str(i)}" for i in range(len(pdf["lines"]))]
 
     # TODO
 
@@ -1241,12 +1248,12 @@ def import_from_pandapower_net(
         "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."
     )
 
-    d = {}
-
-    d["Bus"] = pd.DataFrame(
-        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
-        index=net.bus.name,
-    )
+    d = {
+        "Bus": pd.DataFrame(
+            {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
+            index=net.bus.name,
+        )
+    }
 
     d["Bus"].loc[
         net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
@@ -1349,9 +1356,6 @@ def import_from_pandapower_net(
             },
             index=net.trafo.name,
         )
-        d["Transformer"] = d["Transformer"].fillna(0)
-
-    # if it's not based on a standard-type - get the included values:
     else:
         s_nom = net.trafo.sn_mva.values
 
@@ -1383,7 +1387,7 @@ def import_from_pandapower_net(
             },
             index=net.trafo.name,
         )
-        d["Transformer"] = d["Transformer"].fillna(0)
+    d["Transformer"] = d["Transformer"].fillna(0)
 
     # documented at https://pypsa.readthedocs.io/en/latest/components.html#shunt-impedance
     g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2

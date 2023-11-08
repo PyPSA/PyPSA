@@ -7,7 +7,7 @@ dependencies:
 # Copy from regular environment.yaml
 - numpy
 - scipy
-- pandas>=0.24.0,<2.1
+- pandas>=0.24.0
 - xarray
 - netcdf4
 - libnetcdf
@@ -16,6 +16,7 @@ dependencies:
 - networkx>=1.10
 - pyomo>=5.7.0,<6.6.2
 - cartopy>=0.16
+- geopandas>=0.9
 - glpk
 - linopy>=0.2
 - deprecation

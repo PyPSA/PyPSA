@@ -194,6 +194,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     )
 
     # min up time
+    mask = get_activity_mask(n, c, sns[1:], com_i)
     expr = []
     min_up_time_i = com_i[min_up_time_set.astype(bool)]
     if not min_up_time_i.empty:
@@ -202,7 +203,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
+        n.model.add_constraints(
+            lhs, "<=", 0, f"{c}-com-up-time", mask=mask[min_up_time_i]
+        )
 
     # min down time
     expr = []
@@ -213,7 +216,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
+        n.model.add_constraints(
+            lhs, "<=", 1, f"{c}-com-down-time", mask=mask[min_down_time_i]
+        )
 
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
@@ -325,9 +330,13 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
-    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
+
+    ramp_limit_up = get_as_dense(n, c, "ramp_limit_up", sns)
+    ramp_limit_down = get_as_dense(n, c, "ramp_limit_down", sns)
+
+    if (ramp_limit_up.isnull().all() & ramp_limit_down.isnull().all()).all():
         return
-    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
+    if (ramp_limit_up.eq(1).all() & ramp_limit_down.eq(1).all()).all():
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
@@ -342,7 +351,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     if is_rolling_horizon:
         active = get_activity_mask(n, c, sns)
-        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        rhs_start = pd.DataFrame(0.0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
 
         def p_actual(idx):
@@ -371,20 +380,28 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     assets = n.df(c).reindex(fix_i)
 
+    p_nom = n.df(c)[nominal_attrs[c]].reindex(fix_i)
+
     # fix up
-    if not assets.ramp_limit_up.isnull().all():
+    if not ramp_limit_up[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = assets.eval("ramp_limit_up * p_nom") + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & assets.ramp_limit_up.notnull()
+        rhs = (ramp_limit_up * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=fix_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask=mask)
 
     # fix down
-    if not assets.ramp_limit_down.isnull().all():
+    if not ramp_limit_down[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = assets.eval("- ramp_limit_down * p_nom") + rhs_start.reindex(
-            columns=fix_i
+        rhs = (-ramp_limit_down * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=fix_i
         )
-        mask = active.reindex(columns=fix_i) & assets.ramp_limit_down.notnull()
         m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Extendable Generators ----------------------------- #
@@ -392,21 +409,25 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     assets = n.df(c).reindex(ext_i)
 
     # ext up
-    if not assets.ramp_limit_up.isnull().all():
+    if not ramp_limit_up[ext_i].isnull().all().all():
         p_nom = m[f"{c}-p_nom"]
-        limit_pu = assets.ramp_limit_up.to_xarray()
+        limit_pu = DataArray(ramp_limit_up.reindex(active.index, columns=ext_i))
         lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & assets.ramp_limit_up.notnull()
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask=mask)
 
     # ext down
-    if not assets.ramp_limit_down.isnull().all():
+    if not ramp_limit_down[ext_i].isnull().all().all():
         p_nom = m[f"{c}-p_nom"]
-        limit_pu = assets.ramp_limit_down.to_xarray()
-        lhs = (1, p_actual(ext_i)), (-1, p_previous(ext_i)), (limit_pu, p_nom)
+        limit_pu = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
+        lhs = p_actual(ext_i) - p_previous(ext_i) + limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & assets.ramp_limit_down.notnull()
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Committable Generators ----------------------------- #
@@ -528,9 +549,9 @@ def define_nodal_balance_constraints(
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=buses, fill_value=0)
+        .T.reindex(columns=buses, fill_value=0)
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
@@ -549,6 +570,8 @@ def define_nodal_balance_constraints(
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
         rhs = rhs.rename(Bus=f"Bus{suffix}")
+        if mask is not None:
+            mask = mask.rename(Bus=f"Bus{suffix}")
     n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
 
 
@@ -561,7 +584,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
     comps = [c for c in n.passive_branch_components if not n.df(c).empty]
 
-    if len(comps) == 0:
+    if not comps:
         return
 
     names = ["component", "name"]
@@ -585,7 +608,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
             carrier = n.sub_networks.carrier[sub.name]
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings) * sub.C
+            C = 1e5 * sparse.diags(weightings.values) * sub.C
             ssub = s.loc[snapshots, branches.index].values
 
             ncycles = C.shape[1]
@@ -735,12 +758,12 @@ def define_storage_unit_constraints(n, sns):
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[c + "-p_dispatch"]),
-        (eff_store * eh, m[c + "-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{c}-p_dispatch"]),
+        (eff_store * eh, m[f"{c}-p_store"]),
     ]
 
     if f"{c}-spill" in m.variables:
-        lhs += [(-eh, m[c + "-spill"])]
+        lhs += [(-eh, m[f"{c}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets.
@@ -771,8 +794,8 @@ def define_storage_unit_constraints(n, sns):
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
 
@@ -816,8 +839,8 @@ def define_store_constraints(n, sns):
     # efficiencies
     eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
-    e = m[c + "-e"]
-    p = m[c + "-p"]
+    e = m[f"{c}-e"]
+    p = m[f"{c}-p"]
 
     lhs = [(-1, e), (-eh, p)]
 
@@ -845,8 +868,8 @@ def define_store_constraints(n, sns):
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
-        ps = n.investment_periods.rename("period")
-        sl = slice(None, None)
+        ps = sns.unique("period")
+        sl = slice(None)
         previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_e_pp = concat(previous_e_pp, dim="snapshot")
 
