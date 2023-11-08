@@ -7,8 +7,10 @@ from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
+MODULARITY_APIS = ["linopy"]
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
+
+@pytest.mark.parametrize("api", MODULARITY_APIS)
 def test_modular_components(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
@@ -45,10 +47,9 @@ def test_modular_components(api):
     n.add("Load", "load", bus="bus", p_set=[4000, 5000, 6000, 800])
 
     optimize(n, api)
-    n.lopf(n.snapshots, pyomo=False)
 
     expected_n_opt_gen = np.array([5], dtype=float).T
     expected_n_opt_store = np.array([10], dtype=float).T
 
-    equal(n.generators.n_mod_opt, expected_n_opt_gen)
-    equal(n.stores.n_mod_opt, expected_n_opt_store)
+    equal(n.generators.n_mod, expected_n_opt_gen)
+    equal(n.stores.n_mod, expected_n_opt_store)
