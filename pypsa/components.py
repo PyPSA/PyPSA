@@ -39,6 +39,7 @@ from pypsa.descriptors import (
     update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
+
 from pypsa.io import (
     export_to_csv_folder,
     export_to_hdf5,
@@ -51,6 +52,7 @@ from pypsa.io import (
     import_from_pypower_ppc,
     import_series_from_dataframe,
 )
+
 from pypsa.opf import network_lopf, network_opf
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
@@ -174,7 +176,6 @@ class Network(Basic):
     srid = 4326
 
     # methods imported from other sub-modules
-
     import_from_csv_folder = import_from_csv_folder
 
     export_to_csv_folder = export_to_csv_folder
@@ -540,7 +541,7 @@ class Network(Basic):
     )
 
 
-    def addNetwork(self, network, *args):
+    def add_network(self, network, components_to_skip = None):
         """
         Function: Add all components from a new network into this network.
 
@@ -571,16 +572,17 @@ class Network(Basic):
         None.
         """
         to_skip = ["Network"]
-        for component_name in args:
-            to_skip.append(component_name)
+        if components_to_skip:
+            for component_name in components_to_skip:
+                to_skip.append(component_name)
         if network.srid != self.srid:
             logger.warning(f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used.")
         for component in network.iterate_components(network.components.keys()-to_skip):
             #import static data for component
-            import_components_from_dataframe(network, component.df, component.name)    
+            import_components_from_dataframe(self, component.df, component.name)    
             #import time series data for component
             for k, v in component.pnl.items():
-                import_series_from_dataframe(v, component.name, k)
+                import_series_from_dataframe(self,v, component.name, k)
             
     
 
