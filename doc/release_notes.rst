@@ -19,6 +19,8 @@ Upcoming Release
 
 * The statistics functions now support single components in the ``comps`` argument.
 
+* new function add_network added to components file. This function allows the components of a network to be added to another network.
+
 * The ``Network`` class has a new component ``shapes``. It consists of a ``geopandas`` dataframe which can be used to store network related geographical data (for plotting, calculating potentials, etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`. The columns `component`, `idx` and `type` do not require specific values, but give the user the possibility to store additional information.
 
 * Bugfix: Fix primary energy limit and transmission volume limit global constraints for multi-period optimisations.
