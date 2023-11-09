@@ -233,6 +233,7 @@ def test_copy_no_snapshot(ac_dc_network):
 
     assert copied_network.snapshots.size == 1
     assert snapshot not in copied_network.snapshots
+<<<<<<< HEAD
 def test_add_network_static():
     """
     GIVEN   the AC DC exemplary pypsa network and an
@@ -251,3 +252,17 @@ def test_add_network_static():
     busesNow = baseNetwork.buses.index
     busesAddedNetwork = empty_network_5_buses.buses.index
     assert(set(busesAddedNetwork).issubset(set(busesNow)))
+=======
+
+
+# def test_shape_reprojection(ac_dc_network_shapes):
+#     n = ac_dc_network_shapes
+
+#     area_before = n.shapes.geometry.area.sum()
+
+#     n.crs = "epsg:3035"
+
+#     assert n.shapes.crs == "epsg:3035"
+#     assert n.crs == "epsg:3035"
+#     assert area_before != n.shapes.geometry.area.sum()
+>>>>>>> 5754c5b439fea0a3aca0747539afb71b0dfa44d3

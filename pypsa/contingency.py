@@ -278,7 +278,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
         b if isinstance(b, tuple) else ("Line", b) for b in n._branch_outages
     ]
 
-    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
     if len(comps) == 0:
         return
     dispatch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
@@ -356,7 +356,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
     for (bound, spec, outage), constr in constraints.items():
         constr = pd.concat(constr, axis=1)
         for c in comps:
-            if c in constr.columns.levels[0]:
+            if c in constr.columns.unique(level=0):
                 constr_name = "_".join([bound, *outage])
                 set_conref(n, constr[c], c, f"mu_contingency_{constr_name}", spec=spec)
 

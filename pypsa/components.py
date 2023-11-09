@@ -22,6 +22,7 @@ from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
@@ -306,7 +307,9 @@ class Network(Basic):
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
                 attrs["type"]
-                .map({"boolean": bool, "int": int, "string": str})
+                .map(
+                    {"boolean": bool, "int": int, "string": str, "geometry": "geometry"}
+                )
                 .fillna(float)
             )
             attrs["dtype"] = (
@@ -388,10 +391,17 @@ class Network(Basic):
 
             static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
 
-            df = pd.DataFrame(
-                {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
-                columns=static_dtypes.index,
-            )
+            if component == "Shape":
+                df = gpd.GeoDataFrame(
+                    {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
+                    columns=static_dtypes.index,
+                    crs=self.srid,
+                )
+            else:
+                df = pd.DataFrame(
+                    {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
+                    columns=static_dtypes.index,
+                )
 
             df.index.name = component
             setattr(self, self.components[component]["list_name"], df)
@@ -465,6 +475,18 @@ class Network(Basic):
         if not isinstance(new, (dict, Dict)):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
+
+    @property
+    def crs(self):
+        """
+        Coordinate reference system of the network's geometries (n.shapes).
+        """
+        return self.shapes.crs
+
+    # TODO: structure SRID and CRS in alignment with shapes and bus coordinates.
+    # @crs.setter
+    # def crs(self, new):
+    #     self.shapes.to_crs(new, inplace=True)
 
     def set_snapshots(
         self,
@@ -540,8 +562,12 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
+<<<<<<< HEAD
 
     def add_network(self, network, components_to_skip = None):
+=======
+    def addNetwork(self, network, *args):
+>>>>>>> 5754c5b439fea0a3aca0747539afb71b0dfa44d3
         """
         Function: Add all components from a new network into this network.
 
@@ -576,6 +602,7 @@ class Network(Basic):
             for component_name in components_to_skip:
                 to_skip.append(component_name)
         if network.srid != self.srid:
+<<<<<<< HEAD
             logger.warning(f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used.")
         for component in network.iterate_components(network.components.keys()-to_skip):
             #import static data for component
@@ -585,11 +612,23 @@ class Network(Basic):
                 import_series_from_dataframe(self,v, component.name, k)
             
     
+=======
+            logger.warning(
+                f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used."
+            )
+        for component in network.iterate_components(
+            network.components.keys() - to_skip
+        ):
+            # import static data for component
+            import_components_from_dataframe(network, component.df, component.name)
+            # import time series data for component
+            for k, v in component.pnl.items():
+                import_series_from_dataframe(v, component.name, k)
+>>>>>>> 5754c5b439fea0a3aca0747539afb71b0dfa44d3
 
     @property
     def snapshot_weightings(self):
         """
-
         Weightings applied to each snapshots during the optimization (LOPF).
 
         * Objective weightings multiply the operational cost in the
@@ -649,7 +688,7 @@ class Network(Basic):
                 raise ValueError(
                     "Not all investment periods are in level `period` " "of snapshots."
                 )
-            if len(periods) < len(self.snapshots.levels[0]):
+            if len(periods) < len(self.snapshots.unique(level="period")):
                 raise NotImplementedError(
                     "Investment periods do not equal first level "
                     "values of snapshots."
@@ -931,7 +970,7 @@ class Network(Basic):
                 continue
             typ = attrs.at[k, "typ"]
             if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v)
+                new_df.at[name, k] = typ(v) if typ != "geometry" else v
             elif attrs.at[k, "static"] and not isinstance(
                 v, (pd.Series, pd.DataFrame, np.ndarray, list)
             ):
@@ -1658,6 +1697,18 @@ class Network(Basic):
                 raise ValueError(
                     "The global constraints contain investment periods but snapshots are "
                     "not multi-indexed."
+                )
+
+        shape_components = self.shapes.component.unique()
+        for c in set(shape_components) & set(self.all_components):
+            geos = self.shapes.query("component == @c")
+            not_included = geos.index[~geos.idx.isin(self.df(c).index)]
+
+            if not not_included.empty:
+                logger.warning(
+                    f"The following shapes are related to component {c} and have"
+                    f" idx values that are not included in the component's index:\n"
+                    f"{not_included}"
                 )
 
 
