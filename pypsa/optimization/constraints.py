@@ -160,6 +160,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
+        initially_up = up_time_before_set.astype(bool)
         # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
         ref = range(1, len(until_start_down) + 1)
@@ -167,6 +168,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             until_start_down.cumsum().eq(ref, axis=0)
         ].sum()
         down_time_before_set = down_time_before.clip(upper=min_down_time_set)
+        initially_down = down_time_before_set.astype(bool)
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
