@@ -234,7 +234,7 @@ def test_copy_no_snapshot(ac_dc_network):
     assert copied_network.snapshots.size == 1
     assert snapshot not in copied_network.snapshots
 
-def test_add_network_static():
+def test_add_network_static(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
     buses.
