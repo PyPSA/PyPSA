@@ -236,17 +236,17 @@ def test_copy_no_snapshot(ac_dc_network):
 <<<<<<< HEAD
 def test_add_network_static():
     """
-    GIVEN   the AC DC exemplary pypsa network and an
-            empty PyPSA network with 5 buses
+    GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
+    buses.
 
     WHEN    the second network is added to the first
 
     THEN    the first network should now contain its original
-            buses and also the buses in the second network
+    buses and also the buses in the second network
     """
     baseNetwork = ac_dc_network
     addedNetwork = empty_network_5_buses
-    
+
     baseNetwork.add_network(addedNetwork)
 
     busesNow = baseNetwork.buses.index
