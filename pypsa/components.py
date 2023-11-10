@@ -562,12 +562,7 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
-<<<<<<< HEAD
-
     def add_network(self, network, components_to_skip = None):
-=======
-    def addNetwork(self, network, *args):
->>>>>>> 5754c5b439fea0a3aca0747539afb71b0dfa44d3
         """
         Function: Add all components from a new network into this network.
 
@@ -602,7 +597,6 @@ class Network(Basic):
             for component_name in components_to_skip:
                 to_skip.append(component_name)
         if network.srid != self.srid:
-<<<<<<< HEAD
             logger.warning(f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used.")
         for component in network.iterate_components(network.components.keys()-to_skip):
             #import static data for component
@@ -610,9 +604,7 @@ class Network(Basic):
             #import time series data for component
             for k, v in component.pnl.items():
                 import_series_from_dataframe(self,v, component.name, k)
-            
-    
-=======
+
             logger.warning(
                 f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used."
             )
@@ -624,7 +616,6 @@ class Network(Basic):
             # import time series data for component
             for k, v in component.pnl.items():
                 import_series_from_dataframe(v, component.name, k)
->>>>>>> 5754c5b439fea0a3aca0747539afb71b0dfa44d3
 
     @property
     def snapshot_weightings(self):
