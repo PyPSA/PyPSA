@@ -602,22 +602,11 @@ class Network(Basic):
             network.components.keys() - to_skip
         ):
             # import static data for component
-            import_components_from_dataframe(self, component.df, component.name)
+            self.import_components_from_dataframe(component.df, component.name)
             # import time series data for component
             for k, v in component.pnl.items():
-                import_series_from_dataframe(self, v, component.name, k)
+                self.import_series_from_dataframe(v, component.name, k)
 
-            logger.warning(
-                f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used."
-            )
-        for component in network.iterate_components(
-            network.components.keys() - to_skip
-        ):
-            # import static data for component
-            import_components_from_dataframe(network, component.df, component.name)
-            # import time series data for component
-            for k, v in component.pnl.items():
-                import_series_from_dataframe(v, component.name, k)
 
     @property
     def snapshot_weightings(self):
