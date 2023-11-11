@@ -607,7 +607,6 @@ class Network(Basic):
             for k, v in component.pnl.items():
                 self.import_series_from_dataframe(v, component.name, k)
 
-
     @property
     def snapshot_weightings(self):
         """
