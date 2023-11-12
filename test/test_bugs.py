@@ -93,3 +93,14 @@ def test_515():
     n.lopf(pyomo=False)
 
     assert n.objective == 10
+
+
+def test_779():
+    """
+    Importing from xarray dataset.
+    """
+    n1 = pypsa.Network()
+    n1.add("Bus", "bus")
+    xarr = n1.export_to_netcdf()
+    n2 = pypsa.Network()
+    n2.import_from_netcdf(xarr)
