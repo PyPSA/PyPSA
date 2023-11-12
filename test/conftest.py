@@ -8,11 +8,13 @@ Created on Mon Jan 31 18:29:48 2022.
 
 import os
 
+import geopandas as gpd
 import numpy as np
 import pandapower as pp
 import pandapower.networks as pn
 import pandas as pd
 import pytest
+from shapely.geometry import Point, Polygon
 
 import pypsa
 
@@ -51,6 +53,23 @@ def ac_dc_network():
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
     n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
+
+
+@pytest.fixture(scope="module")
+def ac_dc_network_r():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "ac-dc-meshed",
+        "ac-dc-data",
+        "results-lopf",
+    )
+    n = pypsa.Network(csv_folder)
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
     n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
     return n
 
@@ -59,8 +78,40 @@ def ac_dc_network():
 def ac_dc_network_multiindexed(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
+    n.investment_periods = [2013]
     gens_i = n.generators.index
     n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
+    return n
+
+
+@pytest.fixture(scope="module")
+def ac_dc_network_shapes(ac_dc_network):
+    n = ac_dc_network
+
+    # Create bounding boxes around points
+    def create_bbox(x, y, delta=0.1):
+        return Polygon(
+            [
+                (x - delta, y - delta),
+                (x - delta, y + delta),
+                (x + delta, y + delta),
+                (x + delta, y - delta),
+            ]
+        )
+
+    bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
+
+    # Convert to GeoSeries
+    geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
+
+    n.madd(
+        "Shape",
+        names=geo_series.index,
+        geometry=geo_series,
+        idx=geo_series.index,
+        component="Bus",
+    )
+
     return n
 
 

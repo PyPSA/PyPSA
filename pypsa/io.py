@@ -22,9 +22,11 @@ from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
 
@@ -417,7 +419,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     # exportable component types
-    # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
@@ -430,6 +431,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         )
     }
     exporter.save_attributes(attrs)
+
+    if network.crs is not None:
+        network.meta["_crs"] = network.crs.to_wkt()
 
     exporter.save_meta(network.meta)
 
@@ -452,6 +456,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
         df = network.df(component)
         pnl = network.pnl(component)
+
+        if component == "Shape":
+            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
@@ -870,8 +877,15 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-
-            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                if static_attrs.at[k, "type"] == "geometry":
+                    crs = network.meta.pop("_crs", None)
+                    if crs is not None:
+                        crs = CRS.from_wkt(crs)
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry, crs=crs)
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
@@ -893,6 +907,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     if not new_df.index.is_unique:
         logger.error(f"Error, new components for {cls_name} are not unique")
         return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
