@@ -1031,7 +1031,7 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
     receiving_n : pypsa.Network
         Merged network, or None if inplace=True
     """
-    to_skip = {"Network", "SubNetwork"}
+    to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
     if components_to_skip:
         to_skip.update(components_to_skip)
     to_iterate = other.all_components - to_skip
