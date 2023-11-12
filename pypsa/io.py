@@ -1042,7 +1042,9 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
         )
     if with_time:
         snapshots_aligned = network.snapshots.equals(other.snapshots)
-        weightings_aligned = network.snapshot_weightings.equals(other.snapshot_weightings)
+        weightings_aligned = network.snapshot_weightings.equals(
+            other.snapshot_weightings
+        )
         assert snapshots_aligned and weightings_aligned, (
             "Error, snapshots or snapshot weightings do not agree, "
             "cannot merge networks."
