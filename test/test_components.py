@@ -246,7 +246,7 @@ def test_add_network_static(ac_dc_network, empty_network_5_buses):
     also the buses in the second network
     """
 
-    ac_dc_network.add_network(empty_network_5_buses)
+    ac_dc_network.merge(empty_network_5_buses)
 
     busesNow = ac_dc_network.buses.index
     busesAddedNetwork = empty_network_5_buses.buses.index

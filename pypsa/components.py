@@ -51,6 +51,7 @@ from pypsa.io import (
     import_from_pandapower_net,
     import_from_pypower_ppc,
     import_series_from_dataframe,
+    merge,
 )
 from pypsa.opf import network_lopf, network_opf
 from pypsa.optimization.optimize import OptimizationAccessor
@@ -192,6 +193,8 @@ class Network(Basic):
     import_from_pandapower_net = import_from_pandapower_net
 
     import_components_from_dataframe = import_components_from_dataframe
+
+    merge = merge
 
     import_series_from_dataframe = import_series_from_dataframe
 
@@ -379,6 +382,12 @@ class Network(Basic):
         content += f"Snapshots: {len(self.snapshots)}"
         return header + content
 
+    def __add__(self, other):
+        """
+        Merge all components of two networks.
+        """
+        self.merge(other)
+
     def _build_dataframes(self):
         """
         Function called when network is created to build component
@@ -559,53 +568,6 @@ class Network(Basic):
     snapshots = property(
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
-
-    def add_network(self, network, components_to_skip=None):
-        """
-        Function: Add all components from a new network into this network.
-
-        Notes:
-        If two components in different networks have the same index value then the component in
-        the new network will not be added to this network.
-
-        For static data:
-        If a component in the new network does not have values for attributes present in
-        this network then default values are set. If a component in the new network has attributes
-        which are not present in this network then these attributes will not be present in the
-        final network.
-
-        For time-varying data:
-        When adding time-varying data (as pandas DataFrames), if the new data is missing time snapshots
-        compared to the current network, default values will be set. If the new data has additional time
-        snapshots then the attributes for these snapshots will not be present in the final network.
-
-        Parameters
-        ----------
-        n : pypsa.Network
-        *args : list
-            List of names of components in new network which are not to be merged
-            e.g. "Buses"
-
-        Returns
-        -------
-        None.
-        """
-        to_skip = ["Network"]
-        if components_to_skip:
-            for component_name in components_to_skip:
-                to_skip.append(component_name)
-        if network.srid != self.srid:
-            logger.warning(
-                f"Spatial Reference System Indentifier {network.srid} for new network not equal to value {self.srid} of existing network. Original value will be used."
-            )
-        for component in network.iterate_components(
-            network.components.keys() - to_skip
-        ):
-            # import static data for component
-            self.import_components_from_dataframe(component.df, component.name)
-            # import time series data for component
-            for k, v in component.pnl.items():
-                self.import_series_from_dataframe(v, component.name, k)
 
     @property
     def snapshot_weightings(self):

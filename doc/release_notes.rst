@@ -19,7 +19,11 @@ Upcoming Release
 
 * The statistics functions now support single components in the ``comps`` argument.
 
-* new function add_network added to components file. This function allows the components of a network to be added to another network.
+* A new function ``n.merge()`` was added allowing the components and
+  time-dependent data of one network to be added to another network. The
+  function is also available via ``n + m`` with default settings. The function
+  requires disjunct component indices and identical snapshots and snapshot
+  weightings.
 
 * The ``Network`` class has a new component ``shapes``. It consists of a ``geopandas`` dataframe which can be used to store network related geographical data (for plotting, calculating potentials, etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`. The columns `component`, `idx` and `type` do not require specific values, but give the user the possibility to store additional information.
 
