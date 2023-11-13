@@ -675,7 +675,7 @@ def import_from_netcdf(network, path, skip_time=False):
     """
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = Path(path).name
+    basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
