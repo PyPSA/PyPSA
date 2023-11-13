@@ -661,6 +661,34 @@ def define_fixed_nominal_constraints(n, c, attr):
     n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set")
 
 
+def define_modular_constraints(n, c, attr):
+    """
+    Sets constraints for fixing modular variables of a given component. It
+    allows to define optimal capacity of a component as multiple of the nominal
+    capacity of the single module.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the variable, e.g. 'n_opt'
+    """
+    m = n.model
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    if (mod_i).empty:
+        return
+
+    modularity = m.variables[f"{c}-n_mod"]
+    modular_capacity = n.df(c)[f"{attr}_mod"].loc[mod_i]
+    capacity = m.variables[f"{c}-{attr}"].loc[mod_i]
+
+    con = capacity - modularity * modular_capacity.values == 0
+    n.model.add_constraints(con, name=f"{c}-{attr}_modularity", mask=None)
+
+
 def define_fixed_operation_constraints(n, sns, c, attr):
     """
     Sets constraints for fixing time-dependent variables of a given component
