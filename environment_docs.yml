@@ -33,4 +33,4 @@ dependencies:
   - sphinx-book-theme
   - nbsphinx
   - nbsphinx_link
-  - highspy
+  - highspy>=1.5.3
