@@ -734,7 +734,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     pypsa_version = None
 
     if attrs is not None:
-        network.name = attrs.pop("name")
+        network.name = attrs.pop("name", None)
 
         try:
             pypsa_version = [int(s) for s in attrs.pop("pypsa_version").split(".")]

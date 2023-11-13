@@ -109,9 +109,7 @@ def define_modular_variables(n, c, attr):
     c : str
         network component of which the nominal capacity should be defined
     attr : str
-        name of the variable, e.g. 'n_opt'
-    attr_nom : str
-        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
+        name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
     """
     mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
     mod_i = mod_i.rename(f"{c}-ext")

@@ -7,7 +7,7 @@ from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
-MODULARITY_APIS = ["linopy"]
+MODULARITY_APIS = ["linopy", "native"]
 
 
 @pytest.mark.parametrize("api", MODULARITY_APIS)

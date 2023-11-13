@@ -258,7 +258,7 @@ def define_unit_commitment_status_variables(n, sns, c):
     define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
-def define_modular_variables(n, c, attr, attr_nom):
+def define_modular_variables(n, c, attr):
     """
     Initializes variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
@@ -270,25 +270,18 @@ def define_modular_variables(n, c, attr, attr_nom):
     c : str
         network component of which the nominal capacity should be defined
     attr : str
-        name of the variable, e.g. 'n_opt'
-    attr_nom : str
-        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
+        name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+    mod_i = mod_i.rename(f"{c}-ext")
+
     if (mod_i).empty:
         return
 
-    lower = np.round(
-        n.df(c)[attr_nom + "_min"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
-    )
-    upper = np.round(
-        n.df(c)[attr_nom + "_max"][mod_i] / n.df(c)[attr_nom + "_mod"][mod_i]
-    )
-
-    define_integer(n, lower, upper, c, attr, axes=mod_i)
+    define_integer(n, 0, np.inf, c, attr + "-n_mod", axes=mod_i)
 
 
-def define_modular_constraints(n, c, attr, attr_nom):
+def define_modular_constraints(n, c, attr):
     """
     Sets constraints for fixing modular variables of a given component. It
     allows to define optimal capacity of a component as multiple of the nominal
@@ -300,22 +293,25 @@ def define_modular_constraints(n, c, attr, attr_nom):
     c : str
         name of the network component
     attr : str
-        name of the variable, e.g. 'n_opt'
-    attr_nom : str
-        name of the parameter rapresenting the capacity of each module, e.g. 'p_nom'
+        name of the parameter representing the capacity of each module, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr_nom}_extendable and ({attr_nom}_mod>0)").index
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
 
     if (mod_i).empty:
         return
+
+    modularity = get_var(n, c, attr + "-n_mod")[mod_i]
+    modular_capacity = n.df(c)[f"{attr}_mod"].loc[mod_i]
+    capacity = get_var(n, c, attr)[mod_i]
+
     lhs = linexpr(
         (
-            n.df(c)[attr_nom + "_mod"][mod_i],
-            get_var(n, c, attr)[mod_i],
+            modular_capacity,
+            modularity,
         ),
-        (-1, get_var(n, c, attr_nom)[mod_i]),
+        (-1, capacity),
     )
-    write_constraint(n, lhs, "=", 0)
+    define_constraints(n, lhs, "=", 0, c, f"mu_{attr}_mod")
 
 
 def define_loss_variables(n, sns, c, transmission_losses):
@@ -1264,6 +1260,9 @@ def prepare_lopf(
         define_loss_variables(n, snapshots, c, transmission_losses)
     for c, attr in lookup.query("nominal and not handle_separately").index:
         define_nominal_for_extendable_variables(n, c, attr)
+        define_modular_variables(n, c, attr)
+        define_modular_constraints(n, c, attr)
+
         # define constraint for newly installed capacity per investment period
         define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
@@ -1284,9 +1283,6 @@ def prepare_lopf(
     # consider only state_of_charge_set for the moment
     define_fixed_variable_constraints(n, snapshots, "StorageUnit", "state_of_charge")
     define_fixed_variable_constraints(n, snapshots, "Store", "e")
-    for c, attr_nom in lookup.query("nominal and not handle_separately").index:
-        define_modular_variables(n, c, "n_mod", attr_nom)
-        define_modular_constraints(n, c, "n_mod", attr_nom)
 
     for c in {"Generator", "Link"}:
         define_unit_commitment_constraints(n, snapshots, c)
@@ -1397,7 +1393,10 @@ def assign_solution(
                 non_ext = n.df(c)[attr]
                 n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
             else:
-                n.sols[c].df[attr] = sol
+                if attr.endswith("-n_mod"):
+                    n.df(c)["n_mod"].update(sol)
+                else:
+                    n.sols[c].df[attr] = sol
 
     n.sols = Dict()
     n.solutions = pd.DataFrame(index=n.variables.index, columns=["in_comp", "pnl"])
