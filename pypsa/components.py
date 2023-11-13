@@ -25,9 +25,10 @@ from typing import List, Union
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 import validators
 from deprecation import deprecated
-from pyproj import CRS, Transformer
+from pyproj import CRS
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -482,57 +483,42 @@ class Network(Basic):
         """
         return self._crs
 
-    @property
-    def srid(self):
-        """
-        Spatial Reference System Identifier (SRID) of the network's geometries
-        (n.shapes).
-        """
-        return self._crs.to_epsg()
-
     @crs.setter
     def crs(self, new):
         """
         Set the coordinate reference system of the network's geometries
         (n.shapes).
         """
-        self._update_components_geometry(new)
+        self.shapes.crs = new
+        self._crs = self.shapes.crs
+
+    def to_crs(self, new):
+        """
+        Convert the network's geometries and bus coordinates to a new
+        coordinate reference system.
+        """
+        current = self.crs
+        self.shapes.to_crs(new, inplace=True)
+        self._crs = self.shapes.crs
+        self.buses["x"], self.buses["y"] = pyproj.transform(
+            current, self.crs, self.buses["x"], self.buses["y"]
+        )
+
+    @property
+    def srid(self):
+        """
+        Spatial reference system identifier of the network's geometries
+        (n.shapes).
+        """
+        return self.crs.to_epsg()
 
     @srid.setter
     def srid(self, new):
         """
-        Set the coordinate reference system of the network's geometries
+        Set the spatial reference system identifier of the network's geometries
         (n.shapes).
         """
-        self._update_components_geometry(new)
-
-    def to_crs(self, new):
-        """
-        Set the coordinate reference system of the network's geometries
-        (n.shapes).
-        """
-        self._update_components_geometry(new)
-
-    def _update_components_geometry(self, new_crs):
-        """
-        Update the bus geometries from the shapes DataFrame.
-        """
-
-        self._crs = CRS.from_user_input(new_crs)
-
-        if not self.buses.empty:
-            transformer_bus_xy = Transformer.from_crs(self.shapes.crs, self._crs)
-
-            def trans_cords(lat, long):
-                return transformer_bus_xy.transform(lat, long)
-
-            self.buses[["y", "x"]] = self.buses.apply(
-                lambda row: trans_cords(row["y"], row["x"]),
-                axis=1,
-                result_type="expand",
-            )
-
-        self.shapes.to_crs(new_crs, inplace=True)
+        self.crs = pyproj.CRS.from_epsg(new)
 
     def set_snapshots(
         self,
@@ -1305,7 +1291,7 @@ class Network(Basic):
                 pass
 
         # catch all remaining attributes of network
-        for attr in ["name", "srid"]:
+        for attr in ["name", "_crs"]:
             setattr(n, attr, getattr(self, attr))
 
         n.snapshot_weightings = self.snapshot_weightings.loc[time_i]
