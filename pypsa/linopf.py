@@ -35,6 +35,7 @@ from pypsa.linopt import (
     align_with_static_component,
     define_binaries,
     define_constraints,
+    define_integer,
     define_variables,
     get_con,
     get_var,
@@ -255,6 +256,62 @@ def define_unit_commitment_status_variables(n, sns, c):
         return
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
     define_binaries(n, (sns, com_i), c, "status", mask=active)
+
+
+def define_modular_variables(n, c, attr):
+    """
+    Initializes variables 'attr' for a given component c to allow a modular
+    expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
+    optimal number of installed modules.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        network component of which the nominal capacity should be defined
+    attr : str
+        name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+    """
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+    mod_i = mod_i.rename(f"{c}-ext")
+
+    if (mod_i).empty:
+        return
+
+    define_integer(n, 0, np.inf, c, attr + "-n_mod", axes=mod_i)
+
+
+def define_modular_constraints(n, c, attr):
+    """
+    Sets constraints for fixing modular variables of a given component. It
+    allows to define optimal capacity of a component as multiple of the nominal
+    capacity of the single module.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the parameter representing the capacity of each module, e.g. 'p_nom'
+    """
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    if (mod_i).empty:
+        return
+
+    modularity = get_var(n, c, attr + "-n_mod")[mod_i]
+    modular_capacity = n.df(c)[f"{attr}_mod"].loc[mod_i]
+    capacity = get_var(n, c, attr)[mod_i]
+
+    lhs = linexpr(
+        (
+            modular_capacity,
+            modularity,
+        ),
+        (-1, capacity),
+    )
+    define_constraints(n, lhs, "=", 0, c, f"mu_{attr}_mod")
 
 
 def define_loss_variables(n, sns, c, transmission_losses):
@@ -1183,23 +1240,29 @@ def prepare_lopf(
     fdo, objective_fn = mkstemp(".txt", "pypsa-objectve-", **tmpkwargs)
     fdc, constraints_fn = mkstemp(".txt", "pypsa-constraints-", **tmpkwargs)
     fdb, bounds_fn = mkstemp(".txt", "pypsa-bounds-", **tmpkwargs)
+    fdg, generals_fn = mkstemp(".txt", "pypsa-generals-", **tmpkwargs)
     fdi, binaries_fn = mkstemp(".txt", "pypsa-binaries-", **tmpkwargs)
     fdp, problem_fn = mkstemp(".lp", "pypsa-problem-", **tmpkwargs)
 
     n.objective_f = open(objective_fn, mode="w")
     n.constraints_f = open(constraints_fn, mode="w")
     n.bounds_f = open(bounds_fn, mode="w")
+    n.generals_f = open(generals_fn, mode="w")
     n.binaries_f = open(binaries_fn, mode="w")
 
     n.objective_f.write("\ LOPF \n\nmin\nobj:\n")
     n.constraints_f.write("\n\ns.t.\n\n")
     n.bounds_f.write("\nbounds\n")
+    n.generals_f.write("\ngeneral\n")
     n.binaries_f.write("\nbinary\n")
 
     for c in n.passive_branch_components:
         define_loss_variables(n, snapshots, c, transmission_losses)
     for c, attr in lookup.query("nominal and not handle_separately").index:
         define_nominal_for_extendable_variables(n, c, attr)
+        define_modular_variables(n, c, attr)
+        define_modular_constraints(n, c, attr)
+
         # define constraint for newly installed capacity per investment period
         define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
@@ -1249,6 +1312,7 @@ def prepare_lopf(
         ("bounds_f", fdb),
         ("constraints_f", fdc),
         ("objective_f", fdo),
+        ("generals_f", fdg),
         ("binaries_f", fdi),
     ):
         getattr(n, f).close()
@@ -1257,7 +1321,7 @@ def prepare_lopf(
 
     # concatenate files
     with open(problem_fn, "wb") as wfd:
-        for f in [objective_fn, constraints_fn, bounds_fn, binaries_fn]:
+        for f in [objective_fn, constraints_fn, bounds_fn, generals_fn, binaries_fn]:
             with open(f, "rb") as fd:
                 shutil.copyfileobj(fd, wfd)
             if not keep_files:
@@ -1329,7 +1393,10 @@ def assign_solution(
                 non_ext = n.df(c)[attr]
                 n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
             else:
-                n.sols[c].df[attr] = sol
+                if attr.endswith("-n_mod"):
+                    n.df(c)["n_mod"].update(sol)
+                else:
+                    n.sols[c].df[attr] = sol
 
     n.sols = Dict()
     n.solutions = pd.DataFrame(index=n.variables.index, columns=["in_comp", "pnl"])

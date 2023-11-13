@@ -20,6 +20,7 @@ from pypsa import (
     optimization,
     pf,
     plot,
+    statistics,
 )
 from pypsa.components import Network, SubNetwork
 
