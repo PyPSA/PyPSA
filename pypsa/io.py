@@ -452,10 +452,10 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     }
     exporter.save_attributes(attrs)
 
-    _crs = {}
+    crs = {}
     if network.crs is not None:
-        _crs["_crs"] = network.crs.to_wkt()
-    exporter.save_crs(_crs)
+        crs["_crs"] = network.crs.to_wkt()
+    exporter.save_crs(crs)
 
     exporter.save_meta(network.meta)
 
