@@ -138,6 +138,34 @@ def define_binaries(n, axes, name, attr="", spec="", mask=None):
     return var
 
 
+def define_integer(n, lower, upper, name, attr="", axes=None, spec=""):
+    """
+    Defines integer-variable(s) for pypsa-network. The variables are stored in
+    the network object under n.vars with key of the variable name.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    lower, upper: lower bound (lb) and upper bound (ub) and pass it to define_integer
+    name : str
+        general name of the variable (or component which the variable is
+        referring to). The variable will then be stored under:
+
+            * n.vars[name].pnl if the variable is two-dimensional
+            * n.vars[name].df if the variable is one-dimensional
+    attr : str default ''
+        Specifying name of the variable, defines under which name the variable(s)
+        are stored in n.vars[name].pnl if two-dimensional or in n.vars[name].df
+        if one-dimensional. e.g. 'n_opt'
+    axes : pd.Index or tuple of pd.Index objects
+        Specifies the axes and therefore the shape of the variables.
+    """
+    var = write_integer(n, lower, upper, axes, mask=None)
+
+    set_varref(n, var, name, attr, spec=spec)
+    return var
+
+
 def define_constraints(
     n, lhs, sense, rhs, name, attr="", axes=None, spec="", mask=None
 ):
@@ -289,6 +317,30 @@ def write_binary(n, axes, mask=None):
         exprs = np.where(mask, exprs, "")
         variables = np.where(mask, variables, -1)
     n.binaries_f.write(join_exprs(exprs))
+    return to_pandas(variables, *axes)
+
+
+def write_integer(n, lower, upper, axes, mask=None):
+    """
+    Writer function for writing out integer-variables.
+
+    According to the axes it writes out integer for each entry the
+    pd.DataFrame spanned by axes. Returns a frame with variable
+    references.
+    """
+    axes, shape, size = _get_handlers(axes)
+    n._xCounter += size
+    variables = np.arange(n._xCounter - size, n._xCounter).reshape(shape)
+    exprs = "x" + _str_array(variables, True) + "\n"
+    if mask is not None:
+        exprs = np.where(mask, exprs, "")
+        variables = np.where(mask, variables, -1)
+    n.generals_f.write(join_exprs(exprs))
+    if not size:
+        return pd.Series(dtype=float)
+    lower, upper = _str_array(lower), _str_array(upper)
+    exprs = lower + " <= x" + _str_array(variables, True) + " <= " + upper + "\n"
+    n.bounds_f.write(join_exprs(exprs))
     return to_pandas(variables, *axes)
 
 

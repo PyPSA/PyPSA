@@ -27,6 +27,7 @@ from pypsa.optimization.constraints import (
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
+    define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -47,6 +48,7 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.variables import (
     define_loss_variables,
+    define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
@@ -241,6 +243,7 @@ def create_model(
     # Define variables
     for c, attr in lookup.query("nominal").index:
         define_nominal_variables(n, c, attr)
+        define_modular_variables(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
@@ -259,6 +262,7 @@ def create_model(
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
+        define_modular_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_constraints_for_non_extendables(
@@ -349,6 +353,8 @@ def assign_solution(n):
 
             else:
                 set_from_frame(n, c, attr, df)
+        elif attr == "n_mod":
+            n.df(c)[attr].update(df)
         else:
             n.df(c)[attr + "_opt"].update(df)
 
