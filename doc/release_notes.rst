@@ -6,6 +6,7 @@ Upcoming Release
 ================
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+* Fix rolling horizon bug in unit commitment problem where generator status of previously optimized time steps was not considered.
 
 * Add option to specify time-varying ramp rates for generators and links (``ramp_limit_up`` and ``ramp_limit_down``).
 

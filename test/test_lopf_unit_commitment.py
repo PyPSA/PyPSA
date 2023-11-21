@@ -331,8 +331,7 @@ def test_shut_down_costs(api):
 @pytest.mark.parametrize("api", ["pyomo", "linopy"])
 def test_unit_commitment_rolling_horizon(api):
     n = pypsa.Network()
-
-    n.snapshots = range(6)
+    n.snapshots = range(7)
 
     n.add("Bus", "bus")
 
@@ -342,9 +341,9 @@ def test_unit_commitment_rolling_horizon(api):
         bus="bus",
         committable=True,
         p_min_pu=0.1,
-        up_time_before=0,
+        up_time_before=1,
         marginal_cost=20,
-        min_up_time=3,
+        min_up_time=2,
         start_up_cost=10000,
         p_nom=10000,
     )
@@ -354,26 +353,25 @@ def test_unit_commitment_rolling_horizon(api):
         "gas",
         bus="bus",
         committable=True,
-        marginal_cost=50,
-        p_min_pu=0.0,
-        up_time_before=1,
+        marginal_cost=70,
+        p_min_pu=0.01,
         min_down_time=2,
-        start_up_cost=1000,
+        start_up_cost=100,
         p_nom=10000,
     )
-
-    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800, 1000, 2000])
+    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 800, 5000, 3000, 950, 800])
 
     optimize(n, api, snapshots=[0, 1, 2])
+    optimize(n, api, snapshots=[2, 3, 4])
+    optimize(n, api, snapshots=[4, 5, 6])
 
-    optimize(n, api, snapshots=[3, 4, 5])
-
-    expected_status = np.array([[1, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1]], dtype=float).T
-
+    expected_status = np.array(
+        [[1, 1, 0, 1, 1, 0, 0], [0, 0, 1, 0, 0, 1, 1]], dtype=float
+    ).T
     equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array(
-        [[4000, 6000, 5000, 0, 1000, 2000], [0, 0, 0, 800, 0, 0]]
+        [[4000, 6000, 0, 5000, 3000, 0, 0], [0, 0, 800, 0, 0, 950, 800]]
     ).T
 
     equal(n.generators_t.p.values, expected_dispatch)
