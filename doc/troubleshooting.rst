@@ -2,6 +2,18 @@
 Troubleshooting
 ################
 
+Creating and sharing a Minimum Working Example (MWE)
+====================================================
+If you are experiencing problems with PyPSA, please create a MWE and share it when asking for help.
+
+A MWE is a small example that reproduces the problem you are experiencing.
+It should be as small as possible, but still reproduce the problem.
+Often, when creating a MWE, you will find the problem yourself,
+and if not it will be much easier for others to help you.
+
+For details on what a MWE is and how to create one, see this `Stack Overflow post <https://stackoverflow.com/help/minimal-reproducible-example>`_.
+
+
 Library dependency issues
 =========================
 
