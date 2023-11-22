@@ -344,6 +344,7 @@ def test_unit_commitment_rolling_horizon(api):
         up_time_before=1,
         marginal_cost=20,
         min_up_time=2,
+        min_down_time=2,
         start_up_cost=10000,
         p_nom=10000,
     )
@@ -355,8 +356,8 @@ def test_unit_commitment_rolling_horizon(api):
         committable=True,
         marginal_cost=70,
         p_min_pu=0.01,
-        min_down_time=2,
         start_up_cost=100,
+        up_time_before=0,
         p_nom=10000,
     )
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 800, 5000, 3000, 950, 800])
@@ -366,12 +367,12 @@ def test_unit_commitment_rolling_horizon(api):
     optimize(n, api, snapshots=[4, 5, 6])
 
     expected_status = np.array(
-        [[1, 1, 0, 1, 1, 0, 0], [0, 0, 1, 0, 0, 1, 1]], dtype=float
+        [[1, 1, 0, 0, 0, 0, 0], [0, 0, 1, 1, 1, 1, 1]], dtype=float
     ).T
     equal(n.generators_t.status.values, expected_status)
 
     expected_dispatch = np.array(
-        [[4000, 6000, 0, 5000, 3000, 0, 0], [0, 0, 800, 0, 0, 950, 800]]
+        [[4000, 6000, 0, 0, 0, 0, 0], [0, 0, 800, 5000, 3000, 950, 800]]
     ).T
 
     equal(n.generators_t.p.values, expected_dispatch)
