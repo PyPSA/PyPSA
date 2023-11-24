@@ -43,6 +43,8 @@ Universities and Research Institutes
 
 * `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
+* `University of Oxford <https://www.ox.ac.uk/>`_ and the `University of Sevilla <https://www.us.es/>`_ in a `study <https://doi.org/10.1016/j.apenergy.2023.122331>`_ on the role of regionally resolved heat pump demand in power system design
+
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
 * `Energiewirtschaftliches Institut zu Köln <https://www.ewi.uni-koeln.de/de/>`_ (EWI): research publication `Working Paper, No 17/09 <https://www.ewi.research-scenarios.de/cms/wp-content/uploads/2017/09/EWI_WP_17-09_Build_Wind_Capacities_at_Windy_Locations.pdf>`_
