@@ -235,19 +235,76 @@ def test_copy_no_snapshot(ac_dc_network):
     assert snapshot not in copied_network.snapshots
 
 
-def test_add_network_static(ac_dc_network, empty_network_5_buses):
+def test_add_network_static_inplace(ac_dc_network, empty_network_5_buses):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
-    buses.
+            buses
 
     WHEN    the second network is added to the first
 
     THEN    the first network should now contain its original buses and
-    also the buses in the second network
+            also the buses in the second network
+    """
+    ac_dc_network.add_network(empty_network_5_buses,inplace=True,with_time=False)
+    buses_now = ac_dc_network.buses.index
+    buses_added_network = empty_network_5_buses.buses.index
+    
+    assert set(buses_added_network).issubset(set(buses_now))
+
+
+
+def test_add_network_static_not_inplace(ac_dc_network, empty_network_5_buses):
+    """
+    GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
+            buses.
+
+    WHEN    the second network is added to the first with inplace=False
+
+    THEN    we obtain a new network which should contain the buses of the first
+            network and the second network
     """
 
-    ac_dc_network.add_network(empty_network_5_buses)
+    new_network = ac_dc_network.add_network(empty_network_5_buses,inplace=False,with_time=False)
 
-    busesNow = ac_dc_network.buses.index
-    busesAddedNetwork = empty_network_5_buses.buses.index
-    assert set(busesAddedNetwork).issubset(set(busesNow))
+    buses_now = new_network.buses.index
+    buses_added_network = empty_network_5_buses.buses.index
+    assert set(buses_added_network).issubset(set(buses_now))
+
+
+def test_add_network_with_time_inplace():
+    """
+    GIVEN   two networks containing three buses each with time-varying attributes.
+
+    WHEN    the second network is added to the first with with_time=True
+
+    THEN    the first network should now contain the time-varying attributes of the
+            buses in the second network
+    """
+    
+    snapshots = list()
+    for year in ["2015","2016","2017"]:
+            snapshots.append(f"{year}-01-01 00:00")
+    
+    #intialise "first" network 
+    network_added_to = components.Network()
+    network_added_to.set_snapshots(snapshots)
+    buses_added_to = set()
+
+    #intialise "second" network 
+    network_to_add = components.Network()
+    network_to_add.set_snapshots(snapshots)
+    buses_to_add = set()
+
+    #add buses with time-varying attributes to both networks
+    for i in range(3):
+            buses_added_to.add(f"bus_to_add_{i}")
+            network_to_add.add("Bus", f"bus_to_add_{i}",p=[1,2,3])
+            buses_added_to.add(f"bus_added_to_{i}")
+            network_added_to.add("Bus", f"bus_added_to_{i}",p=[1,2,3])
+
+    network_added_to.add_network(network_to_add,inplace=True,with_time=True)
+
+    buses_t_now = set(network_added_to.buses_t['p'].columns.values)
+    #check that the first network now contains time-varying data
+    #for buses in both networks
+    assert(buses_t_now == buses_added_to.union(buses_to_add))
