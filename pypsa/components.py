@@ -593,8 +593,6 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
-
-
     @property
     def snapshot_weightings(self):
         """
@@ -957,7 +955,6 @@ class Network(Basic):
                         "in network.buses"
                     )
 
-
     def add_components_from_network(
         self, other, components_to_skip=None, inplace=False, with_time=True
     ):
@@ -1037,7 +1034,6 @@ class Network(Basic):
                     df_to_add = df.loc[:, df.columns.isin(index_list)]
                     new_network.import_series_from_dataframe(df, component.name, attr)
         return None if inplace else new_network
-
 
     def remove(self, class_name, name):
         """
