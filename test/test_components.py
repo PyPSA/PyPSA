@@ -245,7 +245,9 @@ def test_add_network_static_inplace(ac_dc_network, empty_network_5_buses):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-    ac_dc_network.add_network(empty_network_5_buses, inplace=True, with_time=False)
+    ac_dc_network.add_components_from_network(
+        empty_network_5_buses, inplace=True, with_time=False
+    )
     buses_now = ac_dc_network.buses.index
     buses_added_network = empty_network_5_buses.buses.index
 
@@ -263,7 +265,7 @@ def test_add_network_static_not_inplace(ac_dc_network, empty_network_5_buses):
     the first         network and the second network
     """
 
-    new_network = ac_dc_network.add_network(
+    new_network = ac_dc_network.add_components_from_network(
         empty_network_5_buses, inplace=False, with_time=False
     )
 
@@ -304,7 +306,9 @@ def test_add_network_with_time_inplace():
         buses_added_to.add(f"bus_added_to_{i}")
         network_added_to.add("Bus", f"bus_added_to_{i}", p=[1, 2, 3])
 
-    network_added_to.add_network(network_to_add, inplace=True, with_time=True)
+    network_added_to.add_components_from_network(
+        network_to_add, inplace=True, with_time=True
+    )
 
     buses_t_now = set(network_added_to.buses_t["p"].columns.values)
     # check that the first network now contains time-varying data
