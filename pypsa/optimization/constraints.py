@@ -159,18 +159,16 @@ def define_operational_constraints_for_committables(n, sns, c):
         until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
-        up_time_before_set = up_time_before.clip(
-            upper=min_up_time_set, lower=up_time_before_set
-        )
+        up_time_before_set = up_time_before.clip(upper=min_up_time_set)
+        initially_up = up_time_before_set.astype(bool)
         # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
         ref = range(1, len(until_start_down) + 1)
         down_time_before = until_start_down[
             until_start_down.cumsum().eq(ref, axis=0)
         ].sum()
-        down_time_before_set = down_time_before.clip(
-            upper=min_down_time_set, lower=down_time_before_set
-        )
+        down_time_before_set = down_time_before.clip(upper=min_down_time_set)
+        initially_down = down_time_before_set.astype(bool)
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
@@ -659,6 +657,34 @@ def define_fixed_nominal_constraints(n, c, attr):
     var = n.model[f"{c}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
     n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set")
+
+
+def define_modular_constraints(n, c, attr):
+    """
+    Sets constraints for fixing modular variables of a given component. It
+    allows to define optimal capacity of a component as multiple of the nominal
+    capacity of the single module.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the variable, e.g. 'n_opt'
+    """
+    m = n.model
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    if (mod_i).empty:
+        return
+
+    modularity = m.variables[f"{c}-n_mod"]
+    modular_capacity = n.df(c)[f"{attr}_mod"].loc[mod_i]
+    capacity = m.variables[f"{c}-{attr}"].loc[mod_i]
+
+    con = capacity - modularity * modular_capacity.values == 0
+    n.model.add_constraints(con, name=f"{c}-{attr}_modularity", mask=None)
 
 
 def define_fixed_operation_constraints(n, sns, c, attr):

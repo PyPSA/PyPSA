@@ -235,6 +235,7 @@ def test_copy_no_snapshot(ac_dc_network):
     assert snapshot not in copied_network.snapshots
 
 
+
 def test_add_network_static_inplace(ac_dc_network, empty_network_5_buses):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
@@ -308,3 +309,18 @@ def test_add_network_with_time_inplace():
     #check that the first network now contains time-varying data
     #for buses in both networks
     assert(buses_t_now == buses_added_to.union(buses_to_add))
+
+def test_shape_reprojection(ac_dc_network_shapes):
+    n = ac_dc_network_shapes
+
+    with pytest.warns(UserWarning):
+        area_before = n.shapes.geometry.area.sum()
+    x, y = n.buses.x.values, n.buses.y.values
+
+    n.to_crs("epsg:3035")
+
+    assert n.shapes.crs == "epsg:3035"
+    assert n.crs == "epsg:3035"
+    assert area_before != n.shapes.geometry.area.sum()
+    assert not np.allclose(x, n.buses.x.values)
+    assert not np.allclose(y, n.buses.y.values)
