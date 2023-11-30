@@ -593,7 +593,9 @@ class Network(Basic):
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
-    def add_network(self, other, components_to_skip=None, inplace=False, with_time=True):
+    def add_network(
+        self, other, components_to_skip=None, inplace=False, with_time=True
+    ):
         """
         Function: Add components from network "other" into this network.
 
@@ -621,15 +623,15 @@ class Network(Basic):
         inplace : boolean, default False
             if True, new components are added into current network in-place, otherwise
             a new network containing the components of both networks is returned
-            
+
         with_time : bool, default True
-            if False, only static data is merged               
+            if False, only static data is merged
 
         Returns
         -------
         new_network : pypsa.Network
             network containing components of both input networks, or None if inplace=True
-            
+
         """
         to_skip = ["Network"]
         if components_to_skip:
@@ -640,23 +642,32 @@ class Network(Basic):
             )
         if with_time:
             snapshots_aligned = self.snapshots.equals(other.snapshots)
-            weightings_aligned = self.snapshot_weightings.equals(other.snapshot_weightings)
-            assert snapshots_aligned and weightings_aligned, (
-            "Error, snapshots or snapshot weightings do not agree, cannot add network with time-varying attributes.")
-                
+            weightings_aligned = self.snapshot_weightings.equals(
+                other.snapshot_weightings
+            )
+            assert (
+                snapshots_aligned and weightings_aligned
+            ), "Error, snapshots or snapshot weightings do not agree, cannot add network with time-varying attributes."
+
         new_network = self if inplace else self.copy()
-    
+
         for component in other.iterate_components(other.components.keys() - to_skip):
-            #we do not add components whose ID is present in this network
-            index_list = list(set(component.df.index)-set(self.df(component.name).index))
-            if set(index_list) != set(component.df.index) and component.name not in ["LineType", "TransformerType"]:
+            # we do not add components whose ID is present in this network
+            index_list = list(
+                set(component.df.index) - set(self.df(component.name).index)
+            )
+            if set(index_list) != set(component.df.index) and component.name not in [
+                "LineType",
+                "TransformerType",
+            ]:
                 logger.warning(
-                f"Warning: components of type {component.name} in new network have duplicate IDs in existing network. These components will not be added")
-            #import static data for component
+                    f"Warning: components of type {component.name} in new network have duplicate IDs in existing network. These components will not be added"
+                )
+            # import static data for component
             df_to_add = component.df[component.df.index.isin(index_list)]
             new_network.import_components_from_dataframe(df_to_add, component.name)
             if with_time:
-                #import time series data for component
+                # import time series data for component
                 for attr, df in component.pnl.items():
                     df_to_add = df.loc[:, df.columns.isin(index_list)]
                     new_network.import_series_from_dataframe(df, component.name, attr)
