@@ -288,12 +288,12 @@ def test_add_network_with_time_inplace():
         snapshots.append(f"{year}-01-01 00:00")
 
     # intialise "first" network
-    network_added_to = components.Network()
+    network_added_to = pypsa.Network()
     network_added_to.set_snapshots(snapshots)
     buses_added_to = set()
 
     # intialise "second" network
-    network_to_add = components.Network()
+    network_to_add = pypsa.Network()
     network_to_add.set_snapshots(snapshots)
     buses_to_add = set()
 
