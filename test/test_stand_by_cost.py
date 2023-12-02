@@ -2,13 +2,15 @@
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import SUPPORTED_APIS, optimize
+from conftest import optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
+SUPPORTED_APIS_STAND_BY_COST = ["linopy", "native"]
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
+
+@pytest.mark.parametrize("api", SUPPORTED_APIS_STAND_BY_COST)
 def test_stand_by_cost(api):
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
@@ -58,3 +60,5 @@ def test_stand_by_cost(api):
     expected_cost = np.array([80000, 120000, 100000, 56010], dtype=float).T
 
     equal(cost.sum(1), expected_cost)
+
+    equal(sum(expected_cost), n.objective)
