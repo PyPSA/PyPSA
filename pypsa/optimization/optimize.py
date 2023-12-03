@@ -158,7 +158,7 @@ def define_objective(n, sns):
         )
         stand_by_cost.columns.name = f"{c}-com"
         status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
-        m.objective = m.objective + (status * stand_by_cost).sum()
+        objective.append((status * stand_by_cost).sum())
 
     # investment
     for c, attr in nominal_attrs.items():
