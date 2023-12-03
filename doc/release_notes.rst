@@ -27,11 +27,11 @@ PyPSA 0.26.0 (3rd December 2023)
   * The statistics module now supports the consideration of multi-port links. An
     additional argument `bus_carrier` was added to the statistics functions to
     select the components that are attached to buses of a certain carrier.
-  
+
   * The statistics module now supports the consideration of multiple investment
     periods. As soon as ``n.snapshots`` is a MultiIndex, the network statistics
     are calculated separately for each investment period.
-  
+
   * A new function ``transmission`` was added to the statistics accessor. This
     function considers all lines and links that connect buses of the same carrier.
 
