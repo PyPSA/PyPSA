@@ -1013,8 +1013,32 @@ class Network(Basic):
 
         new_network = self if inplace else self.copy()
 
+        #buses must be added first
+        if not "Bus" in to_skip:
+            buses_to_add = other.buses
+            buses_added_to = self.buses
+            #don't add buses whose ID is present in this network
+            index_list = list(
+                set(buses_to_add.index) - set(buses_added_to.index)
+            )
+            if set(index_list) != set(buses_to_add.index):
+                logger.warning(
+                    f"Warning: components of type Bus in new network have duplicate IDs in existing network. These buses will not be added"
+                )
+            #import static data for buses
+            df_to_add = buses_to_add[buses_to_add.index.isin(index_list)]
+            new_network.import_components_from_dataframe(df_to_add, "Bus")
+            if with_time:
+                # import time series data for component
+                for attr, df in other.buses_t.items():
+                    df_to_add = df.loc[:, df.columns.isin(index_list)]
+                    new_network.import_series_from_dataframe(df, "Bus", attr) 
+
+        to_skip.append("Bus")
+
+        #can now add rest of components
         for component in other.iterate_components(other.components.keys() - to_skip):
-            # we do not add components whose ID is present in this network
+            #don't add components whose ID is present in this network
             index_list = list(
                 set(component.df.index) - set(self.df(component.name).index)
             )
