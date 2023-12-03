@@ -30,6 +30,8 @@ Upcoming Release
 
 * Enhancement: Allow optimising dispatch of only a subset of investment periods.
 
+* Bugfix: Fix stand-by-costs optimization, which now works with linopy and native.
+
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 
