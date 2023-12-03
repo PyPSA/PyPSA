@@ -68,6 +68,8 @@ PyPSA 0.26.0 (3rd December 2023)
 * Bugfix: Fix global constraints for primary energy and transmission volume
   limits for networks with multiple investment periods.
 
+* Bugfix: Fix stand-by-costs optimization for latest ``linopy`` version.
+
 * Resolve performance regression for multi-decade optimisation in highly meshed
   networks.
 
@@ -75,8 +77,6 @@ PyPSA 0.26.0 (3rd December 2023)
 
 * Added Python 3.12 to CI and supported Python versions.
 
-
-* Bugfix: Fix stand-by-costs optimization, which now works with linopy and native.
 
 PyPSA 0.25.2 (30th September 2023)
 ==================================
