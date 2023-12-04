@@ -24,7 +24,7 @@ from pypsa import (
 )
 from pypsa.components import Network, SubNetwork
 
-__version__ = "0.25.2"
+__version__ = "0.26.0"
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
