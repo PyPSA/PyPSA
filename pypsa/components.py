@@ -500,8 +500,9 @@ class Network(Basic):
         current = self.crs
         self.shapes.to_crs(new, inplace=True)
         self._crs = self.shapes.crs
-        self.buses["x"], self.buses["y"] = pyproj.transform(
-            current, self.crs, self.buses["x"], self.buses["y"]
+        transformer = Transformer.from_crs(current, self.crs)
+        self.buses["x"], self.buses["y"] = transformer.transform(
+            self.buses["x"], self.buses["y"]
         )
 
     @property
