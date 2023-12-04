@@ -28,7 +28,7 @@ import pandas as pd
 import pyproj
 import validators
 from deprecation import deprecated
-from pyproj import CRS
+from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
