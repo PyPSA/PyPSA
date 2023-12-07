@@ -213,7 +213,7 @@ def optimize_security_constrained(
         )
 
     # Allow existing constraints to carry through
-    if 'model' in dir(n):
+    if "model" in dir(n):
         m = n.model
     else:
         m = n.optimize.create_model(
