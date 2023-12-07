@@ -212,11 +212,15 @@ def optimize_security_constrained(
             **kwargs,
         )
 
-    m = n.optimize.create_model(
-        snapshots=snapshots,
-        multi_investment_periods=multi_investment_periods,
-        **model_kwargs,
-    )
+    # Allow existing constraints to carry through
+    if 'model' in dir(n):
+        m = n.model
+    else:
+        m = n.optimize.create_model(
+            snapshots=snapshots,
+            multi_investment_periods=multi_investment_periods,
+            **model_kwargs,
+        )
 
     for sn in n.sub_networks.obj:
         branches_i = sn.branches_i()
