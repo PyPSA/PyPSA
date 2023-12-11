@@ -35,7 +35,6 @@ setup(
         "networkx>=1.10",
         "deprecation",
         "validators",
-        "numexpr<=2.8.4",  # until https://github.com/pandas-dev/pandas/issues/54449 resolved
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
