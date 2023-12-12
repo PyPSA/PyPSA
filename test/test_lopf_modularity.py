@@ -48,8 +48,8 @@ def test_modular_components(api):
 
     optimize(n, api)
 
-    expected_n_opt_gen = np.array([5], dtype=float).T
-    expected_n_opt_store = np.array([10], dtype=float).T
+    expected_p_nom_opt_gen = np.array([5000], dtype=float).T
+    expected_e_nom_opt_store = np.array([1000], dtype=float).T
 
-    equal(n.generators.n_mod, expected_n_opt_gen)
-    equal(n.stores.n_mod, expected_n_opt_store)
+    equal(n.generators.p_nom_opt, expected_p_nom_opt_gen)
+    equal(n.stores.e_nom_opt, expected_e_nom_opt_store)
