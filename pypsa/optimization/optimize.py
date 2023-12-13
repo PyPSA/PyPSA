@@ -353,9 +353,7 @@ def assign_solution(n):
 
             else:
                 set_from_frame(n, c, attr, df)
-        elif attr == "n_mod":
-            n.df(c)[attr].update(df)
-        else:
+        elif attr != "n_mod":
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal

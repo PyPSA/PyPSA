@@ -1393,9 +1393,7 @@ def assign_solution(
                 non_ext = n.df(c)[attr]
                 n.df(c)[attr + "_opt"] = sol.reindex(non_ext.index).fillna(non_ext)
             else:
-                if attr.endswith("-n_mod"):
-                    n.df(c)["n_mod"].update(sol)
-                else:
+                if not attr.endswith("-n_mod"):
                     n.sols[c].df[attr] = sol
 
     n.sols = Dict()
