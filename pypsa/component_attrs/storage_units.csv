@@ -36,7 +36,6 @@ q,series,MVar,0,reactive power (positive if net generation),Output
 state_of_charge,series,MWh,NaN,State of charge as calculated by the OPF.,Output
 spill,series,MW,0,Spillage for each snapshot.,Output
 p_nom_opt,float,MW,0,Optimised nominal power.,Output
-n_mod,int,n/a,0,Optimised number of moudaler storage units if ``p_nom_mod`` is non-zero.,Output
 mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,0,Shadow price of fixed state of charge state_of_charge_set,Output

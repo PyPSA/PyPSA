@@ -28,7 +28,7 @@ import pandas as pd
 import pyproj
 import validators
 from deprecation import deprecated
-from pyproj import CRS
+from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -500,8 +500,9 @@ class Network(Basic):
         current = self.crs
         self.shapes.to_crs(new, inplace=True)
         self._crs = self.shapes.crs
-        self.buses["x"], self.buses["y"] = pyproj.transform(
-            current, self.crs, self.buses["x"], self.buses["y"]
+        transformer = Transformer.from_crs(current, self.crs)
+        self.buses["x"], self.buses["y"] = transformer.transform(
+            self.buses["x"], self.buses["y"]
         )
 
     @property

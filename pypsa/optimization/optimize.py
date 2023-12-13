@@ -158,7 +158,7 @@ def define_objective(n, sns):
         )
         stand_by_cost.columns.name = f"{c}-com"
         status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
-        m.objective = m.objective + (status * stand_by_cost).sum()
+        objective.append((status * stand_by_cost).sum())
 
     # investment
     for c, attr in nominal_attrs.items():
@@ -353,9 +353,7 @@ def assign_solution(n):
 
             else:
                 set_from_frame(n, c, attr, df)
-        elif attr == "n_mod":
-            n.df(c)[attr].update(df)
-        else:
+        elif attr != "n_mod":
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal

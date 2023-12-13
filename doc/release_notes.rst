@@ -6,35 +6,89 @@ Upcoming Release
 ================
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
-* Fix rolling horizon bug in unit commitment problem where generator status of previously optimized time steps was not considered.
 
 * HiGHS becomes the new default solver for ``n.optimize()``.
 
-* Add option to specify time-varying ramp rates for generators and links (``ramp_limit_up`` and ``ramp_limit_down``).
+* The output attribute ``n_mod`` introduced in the previous version was removed
+  since it contains duplicate information. Calculate the number of expanded
+  modules with ``p_nom_opt / p_nom_mod`` instead.
 
-* The statistics module now supports the consideration of multi-port links. An additional argument `bus_carrier` was added to the functions to select the components that are attached to buses of a certain carrier.
+PyPSA 0.26.0 (4th December 2023)
+================================
 
-* The plotting routine now supports the plotting of a subset of buses/lines/links/transformers. This is useful for plotting only a subset of the network. Therefore, the arguments ``bus_sizes``, ``link_widths``, ``link_colors`` etc. do not require to contain the full set of indexes of a component.
+**New Features**
 
-* The statistics module now supports the consideration of investment periods. Therefore, as soon as ``n.snapshots`` is a MultiIndex, the statistics are calculated for each period in the first level of the index separately.
+* The ``Network`` class has a **new component for geometric shapes** under
+  ``n.shapes``. It consists of a ``geopandas`` dataframe which can be used to
+  store network related geographical data (for plotting, calculating potentials,
+  etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`.
+  The columns `component`, `idx` and `type` do not require specific values, but
+  allow for storing information about which components the shapes belong to. The
+  coordinate reference system (CRS) of the shapes can be accessed and set via a
+  new attribute ``n.crs``. For a transition period, the attribute ``n.srid``,
+  which independently refers to the projection of the bus coordinates, is kept.
 
-* A new function ``transmission`` was added to the statistics accessor. This function considers all lines and links that connect buses of the same carrier.
+* Improvements to the network **statistics module**:
 
-* The statistics functions now support single components in the ``comps`` argument.
+  * The statistics module now supports the consideration of multi-port links. An
+    additional argument `bus_carrier` was added to the statistics functions to
+    select the components that are attached to buses of a certain carrier.
 
-* The ``Network`` class has a new component ``shapes``. It consists of a ``geopandas`` dataframe which can be used to store network related geographical data (for plotting, calculating potentials, etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`. The columns `component`, `idx` and `type` do not require specific values, but give the user the possibility to store additional information.
+  * The statistics module now supports the consideration of multiple investment
+    periods. As soon as ``n.snapshots`` is a MultiIndex, the network statistics
+    are calculated separately for each investment period.
 
-* Bugfix: Fix primary energy limit and transmission volume limit global constraints for multi-period optimisations.
+  * A new function ``transmission`` was added to the statistics accessor. This
+    function considers all lines and links that connect buses of the same carrier.
 
-* Regression fix: Fix multi-decade optimisations in highly meshed networks.
+  * The statistics functions now support the selection of single components in
+    the ``comps`` argument.
 
-* Enhancement: Allow optimising dispatch of only a subset of investment periods.
+* The plotting function ``n.plot()`` now supports **plotting of only a subset of
+  network components** by allowing that arguments like ``bus_sizes``,
+  ``link_widths`` or ``link_colors`` do no longer require to contain the full
+  set of indices of a component.
+
+* Add option to specify **time-varying ramp rates** for generators and links
+  (``ramp_limit_up`` and ``ramp_limit_down``, e.g. under
+  ``n.links_t.ramp_limit_up``).
+
+* Added attributes ``p_nom_mod``, ``e_nom_mod``, and ``s_nom_mod`` to components
+  to consider capacity modularity. When this attribute is non-zero and the
+  component is extendable, the component's capacity can only be extended in
+  multiples of the capacity modularity. The optimal number of components is
+  stored as ``n_mod`` (such that ``p_nom_mod * n_mod == p_nom_opt``). The
+  default is kept such that extendable components can be expanded continuously.
+
+**Bugfixes and Compatibiliity**
+
+* Bugfix: In rolling horizon optimisation with unit commitment constraints, the
+  generator status of the previously optimized time step is now considered.
+
+* Bugfix: Allow optimising the network for just subset of investment periods by
+  using ``n.optimize(multi_investment_periods=True, snapshots=...)``.
+
+* Bugfix: The function ``n.import_from_netcdf()`` failed when trying to import
+  data from an ``xarray`` object.
+
+* Bugfix: Fix global constraints for primary energy and transmission volume
+  limits for networks with multiple investment periods.
+
+* Bugfix: Fix stand-by-costs optimization for latest ``linopy`` version.
+
+* Resolve performance regression for multi-decade optimisation in highly meshed
+  networks.
+
+* Compatibility with ``pandas==2.1``.
+
+* Added Python 3.12 to CI and supported Python versions.
+
 
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 
-* Add option to enable or disable nice carrier name in the statistics module
-  (e.g.``n.statistics(nice_name=False)``).
+* Add option to enable or disable nice carrier name in the statistics module,
+  e.g. ``n.statistics(nice_name=False)``.
 
 * Add example in documentation for the statistics module.
 
@@ -71,12 +125,6 @@ PyPSA 0.25.1 (27th July 2023)
   ``assign_all_duals=False`` which controls whether all dual values or only
   those that already have a designated place in the network are assigned.
   (https://github.com/PyPSA/PyPSA/pull/635)
-
-* Added features ``p_nom_mod``, ``e_nom_mod``, and ``s_nom_mod`` to consider
-  capacity modularity of components. When such feature is non-zero and
-  ``exentability`` is true, the component's optimal nominal capacity becomes
-  a multiple of the capacity of the single component. The optimal number of
-  components is ``n_mod`` (such that p_nom_mod*n_mod=p_nom_opt).
 
 **Changes**
 

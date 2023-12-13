@@ -10,7 +10,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="pypsa",
-    version="0.25.2",
+    version="0.26.0",
     author="PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html",
     author_email="t.brown@tu-berlin.de",
     description="Python for Power Systems Analysis",
@@ -36,7 +36,6 @@ setup(
         "deprecation",
         "validators",
         "highspy>=1.5.3",
-        "numexpr<=2.8.4",  # until https://github.com/pandas-dev/pandas/issues/54449 resolved
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
