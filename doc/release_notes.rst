@@ -7,6 +7,10 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The output attribute ``n_mod`` introduced in the previous version was removed
+  since it contains duplicate information. Calculate the number of expanded
+  modules with ``p_nom_opt / p_nom_mod`` instead.
+
 PyPSA 0.26.0 (4th December 2023)
 ================================
 
