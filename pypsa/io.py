@@ -904,6 +904,8 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
+            if static_attrs.at[k, "type"] in ["float", "int"]:
+                dataframe[k] = dataframe[k].replace({np.nan: 0})
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
                     geometry = dataframe[k].replace({"": None, np.nan: None})
