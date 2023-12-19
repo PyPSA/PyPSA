@@ -213,7 +213,6 @@ def aggregateoneport(
     c = component
     df = n.df(c)
     attrs = n.components[c]["attrs"]
-
     if "carrier" in df.columns:
         if carriers is None:
             carriers = df.carrier.unique()
@@ -260,6 +259,8 @@ def aggregateoneport(
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     df = pd.concat([aggregated, non_aggregated], sort=False)
+    df.fillna(attrs.default, inplace=True)
+
 
     pnl = dict()
     if with_time:
