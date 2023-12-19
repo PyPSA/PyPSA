@@ -261,7 +261,6 @@ def aggregateoneport(
     df = pd.concat([aggregated, non_aggregated], sort=False)
     df.fillna(attrs.default, inplace=True)
 
-
     pnl = dict()
     if with_time:
         dynamic_strategies = align_strategies(strategies, n.pnl(c), c)
