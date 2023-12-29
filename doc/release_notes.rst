@@ -11,6 +11,8 @@ Upcoming Release
   since it contains duplicate information. Calculate the number of expanded
   modules with ``p_nom_opt / p_nom_mod`` instead.
 
+* Bugfix in MGA function to correctly parse the ``sense`` keyword argument.
+
 PyPSA 0.26.0 (4th December 2023)
 ================================
 
