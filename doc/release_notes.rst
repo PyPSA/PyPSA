@@ -7,6 +7,13 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+PyPSA 0.26.2 (31st December 2023)
+=================================
+
+* Bugfix in the definition of spillage variables for storage units. Previously,
+  the spillage variable creation was skipped in some cases due to a wrong
+  condition check even though there was a positive inflow.
+
 PyPSA 0.26.1 (29th December 2023)
 =================================
 
