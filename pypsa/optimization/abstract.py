@@ -382,9 +382,19 @@ def optimize_mga(
     )
 
     # parse optimization sense
-    if sense.startswith("min") or sense > 0:
+    if (
+        isinstance(sense, str)
+        and sense.startswith("min")
+        or isinstance(sense, int)
+        and sense > 0
+    ):
         sense = 1
-    elif sense.startswith("max") or sense < 0:
+    elif (
+        isinstance(sense, str)
+        and sense.startswith("max")
+        or isinstance(sense, int)
+        and sense < 0
+    ):
         sense = -1
     else:
         raise ValueError(f"Could not parse optimization sense {sense}")
