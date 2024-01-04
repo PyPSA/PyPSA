@@ -262,6 +262,9 @@ class Network(Basic):
         cols = ["objective", "years"]
         self._investment_period_weightings = pd.DataFrame(columns=cols)
 
+        self._scenario_branches = pd.Index([])
+        self._scenario_branch_weightings = pd.Series(dtype=float)
+
         self.optimize = OptimizationAccessor(self)
 
         self.cluster = ClusteringAccessor(self)
@@ -528,41 +531,54 @@ class Network(Basic):
         weightings_from_timedelta: bool = False,
     ) -> None:
         """
-        Set the snapshots/time steps and reindex all time-dependent data.
-
-        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
-        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
-
-        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
-        with the default value for that quantity.
+        Set the snapshots/time steps and reindex all time-dependent data,
+        considering scenario branches and investment periods if they are set.
 
         Parameters
         ----------
-        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
+        snapshots : list, pandas.Index, pd.MultiIndex, or pd.DatetimeIndex
             All time steps.
         default_snapshot_weightings: float
             The default weight for each snapshot. Defaults to 1.0.
         weightings_from_timedelta: bool
-            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
+            Whether to use the timedelta of `snapshots` as `snapshot_weightings` if
+            `snapshots` is of type `pd.DatetimeIndex`. Defaults to False.
 
         Returns
         -------
         None
         """
-        if isinstance(snapshots, pd.MultiIndex):
-            assert (
-                snapshots.nlevels == 2
-            ), "Maximally two levels of MultiIndex supported"
-            snapshots = snapshots.rename(["period", "timestep"])
-            snapshots.name = "snapshot"
-            self._snapshots = snapshots
+
+        # Handle scenario branches and investment periods in snapshots
+        if (
+            isinstance(self._scenario_branches, pd.Index)
+            and not self._scenario_branches.empty
+        ):
+            if (
+                isinstance(self._investment_periods, pd.Index)
+                and not self._investment_periods.empty
+            ):
+                # Both scenario_branches and investment_periods are set
+                new_index = pd.MultiIndex.from_product(
+                    [self._scenario_branches, self._investment_periods, snapshots],
+                    names=["scenario", "period", "timestep"],
+                )
+            else:
+                # Only scenario_branches are set
+                new_index = pd.MultiIndex.from_product(
+                    [self._scenario_branches, snapshots], names=["scenario", "snapshot"]
+                )
+            self._snapshots = new_index
         else:
-            self._snapshots = pd.Index(snapshots, name="snapshot")
+            if isinstance(snapshots, pd.MultiIndex):
+                assert (
+                    snapshots.nlevels <= 2
+                ), "Maximally two levels of MultiIndex supported without scenario_branches"
+                self._snapshots = snapshots.rename(["period", "timestep"])
+            else:
+                self._snapshots = pd.Index(snapshots, name="snapshot")
 
-        self.snapshot_weightings = self.snapshot_weightings.reindex(
-            self._snapshots, fill_value=default_snapshot_weightings
-        )
-
+        # Snapshot weightings logic
         if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             hours_per_step = (
                 snapshots.to_series()
@@ -573,12 +589,17 @@ class Network(Basic):
             )
             self._snapshot_weightings = pd.DataFrame(
                 {c: hours_per_step for c in self._snapshot_weightings.columns}
-            )
-        elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
-            logger.info(
-                "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
+            ).reindex(self._snapshots, fill_value=default_snapshot_weightings)
+        else:
+            self._snapshot_weightings = pd.DataFrame(
+                {
+                    c: default_snapshot_weightings
+                    for c in self._snapshot_weightings.columns
+                },
+                index=self._snapshots,
             )
 
+        # Reindex time-dependent data
         for component in self.all_components:
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
@@ -589,7 +610,7 @@ class Network(Basic):
                 else:
                     pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
 
-        # NB: No need to rebind pnl to self, since haven't changed it
+        # No need to rebind pnl to self, since haven't changed it
 
     snapshots = property(
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
@@ -725,6 +746,117 @@ class Network(Basic):
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
+
+    @property
+    def scenario_branches(self):
+        """
+        Scenario branches.
+        """
+        return self._scenario_branches
+
+    @scenario_branches.setter
+    def scenario_branches(self, branches):
+        """
+        Set the scenario branches.
+        """
+        branches = pd.Index(branches, name="scenario")
+        self._scenario_branches = branches
+
+        # IR: ensure that whenever scenario_branches are set, the snapshots attribute is automatically updated
+        # to include the new scenario branches.
+        if isinstance(self.snapshots, pd.MultiIndex):
+            if "scenario" in self.snapshots.names:
+                raise ValueError("The snapshots already have a 'scenario' level.")
+            else:
+                new_index = pd.MultiIndex.from_product(
+                    [
+                        self.scenario_branches,
+                        self.snapshots.levels[0],
+                        self.snapshots.levels[1],
+                    ],
+                    names=["scenario"] + self.snapshots.names,
+                )
+        else:
+            new_index = pd.MultiIndex.from_product(
+                [self.scenario_branches, self.snapshots], names=["scenario", "snapshot"]
+            )
+
+        self._snapshots = new_index
+
+    def set_scenario_branches(self, branches):
+        """
+        Set the scenario branches.
+
+        Parameters
+        ----------
+        branches : list
+            List of scenario branch names to be initialized.
+
+        Returns
+        -------
+        None.
+        """
+        self.scenario_branches = branches
+
+        # Check if snapshots are already a MultiIndex and handle accordingly
+        if isinstance(self.snapshots, pd.MultiIndex):
+            if "scenario" in self.snapshots.names:
+                raise ValueError("The snapshots already have a 'scenario' level.")
+            else:
+                # If snapshots have another level (like investment periods), we concatenate them with scenario_branches
+                new_index = pd.MultiIndex.from_product(
+                    [
+                        self.scenario_branches,
+                        self.snapshots.levels[0],
+                        self.snapshots.levels[1],
+                    ],
+                    names=["scenario"] + self.snapshots.names,
+                )
+        else:
+            # Repeat the snapshots for each scenario branch
+            new_index = pd.MultiIndex.from_product(
+                [self.scenario_branches, self.snapshots], names=["scenario", "snapshot"]
+            )
+
+        self._snapshots = new_index
+
+    @property
+    def scenario_branch_weightings(self):
+        """
+        Probabilities of scenarios branches in a stochastic problem.
+
+        The sum of all probabilities should equal 1.
+        """
+        # If weightings are not set, default to equal probabilities
+        if self._scenario_branch_weightings.empty:
+            num_branches = len(self.scenario_branches)
+            if num_branches > 0:
+                return pd.Series(1 / num_branches, index=self.scenario_branches)
+            else:
+                return pd.Series(dtype=float)
+        return self._scenario_branch_weightings
+
+    @scenario_branch_weightings.setter
+    def scenario_branch_weightings(self, weightings):
+        """
+        Set the scenario branch weightings, i.e. the probabilities of scenarios
+        in the stochastic problem.
+
+        Parameters
+        ----------
+        weightings : dict or pandas.Series
+            A dictionary or Series with scenario branch names as keys and their
+            associated probabilities as values.
+        """
+        if isinstance(weightings, dict):
+            weightings = pd.Series(weightings)
+        assert weightings.index.equals(
+            self.scenario_branches
+        ), "Weightings not defined for all scenario branches."
+        assert (
+            abs(weightings.sum() - 1) < 1e-6
+        ), "The sum of all scenario branch probabilities must equal 1."
+        self._scenario_branch_weightings = weightings
 
     @deprecated(
         deprecated_in="0.24",
