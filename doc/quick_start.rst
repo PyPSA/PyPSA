@@ -29,7 +29,7 @@ The same counts for lines, generators and loads, see the list of all components 
 
 .. code:: python
 
-	#add three lines in a ring
+    #add three lines in a ring
     for i in range(n_buses):
         network.add("Line", "My line {}".format(i),
 		    bus0="My bus {}".format(i),
