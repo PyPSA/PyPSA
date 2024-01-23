@@ -101,8 +101,8 @@ def define_operational_constraints_for_extendables(
     lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_upper += ((-1, loss),)
-        lhs_lower += ((1, loss),)
+        lhs_lower += ((-1, loss),)
+        lhs_upper += ((1, loss),)
 
     n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
     n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
