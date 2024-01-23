@@ -189,7 +189,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_los
     if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
         loss = get_var(n, c, "loss")[ext_i]
         lhs_upper.append((-1, loss))
-        lhs_lower.append((-1, loss))
+        lhs_lower.append((1, loss))
     lhs, *axes = linexpr(*lhs_upper, return_axes=True)
     define_constraints(n, lhs, ">=", rhs, c, "mu_upper", axes=axes, **kwargs)
 
