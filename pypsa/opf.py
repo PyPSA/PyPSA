@@ -2048,6 +2048,9 @@ def extract_optimisation_results(
             loss_values = get_values(network.model.loss)
 
             set_from_series(c.pnl.loss, loss_values.loc[c.name])
+
+            c.pnl.p1.loc[snapshots] += c.pnl.loss / 2
+            c.pnl.p0.loc[snapshots] += c.pnl.loss / 2
     del flow_lower, flow_upper
 
     # active branches

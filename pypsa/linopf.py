@@ -1479,6 +1479,12 @@ def assign_solution(
     if len(n.loads):
         set_from_frame(n.pnl("Load"), "p", get_as_dense(n, "Load", "p_set", sns))
 
+    # line losses
+    if "Line" in n.sols and "loss" in n.sols["Line"].pnl:
+        losses = n.sols["Line"].pnl["loss"]
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
+
     # clean up vars and cons
     for c in list(n.vars):
         if n.vars[c].df.empty and n.vars[c].pnl == {}:
