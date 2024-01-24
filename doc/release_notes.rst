@@ -10,6 +10,11 @@ Upcoming Release
 * Bugfix: With line transmission losses there was a sign error in the
   calculation of the line capacity constraints.
 
+* Approximated transmission losses of lines are now stored after optimisation as
+  the difference between ``n.lines_t.p0`` and ``n.lines_t.p1`` so that they
+  appear in the energy balance (e.g. ``n.statistics.energy_balance()``) and when
+  calculating losses with ``n.lines_t.p0 + n.lines_t.p1``.
+
 PyPSA 0.26.2 (31st December 2023)
 =================================
 
