@@ -416,11 +416,11 @@ def define_transmission_volume_expansion_limit(n, sns):
                 continue
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
 
             length = n.df(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
@@ -472,11 +472,11 @@ def define_transmission_expansion_cost_limit(n, sns):
             )
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
 
             cost = n.df(c).capital_cost.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
