@@ -9,8 +9,9 @@ Upcoming Release
 
 * If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
 
-
 * Bugfixes in building of global constraints in multi-horizon optimisations.
+
+* Fix of the capex description in the attribute CSV files
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
