@@ -2,10 +2,13 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
+
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
