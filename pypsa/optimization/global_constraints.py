@@ -346,9 +346,9 @@ def define_operational_limit(n, sns):
         gens = n.generators.query("carrier == @glc.carrier_attribute")
         if not gens.empty:
             p = m["Generator-p"].loc[snapshots, gens.index]
-            w = DataArray(weightings.generators[snapshots]).rename(
-                {"dim_0": "snapshot"}
-            )
+            w = DataArray(weightings.generators[snapshots])
+            if "dim_0" in w.dims:
+                w = w.rename({"dim_0": "snapshot"})
             expr = (p * w).sum()
             lhs.append(expr)
 
