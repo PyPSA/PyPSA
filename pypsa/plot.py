@@ -272,6 +272,8 @@ def plot(
             s_base = bus_sizes.loc[b_i]
 
             if bus_split_circles:
+                # As only half of the circle is drawn, increase area by factor 2
+                s_base = s_base * 2
                 s_base = (
                     s_base[s_base > 0],
                     s_base[s_base < 0],
