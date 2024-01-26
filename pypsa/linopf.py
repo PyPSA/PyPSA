@@ -189,7 +189,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_los
     if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
         loss = get_var(n, c, "loss")[ext_i]
         lhs_upper.append((-1, loss))
-        lhs_lower.append((-1, loss))
+        lhs_lower.append((1, loss))
     lhs, *axes = linexpr(*lhs_upper, return_axes=True)
     define_constraints(n, lhs, ">=", rhs, c, "mu_upper", axes=axes, **kwargs)
 
@@ -1478,6 +1478,12 @@ def assign_solution(
     # load
     if len(n.loads):
         set_from_frame(n.pnl("Load"), "p", get_as_dense(n, "Load", "p_set", sns))
+
+    # line losses
+    if "Line" in n.sols and "loss" in n.sols["Line"].pnl:
+        losses = n.sols["Line"].pnl["loss"]
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
 
     # clean up vars and cons
     for c in list(n.vars):

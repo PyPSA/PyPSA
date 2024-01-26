@@ -452,6 +452,12 @@ def post_processing(n):
     if len(n.loads):
         set_from_frame(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
 
+    # line losses
+    if "Line-loss" in n.model.variables:
+        losses = n.model["Line-loss"].solution.to_pandas()
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
+
     # recalculate injection
     ca = [
         ("Generator", "p", "bus"),

@@ -129,7 +129,7 @@ def define_spillage_variables(n, sns):
         return
 
     upper = get_as_dense(n, c, "inflow", sns)
-    if (upper.max() > 0).all():
+    if (upper.max() <= 0).all():
         return
 
     active = get_activity_mask(n, c, sns).where(upper > 0, False)
