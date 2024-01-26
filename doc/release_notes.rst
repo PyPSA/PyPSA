@@ -7,7 +7,7 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Bugfix of indexing error in transmission line and cost volume expansion constraint for multi-period optimisations. 
+* Bugfixes in building of global constraints in multi-horizon optimisations.
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
