@@ -1029,9 +1029,9 @@ def calculate_dependent_values(network):
         network.buses.carrier
     )
 
-    network.stores.loc[
-        network.stores.carrier == "", "carrier"
-    ] = network.stores.bus.map(network.buses.carrier)
+    network.stores.loc[network.stores.carrier == "", "carrier"] = (
+        network.stores.bus.map(network.buses.carrier)
+    )
 
     update_linkports_component_attrs(network)
 
@@ -1071,9 +1071,9 @@ def find_slack_bus(sub_network):
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
 
     # also put it into the dataframe
-    sub_network.network.sub_networks.at[
-        sub_network.name, "slack_bus"
-    ] = sub_network.slack_bus
+    sub_network.network.sub_networks.at[sub_network.name, "slack_bus"] = (
+        sub_network.slack_bus
+    )
 
     logger.debug(
         f"Slack bus for sub-network {sub_network.name} is {sub_network.slack_bus}"
@@ -1159,9 +1159,11 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     phase_shift = np.concatenate(
         [
-            (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
-            if c.name == "Transformer"
-            else np.zeros((len(c.ind),))
+            (
+                (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
+                if c.name == "Transformer"
+                else np.zeros((len(c.ind),))
+            )
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
@@ -1464,9 +1466,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # allow all shunt impedances to dispatch as set
     shunt_impedances_i = sub_network.shunt_impedances_i()
-    network.shunt_impedances_t.p.loc[
-        snapshots, shunt_impedances_i
-    ] = network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
+    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = (
+        network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
+    )
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):

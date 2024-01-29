@@ -1380,9 +1380,9 @@ def assign_solution(
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(pnl, f"p{i}", -values * eff)
-                    pnl[f"p{i}"].loc[
-                        sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
+                    pnl[f"p{i}"].loc[sns, n.links.index[n.links[f"bus{i}"] == ""]] = (
+                        float(n.component_attrs["Link"].loc[f"p{i}", "default"])
+                    )
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -1432,9 +1432,11 @@ def assign_solution(
         if is_pnl:
             n.dualvalues.at[(c, attr), "in_comp"] = to_component
             duals = constraints.map(
-                lambda x: sign * constraints_dual.loc[x]
-                if x in constraints_dual.index
-                else np.nan
+                lambda x: (
+                    sign * constraints_dual.loc[x]
+                    if x in constraints_dual.index
+                    else np.nan
+                )
             )
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
