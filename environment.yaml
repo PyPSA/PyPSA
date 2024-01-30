@@ -21,3 +21,6 @@ dependencies:
 - validators
 #  - coincbc
 #  - gurobi::gurobi
+- pip
+- pip:
+  - highspy>=1.5.3

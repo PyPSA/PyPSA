@@ -32,16 +32,16 @@ def test_mga():
 
     # can only run MGA on solved networks
     with pytest.raises(AssertionError):
-        n.optimize.optimize_mga(solver_name="glpk")
+        n.optimize.optimize_mga(solver_name="highs")
 
-    n.optimize(solver_name="glpk")
+    n.optimize(solver_name="highs")
 
     opt_capacity = n.generators.p_nom_opt
     opt_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
     weights = dict(Generator=dict(p_nom={"coal": 1}))
     slack = 0.05
-    n.optimize.optimize_mga(slack=0.05, weights=weights, solver_name="glpk")
+    n.optimize.optimize_mga(slack=0.05, weights=weights, solver_name="highs")
 
     mga_capacity = n.generators.p_nom_opt
     mga_cost = (n.statistics.capex() + n.statistics.opex()).sum()

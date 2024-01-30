@@ -34,3 +34,4 @@ dependencies:
 - pip:
   - pypower
   - pandapower>=2.0
+  - highspy>=1.5.3
