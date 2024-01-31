@@ -7,6 +7,22 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
+
+
+* Bugfixes in building of global constraints in multi-horizon optimisations.
+
+PyPSA 0.26.3 (25th January 2024)
+=================================
+
+* Bugfix: With line transmission losses there was a sign error in the
+  calculation of the line capacity constraints.
+
+* Approximated transmission losses of lines are now stored after optimisation as
+  the difference between ``n.lines_t.p0`` and ``n.lines_t.p1`` so that they
+  appear in the energy balance (e.g. ``n.statistics.energy_balance()``) and when
+  calculating losses with ``n.lines_t.p0 + n.lines_t.p1``.
+
 PyPSA 0.26.2 (31st December 2023)
 =================================
 

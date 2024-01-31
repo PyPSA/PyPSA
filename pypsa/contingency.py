@@ -285,9 +285,11 @@ def add_contingency_constraints_lowmem(network, snapshots):
 
     invest_vars = pd.concat(
         {
-            c: get_var(n, c, "s_nom")
-            if not get_extendable_i(n, c).empty
-            else pd.Series(dtype=float)
+            c: (
+                get_var(n, c, "s_nom")
+                if not get_extendable_i(n, c).empty
+                else pd.Series(dtype=float)
+            )
             for c in comps
         }
     )

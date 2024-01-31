@@ -189,7 +189,7 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_los
     if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
         loss = get_var(n, c, "loss")[ext_i]
         lhs_upper.append((-1, loss))
-        lhs_lower.append((-1, loss))
+        lhs_lower.append((1, loss))
     lhs, *axes = linexpr(*lhs_upper, return_axes=True)
     define_constraints(n, lhs, ">=", rhs, c, "mu_upper", axes=axes, **kwargs)
 
@@ -1380,9 +1380,9 @@ def assign_solution(
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(pnl, f"p{i}", -values * eff)
-                    pnl[f"p{i}"].loc[
-                        sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
+                    pnl[f"p{i}"].loc[sns, n.links.index[n.links[f"bus{i}"] == ""]] = (
+                        float(n.component_attrs["Link"].loc[f"p{i}", "default"])
+                    )
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -1432,9 +1432,11 @@ def assign_solution(
         if is_pnl:
             n.dualvalues.at[(c, attr), "in_comp"] = to_component
             duals = constraints.map(
-                lambda x: sign * constraints_dual.loc[x]
-                if x in constraints_dual.index
-                else np.nan
+                lambda x: (
+                    sign * constraints_dual.loc[x]
+                    if x in constraints_dual.index
+                    else np.nan
+                )
             )
             if c not in n.duals and not to_component:
                 n.duals[c] = Dict(df=pd.DataFrame(), pnl={})
@@ -1478,6 +1480,12 @@ def assign_solution(
     # load
     if len(n.loads):
         set_from_frame(n.pnl("Load"), "p", get_as_dense(n, "Load", "p_set", sns))
+
+    # line losses
+    if "Line" in n.sols and "loss" in n.sols["Line"].pnl:
+        losses = n.sols["Line"].pnl["loss"]
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
 
     # clean up vars and cons
     for c in list(n.vars):
