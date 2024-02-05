@@ -1284,9 +1284,9 @@ def define_sub_network_cycle_constraints(
             ]
 
             lhs = LExpression(expression_list)
-            sub_network_cycle_constraints[
-                subnetwork.name, col_j, snapshot
-            ] = LConstraint(lhs, "==", LExpression())
+            sub_network_cycle_constraints[subnetwork.name, col_j, snapshot] = (
+                LConstraint(lhs, "==", LExpression())
+            )
 
     return (sub_network_cycle_index, sub_network_cycle_constraints)
 
@@ -2108,10 +2108,10 @@ def extract_optimisation_results(
             )
 
             # correct for snapshot weightings
-            network.buses_t.marginal_price.loc[
-                snapshots
-            ] = network.buses_t.marginal_price.loc[snapshots].divide(
-                network.snapshot_weightings.objective.loc[snapshots], axis=0
+            network.buses_t.marginal_price.loc[snapshots] = (
+                network.buses_t.marginal_price.loc[snapshots].divide(
+                    network.snapshot_weightings.objective.loc[snapshots], axis=0
+                )
             )
 
         if formulation == "angles":
@@ -2134,15 +2134,15 @@ def extract_optimisation_results(
 
     network.generators.p_nom_opt = network.generators.p_nom
 
-    network.generators.loc[
-        network.generators.p_nom_extendable, "p_nom_opt"
-    ] = get_values(network.model.generator_p_nom)
+    network.generators.loc[network.generators.p_nom_extendable, "p_nom_opt"] = (
+        get_values(network.model.generator_p_nom)
+    )
 
     network.storage_units.p_nom_opt = network.storage_units.p_nom
 
-    network.storage_units.loc[
-        network.storage_units.p_nom_extendable, "p_nom_opt"
-    ] = get_values(network.model.storage_p_nom)
+    network.storage_units.loc[network.storage_units.p_nom_extendable, "p_nom_opt"] = (
+        get_values(network.model.storage_p_nom)
+    )
 
     network.stores.e_nom_opt = network.stores.e_nom
 
@@ -2154,9 +2154,9 @@ def extract_optimisation_results(
     for c in network.iterate_components(network.passive_branch_components):
         c.df["s_nom_opt"] = c.df.s_nom
         if c.df.s_nom_extendable.any():
-            c.df.loc[
-                c.df.s_nom_extendable, "s_nom_opt"
-            ] = s_nom_extendable_passive_branches.loc[c.name]
+            c.df.loc[c.df.s_nom_extendable, "s_nom_opt"] = (
+                s_nom_extendable_passive_branches.loc[c.name]
+            )
 
     network.links.p_nom_opt = network.links.p_nom
 
@@ -2180,9 +2180,9 @@ def extract_optimisation_results(
         ]
 
         if len(fixed_committable_gens_i) > 0:
-            network.generators_t.status.loc[
-                snapshots, fixed_committable_gens_i
-            ] = get_values(model.generator_status).unstack(0)
+            network.generators_t.status.loc[snapshots, fixed_committable_gens_i] = (
+                get_values(model.generator_status).unstack(0)
+            )
 
     if extra_postprocessing is not None:
         extra_postprocessing(network, snapshots, duals)
