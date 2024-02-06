@@ -349,8 +349,13 @@ def optimize_mga(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
     Returns
-    -------
-    None
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -416,7 +421,7 @@ def optimize_mga(
 
     m.objective = merge(objective)
 
-    n.optimize.solve_model(**kwargs)
+    status, condition = n.optimize.solve_model(**kwargs)
 
     # write MGA coefficients into metadata
     n.meta["slack"] = slack
@@ -431,3 +436,5 @@ def optimize_mga(
             return obj
 
     n.meta["weights"] = convert_to_dict(weights)
+
+    return status, condition
