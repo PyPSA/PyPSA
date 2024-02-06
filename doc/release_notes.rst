@@ -16,6 +16,9 @@ Upcoming Release
 
 * The `extra_functionality` argument is now also supported in `solve_model` accessor.
 
+* `optimize_mga` now returns the solver termination status and condition.
+
+
 PyPSA 0.26.3 (25th January 2024)
 =================================
 

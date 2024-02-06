@@ -557,7 +557,13 @@ def optimize(
 
     Returns
     -------
-    None.
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
 
     sns = _as_snapshots(n, snapshots)
@@ -624,6 +630,17 @@ class OptimizationAccessor:
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
+
+        Returns
+        -------
+        status : str
+            The status of the optimization, either "ok" or one of the
+            codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+        condition : str
+            The termination condition of the optimization, either
+            "optimal" or one of the codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
         n = self._parent
         if extra_functionality:
