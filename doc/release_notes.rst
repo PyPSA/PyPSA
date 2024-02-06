@@ -12,6 +12,8 @@ Upcoming Release
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
+* `optimize_mga` now returns the solver termination status and condition.
+
 PyPSA 0.26.3 (25th January 2024)
 =================================
 
