@@ -608,7 +608,12 @@ class OptimizationAccessor:
         return create_model(self._parent, *args, **kwargs)
 
     def solve_model(
-        self, solver_name="glpk", solver_options={}, assign_all_duals=False, **kwargs
+        self,
+        extra_functionality=None,
+        solver_name="glpk",
+        solver_options={},
+        assign_all_duals=False,
+        **kwargs,
     ):
         """
         Solve an already created model and assign its solution to the network.
@@ -638,6 +643,8 @@ class OptimizationAccessor:
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
         n = self._parent
+        if extra_functionality:
+            extra_functionality(n, n.snapshots)
         m = n.model
         status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
