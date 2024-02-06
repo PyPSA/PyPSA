@@ -424,7 +424,7 @@ def optimize_mga(
 
     def convert_to_dict(obj):
         if isinstance(obj, (pd.Series, pd.DataFrame)):
-            return obj.to_dict()
+            return obj.to_dict(orient="list")
         elif isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
         else:
