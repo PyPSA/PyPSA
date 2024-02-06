@@ -12,6 +12,10 @@ Upcoming Release
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
+* Fixed total budget calculation for MGA on multi-horizon optimisations.
+
+* The `extra_functionality` argument is now also supported in `solve_model` accessor.
+
 PyPSA 0.26.3 (25th January 2024)
 =================================
 
