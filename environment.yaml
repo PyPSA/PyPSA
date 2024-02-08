@@ -12,7 +12,7 @@ dependencies:
 - pytables
 - matplotlib
 - networkx>=1.10
-- pyomo>=5.7.0,<6.6.2
+- pyomo>=5.7.0,<=6.7
 - cartopy>=0.16
 - geopandas>=0.9
 - glpk

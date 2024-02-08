@@ -28,7 +28,7 @@ setup(
         "xarray",
         "netcdf4",
         "tables",
-        "pyomo>=5.7,<6.6.2",
+        "pyomo>=5.7,<=6.7",
         "linopy>=0.2.1",
         "matplotlib",
         "geopandas>=0.9",
