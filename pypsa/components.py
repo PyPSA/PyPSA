@@ -54,7 +54,6 @@ from pypsa.io import (
     import_from_pypower_ppc,
     import_series_from_dataframe,
 )
-
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
@@ -76,15 +75,25 @@ if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
 
 if sys.version_info < (3, 12):
-    from pypsa.opf import network_lopf, network_opf
     from pypsa.contingency import network_sclopf
+    from pypsa.opf import network_lopf, network_opf
 else:
+
     def network_lopf(*args, **kwargs):
-        raise NotImplementedError("Function `network_lopf` not available from Python 3.12.")
+        raise NotImplementedError(
+            "Function `network_lopf` not available from Python 3.12."
+        )
+
     def network_opf(*args, **kwargs):
-        raise NotImplementedError("Function `network_opf` not available from Python 3.12.")
+        raise NotImplementedError(
+            "Function `network_opf` not available from Python 3.12."
+        )
+
     def network_sclopf(*args, **kwargs):
-        raise NotImplementedError("Function `network_sclopf` not available from Python 3.12.")
+        raise NotImplementedError(
+            "Function `network_sclopf` not available from Python 3.12."
+        )
+
 
 import logging
 

@@ -7,6 +7,7 @@ Created on Mon Jan 31 18:29:48 2022.
 """
 
 import os
+import sys
 
 import geopandas as gpd
 import numpy as np
@@ -14,7 +15,6 @@ import pandapower as pp
 import pandapower.networks as pn
 import pandas as pd
 import pytest
-import sys
 from shapely.geometry import Polygon
 
 import pypsa
@@ -22,12 +22,14 @@ import pypsa
 SUPPORTED_APIS = ["pyomo", "linopy", "native"]
 SOLVER_NAME = "glpk"
 
+
 @pytest.fixture(autouse=True)
 def skip_by_api_and_python_version(request):
     if "api" in request.fixturenames:
         api = request.getfixturevalue("api")
         if sys.version_info[:2] == (3, 12) and api == "pyomo":
             pytest.skip("PyPSA with Pyomo not supported on Python 3.12")
+
 
 def optimize(n, api, *args, **kwargs):
     if api == "linopy":
