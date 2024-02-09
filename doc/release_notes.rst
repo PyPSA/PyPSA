@@ -19,6 +19,7 @@ Upcoming Release
 
 * `optimize_mga` now returns the solver termination status and condition.
 
+* ``pyomo`` is no longer supported for Python 3.12 or higher.
 
 PyPSA 0.26.3 (25th January 2024)
 =================================

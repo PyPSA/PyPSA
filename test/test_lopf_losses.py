@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from conftest import optimize
-
-SUPPORTED_APIS = ["pyomo", "native", "linopy"]
+from conftest import SUPPORTED_APIS, optimize
 
 
 @pytest.mark.parametrize("api", SUPPORTED_APIS)

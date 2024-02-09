@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 
-import pandas as pd
 import pytest
 from conftest import optimize
 
