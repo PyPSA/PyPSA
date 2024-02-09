@@ -1002,7 +1002,7 @@ class StatisticsAccessor:
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
-                p = p.loc[:, mask]
+                p = p.loc[:, mask.astype(bool)]
 
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -1055,7 +1055,7 @@ class StatisticsAccessor:
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
-                p = p.loc[:, mask]
+                p = p.loc[:, mask.astype(bool)]
 
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
