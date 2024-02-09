@@ -30,11 +30,7 @@ from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import (
-    Dict,
-    additional_linkports,
-    allocate_series_dataframes,
-)
+from pypsa.descriptors import Dict, additional_linkports, allocate_series_dataframes
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import update_linkports_component_attrs, zsum
 

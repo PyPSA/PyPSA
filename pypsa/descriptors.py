@@ -27,6 +27,7 @@ class OrderedGraph(nx.MultiGraph):
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
 
+
 class Dict(dict):
     """
     Dict is a subclass of dict, which allows you to get AND SET items in the
