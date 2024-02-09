@@ -34,7 +34,6 @@ from pypsa.descriptors import (
     Dict,
     additional_linkports,
     allocate_series_dataframes,
-    degree,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import update_linkports_component_attrs, zsum
@@ -1361,7 +1360,7 @@ def find_tree(sub_network, weight="x_pu"):
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     # find bus with highest degree to use as slack
-    tree_slack_bus, slack_degree = max(degree(sub_network.tree), key=itemgetter(1))
+    tree_slack_bus, slack_degree = max(sub_network.tree.degree(), key=itemgetter(1))
     logger.debug("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     # determine which buses are supplied in tree through branch from slack

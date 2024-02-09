@@ -32,7 +32,7 @@ setup(
         "linopy>=0.2.1",
         "matplotlib",
         "geopandas>=0.9",
-        "networkx>=1.10",
+        "networkx>=2",
         "deprecation",
         "validators",
     ],

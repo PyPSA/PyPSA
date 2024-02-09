@@ -23,61 +23,9 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-from packaging.version import Version, parse
-
-if parse(nx.__version__) >= Version("1.12"):
-
-    class OrderedGraph(nx.MultiGraph):
-        node_dict_factory = OrderedDict
-        adjlist_dict_factory = OrderedDict
-
-elif parse(nx.__version__) >= Version("1.10"):
-
-    class OrderedGraph(nx.MultiGraph):
-        node_dict_factory = OrderedDict
-        adjlist_dict_factory = OrderedDict
-
-        def __init__(self, data=None, **attr):
-            self.node_dict_factory = ndf = self.node_dict_factory
-            self.adjlist_dict_factory = self.adjlist_dict_factory
-            self.edge_attr_dict_factory = self.edge_attr_dict_factory
-
-            self.graph = {}  # dictionary for graph attributes
-            self.node = ndf()  # empty node attribute dict
-            self.adj = ndf()  # empty adjacency dict
-            # attempt to load graph with data
-            if data is not None:
-                if isinstance(data, OrderedGraph):
-                    try:
-                        nx.convert.from_dict_of_dicts(
-                            data.adj,
-                            create_using=self,
-                            multigraph_input=data.is_multigraph(),
-                        )
-                        self.graph = data.graph.copy()
-                        self.node.update((n, d.copy()) for n, d in data.node.items())
-                    except:
-                        raise nx.NetworkXError("Input is not a correct NetworkX graph.")
-                else:
-                    nx.convert.to_networkx_graph(data, create_using=self)
-
-else:
-    raise ImportError(
-        "NetworkX version {} is too old. At least 1.10 is needed.".format(
-            nx.__version__
-        )
-    )
-
-if parse(nx.__version__) >= Version("2.0"):
-
-    def degree(G):
-        return G.degree()
-
-else:
-
-    def degree(G):
-        return G.degree_iter()
-
+class OrderedGraph(nx.MultiGraph):
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
 
 class Dict(dict):
     """

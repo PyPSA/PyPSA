@@ -18,6 +18,8 @@ Upcoming Release
 
 * `optimize_mga` now returns the solver termination status and condition.
 
+* The minimum ``networkx`` version was bumped from ``1.10`` to ``2``.
+
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
