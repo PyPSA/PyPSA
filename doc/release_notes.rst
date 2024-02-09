@@ -9,6 +9,7 @@ Upcoming Release
 
 * If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
 
+* The depreacted functions ``_make_consense``, ``aggregategenerators``, ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were removed.
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
