@@ -172,7 +172,9 @@ if sys.version_info < (3, 12):
                 logger.warning(f"No type given for {branch}, assuming it is a line")
                 branch = ("Line", branch)
 
-            sub = network.sub_networks.at[passive_branches.at[branch, "sub_network"], "obj"]
+            sub = network.sub_networks.at[
+                passive_branches.at[branch, "sub_network"], "obj"
+            ]
 
             branch_i = sub._branches.at[branch, "_i"]
 
@@ -187,7 +189,9 @@ if sys.version_info < (3, 12):
                             (1, network.model.passive_branch_p[b[0], b[1], sn]),
                             (
                                 sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                                network.model.passive_branch_p[branch[0], branch[1], sn],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
                             ),
                         ],
                         "<=",
@@ -205,7 +209,9 @@ if sys.version_info < (3, 12):
                             (1, network.model.passive_branch_p[b[0], b[1], sn]),
                             (
                                 sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                                network.model.passive_branch_p[branch[0], branch[1], sn],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
                             ),
                             (-1, network.model.passive_branch_s_nom[b[0], b[1]]),
                         ],
@@ -224,7 +230,9 @@ if sys.version_info < (3, 12):
                             (1, network.model.passive_branch_p[b[0], b[1], sn]),
                             (
                                 sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                                network.model.passive_branch_p[branch[0], branch[1], sn],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
                             ),
                         ],
                         ">=",
@@ -242,7 +250,9 @@ if sys.version_info < (3, 12):
                             (1, network.model.passive_branch_p[b[0], b[1], sn]),
                             (
                                 sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                                network.model.passive_branch_p[branch[0], branch[1], sn],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
                             ),
                             (1, network.model.passive_branch_s_nom[b[0], b[1]]),
                         ],
@@ -275,7 +285,7 @@ else:
     def add_contingency_constraints(*args, **kwargs):
         raise NotImplementedError(
             "Function `add_contingency_constraints` not available from Python 3.12."
-    )
+        )
 
 
 def add_contingency_constraints_lowmem(network, snapshots):

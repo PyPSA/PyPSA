@@ -31,7 +31,7 @@ from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
-from pypsa.contingency import calculate_BODF, network_lpf_contingency
+from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
 from pypsa.descriptors import (
     Dict,
     get_active_assets,
@@ -55,7 +55,6 @@ from pypsa.io import (
     import_series_from_dataframe,
 )
 from pypsa.optimization.optimize import OptimizationAccessor
-from pypsa.contingency import network_sclopf
 from pypsa.pf import (
     calculate_B_H,
     calculate_dependent_values,
@@ -88,7 +87,6 @@ else:
         raise NotImplementedError(
             "Function `network_opf` not available from Python 3.12."
         )
-
 
 
 import logging
