@@ -12,6 +12,7 @@ __copyright__ = (
 )
 
 import logging
+import sys
 
 from numpy import r_
 from scipy.sparse import csr_matrix
@@ -25,8 +26,10 @@ import pandas as pd
 
 from pypsa.descriptors import get_extendable_i
 from pypsa.linopt import get_var, linexpr, set_conref, write_constraint
-from pypsa.opt import l_constraint
 from pypsa.pf import _as_snapshots, calculate_PTDF
+
+if sys.version_info < (3, 12):
+    from pypsa.opt import l_constraint
 
 
 def calculate_BODF(sub_network, skip_pre=False):
