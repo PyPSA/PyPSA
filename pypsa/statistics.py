@@ -17,7 +17,6 @@ from functools import reduce, wraps
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -374,34 +373,6 @@ class StatisticsAccessor:
         index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
-
-    @deprecated("Use `groupers.get_carrier` instead.")
-    def get_carrier(self, n, c, **kwargs):
-        """
-        Get the buses and nice carrier names for a component.
-        """
-        return get_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_bus_and_carrier` instead.")
-    def get_bus_and_carrier(self, n, c, **kwargs):
-        """
-        Get the buses and nice carrier names for a component.
-        """
-        return get_bus_and_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_carrier_and_bus_carrier` instead.")
-    def get_carrier_and_bus_carrier(self, n, c, **kwargs):
-        """
-        Get the carriers and bus carriers for a component.
-        """
-        return get_carrier_and_bus_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_name_bus_and_carrier` instead.")
-    def get_country_and_carrier(self, n, c, **kwargs):
-        """
-        Get the country and nice carrier names for a component.
-        """
-        return get_country_and_carrier(n, c, **kwargs)
 
     def capex(
         self,
