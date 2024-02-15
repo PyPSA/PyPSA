@@ -25,8 +25,10 @@ from typing import List, Union
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 import validators
 from deprecation import deprecated
+from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -52,7 +54,6 @@ from pypsa.io import (
     import_from_pypower_ppc,
     import_series_from_dataframe,
 )
-from pypsa.opf import network_lopf, network_opf
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
@@ -72,6 +73,21 @@ from pypsa.statistics import StatisticsAccessor
 
 if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
+
+if sys.version_info < (3, 12):
+    from pypsa.opf import network_lopf, network_opf
+else:
+
+    def network_lopf(*args, **kwargs):
+        raise NotImplementedError(
+            "Function `network_lopf` not available from Python 3.12."
+        )
+
+    def network_opf(*args, **kwargs):
+        raise NotImplementedError(
+            "Function `network_opf` not available from Python 3.12."
+        )
+
 
 import logging
 
@@ -171,8 +187,7 @@ class Network(Basic):
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
     """
 
-    # Spatial Reference System Identifier (SRID), defaults to longitude and latitude
-    srid = 4326
+    _crs = CRS.from_epsg(4326)
 
     # methods imported from other sub-modules
 
@@ -480,12 +495,45 @@ class Network(Basic):
         """
         Coordinate reference system of the network's geometries (n.shapes).
         """
-        return self.shapes.crs
+        return self._crs
 
-    # TODO: structure SRID and CRS in alignment with shapes and bus coordinates.
-    # @crs.setter
-    # def crs(self, new):
-    #     self.shapes.to_crs(new, inplace=True)
+    @crs.setter
+    def crs(self, new):
+        """
+        Set the coordinate reference system of the network's geometries
+        (n.shapes).
+        """
+        self.shapes.crs = new
+        self._crs = self.shapes.crs
+
+    def to_crs(self, new):
+        """
+        Convert the network's geometries and bus coordinates to a new
+        coordinate reference system.
+        """
+        current = self.crs
+        self.shapes.to_crs(new, inplace=True)
+        self._crs = self.shapes.crs
+        transformer = Transformer.from_crs(current, self.crs)
+        self.buses["x"], self.buses["y"] = transformer.transform(
+            self.buses["x"], self.buses["y"]
+        )
+
+    @property
+    def srid(self):
+        """
+        Spatial reference system identifier of the network's geometries
+        (n.shapes).
+        """
+        return self.crs.to_epsg()
+
+    @srid.setter
+    def srid(self, new):
+        """
+        Set the spatial reference system identifier of the network's geometries
+        (n.shapes).
+        """
+        self.crs = pyproj.CRS.from_epsg(new)
 
     def set_snapshots(
         self,
@@ -1258,7 +1306,7 @@ class Network(Basic):
                 pass
 
         # catch all remaining attributes of network
-        for attr in ["name", "srid"]:
+        for attr in ["name", "_crs"]:
             setattr(n, attr, getattr(self, attr))
 
         n.snapshot_weightings = self.snapshot_weightings.loc[time_i]

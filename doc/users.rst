@@ -43,6 +43,8 @@ Universities and Research Institutes
 
 * `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
+* `University of Oxford <https://www.ox.ac.uk/>`_ and the `University of Sevilla <https://www.us.es/>`_ in a `study <https://doi.org/10.1016/j.apenergy.2023.122331>`_ on the role of regionally resolved heat pump demand in power system design
+
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
 * `Energiewirtschaftliches Institut zu Köln <https://www.ewi.uni-koeln.de/de/>`_ (EWI): research publication `Working Paper, No 17/09 <https://www.ewi.research-scenarios.de/cms/wp-content/uploads/2017/09/EWI_WP_17-09_Build_Wind_Capacities_at_Windy_Locations.pdf>`_
@@ -77,7 +79,7 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
-* `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_
+* `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_ and `this project description <https://www.apg.at/projekte/zusammen-2040/>`_.
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 

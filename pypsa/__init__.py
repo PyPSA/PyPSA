@@ -5,6 +5,8 @@ Python for Power Systems Analysis (PyPSA)
 Energy system modelling library.
 """
 
+import sys
+
 from pypsa import (
     clustering,
     components,
@@ -15,15 +17,17 @@ from pypsa import (
     io,
     linopf,
     linopt,
-    opf,
-    opt,
     optimization,
     pf,
     plot,
+    statistics,
 )
 from pypsa.components import Network, SubNetwork
 
-__version__ = "0.25.2"
+if sys.version_info < (3, 12):
+    from pypsa import opf, opt
+
+__version__ = "0.26.3"
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"

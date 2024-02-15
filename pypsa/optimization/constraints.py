@@ -101,8 +101,8 @@ def define_operational_constraints_for_extendables(
     lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
+        lhs_lower += ((-1, loss),)
         lhs_upper += ((1, loss),)
-        lhs_lower += ((1, loss),)
 
     n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
     n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
@@ -159,18 +159,16 @@ def define_operational_constraints_for_committables(n, sns, c):
         until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
-        up_time_before_set = up_time_before.clip(
-            upper=min_up_time_set, lower=up_time_before_set
-        )
+        up_time_before_set = up_time_before.clip(upper=min_up_time_set)
+        initially_up = up_time_before_set.astype(bool)
         # get number of snapshots for generators which are offline before the first regarded snapshot
         until_start_down = ~until_start_up.astype(bool)
         ref = range(1, len(until_start_down) + 1)
         down_time_before = until_start_down[
             until_start_down.cumsum().eq(ref, axis=0)
         ].sum()
-        down_time_before_set = down_time_before.clip(
-            upper=min_down_time_set, lower=down_time_before_set
-        )
+        down_time_before_set = down_time_before.clip(upper=min_down_time_set)
+        initially_down = down_time_before_set.astype(bool)
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
@@ -194,6 +192,7 @@ def define_operational_constraints_for_committables(n, sns, c):
     )
 
     # min up time
+    mask = get_activity_mask(n, c, sns[1:], com_i)
     expr = []
     min_up_time_i = com_i[min_up_time_set.astype(bool)]
     if not min_up_time_i.empty:
@@ -202,7 +201,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-up-time", mask=active)
+        n.model.add_constraints(
+            lhs, "<=", 0, f"{c}-com-up-time", mask=mask[min_up_time_i]
+        )
 
     # min down time
     expr = []
@@ -213,7 +214,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 1, f"{c}-com-down-time", mask=active)
+        n.model.add_constraints(
+            lhs, "<=", 1, f"{c}-com-down-time", mask=mask[min_down_time_i]
+        )
 
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
@@ -380,9 +383,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # fix up
     if not ramp_limit_up[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (ramp_limit_up * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
-            columns=fix_i
-        )
+        rhs = (ramp_limit_up * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
         mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
             active.index, columns=fix_i
         )
@@ -391,9 +394,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # fix down
     if not ramp_limit_down[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (-ramp_limit_down * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
-            columns=fix_i
-        )
+        rhs = (-ramp_limit_down * p_nom).reindex(
+            active.index, columns=fix_i
+        ) + rhs_start.reindex(columns=fix_i)
         mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
             active.index, columns=fix_i
         )
@@ -654,6 +657,34 @@ def define_fixed_nominal_constraints(n, c, attr):
     var = n.model[f"{c}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
     n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set")
+
+
+def define_modular_constraints(n, c, attr):
+    """
+    Sets constraints for fixing modular variables of a given component. It
+    allows to define optimal capacity of a component as multiple of the nominal
+    capacity of the single module.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        name of the network component
+    attr : str
+        name of the variable, e.g. 'n_opt'
+    """
+    m = n.model
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+
+    if (mod_i).empty:
+        return
+
+    modularity = m.variables[f"{c}-n_mod"]
+    modular_capacity = n.df(c)[f"{attr}_mod"].loc[mod_i]
+    capacity = m.variables[f"{c}-{attr}"].loc[mod_i]
+
+    con = capacity - modularity * modular_capacity.values == 0
+    n.model.add_constraints(con, name=f"{c}-{attr}_modularity", mask=None)
 
 
 def define_fixed_operation_constraints(n, sns, c, attr):

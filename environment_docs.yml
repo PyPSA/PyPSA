@@ -7,14 +7,13 @@ dependencies:
 - python
 - six
 - numpy
-- pyomo>=5.7.0
 - scipy
 - pandas>=1.1.0
 - xarray
 - netcdf4
 - pytables
 - matplotlib
-- networkx>=1.10
+- networkx>=2
 - pyomo<6.6.2
 - cartopy>=0.16
 - geopandas>=0.9
@@ -34,3 +33,4 @@ dependencies:
   - nbsphinx
   - nbsphinx_link
   - highspy
+  - pyomo>=5.7,<6.6.2; python_version < '3.12'
