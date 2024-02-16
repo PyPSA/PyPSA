@@ -9,7 +9,7 @@ Upcoming Release
 
 * If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
 
-* The depreacted functions ``_make_consense``, ``aggregategenerators``, ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were removed.
+* The deprecated functions ``_make_consense``, ``aggregategenerators``, ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were removed.
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
@@ -22,6 +22,8 @@ Upcoming Release
 * The minimum ``networkx`` version was bumped from ``1.10`` to ``2``.
 
 * ``pyomo`` is no longer supported for Python 3.12 or higher.
+
+* The global constraint ``define_tech_capacity_expansion_limit`` now also takes branch components into account. If defined per bus, the `bus0` of the branch is considered as a reference bus.
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
