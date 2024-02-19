@@ -1212,7 +1212,7 @@ class Network(Basic):
                 investment_periods = self.investment_period_weightings.index
             network.set_snapshots(snapshots)
             if not investment_periods.empty:
-                network.set_investment_periods(self.investment_periods)
+                network.set_investment_periods(investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name + "_t")
                 for k in component.pnl.keys():
