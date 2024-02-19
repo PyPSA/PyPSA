@@ -125,7 +125,7 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
     varying = pnl[attr].loc[snapshots, varying_i]
 
-    res = pd.merge(static, varying, left_index=True, right_index=True, how='inner')
+    res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
     del static
     del varying
     res = res.reindex(columns=index)
