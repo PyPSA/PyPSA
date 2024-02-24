@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 
 import pytest
 from linopy import available_solvers
