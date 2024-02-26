@@ -54,7 +54,6 @@ from pypsa.io import (
     import_from_pypower_ppc,
     import_series_from_dataframe,
 )
-from pypsa.opf import network_lopf, network_opf
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
     calculate_B_H,
@@ -74,6 +73,21 @@ from pypsa.statistics import StatisticsAccessor
 
 if sys.version_info.major >= 3:
     from pypsa.linopf import network_lopf as network_lopf_lowmem
+
+if sys.version_info < (3, 12):
+    from pypsa.opf import network_lopf, network_opf
+else:
+
+    def network_lopf(*args, **kwargs):
+        raise NotImplementedError(
+            "Function `network_lopf` not available from Python 3.12."
+        )
+
+    def network_opf(*args, **kwargs):
+        raise NotImplementedError(
+            "Function `network_opf` not available from Python 3.12."
+        )
+
 
 import logging
 
@@ -1198,7 +1212,7 @@ class Network(Basic):
                 investment_periods = self.investment_period_weightings.index
             network.set_snapshots(snapshots)
             if not investment_periods.empty:
-                network.set_investment_periods(self.investment_periods)
+                network.set_investment_periods(investment_periods)
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name + "_t")
                 for k in component.pnl.keys():

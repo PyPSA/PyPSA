@@ -136,6 +136,6 @@ and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 Licence
 =======
 
-Copyright 2015-2023 :doc:`developers`
+Copyright 2015-2024 :doc:`developers`
 
 PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.

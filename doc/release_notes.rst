@@ -2,16 +2,44 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
+* Fix of the capex description in the attribute CSV files
+
+
+PyPSA 0.27.0 (18th February 2024)
+=================================
+
+* Bugfix: If plotting a network map with split buses
+  (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2
+  to account for the fact that the bus sizes are split into half circles. This
+  makes the area scaling of the buses consistent with the area of non-split
+  buses.
+
+* The global constraint ``define_tech_capacity_expansion_limit`` now also takes
+  branch components into account. If defined per bus, the ``bus0`` of the branch
+  is considered as a reference bus.
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
-* Fix of the capex description in the attribute CSV files
+* Fixed total budget calculation for MGA on multi-horizon optimisations.
+
+* The ``extra_functionality`` argument is now also supported in ``solve_model``
+  accessor.
+
+* ``optimize_mga`` now returns the solver termination status and condition.
+
+* The deprecated functions ``_make_consense``, ``aggregategenerators``,
+  ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were
+  removed.
+
+* The minimum ``networkx`` version was bumped from ``1.10`` to ``2``.
+
+* ``pyomo`` is no longer supported for Python 3.12 or higher.
+
 
 PyPSA 0.26.3 (25th January 2024)
 =================================

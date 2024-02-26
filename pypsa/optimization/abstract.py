@@ -349,8 +349,13 @@ def optimize_mga(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
     Returns
-    -------
-    None
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -371,8 +376,16 @@ def optimize_mga(
     )
 
     # build budget constraint
-    optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
-    fixed_cost = n.statistics.installed_capex().sum()
+    if not multi_investment_periods:
+        optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
+        fixed_cost = n.statistics.installed_capex().sum()
+    else:
+        w = n.investment_period_weightings.objective
+        optimal_cost = (
+            n.statistics.capex().sum() * w + n.statistics.opex().sum() * w
+        ).sum()
+        fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
+
     objective = m.objective
     if not isinstance(objective, (LinearExpression, QuadraticExpression)):
         objective = objective.expression
@@ -416,14 +429,16 @@ def optimize_mga(
 
     m.objective = merge(objective)
 
-    n.optimize.solve_model(**kwargs)
+    status, condition = n.optimize.solve_model(**kwargs)
 
     # write MGA coefficients into metadata
     n.meta["slack"] = slack
     n.meta["sense"] = sense
 
     def convert_to_dict(obj):
-        if isinstance(obj, (pd.Series, pd.DataFrame)):
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_dict(orient="list")
+        elif isinstance(obj, pd.Series):
             return obj.to_dict()
         elif isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
@@ -431,3 +446,5 @@ def optimize_mga(
             return obj
 
     n.meta["weights"] = convert_to_dict(weights)
+
+    return status, condition
