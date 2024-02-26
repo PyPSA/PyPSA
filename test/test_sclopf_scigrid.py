@@ -19,7 +19,7 @@ def sclopf(n, api, *args, **kwargs):
 
 
 @pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_sclopf_pyomo(scipy_network, api):
+def test_sclopf(scipy_network, api):
     n = scipy_network
 
     # There are some infeasibilities without line extensions

@@ -50,7 +50,7 @@ def define_tech_capacity_expansion_limit(n, sns):
             dim = f"{c}-ext"
             df = n.df(c)
 
-            if c not in n.one_port_components or "carrier" not in df:
+            if "carrier" not in df:
                 continue
 
             ext_i = (
@@ -64,7 +64,8 @@ def define_tech_capacity_expansion_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
+            bus = "bus0" if c in n.branch_components else "bus"
+            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus.append(expr)
 
@@ -346,8 +347,10 @@ def define_operational_limit(n, sns):
         gens = n.generators.query("carrier == @glc.carrier_attribute")
         if not gens.empty:
             p = m["Generator-p"].loc[snapshots, gens.index]
-            weightings = DataArray(weightings.generators[snapshots])
-            expr = (p * weightings).sum()
+            w = DataArray(weightings.generators[snapshots])
+            if "dim_0" in w.dims:
+                w = w.rename({"dim_0": "snapshot"})
+            expr = (p * w).sum()
             lhs.append(expr)
 
         sus = n.storage_units.query(cond)
@@ -416,11 +419,11 @@ def define_transmission_volume_expansion_limit(n, sns):
                 continue
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
 
             length = n.df(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
@@ -472,11 +475,11 @@ def define_transmission_expansion_cost_limit(n, sns):
             )
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
 
             cost = n.df(c).capital_cost.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]

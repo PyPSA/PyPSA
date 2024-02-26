@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
 
 import numpy as np
 import pandas as pd
-import pytest
 
 import pypsa
 from pypsa.statistics import get_bus_and_carrier, get_country_and_carrier
