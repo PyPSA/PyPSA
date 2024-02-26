@@ -436,8 +436,10 @@ def optimize_mga(
     n.meta["sense"] = sense
 
     def convert_to_dict(obj):
-        if isinstance(obj, (pd.Series, pd.DataFrame)):
+        if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="list")
+        elif isinstance(obj, pd.Series):
+            return obj.to_dict()
         elif isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
         else:
