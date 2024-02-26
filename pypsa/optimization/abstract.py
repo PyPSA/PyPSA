@@ -10,7 +10,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import merge
+from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
 
@@ -349,8 +349,13 @@ def optimize_mga(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
     Returns
-    -------
-    None
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -371,16 +376,38 @@ def optimize_mga(
     )
 
     # build budget constraint
-    optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
-    fixed_cost = n.statistics.installed_capex().sum()
+    if not multi_investment_periods:
+        optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
+        fixed_cost = n.statistics.installed_capex().sum()
+    else:
+        w = n.investment_period_weightings.objective
+        optimal_cost = (
+            n.statistics.capex().sum() * w + n.statistics.opex().sum() * w
+        ).sum()
+        fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
+
+    objective = m.objective
+    if not isinstance(objective, (LinearExpression, QuadraticExpression)):
+        objective = objective.expression
+
     m.add_constraints(
-        m.objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+        objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
     )
 
     # parse optimization sense
-    if sense.startswith("min") or sense > 0:
+    if (
+        isinstance(sense, str)
+        and sense.startswith("min")
+        or isinstance(sense, int)
+        and sense > 0
+    ):
         sense = 1
-    elif sense.startswith("max") or sense < 0:
+    elif (
+        isinstance(sense, str)
+        and sense.startswith("max")
+        or isinstance(sense, int)
+        and sense < 0
+    ):
         sense = -1
     else:
         raise ValueError(f"Could not parse optimization sense {sense}")
@@ -402,14 +429,16 @@ def optimize_mga(
 
     m.objective = merge(objective)
 
-    n.optimize.solve_model(**kwargs)
+    status, condition = n.optimize.solve_model(**kwargs)
 
     # write MGA coefficients into metadata
     n.meta["slack"] = slack
     n.meta["sense"] = sense
 
     def convert_to_dict(obj):
-        if isinstance(obj, (pd.Series, pd.DataFrame)):
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_dict(orient="list")
+        elif isinstance(obj, pd.Series):
             return obj.to_dict()
         elif isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
@@ -417,3 +446,5 @@ def optimize_mga(
             return obj
 
     n.meta["weights"] = convert_to_dict(weights)
+
+    return status, condition

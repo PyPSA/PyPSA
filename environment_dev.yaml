@@ -13,9 +13,9 @@ dependencies:
 - libnetcdf
 - pytables
 - matplotlib
-- networkx>=1.10
-- pyomo>=5.7.0,<6.6.2
+- networkx>=2
 - cartopy>=0.16
+- geopandas>=0.9
 - glpk
 - linopy>=0.2
 - deprecation
@@ -33,3 +33,4 @@ dependencies:
 - pip:
   - pypower
   - pandapower>=2.0
+  - pyomo>=5.7,<6.6.2; python_version < '3.12'

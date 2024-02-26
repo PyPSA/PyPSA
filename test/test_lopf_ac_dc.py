@@ -50,7 +50,8 @@ def test_lopf(ac_dc_network, ac_dc_network_r, api):
 
 
 @pytest.mark.parametrize("formulation", ["angles", "cycles", "kirchhoff", "ptdf"])
-def test_lopf_formulations(ac_dc_network, ac_dc_network_r, formulation):
+@pytest.mark.parametrize("api", ["pyomo"])
+def test_lopf_formulations(ac_dc_network, ac_dc_network_r, formulation, api):
     """
     Test results were generated with GLPK; solution should be unique, so other
     solvers should not differ (e.g. cbc or gurobi)
@@ -58,7 +59,6 @@ def test_lopf_formulations(ac_dc_network, ac_dc_network_r, formulation):
     n = ac_dc_network
     n_r = ac_dc_network_r
 
-    api = "pyomo"
     optimize(
         n,
         api,

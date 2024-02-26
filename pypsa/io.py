@@ -22,9 +22,11 @@ from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
 
@@ -107,6 +109,10 @@ class ImporterCSV(Importer):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
+    def get_crs(self):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
+
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn):
@@ -166,6 +172,10 @@ class ExporterCSV(Exporter):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         open(fn, "w").write(json.dumps(meta))
 
+    def save_crs(self, crs):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        open(fn, "w").write(json.dumps(crs))
+
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
@@ -208,6 +218,9 @@ class ImporterHDF5(Importer):
 
     def get_meta(self):
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
+
+    def get_crs(self):
+        return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
@@ -254,6 +267,9 @@ class ExporterHDF5(Exporter):
 
     def save_meta(self, meta):
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
+
+    def save_crs(self, crs):
+        self.ds.put("/crs", pd.Series(json.dumps(crs)))
 
     def save_snapshots(self, snapshots):
         self.ds.put("/snapshots", snapshots, format="table", index=False)
@@ -308,6 +324,9 @@ if has_xarray:
         def get_meta(self):
             return json.loads(self.ds.attrs.get("meta", "{}"))
 
+        def get_crs(self):
+            return json.loads(self.ds.attrs.get("crs", "{}"))
+
         def get_snapshots(self):
             return self.get_static("snapshots", "snapshots")
 
@@ -353,6 +372,9 @@ if has_xarray:
 
         def save_meta(self, meta):
             self.ds.attrs["meta"] = json.dumps(meta)
+
+        def save_crs(self, crs):
+            self.ds.attrs["crs"] = json.dumps(crs)
 
         def save_snapshots(self, snapshots):
             snapshots = snapshots.rename_axis(index="snapshots")
@@ -417,7 +439,6 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     # exportable component types
-    # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
@@ -430,6 +451,11 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         )
     }
     exporter.save_attributes(attrs)
+
+    crs = {}
+    if network.crs is not None:
+        crs["_crs"] = network.crs.to_wkt()
+    exporter.save_crs(crs)
 
     exporter.save_meta(network.meta)
 
@@ -452,6 +478,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
         df = network.df(component)
         pnl = network.pnl(component)
+
+        if component == "Shape":
+            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
@@ -646,7 +675,7 @@ def import_from_netcdf(network, path, skip_time=False):
     """
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = Path(path).name
+    basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
@@ -722,6 +751,11 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
     attrs = importer.get_attributes()
     network.meta = importer.get_meta()
+    crs = importer.get_crs()
+    crs = crs.pop("_crs", None)
+    if crs is not None:
+        crs = CRS.from_wkt(crs)
+        network._crs = crs
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
@@ -870,8 +904,14 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-
-            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+            if static_attrs.at[k, "type"] == "int":
+                dataframe[k] = dataframe[k].fillna(0)
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                if static_attrs.at[k, "type"] == "geometry":
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     for attr in ["bus", "bus0", "bus1"]:
@@ -893,6 +933,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     if not new_df.index.is_unique:
         logger.error(f"Error, new components for {cls_name} are not unique")
         return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)

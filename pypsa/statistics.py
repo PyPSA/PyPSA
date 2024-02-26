@@ -8,7 +8,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2015-4 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
@@ -17,7 +17,6 @@ from functools import reduce, wraps
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -192,11 +191,10 @@ def get_transmission_carriers(n, bus_carrier=None):
 
 
 def aggregate_timeseries(df, weights, agg="sum"):
-    "Calculate the weighed sum or average of a DataFrame or Series."
+    "Calculate the weighted sum or average of a DataFrame or Series."
     if isinstance(df.index, pd.MultiIndex):
-        weights = weights.groupby(level=0).sum()
         if agg == "mean":
-            weights = weights.div(weights.groupby(level=0).sum(), level=0)
+            weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
         elif agg == "sum":
             return df.multiply(weights, axis=0).groupby(level=0).sum().T
@@ -375,34 +373,6 @@ class StatisticsAccessor:
         index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
-
-    @deprecated("Use `groupers.get_carrier` instead.")
-    def get_carrier(self, n, c, **kwargs):
-        """
-        Get the buses and nice carrier names for a component.
-        """
-        return get_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_bus_and_carrier` instead.")
-    def get_bus_and_carrier(self, n, c, **kwargs):
-        """
-        Get the buses and nice carrier names for a component.
-        """
-        return get_bus_and_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_carrier_and_bus_carrier` instead.")
-    def get_carrier_and_bus_carrier(self, n, c, **kwargs):
-        """
-        Get the carriers and bus carriers for a component.
-        """
-        return get_carrier_and_bus_carrier(n, c, **kwargs)
-
-    @deprecated("Use `groupers.get_name_bus_and_carrier` instead.")
-    def get_country_and_carrier(self, n, c, **kwargs):
-        """
-        Get the country and nice carrier names for a component.
-        """
-        return get_country_and_carrier(n, c, **kwargs)
 
     def capex(
         self,
@@ -1003,7 +973,7 @@ class StatisticsAccessor:
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
-                p = p.loc[:, mask]
+                p = p.loc[:, mask.astype(bool)]
 
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -1056,7 +1026,7 @@ class StatisticsAccessor:
                     for port in get_ports(n, c)
                 ]
                 mask = reduce(np.logical_or, masks)
-                p = p.loc[:, mask]
+                p = p.loc[:, mask.astype(bool)]
 
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)

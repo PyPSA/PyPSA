@@ -2,31 +2,155 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
-
-* Add option to specify time-varying ramp rates for generators and links (``ramp_limit_up`` and ``ramp_limit_down``).
+.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * It is now possible to couple the dispatch of generators. For this purpose, three new columns `p_coupling`, `p_coupling_coeff` and `p_coupling_sign` have been added to the generator component. They allow coupling the dispatch of one generator to another generator by adding a linear constraint to the optimization problem. The condition is of the form ``p {p_coupling_sign} {p_coupling_sign} * p_{p_coupling}``. The coupling is applied only when the coupling generator is active.
 
+
+PyPSA 0.27.0 (18th February 2024)
+=================================
+
+* Bugfix: If plotting a network map with split buses
+  (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2
+  to account for the fact that the bus sizes are split into half circles. This
+  makes the area scaling of the buses consistent with the area of non-split
+  buses.
+
+* The global constraint ``define_tech_capacity_expansion_limit`` now also takes
+  branch components into account. If defined per bus, the ``bus0`` of the branch
+  is considered as a reference bus.
+
+* Bugfixes in building of global constraints in multi-horizon optimisations.
+
+* Fixed total budget calculation for MGA on multi-horizon optimisations.
+
+* The ``extra_functionality`` argument is now also supported in ``solve_model``
+  accessor.
+
+* ``optimize_mga`` now returns the solver termination status and condition.
+
+* The deprecated functions ``_make_consense``, ``aggregategenerators``,
+  ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were
+  removed.
+
+* The minimum ``networkx`` version was bumped from ``1.10`` to ``2``.
+
+* ``pyomo`` is no longer supported for Python 3.12 or higher.
+
+
+PyPSA 0.26.3 (25th January 2024)
+=================================
+
+* Bugfix: With line transmission losses there was a sign error in the
+  calculation of the line capacity constraints.
+
+* Approximated transmission losses of lines are now stored after optimisation as
+  the difference between ``n.lines_t.p0`` and ``n.lines_t.p1`` so that they
+  appear in the energy balance (e.g. ``n.statistics.energy_balance()``) and when
+  calculating losses with ``n.lines_t.p0 + n.lines_t.p1``.
+
+PyPSA 0.26.2 (31st December 2023)
+=================================
+
+* Bugfix in the definition of spillage variables for storage units. Previously,
+  the spillage variable creation was skipped in some cases due to a wrong
+  condition check even though there was a positive inflow.
+
+PyPSA 0.26.1 (29th December 2023)
+=================================
+
+* The output attribute ``n_mod`` introduced in the previous version was removed
+  since it contains duplicate information. Calculate the number of expanded
+  modules with ``p_nom_opt / p_nom_mod`` instead.
+
+* Bugfix in MGA function to correctly parse the ``sense`` keyword argument.
+
+* Fix strict type compatibility issues with ``pandas>=2.1`` causing problems for
+  clustering.
+
+* Removed ``numexpr`` version constraint.
+
+PyPSA 0.26.0 (4th December 2023)
+================================
+
+**New Features**
+
+* The ``Network`` class has a **new component for geometric shapes** under
+  ``n.shapes``. It consists of a ``geopandas`` dataframe which can be used to
+  store network related geographical data (for plotting, calculating potentials,
+  etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`.
+  The columns `component`, `idx` and `type` do not require specific values, but
+  allow for storing information about which components the shapes belong to. The
+  coordinate reference system (CRS) of the shapes can be accessed and set via a
+  new attribute ``n.crs``. For a transition period, the attribute ``n.srid``,
+  which independently refers to the projection of the bus coordinates, is kept.
+
+* Improvements to the network **statistics module**:
+
+  * The statistics module now supports the consideration of multi-port links. An
+    additional argument `bus_carrier` was added to the statistics functions to
+    select the components that are attached to buses of a certain carrier.
+
+  * The statistics module now supports the consideration of multiple investment
+    periods. As soon as ``n.snapshots`` is a MultiIndex, the network statistics
+    are calculated separately for each investment period.
+
+  * A new function ``transmission`` was added to the statistics accessor. This
+    function considers all lines and links that connect buses of the same carrier.
+
+  * The statistics functions now support the selection of single components in
+    the ``comps`` argument.
+
+* The plotting function ``n.plot()`` now supports **plotting of only a subset of
+  network components** by allowing that arguments like ``bus_sizes``,
+  ``link_widths`` or ``link_colors`` do no longer require to contain the full
+  set of indices of a component.
+
+* Add option to specify **time-varying ramp rates** for generators and links
+  (``ramp_limit_up`` and ``ramp_limit_down``, e.g. under
+  ``n.links_t.ramp_limit_up``).
+
+* Added attributes ``p_nom_mod``, ``e_nom_mod``, and ``s_nom_mod`` to components
+  to consider capacity modularity. When this attribute is non-zero and the
+  component is extendable, the component's capacity can only be extended in
+  multiples of the capacity modularity. The optimal number of components is
+  stored as ``n_mod`` (such that ``p_nom_mod * n_mod == p_nom_opt``). The
+  default is kept such that extendable components can be expanded continuously.
+
+**Bugfixes and Compatibiliity**
+
+* Bugfix: In rolling horizon optimisation with unit commitment constraints, the
+  generator status of the previously optimized time step is now considered.
+
+* Bugfix: Allow optimising the network for just subset of investment periods by
+  using ``n.optimize(multi_investment_periods=True, snapshots=...)``.
+
+* Bugfix: The function ``n.import_from_netcdf()`` failed when trying to import
+  data from an ``xarray`` object.
+
 * The statistics module now supports the consideration of multi-port links. An additional argument `bus_carrier` was added to the functions to select the components that are attached to buses of a certain carrier.
 
-* The plotting routine now supports the plotting of a subset of buses/lines/links/transformers. This is useful for plotting only a subset of the network. Therefore, the arguments ``bus_sizes``, ``link_widths``, ``link_colors`` etc. do not require to contain the full set of indexes of a component.
+* Bugfix: Fix global constraints for primary energy and transmission volume
+  limits for networks with multiple investment periods.
 
-* The statistics module now supports the consideration of investment periods. Therefore, as soon as ``n.snapshots`` is a MultiIndex, the statistics are calculated for each period in the first level of the index separately.
+* Bugfix: Fix stand-by-costs optimization for latest ``linopy`` version.
 
-* A new function ``transmission`` was added to the statistics accessor. This function considers all lines and links that connect buses of the same carrier.
+* Resolve performance regression for multi-decade optimisation in highly meshed
+  networks.
 
-* The statistics functions now support single components in the ``comps`` argument.
+* Compatibility with ``pandas==2.1``.
+
+* Added Python 3.12 to CI and supported Python versions.
 
 
 PyPSA 0.25.2 (30th September 2023)
 ==================================
 
-* Add option to enable or disable nice carrier name in the statistics module
-  (e.g.``n.statistics(nice_name=False)``).
+* Add option to enable or disable nice carrier name in the statistics module,
+  e.g. ``n.statistics(nice_name=False)``.
 
 * Add example in documentation for the statistics module.
 

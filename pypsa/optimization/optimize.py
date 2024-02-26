@@ -28,6 +28,7 @@ from pypsa.optimization.constraints import (
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
+    define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -48,6 +49,7 @@ from pypsa.optimization.global_constraints import (
 )
 from pypsa.optimization.variables import (
     define_loss_variables,
+    define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
@@ -157,7 +159,7 @@ def define_objective(n, sns):
         )
         stand_by_cost.columns.name = f"{c}-com"
         status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
-        m.objective = m.objective + (status * stand_by_cost).sum()
+        objective.append((status * stand_by_cost).sum())
 
     # investment
     for c, attr in nominal_attrs.items():
@@ -242,6 +244,7 @@ def create_model(
     # Define variables
     for c, attr in lookup.query("nominal").index:
         define_nominal_variables(n, c, attr)
+        define_modular_variables(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
@@ -260,6 +263,7 @@ def create_model(
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
+        define_modular_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_constraints_for_non_extendables(
@@ -351,7 +355,7 @@ def assign_solution(n):
 
             else:
                 set_from_frame(n, c, attr, df)
-        else:
+        elif attr != "n_mod":
             n.df(c)[attr + "_opt"].update(df)
 
     # if nominal capacity was no variable set optimal value to nominal
@@ -449,6 +453,12 @@ def post_processing(n):
     # load
     if len(n.loads):
         set_from_frame(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+
+    # line losses
+    if "Line-loss" in n.model.variables:
+        losses = n.model["Line-loss"].solution.to_pandas()
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
 
     # recalculate injection
     ca = [
@@ -549,7 +559,13 @@ def optimize(
 
     Returns
     -------
-    None.
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
 
     sns = _as_snapshots(n, snapshots)
@@ -594,7 +610,12 @@ class OptimizationAccessor:
         return create_model(self._parent, *args, **kwargs)
 
     def solve_model(
-        self, solver_name="glpk", solver_options={}, assign_all_duals=False, **kwargs
+        self,
+        extra_functionality=None,
+        solver_name="glpk",
+        solver_options={},
+        assign_all_duals=False,
+        **kwargs,
     ):
         """
         Solve an already created model and assign its solution to the network.
@@ -611,8 +632,21 @@ class OptimizationAccessor:
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
+
+        Returns
+        -------
+        status : str
+            The status of the optimization, either "ok" or one of the
+            codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+        condition : str
+            The termination condition of the optimization, either
+            "optimal" or one of the codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
         n = self._parent
+        if extra_functionality:
+            extra_functionality(n, n.snapshots)
         m = n.model
         status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 

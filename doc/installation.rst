@@ -20,17 +20,21 @@ Getting a solver for optimisation
 =================================
 
 PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
-external solver. PyPSA is known to work with the free software
+external solver. PyPSA is known to work via ``linopy`` with the free software
 
 - `HiGHS <https://highs.dev/>`_
 - `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
 - `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
+- `SCIP <https://scip.zib.de/>`_
 
-and the non-free software, commercial software (for which free academic licenses are available)
+and the non-free software, commercial software (for some of which free academic licenses are available)
 
 - `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
 - `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
 - `FICO Xpress <https://www.fico.com/en/products/fico-xpress-optimization>`_
+- `MOSEK <https://www.mosek.com/>`_
+- `COPT <https://www.shanshu.ai/copt>`_
+- `MindOpt <https://solver.damo.alibaba.com/doc/en/html/index.html>`_
 
 For installation instructions of these solvers for your operating system, follow the links above.
 

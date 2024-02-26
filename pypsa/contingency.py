@@ -12,6 +12,7 @@ __copyright__ = (
 )
 
 import logging
+import sys
 
 from numpy import r_
 from scipy.sparse import csr_matrix
@@ -25,7 +26,6 @@ import pandas as pd
 
 from pypsa.descriptors import get_extendable_i
 from pypsa.linopt import get_var, linexpr, set_conref, write_constraint
-from pypsa.opt import l_constraint
 from pypsa.pf import _as_snapshots, calculate_PTDF
 
 
@@ -143,129 +143,149 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     return p0
 
 
-def add_contingency_constraints(network, snapshots):
-    passive_branches = network.passive_branches()
+if sys.version_info < (3, 12):
+    from pypsa.opt import l_constraint
 
-    branch_outages = network._branch_outages
+    def add_contingency_constraints(network, snapshots):
+        passive_branches = network.passive_branches()
 
-    # prepare the sub networks by calculating BODF and preparing helper DataFrames
+        branch_outages = network._branch_outages
 
-    for sn in network.sub_networks.obj:
-        sn.calculate_BODF()
+        # prepare the sub networks by calculating BODF and preparing helper DataFrames
 
-        sn._branches = sn.branches()
-        sn._branches["_i"] = range(sn._branches.shape[0])
+        for sn in network.sub_networks.obj:
+            sn.calculate_BODF()
 
-        sn._extendable_branches = sn._branches[sn._branches.s_nom_extendable]
-        sn._fixed_branches = sn._branches[~sn._branches.s_nom_extendable]
+            sn._branches = sn.branches()
+            sn._branches["_i"] = range(sn._branches.shape[0])
 
-    # a list of tuples with branch_outage and passive branches in same sub_network
-    branch_outage_keys = []
-    flow_upper = {}
-    flow_lower = {}
+            sn._extendable_branches = sn._branches[sn._branches.s_nom_extendable]
+            sn._fixed_branches = sn._branches[~sn._branches.s_nom_extendable]
 
-    for branch in branch_outages:
-        if type(branch) is not tuple:
-            logger.warning(f"No type given for {branch}, assuming it is a line")
-            branch = ("Line", branch)
+        # a list of tuples with branch_outage and passive branches in same sub_network
+        branch_outage_keys = []
+        flow_upper = {}
+        flow_lower = {}
 
-        sub = network.sub_networks.at[passive_branches.at[branch, "sub_network"], "obj"]
+        for branch in branch_outages:
+            if type(branch) is not tuple:
+                logger.warning(f"No type given for {branch}, assuming it is a line")
+                branch = ("Line", branch)
 
-        branch_i = sub._branches.at[branch, "_i"]
+            sub = network.sub_networks.at[
+                passive_branches.at[branch, "sub_network"], "obj"
+            ]
 
-        branch_outage_keys.extend(
-            [(branch[0], branch[1], b[0], b[1]) for b in sub._branches.index]
+            branch_i = sub._branches.at[branch, "_i"]
+
+            branch_outage_keys.extend(
+                [(branch[0], branch[1], b[0], b[1]) for b in sub._branches.index]
+            )
+
+            flow_upper.update(
+                {
+                    (branch[0], branch[1], b[0], b[1], sn): [
+                        [
+                            (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                            (
+                                sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
+                            ),
+                        ],
+                        "<=",
+                        sub._fixed_branches.at[b, "s_nom"],
+                    ]
+                    for b in sub._fixed_branches.index
+                    for sn in snapshots
+                }
+            )
+
+            flow_upper.update(
+                {
+                    (branch[0], branch[1], b[0], b[1], sn): [
+                        [
+                            (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                            (
+                                sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
+                            ),
+                            (-1, network.model.passive_branch_s_nom[b[0], b[1]]),
+                        ],
+                        "<=",
+                        0,
+                    ]
+                    for b in sub._extendable_branches.index
+                    for sn in snapshots
+                }
+            )
+
+            flow_lower.update(
+                {
+                    (branch[0], branch[1], b[0], b[1], sn): [
+                        [
+                            (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                            (
+                                sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
+                            ),
+                        ],
+                        ">=",
+                        -sub._fixed_branches.at[b, "s_nom"],
+                    ]
+                    for b in sub._fixed_branches.index
+                    for sn in snapshots
+                }
+            )
+
+            flow_lower.update(
+                {
+                    (branch[0], branch[1], b[0], b[1], sn): [
+                        [
+                            (1, network.model.passive_branch_p[b[0], b[1], sn]),
+                            (
+                                sub.BODF[sub._branches.at[b, "_i"], branch_i],
+                                network.model.passive_branch_p[
+                                    branch[0], branch[1], sn
+                                ],
+                            ),
+                            (1, network.model.passive_branch_s_nom[b[0], b[1]]),
+                        ],
+                        ">=",
+                        0,
+                    ]
+                    for b in sub._extendable_branches.index
+                    for sn in snapshots
+                }
+            )
+
+        l_constraint(
+            network.model,
+            "contingency_flow_upper",
+            flow_upper,
+            branch_outage_keys,
+            snapshots,
         )
 
-        flow_upper.update(
-            {
-                (branch[0], branch[1], b[0], b[1], sn): [
-                    [
-                        (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                        (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                            network.model.passive_branch_p[branch[0], branch[1], sn],
-                        ),
-                    ],
-                    "<=",
-                    sub._fixed_branches.at[b, "s_nom"],
-                ]
-                for b in sub._fixed_branches.index
-                for sn in snapshots
-            }
+        l_constraint(
+            network.model,
+            "contingency_flow_lower",
+            flow_lower,
+            branch_outage_keys,
+            snapshots,
         )
 
-        flow_upper.update(
-            {
-                (branch[0], branch[1], b[0], b[1], sn): [
-                    [
-                        (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                        (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                            network.model.passive_branch_p[branch[0], branch[1], sn],
-                        ),
-                        (-1, network.model.passive_branch_s_nom[b[0], b[1]]),
-                    ],
-                    "<=",
-                    0,
-                ]
-                for b in sub._extendable_branches.index
-                for sn in snapshots
-            }
+else:
+
+    def add_contingency_constraints(*args, **kwargs):
+        raise NotImplementedError(
+            "Function `add_contingency_constraints` not available from Python 3.12."
         )
-
-        flow_lower.update(
-            {
-                (branch[0], branch[1], b[0], b[1], sn): [
-                    [
-                        (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                        (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                            network.model.passive_branch_p[branch[0], branch[1], sn],
-                        ),
-                    ],
-                    ">=",
-                    -sub._fixed_branches.at[b, "s_nom"],
-                ]
-                for b in sub._fixed_branches.index
-                for sn in snapshots
-            }
-        )
-
-        flow_lower.update(
-            {
-                (branch[0], branch[1], b[0], b[1], sn): [
-                    [
-                        (1, network.model.passive_branch_p[b[0], b[1], sn]),
-                        (
-                            sub.BODF[sub._branches.at[b, "_i"], branch_i],
-                            network.model.passive_branch_p[branch[0], branch[1], sn],
-                        ),
-                        (1, network.model.passive_branch_s_nom[b[0], b[1]]),
-                    ],
-                    ">=",
-                    0,
-                ]
-                for b in sub._extendable_branches.index
-                for sn in snapshots
-            }
-        )
-
-    l_constraint(
-        network.model,
-        "contingency_flow_upper",
-        flow_upper,
-        branch_outage_keys,
-        snapshots,
-    )
-
-    l_constraint(
-        network.model,
-        "contingency_flow_lower",
-        flow_lower,
-        branch_outage_keys,
-        snapshots,
-    )
 
 
 def add_contingency_constraints_lowmem(network, snapshots):
@@ -278,16 +298,18 @@ def add_contingency_constraints_lowmem(network, snapshots):
         b if isinstance(b, tuple) else ("Line", b) for b in n._branch_outages
     ]
 
-    comps = n.passive_branch_components & set(n.variables.index.levels[0])
+    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
     if len(comps) == 0:
         return
     dispatch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
 
     invest_vars = pd.concat(
         {
-            c: get_var(n, c, "s_nom")
-            if not get_extendable_i(n, c).empty
-            else pd.Series(dtype=float)
+            c: (
+                get_var(n, c, "s_nom")
+                if not get_extendable_i(n, c).empty
+                else pd.Series(dtype=float)
+            )
             for c in comps
         }
     )
@@ -356,7 +378,7 @@ def add_contingency_constraints_lowmem(network, snapshots):
     for (bound, spec, outage), constr in constraints.items():
         constr = pd.concat(constr, axis=1)
         for c in comps:
-            if c in constr.columns.levels[0]:
+            if c in constr.columns.unique(level=0):
                 constr_name = "_".join([bound, *outage])
                 set_conref(n, constr[c], c, f"mu_contingency_{constr_name}", spec=spec)
 
