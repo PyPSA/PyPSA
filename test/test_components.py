@@ -252,7 +252,7 @@ def test_add_network_static(ac_dc_network, empty_network_5_buses):
     busesAddedNetwork = empty_network_5_buses.buses.index
     assert set(busesAddedNetwork).issubset(set(busesNow))
 
-    
+
 def test_shape_reprojection(ac_dc_network_shapes):
     n = ac_dc_network_shapes
 
