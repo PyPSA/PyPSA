@@ -7,8 +7,7 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Fix of the capex description in the attribute CSV files
-
+* Fix of the capex description in the attribute CSV files.
 
 PyPSA 0.27.0 (18th February 2024)
 =================================
