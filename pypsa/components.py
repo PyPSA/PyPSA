@@ -53,6 +53,7 @@ from pypsa.io import (
     import_from_pandapower_net,
     import_from_pypower_ppc,
     import_series_from_dataframe,
+    merge,
 )
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
@@ -190,7 +191,6 @@ class Network(Basic):
     _crs = CRS.from_epsg(4326)
 
     # methods imported from other sub-modules
-
     import_from_csv_folder = import_from_csv_folder
 
     export_to_csv_folder = export_to_csv_folder
@@ -208,6 +208,8 @@ class Network(Basic):
     import_from_pandapower_net = import_from_pandapower_net
 
     import_components_from_dataframe = import_components_from_dataframe
+
+    merge = merge
 
     import_series_from_dataframe = import_series_from_dataframe
 
@@ -394,6 +396,12 @@ class Network(Basic):
         content += "\n"
         content += f"Snapshots: {len(self.snapshots)}"
         return header + content
+
+    def __add__(self, other):
+        """
+        Merge all components of two networks.
+        """
+        self.merge(other)
 
     def _build_dataframes(self):
         """

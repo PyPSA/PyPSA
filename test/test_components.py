@@ -235,6 +235,24 @@ def test_copy_no_snapshot(ac_dc_network):
     assert snapshot not in copied_network.snapshots
 
 
+def test_add_network_static(ac_dc_network, empty_network_5_buses):
+    """
+    GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
+    buses.
+
+    WHEN    the second network is added to the first
+
+    THEN    the first network should now contain its original buses and
+    also the buses in the second network
+    """
+
+    ac_dc_network.merge(empty_network_5_buses)
+
+    busesNow = ac_dc_network.buses.index
+    busesAddedNetwork = empty_network_5_buses.buses.index
+    assert set(busesAddedNetwork).issubset(set(busesNow))
+
+
 def test_shape_reprojection(ac_dc_network_shapes):
     n = ac_dc_network_shapes
 
