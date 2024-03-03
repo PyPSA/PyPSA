@@ -7,6 +7,8 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
+
 PyPSA 0.27.0 (18th February 2024)
 =================================
 
