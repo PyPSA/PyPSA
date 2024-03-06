@@ -83,7 +83,7 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `Centre for Net Zero <https://www.centrefornetzero.org/>`_, a research unit
   founded by `Octupus Energy <https://octupus.energy>`, used PyPSA in a `report
-  <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`
+  <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`_
   to investigate the role of demand flexibility in future UK energy systems.
 
 * `International Energy Agence (IEA) <>`_ use PyPSA within their `Global Energy
