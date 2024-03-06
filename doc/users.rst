@@ -81,6 +81,15 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_ and `this project description <https://www.apg.at/projekte/zusammen-2040/>`_.
 
+* `Centre for Net Zero <https://www.centrefornetzero.org/>`_, a research unit
+  founded by `Octupus Energy <https://octupus.energy>`, used PyPSA in a `report
+  <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`
+  to investigate the role of demand flexibility in future UK energy systems.
+
+* `International Energy Agence (IEA) <>`_ use PyPSA within their `Global Energy
+  and Climate Model
+  <https://iea.blob.core.windows.net/assets/ff3a195d-762d-4284-8bb5-bd062d260cc5/GlobalEnergyandClimateModelDocumentation2023.pdf>`_.
+
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
 * `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example this study from 2021: `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_
