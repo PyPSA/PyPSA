@@ -377,7 +377,7 @@ def optimize_mga(
 
     # build budget constraint
     if not multi_investment_periods:
-        optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
+        optimal_cost = n.statistics.capex().sum() + n.statistics.opex().sum()
         fixed_cost = n.statistics.installed_capex().sum()
     else:
         w = n.investment_period_weightings.objective
@@ -436,8 +436,10 @@ def optimize_mga(
     n.meta["sense"] = sense
 
     def convert_to_dict(obj):
-        if isinstance(obj, (pd.Series, pd.DataFrame)):
+        if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="list")
+        elif isinstance(obj, pd.Series):
+            return obj.to_dict()
         elif isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
         else:

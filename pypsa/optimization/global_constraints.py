@@ -50,7 +50,7 @@ def define_tech_capacity_expansion_limit(n, sns):
             dim = f"{c}-ext"
             df = n.df(c)
 
-            if c not in n.one_port_components or "carrier" not in df:
+            if "carrier" not in df:
                 continue
 
             ext_i = (
@@ -64,7 +64,8 @@ def define_tech_capacity_expansion_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
+            bus = "bus0" if c in n.branch_components else "bus"
+            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus.append(expr)
 
