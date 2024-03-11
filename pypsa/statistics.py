@@ -271,7 +271,9 @@ def aggregate_components(
         return pd.Series([])
     if is_one_component:
         return d[c]
-    return pd.concat(d, names=["component", *d[list(d.keys())[0]].index.names])
+    index_level_names = {df.index.names for df in d.values() if not df.empty}
+    index_level_names = index_level_names.pop() if index_level_names else [None]
+    return pd.concat(d, names=["component", *index_level_names])
 
 
 def pass_empty_series_if_keyerror(func):
