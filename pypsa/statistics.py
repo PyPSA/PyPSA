@@ -12,6 +12,7 @@ __copyright__ = (
     "MIT License"
 )
 
+import inspect
 import logging
 from functools import reduce, wraps
 
@@ -23,11 +24,15 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_grouper(n, c, port="", groupby=None):
+def get_grouper(n, c, port="", nice_names=True, groupby=None):
     if groupby == None:
-        return get_carrier(n, c, port=port)
+        return get_carrier(n, c, port=port, nice_names=nice_names)
     elif callable(groupby):
-        return groupby(n, c, port=port)
+        parameters = inspect.signature(groupby).parameters
+        if "nice_names" in parameters and "port" in parameters:
+            return groupby(n, c, port=port, nice_names=nice_names)
+        else:
+            return groupby(n, c)
     elif isinstance(groupby, list):
         return [n.df(c)[key] for key in groupby]
     elif isinstance(groupby, str):
@@ -259,6 +264,8 @@ def aggregate_components(
             continue
 
         df = func(n, c)
+        if df.empty:
+            continue
         if isinstance(n.snapshots, pd.MultiIndex) and not isinstance(df, pd.DataFrame):
             # for static values we have to iterate over periods and concat
             per_period = {}
@@ -405,7 +412,7 @@ class StatisticsAccessor:
         def func(n, c):
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 ds = col.groupby(grouper).agg(aggregate_groups)
                 return ds
             else:
@@ -416,7 +423,9 @@ class StatisticsAccessor:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     ds = mask * col
                     ds.clip(lower=0, inplace=True)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     ds = ds.groupby(grouper).agg(aggregate_groups)
                     df.append(ds)
                 df = pd.concat(df)
@@ -444,8 +453,8 @@ class StatisticsAccessor:
         Calculate the capital expenditure of already built components of the
         network in given currency.
 
-        If `bus_carrier` is given, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
+        If `bus_carrier` is given, only components which are connected to buses
+        with carrier `bus_carrier` are considered.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -456,7 +465,7 @@ class StatisticsAccessor:
         def func(n, c):
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 ds = col.groupby(grouper).agg(aggregate_groups)
                 return ds
             else:
@@ -467,7 +476,9 @@ class StatisticsAccessor:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     ds = mask * col
                     ds.clip(lower=0, inplace=True)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     ds = ds.groupby(grouper).agg(aggregate_groups)
                     df.append(ds)
                 df = pd.concat(df)
@@ -493,10 +504,11 @@ class StatisticsAccessor:
     ):
         """
         Calculate the capital expenditure of the expanded components of the
-        network in given currency.
+        network in given currency. I.e. the difference between the capex and
+        installed capex.
 
-        If `bus_carrier` is given, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
+        If `bus_carrier` is given, only components which are connected to buses
+        with carrier `bus_carrier` are considered.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
@@ -554,7 +566,7 @@ class StatisticsAccessor:
             if storage and (c == "StorageUnit"):
                 col = col * n.df(c).max_hours
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 ds = col.groupby(grouper).agg(aggregate_groups)
                 return ds
             else:
@@ -567,7 +579,9 @@ class StatisticsAccessor:
                     )
                     ds = sign * efficiency * col
                     ds.clip(lower=0, inplace=True)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     ds = ds.groupby(grouper).agg(aggregate_groups)
                     df.append(ds)
                 df = pd.concat(df)
@@ -615,7 +629,7 @@ class StatisticsAccessor:
             if storage and (c == "StorageUnit"):
                 col = col * n.df(c).max_hours
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 ds = col.groupby(grouper).agg(aggregate_groups)
                 return ds
             else:
@@ -628,7 +642,9 @@ class StatisticsAccessor:
                     )
                     ds = sign * efficiency * col
                     ds.clip(lower=0, inplace=True)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     ds = ds.groupby(grouper).agg(aggregate_groups)
                     df.append(ds)
                 df = pd.concat(df)
@@ -719,7 +735,7 @@ class StatisticsAccessor:
                 p = n.pnl(c).p
             if bus_carrier is None:
                 opex = p * marginal_cost
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 opex = opex.T.groupby(grouper).agg(aggregate_groups).T
             else:
                 ports = get_ports(n, c)
@@ -727,7 +743,9 @@ class StatisticsAccessor:
                 for port in ports:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     opex = mask * p * marginal_cost
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     opex = opex.T.groupby(grouper).agg(aggregate_groups).T
                     df.append(opex)
                 opex = pd.concat(df, axis=1)
@@ -756,8 +774,8 @@ class StatisticsAccessor:
         nice_names=True,
     ):
         """
-        Calculate the supply of components in the network. Units depend on the
-        regarded bus carrier.
+        Calculate the supply of components in the network. It is the positive
+        part of the energy balance. Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
         `bus_carrier` is calculated.
@@ -777,7 +795,9 @@ class StatisticsAccessor:
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * df.reindex(columns=mask.index, fill_value=0)
                 df.clip(lower=0, inplace=True)
-                grouper = get_grouper(n, c, port=port, groupby=groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 df = df.T.groupby(grouper).agg(aggregate_groups).T
                 p.append(df)
             p = pd.concat(p, axis=1)
@@ -806,8 +826,9 @@ class StatisticsAccessor:
         nice_names=True,
     ):
         """
-        Calculate the withdrawal of components in the network. Units depend on
-        the regarded bus carrier.
+        Calculate the withdrawal of components in the network. It is the
+        negative part of the energy balance. Units depend on the regarded bus
+        carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
         carrier `bus_carrier` is calculated.
@@ -827,7 +848,9 @@ class StatisticsAccessor:
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * df.reindex(columns=mask.index, fill_value=0)
                 df = -df.clip(upper=0)
-                grouper = get_grouper(n, c, port=port, groupby=groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 df = df.T.groupby(grouper).agg(aggregate_groups).T
                 p.append(df)
             p = pd.concat(p, axis=1)
@@ -856,8 +879,9 @@ class StatisticsAccessor:
         nice_names=True,
     ):
         """
-        Calculate the dispatch of components in the network. Units depend on
-        the regarded bus carrier.
+        Calculate the dispatch of components in the network, i.e. the active
+        power 'p' which is dispatched by a component. Units depend on the
+        regarded bus carrier.
 
         If `bus_carrier` is given, only the dispatch to and from buses with
         carrier `bus_carrier` is calculated.
@@ -877,18 +901,14 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            ports = get_ports(n, c)
-            p = list()
-            for port in ports:
-                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
-                df = n.pnl(c)[f"p{port}"]
-                df = sign * df.reindex(columns=mask.index)
-                grouper = get_grouper(n, c, port=port, groupby=groupby)
-                df = df.T.groupby(grouper).agg(aggregate_groups).T
-                df = df.reindex(columns=mask[mask].index)
-                p.append(df)
-            p = pd.concat(p, axis=1)
-            p = p.T.groupby(p.columns.names).agg(aggregate_groups).T
+            port = ""
+            mask = port_mask(n, c, bus_carrier=bus_carrier)
+            p = n.pnl(c).p
+            p = sign * p.reindex(columns=mask.index)
+            grouper = get_grouper(
+                n, c, port=port, nice_names=nice_names, groupby=groupby
+            )
+            p = p.T.groupby(grouper).agg(aggregate_groups).T
             p = p.loc[:, (p != 0).any()]
 
             weights = get_weightings(n, c)
@@ -939,7 +959,7 @@ class StatisticsAccessor:
         def func(n, c):
             p = n.pnl(c).p0[transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
-            grouper = get_grouper(n, c, groupby=groupby)
+            grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
             p = p.T.groupby(grouper).agg(aggregate_groups).T
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -994,7 +1014,9 @@ class StatisticsAccessor:
                 mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
                 df = sign * df.reindex(columns=mask.index, fill_value=0)
-                grouper = get_grouper(n, c, port=port, groupby=groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 df = df.T.groupby(grouper).agg(aggregate_groups).T
                 p.append(df)
             p = pd.concat(p, axis=1)
@@ -1047,7 +1069,7 @@ class StatisticsAccessor:
         def func(n, c):
             p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 p = p.T.groupby(grouper).agg(aggregate_groups).T
             else:
                 ports = get_ports(n, c)
@@ -1055,7 +1077,9 @@ class StatisticsAccessor:
                 for port in ports:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     p_i = mask * p.reindex(columns=mask.index)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     p_i = p_i.T.groupby(grouper).agg(aggregate_groups).T
                     df.append(p_i)
                 p = pd.concat(df, axis=1)
@@ -1104,7 +1128,7 @@ class StatisticsAccessor:
             p = get_operation(n, c).abs()
 
             if bus_carrier is None:
-                grouper = get_grouper(n, c, groupby=groupby)
+                grouper = get_grouper(n, c, groupby=groupby, nice_names=nice_names)
                 p = p.T.groupby(grouper).agg(aggregate_groups).T
             else:
                 ports = get_ports(n, c)
@@ -1112,7 +1136,9 @@ class StatisticsAccessor:
                 for port in ports:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     p_i = mask * p.reindex(columns=mask.index)
-                    grouper = get_grouper(n, c, port=port, groupby=groupby)
+                    grouper = get_grouper(
+                        n, c, port=port, nice_names=nice_names, groupby=groupby
+                    )
                     p_i = p_i.T.groupby(grouper).agg(aggregate_groups).T
                     df.append(p_i)
                 p = pd.concat(df, axis=1)
@@ -1145,6 +1171,8 @@ class StatisticsAccessor:
     ):
         """
         Calculate the revenue of components in the network in given currency.
+        The revenue is calculated as the difference between the output revenues
+        and the input cost. Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the revenue resulting from buses with carrier
         `bus_carrier` is considered.
@@ -1189,6 +1217,128 @@ class StatisticsAccessor:
             comps=comps,
         )
         df.attrs["name"] = "Revenue"
+        df.attrs["unit"] = "currency"
+        return df
+
+    def input_cost(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+        groupby=None,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Calculate the cost for the input of components in the network in given
+        currency. The cost is calculated as the product of the input power and
+        the marginal price of the buses. Units depend on the regarded bus
+        carrier.
+
+        If `bus_carrier` is given, only the revenue resulting from buses with carrier
+        `bus_carrier` is considered.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = get_ports(n, c)
+            revenue = list()
+            for port in ports:
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
+                p = n.pnl(c)[f"p{port}"]
+                p = sign * mask * p.reindex(columns=mask.index, fill_value=0)
+                buses = n.df(c)[f"bus{port}"].reindex(p.columns)
+                prices = n.buses_t.marginal_price.reindex(columns=buses, fill_value=0)
+                revenue_i = p.clip(lower=0) * prices.values
+                grouper = get_grouper(n, c, port, groupby)
+                revenue_i = revenue_i.T.groupby(grouper).agg(aggregate_groups).T
+                revenue.append(revenue_i)
+            revenue = pd.concat(revenue, axis=1)
+            revenue = revenue.T.groupby(revenue.columns.names).agg(aggregate_groups).T
+
+            revenue = revenue.loc[:, (revenue != 0).any()]
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(revenue, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n,
+            func,
+            comps=comps,
+        )
+        df.attrs["name"] = "Input Cost"
+        df.attrs["unit"] = "currency"
+        return df
+
+    def output_cost(
+        self,
+        comps=None,
+        aggregate_time="sum",
+        aggregate_groups="sum",
+        groupby=None,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Calculate the revenue the output of components in the network in given
+        currency. The revenue is calculated as the product of the output power
+        and the marginal price of the buses. Units depend on the regarded bus
+        carrier.
+
+        If `bus_carrier` is given, only the revenue resulting from buses with carrier
+        `bus_carrier` is considered.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c):
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            ports = get_ports(n, c)
+            revenue = list()
+            for port in ports:
+                mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
+                p = n.pnl(c)[f"p{port}"]
+                p = sign * mask * p.reindex(columns=mask.index, fill_value=0)
+                buses = n.df(c)[f"bus{port}"].reindex(p.columns)
+                prices = n.buses_t.marginal_price.reindex(columns=buses, fill_value=0)
+                revenue_i = -p.clip(upper=0) * prices.values
+                grouper = get_grouper(n, c, port, groupby)
+                revenue_i = revenue_i.T.groupby(grouper).agg(aggregate_groups).T
+                revenue.append(revenue_i)
+            revenue = pd.concat(revenue, axis=1)
+            revenue = revenue.T.groupby(revenue.columns.names).agg(aggregate_groups).T
+
+            revenue = revenue.loc[:, (revenue != 0).any()]
+            weights = get_weightings(n, c)
+            return aggregate_timeseries(revenue, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n,
+            func,
+            comps=comps,
+        )
+        df.attrs["name"] = "Output Revenue"
         df.attrs["unit"] = "currency"
         return df
 
