@@ -24,7 +24,7 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_grouper(n, c, port="", nice_names=True, groupby=None):
+def get_grouper(n, c, port="", groupby=None, nice_names=True):
     if groupby == None:
         return get_carrier(n, c, port=port, nice_names=nice_names)
     elif callable(groupby):
@@ -38,10 +38,11 @@ def get_grouper(n, c, port="", nice_names=True, groupby=None):
     elif isinstance(groupby, str):
         return n.df(c)[groupby]
     else:
-        return n.df(c).index
+        index = n.df(c).index
+        return pd.Series(index, index=index, name="name")
 
 
-def get_carrier(n, c, port, nice_names=True):
+def get_carrier(n, c, port="", nice_names=True):
     """
     Get the nice carrier names for a component.
     """
@@ -264,7 +265,7 @@ def aggregate_components(
             continue
 
         df = func(n, c)
-        if df.empty:
+        if df.index.empty:
             continue
         if isinstance(n.snapshots, pd.MultiIndex) and not isinstance(df, pd.DataFrame):
             # for static values we have to iterate over periods and concat
@@ -278,8 +279,9 @@ def aggregate_components(
         return pd.Series([])
     if is_one_component:
         return d[c]
-    index_level_names = {df.index.names for df in d.values() if not df.empty}
-    index_level_names = index_level_names.pop() if index_level_names else [None]
+    index_level_names = set.union(*[set(df.index.names) for df in d.values()])
+    if not all(df.index.nlevels == len(index_level_names) for df in d.values()):
+        index_level_names = []
     return pd.concat(d, names=["component", *index_level_names])
 
 
@@ -902,9 +904,9 @@ class StatisticsAccessor:
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             port = ""
-            mask = port_mask(n, c, bus_carrier=bus_carrier)
-            p = n.pnl(c).p
-            p = sign * p.reindex(columns=mask.index)
+            mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
+            p = n.pnl(c)[f"p{port}"]
+            p = sign * p.reindex(columns=mask.index, fill_value=0)
             grouper = get_grouper(
                 n, c, port=port, nice_names=nice_names, groupby=groupby
             )
@@ -1155,7 +1157,8 @@ class StatisticsAccessor:
         capacity = self.optimal_capacity(
             comps=comps, aggregate_groups=aggregate_groups, groupby=groupby
         )
-        df = df.div(capacity.reindex(df.index), axis=0)
+        if not df.empty:
+            df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
@@ -1201,7 +1204,9 @@ class StatisticsAccessor:
                 buses = n.df(c)[f"bus{port}"].reindex(p.columns)
                 prices = n.buses_t.marginal_price.reindex(columns=buses, fill_value=0)
                 revenue_i = p * prices.values
-                grouper = get_grouper(n, c, port, groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 revenue_i = revenue_i.T.groupby(grouper).agg(aggregate_groups).T
                 revenue.append(revenue_i)
             revenue = pd.concat(revenue, axis=1)
@@ -1262,7 +1267,9 @@ class StatisticsAccessor:
                 buses = n.df(c)[f"bus{port}"].reindex(p.columns)
                 prices = n.buses_t.marginal_price.reindex(columns=buses, fill_value=0)
                 revenue_i = p.clip(lower=0) * prices.values
-                grouper = get_grouper(n, c, port, groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 revenue_i = revenue_i.T.groupby(grouper).agg(aggregate_groups).T
                 revenue.append(revenue_i)
             revenue = pd.concat(revenue, axis=1)
@@ -1323,7 +1330,9 @@ class StatisticsAccessor:
                 buses = n.df(c)[f"bus{port}"].reindex(p.columns)
                 prices = n.buses_t.marginal_price.reindex(columns=buses, fill_value=0)
                 revenue_i = -p.clip(upper=0) * prices.values
-                grouper = get_grouper(n, c, port, groupby)
+                grouper = get_grouper(
+                    n, c, port=port, nice_names=nice_names, groupby=groupby
+                )
                 revenue_i = revenue_i.T.groupby(grouper).agg(aggregate_groups).T
                 revenue.append(revenue_i)
             revenue = pd.concat(revenue, axis=1)
