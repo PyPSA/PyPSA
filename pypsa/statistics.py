@@ -281,7 +281,7 @@ def aggregate_components(
         if df.index.empty:
             continue
         if df.index.nlevels > 1:
-            df = df.droplevel("name")
+            df = df.droplevel(0)
         df = df.groupby(level=df.index.names).agg(aggregate_groups)
         d[c] = df
 
