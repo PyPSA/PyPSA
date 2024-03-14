@@ -161,12 +161,15 @@ def port_mask(n, c, port="", bus_carrier=None):
     if bus_carrier is None:
         mask = n.df(c)[f"bus{port}"] != ""
     elif isinstance(bus_carrier, str):
-        mask = (
-            n.df(c)[f"bus{port}"]
-            .map(n.buses.carrier)
-            .str.contains(bus_carrier)
-            .fillna(False)
-        )
+        if bus_carrier in n.buses.carrier.unique():
+            mask = n.df(c)[f"bus{port}"].map(n.buses.carrier) == bus_carrier
+        else:
+            mask = (
+                n.df(c)[f"bus{port}"]
+                .map(n.buses.carrier)
+                .str.contains(bus_carrier)
+                .fillna(False)
+            )
     elif isinstance(bus_carrier, list):
         mask = n.df(c)[f"bus{port}"].map(n.buses.carrier).isin(bus_carrier)
     else:
@@ -680,6 +683,7 @@ class StatisticsAccessor:
         aggregate_groups="sum",
         groupby=None,
         bus_carrier=None,
+        storage=False,
         nice_names=True,
     ):
         """
@@ -696,6 +700,7 @@ class StatisticsAccessor:
             aggregate_groups=aggregate_groups,
             groupby=groupby,
             nice_names=nice_names,
+            storage=storage,
             bus_carrier=bus_carrier,
         ).sub(
             self.installed_capacity(
@@ -703,6 +708,7 @@ class StatisticsAccessor:
                 aggregate_groups=aggregate_groups,
                 groupby=groupby,
                 nice_names=nice_names,
+                storage=storage,
                 bus_carrier=bus_carrier,
             ),
             fill_value=0,
