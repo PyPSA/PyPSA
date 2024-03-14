@@ -26,20 +26,24 @@ logger = logging.getLogger(__name__)
 
 def get_grouper(n, c, port="", groupby=None, nice_names=True):
     if groupby == None:
-        return get_carrier(n, c, port=port, nice_names=nice_names)
+        grouper = get_carrier(n, c, port=port, nice_names=nice_names)
     elif callable(groupby):
         parameters = inspect.signature(groupby).parameters
         if "nice_names" in parameters and "port" in parameters:
-            return groupby(n, c, port=port, nice_names=nice_names)
+            grouper = groupby(n, c, port=port, nice_names=nice_names)
         else:
-            return groupby(n, c)
+            grouper = groupby(n, c)
     elif isinstance(groupby, list):
-        return [n.df(c)[key] for key in groupby]
+        grouper = [n.df(c)[key] for key in groupby]
     elif isinstance(groupby, str):
-        return n.df(c)[groupby]
+        grouper = n.df(c)[groupby]
     else:
-        index = n.df(c).index
-        return pd.Series(index, index=index, name="name")
+        grouper = []
+    if not isinstance(grouper, list):
+        grouper = [grouper]
+    index = n.df(c).index
+    grouper = [pd.Series(index, index=index, name="name"), *grouper]
+    return grouper
 
 
 def get_carrier(n, c, port="", nice_names=True):
@@ -249,6 +253,7 @@ def aggregate_components(
     n,
     func,
     comps=None,
+    aggregate_groups="sum",
 ):
     """
     Apply a function and group the result for a collection of components.
@@ -271,8 +276,13 @@ def aggregate_components(
             # for static values we have to iterate over periods and concat
             per_period = {}
             for p in n.investment_periods:
-                per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
+                per_period[p] = df[n.get_active_assets(c, p).values]
             df = pd.concat(per_period, axis=1)
+        if df.index.empty:
+            continue
+        if df.index.nlevels > 1:
+            df = df.droplevel("name")
+        df = df.groupby(level=df.index.names).agg(aggregate_groups)
         d[c] = df
 
     if d == {}:
@@ -386,6 +396,8 @@ class StatisticsAccessor:
                 nice_names=nice_names,
                 **kwargs,
             )
+            if df.empty:
+                continue
             res[df.attrs["name"]] = df
         index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
@@ -813,6 +825,7 @@ class StatisticsAccessor:
             n,
             func,
             comps=comps,
+            aggregate_groups=aggregate_groups,
         )
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
@@ -1288,7 +1301,7 @@ class StatisticsAccessor:
         df.attrs["unit"] = "currency"
         return df
 
-    def output_cost(
+    def output_revenue(
         self,
         comps=None,
         aggregate_time="sum",
