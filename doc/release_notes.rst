@@ -9,6 +9,9 @@ Release Notes
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 
+* Fixed assignment of active assets in multi-horizon optimisation with ``n.optimize``.
+
+
 PyPSA 0.27.0 (18th February 2024)
 =================================
 
