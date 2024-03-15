@@ -30,6 +30,7 @@ Upcoming Release
 
 * The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
 
+* Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
