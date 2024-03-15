@@ -455,6 +455,10 @@ def define_transmission_expansion_cost_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
 
+    if n._multi_invest:
+        periods = sns.unique("period")
+        period_weighting = n.investment_period_weightings.objective[periods]
+    
     def substr(s):
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
@@ -475,13 +479,25 @@ def define_transmission_expansion_cost_limit(n, sns):
             )
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name) # or extendable only ?
+                weights = 1 # or period_weighting[period] ?
+
             elif isinstance(sns, pd.MultiIndex):
                 ext_i = ext_i[
                     n.get_active_assets(c, sns.unique("period"))[ext_i]
                 ].rename(ext_i.name)
-
-            cost = n.df(c).capital_cost.reindex(ext_i)
+                active = pd.concat(
+                                    {
+                                        period: n.get_active_assets(c, period)[ext_i]
+                                        for period in sns.unique("period")
+                                    },
+                                    axis=1
+                                )
+                weights = active @ period_weighting
+            else : 
+                weights =1
+                
+            cost = n.df(c).capital_cost.reindex(ext_i) * weights                
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
