@@ -186,7 +186,7 @@ def port_efficiency(n, c, port="", bus_carrier=None):
     elif port == "0":
         efficiency = -1
     elif port == "1":
-        efficiency = n.df(c)["efficiency"] if "efficiency" in n.df(c) else 1
+        efficiency = n.df(c).get("efficiency", 1)
     else:
         efficiency = n.df(c)[f"efficiency{port}"]
     return mask * efficiency
@@ -809,7 +809,7 @@ class StatisticsAccessor:
         def func(n, c):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             ports = get_ports(n, c)
-            p = list()
+            p = []
             for port in ports:
                 mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
