@@ -182,7 +182,7 @@ def port_mask(n, c, port="", bus_carrier=None):
 def port_efficiency(n, c, port="", bus_carrier=None):
     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
     if port == "":
-        efficiency = n.df(c)["efficiency"] if "efficiency" in n.df(c) else 1
+        efficiency = n.df(c).get("efficiency", 1)
     elif port == "0":
         efficiency = -1
     elif port == "1":
