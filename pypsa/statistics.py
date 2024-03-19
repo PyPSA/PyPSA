@@ -76,7 +76,7 @@ def get_name_bus_and_carrier(n, c, port="", nice_names=True):
     Get the name, buses and nice carrier names for a component.
     """
     return [
-        n.df(c).index.to_series().rename("name"),
+        n.df(c).index.to_series().rename("component_name"),
         *get_bus_and_carrier(n, c, port, nice_names=nice_names),
     ]
 
@@ -279,12 +279,12 @@ def aggregate_components(
             # for static values we have to iterate over periods and concat
             per_period = {}
             for p in n.investment_periods:
-                per_period[p] = df[n.get_active_assets(c, p).values]
+                per_period[p] = df[
+                    n.get_active_assets(c, p).reindex(df.index, level="name")
+                ]
             df = pd.concat(per_period, axis=1)
-        if df.index.empty:
-            continue
         if df.index.nlevels > 1:
-            df = df.droplevel(0)
+            df = df.droplevel("name")
         df = df.groupby(level=df.index.names).agg(aggregate_groups)
         d[c] = df
 
@@ -439,6 +439,7 @@ class StatisticsAccessor:
                 for port in ports:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     ds = mask * col
+                    col.mask(mask, 0, inplace=True)
                     ds.clip(lower=0, inplace=True)
                     grouper = get_grouper(
                         n, c, port=port, nice_names=nice_names, groupby=groupby
@@ -492,6 +493,7 @@ class StatisticsAccessor:
                 for port in ports:
                     mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                     ds = mask * col
+                    col.mask(mask, 0, inplace=True)
                     ds.clip(lower=0, inplace=True)
                     grouper = get_grouper(
                         n, c, port=port, nice_names=nice_names, groupby=groupby
@@ -813,7 +815,7 @@ class StatisticsAccessor:
             for port in ports:
                 mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
-                df = sign * df.reindex(columns=mask.index, fill_value=0)
+                df = sign * mask * df.reindex(columns=mask.index, fill_value=0)
                 df.clip(lower=0, inplace=True)
                 grouper = get_grouper(
                     n, c, port=port, nice_names=nice_names, groupby=groupby
@@ -867,7 +869,7 @@ class StatisticsAccessor:
             for port in ports:
                 mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
-                df = sign * df.reindex(columns=mask.index, fill_value=0)
+                df = sign * mask * df.reindex(columns=mask.index, fill_value=0)
                 df = -df.clip(upper=0)
                 grouper = get_grouper(
                     n, c, port=port, nice_names=nice_names, groupby=groupby
@@ -1034,7 +1036,7 @@ class StatisticsAccessor:
             for port in ports:
                 mask = port_mask(n, c, port=port, bus_carrier=bus_carrier)
                 df = n.pnl(c)[f"p{port}"]
-                df = sign * df.reindex(columns=mask.index, fill_value=0)
+                df = sign * mask * df.reindex(columns=mask.index, fill_value=0)
                 grouper = get_grouper(
                     n, c, port=port, nice_names=nice_names, groupby=groupby
                 )
