@@ -122,7 +122,13 @@ PyPSA 0.26.0 (4th December 2023)
   stored as ``n_mod`` (such that ``p_nom_mod * n_mod == p_nom_opt``). The
   default is kept such that extendable components can be expanded continuously.
 
+
+* new function add_components_from_network added to components file. This function allows the components of a network to be added to another network.
+
+* The ``Network`` class has a new component ``shapes``. It consists of a ``geopandas`` dataframe which can be used to store network related geographical data (for plotting, calculating potentials, etc). The dataframe has the columns `geometry`, `component`, `idx` and `type`. The columns `component`, `idx` and `type` do not require specific values, but give the user the possibility to store additional information.
+
 **Bugfixes and Compatibiliity**
+
 
 * Bugfix: In rolling horizon optimisation with unit commitment constraints, the
   generator status of the previously optimized time step is now considered.
