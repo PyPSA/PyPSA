@@ -7,10 +7,18 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+PyPSA 0.27.1 (22nd March 2024)
+=================================
+
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 
 * Fixed assignment of active assets in multi-horizon optimisation with ``n.optimize``.
 
+* Fixed setting of investment periods when copying a multi-horizon network.
+
+* Always use name and mask keys in variable and constraint assignment to protect against future changes in argument order.
+
+* Rewrite function ``get_switchable_as_dense`` so that it consumes less memory when calling it with large dataframes.
 
 PyPSA 0.27.0 (18th February 2024)
 =================================
