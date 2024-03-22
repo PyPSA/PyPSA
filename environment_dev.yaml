@@ -17,7 +17,7 @@ dependencies:
 - cartopy>=0.16
 - geopandas>=0.9
 - glpk
-- linopy>=0.2
+- linopy>=0.3
 - deprecation
 - validators
 
