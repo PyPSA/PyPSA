@@ -81,7 +81,9 @@ def define_tech_capacity_expansion_limit(n, sns):
             else:
                 lhs = lhs_per_bus.sel(**{busdim: str(bus)}, drop=True)
 
-            n.model.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+            n.model.add_constraints(
+                lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
+            )
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
@@ -165,7 +167,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         lhs = merge(lhs)
         rhs = n.buses.loc[buses, col]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask=mask)
+        n.model.add_constraints(lhs, sign, rhs, name=f"Bus-{col}", mask=mask)
 
 
 def define_growth_limit(n, sns):
@@ -228,7 +230,7 @@ def define_growth_limit(n, sns):
     lhs = merge(lhs)
     rhs = max_absolute_growth.reindex_like(lhs.data)
 
-    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
+    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
 
 
 def define_primary_energy_limit(n, sns):
@@ -306,7 +308,7 @@ def define_primary_energy_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
 def define_operational_limit(n, sns):
@@ -375,7 +377,7 @@ def define_operational_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_volume_expansion_limit(n, sns):
@@ -434,7 +436,7 @@ def define_transmission_volume_expansion_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_expansion_cost_limit(n, sns):
@@ -508,4 +510,4 @@ def define_transmission_expansion_cost_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
