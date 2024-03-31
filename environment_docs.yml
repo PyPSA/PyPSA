@@ -24,7 +24,7 @@ dependencies:
 - pandoc
 - ipykernel   # for executing nbs
 - scikit-learn  # for spatial clustering
-- linopy>=0.2
+- linopy>=0.3.7
 
 - pip:
   - .
