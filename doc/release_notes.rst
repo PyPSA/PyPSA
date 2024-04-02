@@ -13,8 +13,10 @@ Release Notes
   requires disjunct component indices and identical snapshots and snapshot
   weightings.
 
+* The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. ...
 
 PyPSA 0.27.1 (22nd March 2024)
+=================================
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 
