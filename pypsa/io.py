@@ -1061,6 +1061,8 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
     if components_to_skip:
         to_skip.update(components_to_skip)
     to_iterate = other.all_components - to_skip
+    # ensure buses are merged first
+    to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
     for c in other.iterate_components(to_iterate):
         assert c.df.index.intersection(network.df(c.name).index).empty, (
             f"Error, component {c.name} has overlapping indices, "
