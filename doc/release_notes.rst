@@ -7,8 +7,14 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* A new function ``n.merge()`` was added allowing the components and
+  time-dependent data of one network to be added to another network. The
+  function is also available via ``n + m`` with default settings. The function
+  requires disjunct component indices and identical snapshots and snapshot
+  weightings.
+
+
 PyPSA 0.27.1 (22nd March 2024)
-=================================
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 

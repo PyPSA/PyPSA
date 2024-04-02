@@ -1026,6 +1026,72 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     ]
 
 
+def merge(network, other, components_to_skip=None, inplace=False, with_time=True):
+    """
+    Merge the components of two networks.
+
+    Requires disjunct sets of component indices and, if time-dependent data is
+    merged, identical snapshots and snapshot weightings.
+
+    If a component in ``other`` does not have values for attributes present in
+    ``network``, default values are set.
+
+    If a component in ``other`` has attributes which are not present in
+    ``network`` these attributes are ignored.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        Network to add to.
+    other : pypsa.Network
+        Network to add from.
+    components_to_skip : list-like, default None
+        List of names of components which are not to be merged e.g. "Bus"
+    inplace : bool, default False
+        If True, merge into ``network`` in-place, otherwise a copy is made.
+    with_time : bool, default True
+        If False, only static data is merged.
+
+    Returns
+    -------
+    receiving_n : pypsa.Network
+        Merged network, or None if inplace=True
+    """
+    to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+    if components_to_skip:
+        to_skip.update(components_to_skip)
+    to_iterate = other.all_components - to_skip
+    # ensure buses are merged first
+    to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
+    for c in other.iterate_components(to_iterate):
+        assert c.df.index.intersection(network.df(c.name).index).empty, (
+            f"Error, component {c.name} has overlapping indices, "
+            "cannot merge networks."
+        )
+    if with_time:
+        snapshots_aligned = network.snapshots.equals(other.snapshots)
+        weightings_aligned = network.snapshot_weightings.equals(
+            other.snapshot_weightings
+        )
+        assert snapshots_aligned and weightings_aligned, (
+            "Error, snapshots or snapshot weightings do not agree, "
+            "cannot merge networks."
+        )
+    new = network if inplace else network.copy()
+    if other.srid != new.srid:
+        logger.warning(
+            "Spatial Reference System Indentifier of networks do not agree: "
+            f"{new.srid}, {other.srid}. Assuming {new.srid}."
+        )
+    for c in other.iterate_components(to_iterate):
+        new.import_components_from_dataframe(c.df, c.name)
+        if with_time:
+            for k, v in c.pnl.items():
+                new.import_series_from_dataframe(v, c.name, k)
+
+    return None if inplace else new
+
+
 def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     """
     Import network from PYPOWER PPC dictionary format version 2.
