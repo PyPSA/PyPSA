@@ -35,7 +35,7 @@ Institute of Technology](http://www.kit.edu/english/index.php) funded by the
 Energy
 Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
 at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
-[CoNDyNet project](http://condynet.de/), financed by the [German Federal
+[CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
 Ministry for Education and Research (BMBF)](https://www.bmbf.de/en/index.html)
 as part of the [Stromnetze Research
 Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/).

@@ -27,7 +27,7 @@ from pypsa.components import Network, SubNetwork
 if sys.version_info < (3, 12):
     from pypsa import opf, opt
 
-__version__ = "0.27.0"
+__version__ = "0.27.1"
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
