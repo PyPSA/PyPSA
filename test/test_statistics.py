@@ -68,6 +68,16 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
     assert np.allclose(revenue[comps], capex[comps])
 
 
+def test_net_and_gross_revenue(ac_dc_network_r):
+    n = ac_dc_network_r
+    target = n.statistics.revenue(aggregate_time="sum")
+    revenue_out = n.statistics.revenue(aggregate_time="sum", kind="output")
+    revenue_in = n.statistics.revenue(aggregate_time="sum", kind="input")
+    revenue = revenue_in.sub(revenue_out, fill_value=0)
+    comps = ["Generator", "Line", "Link"]
+    assert np.allclose(revenue[comps], target[comps])
+
+
 def test_no_grouping(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=False)
     assert not df.empty

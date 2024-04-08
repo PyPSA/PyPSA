@@ -13,7 +13,11 @@ Release Notes
   requires disjunct component indices and identical snapshots and snapshot
   weightings.
 
-* The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. ...
+* The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. Depending on the function, the default of `at_port` is set to `True` or `False`, for example for the dispatch all ports are considered.
+
+* The statistics module now supports an optional `port` argument in `groupby` functions. This allows to group statistics while considering the port of a component.
+
+* The `statistics.revenue` function introduces a new keyword argument `kind` to optionally calculate the revenue based on the `input` commodity or the `output` commodity of a component.
 
 PyPSA 0.27.1 (22nd March 2024)
 =================================
