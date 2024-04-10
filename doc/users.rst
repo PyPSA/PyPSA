@@ -49,7 +49,7 @@ Universities and Research Institutes
 
 * `Energiewirtschaftliches Institut zu Köln <https://www.ewi.uni-koeln.de/de/>`_ (EWI): research publication `Working Paper, No 17/09 <https://www.ewi.research-scenarios.de/cms/wp-content/uploads/2017/09/EWI_WP_17-09_Build_Wind_Capacities_at_Windy_Locations.pdf>`_
 
-* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe
+* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe, e.g. in `this report <https://www.wasserstoff-leitprojekte.de/lw_resource/datapool/systemfiles/elements/files/148FFEF003673B67E0637E695E8625E5/live/document/20240321_European_Hydrogen_Infrastructure_Planning.pdf>`_ on European hydrogen infrastructure planning.
 
 * `EIA University <https://www.eia.edu.co/>`_ in Medellin, Columbia: uses PyPSA for modelling the Columbian power system in  a joint research project with South American transmission company `ISA <http://www.isa.co/>`_
 
