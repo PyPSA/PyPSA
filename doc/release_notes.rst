@@ -13,6 +13,7 @@ Release Notes
   requires disjunct component indices and identical snapshots and snapshot
   weightings.
 
+* Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
 
 PyPSA 0.27.1 (22nd March 2024)
 
