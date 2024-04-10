@@ -34,3 +34,5 @@ dependencies:
   - nbsphinx_link
   - highspy
   - pyomo>=5.7,<6.6.2; python_version < '3.12'
+  - myst-parser
+  - sphinxcontrib.bibtex
