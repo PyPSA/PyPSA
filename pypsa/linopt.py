@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Linear Problem file writing. This module contains.
 
@@ -417,9 +415,7 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
             expr = expr + newexpr
     if return_axes:
         return (expr, *axes)
-    if as_pandas:
-        return to_pandas(expr, *axes)
-    return expr
+    return to_pandas(expr, *axes) if as_pandas else expr
 
 
 def to_pandas(array, *axes):
@@ -448,9 +444,7 @@ _v_to_int_str = np.vectorize(_to_int_str, otypes=[object])
 
 def _str_array(array, integer_string=False):
     if isinstance(array, (float, int)):
-        if integer_string:
-            return _to_int_str(array)
-        return _to_float_str(array)
+        return _to_int_str(array) if integer_string else _to_float_str(array)
     array = np.asarray(array)
     if array.dtype.type == np.str_:
         array = np.asarray(array, dtype=object)
@@ -480,11 +474,10 @@ def _add_reference(ref_dict, df, attr, pnl=True):
             ref_dict.pnl[attr].loc[df.index, df.columns] = df
         else:
             ref_dict.pnl[attr] = df
+    elif attr in ref_dict.df:
+        ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
     else:
-        if attr in ref_dict.df:
-            ref_dict.df = pd.concat([ref_dict.df, df.to_frame(attr)])
-        else:
-            ref_dict.df[attr] = df
+        ref_dict.df[attr] = df
 
 
 def set_varref(n, variables, c, attr, spec=""):
@@ -747,10 +740,8 @@ def run_and_read_highs(
     logger.info(
         f'Options: "{default_dict}". List of options: https://www.maths.ed.ac.uk/hall/HiGHS/HighsOptions.set'
     )
-    f1 = open(options_fn, "w")
-    f1.write("\n".join([f"{k} = {v}" for k, v in default_dict.items()]))
-    f1.close()
-
+    with open(options_fn, "w") as f1:
+        f1.write("\n".join([f"{k} = {v}" for k, v in default_dict.items()]))
     # write (terminal) commands
     command = f"highs --model_file {problem_fn} "
     if warmstart:
@@ -792,11 +783,8 @@ def run_and_read_highs(
         termination_condition = model_status
     objective = float(log["Objective value"])
 
-    # read out solution file (.sol)
-    f = open(solution_fn, "rb")
-    trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
-    f.close()
-
+    with open(solution_fn, "rb") as f:
+        trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     sol = pd.read_fwf(io.BytesIO(trimed_sol_fn), header=[1])
 
     sol = sol.iloc[:-2, :]  # last two rows are model info: status and objective value
@@ -831,15 +819,19 @@ def run_and_read_cbc(
     For more information on the solver options, run 'cbc' in your shell
     """
     with open(problem_fn, "rb") as f:
-        for str in f.readlines():
-            assert ("> " in str.decode("utf-8")) is False, ">, must be" "changed to >="
-            assert ("< " in str.decode("utf-8")) is False, "<, must be" "changed to <="
+        for line in f:
+            assert "> " not in line.decode("utf-8"), ">, must be" "changed to >="
+            assert "< " not in line.decode("utf-8"), "<, must be" "changed to <="
 
     # printingOptions is about what goes in solution file
     command = f"cbc -printingOptions all -import {problem_fn} "
     if warmstart:
         command += f"-basisI {warmstart} "
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = (
+                " ".join(f"-{k} {v}" for k, v in solver_options.items()) + " "
+            )
         command += solver_options
     command += f"-solve -solu {solution_fn} "
     if store_basis:
@@ -870,10 +862,8 @@ def run_and_read_cbc(
     if termination_condition != "optimal":
         return status, termination_condition, None, None, None
 
-    f = open(solution_fn, "rb")
-    trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
-    f.close()
-
+    with open(solution_fn, "rb") as f:
+        trimed_sol_fn = re.sub(rb"\*\*\s+", b"", f.read())
     sol = pd.read_csv(
         io.BytesIO(trimed_sol_fn),
         header=None,
@@ -914,7 +904,16 @@ def run_and_read_glpk(
     if store_basis:
         n.basis_fn = solution_fn.replace(".sol", ".bas")
         command += f" -w {n.basis_fn}"
-    if (solver_options is not None) and (solver_options != {}):
+    if solver_options:
+        if isinstance(solver_options, dict):
+            solver_options = "".join(f" -{k} {v}" for k, v in solver_options.items())
+        logger.info(
+            f"Solver options command: {solver_options}. "
+            "Make sure that the defined options are available when using glpk. "
+            "If the options are not available but are still passed, "
+            "solving the problem will take forever. "
+            "Use the command ‘glpsol –-help’ for help."
+        )
         command += solver_options
 
     result = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE)
@@ -1063,7 +1062,6 @@ def run_and_read_gurobi(
     constraint dual values. Gurobipy must be installed for using this function.
 
     For more information on solver options, see
-
     <https://www.gurobi.com/documentation/{gurobi_verion}/refman/parameter_descriptions.html>_
     """
     if find_spec("gurobipy") is None:
@@ -1106,16 +1104,15 @@ def run_and_read_gurobi(
 
     if termination_condition == "optimal":
         status = "ok"
-    elif termination_condition == "suboptimal":
+    elif (
+        termination_condition == "suboptimal"
+        or termination_condition == "infeasible"
+        or termination_condition != "inf_or_unbd"
+    ):
         status = "warning"
-    elif termination_condition == "infeasible":
-        status = "warning"
-    elif termination_condition == "inf_or_unbd":
-        status = "warning"
-        termination_condition = "infeasible or unbounded"
     else:
         status = "warning"
-
+        termination_condition = "infeasible or unbounded"
     if termination_condition not in ["optimal", "suboptimal"]:
         return status, termination_condition, None, None, None
 
@@ -1149,7 +1146,6 @@ def run_and_read_xpress(
     function.
 
     For more information on solver options, see
-
     <https://www.fico.com/fico-xpress-optimization/docs/latest/solver/GUID-ACD7E60C-7852-36B7-A78A-CED0EA291CDD.html>_
     """
 
@@ -1169,8 +1165,6 @@ def run_and_read_xpress(
             logger.info("Model basis loaded")
         except:
             logger.info("No model basis loaded")
-            pass
-
     m.solve()
 
     if store_basis:
@@ -1183,15 +1177,15 @@ def run_and_read_xpress(
 
     termination_condition = m.getProbStatusString()
 
-    if termination_condition == "mip_optimal" or termination_condition == "lp_optimal":
+    if termination_condition in ["mip_optimal", "lp_optimal"]:
         status = "ok"
         termination_condition = "optimal"
-    elif (
-        termination_condition == "mip_unbounded"
-        or termination_condition == "mip_infeasible"
-        or termination_condition == "lp_unbounded"
-        or termination_condition == "lp_infeasible"
-    ):
+    elif termination_condition in [
+        "mip_unbounded",
+        "mip_infeasible",
+        "lp_unbounded",
+        "lp_infeasible",
+    ]:
         status = "infeasible or unbounded"
     else:
         status = "warning"

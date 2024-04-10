@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Python for Power Systems Analysis (PyPSA)
 
-Grid calculation library.
+Energy system modelling library.
 """
 
 from pypsa import (
+    clustering,
     components,
     contingency,
     descriptors,
@@ -16,7 +15,6 @@ from pypsa import (
     io,
     linopf,
     linopt,
-    networkclustering,
     opf,
     opt,
     optimization,
@@ -25,7 +23,7 @@ from pypsa import (
 )
 from pypsa.components import Network, SubNetwork
 
-__version__ = "0.22.1"
+__version__ = "0.25.2"
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"

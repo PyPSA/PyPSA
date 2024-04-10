@@ -4,7 +4,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/pypsa.svg)](https://pypi.python.org/pypi/pypsa)
 [![Conda version](https://img.shields.io/conda/vn/conda-forge/pypsa.svg)](https://anaconda.org/conda-forge/pypsa)
 [![CI](https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI.yml)
-[![CI with conda](https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-conda.yml)
+[![CI with micromamba](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg)](https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml)
 [![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![Documentation Status](https://readthedocs.org/projects/pypsa/badge/?version=latest)](https://pypsa.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE.txt)
@@ -14,6 +14,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![Stack Exchange questions](https://img.shields.io/stackexchange/stackoverflow/t/pypsa)](https://stackoverflow.com/questions/tagged/pypsa)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
@@ -115,6 +116,10 @@ n.optimize()
 # plot results
 n.generators_t.p.plot()
 n.plot()
+
+# get statistics
+n.statistics()
+n.statistics.energy_balance()
 ```
 
 There are [more extensive
@@ -173,21 +178,13 @@ Please check the [documentation](https://pypsa.readthedocs.io).
 
 ## Contributing and Support
 
-We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file
-issues or make pull requests on GitHub.
+We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on GitHub.
 
-PyPSA has a Google Group [forum / mailing
-list](https://groups.google.com/group/pypsa) where announcements of new
-releases can be made and questions can be asked.
-
-To discuss issues and suggest/contribute features for future development
-we prefer ticketing through the [PyPSA Github Issues
-page](https://github.com/PyPSA/PyPSA/issues).
-
-A `Discord server <https://discord.gg/AnuJBk23FU>` hosts every tool
-in the PyPSA ecosystem. We have there public voice and text channels
-that are suitable to organise projects, ask questions,
-share news, or chat with the community.
+-   In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
+-   For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
+-   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/AnuJBk23FU).
+-   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
+-   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
 ## Code of Conduct
 

@@ -40,8 +40,9 @@ def scipy_network():
         "scigrid-de",
         "scigrid-with-load-gen-trafos",
     )
-
-    return pypsa.Network(csv_folder)
+    n = pypsa.Network(csv_folder)
+    n.calculate_dependent_values()
+    return n
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +62,18 @@ def ac_dc_network_multiindexed(ac_dc_network):
     gens_i = n.generators.index
     n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
     return n
+
+
+@pytest.fixture(scope="module")
+def storage_hvdc_network():
+    csv_folder = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "examples",
+        "opf-storage-hvdc",
+        "opf-storage-data",
+    )
+    return pypsa.Network(csv_folder)
 
 
 @pytest.fixture(scope="module")
@@ -90,5 +103,4 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
-    net = pn.create_cigre_network_mv(with_der="all")
-    return net
+    return pn.create_cigre_network_mv(with_der="all")

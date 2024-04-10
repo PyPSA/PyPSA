@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-
 """
 Power system components.
 """
 
 
 from weakref import ref
+
+from pypsa.clustering import ClusteringAccessor
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
@@ -19,10 +20,12 @@ import os
 import sys
 from collections import namedtuple
 from pathlib import Path
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
 import validators
+from deprecation import deprecated
 from scipy.sparse import csgraph
 
 from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
@@ -33,6 +36,7 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
+    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
@@ -108,7 +112,7 @@ class Basic(object):
         self.name = name
 
     def __repr__(self):
-        return "%s %s" % (self.__class__.__name__, self.name)
+        return f"{self.__class__.__name__} {self.name}"
 
 
 class Common(Basic):
@@ -258,6 +262,8 @@ class Network(Basic):
 
         self.optimize = OptimizationAccessor(self)
 
+        self.cluster = ClusteringAccessor(self)
+
         if override_components is None:
             self.components = components
         else:
@@ -294,6 +300,7 @@ class Network(Basic):
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
 
+            attrs["default"] = attrs.default.astype(object)
             attrs["static"] = attrs["type"] != "series"
             attrs["varying"] = attrs["type"].isin({"series", "static or series"})
             attrs["typ"] = (
@@ -314,17 +321,20 @@ class Network(Basic):
             )
 
             bool_b = attrs.type == "boolean"
-            attrs.loc[bool_b, "default"] = attrs.loc[bool_b].isin({True, "True"})
+            if bool_b.any():
+                attrs.loc[bool_b, "default"] = attrs.loc[bool_b, "default"].isin(
+                    {True, "True"}
+                )
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                attrs.loc[attrs.typ == str, "default"] = attrs.loc[
-                    attrs.typ == str, "default"
-                ].replace({np.nan: ""})
+                str_b = attrs.typ == str
+                attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
-                    attrs.loc[attrs.typ == typ, "default"] = attrs.loc[
-                        attrs.typ == typ, "default"
-                    ].astype(typ)
+                    typ_b = attrs.typ == typ
+                    attrs.loc[typ_b, "default"] = attrs.loc[typ_b, "default"].astype(
+                        typ
+                    )
 
             self.components[component]["attrs"] = attrs
 
@@ -352,10 +362,11 @@ class Network(Basic):
 
     def __repr__(self):
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
-        comps = {}
-        for c in self.iterate_components():
-            if "Type" not in c.name and len(c.df):
-                comps[c.name] = f" - {c.name}: {len(c.df)}"
+        comps = {
+            c.name: f" - {c.name}: {len(c.df)}"
+            for c in self.iterate_components()
+            if "Type" not in c.name and len(c.df)
+        }
         content = "\nComponents:"
         if comps:
             content += "\n" + "\n".join(comps[c] for c in sorted(comps))
@@ -454,33 +465,63 @@ class Network(Basic):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
-    def set_snapshots(self, value):
+    def set_snapshots(
+        self,
+        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        default_snapshot_weightings: float = 1.0,
+        weightings_from_timedelta: bool = False,
+    ) -> None:
         """
-        Set the snapshots and reindex all time-dependent data.
+        Set the snapshots/time steps and reindex all time-dependent data.
 
-        This will reindex all pandas.Panels of time-dependent data; NaNs are filled
+        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
+        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+
+        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
         with the default value for that quantity.
 
         Parameters
         ----------
-        snapshots : list or pandas.Index
+        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
             All time steps.
+        default_snapshot_weightings: float
+            The default weight for each snapshot. Defaults to 1.0.
+        weightings_from_timedelta: bool
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
         None
         """
-        if isinstance(value, pd.MultiIndex):
-            assert value.nlevels == 2, "Maximally two levels of MultiIndex supported"
-            value = value.rename(["period", "timestep"])
-            value.name = "snapshot"
-            self._snapshots = value
+        if isinstance(snapshots, pd.MultiIndex):
+            assert (
+                snapshots.nlevels == 2
+            ), "Maximally two levels of MultiIndex supported"
+            snapshots = snapshots.rename(["period", "timestep"])
+            snapshots.name = "snapshot"
+            self._snapshots = snapshots
         else:
-            self._snapshots = pd.Index(value, name="snapshot")
+            self._snapshots = pd.Index(snapshots, name="snapshot")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
-            self._snapshots, fill_value=1.0
+            self._snapshots, fill_value=default_snapshot_weightings
         )
+
+        if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            hours_per_step = (
+                snapshots.to_series()
+                .diff(periods=1)
+                .shift(-1)
+                .ffill()  # fill last value by assuming same as the one before
+                .apply(lambda x: x.total_seconds() / 3600)
+            )
+            self._snapshot_weightings = pd.DataFrame(
+                {c: hours_per_step for c in self._snapshot_weightings.columns}
+            )
+        elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
+            logger.info(
+                "Skipping `weightings_from_timedelta` as `snapshots`is not of type `pd.DatetimeIndex`."
+            )
 
         for component in self.all_components:
             pnl = self.pnl(component)
@@ -547,7 +588,7 @@ class Network(Basic):
         """
         periods = pd.Index(periods)
         if not (
-            periods.is_integer()
+            pd.api.types.is_integer_dtype(periods)
             and periods.is_unique
             and periods.is_monotonic_increasing
         ):
@@ -629,6 +670,11 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
+    @deprecated(
+        deprecated_in="0.24",
+        removed_in="1.0",
+        details="Use linopy-based function ``n.optimize()`` instead. Migrate extra functionalities: https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html.",
+    )
     def lopf(
         self,
         snapshots=None,
@@ -637,6 +683,7 @@ class Network(Basic):
         solver_options={},
         solver_logfile=None,
         formulation="kirchhoff",
+        transmission_losses=0,
         keep_files=False,
         extra_functionality=None,
         multi_investment_periods=False,
@@ -667,6 +714,11 @@ class Network(Basic):
         formulation : string
             Formulation of the linear power flow equations to use; must be
             one of ["angles", "cycles", "kirchhoff", "ptdf"]
+        transmission_losses : int
+            Whether an approximation of transmission losses should be included
+            in the linearised power flow formulation. A passed number will denote
+            the number of tangents used for the piecewise linear approximation.
+            Defaults to 0, which ignores losses.
         extra_functionality : callable function
             This function must take two arguments
             `extra_functionality(network, snapshots)` and is called after
@@ -748,6 +800,7 @@ class Network(Basic):
             "keep_files": keep_files,
             "solver_options": solver_options,
             "formulation": formulation,
+            "transmission_losses": transmission_losses,
             "extra_functionality": extra_functionality,
             "multi_investment_periods": multi_investment_periods,
             "solver_name": solver_name,
@@ -794,9 +847,7 @@ class Network(Basic):
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
-        assert class_name in self.components, "Component class {} not found".format(
-            class_name
-        )
+        assert class_name in self.components, f"Component class {class_name} not found"
 
         cls_df = self.df(class_name)
         cls_pnl = self.pnl(class_name)
@@ -807,6 +858,9 @@ class Network(Basic):
             f"Failed to add {class_name} component {name} because there is already "
             f"an object with this name in {self.components[class_name]['list_name']}"
         )
+
+        if class_name == "Link":
+            update_linkports_component_attrs(self, kwargs.keys())
 
         attrs = self.components[class_name]["attrs"]
 
@@ -865,7 +919,7 @@ class Network(Basic):
         >>> network.remove("Line", "my_line 12345")
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         cls_df = self.df(class_name)
@@ -945,7 +999,7 @@ class Network(Basic):
         ...        p_max_pu=wind)
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         if not isinstance(names, pd.Index):
@@ -995,7 +1049,7 @@ class Network(Basic):
         >>> network.mremove("Line", ["line x", "line y"])
         """
         if class_name not in self.components:
-            logger.error("Component class {} not found".format(class_name))
+            logger.error(f"Component class {class_name} not found")
             return None
 
         if not isinstance(names, pd.Index):

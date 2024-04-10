@@ -10,6 +10,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
+from linopy import merge
 
 from pypsa.descriptors import nominal_attrs
 
@@ -198,8 +199,7 @@ def optimize_security_constrained(
     elif isinstance(branch_outages, (list, pd.Index)):
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
-        diff = set(branch_outages) - set(all_passive_branches)
-        if diff:
+        if diff := set(branch_outages) - set(all_passive_branches):
             raise ValueError(
                 f"The following passive branches are not in the network: {diff}"
             )
@@ -248,3 +248,172 @@ def optimize_security_constrained(
                 m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
 
     return n.optimize.solve_model(**kwargs)
+
+
+def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **kwargs):
+    """
+    Optimizes the network in a rolling horizon fashion.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    snapshots : list-like
+        Set of snapshots to consider in the optimization. The default is None.
+    horizon : int
+        Number of snapshots to consider in each iteration. Defaults to 100.
+    overlap : int
+        Number of snapshots to overlap between two iterations. Defaults to 0.
+    **kwargs:
+        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+
+    Returns
+    -------
+    None
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    if horizon <= overlap:
+        raise ValueError("overlap must be smaller than horizon")
+
+    starting_points = range(0, len(snapshots), horizon - overlap)
+    for i, start in enumerate(starting_points):
+        end = min(len(snapshots), start + horizon)
+        sns = snapshots[start:end]
+        logger.info(
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
+        )
+
+        if i:
+            if not n.stores.empty:
+                n.stores.e_initial = n.stores_t.e.loc[snapshots[start - 1]]
+            if not n.storage_units.empty:
+                n.storage_units.state_of_charge_initial = (
+                    n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
+                )
+
+        status, condition = n.optimize(sns, **kwargs)
+        if status != "ok":
+            logger.warning(
+                f"Optimization failed with status {status} and condition {condition}"
+            )
+    return n
+
+
+def optimize_mga(
+    n,
+    snapshots=None,
+    multi_investment_periods=False,
+    weights=None,
+    sense="min",
+    slack=0.05,
+    model_kwargs={},
+    **kwargs,
+):
+    """
+    Run modelling-to-generate-alternatives (MGA) on network to find near-
+    optimal solutions.
+
+    Parameters
+    ----------
+    n : pypsa.Network snapshots : list-like
+        Set of snapshots to consider in the optimization. The default is None.
+    multi_investment_periods : bool, default False
+        Whether to optimise as a single investment period or to optimize in
+        multiple investment periods. Then, snapshots should be a
+        ``pd.MultiIndex``.
+    weights : dict-like
+        Weights for alternate objective function. The default is None, which
+        minimizes generation capacity. The weights dictionary should be keyed
+        with the component and variable (see ``pypsa/variables.csv``), followed
+        by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
+        objective function. Examples:
+
+        >>> {"Generator": {"p_nom": 1}}
+        >>> {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
+        >>> {"Generator": {"p_nom": {"gas": 1, "coal": 2}}}
+        >>> {"Generator": {"p": pd.Series(1, index=n.generators.index)}
+        >>> {"Generator": {"p": pd.DataFrame(1, columns=n.generators.index, index=n.snapshots)}
+
+        Weights for non-extendable components are ignored. The dictionary does
+        not need to provide weights for all extendable components.
+    sense : str|int
+        Optimization sense of alternate objective function. Defaults to 'min'.
+        Can also be 'max'.
+    slack : float
+        Cost slack for budget constraint. Defaults to 0.05.
+    model_kwargs: dict
+        Keyword arguments used by `linopy.Model`, such as `solver_dir` or
+        `chunk`.
+    **kwargs:
+        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+
+    Returns
+    -------
+    None
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    if weights is None:
+        weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))
+
+    # check that network has been solved
+    assert hasattr(
+        n, "objective"
+    ), "Network needs to be solved with `n.optimize()` before running MGA."
+
+    # create basic model
+    m = n.optimize.create_model(
+        snapshots=snapshots,
+        multi_investment_periods=multi_investment_periods,
+        **model_kwargs,
+    )
+
+    # build budget constraint
+    optimal_cost = (n.statistics.capex() + n.statistics.opex()).sum()
+    fixed_cost = n.statistics.installed_capex().sum()
+    m.add_constraints(
+        m.objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
+    )
+
+    # parse optimization sense
+    if sense.startswith("min") or sense > 0:
+        sense = 1
+    elif sense.startswith("max") or sense < 0:
+        sense = -1
+    else:
+        raise ValueError(f"Could not parse optimization sense {sense}")
+
+    # build alternate objective
+    objective = []
+    for c, attrs in weights.items():
+        for attr, coeffs in attrs.items():
+            if isinstance(coeffs, dict):
+                coeffs = pd.Series(coeffs)
+            if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
+                coeffs = coeffs.reindex(n.get_extendable_i(c))
+                coeffs.index.name = ""
+            elif isinstance(coeffs, pd.Series):
+                coeffs = coeffs.reindex(columns=n.df(c).index)
+            elif isinstance(coeffs, pd.DataFrame):
+                coeffs = coeffs.reindex(columns=n.df(c).index, index=snapshots)
+            objective.append(m[f"{c}-{attr}"] * coeffs * sense)
+
+    m.objective = merge(objective)
+
+    n.optimize.solve_model(**kwargs)
+
+    # write MGA coefficients into metadata
+    n.meta["slack"] = slack
+    n.meta["sense"] = sense
+
+    def convert_to_dict(obj):
+        if isinstance(obj, (pd.Series, pd.DataFrame)):
+            return obj.to_dict()
+        elif isinstance(obj, dict):
+            return {k: convert_to_dict(v) for k, v in obj.items()}
+        else:
+            return obj
+
+    n.meta["weights"] = convert_to_dict(weights)

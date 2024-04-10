@@ -6,8 +6,8 @@ Define optimisation constraints from PyPSA networks with Linopy.
 import logging
 
 import pandas as pd
-from linopy import LinearExpression, merge
-from numpy import inf
+from linopy import LinearExpression, Variable, merge
+from numpy import arange, cumsum, inf, isfinite, nan, roll
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
@@ -20,11 +20,14 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
+from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
 
-def define_operational_constraints_for_non_extendables(n, sns, c, attr):
+def define_operational_constraints_for_non_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
@@ -52,12 +55,23 @@ def define_operational_constraints_for_non_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, fix_i) if n._multi_invest else None
 
-    dispatch = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-    n.model.add_constraints(dispatch, ">=", lower, f"{c}-fix-{attr}-lower", active)
-    n.model.add_constraints(dispatch, "<=", upper, f"{c}-fix-{attr}-upper", active)
+    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, fix_i)
+        dispatch_lower = (1, dispatch_lower), (-1, loss)
+        dispatch_upper = (1, dispatch_upper), (1, loss)
+    n.model.add_constraints(
+        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+    )
+    n.model.add_constraints(
+        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+    )
 
 
-def define_operational_constraints_for_extendables(n, sns, c, attr):
+def define_operational_constraints_for_extendables(
+    n, sns, c, attr, transmission_losses
+):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -83,11 +97,15 @@ def define_operational_constraints_for_extendables(n, sns, c, attr):
 
     active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
 
-    lhs = (1, dispatch), (-min_pu, capacity)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    lhs_lower = (1, dispatch), (-min_pu, capacity)
+    lhs_upper = (1, dispatch), (-max_pu, capacity)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, ext_i)
+        lhs_upper += ((1, loss),)
+        lhs_lower += ((1, loss),)
 
-    lhs = (1, dispatch), (-max_pu, capacity)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-ext-{attr}-upper", active)
+    n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
+    n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
 
 
 def define_operational_constraints_for_committables(n, sns, c):
@@ -215,7 +233,19 @@ def define_operational_constraints_for_committables(n, sns, c):
         n.model.add_constraints(status, "=", 0, name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    if n._linearized_uc:
+    cost_equal = all(
+        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
+    )
+    # only valid additional constraints if start up costs equal to shut down costs
+    if n._linearized_uc and not cost_equal:
+        logger.warning(
+            "The linear relaxation of the unit commitment cannot be "
+            "tightened since the start up costs are not equal to the "
+            "shut down costs. Proceed with the linear relaxation "
+            "without the tightening by additional constraints. "
+            "This might result in a longer solving time."
+        )
+    if n._linearized_uc and cost_equal:
         # dispatch limit for partly start up/shut down for t-1
         lhs = (
             p.shift(snapshot=1)
@@ -236,7 +266,7 @@ def define_operational_constraints_for_committables(n, sns, c):
             - p.shift(snapshot=1)
             - (lower_p + ramp_up_limit) * status
             + lower_p * status.shift(snapshot=1)
-            - (lower_p + ramp_up_limit - ramp_start_up) * start_up
+            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
@@ -295,9 +325,13 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.df(c)):
         return
-    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].isnull().all().all():
+
+    ramp_limit_up = get_as_dense(n, c, "ramp_limit_up", sns)
+    ramp_limit_down = get_as_dense(n, c, "ramp_limit_down", sns)
+
+    if (ramp_limit_up.isnull().all() & ramp_limit_down.isnull().all()).all():
         return
-    if n.df(c)[["ramp_limit_up", "ramp_limit_down"]].eq(1).all().all():
+    if (ramp_limit_up.eq(1).all() & ramp_limit_down.eq(1).all()).all():
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
@@ -312,7 +346,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     if is_rolling_horizon:
         active = get_activity_mask(n, c, sns)
-        rhs_start = pd.DataFrame(0, index=sns, columns=n.df(c).index)
+        rhs_start = pd.DataFrame(0.0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
 
         def p_actual(idx):
@@ -332,53 +366,67 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         def p_previous(idx):
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
+    com_i = n.get_committable_i(c)
+    fix_i = n.get_non_extendable_i(c)
+    fix_i = fix_i.difference(com_i).rename(fix_i.name)
+    ext_i = n.get_extendable_i(c)
+
     # ----------------------------- Fixed Generators ----------------------------- #
 
-    fix_i = n.get_non_extendable_i(c)
     assets = n.df(c).reindex(fix_i)
 
+    p_nom = n.df(c)[nominal_attrs[c]].reindex(fix_i)
+
     # fix up
-    if not assets.ramp_limit_up.isnull().all():
+    if not ramp_limit_up[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = assets.eval("ramp_limit_up * p_nom") + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & assets.ramp_limit_up.notnull()
+        rhs = (ramp_limit_up * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
+            columns=fix_i
+        )
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=fix_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask=mask)
 
     # fix down
-    if not assets.ramp_limit_down.isnull().all():
+    if not ramp_limit_down[fix_i].isnull().all().all():
         lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = assets.eval("- ramp_limit_down * p_nom") + rhs_start.reindex(
+        rhs = (-ramp_limit_down * p_nom).reindex(columns=fix_i) + rhs_start.reindex(
             columns=fix_i
         )
-        mask = active.reindex(columns=fix_i) & assets.ramp_limit_down.notnull()
+        mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=fix_i
+        )
         m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Extendable Generators ----------------------------- #
 
-    ext_i = n.get_extendable_i(c)
     assets = n.df(c).reindex(ext_i)
 
     # ext up
-    if not assets.ramp_limit_up.isnull().all():
+    if not ramp_limit_up[ext_i].isnull().all().all():
         p_nom = m[f"{c}-p_nom"]
-        limit_pu = assets.ramp_limit_up.to_xarray()
+        limit_pu = DataArray(ramp_limit_up.reindex(active.index, columns=ext_i))
         lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & assets.ramp_limit_up.notnull()
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask=mask)
 
     # ext down
-    if not assets.ramp_limit_down.isnull().all():
+    if not ramp_limit_down[ext_i].isnull().all().all():
         p_nom = m[f"{c}-p_nom"]
-        limit_pu = assets.ramp_limit_down.to_xarray()
-        lhs = (1, p_actual(ext_i)), (-1, p_previous(ext_i)), (limit_pu, p_nom)
+        limit_pu = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
+        lhs = p_actual(ext_i) - p_previous(ext_i) + limit_pu * p_nom
         rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & assets.ramp_limit_down.notnull()
+        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
+            active.index, columns=ext_i
+        )
         m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask=mask)
 
     # ----------------------------- Committable Generators ----------------------------- #
 
-    com_i = n.get_committable_i(c)
     assets = n.df(c).reindex(com_i)
 
     # com up
@@ -429,7 +477,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
 
 
-def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
+def define_nodal_balance_constraints(
+    n, sns, transmission_losses=0, buses=None, suffix=""
+):
     """
     Defines nodal balance constraints.
     """
@@ -455,6 +505,16 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
+    if transmission_losses:
+        args.extend(
+            [
+                ["Line", "loss", "bus0", -0.5],
+                ["Line", "loss", "bus1", -0.5],
+                ["Transformer", "loss", "bus0", -0.5],
+                ["Transformer", "loss", "bus1", -0.5],
+            ]
+        )
+
     exprs = []
 
     for arg in args:
@@ -477,28 +537,16 @@ def define_nodal_balance_constraints(n, sns, buses=None, suffix=""):
         expr = expr.sel({c: cbuses.index})
 
         if expr.size:
-            # do a fast version of `expr.groupby(cbuses.to_xarray()).sum()`
-            idx = pd.MultiIndex.from_arrays(
-                [cbuses, cbuses.groupby(cbuses).cumcount()], names=["Bus", "_term"]
-            )
-            ds = (
-                expr.data.squeeze()
-                .assign_coords({c: idx})
-                .unstack(c)
-                .reset_index("_term")
-            )
-            expr = LinearExpression(ds, m)
-
-            exprs.append(expr)
+            exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(
         Bus=buses, fill_value=LinearExpression.fill_value
     )
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=buses, fill_value=0)
+        .T.reindex(columns=buses, fill_value=0)
     )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
@@ -529,7 +577,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
     comps = [c for c in n.passive_branch_components if not n.df(c).empty]
 
-    if len(comps) == 0:
+    if not comps:
         return
 
     names = ["component", "name"]
@@ -553,7 +601,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
             carrier = n.sub_networks.carrier[sub.name]
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings) * sub.C
+            C = 1e5 * sparse.diags(weightings.values) * sub.C
             ssub = s.loc[snapshots, branches.index].values
 
             ncycles = C.shape[1]
@@ -667,12 +715,12 @@ def define_storage_unit_constraints(n, sns):
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[c + "-p_dispatch"]),
-        (eff_store * eh, m[c + "-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{c}-p_dispatch"]),
+        (eff_store * eh, m[f"{c}-p_store"]),
     ]
 
     if f"{c}-spill" in m.variables:
-        lhs += [(-eh, m[c + "-spill"])]
+        lhs += [(-eh, m[f"{c}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets.
@@ -713,16 +761,18 @@ def define_storage_unit_constraints(n, sns):
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_soc_pp = previous_soc_pp.where(include_previous_soc_pp.values, -1)
+        previous_soc_pp = previous_soc_pp.where(
+            include_previous_soc_pp.values, Variable.fill_value
+        )
 
         # update the previous_soc variables and right hand side
-        previous_soc = previous_soc.where(~per_period, previous_soc_pp.values)
+        previous_soc = previous_soc.where(~per_period, previous_soc_pp)
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
 
 
 def define_store_constraints(n, sns):
@@ -746,8 +796,8 @@ def define_store_constraints(n, sns):
     # efficiencies
     eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
-    e = m[c + "-e"]
-    p = m[c + "-p"]
+    e = m[f"{c}-e"]
+    p = m[f"{c}-p"]
 
     lhs = [(-1, e), (-eh, p)]
 
@@ -785,13 +835,55 @@ def define_store_constraints(n, sns):
         include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
-        previous_e_pp = previous_e_pp.where(include_previous_e_pp.values, -1)
+        previous_e_pp = previous_e_pp.where(
+            include_previous_e_pp.values, Variable.fill_value
+        )
 
         # update the previous_e variables and right hand side
-        previous_e = previous_e.where(~per_period, previous_e_pp.values)
+        previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     lhs += [(eff_stand, previous_e)]
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy-balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
+
+
+def define_loss_constraints(n, sns, c, transmission_losses):
+    if n.df(c).empty or c not in n.passive_branch_components:
+        return
+
+    tangents = transmission_losses
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+
+    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+
+    s_nom_max = n.df(c)["s_nom_max"].where(
+        n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
+    )
+
+    assert isfinite(
+        s_nom_max
+    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+
+    r_pu_eff = n.df(c)["r_pu_eff"]
+
+    upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+
+    loss = n.model[f"{c}-loss"]
+    flow = n.model[f"{c}-s"]
+
+    n.model.add_constraints(loss <= upper_limit, name=f"{c}-loss_upper", mask=active)
+
+    for k in range(1, tangents + 1):
+        p_k = k / tangents * s_max_pu * s_nom_max
+        loss_k = r_pu_eff * p_k**2
+        slope_k = 2 * r_pu_eff * p_k
+        offset_k = loss_k - slope_k * p_k
+
+        for sign in [-1, 1]:
+            lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
+
+            n.model.add_constraints(
+                lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
+            )

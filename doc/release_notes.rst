@@ -7,29 +7,302 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Add option to specify time-varying ramp rates for generators and links (``ramp_limit_up`` and ``ramp_limit_down``).
 
-* NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly from URL: ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+PyPSA 0.25.2 (30th September 2023)
+==================================
 
-* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now default to 'sum' rather than 'mean'.
+* Add option to enable or disable nice carrier name in the statistics module
+  (e.g.``n.statistics(nice_name=False)``).
 
-* Fixed interference of io routines with linopy optimisation [`#564 <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567 <https://github.com/PyPSA/PyPSA/pull/567>`_]
+* Add example in documentation for the statistics module.
+
+* Add example for stochastic optimization with PyPSA to the documentation.
+
+* Extended documentation for multi-decade optimization.
+
+* Bugfix: Use of ``nice_names`` keyword argument in
+  ``n.statistics.energy_balance()``.
+
+* Bugfix: Correctly handle ``p_nom`` or ``p_nom_opt`` in power flow distributed
+  slack.
+
+* Bugfix: After the optimization the right-hand side and sign of global
+  constraints were previously overwritten by altered values.
+
+* Bugfix: In netCDF export, typecasting to float32 after setting the compression
+  encoding led to ignored compression encodings.
+
+* Bugfix: Handle solver options for CBC and GLPK for ``n.lopf(pyomo=False)``.
+
+* Bugfix: Handle cases with multi-decade optimisation, activated transmission
+  limit and an empty list of lines or DC links.
+
+PyPSA 0.25.1 (27th July 2023)
+=============================
+
+**New Features**
+
+* The function ``get_clustering_from_busmap`` has a new argument
+  ``line_strategies``.
+
+* The ``n.optimize()`` function gets a new keyword argument
+  ``assign_all_duals=False`` which controls whether all dual values or only
+  those that already have a designated place in the network are assigned.
+  (https://github.com/PyPSA/PyPSA/pull/635)
+
+**Changes**
+
+* The function ``get_buses_linemap_and_lines`` was deprecated, in favor of
+  direct use of ``aggregatebuses`` and ``aggregate_lines``.
+
+* Improve logging printout for rolling horizon optimization.
+  (https://github.com/PyPSA/PyPSA/pull/697,
+  https://github.com/PyPSA/PyPSA/pull/699)
+
+* The CI environment handling was migrated to ``micromamba``
+  (https://github.com/PyPSA/PyPSA/pull/688).
+
+**Bugfixes**
+
+* The aggregation functions in the clustering module were adjusted to correctly
+  handle infinity values (see https://github.com/pandas-dev/pandas/issues/54161
+  for more details). (https://github.com/PyPSA/PyPSA/pull/684)
+
+* The unit commitment formulation with a rolling horizon horizon was fixed in
+  case of non-committable and committable generators with ramp limits.
+  (https://github.com/PyPSA/PyPSA/pull/686)
+
+* The clustering functionality was fixed in case of passing a subset of carriers
+  that should be aggregated. (https://github.com/PyPSA/PyPSA/pull/696)
+
+* When clustering, allow safe clustering of component attributes which are both
+  static and dynamic. (https://github.com/PyPSA/PyPSA/pull/700)
+
+* When assigning a new user-defined variable to the underlying optimization
+  model, the assignment of the solution resulted in an error if the variable
+  name did not match the pattern ``{Component}-{Varname}``. This has been fixed
+  by ignoring variables that do not match the pattern during solution
+  assignment. (https://github.com/PyPSA/PyPSA/pull/693)
+
+* Multilinks are now also handled automatically when importing a network from
+  file. (https://github.com/PyPSA/PyPSA/pull/702)
+
+* Multilink default efficiencies are always set to 1.0.
+  (https://github.com/PyPSA/PyPSA/pull/701)
+
+* For linearized unit commitment relaxation, some tightening additional
+  constraints are only valid if start-up and shut-down costs are equal. These
+  constraints are now skipped if this is not the case and a warning message is
+  printed. (https://github.com/PyPSA/PyPSA/pull/690)
+
+* Fix division in capacity factor calculation in statistics module when not
+  aggregating in the time dimension. (https://github.com/PyPSA/PyPSA/pull/687)
+
+
+PyPSA 0.25.0 (13th July 2023)
+=============================
+
+**New Features**
+
+* **Stand-by costs:** PyPSA now supports stand-by cost terms. A new column
+  ``stand_by_cost`` was added to generators and links. The stand-by cost is
+  added to the objective function when calling ``n.optimize()``.
+  (https://github.com/PyPSA/PyPSA/pull/659)
+
+* **Rolling horizon function:** The ``n.optimize`` accessor now provides
+  functionality for rolling horizon optimisation using
+  ``n.optimize.optimize_with_rolling_horizon()`` which splits whole optimization
+  of the whole time span into multiple subproblems which are solved
+  consecutively. This is useful for operational optimizations with a high
+  spatial resolution. (https://github.com/PyPSA/PyPSA/pull/668)
+
+* **Modelling-to-generate-alternatives (MGA) function** The ``n.optimize``
+  accessor now provides functionality for running
+  modelling-to-generate-alternatives (MGA) on previously solved networks using
+  ``n.optimize.optimize_mga(slack=..., weights=...)``. This is useful for
+  exploring the near-optimal feasible space of the network.
+  (https://github.com/PyPSA/PyPSA/pull/672)
+
+**Changes**
+
+* **Multilinks by default:** Links with multiple inputs/outputs are now
+  supported by default. The Link component attributes are automatically extended
+  if a link with ``bus2``, ``bus3``, etc. are added to the network. Overriding
+  component attributes at network initialisation is no longer required.
+  (https://github.com/PyPSA/PyPSA/pull/669)
+
+* **Spatial clustering refactored:** The spatial clustering module was
+  refactored. The changes lead to performance improvements and a more consistent
+  clustering API. (https://github.com/PyPSA/PyPSA/pull/673)
+
+  * The network object has a new accessor ``cluster`` which allows accessing
+    clustering routines from the network itself. For example,
+    ``n.cluster.cluster_spatially_by_kmeans`` returns a spatially clustered
+    version of the network.
+
+  * The default clustering strategies were refined. Per default, columns like
+    ``efficiency`` and ``p_max_pu`` are now aggregated by the capacity weighted
+    mean.
+
+  * The clustering module now applies the custom strategies to time-dependant
+    data.
+
+  * The function ``pypsa.clustering.spatial.get_clustering_from_busmap`` and
+    ``pypsa.clustering.spatial.aggregategenerators`` now allows the passing of a
+    list of buses for which aggregation of all carriers is desired. Generation
+    from a carrier at a bus is aggregated now if: It is either in the passed
+    list of aggregated carriers, or in the list of aggregated buses.
+
+  * Take generator strategies for time-series into account. Before, time-series
+    would always be aggregated by summing.
+    (https://github.com/PyPSA/PyPSA/pull/670)
+
+  * The deprecated ``networkclustering`` module was removed.
+    (https://github.com/PyPSA/PyPSA/pull/675)
+
+* A new function `get_country_and_carrier` was added to the statistics module in
+  order to group statistics by country and carrier.
+  (https://github.com/PyPSA/PyPSA/pull/678)
+
+* NetCDF file compression is now disabled by default when exporting networks.
+  (https://github.com/PyPSA/PyPSA/pull/679)
+
+**Breaking Changes**
+
+* The ``Clustering`` class no longer contains a positive and negative linemap.
+
+* Outdated examples were removed. (https://github.com/PyPSA/PyPSA/pull/674)
+
+**Bugfixes**
+
+* In the statistics module, the calculation of operational costs of storage
+  units was corrected. (https://github.com/PyPSA/PyPSA/pull/671)
+
+
+PyPSA 0.24.0 (27th June 2023)
+=================================
+
+* PyPSA now supports quadratic marginal cost terms. A new column
+  `marginal_cost_quadratic` was added to generators, links, stores and storage
+  units. The quadratic marginal cost is added to the objective function when
+  calling ``n.optimize()``. This requires a solver that is able to solve quadratic problems, for instance,
+  HiGHS, Gurobi, Xpress, or CPLEX.
+* The statistics function now allows calculating energy balances
+  ``n.statistics.energy_balance()`` and dispatch ``n.statistics.dispatch()``, as
+  well as time series (e.g. ``n.statistics.curtailment(aggregate_time=False)``).
+  The energy balance can be configured to yield energy balance time series for
+  each bus.
+* The statistics function ``n.statistics()`` now also supports the calculation
+  of the market values of components.
+* The function ``n.set_snapshots()`` now takes two optional keyword arguments; ``default_snapshot_weightings``
+  to change the default snapshot weightings, and ``weightings_from_timedelta``
+  to compute the weights if snapshots are of type ``pd.DatetimeIndex``.
+* The function ``n.lopf()`` is deprecated in favour of the linopy-based
+  implementation ``n.optimize()`` and will be removed in PyPSA v1.0. We will
+  have a generous transition period, but please start migrating your
+  ``extra_functionality`` functions, e.g. by following our `migration guide
+  <https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html>`_.
+* The module ``pypsa.networkclustering`` was moved to
+  ``pypsa.clustering.spatial``. The module ``pypsa.networkclustering`` is now
+  deprecated but all functionality will continue to be accessible until PyPSA v0.25.
+* Bug fix in linearized unit commitment implementation correcting sign.
+* The minimum required version of ``linopy`` is now ``0.2.1``.
+* Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
+
+
+PyPSA 0.23.0 (10th May 2023)
+=================================
+
+* Transmission losses can now be represented during optimisation with
+  ``n.optimize()`` or ``n.lopf()`` using a piecewise linear approximation of the
+  loss parabola as presented in `this paper
+  <https://doi.org/10.1016/j.apenergy.2022.118859>`_. The number of segments can
+  be chosen with the argument ``n.optimize(transmission_losses=3)``. The default
+  remains that transmission losses are neglected with
+  ``n.optimize(transmission_losses=0)``, and analogously for
+  ``n.lopf(pyomo=True)`` and ``n.lopf(pyomo=False)``. [`#462
+  <https://github.com/PyPSA/PyPSA/pull/462>`_]
 
 * Efficiencies and standing losses of stores, storage units and generators can
   now be specified as time-varying attributes (``efficiency``,
   ``efficiency_dispatch``, ``efficiency_store``, ``standing_loss``). For
   example, this allows specifying temperature-dependent generator efficiencies
-  or evaporation in hydro reservoirs.
+  or evaporation in hydro reservoirs. [`#572
+  <https://github.com/PyPSA/PyPSA/pull/572>`_]
+
+* Unit commitment constraints (ramp limits, start up and shut down costs) can
+  now also be applied to links in addition to generators. This is useful to
+  model the operational restrictions of fuel synthesis plants. [`#582
+  <https://github.com/PyPSA/PyPSA/pull/582>`_]
+
+* Added implementation for a linearized unit commitment approximation (LP-based)
+  that can be activated when calling
+  ``n.optimize(linearized_unit_commitment=True)``. The implementation follows
+  Hua et al. (2017), `10.1109/TPWRS.2017.2735026
+  <https://doi.org/10.1109/TPWRS.2017.2735026>`_. This functionality is not
+  implemented for ``n.lopf()``. [`#472
+  <https://github.com/PyPSA/PyPSA/pull/472>`_]
+
+* NetCDF (``.nc``) and HDF5 (``.h5``) network files can now be read directly
+  from URL:
+  ``pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")``
+  [`#569
+  <https://github.com/PyPSA/PyPSA/pull/569>`_]
+
+* Networks are now compressed when exporting the NetCDF
+  ``n.export_to_netcdf(...)`` step using the native compression feature of
+  netCDF files. Additionally, a typecasting option from float64 to float 32 was
+  added. Existing network files are not affected. To also compress existing
+  networks, load and save them using ``xarray`` with compression specified, see
+  `the xarray documentation
+  <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html>`_
+  for details. The compression can be disabled with
+  ``n.export_to_netcdf(compression=None)``. Use
+  ``n.export_to_netcdf(float32=True, compression={'zlib': True, 'complevel': 9, 'least_significant_digit': 5})``
+  for high compression. [`#583
+  <https://github.com/PyPSA/PyPSA/pull/583>`_, `#614
+  <https://github.com/PyPSA/PyPSA/pull/614>`_]
+
+* Time aggregation for OPEX, curtailment, supply, withdrawal, and revenue now
+  default to 'sum' rather than 'mean'.
+
+* A new type of ``GlobalConstraint`` called `operational_limit` is now supported
+  through the ``n.optimize()`` function. It allows to limit the total
+  production of a carrier analogous to `primary_energy_limit` with the
+  difference that it applies directly to the production of a carrier rather than
+  to an attribute of the primary energy use. [`#618
+  <https://github.com/PyPSA/PyPSA/pull/618>`_]
 
 * The attributes ``lifetime`` and ``build_year`` are now aggregated with a
   capacity-weighted mean when clustering the network. Previously, these
   attributes had to carry identical values for components that were to be
-  merged.
+  merged. [`#571
+  <https://github.com/PyPSA/PyPSA/pull/571>`_]
 
-* Fix a bug where time-dependant generator variables could be forgotten during aggregation in a particular case.
+* To enable better backwards compatibility with the ``n.lopf()`` function, the
+  ``n.optimize()`` functions has now the explicit keyword argument
+  ``solver_options``. It takes a dictionary of options passed to the solver.
+  Before, these were passed as keyword arguments to the ``n.optimize()``
+  function. Note that both functionalities are supported. [`#595
+  <https://github.com/PyPSA/PyPSA/pull/595>`_]
 
-* Unit commitment constraints (ramp limits, start up and shut down costs) can now also be applied to links in addition to generators.
+* Fixed interference of io routines with linopy optimisation [`#564
+  <https://github.com/PyPSA/PyPSA/pull/564>`_, `#567
+  <https://github.com/PyPSA/PyPSA/pull/567>`_]
 
-* To enable better backwards compatibility with the `lopf` function, the ``Network.optimize`` functions has now the explicit keyword argument ``solver_options``. It takes a dictionary of options passed to the solver. Before, these were passed as keyword arguments to the ``Network.optimize`` function. Note that both functionalities are supported.
+* Fix a bug where time-dependant generator variables could be forgotten during
+  aggregation in a particular case. [`#576
+  <https://github.com/PyPSA/PyPSA/pull/576>`_]
+
+* A new type of ``GlobalConstraint`` called `operational_limit` is now supported through the `Network.optimize` function. It allows to limit the total production of a carrier analogous to `primary_energy_limit` with the difference that it applies directly to the production of a carrier rather than to an attribute of the primary energy use.
+
+* Fix an issue appeared when processing networks which were reduced to a set of
+  isolated nodes in course of clustering. Previously, an empty ``Line``
+  component has lead to problems when processing empty lines-related dataframes.
+  That has been fixed by introducing special treatment in case a lines dataframe
+  is empty. [`#599
+  <https://github.com/PyPSA/PyPSA/pull/599>`_]
 
 
 PyPSA 0.22.1 (15th February 2023)
@@ -73,7 +346,6 @@ PyPSA 0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
-* Add linearized unit commitment implementation in ``linopy`` optimisation.
 
 PyPSA 0.21.1 (10th November 2022)
 =================================
@@ -94,7 +366,6 @@ PyPSA 0.21.0 (7th November 2022)
 * Add reference to `Discord server <https://discord.gg/AnuJBk23FU>`_ for support and discussion.
 * Restore import of pandapower networks. Issues regarding the transformer component and indexing as well as missing imports for shunts are fixed. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
 * The import performance of networks was improved. With the changes, the import time for standard netcdf imports decreased by roughly 70%.
-
 
 PyPSA 0.20.1 (6th October 2022)
 ===============================
@@ -421,7 +692,7 @@ This release contains bug fixes and extensions to the features for optimization 
 
 * N-1 security-constrained linear optimal power flow is now also supported without pyomo by running ``network.sclopf(pyomo=False)``.
 
-* Added support for the FICO Xpress commercial solver for optimization withhout pyomo, i.e. ``pyomo=False``.
+* Added support for the FICO Xpress commercial solver for optimization without pyomo, i.e. ``pyomo=False``.
 
 * There was a bug in the LOPF with ``pyomo=False`` whereby if some Links
   were defined with multiple outputs (i.e. bus2, bus3, etc. were

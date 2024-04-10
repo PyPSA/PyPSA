@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Graph helper functions, which are attached to network and sub_network.
 """
@@ -137,14 +136,13 @@ def adjacency_matrix(
             else:
                 active = get_active_assets(network, c.name, investment_period)
                 sel = c.df.loc[active].index
+        elif investment_period is None:
+            sel = c.ind
         else:
-            if investment_period is None:
-                sel = c.ind
-            else:
-                active = get_active_assets(
-                    network, c.name, investment_period, network.snapshots
-                )
-                sel = c.ind & c.df.loc[active].index
+            active = get_active_assets(
+                network, c.name, investment_period, network.snapshots
+            )
+            sel = c.ind & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))

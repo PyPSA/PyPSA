@@ -35,15 +35,11 @@ def test_pypower_case():
 
     results, success = runpf(ppc, ppopt)
 
-    # store results in a DataFrame for easy access
-    results_df = {}
-
     # branches
     columns = "bus0, bus1, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax, p0, q0, p1, q1".split(
         ", "
     )
-    results_df["branch"] = pd.DataFrame(data=results["branch"], columns=columns)
-
+    results_df = {"branch": pd.DataFrame(data=results["branch"], columns=columns)}
     # buses
     columns = [
         "bus",

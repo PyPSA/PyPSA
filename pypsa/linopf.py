@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Build optimisation problems from PyPSA networks without Pyomo.
 
@@ -17,7 +15,6 @@ __copyright__ = (
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 from numpy import inf
 from packaging.version import Version, parse
 
@@ -28,6 +25,7 @@ from pypsa.descriptors import (
     get_active_assets,
     get_activity_mask,
     get_bounds_pu,
+    get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
 )
@@ -111,15 +109,17 @@ def define_dispatch_for_extendable_and_committable_variables(n, sns, c, attr):
         name of the attribute, e.g. 'p'
     """
     ext_i = get_extendable_i(n, c)
-    if c == "Generator":
-        ext_i = ext_i.union(n.generators.query("committable").index)
+    if c in {"Generator", "Link"}:
+        ext_i = ext_i.union(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if ext_i.empty:
         return
     active = get_activity_mask(n, c, sns)[ext_i] if n._multi_invest else None
     define_variables(n, -inf, inf, c, attr, axes=[sns, ext_i], spec="ext", mask=active)
 
 
-def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
+def define_dispatch_for_non_extendable_variables(n, sns, c, attr, transmission_losses):
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -133,8 +133,10 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
         name of the attribute, e.g. 'p'
     """
     fix_i = get_non_extendable_i(n, c)
-    if c == "Generator":
-        fix_i = fix_i.difference(n.generators.query("committable").index)
+    if c in {"Generator", "Link"}:
+        fix_i = fix_i.difference(
+            getattr(n, n.components[c]["list_name"]).query("committable").index
+        )
     if fix_i.empty:
         return
     nominal_fix = n.df(c)[nominal_attrs[c]][fix_i]
@@ -147,12 +149,17 @@ def define_dispatch_for_non_extendable_variables(n, sns, c, attr):
     kwargs = dict(spec="non_ext", mask=active)
 
     dispatch = define_variables(n, -inf, inf, c, attr, axes=axes, **kwargs)
-    dispatch = linexpr((1, dispatch))
-    define_constraints(n, dispatch, ">=", lower, c, "mu_lower", **kwargs)
-    define_constraints(n, dispatch, "<=", upper, c, "mu_upper", **kwargs)
+    dispatch_lower = linexpr((1, dispatch))
+    dispatch_upper = linexpr((1, dispatch))
+    if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
+        loss = get_var(n, c, "loss")[fix_i]
+        dispatch_lower = linexpr((1, dispatch), (-1, loss))
+        dispatch_upper = linexpr((1, dispatch), (1, loss))
+    define_constraints(n, dispatch_lower, ">=", lower, c, "mu_lower", **kwargs)
+    define_constraints(n, dispatch_upper, "<=", upper, c, "mu_upper", **kwargs)
 
 
-def define_dispatch_for_extendable_constraints(n, sns, c, attr):
+def define_dispatch_for_extendable_constraints(n, sns, c, attr, transmission_losses):
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -176,10 +183,16 @@ def define_dispatch_for_extendable_constraints(n, sns, c, attr):
     active = get_activity_mask(n, c, sns)[ext_i] if n._multi_invest else None
     kwargs = dict(spec=attr, mask=active)
 
-    lhs, *axes = linexpr((max_pu, nominal_v), (-1, operational_ext_v), return_axes=True)
+    lhs_upper = [(max_pu, nominal_v), (-1, operational_ext_v)]
+    lhs_lower = [(min_pu, nominal_v), (-1, operational_ext_v)]
+    if c in n.passive_branch_components and not n.df(c).empty and transmission_losses:
+        loss = get_var(n, c, "loss")[ext_i]
+        lhs_upper.append((-1, loss))
+        lhs_lower.append((-1, loss))
+    lhs, *axes = linexpr(*lhs_upper, return_axes=True)
     define_constraints(n, lhs, ">=", rhs, c, "mu_upper", axes=axes, **kwargs)
 
-    lhs, *axes = linexpr((min_pu, nominal_v), (-1, operational_ext_v), return_axes=True)
+    lhs, *axes = linexpr(*lhs_lower, return_axes=True)
     define_constraints(n, lhs, "<=", rhs, c, "mu_lower", axes=axes, **kwargs)
 
 
@@ -225,15 +238,6 @@ def define_fixed_variable_constraints(n, sns, c, attr, pnl=True):
     set_conref(n, constraints, c, f"mu_{attr}_set")
 
 
-@deprecated(
-    deprecated_in="0.23",
-    removed_in="0.24",
-    details="Use define_unit_commitment_status_variables instead.",
-)
-def define_generator_status_variables(n, sns):
-    define_unit_commitment_status_variables(n, sns, "Generator")
-
-
 def define_unit_commitment_status_variables(n, sns, c):
     allowed_c = {"Generator", "Link"}
     assert c in allowed_c, f"Component {c} must be in {allowed_c}."
@@ -253,13 +257,54 @@ def define_unit_commitment_status_variables(n, sns, c):
     define_binaries(n, (sns, com_i), c, "status", mask=active)
 
 
-@deprecated(
-    deprecated_in="0.23",
-    removed_in="0.24",
-    details="Use define_unit_commitment_constraints instead.",
-)
-def define_committable_generator_constraints(n, sns):
-    define_unit_commitment_constraints(n, sns, "Generator")
+def define_loss_variables(n, sns, c, transmission_losses):
+    branches_i = n.df(c).index
+    if branches_i.empty or not transmission_losses:
+        return
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    define_variables(n, 0, inf, c, "loss", axes=[sns, branches_i], mask=active)
+
+
+def define_loss_constraints(n, sns, c, transmission_losses):
+    if not transmission_losses or n.df(c).empty:
+        return
+
+    tangents = transmission_losses
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+
+    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+
+    s_nom_max = n.df(c)["s_nom_max"].where(
+        n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
+    )
+
+    assert np.isfinite(
+        s_nom_max
+    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~np.isfinite(s_nom_max)]}"
+
+    r_pu_eff = n.df(c)["r_pu_eff"]
+
+    rhs = r_pu_eff * (s_max_pu * s_nom_max) ** 2
+
+    loss = get_var(n, c, "loss")
+    lhs = linexpr((1, loss))
+
+    define_constraints(n, lhs, "<=", rhs, c, "loss_upper", mask=active)
+
+    flow = get_var(n, c, "s")
+
+    for k in range(1, tangents + 1):
+        p_k = k / tangents * s_max_pu * s_nom_max
+        loss_k = r_pu_eff * p_k**2
+        slope_k = 2 * r_pu_eff * p_k
+        offset_k = loss_k - slope_k * p_k
+
+        for sign in [-1, 1]:
+            lhs = linexpr((1, loss), (sign * slope_k, flow))
+
+            define_constraints(
+                n, lhs, ">=", offset_k, c, f"loss-tangents-{k}-{sign}", mask=active
+            )
 
 
 def define_unit_commitment_constraints(n, sns, c):
@@ -275,8 +320,7 @@ def define_unit_commitment_constraints(n, sns, c):
 
     status = get_var(n, c, "status")
 
-    attr = "p" if c == "Generator" else "p0"
-    p = get_var(n, c, attr)[com_i]
+    p = get_var(n, c, "p")[com_i]
 
     lhs = linexpr((lower, status), (-1, p))
     active = get_activity_mask(n, c, sns)[com_i] if n._multi_invest else None
@@ -438,7 +482,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             define_constraints(n, lhs, sense, rhs, "Bus", "mu_" + col)
 
 
-def define_nodal_balance_constraints(n, sns):
+def define_nodal_balance_constraints(n, sns, transmission_losses):
     """
     Defines nodal balance constraint.
     """
@@ -469,6 +513,14 @@ def define_nodal_balance_constraints(n, sns):
     ]
     args = [arg for arg in args if not n.df(arg[0]).empty]
 
+    if transmission_losses:
+        args.extend(
+            [
+                ["Line", "loss", "bus0", -0.5],
+                ["Line", "loss", "bus1", -0.5],
+            ]
+        )
+
     if not n.links.empty:
         for i in additional_linkports(n):
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
@@ -476,17 +528,17 @@ def define_nodal_balance_constraints(n, sns):
 
     lhs = (
         pd.concat([bus_injection(*arg) for arg in args], axis=1)
-        .groupby(axis=1, level=0)
+        .T.groupby(level=0)
         .sum(**agg_group_kwargs)
-        .reindex(columns=n.buses.index, fill_value="")
+        .T.reindex(columns=n.buses.index, fill_value="")
     )
 
     sense = "="
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .groupby(n.loads.bus, axis=1)
+        .T.groupby(n.loads.bus)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     if (lhs == "").any(axis=None):
@@ -535,7 +587,7 @@ def define_kirchhoff_constraints(n, sns):
 
             con = write_constraint(n, cycle_sum, "=", 0)
             subconstraints.append(con)
-        if len(subconstraints) == 0:
+        if not subconstraints:
             continue
         constraints.append(pd.concat(subconstraints, axis=1, ignore_index=True))
     if constraints:
@@ -784,10 +836,10 @@ def define_growth_limit(n, sns, c, attr):
         },
         axis=1,
     ).T[limit_i]
-    lhs = caps.groupby(carriers, axis=1).sum(**agg_group_kwargs)
+    lhs = caps.T.groupby(carriers).sum(**agg_group_kwargs).T
     rhs = n.carriers.max_growth[with_limit]
 
-    define_constraints(n, lhs, "<=", rhs, "Carrier", "growth_limit_{}".format(c))
+    define_constraints(n, lhs, "<=", rhs, "Carrier", f"growth_limit_{c}")
 
 
 def define_global_constraints(n, sns):
@@ -1051,6 +1103,32 @@ def define_objective(n, sns):
         terms = linexpr((cost, get_var(n, c, attr).loc[sns, cost.columns]))
         write_objective(n, terms)
 
+    # stand-by cost
+    allowed_c = {"Generator", "Link"}
+    for c in allowed_c:
+        com_i = get_committable_i(n, c)
+
+        if not com_i.empty:
+            stand_by_cost = (
+                get_as_dense(n, c, "stand_by_cost", sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+
+            c_our, attr_our = "Generator", "status"
+
+            com_and_stand_by_cost = com_i.intersection(stand_by_cost.columns)
+
+            if not com_and_stand_by_cost.empty:
+                terms = linexpr(
+                    (
+                        stand_by_cost[com_and_stand_by_cost],
+                        get_var(n, c_our, attr_our)[com_and_stand_by_cost],
+                    )
+                ).sum(1)
+
+                write_objective(n, terms)
+
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = get_extendable_i(n, c)
@@ -1065,7 +1143,7 @@ def define_objective(n, sns):
                     for period in sns.unique("period")
                 },
                 axis=1,
-            )
+            ).astype(float)
             cost = active @ period_weighting * cost
 
         caps = get_var(n, c, attr).loc[ext_i]
@@ -1080,6 +1158,7 @@ def prepare_lopf(
     skip_objective=False,
     extra_functionality=None,
     solver_dir=None,
+    transmission_losses=0,
 ):
     """
     Sets up the linear problem and writes it out to a lp file.
@@ -1117,16 +1196,22 @@ def prepare_lopf(
     n.bounds_f.write("\nbounds\n")
     n.binaries_f.write("\nbinary\n")
 
+    for c in n.passive_branch_components:
+        define_loss_variables(n, snapshots, c, transmission_losses)
     for c, attr in lookup.query("nominal and not handle_separately").index:
         define_nominal_for_extendable_variables(n, c, attr)
         # define constraint for newly installed capacity per investment period
         define_growth_limit(n, snapshots, c, attr)
         # define_fixed_variable_constraints(n, snapshots, c, attr, pnl=False)
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_dispatch_for_non_extendable_variables(n, snapshots, c, attr)
+        define_dispatch_for_non_extendable_variables(
+            n, snapshots, c, attr, transmission_losses
+        )
         define_dispatch_for_extendable_and_committable_variables(n, snapshots, c, attr)
         align_with_static_component(n, c, attr)
-        define_dispatch_for_extendable_constraints(n, snapshots, c, attr)
+        define_dispatch_for_extendable_constraints(
+            n, snapshots, c, attr, transmission_losses
+        )
         # define_fixed_variable_constraints(n, snapshots, c, attr)
     define_unit_commitment_status_variables(n, snapshots, c="Generator")
     define_unit_commitment_status_variables(n, snapshots, c="Link")
@@ -1142,7 +1227,9 @@ def prepare_lopf(
     define_storage_unit_constraints(n, snapshots)
     define_store_constraints(n, snapshots)
     define_kirchhoff_constraints(n, snapshots)
-    define_nodal_balance_constraints(n, snapshots)
+    define_nodal_balance_constraints(n, snapshots, transmission_losses)
+    for c in n.passive_branch_components:
+        define_loss_constraints(n, snapshots, c, transmission_losses)
     define_global_constraints(n, snapshots)
     if skip_objective:
         logger.info(
@@ -1217,10 +1304,12 @@ def assign_solution(
             n.solutions.at[(c, attr), "pnl"] = True
             pnl = n.pnl(c) if predefined else n.sols[c].pnl
             variables_sol.loc[-1] = 0
-            values = variables.applymap(lambda x: variables_sol.loc[x])
+            values = variables.map(lambda x: variables_sol.loc[x])
             if c in n.passive_branch_components and attr == "s":
                 set_from_frame(pnl, "p0", values)
                 set_from_frame(pnl, "p1", -values)
+            if c in n.passive_branch_components and attr == "loss":
+                set_from_frame(pnl, "loss", values)
             elif c == "Link" and attr == "p":
                 set_from_frame(pnl, "p0", values)
                 for i in ["1"] + additional_linkports(n):
@@ -1229,7 +1318,7 @@ def assign_solution(
                     set_from_frame(pnl, f"p{i}", -values * eff)
                     pnl[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
+                    ] = float(n.component_attrs["Link"].loc[f"p{i}", "default"])
             else:
                 set_from_frame(pnl, attr, values)
         else:
@@ -1277,7 +1366,7 @@ def assign_solution(
         to_component = c in n.all_components
         if is_pnl:
             n.dualvalues.at[(c, attr), "in_comp"] = to_component
-            duals = constraints.applymap(
+            duals = constraints.map(
                 lambda x: sign * constraints_dual.loc[x]
                 if x in constraints_dual.index
                 else np.nan
@@ -1356,9 +1445,9 @@ def assign_solution(
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0)
     )
 
     def v_ang_for_(sub):
@@ -1386,6 +1475,7 @@ def network_lopf(
     skip_pre=False,
     extra_postprocessing=None,
     formulation="kirchhoff",
+    transmission_losses=0,
     keep_references=False,
     keep_files=False,
     keep_shadowprices=["Bus", "Line", "Transformer", "Link", "GlobalConstraint"],
@@ -1419,6 +1509,11 @@ def network_lopf(
     formulation : string
         Formulation of the linear power flow equations to use; must be
         one of ["angles", "cycles", "kirchhoff", "ptdf"]
+    transmission_losses : int, default 0
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0 which ignores losses.
     extra_functionality : callable function
         This function must take two arguments
         `extra_functionality(network, snapshots)` and is called after
@@ -1464,7 +1559,7 @@ def network_lopf(
     if formulation != "kirchhoff":
         raise NotImplementedError("Only the kirchhoff formulation is supported")
 
-    if n.generators.committable.any():
+    if n.generators.committable.any() or n.links.committable.any():
         logger.warning(
             "Unit commitment is not yet completely implemented for "
             "optimising without pyomo. Thus minimum up time, minimum down time, "
@@ -1487,7 +1582,13 @@ def network_lopf(
 
     logger.info("Prepare linear problem")
     fdp, problem_fn = prepare_lopf(
-        n, snapshots, keep_files, skip_objective, extra_functionality, solver_dir
+        n,
+        snapshots,
+        keep_files,
+        skip_objective,
+        extra_functionality,
+        solver_dir,
+        transmission_losses,
     )
     fds, solution_fn = mkstemp(prefix="pypsa-solve", suffix=".sol", dir=solver_dir)
 

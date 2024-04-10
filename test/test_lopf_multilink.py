@@ -8,53 +8,7 @@ import pypsa
 
 @pytest.fixture
 def network():
-    override_component_attrs = pypsa.descriptors.Dict(
-        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
-    )
-    override_component_attrs["Link"].loc["bus2"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "2nd bus",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["bus3"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "3rd bus",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["efficiency2"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "2nd bus efficiency",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["efficiency3"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "3rd bus efficiency",
-        "Input (optional)",
-    ]
-    override_component_attrs["Link"].loc["p2"] = [
-        "series",
-        "MW",
-        0.0,
-        "2nd bus output",
-        "Output",
-    ]
-    override_component_attrs["Link"].loc["p3"] = [
-        "series",
-        "MW",
-        0.0,
-        "3rd bus output",
-        "Output",
-    ]
-
-    n = pypsa.Network(override_component_attrs=override_component_attrs)
+    n = pypsa.Network()
     n.set_snapshots(range(10))
 
     n.add("Bus", "bus")
@@ -157,12 +111,12 @@ def network():
     biomass_stored = [40.0, 15.0]
 
     for i in range(2):
-        n.add("Bus", "biomass" + str(i))
+        n.add("Bus", f"biomass{str(i)}")
 
         n.add(
             "Store",
-            "biomass" + str(i),
-            bus="biomass" + str(i),
+            f"biomass{str(i)}",
+            bus=f"biomass{str(i)}",
             e_nom_extendable=True,
             marginal_cost=biomass_marginal_cost[i],
             e_nom=biomass_stored[i],
@@ -172,8 +126,8 @@ def network():
         # simultaneously empties and refills co2 atmosphere
         n.add(
             "Link",
-            "biomass" + str(i),
-            bus0="biomass" + str(i),
+            f"biomass{str(i)}",
+            bus0=f"biomass{str(i)}",
             bus1="bus",
             p_nom_extendable=True,
             efficiency=0.5,
@@ -181,8 +135,8 @@ def network():
 
         n.add(
             "Link",
-            "biomass+CCS" + str(i),
-            bus0="biomass" + str(i),
+            f"biomass+CCS{str(i)}",
+            bus0=f"biomass{str(i)}",
             bus1="bus",
             bus2="co2 stored",
             bus3="co2 atmosphere",

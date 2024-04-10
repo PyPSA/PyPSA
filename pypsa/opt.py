@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 """
 Tools for fast Pyomo linear problem building.
 
@@ -52,15 +50,11 @@ class LExpression(object):
     """
 
     def __init__(self, variables=None, constant=0.0):
-        if variables is None:
-            self.variables = []
-        else:
-            self.variables = variables
-
+        self.variables = [] if variables is None else variables
         self.constant = constant
 
     def __repr__(self):
-        return "{} + {}".format(self.variables, self.constant)
+        return f"{self.variables} + {self.constant}"
 
     def __mul__(self, constant):
         try:
@@ -81,15 +75,14 @@ class LExpression(object):
             return LExpression(
                 self.variables + other.variables, self.constant + other.constant
             )
-        else:
-            try:
-                constant = float(other)
-            except:
-                logger.error(
-                    "Can only add an LExpression to another LExpression or a constant!"
-                )
-                return None
-            return LExpression(self.variables[:], self.constant + constant)
+        try:
+            constant = float(other)
+        except:
+            logger.error(
+                "Can only add an LExpression to another LExpression or a constant!"
+            )
+            return None
+        return LExpression(self.variables[:], self.constant + constant)
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -117,28 +110,22 @@ class LConstraint(object):
     """
 
     def __init__(self, lhs=None, sense="==", rhs=None):
-        if lhs is None:
-            self.lhs = LExpression()
-        else:
-            self.lhs = lhs
-
+        self.lhs = LExpression() if lhs is None else lhs
         self.sense = sense
 
-        if rhs is None:
-            self.rhs = LExpression()
-        else:
-            self.rhs = rhs
+        self.rhs = LExpression() if rhs is None else rhs
 
     def __repr__(self):
-        return "{} {} {}".format(self.lhs, self.sense, self.rhs)
+        return f"{self.lhs} {self.sense} {self.rhs}"
 
 
 def _build_sum_expression(variables, constant=0.0):
-    expr = LinearExpression()
-    expr.linear_vars = [item[1] for item in variables]
-    expr.linear_coefs = [item[0] for item in variables]
-    expr.constant = constant
-    return expr
+    linear_vars = [item[1] for item in variables]
+    linear_coefs = [item[0] for item in variables]
+    constant = constant
+    return LinearExpression(
+        constant=constant, linear_coefs=linear_coefs, linear_vars=linear_vars
+    )
 
 
 def l_constraint(model, name, constraints, *args):
@@ -209,7 +196,7 @@ def l_constraint(model, name, constraints, *args):
             constr_expr = inequality(lo, sum_expr, hi)
         else:
             raise KeyError(
-                '`sense` must be one of "==", "<=", ">=", "><"; got: {}'.format(sense)
+                f'`sense` must be one of "==", "<=", ">=", "><"; got: {sense}'
             )
 
         v._data[i] = _GeneralConstraintData(constr_expr, v)

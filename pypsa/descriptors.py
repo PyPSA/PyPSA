@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Descriptors for component attributes.
 """
@@ -15,7 +14,7 @@ __copyright__ = (
 import logging
 import re
 from collections import OrderedDict
-from itertools import repeat
+from itertools import product, repeat
 
 import networkx as nx
 import numpy as np
@@ -90,7 +89,7 @@ class Dict(dict):
 
     def __setattr__(self, name, value):
         """
-        setattr is called when the syntax a.b = 2 is used to set a value.
+        Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
             raise AttributeError(
@@ -124,8 +123,7 @@ class Dict(dict):
         dict_keys = []
         for k in self.keys():
             if isinstance(k, str):
-                m = self._re_pattern.match(k)
-                if m:
+                if m := self._re_pattern.match(k):
                     dict_keys.append(m.string)
 
         obj_attrs = list(dir(Dict))
@@ -290,7 +288,7 @@ def free_output_series_dataframes(network, components=None):
 
 def zsum(s, *args, **kwargs):
     """
-    pandas 0.21.0 changes sum() behavior so that the result of applying sum
+    Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
 
     Meant to be set as pd.Series.zsum = zsum.
@@ -432,9 +430,35 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def additional_linkports(n):
-    return [
-        i[3:]
-        for i in n.links.columns
-        if i.startswith("bus") and i not in ["bus0", "bus1"]
-    ]
+def update_linkports_component_attrs(n, where=None):
+    ports = additional_linkports(n, where)
+    c = "Link"
+
+    def doc_changes(s, j, i):
+        if not isinstance(s, str) or len(s) == 1:
+            return s
+        return s.replace(j, str(i)).replace("required", "optional")
+
+    for i, attr in product(ports, ["bus", "efficiency", "p"]):
+        target = f"{attr}{i}"
+        to_replace = "1"
+        j = "1" if attr != "efficiency" else ""
+        n.components[c]["attrs"].loc[target] = (
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(doc_changes, args=(to_replace, i))
+        )
+        n.component_attrs[c].loc[target] = (
+            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(to_replace, i))
+        )
+        if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
+            df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
+            df.index.name = "snapshot"
+            df.columns.name = c
+            n.pnl(c)[target] = df
+
+
+def additional_linkports(n, where=None):
+    if not where:
+        where = n.links.columns
+    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
