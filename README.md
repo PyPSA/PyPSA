@@ -35,7 +35,7 @@ Institute of Technology](http://www.kit.edu/english/index.php) funded by the
 Energy
 Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
 at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
-[CoNDyNet project](http://condynet.de/), financed by the [German Federal
+[CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
 Ministry for Education and Research (BMBF)](https://www.bmbf.de/en/index.html)
 as part of the [Stromnetze Research
 Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/).
@@ -230,7 +230,7 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 # Licence
 
-Copyright 2015-2023 [PyPSA
+Copyright 2015-2024 [PyPSA
 Developers](https://pypsa.readthedocs.io/en/latest/developers.html)
 
 PyPSA is licensed under the open source [MIT

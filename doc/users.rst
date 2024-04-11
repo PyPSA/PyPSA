@@ -49,7 +49,7 @@ Universities and Research Institutes
 
 * `Energiewirtschaftliches Institut zu Köln <https://www.ewi.uni-koeln.de/de/>`_ (EWI): research publication `Working Paper, No 17/09 <https://www.ewi.research-scenarios.de/cms/wp-content/uploads/2017/09/EWI_WP_17-09_Build_Wind_Capacities_at_Windy_Locations.pdf>`_
 
-* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe
+* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe, e.g. in `this report <https://www.wasserstoff-leitprojekte.de/lw_resource/datapool/systemfiles/elements/files/148FFEF003673B67E0637E695E8625E5/live/document/20240321_European_Hydrogen_Infrastructure_Planning.pdf>`_ on European hydrogen infrastructure planning.
 
 * `EIA University <https://www.eia.edu.co/>`_ in Medellin, Columbia: uses PyPSA for modelling the Columbian power system in  a joint research project with South American transmission company `ISA <http://www.isa.co/>`_
 
@@ -73,13 +73,22 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
 
-* `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for a 2020 government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, and for a study in 2021 `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_
+* `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for several studies. In 2020 for a government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, in 2021 for a study on `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_ and in 2024 for a study on `India’s Electricity Transition Pathways to 2050: Scenarios and Insights <https://teriin.org/sites/default/files/2024-02/Power_Sector_2050_Report.pdf>`_
 
 * `Ember <https://ember-climate.org/>`_, a UK-based climate NGO: published a study in September 2022 on a `gas phase-out in the UK by 2030 <https://ember-climate.org/insights/research/uk-gas-power-phase-out/>`_ based on their open model `PyPSA-UK <https://github.com/ember-climate/pypsa-uk>`_
 
 * `Agora Energiewende <https://www.agora-energiewende.de/>`_, a think tank and policy institute in Germany: uses PyPSA for energy system integration studies, see for example this study from 2020: `Minimizing the cost of integrating wind and solar power in Japan <https://www.agora-energiewende.de/en/publications/minimizing-the-cost-of-integrating-wind-and-solar-power-in-japan/>`_
 
 * `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_ and `this project description <https://www.apg.at/projekte/zusammen-2040/>`_.
+
+* `Centre for Net Zero <https://www.centrefornetzero.org/>`_, a research unit
+  founded by `Octupus Energy <https://octupus.energy>`_, used PyPSA in a `report
+  <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`_
+  to investigate the role of demand flexibility in future UK energy systems.
+
+* `International Energy Agency (IEA) <https://www.iea.org/>`_ use PyPSA within their `Global Energy
+  and Climate Model
+  <https://iea.blob.core.windows.net/assets/ff3a195d-762d-4284-8bb5-bd062d260cc5/GlobalEnergyandClimateModelDocumentation2023.pdf>`_.
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 

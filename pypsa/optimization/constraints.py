@@ -62,10 +62,10 @@ def define_operational_constraints_for_non_extendables(
         dispatch_lower = (1, dispatch_lower), (-1, loss)
         dispatch_upper = (1, dispatch_upper), (1, loss)
     n.model.add_constraints(
-        dispatch_lower, ">=", lower, f"{c}-fix-{attr}-lower", active
+        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
     n.model.add_constraints(
-        dispatch_upper, "<=", upper, f"{c}-fix-{attr}-upper", active
+        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
     )
 
 
@@ -104,8 +104,12 @@ def define_operational_constraints_for_extendables(
         lhs_lower += ((-1, loss),)
         lhs_upper += ((1, loss),)
 
-    n.model.add_constraints(lhs_lower, ">=", 0, f"{c}-ext-{attr}-lower", active)
-    n.model.add_constraints(lhs_upper, "<=", 0, f"{c}-ext-{attr}-upper", active)
+    n.model.add_constraints(
+        lhs_lower, ">=", 0, name=f"{c}-ext-{attr}-lower", mask=active
+    )
+    n.model.add_constraints(
+        lhs_upper, "<=", 0, name=f"{c}-ext-{attr}-upper", mask=active
+    )
 
 
 def define_operational_constraints_for_committables(n, sns, c):
@@ -172,23 +176,25 @@ def define_operational_constraints_for_committables(n, sns, c):
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
-    n.model.add_constraints(lhs, ">=", 0, f"{c}-com-p-lower", mask=active)
+    n.model.add_constraints(lhs, ">=", 0, name=f"{c}-com-p-lower", mask=active)
 
     # upper dispatch level limit
     lhs = (1, p), (-upper_p, status)
-    n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-upper", mask=active)
+    n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-upper", mask=active)
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
     rhs.loc[sns[0], initially_up] = -1
     lhs = start_up - status_diff
-    n.model.add_constraints(lhs, ">=", rhs, f"{c}-com-transition-start-up", mask=active)
+    n.model.add_constraints(
+        lhs, ">=", rhs, name=f"{c}-com-transition-start-up", mask=active
+    )
 
     rhs = pd.DataFrame(0, sns, com_i)
     rhs.loc[sns[0], initially_up] = 1
     lhs = shut_down + status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, f"{c}-com-transition-shut-down", mask=active
+        lhs, ">=", rhs, name=f"{c}-com-transition-shut-down", mask=active
     )
 
     # min up time
@@ -202,7 +208,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, f"{c}-com-up-time", mask=mask[min_up_time_i]
+            lhs, "<=", 0, name=f"{c}-com-up-time", mask=mask[min_up_time_i]
         )
 
     # min down time
@@ -215,7 +221,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 1, f"{c}-com-down-time", mask=mask[min_down_time_i]
+            lhs, "<=", 1, name=f"{c}-com-down-time", mask=mask[min_down_time_i]
         )
 
     # up time before
@@ -225,7 +231,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         mask = (must_stay_up >= timesteps) & initially_up
         name = f"{c}-com-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 1, name, mask=mask)
+        n.model.add_constraints(status, "=", 1, name=name, mask=mask)
 
     # down time before
     if initially_down.any():
@@ -233,7 +239,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         mask = (must_stay_down >= timesteps) & initially_down
         name = f"{c}-com-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 0, name, mask=mask)
+        n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
     cost_equal = all(
@@ -256,12 +262,12 @@ def define_operational_constraints_for_committables(n, sns, c):
             - (upper_p - ramp_shut_down) * (status - start_up)
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-before", active)
+        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-before", mask=active)
 
         # dispatch limit for partly start up/shut down for t
         lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-p-current", active)
+        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-current", mask=active)
 
         # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
@@ -272,7 +278,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             + (lower_p + ramp_up_limit - ramp_start_up) * start_up
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-start-up", active)
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active
+        )
 
         # ramp down if committable is only partly active and some capacity is shutting up
         lhs = (
@@ -283,7 +291,9 @@ def define_operational_constraints_for_committables(n, sns, c):
             - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, f"{c}-com-partly-shut-down", active)
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active
+        )
 
 
 def define_nominal_constraints_for_extendables(n, c, attr):
@@ -310,8 +320,10 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     lower = n.df(c)[attr + "_min"].reindex(ext_i)
     upper = n.df(c)[attr + "_max"].reindex(ext_i)
     mask = upper != inf
-    n.model.add_constraints(capacity, ">=", lower, f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(capacity, "<=", upper, f"{c}-ext-{attr}-upper", mask=mask)
+    n.model.add_constraints(capacity, ">=", lower, name=f"{c}-ext-{attr}-lower")
+    n.model.add_constraints(
+        capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=mask
+    )
 
 
 def define_ramp_limit_constraints(n, sns, c, attr):
@@ -389,7 +401,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
             active.index, columns=fix_i
         )
-        m.add_constraints(lhs, "<=", rhs, f"{c}-fix-{attr}-ramp_limit_up", mask=mask)
+        m.add_constraints(
+            lhs, "<=", rhs, name=f"{c}-fix-{attr}-ramp_limit_up", mask=mask
+        )
 
     # fix down
     if not ramp_limit_down[fix_i].isnull().all().all():
@@ -400,7 +414,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
             active.index, columns=fix_i
         )
-        m.add_constraints(lhs, ">=", rhs, f"{c}-fix-{attr}-ramp_limit_down", mask=mask)
+        m.add_constraints(
+            lhs, ">=", rhs, name=f"{c}-fix-{attr}-ramp_limit_down", mask=mask
+        )
 
     # ----------------------------- Extendable Generators ----------------------------- #
 
@@ -415,7 +431,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
             active.index, columns=ext_i
         )
-        m.add_constraints(lhs, "<=", rhs, f"{c}-ext-{attr}-ramp_limit_up", mask=mask)
+        m.add_constraints(
+            lhs, "<=", rhs, name=f"{c}-ext-{attr}-ramp_limit_up", mask=mask
+        )
 
     # ext down
     if not ramp_limit_down[ext_i].isnull().all().all():
@@ -426,7 +444,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
             active.index, columns=ext_i
         )
-        m.add_constraints(lhs, ">=", rhs, f"{c}-ext-{attr}-ramp_limit_down", mask=mask)
+        m.add_constraints(
+            lhs, ">=", rhs, name=f"{c}-ext-{attr}-ramp_limit_down", mask=mask
+        )
 
     # ----------------------------- Committable Generators ----------------------------- #
 
@@ -453,7 +473,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(lhs, "<=", rhs, f"{c}-com-{attr}-ramp_limit_up", mask=mask)
+        m.add_constraints(
+            lhs, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
+        )
 
     # com down
     if not assets.ramp_limit_down.isnull().all():
@@ -477,7 +499,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
 
-        m.add_constraints(lhs, ">=", rhs, f"{c}-com-{attr}-ramp_limit_down", mask=mask)
+        m.add_constraints(
+            lhs, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
+        )
 
 
 def define_nodal_balance_constraints(
@@ -570,7 +594,7 @@ def define_nodal_balance_constraints(
         rhs = rhs.rename(Bus=f"Bus{suffix}")
         if mask is not None:
             mask = mask.rename(Bus=f"Bus{suffix}")
-    n.model.add_constraints(lhs, "=", rhs, f"Bus{suffix}-nodal_balance", mask=mask)
+    n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
 def define_kirchhoff_voltage_constraints(n, sns):
@@ -656,7 +680,7 @@ def define_fixed_nominal_constraints(n, c, attr):
 
     var = n.model[f"{c}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
-    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set")
+    n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set")
 
 
 def define_modular_constraints(n, c, attr):
@@ -718,7 +742,7 @@ def define_fixed_operation_constraints(n, sns, c, attr):
         mask = fix.notna()
 
     var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
-    n.model.add_constraints(var, "=", fix, f"{c}-{attr}_set", mask=mask)
+    n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
 
 
 def define_storage_unit_constraints(n, sns):
@@ -805,7 +829,7 @@ def define_storage_unit_constraints(n, sns):
         )
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
 
 
 def define_store_constraints(n, sns):
@@ -879,7 +903,7 @@ def define_store_constraints(n, sns):
     lhs += [(eff_stand, previous_e)]
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, f"{c}-energy_balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
 
 
 def define_loss_constraints(n, sns, c, transmission_losses):

@@ -2,26 +2,61 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* If plotting a network map with split buses (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2 to account for the fact that the bus sizes are split into half circles. This makes the area scaling of the buses consistent with the area of non-split buses.
+* A new function ``n.merge()`` was added allowing the components and
+  time-dependent data of one network to be added to another network. The
+  function is also available via ``n + m`` with default settings. The function
+  requires disjunct component indices and identical snapshots and snapshot
+  weightings.
 
-* The depreacted functions ``_make_consense``, ``aggregategenerators``, ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were removed.
+* Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
+
+PyPSA 0.27.1 (22nd March 2024)
+
+* Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
+
+* Fixed assignment of active assets in multi-horizon optimisation with ``n.optimize``.
+
+* Fixed setting of investment periods when copying a multi-horizon network.
+
+* Always use name and mask keys in variable and constraint assignment to protect against future changes in argument order.
+
+* Rewrite function ``get_switchable_as_dense`` so that it consumes less memory when calling it with large dataframes.
+
+PyPSA 0.27.0 (18th February 2024)
+=================================
+
+* Bugfix: If plotting a network map with split buses
+  (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2
+  to account for the fact that the bus sizes are split into half circles. This
+  makes the area scaling of the buses consistent with the area of non-split
+  buses.
+
+* The global constraint ``define_tech_capacity_expansion_limit`` now also takes
+  branch components into account. If defined per bus, the ``bus0`` of the branch
+  is considered as a reference bus.
 
 * Bugfixes in building of global constraints in multi-horizon optimisations.
 
 * Fixed total budget calculation for MGA on multi-horizon optimisations.
 
-* The `extra_functionality` argument is now also supported in `solve_model` accessor.
+* The ``extra_functionality`` argument is now also supported in ``solve_model``
+  accessor.
 
-* `optimize_mga` now returns the solver termination status and condition.
+* ``optimize_mga`` now returns the solver termination status and condition.
+
+* The deprecated functions ``_make_consense``, ``aggregategenerators``,
+  ``get_buses_linemap_and_lines`` and ``get_clustering_from_busmap`` were
+  removed.
 
 * The minimum ``networkx`` version was bumped from ``1.10`` to ``2``.
 
 * ``pyomo`` is no longer supported for Python 3.12 or higher.
+
 
 PyPSA 0.26.3 (25th January 2024)
 =================================
