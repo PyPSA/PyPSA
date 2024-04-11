@@ -235,10 +235,6 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
         by = [n.df(c)[key] for key in groupby]
     elif isinstance(groupby, str):
         by = n.df(c)[groupby]
-    elif isinstance(groupby, dict):
-        # TODO: fix kwargs behavior. what is this used for again?
-        by = groupby.get("by")
-        level = groupby.get("level")
     elif groupby is not False:
         ValueError(
             f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
@@ -289,7 +285,10 @@ def filter_bus_carrier(n, c, port, bus_carrier, df):
     ports = n.df(c).loc[df.index, f"bus{port}"]
     port_carriers = ports.map(n.buses.carrier)
     if isinstance(bus_carrier, str):
-        return df[port_carriers == bus_carrier]
+        if bus_carrier in n.buses.carrier.unique():
+            return df[port_carriers == bus_carrier]
+        else:
+            return df[bus_carrier in port_carriers]
     elif isinstance(bus_carrier, list):
         return df[port_carriers.isin(bus_carrier)]
     else:
@@ -376,6 +375,7 @@ class Groupers:
     get_bus_and_carrier_and_bus_carrier = staticmethod(
         get_bus_and_carrier_and_bus_carrier
     )
+    get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
 
 
 class StatisticsAccessor:
@@ -433,10 +433,7 @@ class StatisticsAccessor:
             self.optimal_capacity,
             self.installed_capacity,
             self.capacity_factor,
-            self.dispatch,
             self.transmission,
-            self.withdrawal,
-            self.supply,
             self.curtailment,
             self.capex,
             self.opex,
@@ -771,7 +768,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=None,
+        groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -788,22 +785,15 @@ class StatisticsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
-        def func(n, c, port):
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
-            p = sign * n.pnl(c)[f"p{port}"].clip(lower=0)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
-
-        df = aggregate_components(
-            n,
-            func,
+        df = self.energy_balance(
             comps=comps,
-            agg=aggregate_groups,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            kind="supply",
         )
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
@@ -814,7 +804,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=None,
+        groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -831,22 +821,15 @@ class StatisticsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
-        def func(n, c, port):
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
-            p = -sign * n.pnl(c)[f"p{port}"].clip(upper=0)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
-
-        df = aggregate_components(
-            n,
-            func,
+        df = self.energy_balance(
             comps=comps,
-            agg=aggregate_groups,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            kind="withdrawal",
         )
         df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "carrier dependent"
@@ -857,10 +840,11 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=None,
+        groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
+        kind=None,
     ):
         """
         Calculate the dispatch of components in the network. Units depend on
@@ -881,22 +865,15 @@ class StatisticsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
-        def func(n, c, port):
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
-            p = sign * n.pnl(c)[f"p{port}"]
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
-
-        df = aggregate_components(
-            n,
-            func,
+        df = self.energy_balance(
             comps=comps,
-            agg=aggregate_groups,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            kind=kind,
         )
         df.attrs["name"] = "Dispatch"
         df.attrs["unit"] = "carrier dependent"
@@ -961,7 +938,11 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         aggregate_bus=True,
+        groupby=get_carrier_and_bus_carrier,
+        at_port=True,
+        bus_carrier=None,
         nice_names=True,
+        kind=None,
     ):
         """
         Calculate the energy balance of components in the network. Positive
@@ -980,24 +961,53 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        if aggregate_bus:
-            switch = False
-            groupby = get_carrier_and_bus_carrier
-        else:
+
+        if not aggregate_bus:
+            if groupby != get_carrier_and_bus_carrier:
+                logger.warning(
+                    "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
+                )
+            logger.warning(
+                "Argument 'aggregate_bus' is deprecated and will be removed in the next release. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
+            )
             switch = True
             groupby = get_bus_and_carrier_and_bus_carrier
-        res = self.dispatch(
+        else:
+            switch = False
+
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c, port):
+            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            weights = get_weightings(n, c)
+            p = sign * n.pnl(c)[f"p{port}"]
+            if kind == "supply":
+                p = sign * n.pnl(c)[f"p{port}"].clip(upper=0)
+            elif kind == "withdrawal":
+                p = -sign * n.pnl(c)[f"p{port}"].clip(lower=0)
+            elif kind != None:
+                logger.warning(
+                    f"Argument 'kind' is not recognized. Falling back to dispatch."
+                )
+            return aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = aggregate_components(
+            n,
+            func,
             comps=comps,
+            agg=aggregate_groups,
             groupby=groupby,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
+
         if switch:
-            res = res.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
-        res.attrs["name"] = "Energy Balance"
-        res.attrs["unit"] = "carrier dependent"
-        return res
+            res = df.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
+        df.attrs["name"] = "Energy Balance"
+        df.attrs["unit"] = "carrier dependent"
+        return df
 
     def curtailment(
         self,
@@ -1143,9 +1153,9 @@ class StatisticsAccessor:
             ).values
             if kind is not None:
                 if kind == "input":
-                    df = df.clip(lower=0)
+                    df = df.clip(upper=0)
                 elif kind == "output":
-                    df = -df.clip(upper=0)
+                    df = df.clip(lower=0)
                 else:
                     raise ValueError(
                         f"Argument 'kind' must be 'input', 'output' or None, got {kind}"
