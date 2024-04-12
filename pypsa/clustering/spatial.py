@@ -19,7 +19,6 @@ from typing import Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
@@ -164,11 +163,6 @@ def align_strategies(strategies, keys, component):
     return {k: strategies[k] for k in keys}
 
 
-@deprecated(details="Use `make_consense` instead.")
-def _make_consense(component: str, attr: str) -> callable:
-    return make_consense(component, attr)
-
-
 def flatten_multiindex(m, join=" "):
     """
     Flatten a multiindex by joining the levels with the given string.
@@ -213,7 +207,6 @@ def aggregateoneport(
     c = component
     df = n.df(c)
     attrs = n.components[c]["attrs"]
-
     if "carrier" in df.columns:
         if carriers is None:
             carriers = df.carrier.unique()
@@ -260,6 +253,7 @@ def aggregateoneport(
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     df = pd.concat([aggregated, non_aggregated], sort=False)
+    df.fillna(attrs.default, inplace=True)
 
     pnl = dict()
     if with_time:
@@ -295,20 +289,6 @@ def aggregateoneport(
                 pnl[attr] = pnl[attr].loc[:, ~is_static]
 
     return df, pnl
-
-
-@deprecated(details="Use `aggregateoneport` instead.")
-def aggregategenerators(
-    n,
-    busmap,
-    carriers=None,
-    buses=None,
-    with_time=True,
-    custom_strategies=dict(),
-):
-    return aggregateoneport(
-        n, busmap, "Generator", carriers, buses, with_time, custom_strategies
-    )
 
 
 def aggregatebuses(n, busmap, custom_strategies=dict()):
@@ -461,48 +441,6 @@ def aggregatelines(
                 pnl[attr] = pnl[attr].loc[:, ~is_static]
 
     return df, pnl, grouper
-
-
-@deprecated
-def get_buses_linemap_and_lines(
-    n: Any,
-    busmap: pd.DataFrame,
-    line_length_factor: float = 1.0,
-    bus_strategies=None,
-    with_time: bool = True,
-):
-    """
-    Compute new buses and lines based on the given network and busmap.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to compute the buses and lines for.
-    busmap : pandas.DataFrame
-        The mapping of buses to clusters.
-    line_length_factor : float, optional
-        The factor to multiply the line length by, by default 1.0
-    bus_strategies : dict, optional
-        The strategies to use for aggregating buses, by default {}
-    with_time : bool, optional
-        Whether to include time-dependent data, by default True
-
-    Returns
-    -------
-    tuple
-        A tuple containing the new buses, the line map, the positive line map, the negative line map, the new lines, and the time-dependent lines.
-    """
-    if bus_strategies is None:
-        bus_strategies = {}
-    buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
-    lines, lines_t, linemap = aggregatelines(
-        n,
-        busmap,
-        line_length_factor,
-        with_time=with_time,
-        bus_strategies=bus_strategies,
-    )
-    return buses, lines, lines_t, linemap
 
 
 @dataclass
@@ -807,7 +745,6 @@ def busmap_by_hac(
         :, buses_x
     ]
 
-    # TODO: maybe change the deprecated argument 'affinity' to 'metric'
     labels = HAC(
         n_clusters=n_clusters,
         connectivity=A,

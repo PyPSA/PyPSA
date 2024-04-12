@@ -12,8 +12,6 @@ import pytest
 
 import pypsa
 from pypsa.clustering.spatial import (
-    aggregatebuses,
-    aggregatelines,
     aggregateoneport,
     busmap_by_hac,
     busmap_by_kmeans,

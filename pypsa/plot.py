@@ -188,14 +188,16 @@ def plot(
         margin = 0.05
 
     x, y = _get_coordinates(n, layouter=layouter)
+    buses = n.buses.index
     if isinstance(bus_sizes, pd.Series):
         buses = bus_sizes.index
         if isinstance(buses, pd.MultiIndex):
             buses = buses.unique(0)
-        x, y = x[buses], y[buses]
 
     if boundaries is None:
-        boundaries = sum(zip(*compute_bbox_with_margins(margin, x, y)), ())
+        boundaries = sum(
+            zip(*compute_bbox_with_margins(margin, x[buses], y[buses])), ()
+        )
 
     if geomap and not cartopy_present:
         logger.warning("Cartopy needs to be installed to use `geomap=True`.")
@@ -270,6 +272,8 @@ def plot(
             s_base = bus_sizes.loc[b_i]
 
             if bus_split_circles:
+                # As only half of the circle is drawn, increase area by factor 2
+                s_base = s_base * 2
                 s_base = (
                     s_base[s_base > 0],
                     s_base[s_base < 0],
@@ -309,7 +313,7 @@ def plot(
                 bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
             c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
 
-        for b_i in s.index[s != 0]:
+        for b_i in s.index[(s != 0) & ~s.isna()]:
             radius = s.at[b_i] ** 0.5
             patches.append(
                 Circle(

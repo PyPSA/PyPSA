@@ -7,14 +7,13 @@ dependencies:
 - python
 - six
 - numpy
-- pyomo>=5.7.0
 - scipy
 - pandas>=1.1.0
 - xarray
 - netcdf4
 - pytables
 - matplotlib
-- networkx>=1.10
+- networkx>=2
 - pyomo<6.6.2
 - cartopy>=0.16
 - geopandas>=0.9
@@ -25,7 +24,7 @@ dependencies:
 - pandoc
 - ipykernel   # for executing nbs
 - scikit-learn  # for spatial clustering
-- linopy>=0.2
+- linopy>=0.3.7
 
 - pip:
   - .
@@ -34,3 +33,6 @@ dependencies:
   - nbsphinx
   - nbsphinx_link
   - highspy
+  - pyomo>=5.7,<6.6.2; python_version < '3.12'
+  - myst-parser
+  - sphinxcontrib.bibtex

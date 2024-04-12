@@ -109,6 +109,10 @@ class ImporterCSV(Importer):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
+    def get_crs(self):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
+
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn):
@@ -168,6 +172,10 @@ class ExporterCSV(Exporter):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         open(fn, "w").write(json.dumps(meta))
 
+    def save_crs(self, crs):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        open(fn, "w").write(json.dumps(crs))
+
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
@@ -210,6 +218,9 @@ class ImporterHDF5(Importer):
 
     def get_meta(self):
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
+
+    def get_crs(self):
+        return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
@@ -256,6 +267,9 @@ class ExporterHDF5(Exporter):
 
     def save_meta(self, meta):
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
+
+    def save_crs(self, crs):
+        self.ds.put("/crs", pd.Series(json.dumps(crs)))
 
     def save_snapshots(self, snapshots):
         self.ds.put("/snapshots", snapshots, format="table", index=False)
@@ -310,6 +324,9 @@ if has_xarray:
         def get_meta(self):
             return json.loads(self.ds.attrs.get("meta", "{}"))
 
+        def get_crs(self):
+            return json.loads(self.ds.attrs.get("crs", "{}"))
+
         def get_snapshots(self):
             return self.get_static("snapshots", "snapshots")
 
@@ -355,6 +372,9 @@ if has_xarray:
 
         def save_meta(self, meta):
             self.ds.attrs["meta"] = json.dumps(meta)
+
+        def save_crs(self, crs):
+            self.ds.attrs["crs"] = json.dumps(crs)
 
         def save_snapshots(self, snapshots):
             snapshots = snapshots.rename_axis(index="snapshots")
@@ -432,8 +452,10 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
     }
     exporter.save_attributes(attrs)
 
+    crs = {}
     if network.crs is not None:
-        network.meta["_crs"] = network.crs.to_wkt()
+        crs["_crs"] = network.crs.to_wkt()
+    exporter.save_crs(crs)
 
     exporter.save_meta(network.meta)
 
@@ -653,7 +675,7 @@ def import_from_netcdf(network, path, skip_time=False):
     """
     assert has_xarray, "xarray must be installed for netCDF support."
 
-    basename = Path(path).name
+    basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
@@ -729,6 +751,11 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
     attrs = importer.get_attributes()
     network.meta = importer.get_meta()
+    crs = importer.get_crs()
+    crs = crs.pop("_crs", None)
+    if crs is not None:
+        crs = CRS.from_wkt(crs)
+        network._crs = crs
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
@@ -877,13 +904,12 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
+            if static_attrs.at[k, "type"] == "int":
+                dataframe[k] = dataframe[k].fillna(0)
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
-                    crs = network.meta.pop("_crs", None)
-                    if crs is not None:
-                        crs = CRS.from_wkt(crs)
                     geometry = dataframe[k].replace({"": None, np.nan: None})
-                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry, crs=crs)
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
@@ -909,7 +935,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         return
 
     if cls_name == "Shape":
-        new_df = gpd.GeoDataFrame(new_df)
+        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
@@ -998,6 +1024,72 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     pnl[attr].loc[network.snapshots, columns] = dataframe.loc[
         network.snapshots, columns
     ]
+
+
+def merge(network, other, components_to_skip=None, inplace=False, with_time=True):
+    """
+    Merge the components of two networks.
+
+    Requires disjunct sets of component indices and, if time-dependent data is
+    merged, identical snapshots and snapshot weightings.
+
+    If a component in ``other`` does not have values for attributes present in
+    ``network``, default values are set.
+
+    If a component in ``other`` has attributes which are not present in
+    ``network`` these attributes are ignored.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        Network to add to.
+    other : pypsa.Network
+        Network to add from.
+    components_to_skip : list-like, default None
+        List of names of components which are not to be merged e.g. "Bus"
+    inplace : bool, default False
+        If True, merge into ``network`` in-place, otherwise a copy is made.
+    with_time : bool, default True
+        If False, only static data is merged.
+
+    Returns
+    -------
+    receiving_n : pypsa.Network
+        Merged network, or None if inplace=True
+    """
+    to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+    if components_to_skip:
+        to_skip.update(components_to_skip)
+    to_iterate = other.all_components - to_skip
+    # ensure buses are merged first
+    to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
+    for c in other.iterate_components(to_iterate):
+        assert c.df.index.intersection(network.df(c.name).index).empty, (
+            f"Error, component {c.name} has overlapping indices, "
+            "cannot merge networks."
+        )
+    if with_time:
+        snapshots_aligned = network.snapshots.equals(other.snapshots)
+        weightings_aligned = network.snapshot_weightings.equals(
+            other.snapshot_weightings
+        )
+        assert snapshots_aligned and weightings_aligned, (
+            "Error, snapshots or snapshot weightings do not agree, "
+            "cannot merge networks."
+        )
+    new = network if inplace else network.copy()
+    if other.srid != new.srid:
+        logger.warning(
+            "Spatial Reference System Indentifier of networks do not agree: "
+            f"{new.srid}, {other.srid}. Assuming {new.srid}."
+        )
+    for c in other.iterate_components(to_iterate):
+        new.import_components_from_dataframe(c.df, c.name)
+        if with_time:
+            for k, v in c.pnl.items():
+                new.import_series_from_dataframe(v, c.name, k)
+
+    return None if inplace else new
 
 
 def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):

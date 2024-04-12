@@ -4,6 +4,7 @@ bus,string,n/a,n/a,Name of bus to which store is attached.,Input (required)
 type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (optional)
 carrier,string,n/a,"","Energy carrier of the Store, e.g. ""heat"" or ""gas"".","Input (optional)"
 e_nom,float,MWh,0,Nominal energy capacity.,Input (optional)
+e_nom_mod,float,MWh,0,Nominal energy capacity of the store module.,Input (optional)
 e_nom_extendable,boolean,n/a,False,Switch to allow capacity e_nom to be extended in OPF.,Input (optional)
 e_nom_min,float,MWh,0,"If e_nom is extendable in OPF, set its minimum value.",Input (optional)
 e_nom_max,float,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e.g. limited by technical potential).",Input (optional)

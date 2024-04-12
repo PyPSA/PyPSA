@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import pandas as pd
 import pytest
 from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
@@ -14,6 +13,10 @@ def test_stand_by_cost(api):
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
+
+    if api == "pyomo":
+        pytest.skip("stand_by_cost not implemented for pyomo")
+
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -58,3 +61,5 @@ def test_stand_by_cost(api):
     expected_cost = np.array([80000, 120000, 100000, 56010], dtype=float).T
 
     equal(cost.sum(1), expected_cost)
+
+    equal(sum(expected_cost), n.objective)

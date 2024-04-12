@@ -4,6 +4,7 @@ bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (require
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
 type,string,n/a,n/a,Placeholder for storage unit type. Not yet implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits in OPF.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the storage unit module.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
 p_nom_min,float,MW,0,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
