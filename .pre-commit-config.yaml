@@ -41,7 +41,7 @@ repos:
 
 # Formatting with "black" coding style
 - repo: https://github.com/psf/black
-  rev: 23.9.1
+  rev: 23.10.0
   hooks:
   # Format Python files
   - id: black
@@ -57,7 +57,7 @@ repos:
 
 # Do YAML formatting (before the linter checks it for misses)
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-  rev: v2.10.0
+  rev: v2.11.0
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
