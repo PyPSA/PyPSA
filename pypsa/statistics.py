@@ -129,11 +129,6 @@ def get_ports(n, c):
     return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
-def get_stacked_ports(n, c):
-    ports = get_ports(n, c)
-    return pd.concat([n.df(c)[f"bus{p}"][lambda ds: ds != ""] for p in ports])
-
-
 def port_mask(n, c, port="", bus_carrier=None):
     """
     Get a mask of components which are optionally connected to a bus with a
