@@ -13,6 +13,7 @@ Release Notes
   requires disjunct component indices and identical snapshots and snapshot
   weightings.
 
+* Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
 * The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. Depending on the function, the default of `at_port` is set to `True` or `False`, for example for the dispatch all ports are considered.
 
 * The statistics module now supports an optional `port` argument in `groupby` functions. This allows to group statistics while considering the port of a component.
