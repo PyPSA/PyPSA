@@ -73,9 +73,18 @@ def test_net_and_gross_revenue(ac_dc_network_r):
     target = n.statistics.revenue(aggregate_time="sum")
     revenue_out = n.statistics.revenue(aggregate_time="sum", kind="output")
     revenue_in = n.statistics.revenue(aggregate_time="sum", kind="input")
-    revenue = revenue_in.sub(revenue_out, fill_value=0)
+    revenue = revenue_in.add(revenue_out, fill_value=0)
     comps = ["Generator", "Line", "Link"]
     assert np.allclose(revenue[comps], target[comps])
+
+
+def test_supply_withdrawal(ac_dc_network_r):
+    n = ac_dc_network_r
+    target = n.statistics.energy_balance()
+    supply = n.statistics.energy_balance(kind="supply")
+    withdrawal = n.statistics.energy_balance(kind="withdrawal")
+    energy_balance = supply.sub(withdrawal, fill_value=0)
+    assert np.allclose(energy_balance.reindex(target.index), target)
 
 
 def test_no_grouping(ac_dc_network_r):
