@@ -745,7 +745,6 @@ class StatisticsAccessor:
                 p = n.pnl(c).p
 
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
-            opex = opex.loc[:, (opex != 0).any()]
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
@@ -863,6 +862,10 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
+        logging.warning(
+            "Method 'dispatch' is deprecated and will be removed in the next release. Use 'energy_balance' instead."
+        )
+
         n = self._parent
 
         df = self.energy_balance(
@@ -983,12 +986,12 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             p = sign * n.pnl(c)[f"p{port}"]
             if kind == "supply":
-                p = sign * n.pnl(c)[f"p{port}"].clip(upper=0)
+                p = p.clip(lower=0)
             elif kind == "withdrawal":
-                p = -sign * n.pnl(c)[f"p{port}"].clip(lower=0)
+                p = -p.clip(upper=0)
             elif kind != None:
                 logger.warning(
-                    f"Argument 'kind' is not recognized. Falling back to dispatch."
+                    f"Argument 'kind' is not recognized. Falling back to energy balance."
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1161,7 +1164,6 @@ class StatisticsAccessor:
                         f"Argument 'kind' must be 'input', 'output' or None, got {kind}"
                     )
             revenue = df * prices
-            revenue = revenue.loc[:, (revenue != 0).any()]
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
