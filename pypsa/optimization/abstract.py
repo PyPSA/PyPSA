@@ -24,6 +24,8 @@ def optimize_transmission_expansion_iteratively(
     min_iterations=1,
     max_iterations=100,
     track_iterations=False,
+    lines_disc={},
+    links_disc={},
     **kwargs,
 ):
     """
@@ -99,6 +101,36 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
+    def get_discretized_value(value, disc_int):
+
+        if value == 0.0:
+            return value
+        
+        add =  value - value % disc_int
+        value =  value % disc_int
+        discrete = disc_int if value > 0.3 * disc_int else 0.0
+
+        return add + discrete
+
+    def post_discretize_lines(n, lines_disc):
+        n = n.copy()
+
+        for carrier in lines_disc.keys():
+            if carrier in n.lines.carrier.unique(): 
+                n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
+            
+        return n
+
+    def post_discretize_links(n, links_disc):
+        n = n.copy()
+
+        for carrier in links_disc.keys():
+            if carrier in n.links.carrier.unique():
+                n.links.loc[n.links.carrier == carrier, "p_nom_opt"] = n.links.loc[n.links.carrier == carrier, "p_nom_opt"].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
+                print(f"{carrier}, {links_disc[carrier]}")
+
+        return n
+
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
             n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
@@ -122,6 +154,12 @@ def optimize_transmission_expansion_iteratively(
         )
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
+
+        # allow post-discretization of lines and links
+        #post_discretize_lines(n, lines_disc)
+        post_discretize_links(n, links_disc)
+        print("discretize links digga")
+
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
