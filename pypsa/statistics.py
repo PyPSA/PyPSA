@@ -124,7 +124,7 @@ def get_weightings(n, c):
 
 
 # TODO: remove in 0.29
-@deprecated(removed_in="0.29")
+@deprecated(deprecated_in="0.28", removed_in="0.29")
 def get_ports(n, c):
     """
     Get a list of existent ports of a component.
@@ -801,7 +801,9 @@ class StatisticsAccessor:
         return df
 
     # TODO: remove in 0.29
-    @deprecated(removed_in="0.29", details="Use 'energy_balance' instead.")
+    @deprecated(
+        deprecated_in="0.28", removed_in="0.29", details="Use 'energy_balance' instead."
+    )
     def dispatch(
         self,
         comps=None,
@@ -948,7 +950,7 @@ class StatisticsAccessor:
                     "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
                 )
             logger.warning(
-                "Argument 'aggregate_bus' is deprecated and will be removed in the next release. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
+                "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
             )
             switch = True
             groupby = get_bus_and_carrier_and_bus_carrier
