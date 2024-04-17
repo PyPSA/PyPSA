@@ -65,6 +65,7 @@ Universities and Research Institutes
 
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
 
+* `The University of Edinburgh <https://www.eng.ed.ac.uk/research/institutes/ies>`_: introduced PyPSA-GB: An open-source model of Great Britain's power system for simulating future energy scenarios (Energy Strategy Reviews, May 2024) `doi.org/10.1016/j.esr.2024.101375 <https://doi.org/10.1016/j.esr.2024.101375>`_
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
@@ -126,3 +127,5 @@ Companies, Governmental and Non-Governmental Organisations
 * `spire <https://www.spireenergy.com/>`_
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
+
+* `ClimateXChange <https://www.climatexchange.org.uk/>`_ commissioned a report for the Scottish Government on `Electricity system security of supply in Scotland <https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/>`_ using PyPSA-GB.
