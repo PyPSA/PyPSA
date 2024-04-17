@@ -67,6 +67,8 @@ Universities and Research Institutes
 
 * `Sustainable Energy Research Group (SERG) <https://www.canterbury.ac.nz/research/about-uc-research/research-groups-and-centres/sustainable-energy-research-group>`_ at `University of Canterbury <https://www.canterbury.ac.nz/>`_ uses PyPSA for energy transition in New Zealand
 
+* `The University of Edinburgh <https://www.eng.ed.ac.uk/research/institutes/ies>`_: introduced PyPSA-GB: An open-source model of Great Britain's power system for simulating future energy scenarios (Energy Strategy Reviews, May 2024) `doi.org/10.1016/j.esr.2024.101375 <https://doi.org/10.1016/j.esr.2024.101375>`_
+
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
@@ -128,3 +130,5 @@ Companies, Governmental and Non-Governmental Organisations
 * `spire <https://www.spireenergy.com/>`_
 
 * `Energy Consulting Christian Meyer <http://www.energy-consulting-meyer.de/>`_
+
+* `ClimateXChange <https://www.climatexchange.org.uk/>`_ commissioned a report for the Scottish Government on `Electricity system security of supply in Scotland <https://www.climatexchange.org.uk/projects/electricity-system-security-of-supply-in-scotland/>`_ using PyPSA-GB.
