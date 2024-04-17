@@ -7,6 +7,8 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The dual of the global constraint  ``COLimit` is saved as a positive value. 
+
 * A new function ``n.merge()`` was added allowing the components and
   time-dependent data of one network to be added to another network. The
   function is also available via ``n + m`` with default settings. The function
