@@ -18,6 +18,7 @@ from inspect import signature
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -122,29 +123,13 @@ def get_weightings(n, c):
         return n.snapshot_weightings["objective"]
 
 
+# TODO: remove in 0.29
+@deprecated(removed_in="0.29")
 def get_ports(n, c):
     """
     Get a list of existent ports of a component.
     """
     return [col[3:] for col in n.df(c) if col.startswith("bus")]
-
-
-def port_mask(n, c, port="", bus_carrier=None):
-    """
-    Get a mask of components which are optionally connected to a bus with a
-    given carrier.
-    """
-    if bus_carrier is None:
-        mask = n.df(c)[f"bus{port}"] != ""
-    elif isinstance(bus_carrier, str):
-        mask = n.df(c)[f"bus{port}"].map(n.buses.carrier).eq(bus_carrier)
-    elif isinstance(bus_carrier, list):
-        mask = n.df(c)[f"bus{port}"].map(n.buses.carrier).isin(bus_carrier)
-    else:
-        raise ValueError(
-            f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-        )
-    return mask.astype(int)
 
 
 def port_efficiency(n, c, port=""):
@@ -197,25 +182,6 @@ def get_transmission_carriers(n, bus_carrier=None):
         [(c, i) for c, idx in carriers.items() for i in idx],
         names=["component", "name"],
     )
-
-
-# TODO: likely remove
-def fallback_at_port(groupby, at_port):
-    """
-    Check whether ports should be taken into account when grouping assets.
-
-    This is decided by the groupby argument that is used. If it is a function
-    that contains a keyword argument `port`, the ports will be taken into account,
-    else not.
-    """
-    ports_available = callable(groupby) and "port" in signature(groupby).parameters
-    if at_port and not ports_available:
-        logger.warning(
-            "Argument 'groupby' is not a function that supports "
-            "'port' as a argument. Falling back to not using ports."
-        )
-        at_port = False
-    return at_port
 
 
 def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list]:
@@ -317,7 +283,7 @@ def aggregate_components(
         if n.df(c).empty:
             continue
 
-        ports = get_ports(n, c)
+        ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
         if not at_port:
             ports = [ports[0]]
 
@@ -424,11 +390,16 @@ class StatisticsAccessor:
             )
             kwargs.pop("aggregate_time")
 
+        # TODO replace dispatch by energy_balance
+
         funcs = [
             self.optimal_capacity,
             self.installed_capacity,
-            self.capacity_factor,
+            self.supply,
+            self.withdrawal,
+            self.dispatch,
             self.transmission,
+            self.capacity_factor,
             self.curtailment,
             self.capex,
             self.opex,
@@ -762,7 +733,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=get_carrier_and_bus_carrier,
+        groupby=None,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -798,7 +769,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=get_carrier_and_bus_carrier,
+        groupby=None,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -829,12 +800,14 @@ class StatisticsAccessor:
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    # TODO: remove in 0.29
+    @deprecated(removed_in="0.29", details="Use 'energy_balance' instead.")
     def dispatch(
         self,
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        groupby=get_carrier_and_bus_carrier,
+        groupby=None,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -857,9 +830,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        logging.warning(
-            "Method 'dispatch' is deprecated and will be removed in the next release. Use 'energy_balance' instead."
-        )
 
         n = self._parent
 
@@ -960,6 +930,18 @@ class StatisticsAccessor:
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
 
+        n = self._parent
+
+        if (
+            n.buses.carrier.unique().size > 1
+            and groupby is None
+            and bus_carrier is None
+        ):
+            logger.warning(
+                "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
+            )
+
+        # TODO remove aggregate_bus in 0.29
         if not aggregate_bus:
             if groupby != get_carrier_and_bus_carrier:
                 logger.warning(
@@ -972,8 +954,6 @@ class StatisticsAccessor:
             groupby = get_bus_and_carrier_and_bus_carrier
         else:
             switch = False
-
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
