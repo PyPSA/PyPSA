@@ -417,8 +417,8 @@ def assign_duals(n, assign_all_duals=False):
         elif (c == "GlobalConstraint") and (
             (assign_all_duals or attr in n.df(c).index)
         ):
-            if attr == 'CO2Limit':
-                n.df(c).loc[attr, "mu"] = dual*n.carriers.co2_emissions["co2"]
+            if attr == "CO2Limit":
+                n.df(c).loc[attr, "mu"] = dual * n.carriers.co2_emissions["co2"]
             else:
                 n.df(c).loc[attr, "mu"] = dual
 
