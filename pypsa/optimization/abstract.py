@@ -92,7 +92,7 @@ def optimize_transmission_expansion_iteratively(
         return lines_err
 
     def save_optimal_capacities(n, iteration, status):
-        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+        for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
             n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
@@ -113,30 +113,27 @@ def optimize_transmission_expansion_iteratively(
         return add + discrete
 
     def post_discretize_lines(n, lines_disc):
-        n = n.copy()
 
         for carrier in lines_disc.keys():
             if carrier in n.lines.carrier.unique(): 
-                n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
-            
+                n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
+                n.lines.loc[n.lines.carrier == carrier, "s_nom_extendable"] = False
+
         return n
 
     def post_discretize_links(n, links_disc):
-        n = n.copy()
 
         for carrier in links_disc.keys():
             if carrier in n.links.carrier.unique():
-                n.links.loc[n.links.carrier == carrier, "p_nom_opt"] = n.links.loc[n.links.carrier == carrier, "p_nom_opt"].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
-                print(f"{carrier}, {links_disc[carrier]}")
-
+                n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[n.links.carrier == carrier, "p_nom_opt"].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
+                n.links.loc[n.links.carrier == carrier, "p_nom_extendable"] = False
         return n
 
     if track_iterations:
-        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+        for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
             n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
 
     iteration = 1
-    kwargs["store_basis"] = True
     diff = msq_threshold
     while diff >= msq_threshold or iteration < min_iterations:
         if iteration > max_iterations:
@@ -155,11 +152,6 @@ def optimize_transmission_expansion_iteratively(
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
 
-        # allow post-discretization of lines and links
-        #post_discretize_lines(n, lines_disc)
-        post_discretize_links(n, links_disc)
-        print("discretize links digga")
-
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
@@ -176,7 +168,11 @@ def optimize_transmission_expansion_iteratively(
     n.links.loc[ext_dc_links_b, "p_nom"] = n.links.loc[ext_dc_links_b, "p_nom_opt"]
     n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
 
-    n.optimize(snapshots, **kwargs)
+    logger.info("Running last lopf with fixed branches (lines and links specified in post-dicretization in config file)")
+    post_discretize_lines(n, lines_disc)
+    post_discretize_links(n, links_disc)
+
+    status, condition = n.optimize(snapshots, **kwargs)
 
     n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
     n.lines.loc[ext_i, "s_nom_extendable"] = True
@@ -191,6 +187,8 @@ def optimize_transmission_expansion_iteratively(
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= obj_links + obj_lines
+
+    return status, condition
 
 
 def optimize_security_constrained(
