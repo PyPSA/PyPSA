@@ -105,9 +105,9 @@ def optimize_transmission_expansion_iteratively(
 
         if value == 0.0:
             return value
-        
-        add =  value - value % disc_int
-        value =  value % disc_int
+
+        add = value - value % disc_int
+        value = value % disc_int
         discrete = disc_int if value > 0.3 * disc_int else 0.0
 
         return add + discrete
@@ -115,8 +115,10 @@ def optimize_transmission_expansion_iteratively(
     def post_discretize_lines(n, lines_disc):
 
         for carrier in lines_disc.keys():
-            if carrier in n.lines.carrier.unique(): 
-                n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
+            if carrier in n.lines.carrier.unique():
+                n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[
+                    n.lines.carrier == carrier, "s_nom_opt"
+                ].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
                 n.lines.loc[n.lines.carrier == carrier, "s_nom_extendable"] = False
 
         return n
@@ -125,7 +127,9 @@ def optimize_transmission_expansion_iteratively(
 
         for carrier in links_disc.keys():
             if carrier in n.links.carrier.unique():
-                n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[n.links.carrier == carrier, "p_nom_opt"].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
+                n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[
+                    n.links.carrier == carrier, "p_nom_opt"
+                ].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
                 n.links.loc[n.links.carrier == carrier, "p_nom_extendable"] = False
         return n
 
@@ -168,7 +172,9 @@ def optimize_transmission_expansion_iteratively(
     n.links.loc[ext_dc_links_b, "p_nom"] = n.links.loc[ext_dc_links_b, "p_nom_opt"]
     n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
 
-    logger.info("Running last lopf with fixed branches (lines and links specified in post-dicretization in config file)")
+    logger.info(
+        "Running last lopf with fixed branches (lines and links specified in post-dicretization in config file)"
+    )
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
 
