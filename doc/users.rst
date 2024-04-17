@@ -65,6 +65,8 @@ Universities and Research Institutes
 
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
 
+* `Sustainable Energy Research Group (SERG) <https://www.canterbury.ac.nz/research/about-uc-research/research-groups-and-centres/sustainable-energy-research-group>`_ at `University of Canterbury <https://www.canterbury.ac.nz/>`_ uses PyPSA for energy transition in New Zealand
+
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
