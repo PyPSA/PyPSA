@@ -108,7 +108,7 @@ def optimize_transmission_expansion_iteratively(
 
         add = value - value % disc_int
         value = value % disc_int
-        discrete = disc_int if value > 0.3 * disc_int else 0.0
+        discrete = disc_int #if value > 0.3 * disc_int else 0.0
 
         return add + discrete
 
