@@ -7,6 +7,16 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. Depending on the function, the default of `at_port` is set to `True` or `False`, for example for the dispatch all ports are considered.
+
+* The statistics module now supports an optional `port` argument in `groupby` functions. This allows to group statistics while considering the port of a component.
+
+* The `statistics.revenue` function introduces a new keyword argument `kind` to optionally calculate the revenue based on the `input` commodity or the `output` commodity of a component.
+
+* The `statistics.energy_balance` function introduces a new keyword argument `kind` to optionally calculate the `supply` and `withdrawal` of a component.
+
+* Deprecation warnings are added to the statistics module for the functionalities that will be removed in the next major release.
+
 * A new function ``n.merge()`` was added allowing the components and
   time-dependent data of one network to be added to another network. The
   function is also available via ``n + m`` with default settings. The function
@@ -16,6 +26,7 @@ Release Notes
 * Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
 
 PyPSA 0.27.1 (22nd March 2024)
+=================================
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 
