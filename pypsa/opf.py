@@ -361,7 +361,7 @@ def define_generator_variables_constraints(network, snapshots):
             "gen_down_time_force_{}".format(gen_i),
             Constraint(range(must_stay_down), rule=force_down),
         )
-        
+
         blocks = range(must_stay_down, len(snapshots) - 1)
 
         def gen_rule(model, i):
