@@ -258,6 +258,7 @@ def define_generator_variables_constraints(network, snapshots):
         network.generators.loc[fixed_committable_gens_i, "min_up_time"] > 0
     ]
     must_stay_up_too_long = False
+    must_stay_down_too_long = False
 
     for gen_i, gen in enumerate(up_time_gens):
         min_up_time = network.generators.at[gen, "min_up_time"]
@@ -349,6 +350,9 @@ def define_generator_variables_constraints(network, snapshots):
         else:
             initial_status = 0
             must_stay_down = min_down_time - down_time_before
+            if must_stay_down > len(snapshots):
+                must_stay_down_too_long = True
+                must_stay_down = len(snapshots)
 
         def force_down(model, i):
             return model.generator_status[gen, snapshots[i]] == 0
@@ -357,7 +361,7 @@ def define_generator_variables_constraints(network, snapshots):
             "gen_down_time_force_{}".format(gen_i),
             Constraint(range(must_stay_down), rule=force_down),
         )
-
+        
         blocks = range(must_stay_down, len(snapshots) - 1)
 
         def gen_rule(model, i):
@@ -380,6 +384,12 @@ def define_generator_variables_constraints(network, snapshots):
 
         network.model.add_component(
             "gen_down_time_{}".format(gen_i), Constraint(blocks, rule=gen_rule)
+        )
+
+    if must_stay_down_too_long:
+        logger.warning(
+            "At least one generator was set to an min_down_time longer "
+            "than possible. Setting it to the maximal possible value."
         )
 
     ## Deal with start up costs ##
