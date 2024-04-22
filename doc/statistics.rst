@@ -5,14 +5,14 @@ Statistics Module
 Overview
 =======================================
 
-The ``pypsa.Network.statistics`` module provides an accessor to the ``pypsa.Network`` object, enabling users to efficiently calculate key network metrics. 
-This module is designed to simplify the analysis of network data by abstracting complex calculations into more accessible methods. It is particularly useful 
+The ``pypsa.Network.statistics`` module provides an accessor to the ``pypsa.Network`` object, enabling users to efficiently calculate key network metrics.
+This module is designed to simplify the analysis of network data by abstracting complex calculations into more accessible methods. It is particularly useful
 for users who prefer to avoid manual calculations and directly obtain relevant statistical data about the network.
 
 Available Metrics
 =======================================
 
-The module offers a variety of methods to calculate different metrics, which can be crucial for analyzing the performance and configuration of power systems 
+The module offers a variety of methods to calculate different metrics, which can be crucial for analyzing the performance and configuration of power systems
 modeled in PyPSA. Below is a list of currently available metrics with brief descriptions and how to access them in Python:
 
 * ``Installed Capacity``:
@@ -28,12 +28,12 @@ modeled in PyPSA. Below is a list of currently available metrics with brief desc
   * Access in Python: ``n.statistics.optimal_capacity()``
 
 * ``Capex (Capital Expenditure)``:
-  * Evaluates the total capital investment required for the network components, which includes newly installed and existing assets, measured in the specified 
+  * Evaluates the total capital investment required for the network components, which includes newly installed and existing assets, measured in the specified
   currency.
   * Access in Python: ``n.statistics.capex()``
 
 * ``Opex (Operational Expenditure)``:
-  * Calculates ongoing operational costs of network components, taking into account various operational parameters and their costs, measured in the specified 
+  * Calculates ongoing operational costs of network components, taking into account various operational parameters and their costs, measured in the specified
   currency.
   * Access in Python: ``n.statistics.opex()``
 
@@ -78,7 +78,7 @@ modeled in PyPSA. Below is a list of currently available metrics with brief desc
 Reference Documentation
 =======================================
 
-For further and updated information on all functions and methods available in the PyPSA statistics module, users  can access the PyPSA Statistics 
+For further and updated information on all functions and methods available in the PyPSA statistics module, users  can access the PyPSA Statistics
 documentation online at the following URL:
 
 `PyPSA Statistics API Reference <https://pypsa.readthedocs.io/en/latest/api_reference.html#module-pypsa.statistics>`_
@@ -98,7 +98,7 @@ To utilize the statistics module, instantiate the accessor from a PyPSA network 
 
 .. code-block:: python
 
-    n = pypsa.Network() 
+    n = pypsa.Network()
     stats = n.statistics
 
 You can then call specific methods from the ``stats`` object to calculate various metrics, such as installed capacity or operational expenditure. For example:
@@ -140,22 +140,22 @@ Similarly, to calculate the operational expenditure for all Link components, whi
 Advanced Examples and Visualization
 =======================================
 
-In addition to basic usage, the statistics module offers advanced functionality for in-depth analysis and visualization of network metrics. Here are some 
+In addition to basic usage, the statistics module offers advanced functionality for in-depth analysis and visualization of network metrics. Here are some
 advanced examples and visualization techniques:
 
-1. **Comparative Analysis**: Users can compare different scenarios or network configurations by calculating metrics for each scenario and visualizing the 
+1. **Comparative Analysis**: Users can compare different scenarios or network configurations by calculating metrics for each scenario and visualizing the
 results side by side. For example, compare the installed capacity of renewable energy sources in two different network models.
 
-2. **Temporal Analysis**: Utilize the aggregate_time parameter to analyze temporal variations in network metrics. Plotting time series data can reveal patterns 
+2. **Temporal Analysis**: Utilize the aggregate_time parameter to analyze temporal variations in network metrics. Plotting time series data can reveal patterns
 and trends over time, such as seasonal variations in energy supply or demand.
 
-3. **Geospatial Visualization**: If the network includes geospatial data, users can create maps to visualize the distribution of network components and metrics 
+3. **Geospatial Visualization**: If the network includes geospatial data, users can create maps to visualize the distribution of network components and metrics
 geographically. This can be particularly useful for understanding spatial dependencies and identifying areas with high or low capacity utilization.
 
-4. **Scenario Planning**: Explore different scenarios or what-if analyses by adjusting input parameters and observing the impact on network metrics. For example, 
+4. **Scenario Planning**: Explore different scenarios or what-if analyses by adjusting input parameters and observing the impact on network metrics. For example,
 simulate the effect of increasing renewable energy penetration on curtailment and market value.
 
-5. **Interactive Dashboards**: Develop interactive dashboards using visualization libraries like Plotly or Bokeh to allow users to dynamically explore network 
+5. **Interactive Dashboards**: Develop interactive dashboards using visualization libraries like Plotly or Bokeh to allow users to dynamically explore network
 metrics and drill down into specific details. Dashboards can provide a user-friendly interface for exploring complex network data.
 
 Example Code Snippet:
@@ -177,6 +177,5 @@ Example Code Snippet:
     plt.tight_layout()
     plt.show()
 
-This code snippet calculates the installed capacity for each component type in the network and visualizes the results using a bar plot. Similar visualizations can 
+This code snippet calculates the installed capacity for each component type in the network and visualizes the results using a bar plot. Similar visualizations can
 be created for other metrics, providing valuable insights into the network's composition and characteristics.
-
