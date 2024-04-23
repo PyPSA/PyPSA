@@ -4,13 +4,13 @@
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
+import gc
 import logging
 from itertools import product
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-import gc
 from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
