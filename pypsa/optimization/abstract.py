@@ -10,6 +10,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
+import gc
 from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
@@ -177,6 +178,9 @@ def optimize_transmission_expansion_iteratively(
     )
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
+
+    del n.model
+    gc.collect()
 
     status, condition = n.optimize(snapshots, **kwargs)
 
