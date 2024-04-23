@@ -179,6 +179,7 @@ def optimize_transmission_expansion_iteratively(
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
 
+    logger.info("Deleting n.model from fromer run to reclaim memory")
     del n.model
     gc.collect()
 
