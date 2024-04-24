@@ -105,7 +105,7 @@ def optimize_transmission_expansion_iteratively(
     def get_discretized_value(value, disc_int):
 
         if value == 0.0:
-            return discrete
+            return disc_int
 
         add = value - value % disc_int
         value = value % disc_int
