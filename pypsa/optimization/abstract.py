@@ -111,7 +111,7 @@ def optimize_transmission_expansion_iteratively(
         value = value % disc_int
         discrete = disc_int if value > 0.3 * disc_int else 0.0
 
-        return max(add,discrete) + discrete
+        return max(add, discrete) + discrete
 
     def post_discretize_lines(n, lines_disc):
 
