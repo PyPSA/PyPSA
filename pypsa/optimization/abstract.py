@@ -105,13 +105,13 @@ def optimize_transmission_expansion_iteratively(
     def get_discretized_value(value, disc_int):
 
         if value == 0.0:
-            return value
+            return discrete
 
         add = value - value % disc_int
         value = value % disc_int
         discrete = disc_int if value > 0.3 * disc_int else 0.0
 
-        return add + discrete
+        return max(add,discrete) + discrete
 
     def post_discretize_lines(n, lines_disc):
 
@@ -174,7 +174,7 @@ def optimize_transmission_expansion_iteratively(
     n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
 
     logger.info(
-        "Running last lopf with fixed branches (lines and links specified in post-dicretization in config file)"
+        "Running last lopf with fixed branches (lines and links specified in post-discretization in config file)"
     )
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
