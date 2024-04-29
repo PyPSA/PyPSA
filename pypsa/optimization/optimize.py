@@ -42,6 +42,7 @@ from pypsa.optimization.constraints import (
     define_storage_unit_constraints,
     define_store_constraints,
 )
+from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -619,7 +620,8 @@ class OptimizationAccessor:
     """
 
     def __init__(self, n: Network) -> None:
-        self.n = n
+        self._parent = n
+        self.statistic_expressions = StatisticExpressionsAccessor(self._parent)
 
     @wraps(optimize)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
