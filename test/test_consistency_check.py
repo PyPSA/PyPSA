@@ -65,7 +65,7 @@ def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog):
     n.add(
         "Shape",
         "missing_idx",
-        geometry=n.shapes.geometry[0],
+        geometry=n.shapes.geometry.iloc[0],
         component="Bus",
         idx="missing_idx",
     )
