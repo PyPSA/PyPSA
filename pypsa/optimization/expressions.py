@@ -18,6 +18,7 @@ from inspect import signature
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
 from linopy import LinearExpression, merge
 
@@ -30,7 +31,6 @@ from pypsa.statistics import (
     get_bus_and_carrier_and_bus_carrier,
     get_carrier,
     get_carrier_and_bus_carrier,
-    get_grouping,
     get_operation,
     get_transmission_branches,
     get_weightings,
@@ -38,6 +38,64 @@ from pypsa.statistics import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list]:
+    # This version should ensure a return type of pandas DataFrame which is
+    # nicely processed by linopy
+    if callable(groupby):
+        if "port" in signature(groupby).parameters:
+            grouper = groupby(n, c, port=port, nice_names=nice_names)
+        else:
+            grouper = groupby(n, c, nice_names=nice_names)
+    elif isinstance(groupby, list):
+        grouper = [n.df(c)[key] for key in groupby]
+    elif isinstance(groupby, str):
+        grouper = n.df(c)[[groupby]]
+    else:
+        ValueError(
+            f"Argument `groupby` must be a function, list, string, got {type(groupby)}"
+        )
+    if isinstance(grouper, list):
+        grouper = pd.concat(grouper, axis=1)
+    elif isinstance(grouper, pd.Series):
+        grouper = grouper.to_frame()
+    return grouper.rename_axis("name")
+
+
+def filter_active_assets(n, c, df: [pd.Series, pd.DataFrame]):
+    """
+    For static values iterate over periods and concat values.
+    """
+    if not isinstance(n.snapshots, pd.MultiIndex) or isinstance(df, pd.DataFrame):
+        return df
+    per_period = {}
+    for p in n.investment_periods:
+        per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
+    return pd.concat(per_period, axis=1)
+
+
+def filter_bus_carrier(n, c, port, bus_carrier, df):
+    """
+    Filter the DataFrame for components which are connected to a bus with
+    carrier `bus_carrier`.
+    """
+    if bus_carrier is None:
+        return df
+
+    ports = n.df(c).loc[df.index, f"bus{port}"]
+    port_carriers = ports.map(n.buses.carrier)
+    if isinstance(bus_carrier, str):
+        if bus_carrier in n.buses.carrier.unique():
+            return df[port_carriers == bus_carrier]
+        else:
+            return df[bus_carrier in port_carriers]
+    elif isinstance(bus_carrier, list):
+        return df[port_carriers.isin(bus_carrier)]
+    else:
+        raise ValueError(
+            f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+        )
 
 
 def aggregate_components(
@@ -53,9 +111,9 @@ def aggregate_components(
     """
     Apply a function and group the result for a collection of components.
     """
-    res = {}
-    if not getattr(n, model):
-        raise ValueError()
+    res = []
+    if not getattr(n, "model"):
+        raise ValueError("Model not created. Run `n.optimize.create_model()` first.")
 
     if agg != "sum":
         raise ValueError("Only 'sum' aggregation of components is supported.")
@@ -77,39 +135,42 @@ def aggregate_components(
         exprs = []
         for port in ports:
             vals = func(n, c, port)
-            if vals.empty:
+            if vals is None or vals.empty():
                 continue
             vals = filter_active_assets(n, c, vals)  # for multiinvest
             vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
+            vals = vals.rename({c: "name"})
 
-            # unit tracker
             if groupby is not False:
                 grouping = get_grouping(n, c, groupby, port=port, nice_names=nice_names)
+                grouping.insert(0, "component", c)  # for tracking the component
                 vals = vals.groupby(grouping).sum()
+            elif not is_one_component:
+                vals = vals.expand_dims({"component": [c]}).stack(
+                    group=["component", "name"]
+                )
             exprs.append(vals)
 
+        if not len(exprs):
+            continue
+
         expr = merge(exprs)
-        # TODO:
-        # if not expr.index.is_unique:
-        # df = df.groupby(level=df.index.names).agg(agg)
-        res[c] = expr
+        res.append(expr)
 
     if res == {}:
         return LinearExpression(None, n.model)
     if is_one_component:
-        return res[c]
-    return res
-    index_names = ["component"] + df.index.names
-    return pd.concat(res, names=index_names)[lambda ds: ds != 0]
+        return res[0]
+    return merge(res, dim="group")
 
 
-def pass_empty_series_if_keyerror(func):
+def pass_none_if_keyerror(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except (KeyError, AttributeError):
-            return pd.Series([], dtype=float)
+            return None
 
     return wrapper
 
@@ -216,7 +277,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             m = n.model
             costs = n.df(c)["capital_cost"]
@@ -234,8 +295,8 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df.attrs["name"] = "Capital Expenditure"
-        df.attrs["unit"] = "currency"
+        # df.attrs["name"] = "Capital Expenditure"
+        # df.attrs["unit"] = "currency"
         return df
 
     def installed_capex(
