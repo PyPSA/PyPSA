@@ -25,6 +25,8 @@ Release Notes
 
 * Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
 
+* Bugfix: calling `create_model` or `optimize` when a global operational limit is defined will no longer set the carrier attribute of stores to the carrier of the bus they are attached to.
+
 PyPSA 0.27.1 (22nd March 2024)
 =================================
 
