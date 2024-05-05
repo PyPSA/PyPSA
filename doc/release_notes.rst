@@ -25,6 +25,8 @@ Release Notes
 
 * Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
 
+* Added useful warning to `plot.py` to handle the case where the `requests` dependency is missing
+
 PyPSA 0.27.1 (22nd March 2024)
 =================================
 
