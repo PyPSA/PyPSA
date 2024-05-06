@@ -108,7 +108,7 @@ def optimize_transmission_expansion_iteratively(
 
         add = value - value % disc_int
         value = value % disc_int
-        discrete = disc_int #if value > 0.3 * disc_int else 0.0
+        discrete = disc_int if value > 0.3 * disc_int else 0.0
 
         return add + discrete
 
@@ -116,6 +116,7 @@ def optimize_transmission_expansion_iteratively(
 
         for carrier in lines_disc.keys():
             if carrier in n.lines.carrier.unique():
+                n.lines.loc[n.lines.carrier == carrier, "s_nom_og"] = n.lines.loc[n.lines.carrier == carrier, "s_nom"]
                 n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[
                     n.lines.carrier == carrier, "s_nom_opt"
                 ].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
@@ -127,6 +128,7 @@ def optimize_transmission_expansion_iteratively(
 
         for carrier in links_disc.keys():
             if carrier in n.links.carrier.unique():
+                n.links.loc[n.links.carrier == carrier, "p_nom_og"] = n.links.loc[n.links.carrier == carrier, "p_nom"]
                 n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[
                     n.links.carrier == carrier, "p_nom_opt"
                 ].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
