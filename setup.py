@@ -29,7 +29,7 @@ setup(
         "netcdf4",
         "tables",
         "pyomo>=5.7,<6.6.2; python_version < '3.12'",
-        "linopy>=0.3.7",
+        "linopy>=0.3.9",
         "matplotlib",
         "geopandas>=0.9",
         "networkx>=2",
