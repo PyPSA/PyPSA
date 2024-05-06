@@ -72,7 +72,7 @@ def test_assign_all_duals(ac_dc_network, assign):
         transmission.sum() <= limit, name="GlobalConstraint-generation_limit"
     )
     m.add_constraints(
-        transmission.sum(dims="Link") <= limit,
+        transmission.sum(dim="Link") <= limit,
         name="GlobalConstraint-generation_limit_dynamic",
     )
 
