@@ -180,7 +180,6 @@ def optimize_transmission_expansion_iteratively(
     )
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
-    n.export_to_netcdf("/home/julian-geis/Documents/04_Ariadne/tasks/post-discretization/debugging/n_1.nc")
 
     logger.info("Deleting n.model from former run to reclaim memory")
     del n.model
@@ -201,7 +200,6 @@ def optimize_transmission_expansion_iteratively(
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= obj_links + obj_lines
-    n.export_to_netcdf("/home/julian-geis/Documents/04_Ariadne/tasks/post-discretization/debugging/n_2.nc")
 
     return status, condition
 
