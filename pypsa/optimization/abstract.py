@@ -117,6 +117,7 @@ def optimize_transmission_expansion_iteratively(
 
         for carrier in lines_disc.keys():
             if carrier in n.lines.carrier.unique():
+                n.lines.loc[n.lines.carrier == carrier, "s_nom_og"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_min"]
                 n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[
                     n.lines.carrier == carrier, "s_nom_opt"
                 ].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
@@ -128,6 +129,7 @@ def optimize_transmission_expansion_iteratively(
 
         for carrier in links_disc.keys():
             if carrier in n.links.carrier.unique():
+                n.links.loc[n.links.carrier == carrier, "p_nom_og"] = n.links.loc[n.links.carrier == carrier, "p_nom_min"]
                 n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[
                     n.links.carrier == carrier, "p_nom_opt"
                 ].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
@@ -178,6 +180,7 @@ def optimize_transmission_expansion_iteratively(
     )
     post_discretize_lines(n, lines_disc)
     post_discretize_links(n, links_disc)
+    n.export_to_netcdf("/home/julian-geis/Documents/04_Ariadne/tasks/post-discretization/debugging/n_1.nc")
 
     logger.info("Deleting n.model from former run to reclaim memory")
     del n.model
@@ -198,6 +201,7 @@ def optimize_transmission_expansion_iteratively(
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= obj_links + obj_lines
+    n.export_to_netcdf("/home/julian-geis/Documents/04_Ariadne/tasks/post-discretization/debugging/n_2.nc")
 
     return status, condition
 
