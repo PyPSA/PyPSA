@@ -29,9 +29,14 @@ try:
     import cartopy
     import cartopy.crs as ccrs
     import cartopy.mpl.geoaxes
-    import requests
 except ImportError:
     cartopy_present = False
+
+requests_present = True
+try:
+    import requests
+except ImportError:
+    requests_present = False
 
 pltly_present = True
 try:
@@ -199,9 +204,13 @@ def plot(
             zip(*compute_bbox_with_margins(margin, x[buses], y[buses])), ()
         )
 
-    if geomap and not cartopy_present:
-        logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-        geomap = False
+    if geomap:
+        if not cartopy_present:
+            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+            geomap = False
+        if not requests_present:
+            logger.warning("Requests needs to be installed to use `geomap=True`.")
+            geomap = False
 
     if geomap:
         transform = get_projection_from_crs(n.srid)

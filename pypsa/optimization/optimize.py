@@ -354,7 +354,8 @@ def assign_solution(n):
             else:
                 set_from_frame(n, c, attr, df)
         elif attr != "n_mod":
-            n.df(c)[attr + "_opt"].update(df)
+            idx = df.index.intersection(n.df(c).index)
+            n.df(c).loc[idx, attr + "_opt"] = df.loc[idx]
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
@@ -367,7 +368,7 @@ def assign_solution(n):
         c = "StorageUnit"
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
-    n.objective = m.objective_value
+    n.objective = m.objective.value
 
 
 def assign_duals(n, assign_all_duals=False):
