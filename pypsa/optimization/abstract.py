@@ -73,7 +73,7 @@ def optimize_transmission_expansion_iteratively(
     """
 
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    ext_i = n.get_extendable_i("Line")
+    ext_i = n.get_extendable_i("Line").copy()
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
     ext_typed_i = ext_i.intersection(typed_i)
@@ -114,10 +114,10 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
-    def discretized_capacity(nom_opt, unit_size, threshold):
-        return (
-            nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-        ) * unit_size
+    def discretized_capacity(nom_opt, unit_size, threshold, min_units=0):
+        units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+        return max(min_units, units) * unit_size
+
 
     def discretize_branch_components(
         n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
@@ -126,7 +126,8 @@ def optimize_transmission_expansion_iteratively(
         Discretizes the branch components of a network based on the specified unit sizes and thresholds.
         """
         if line_unit_size:
-            args = (line_unit_size, line_threshold)
+            min_units = 1
+            args = (line_unit_size, line_threshold, min_units)
             n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
                 discretized_capacity, args=args
             )
@@ -172,15 +173,16 @@ def optimize_transmission_expansion_iteratively(
 
     logger.info("Preparing final iteration with fixed and potentially discretized branches (HVDC links and HVAC lines).")
 
-    ext_dc_links_b = n.links.p_nom_extendable & (n.links.carrier == "DC")
+    link_carriers = {"DC"} if not link_unit_size else link_unit_size.keys() | {"DC"}
+    ext_links_to_fix_b = n.links.p_nom_extendable & n.links.carrier.isin(link_carriers)
     s_nom_orig = n.lines.s_nom.copy()
     p_nom_orig = n.links.p_nom.copy()
 
     n.lines.loc[ext_i, "s_nom"] = n.lines.loc[ext_i, "s_nom_opt"]
     n.lines.loc[ext_i, "s_nom_extendable"] = False
 
-    n.links.loc[ext_dc_links_b, "p_nom"] = n.links.loc[ext_dc_links_b, "p_nom_opt"]
-    n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
+    n.links.loc[ext_links_to_fix_b, "p_nom"] = n.links.loc[ext_links_to_fix_b, "p_nom_opt"]
+    n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = False
 
     discretize_branch_components(
         n,
@@ -190,17 +192,18 @@ def optimize_transmission_expansion_iteratively(
         link_threshold,
     )
 
+    n.calculate_dependent_values()
     status, condition = n.optimize(snapshots, **kwargs)
 
     n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
     n.lines.loc[ext_i, "s_nom_extendable"] = True
 
-    n.links.loc[ext_dc_links_b, "p_nom"] = p_nom_orig.loc[ext_dc_links_b]
-    n.links.loc[ext_dc_links_b, "p_nom_extendable"] = True
+    n.links.loc[ext_links_to_fix_b, "p_nom"] = p_nom_orig.loc[ext_links_to_fix_b]
+    n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = True
 
     ## add costs of additional infrastructure to objective value of last iteration
     obj_links = (
-        n.links[ext_dc_links_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
+        n.links[ext_links_to_fix_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
     )
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
