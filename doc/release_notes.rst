@@ -7,34 +7,57 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+PyPSA 0.28.0 (8th May 2024)
+=================================
+
 * When using iterative optimisation functionality
   ``n.optimize_transmission_expansion_iteratively()``, add option to discretize
   optimised line and link capacities in the final iteration based on new keyword
   arguments ``line_unit_size``, ``link_unit_size``, ``line_threshold`` and
   ``link_threshold``. This allows to round the optimised capacities to a
   multiple of the unit size based on the threshold.
-
-* The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. Depending on the function, the default of `at_port` is set to `True` or `False`, for example for the dispatch all ports are considered.
-
-* The statistics module now supports an optional `port` argument in `groupby` functions. This allows to group statistics while considering the port of a component.
-
-* The `statistics.revenue` function introduces a new keyword argument `kind` to optionally calculate the revenue based on the `input` commodity or the `output` commodity of a component.
-
-* The `statistics.energy_balance` function introduces a new keyword argument `kind` to optionally calculate the `supply` and `withdrawal` of a component.
-
-* Deprecation warnings are added to the statistics module for the functionalities that will be removed in the next major release.
+  (https://github.com/PyPSA/PyPSA/pull/871)
 
 * A new function ``n.merge()`` was added allowing the components and
   time-dependent data of one network to be added to another network. The
   function is also available via ``n + m`` with default settings. The function
   requires disjunct component indices and identical snapshots and snapshot
-  weightings.
+  weightings. (https://github.com/PyPSA/PyPSA/pull/783)
 
-* Updated environment_doc.yml to include the latest required pip dependencies for the documentation environment.
+* New features in the statistics module (https://github.com/PyPSA/PyPSA/pull/860):
 
-* Bugfix: calling `create_model` or `optimize` when a global operational limit is defined will no longer set the carrier attribute of stores to the carrier of the bus they are attached to.
+  - The statistics module introduces a new keyword argument ``at_port`` to all
+    functions. This allows considering the port of a component when calculating
+    statistics. Depending on the function, the default of ``at_port`` is set to
+    ``True`` or ``False``, for example for the dispatch all ports are considered.
 
-* Added useful warning to `plot.py` to handle the case where the `requests` dependency is missing
+  - The statistics module now supports an optional `port` argument in `groupby`
+    functions. This allows to group statistics while considering the port of a
+    component.
+
+  - The `statistics.revenue` function introduces a new keyword argument `kind` to
+    optionally calculate the revenue based on the `input` commodity or the
+    `output` commodity of a component.
+
+  - The `statistics.energy_balance` function introduces a new keyword argument
+    `kind` to optionally calculate the `supply` and `withdrawal` of a component.
+
+  - Deprecation warnings are added to the statistics module for the
+    functionalities that will be removed in the next major release.
+
+* Updated ``environment_doc.yml`` to include the latest required ``pip``
+  dependencies for the documentation environment. (https://github.com/PyPSA/PyPSA/pull/862)
+
+* Bugfix: calling ``n.create_model()`` or ``n.optimize()`` when a global
+  operational limit is defined will no longer set the carrier attribute of
+  stores to the carrier of the bus they are attached to.
+  (https://github.com/PyPSA/PyPSA/pull/880)
+
+* Added warning to ``plot.py`` with instructions to handle the case where the
+  ``requests`` dependency is missing. (https://github.com/PyPSA/PyPSA/pull/882)
+
+* Bugfix: calling ``n.optimize.*`` functions (e.g. ``n.optimize.optimize_mga``)
+  now correctly returns each functions return values. (https://github.com/PyPSA/PyPSA/pull/871)
 
 
 PyPSA 0.27.1 (22nd March 2024)
