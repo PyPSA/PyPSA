@@ -670,7 +670,9 @@ class OptimizationAccessor:
 
     @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
-        return optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
+        return optimize_transmission_expansion_iteratively(
+            self._parent, *args, **kwargs
+        )
 
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):

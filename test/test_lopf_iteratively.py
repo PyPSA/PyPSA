@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import pypsa
 from conftest import SOLVER_NAME
+
+import pypsa
 
 
 def test_lopf_post_discretization():
@@ -38,9 +39,13 @@ def test_lopf_post_discretization():
         solver_name=SOLVER_NAME,
         line_unit_size=line_unit_size,
         link_unit_size=link_unit_size,
-        link_threshold=dict(HVDC=0.4)
+        link_threshold=dict(HVDC=0.4),
     )
 
     assert status == "ok"
-    assert all(n.lines.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.)
-    assert all(n.links.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt % link_unit_size["HVDC"] == 0.)
+    assert all(n.lines.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.0)
+    assert all(
+        n.links.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt
+        % link_unit_size["HVDC"]
+        == 0.0
+    )

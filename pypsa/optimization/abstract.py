@@ -118,7 +118,6 @@ def optimize_transmission_expansion_iteratively(
         units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
         return max(min_units, units) * unit_size
 
-
     def discretize_branch_components(
         n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
     ):
@@ -186,7 +185,9 @@ def optimize_transmission_expansion_iteratively(
     n.lines.loc[ext_i, "s_nom"] = n.lines.loc[ext_i, "s_nom_opt"]
     n.lines.loc[ext_i, "s_nom_extendable"] = False
 
-    n.links.loc[ext_links_to_fix_b, "p_nom"] = n.links.loc[ext_links_to_fix_b, "p_nom_opt"]
+    n.links.loc[ext_links_to_fix_b, "p_nom"] = n.links.loc[
+        ext_links_to_fix_b, "p_nom_opt"
+    ]
     n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = False
 
     discretize_branch_components(
