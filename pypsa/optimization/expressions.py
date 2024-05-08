@@ -13,21 +13,18 @@ __copyright__ = (
 )
 
 import logging
-from functools import reduce, wraps
+from functools import wraps
 from inspect import signature
+from typing import Union
 
-import numpy as np
+import linopy as ln
 import pandas as pd
-import xarray as xr
 from deprecation import deprecated
-from linopy import LinearExpression, merge
 
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     Groupers,
     aggregate_timeseries,
-    filter_active_assets,
-    filter_bus_carrier,
     get_bus_and_carrier_and_bus_carrier,
     get_carrier,
     get_carrier_and_bus_carrier,
@@ -40,7 +37,7 @@ from pypsa.statistics import (
 logger = logging.getLogger(__name__)
 
 
-def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list]:
+def get_grouping(n, c, groupby, port=None, nice_names=False) -> Union[pd.Series, list]:
     # This version should ensure a return type of pandas DataFrame which is
     # nicely processed by linopy
     if callable(groupby):
@@ -53,8 +50,9 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
     elif isinstance(groupby, str):
         grouper = n.df(c)[[groupby]]
     else:
-        ValueError(
-            f"Argument `groupby` must be a function, list, string, got {type(groupby)}"
+        raise ValueError(
+            "Argument `groupby` must be a function, list, "
+            "string, got {type(groupby)}"
         )
     if isinstance(grouper, list):
         grouper = pd.concat(grouper, axis=1)
@@ -63,39 +61,47 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
     return grouper.rename_axis("name")
 
 
-def filter_active_assets(n, c, df: [pd.Series, pd.DataFrame]):
+def filter_active_assets(n, c, expr: Union[ln.Variable, ln.LinearExpression]):
     """
     For static values iterate over periods and concat values.
     """
-    if not isinstance(n.snapshots, pd.MultiIndex) or isinstance(df, pd.DataFrame):
-        return df
+    if not isinstance(n.snapshots, pd.MultiIndex) or "snapshot" in expr.dims:
+        return expr
     per_period = {}
     for p in n.investment_periods:
-        per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
-    return pd.concat(per_period, axis=1)
+        idx = n.get_active_assets(c, p)[lambda x: x].index.intersection(expr.index)
+        per_period[p] = expr.loc[idx]
+    return ln.merge(per_period.values(), keys=per_period.keys(), dim=c)
 
 
-def filter_bus_carrier(n, c, port, bus_carrier, df):
+def filter_bus_carrier(
+    n,
+    c: str,
+    port: str,
+    bus_carrier: str,
+    expr: Union[ln.Variable, ln.LinearExpression],
+):
     """
     Filter the DataFrame for components which are connected to a bus with
     carrier `bus_carrier`.
     """
     if bus_carrier is None:
-        return df
+        return expr
 
-    ports = n.df(c).loc[df.index, f"bus{port}"]
+    ports = n.df(c).loc[expr.index, f"bus{port}"]
     port_carriers = ports.map(n.buses.carrier)
     if isinstance(bus_carrier, str):
         if bus_carrier in n.buses.carrier.unique():
-            return df[port_carriers == bus_carrier]
+            idx = (port_carriers == bus_carrier)[lambda x: x].index
         else:
-            return df[bus_carrier in port_carriers]
+            idx = (bus_carrier in port_carriers)[lambda x: x].index
     elif isinstance(bus_carrier, list):
-        return df[port_carriers.isin(bus_carrier)]
+        idx = port_carriers.isin(bus_carrier)[lambda x: x].index
     else:
         raise ValueError(
             f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
         )
+    return expr.loc[idx]
 
 
 def aggregate_components(
@@ -154,14 +160,14 @@ def aggregate_components(
         if not len(exprs):
             continue
 
-        expr = merge(exprs)
+        expr = ln.merge(exprs)
         res.append(expr)
 
     if res == {}:
-        return LinearExpression(None, n.model)
+        return ln.LinearExpression(None, n.model)
     if is_one_component:
         return res[0]
-    return merge(res, dim="group")
+    return ln.merge(res, dim="group")
 
 
 def pass_none_if_keyerror(func):
@@ -317,7 +323,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
             return col
@@ -401,7 +407,7 @@ class StatisticExpressionsAccessor:
         if storage:
             comps = ("Store", "StorageUnit")
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             efficiency = abs(port_efficiency(n, c, port=port))
             col = n.df(c)[f"{nominal_attrs[c]}_opt"] * efficiency
@@ -450,7 +456,7 @@ class StatisticExpressionsAccessor:
         if storage:
             comps = ("Store", "StorageUnit")
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             efficiency = abs(port_efficiency(n, c, port=port))
             col = n.df(c)[f"{nominal_attrs[c]}"] * efficiency
@@ -540,7 +546,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             if c in n.branch_components:
                 p = n.pnl(c).p0
@@ -587,7 +593,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        n = self._parent
 
         df = self.energy_balance(
             comps=comps,
@@ -623,7 +628,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        n = self._parent
 
         df = self.energy_balance(
             comps=comps,
@@ -672,8 +676,6 @@ class StatisticExpressionsAccessor:
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
 
-        n = self._parent
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -721,7 +723,7 @@ class StatisticExpressionsAccessor:
 
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             p = n.pnl(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
@@ -796,7 +798,7 @@ class StatisticExpressionsAccessor:
         else:
             switch = False
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
@@ -805,9 +807,9 @@ class StatisticExpressionsAccessor:
                 p = p.clip(lower=0)
             elif kind == "withdrawal":
                 p = -p.clip(upper=0)
-            elif kind != None:
+            elif kind is not None:
                 logger.warning(
-                    f"Argument 'kind' is not recognized. Falling back to energy balance."
+                    "Argument 'kind' is not recognized. Falling back to energy balance."
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -823,7 +825,7 @@ class StatisticExpressionsAccessor:
         )
 
         if switch:
-            res = df.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
+            df = df.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "carrier dependent"
         return df
@@ -859,7 +861,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
             weights = get_weightings(n, c)
@@ -907,7 +909,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             p = get_operation(n, c).abs()
             weights = get_weightings(n, c)
@@ -962,7 +964,7 @@ class StatisticExpressionsAccessor:
         """
         n = self._parent
 
-        @pass_empty_series_if_keyerror
+        @pass_none_if_keyerror
         def func(n, c, port):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             df = sign * n.pnl(c)[f"p{port}"]
