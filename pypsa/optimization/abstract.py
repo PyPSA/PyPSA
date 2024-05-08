@@ -25,8 +25,10 @@ def optimize_transmission_expansion_iteratively(
     min_iterations=1,
     max_iterations=100,
     track_iterations=False,
-    lines_disc={},
-    links_disc={},
+    line_unit_size=None,
+    link_unit_size=None,
+    line_threshold=0.3,
+    link_threshold=0.3,
     **kwargs,
 ):
     """
@@ -56,6 +58,16 @@ def optimize_transmission_expansion_iteratively(
         If True, the intermediate branch capacities and values of the
         objective function are recorded for each iteration. The values of
         iteration 0 represent the initial state.
+    line_unit_size: float, default None
+        The unit size for line components.
+        Use None if no discretization is desired.
+    link_unit_size: dict-like, default None
+        A dictionary containing the unit sizes for link components,
+        with carrier names as keys. Use None if no discretization is desired.
+    line_threshold: float, default 0.3
+        The threshold relative to the unit size for discretizing line components.
+    link_threshold: float, default 0.3
+        The threshold relative to the unit size for discretizing link components.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
@@ -102,39 +114,30 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
-    def get_discretized_value(value, disc_int):
+    def discretized_capacity(nom_opt, unit_size, threshold):
+        return (
+            nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+        ) * unit_size
 
-        if value == 0.0:
-            return value
+    def discretize_branch_components(
+        n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
+    ):
+        """
+        Discretizes the branch components of a network based on the specified unit sizes and thresholds.
+        """
+        if line_unit_size:
+            args = (line_unit_size, line_threshold)
+            n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
+                discretized_capacity, args=args
+            )
 
-        add = value - value % disc_int
-        value = value % disc_int
-        discrete = disc_int if value > 0.3 * disc_int else 0.0
-
-        return add + discrete
-
-    def post_discretize_lines(n, lines_disc):
-
-        for carrier in lines_disc.keys():
-            if carrier in n.lines.carrier.unique():
-                n.lines.loc[n.lines.carrier == carrier, "s_nom_continuous"] = n.lines.loc[n.lines.carrier == carrier, "s_nom_opt"]
-                n.lines.loc[n.lines.carrier == carrier, "s_nom"] = n.lines.loc[
-                    n.lines.carrier == carrier, "s_nom_opt"
-                ].apply(lambda x: get_discretized_value(x, lines_disc[carrier]))
-                n.lines.loc[n.lines.carrier == carrier, "s_nom_extendable"] = False
-
-        return n
-
-    def post_discretize_links(n, links_disc):
-
-        for carrier in links_disc.keys():
-            if carrier in n.links.carrier.unique():
-                n.links.loc[n.links.carrier == carrier, "p_nom_opt_continuous"] = n.links.loc[n.links.carrier == carrier, "p_nom_opt"]
-                n.links.loc[n.links.carrier == carrier, "p_nom"] = n.links.loc[
-                    n.links.carrier == carrier, "p_nom_opt"
-                ].apply(lambda x: get_discretized_value(x, links_disc[carrier]))
-                n.links.loc[n.links.carrier == carrier, "p_nom_extendable"] = False
-        return n
+        if link_unit_size:
+            for carrier in link_unit_size.keys() & n.links.carrier.unique():
+                args = (link_unit_size[carrier], link_threshold[carrier])
+                idx = n.links.carrier == carrier
+                n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
+                    discretized_capacity, args=args
+                )
 
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
@@ -163,7 +166,11 @@ def optimize_transmission_expansion_iteratively(
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
 
-    logger.info("Running last lopf with fixed branches (HVDC links and HVAC lines)")
+    logger.info("Deleting model instance `n.model` from previour run to reclaim memory.")
+    del n.model
+    gc.collect()
+
+    logger.info("Preparing final iteration with fixed and potentially discretized branches (HVDC links and HVAC lines).")
 
     ext_dc_links_b = n.links.p_nom_extendable & (n.links.carrier == "DC")
     s_nom_orig = n.lines.s_nom.copy()
@@ -175,15 +182,13 @@ def optimize_transmission_expansion_iteratively(
     n.links.loc[ext_dc_links_b, "p_nom"] = n.links.loc[ext_dc_links_b, "p_nom_opt"]
     n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
 
-    logger.info(
-        "Running last lopf with fixed branches (lines and links specified in post-discretization in config file)"
+    discretize_branch_components(
+        n,
+        line_unit_size,
+        link_unit_size,
+        line_threshold,
+        link_threshold,
     )
-    post_discretize_lines(n, lines_disc)
-    post_discretize_links(n, links_disc)
-
-    logger.info("Deleting n.model from former run to reclaim memory")
-    del n.model
-    gc.collect()
 
     status, condition = n.optimize(snapshots, **kwargs)
 

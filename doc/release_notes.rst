@@ -7,7 +7,12 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Functionality to post-discretize transmission infrastructure
+* When using iterative optimisation functionality
+  ``n.optimize_transmission_expansion_iteratively()``, add option to discretize
+  optimised line and link capacities in the final iteration based on new keyword
+  arguments ``line_unit_size``, ``link_unit_size``, ``line_threshold`` and
+  ``link_threshold``. This allows to round the optimised capacities to a
+  multiple of the unit size based on the threshold.
 
 * A new function ``n.merge()`` was added allowing the components and
   time-dependent data of one network to be added to another network. The
