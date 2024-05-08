@@ -100,8 +100,8 @@ def define_objective(n, sns):
 
         constant += (cost * n.df(c)[attr][ext_i]).sum()
 
+    n.objective_constant = constant
     if constant != 0:
-        n.objective_constant = constant
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -670,19 +670,21 @@ class OptimizationAccessor:
 
     @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
-        optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
+        return optimize_transmission_expansion_iteratively(
+            self._parent, *args, **kwargs
+        )
 
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
-        optimize_security_constrained(self._parent, *args, **kwargs)
+        return optimize_security_constrained(self._parent, *args, **kwargs)
 
     @wraps(optimize_with_rolling_horizon)
     def optimize_with_rolling_horizon(self, *args, **kwargs):
-        optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+        return optimize_with_rolling_horizon(self._parent, *args, **kwargs)
 
     @wraps(optimize_mga)
     def optimize_mga(self, *args, **kwargs):
-        optimize_mga(self._parent, *args, **kwargs)
+        return optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

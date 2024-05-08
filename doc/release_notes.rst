@@ -7,6 +7,13 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* When using iterative optimisation functionality
+  ``n.optimize_transmission_expansion_iteratively()``, add option to discretize
+  optimised line and link capacities in the final iteration based on new keyword
+  arguments ``line_unit_size``, ``link_unit_size``, ``line_threshold`` and
+  ``link_threshold``. This allows to round the optimised capacities to a
+  multiple of the unit size based on the threshold.
+
 * The statistics module introduces a new keyword argument `at_port` to all functions. This allows considering the port of a component when calculating statistics. Depending on the function, the default of `at_port` is set to `True` or `False`, for example for the dispatch all ports are considered.
 
 * The statistics module now supports an optional `port` argument in `groupby` functions. This allows to group statistics while considering the port of a component.
