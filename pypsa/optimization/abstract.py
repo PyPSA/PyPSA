@@ -123,7 +123,8 @@ def optimize_transmission_expansion_iteratively(
         n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
     ):
         """
-        Discretizes the branch components of a network based on the specified unit sizes and thresholds.
+        Discretizes the branch components of a network based on the specified
+        unit sizes and thresholds.
         """
         if line_unit_size:
             min_units = 1
@@ -167,11 +168,15 @@ def optimize_transmission_expansion_iteratively(
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
 
-    logger.info("Deleting model instance `n.model` from previour run to reclaim memory.")
+    logger.info(
+        "Deleting model instance `n.model` from previour run to reclaim memory."
+    )
     del n.model
     gc.collect()
 
-    logger.info("Preparing final iteration with fixed and potentially discretized branches (HVDC links and HVAC lines).")
+    logger.info(
+        "Preparing final iteration with fixed and potentially discretized branches (HVDC links and HVAC lines)."
+    )
 
     link_carriers = {"DC"} if not link_unit_size else link_unit_size.keys() | {"DC"}
     ext_links_to_fix_b = n.links.p_nom_extendable & n.links.carrier.isin(link_carriers)
