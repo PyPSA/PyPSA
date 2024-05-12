@@ -22,9 +22,6 @@ from pypsa import (
 )
 from pypsa.components import Network, SubNetwork
 
-if sys.version_info < (3, 12):
-    from pypsa import opf, opt
-
 __version__ = "0.28.0"
 
 __author__ = (

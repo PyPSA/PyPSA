@@ -7,7 +7,6 @@ Created on Thu Feb 10 19:08:25 2022.
 """
 import numpy as np
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
@@ -46,13 +45,12 @@ def get_network(committable):
     return n
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
 @pytest.mark.parametrize("committable", [True, False])
-def test_rolling_horizon(api, committable):
+def test_rolling_horizon(committable):
     n = get_network(committable)
     # now rolling horizon
     for sns in np.array_split(n.snapshots, 4):
-        status, condition = optimize(n, api, sns)
+        status, condition = n.optimize(snapshots=sns)
         assert status == "ok"
 
     ramping = n.generators_t.p.diff().fillna(0)

@@ -20,6 +20,4 @@ dependencies:
 - validators
 #  - coincbc
 #  - gurobi::gurobi
-- pip
-- pip:
-  - pyomo>=5.7,<6.6.2; python_version < '3.12'
+

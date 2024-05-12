@@ -33,4 +33,3 @@ dependencies:
 - pip:
   - pypower
   - pandapower>=2.0
-  - pyomo>=5.7,<6.6.2; python_version < '3.12'

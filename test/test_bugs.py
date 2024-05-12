@@ -33,7 +33,7 @@ def test_344():
     network.add("Load", "a", bus="a", p_set=5)
     network.add("Generator", "a", bus="a", p_nom=5)
 
-    network.lopf(pyomo=False)
+    network.optimize()
 
 
 def test_331():
@@ -41,9 +41,9 @@ def test_331():
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=10)
     n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
-    n.lopf(pyomo=False)
+    n.optimize()
     n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
-    n.lopf(pyomo=False)
+    n.optimize()
     assert "generator2" in n.generators_t.p
 
 
@@ -66,15 +66,7 @@ def test_nomansland_bus(caplog):
         "The following buses have no attached components" in caplog.text
     ), "warning is not working..."
 
-    try:
-        n.lopf(pyomo=False)
-    except:
-        print("to be fixed - unconnected bus throws error in non-pyomo version.")
-
-    try:
-        n.lopf(pyomo=True)
-    except:
-        print("to be fixed - unconnected bus throws error in pyomo version.")
+    n.optimize()
 
 
 def test_515():
@@ -90,7 +82,7 @@ def test_515():
     n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=marginal_costs)
     n.add("Load", "load", bus="bus", p_set=1)
 
-    n.lopf(pyomo=False)
+    n.optimize()
 
     assert n.objective == 10
 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
@@ -157,7 +156,6 @@ def network():
     return n
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_lopf(network, api):
-    status, condition = optimize(network, api)
+def test_lopf(network):
+    status, condition = network.optimize()
     assert status == "ok"

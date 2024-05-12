@@ -203,16 +203,15 @@ funcs = (
 
 
 @pytest.fixture
-def solved_network(ac_dc_network, api):
+def solved_network(ac_dc_network):
     n = ac_dc_network
-    optimize(n, api)
+    n.optimize()
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     return n
 
 
 @pytest.mark.parametrize("func", *funcs)
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_tolerance(solved_network, api, func):
+def test_tolerance(solved_network, func):
     n = solved_network
     description = func(n).fillna(0)
     for col in description:
