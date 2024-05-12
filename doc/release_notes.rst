@@ -10,6 +10,8 @@ Release Notes
 * Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
 
+* HiGHS becomes the new default solver for ``n.optimize()``.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 

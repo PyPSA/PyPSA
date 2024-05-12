@@ -199,10 +199,6 @@ class Network(Basic):
 
     pf = network_pf
 
-    #    lopf = network_lopf
-
-    opf = network_opf
-
     plot = plot
 
     iplot = iplot

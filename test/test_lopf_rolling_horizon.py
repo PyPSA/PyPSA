@@ -70,7 +70,7 @@ def test_rolling_horizon_integrated(committable):
         marginal_cost=10,
     )
 
-    n.optimize.optimize_with_rolling_horizon(horizon=3, solver_name="glpk")
+    n.optimize.optimize_with_rolling_horizon(horizon=3)
     ramping = n.generators_t.p.diff().fillna(0)
     assert (ramping <= n.generators.eval("ramp_limit_up * p_nom_opt")).all().all()
     assert (ramping >= -n.generators.eval("ramp_limit_down * p_nom_opt")).all().all()
@@ -89,10 +89,10 @@ def test_rolling_horizon_integrated_overlap():
 
     with pytest.raises(ValueError):
         n.optimize.optimize_with_rolling_horizon(
-            horizon=1, overlap=2, solver_name="glpk"
+            horizon=1, overlap=2
         )
 
-    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1, solver_name="glpk")
+    n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
     ramping = n.generators_t.p.diff().fillna(0)
     assert (ramping <= n.generators.eval("ramp_limit_up * p_nom_opt")).all().all()
     assert (ramping >= -n.generators.eval("ramp_limit_down * p_nom_opt")).all().all()

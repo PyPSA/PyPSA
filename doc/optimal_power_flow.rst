@@ -31,11 +31,11 @@ Execute:
 
 .. code:: python
 
-    n.optimize(n.snapshots, solver_name="glpk", solver_options={})
+    n.optimize(n.snapshots, solver_name="highs", solver_options={})
 
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a string,
-e.g. "gurobi" or "glpk", ``solver_io`` is a string, ``solver_options`` is a dictionary of flags to
+e.g. "gurobi" or "highs", ``solver_io`` is a string, ``solver_options`` is a dictionary of flags to
 pass to the solver.
 
 

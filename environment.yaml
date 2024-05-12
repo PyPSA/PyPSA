@@ -14,10 +14,11 @@ dependencies:
 - networkx>=2
 - cartopy>=0.16
 - geopandas>=0.9
-- glpk
-- linopy>=0.3.7
+- linopy>=0.3.9
 - deprecation
 - validators
-#  - coincbc
-#  - gurobi::gurobi
+- pip
+- pip:
+  - highspy>=1.5.3
+
 
