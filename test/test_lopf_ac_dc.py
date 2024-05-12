@@ -20,7 +20,7 @@ def ac_dc_network_r():
     return pypsa.Network(csv_folder)
 
 
-def test_lopf(ac_dc_network, ac_dc_network_r):
+def test_optimize(ac_dc_network, ac_dc_network_r):
     n = ac_dc_network
     n_r = ac_dc_network_r
 

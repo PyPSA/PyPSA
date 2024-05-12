@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize("transmission_losses", [1, 2])
-def test_lopf_losses(scipy_network, transmission_losses):
+def test_optimize_losses(scipy_network, transmission_losses):
     n = scipy_network
     n.lines.s_max_pu = 0.7
     n.lines.loc[["316", "527", "602"], "s_nom"] = 1715

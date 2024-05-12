@@ -6,7 +6,7 @@ from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
 
 
-def test_sclopf(scipy_network):
+def test_optimize_security_constrained(scipy_network):
     n = scipy_network
 
     # There are some infeasibilities without line extensions

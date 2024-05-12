@@ -34,6 +34,6 @@ def network():
     return pypsa.Network(csv_folder)
 
 
-def test_lopf(network, target_gen_p):
+def test_optimize(network, target_gen_p):
     network.optimize()
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)

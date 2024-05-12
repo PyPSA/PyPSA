@@ -156,6 +156,6 @@ def network():
     return n
 
 
-def test_lopf(network):
+def test_optimize(network):
     status, condition = network.optimize()
     assert status == "ok"

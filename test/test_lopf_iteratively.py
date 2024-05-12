@@ -5,7 +5,7 @@ import pytest
 import pypsa
 
 
-def test_lopf_post_discretization():
+def test_optimize_post_discretization():
     n = pypsa.Network()
 
     n.madd("Bus", ["a", "b", "c"], v_nom=380.0)
