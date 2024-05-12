@@ -88,9 +88,7 @@ def test_rolling_horizon_integrated_overlap():
     )
 
     with pytest.raises(ValueError):
-        n.optimize.optimize_with_rolling_horizon(
-            horizon=1, overlap=2
-        )
+        n.optimize.optimize_with_rolling_horizon(horizon=1, overlap=2)
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
     ramping = n.generators_t.p.diff().fillna(0)

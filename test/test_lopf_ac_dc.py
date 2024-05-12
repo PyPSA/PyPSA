@@ -45,5 +45,3 @@ def test_optimize(ac_dc_network, ac_dc_network_r):
         n_r.links_t.p0.loc[:, n.links.index],
         decimal=2,
     )
-
-

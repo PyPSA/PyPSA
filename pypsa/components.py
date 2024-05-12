@@ -16,6 +16,7 @@ __copyright__ = (
     "MIT License"
 )
 
+import logging
 import os
 import sys
 from collections import namedtuple
@@ -71,8 +72,6 @@ from pypsa.pf import (
 )
 from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -723,7 +722,6 @@ class Network(Basic):
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
-
 
     def add(self, class_name, name, **kwargs):
         """

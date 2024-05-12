@@ -20,5 +20,3 @@ dependencies:
 - pip
 - pip:
   - highspy
-
-
