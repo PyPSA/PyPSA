@@ -25,7 +25,6 @@ import numpy as np
 import pandas as pd
 
 from pypsa.descriptors import get_extendable_i
-from pypsa.linopt import get_var, linexpr, set_conref, write_constraint
 from pypsa.pf import _as_snapshots, calculate_PTDF
 
 
@@ -286,101 +285,6 @@ else:
         raise NotImplementedError(
             "Function `add_contingency_constraints` not available from Python 3.12."
         )
-
-
-def add_contingency_constraints_lowmem(network, snapshots):
-    n = network
-
-    if not hasattr(n, "_branch_outages"):
-        n._branch_outages = n.passive_branches().index
-
-    branch_outages = [
-        b if isinstance(b, tuple) else ("Line", b) for b in n._branch_outages
-    ]
-
-    comps = n.passive_branch_components & set(n.variables.index.unique(level=0))
-    if len(comps) == 0:
-        return
-    dispatch_vars = pd.concat({c: get_var(n, c, "s") for c in comps}, axis=1)
-
-    invest_vars = pd.concat(
-        {
-            c: (
-                get_var(n, c, "s_nom")
-                if not get_extendable_i(n, c).empty
-                else pd.Series(dtype=float)
-            )
-            for c in comps
-        }
-    )
-
-    constraints = {}
-    for sn in n.sub_networks.obj:
-        sn.calculate_BODF()
-
-        branches_i = sn.branches_i()
-        branches = sn.branches()
-        outages = branches_i.intersection(branch_outages)
-
-        ext_i = branches.loc[branches.s_nom_extendable].index
-        fix_i = branches.loc[~branches.s_nom_extendable].index
-
-        p = dispatch_vars[branches_i]
-
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
-
-        lhs = {}
-        rhs = {}
-
-        for outage in outages:
-
-            def contingency_flow(branch):
-                if branch.name == outage:
-                    return linexpr((0, branch))
-                flow = linexpr((1, branch))
-                added_flow = linexpr((BODF.at[branch.name, outage], p[outage]))
-                return flow + added_flow
-
-            lhs_flow = p.apply(contingency_flow, axis=0)
-
-            if len(fix_i):
-                lhs_flow_fix = lhs_flow[fix_i]
-                s_nom_fix = branches.loc[fix_i, "s_nom"]
-
-                key = ("upper", "non_ext", outage)
-                lhs[key] = lhs_flow_fix
-                rhs[key] = s_nom_fix
-
-                key = ("lower", "non_ext", outage)
-                lhs[key] = lhs_flow_fix
-                rhs[key] = -s_nom_fix
-
-            if len(ext_i):
-                lhs_flow_ext = lhs_flow[ext_i]
-                s_nom_ext = invest_vars[ext_i]
-
-                key = ("upper", "ext", outage)
-                lhs[key] = lhs_flow_ext + linexpr((-1, s_nom_ext))
-                rhs[key] = 0
-
-                key = ("lower", "ext", outage)
-                lhs[key] = lhs_flow_ext + linexpr((1, s_nom_ext))
-                rhs[key] = 0
-
-        for k in lhs:
-            sense = "<=" if k[0] == "upper" else ">="
-            axes = (lhs[k].index, lhs[k].columns)
-            con = write_constraint(n, lhs[k], sense, rhs[k], axes)
-            if k not in constraints.keys():
-                constraints[k] = []
-            constraints[k].append(con)
-
-    for (bound, spec, outage), constr in constraints.items():
-        constr = pd.concat(constr, axis=1)
-        for c in comps:
-            if c in constr.columns.unique(level=0):
-                constr_name = "_".join([bound, *outage])
-                set_conref(n, constr[c], c, f"mu_contingency_{constr_name}", spec=spec)
 
 
 def network_sclopf(

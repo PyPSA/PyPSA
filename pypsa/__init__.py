@@ -15,8 +15,6 @@ from pypsa import (
     examples,
     geo,
     io,
-    linopf,
-    linopt,
     optimization,
     pf,
     plot,

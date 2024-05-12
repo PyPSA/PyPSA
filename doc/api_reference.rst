@@ -93,20 +93,6 @@ Linopy Optimisation Module
     :members:
 
 
-Optimisation Module
--------------------
-
-.. automodule:: pypsa.linopt
-    :members:
-
-
-Power System Optimisation
--------------------------
-
-.. automodule:: pypsa.linopf
-   :members:
-
-
 Pyomo Optimisation Module
 -------------------------
 

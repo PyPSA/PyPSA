@@ -3,7 +3,7 @@ Power System Optimization
 #########################
 
 
-.. important:: Since version v0.22.0, PyPSA allows optimization with `linopy <https://github.com/PyPSA/linopy>`_ through the `optimize` module, which should provide both improved flexibility and performance. The core function is available through `Network.optimize` and will replace `lopf` in the long run. The old implementation via the Pyomo package and the in-house implementation in `linopf.py`, will be kept in the core package for upcoming major releases, but will not be extended. New features will only be introduced via the `optimize` functionality.
+.. important:: Since version v0.22.0, PyPSA allows optimization with `linopy <https://github.com/PyPSA/linopy>`_ through the `optimize` module, which should provide both improved flexibility and performance. The core function is available through `Network.optimize` and will replace `lopf` in the long run. The old implementation via the Pyomo package, will be kept in the core package for upcoming major releases, but will not be extended. New features will only be introduced via the `optimize` functionality.
 
 
 Overview

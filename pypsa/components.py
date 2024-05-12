@@ -72,9 +72,6 @@ from pypsa.pf import (
 from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
 
-if sys.version_info.major >= 3:
-    from pypsa.linopf import network_lopf as network_lopf_lowmem
-
 if sys.version_info < (3, 12):
     from pypsa.opf import network_lopf, network_opf
 else:
@@ -851,13 +848,6 @@ class Network(Basic):
             Only taking effect when pyomo is False.
             Keep the references of variable and constraint names withing the
             network. These can be looked up in `n.vars` and `n.cons` after solving.
-        keep_shadowprices : bool or list of component names
-            Only taking effect when pyomo is False.
-            Keep shadow prices for all constraints, if set to True. If a list
-            is passed the shadow prices will only be parsed for those constraint
-            names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
-            After solving, the shadow prices can be retrieved using
-            :func:`pypsa.linopt.get_dual` with corresponding name
         solver_dir : str, default None
             Only taking effect when pyomo is False.
             Path to directory where necessary files are written, default None leads
@@ -893,9 +883,7 @@ class Network(Basic):
                 "power flow (LOPF)."
             )
 
-        if pyomo:
-            return network_lopf(self, **args)
-        return network_lopf_lowmem(self, **args)
+        return network_lopf(self, **args)
 
     def add(self, class_name, name, **kwargs):
         """
