@@ -34,7 +34,7 @@ setup(
         "networkx>=2",
         "deprecation",
         "validators",
-        "highspy>=1.5.3",
+        "highspy",
     ],
     extras_require={
         "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],

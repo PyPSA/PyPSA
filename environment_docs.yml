@@ -32,4 +32,4 @@ dependencies:
   - highspy
   - myst-parser
   - sphinxcontrib.bibtex
-  - highspy>=1.5.3
+  - highspy

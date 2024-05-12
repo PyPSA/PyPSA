@@ -19,6 +19,6 @@ dependencies:
 - validators
 - pip
 - pip:
-  - highspy>=1.5.3
+  - highspy
 
 
