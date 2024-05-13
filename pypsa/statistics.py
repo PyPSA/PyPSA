@@ -133,14 +133,14 @@ def get_ports(n, c):
 
 
 def port_efficiency(n, c, port=""):
-    if (port == "") or "efficiency" not in n.df(c):
+    if port == "":
         efficiency = 1
     elif port == "0":
         efficiency = -1
     elif port == "1":
-        efficiency = n.df(c)["efficiency"]
+        efficiency = n.df(c).get("efficiency", 1)
     else:
-        efficiency = n.df(c)[f"efficiency{port}"]
+        efficiency = n.df(c).get(f"efficiency{port}", 1)
     return efficiency
 
 
@@ -249,7 +249,7 @@ def filter_bus_carrier(n, c, port, bus_carrier, df):
         if bus_carrier in n.buses.carrier.unique():
             return df[port_carriers == bus_carrier]
         else:
-            return df[bus_carrier in port_carriers]
+            return df[port_carriers.str.contains(bus_carrier).fillna(False)]
     elif isinstance(bus_carrier, list):
         return df[port_carriers.isin(bus_carrier)]
     else:
@@ -309,7 +309,7 @@ def aggregate_components(
     if is_one_component:
         return d[c]
     index_names = ["component"] + df.index.names
-    return pd.concat(d, names=index_names)[lambda ds: ds != 0]
+    return pd.concat(d, names=index_names).round(5)
 
 
 def pass_empty_series_if_keyerror(func):
@@ -547,9 +547,10 @@ class StatisticsAccessor:
     ):
         """
         Calculate the optimal capacity of the network components in MW.
+        Positive capacity values correspond to production capacities and
+        negative values to consumption capacities.
 
-        If `bus_carrier` is given, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
+        If `bus_carrier` is given, the capacity is weighted by the output efficiency of `bus_carrier`.
 
         If storage is set to True, only storage capacities of the component
         `Store` and `StorageUnit` are taken into account.
@@ -561,10 +562,14 @@ class StatisticsAccessor:
 
         if storage:
             comps = ("Store", "StorageUnit")
+        if bus_carrier:
+            at_port = True
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
-            efficiency = abs(port_efficiency(n, c, port=port))
+            efficiency = port_efficiency(n, c, port=port)
+            if not at_port:
+                efficiency = abs(efficiency)
             col = n.df(c)[f"{nominal_attrs[c]}_opt"] * efficiency
             if storage and (c == "StorageUnit"):
                 col = col * n.df(c).max_hours
@@ -596,9 +601,10 @@ class StatisticsAccessor:
     ):
         """
         Calculate the installed capacity of the network components in MW.
+        Positive capacity values correspond to production capacities and
+        negative values to consumption capacities.
 
-        If `at_port` is True, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
+        If `bus_carrier` is given, the capacity is weighted by the output efficiency of `bus_carrier`.
 
         If storage is set to True, only storage capacities of the component
         `Store` and `StorageUnit` are taken into account.
@@ -610,10 +616,14 @@ class StatisticsAccessor:
 
         if storage:
             comps = ("Store", "StorageUnit")
+        if bus_carrier:
+            at_port = True
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
-            efficiency = abs(port_efficiency(n, c, port=port))
+            efficiency = port_efficiency(n, c, port=port)
+            if not at_port:
+                efficiency = abs(efficiency)
             col = n.df(c)[f"{nominal_attrs[c]}"] * efficiency
             if storage and (c == "StorageUnit"):
                 col = col * n.df(c).max_hours
@@ -644,31 +654,31 @@ class StatisticsAccessor:
     ):
         """
         Calculate the expanded capacity of the network components in MW.
+        Positive capacity values correspond to production capacities and
+        negative values to consumption capacities or dismantling capacities.
 
-        If `bus_carrier` is given, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
+        If `bus_carrier` is given, the capacity is weighted by the output efficiency of `bus_carrier`.
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        df = self.optimal_capacity(
+        optimal = self.optimal_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
-        ).sub(
-            self.installed_capacity(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
-                groupby=groupby,
-                at_port=at_port,
-                bus_carrier=bus_carrier,
-                nice_names=nice_names,
-            ),
-            fill_value=0,
         )
+        installed = self.installed_capacity(
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+        )
+        df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
         df.attrs["name"] = "Expanded Capacity"
         df.attrs["unit"] = "MW"
         return df
