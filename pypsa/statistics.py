@@ -309,7 +309,7 @@ def aggregate_components(
     if is_one_component:
         return d[c]
     index_names = ["component"] + df.index.names
-    return pd.concat(d, names=index_names).round(5)
+    return pd.concat(d, names=index_names)[lambda ds: ds != 0]
 
 
 def pass_empty_series_if_keyerror(func):
