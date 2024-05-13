@@ -4,6 +4,7 @@
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
+import gc
 import logging
 from itertools import product
 
@@ -24,6 +25,10 @@ def optimize_transmission_expansion_iteratively(
     min_iterations=1,
     max_iterations=100,
     track_iterations=False,
+    line_unit_size=None,
+    link_unit_size=None,
+    line_threshold=0.3,
+    link_threshold=0.3,
     **kwargs,
 ):
     """
@@ -53,12 +58,22 @@ def optimize_transmission_expansion_iteratively(
         If True, the intermediate branch capacities and values of the
         objective function are recorded for each iteration. The values of
         iteration 0 represent the initial state.
+    line_unit_size: float, default None
+        The unit size for line components.
+        Use None if no discretization is desired.
+    link_unit_size: dict-like, default None
+        A dictionary containing the unit sizes for link components,
+        with carrier names as keys. Use None if no discretization is desired.
+    line_threshold: float, default 0.3
+        The threshold relative to the unit size for discretizing line components.
+    link_threshold: float, default 0.3
+        The threshold relative to the unit size for discretizing link components.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
 
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    ext_i = n.get_extendable_i("Line")
+    ext_i = n.get_extendable_i("Line").copy()
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
     ext_typed_i = ext_i.intersection(typed_i)
@@ -90,7 +105,7 @@ def optimize_transmission_expansion_iteratively(
         return lines_err
 
     def save_optimal_capacities(n, iteration, status):
-        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+        for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
             n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
@@ -99,12 +114,37 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
+    def discretized_capacity(nom_opt, unit_size, threshold, min_units=0):
+        units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+        return max(min_units, units) * unit_size
+
+    def discretize_branch_components(
+        n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
+    ):
+        """
+        Discretizes the branch components of a network based on the specified
+        unit sizes and thresholds.
+        """
+        if line_unit_size:
+            min_units = 1
+            args = (line_unit_size, line_threshold, min_units)
+            n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
+                discretized_capacity, args=args
+            )
+
+        if link_unit_size:
+            for carrier in link_unit_size.keys() & n.links.carrier.unique():
+                args = (link_unit_size[carrier], link_threshold[carrier])
+                idx = n.links.carrier == carrier
+                n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
+                    discretized_capacity, args=args
+                )
+
     if track_iterations:
-        for c, attr in pd.Series(nominal_attrs)[n.branch_components].items():
+        for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
             n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
 
     iteration = 1
-    kwargs["store_basis"] = True
     diff = msq_threshold
     while diff >= msq_threshold or iteration < min_iterations:
         if iteration > max_iterations:
@@ -122,37 +162,60 @@ def optimize_transmission_expansion_iteratively(
         )
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
+
         update_line_params(n, s_nom_prev)
         diff = msq_diff(n, s_nom_prev)
         iteration += 1
 
-    logger.info("Running last lopf with fixed branches (HVDC links and HVAC lines)")
+    logger.info(
+        "Deleting model instance `n.model` from previour run to reclaim memory."
+    )
+    del n.model
+    gc.collect()
 
-    ext_dc_links_b = n.links.p_nom_extendable & (n.links.carrier == "DC")
+    logger.info(
+        "Preparing final iteration with fixed and potentially discretized branches (HVDC links and HVAC lines)."
+    )
+
+    link_carriers = {"DC"} if not link_unit_size else link_unit_size.keys() | {"DC"}
+    ext_links_to_fix_b = n.links.p_nom_extendable & n.links.carrier.isin(link_carriers)
     s_nom_orig = n.lines.s_nom.copy()
     p_nom_orig = n.links.p_nom.copy()
 
     n.lines.loc[ext_i, "s_nom"] = n.lines.loc[ext_i, "s_nom_opt"]
     n.lines.loc[ext_i, "s_nom_extendable"] = False
 
-    n.links.loc[ext_dc_links_b, "p_nom"] = n.links.loc[ext_dc_links_b, "p_nom_opt"]
-    n.links.loc[ext_dc_links_b, "p_nom_extendable"] = False
+    n.links.loc[ext_links_to_fix_b, "p_nom"] = n.links.loc[
+        ext_links_to_fix_b, "p_nom_opt"
+    ]
+    n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = False
 
-    n.optimize(snapshots, **kwargs)
+    discretize_branch_components(
+        n,
+        line_unit_size,
+        link_unit_size,
+        line_threshold,
+        link_threshold,
+    )
+
+    n.calculate_dependent_values()
+    status, condition = n.optimize(snapshots, **kwargs)
 
     n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
     n.lines.loc[ext_i, "s_nom_extendable"] = True
 
-    n.links.loc[ext_dc_links_b, "p_nom"] = p_nom_orig.loc[ext_dc_links_b]
-    n.links.loc[ext_dc_links_b, "p_nom_extendable"] = True
+    n.links.loc[ext_links_to_fix_b, "p_nom"] = p_nom_orig.loc[ext_links_to_fix_b]
+    n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = True
 
     ## add costs of additional infrastructure to objective value of last iteration
     obj_links = (
-        n.links[ext_dc_links_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
+        n.links[ext_links_to_fix_b].eval("capital_cost * (p_nom_opt - p_nom_min)").sum()
     )
     obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
     n.objective += obj_links + obj_lines
     n.objective_constant -= obj_links + obj_lines
+
+    return status, condition
 
 
 def optimize_security_constrained(
