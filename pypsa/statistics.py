@@ -24,6 +24,18 @@ from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 
+PARAMETERS = {
+    "drop_zero": True,
+    "nice_names": True,
+    "round": 5,
+}
+
+PARAMETER_TYPES = {
+    "drop_zero": bool,
+    "nice_names": bool,
+    "round": int,
+}
+
 
 def get_carrier(n, c, nice_names=True):
     """
@@ -309,7 +321,12 @@ def aggregate_components(
     if is_one_component:
         return d[c]
     index_names = ["component"] + df.index.names
-    return pd.concat(d, names=index_names)[lambda ds: ds != 0]
+    df = pd.concat(d, names=index_names)
+    if PARAMETERS["round"]:
+        df = df.round(PARAMETERS["round"])
+    if PARAMETERS["drop_zero"]:
+        df = df[df != 0]
+    return df
 
 
 def pass_empty_series_if_keyerror(func):
@@ -421,6 +438,19 @@ class StatisticsAccessor:
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
+    # TODO python enum class
+    def set_parameters(self, **kwargs):
+        for key, value in kwargs.items():
+            expected_type = PARAMETER_TYPES.get(key)
+            if expected_type is None:
+                raise ValueError(f"Invalid parameter name: {key}")
+            elif not isinstance(value, expected_type):
+                raise ValueError(
+                    f"Invalid type for parameter {key}: expected {expected_type}, got {type(value)}"
+                )
+            else:
+                PARAMETERS[key] = value
+
     def capex(
         self,
         comps=None,
@@ -428,7 +458,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -467,7 +497,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capital expenditure of already built components of the
@@ -504,7 +534,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capex of expanded capacities of the network components in
@@ -543,7 +573,7 @@ class StatisticsAccessor:
         at_port=False,
         bus_carrier=None,
         storage=False,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the optimal capacity of the network components in MW.
@@ -597,7 +627,7 @@ class StatisticsAccessor:
         at_port=False,
         bus_carrier=None,
         storage=False,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the installed capacity of the network components in MW.
@@ -650,12 +680,12 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the expanded capacity of the network components in MW.
         Positive capacity values correspond to production capacities and
-        negative values to consumption capacities or dismantling capacities.
+        negative values to consumption capacities.
 
         If `bus_carrier` is given, the capacity is weighted by the output efficiency of `bus_carrier`.
 
@@ -691,7 +721,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the operational expenditure in the network in given currency.
@@ -746,7 +776,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the supply of components in the network. Units depend on the
@@ -782,7 +812,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the withdrawal of components in the network. Units depend on
@@ -822,7 +852,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -867,7 +897,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the transmission of branch components in the network. Units
@@ -921,7 +951,7 @@ class StatisticsAccessor:
         groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -1007,7 +1037,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the curtailment of components in the network in MWh.
@@ -1058,7 +1088,7 @@ class StatisticsAccessor:
         at_port=False,
         groupby=None,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -1106,7 +1136,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -1176,7 +1206,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the market value of components in the network in given
