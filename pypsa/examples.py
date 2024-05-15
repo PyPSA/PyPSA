@@ -9,7 +9,7 @@ __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
 __copyright__ = (
-    "Copyright 2021-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "Copyright 2021-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
 
