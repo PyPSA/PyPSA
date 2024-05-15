@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from conftest import SOLVER_NAME
 
 import pypsa
 
 
-def test_lopf_post_discretization():
+def test_optimize_post_discretization():
     n = pypsa.Network()
 
     n.madd("Bus", ["a", "b", "c"], v_nom=380.0)
@@ -36,7 +35,6 @@ def test_lopf_post_discretization():
 
     status, _ = n.optimize.optimize_transmission_expansion_iteratively(
         max_iterations=1,
-        solver_name=SOLVER_NAME,
         line_unit_size=line_unit_size,
         link_unit_size=link_unit_size,
         link_threshold=dict(HVDC=0.4),

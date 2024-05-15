@@ -514,7 +514,7 @@ def optimize(
     model_kwargs={},
     extra_functionality=None,
     assign_all_duals=False,
-    solver_name="glpk",
+    solver_name="highs",
     solver_options={},
     **kwargs,
 ):
@@ -611,7 +611,7 @@ class OptimizationAccessor:
     def solve_model(
         self,
         extra_functionality=None,
-        solver_name="glpk",
+        solver_name="highs",
         solver_options={},
         assign_all_duals=False,
         **kwargs,

@@ -93,34 +93,6 @@ Linopy Optimisation Module
     :members:
 
 
-Optimisation Module
--------------------
-
-.. automodule:: pypsa.linopt
-    :members:
-
-
-Power System Optimisation
--------------------------
-
-.. automodule:: pypsa.linopf
-   :members:
-
-
-Pyomo Optimisation Module
--------------------------
-
-.. automodule:: pypsa.opt
-    :members:
-
-
-Pyomo Power System Optimisation
--------------------------------
-
-.. automodule:: pypsa.opf
-   :members:
-
-
 Contingency Analysis
 -------------------------------
 

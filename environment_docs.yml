@@ -14,17 +14,14 @@ dependencies:
 - pytables
 - matplotlib
 - networkx>=2
-- pyomo<6.6.2
 - cartopy>=0.16
 - geopandas>=0.9
-- coincbc
-- glpk
 - deprecation
 - seaborn
 - pandoc
 - ipykernel   # for executing nbs
 - scikit-learn  # for spatial clustering
-- linopy>=0.3.7
+- linopy>=0.3.9
 
 - pip:
   - .
@@ -33,6 +30,6 @@ dependencies:
   - nbsphinx
   - nbsphinx_link
   - highspy
-  - pyomo>=5.7,<6.6.2; python_version < '3.12'
   - myst-parser
   - sphinxcontrib.bibtex
+  - highspy

@@ -7,6 +7,11 @@ Release Notes
 
 .. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
+  linopy-based optimization with ``n.optimize()`` instead.
+
+* HiGHS becomes the new default solver for ``n.optimize()``.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
