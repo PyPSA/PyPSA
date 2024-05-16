@@ -289,9 +289,6 @@ class Network(Basic):
 
         self.statistics = StatisticsAccessor(self)
 
-        # TODO: here we create two copies of the same data, which is not ideal!
-        # we should only have data source, either in components[c]["attrs"]
-        # or in component_attrs[c], see https://github.com/PyPSA/PyPSA/issues/892
         for component in self.components:
             # make copies to prevent unexpected sharing of variables
             attrs = self.component_attrs[component].copy()
@@ -334,6 +331,7 @@ class Network(Basic):
                         typ
                     )
 
+            self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
         self._build_dataframes()
