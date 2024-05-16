@@ -331,6 +331,7 @@ class Network(Basic):
                         typ
                     )
 
+            self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
         self._build_dataframes()
@@ -795,15 +796,16 @@ class Network(Basic):
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
-        for attr in ["bus", "bus0", "bus1"]:
-            if attr in new_df.columns:
-                bus_name = new_df.at[name, attr]
-                if bus_name not in self.buses.index:
-                    logger.warning(
-                        f"The bus name `{bus_name}` given for {attr} "
-                        f"of {class_name} `{name}` does not appear "
-                        "in network.buses"
-                    )
+        for attr in [attr for attr in new_df if attr.startswith("bus")]:
+            bus_name = new_df.at[name, attr]
+            # allow empty buses for multi-ports
+            port = int(attr[-1]) if attr[-1].isdigit() else 0
+            if bus_name not in self.buses.index and not (bus_name == "" and port > 1):
+                logger.warning(
+                    f"The bus name `{bus_name}` given for {attr} "
+                    f"of {class_name} `{name}` does not appear "
+                    "in network.buses"
+                )
 
     def remove(self, class_name, name):
         """

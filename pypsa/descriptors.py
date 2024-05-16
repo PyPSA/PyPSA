@@ -405,14 +405,18 @@ def update_linkports_component_attrs(n, where=None):
             .loc[attr + j]
             .apply(doc_changes, args=(to_replace, i))
         )
-        n.component_attrs[c].loc[target] = (
-            n.component_attrs[c].loc[attr + j].apply(doc_changes, args=(to_replace, i))
+        n.components[c]["attrs"].loc[target] = (
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(doc_changes, args=(to_replace, i))
         )
         if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
             df.columns.name = c
             n.pnl(c)[target] = df
+        elif attr == "bus" and target not in n.df(c).columns:
+            n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
 def additional_linkports(n, where=None):

@@ -914,15 +914,19 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
-    for attr in ["bus", "bus0", "bus1"]:
-        if attr in dataframe.columns:
-            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
+    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
+        # allow empty buses for multi-ports
+        port = int(attr[-1]) if attr[-1].isdigit() else 0
+        mask = ~dataframe[attr].isin(network.buses.index)
+        if port > 1:
+            mask |= dataframe[attr].ne("")
+        missing = dataframe.index[mask]
+        if len(missing) > 0:
+            logger.warning(
+                "The following %s have buses which are not defined:\n%s",
+                cls_name,
+                missing,
+            )
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
