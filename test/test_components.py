@@ -261,7 +261,7 @@ def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         ac_dc_network.merge(empty_network_5_buses, with_time=True)
 
     empty_network_5_buses.set_snapshots(ac_dc_network.snapshots)

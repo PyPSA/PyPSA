@@ -548,9 +548,9 @@ class Network(Basic):
         None
         """
         if isinstance(snapshots, pd.MultiIndex):
-            assert (
-                snapshots.nlevels == 2
-            ), "Maximally two levels of MultiIndex supported"
+            if snapshots.nlevels != 2:
+                msg = "Maximally two levels of MultiIndex supported"
+                raise ValueError(msg)
             snapshots = snapshots.rename(["period", "timestep"])
             snapshots.name = "snapshot"
             self._snapshots = snapshots
@@ -752,17 +752,22 @@ class Network(Basic):
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
-        assert class_name in self.components, f"Component class {class_name} not found"
+        if class_name not in self.components:
+            msg = f"Component class {class_name} not found"
+            raise ValueError(msg)
 
         cls_df = self.df(class_name)
         cls_pnl = self.pnl(class_name)
 
         name = str(name)
 
-        assert name not in cls_df.index, (
-            f"Failed to add {class_name} component {name} because there is already "
-            f"an object with this name in {self.components[class_name]['list_name']}"
-        )
+        if name in cls_df.index:
+            msg = (
+                f"Failed to add {class_name} component {name} because there is "
+                f"already an object with this name in "
+                f"{self.components[class_name]['list_name']}"
+            )
+            raise ValueError(msg)
 
         if class_name == "Link":
             update_linkports_component_attrs(self, kwargs.keys())
