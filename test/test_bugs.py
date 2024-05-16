@@ -1,8 +1,32 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import pandas as pd
 
 import pypsa
 
+from numpy.testing import assert_array_almost_equal as almost_equal
+
+def test_890():
+
+    n = pypsa.examples.scigrid_de()
+    n.calculate_dependent_values()
+
+    n.lines = n.lines.reindex(columns=n.components["Line"]["attrs"].index[1:])
+    n.lines["type"] = np.nan
+    n.buses = n.buses.reindex(columns=n.components["Bus"]["attrs"].index[1:])
+    n.buses["frequency"] = 50
+
+    n.set_investment_periods([2020, 2030])
+
+    weighting = pd.Series(1, n.buses.index)
+    busmap = n.cluster.busmap_by_kmeans(bus_weightings=weighting, n_clusters=50)
+    nc = n.cluster.cluster_by_busmap(busmap)
+
+    C = n.cluster.get_clustering_from_busmap(busmap)
+    nc = C.network
+
+    almost_equal(n.investment_periods, nc.investment_periods)
+    almost_equal(n.investment_period_weightings, nc.investment_period_weightings)
 
 def test_331():
     n = pypsa.Network()

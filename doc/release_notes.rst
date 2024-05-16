@@ -12,6 +12,8 @@ Release Notes
 
 * HiGHS becomes the new default solver for ``n.optimize()``.
 
+* Bugfix: Retain investment periods and weightings when clustering networks.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
