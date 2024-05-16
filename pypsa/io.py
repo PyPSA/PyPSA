@@ -919,7 +919,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         port = int(attr[-1]) if attr[-1].isdigit() else 0
         mask = ~dataframe[attr].isin(network.buses.index)
         if port > 1:
-            mask |= dataframe[attr].nq("")
+            mask |= dataframe[attr].ne("")
         missing = dataframe.index[mask]
         if len(missing) > 0:
             logger.warning(
