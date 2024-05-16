@@ -925,7 +925,6 @@ def import_components_from_dataframe(network, dataframe, cls_name):
             mask &= dataframe[attr].ne("")
         missing = dataframe.index[mask]
         if len(missing) > 0:
-            breakpoint()
             logger.warning(
                 "The following %s have buses which are not defined:\n%s",
                 cls_name,
