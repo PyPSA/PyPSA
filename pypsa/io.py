@@ -836,10 +836,10 @@ def _import_from_importer(network, importer, basename, skip_time=False):
                 return
             continue
 
-        import_components_from_dataframe(network, df, component)
-
         if component == "Link":
-            update_linkports_component_attrs(network)
+            update_linkports_component_attrs(network, where=df)
+
+        import_components_from_dataframe(network, df, component)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
@@ -894,6 +894,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
+    if cls_name == "Link":
+        update_linkports_component_attrs(network, where=dataframe)
+
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
@@ -919,7 +922,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         port = int(attr[-1]) if attr[-1].isdigit() else 0
         mask = ~dataframe[attr].isin(network.buses.index)
         if port > 1:
-            mask |= dataframe[attr].ne("")
+            mask &= dataframe[attr].ne("")
         missing = dataframe.index[mask]
         if len(missing) > 0:
             logger.warning(

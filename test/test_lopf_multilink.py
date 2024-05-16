@@ -156,6 +156,11 @@ def network():
     return n
 
 
+def test_attribution_assignment(network):
+    assert "bus2" in network.components["Link"]["attrs"].index
+    assert network.components["Link"]["attrs"].loc["bus2", "default"] == ""
+
+
 def test_optimize(network):
     status, condition = network.optimize()
     assert status == "ok"

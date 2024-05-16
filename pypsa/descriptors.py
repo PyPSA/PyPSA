@@ -387,28 +387,31 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
+def update_linkports_doc_changes(s, j, i):
+    if not isinstance(s, str) or len(s) == 1:
+        return s
+    return s.replace(j, str(i)).replace("required", "optional")
+
+
 def update_linkports_component_attrs(n, where=None):
     ports = additional_linkports(n, where)
     c = "Link"
 
-    def doc_changes(s, j, i):
-        if not isinstance(s, str) or len(s) == 1:
-            return s
-        return s.replace(j, str(i)).replace("required", "optional")
-
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
+        if target in n.components[c]["attrs"].index:
+            continue
         to_replace = "1"
         j = "1" if attr != "efficiency" else ""
         n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"]
             .loc[attr + j]
-            .apply(doc_changes, args=(to_replace, i))
+            .apply(update_linkports_doc_changes, args=(to_replace, i))
         )
         n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"]
             .loc[attr + j]
-            .apply(doc_changes, args=(to_replace, i))
+            .apply(update_linkports_doc_changes, args=(to_replace, i))
         )
         if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
@@ -420,6 +423,6 @@ def update_linkports_component_attrs(n, where=None):
 
 
 def additional_linkports(n, where=None):
-    if not where:
+    if where is None:
         where = n.links.columns
     return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
