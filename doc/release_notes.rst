@@ -14,6 +14,11 @@ Release Notes
 
 * Bugfix: Retain investment periods and weightings when clustering networks.
 
+* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if the bus exists and prints a warning if it does not.
+
+* When adding bus ports on the fly with `add` methods, the dtype of the freshly created column is now fixed to `string`.
+
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
