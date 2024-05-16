@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
+from numpy.testing import assert_array_almost_equal as almost_equal
 
 import pypsa
 
-from numpy.testing import assert_array_almost_equal as almost_equal
 
 def test_890():
 
@@ -27,6 +27,7 @@ def test_890():
 
     almost_equal(n.investment_periods, nc.investment_periods)
     almost_equal(n.investment_period_weightings, nc.investment_period_weightings)
+
 
 def test_331():
     n = pypsa.Network()
