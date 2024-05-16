@@ -492,7 +492,9 @@ def get_clustering_from_busmap(
         clustered.snapshot_weightings = n.snapshot_weightings.copy()
         if not n.investment_periods.empty:
             clustered.set_investment_periods(n.investment_periods)
-            clustered.investment_period_weightings = n.investment_period_weightings.copy()
+            clustered.investment_period_weightings = (
+                n.investment_period_weightings.copy()
+            )
         for attr, df in lines_t.items():
             if not df.empty:
                 io.import_series_from_dataframe(clustered, df, "Line", attr)
