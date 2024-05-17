@@ -24,18 +24,6 @@ from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 
-PARAMETERS = {
-    "drop_zero": True,
-    "nice_names": True,
-    "round": 5,
-}
-
-PARAMETER_TYPES = {
-    "drop_zero": bool,
-    "nice_names": bool,
-    "round": int,
-}
-
 
 def get_carrier(n, c, nice_names=True):
     """
@@ -270,65 +258,6 @@ def filter_bus_carrier(n, c, port, bus_carrier, df):
         )
 
 
-def aggregate_components(
-    n,
-    func,
-    agg="sum",
-    comps=None,
-    groupby=None,
-    at_port=None,
-    bus_carrier=None,
-    nice_names=True,
-):
-    """
-    Apply a function and group the result for a collection of components.
-    """
-    d = {}
-
-    if is_one_component := isinstance(comps, str):
-        comps = [comps]
-    if comps is None:
-        comps = n.branch_components | n.one_port_components
-    if groupby is None:
-        groupby = get_carrier
-    for c in comps:
-        if n.df(c).empty:
-            continue
-
-        ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
-        if not at_port:
-            ports = [ports[0]]
-
-        df = []
-        for port in ports:
-            vals = func(n, c, port)
-            vals = filter_active_assets(n, c, vals)  # for multiinvest
-            vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
-
-            # unit tracker
-            if groupby is not False:
-                grouping = get_grouping(n, c, groupby, port=port, nice_names=nice_names)
-                vals = vals.groupby(**grouping).agg(agg)
-            df.append(vals)
-
-        df = pd.concat(df, copy=False) if len(df) > 1 else df[0]
-        if not df.index.is_unique:
-            df = df.groupby(level=df.index.names).agg(agg)
-        d[c] = df
-
-    if d == {}:
-        return pd.Series([])
-    if is_one_component:
-        return d[c]
-    index_names = ["component"] + df.index.names
-    df = pd.concat(d, names=index_names)
-    if PARAMETERS["round"]:
-        df = df.round(PARAMETERS["round"])
-    if PARAMETERS["drop_zero"]:
-        df = df[df != 0]
-    return df
-
-
 def pass_empty_series_if_keyerror(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -340,10 +269,58 @@ def pass_empty_series_if_keyerror(func):
     return wrapper
 
 
+class Parameters:
+    """
+    Container for all the parameters.
+    """
+
+    PARAMETER_TYPES = {
+        "drop_zero": bool,
+        "nice_names": bool,
+        "round": int,
+    }
+
+    def __init__(self):
+        self.drop_zero = True
+        self.nice_names = True
+        self.round = 5
+
+    def __repr__(self):
+        param_str = ", ".join(
+            f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
+        )
+        return f"Parameters({param_str})"
+
+    def set_parameters(self, **kwargs):
+        for key, value in kwargs.items():
+            expected_type = self.PARAMETER_TYPES.get(key)
+            if expected_type is None:
+                raise ValueError(
+                    f"Invalid parameter name: {key} \n Possible parameters are {list(self.PARAMETER_TYPES.keys())}"
+                )
+            elif not isinstance(value, expected_type):
+                raise ValueError(
+                    f"Invalid type for parameter {key}: expected {expected_type.__name__}, got {type(value).__name__}"
+                )
+            else:
+                setattr(self, key, value)
+
+
 class Groupers:
     """
-    Container for all the 'get_' methods.
+    Container for all the groupers which can be used for the grouping in the
+    statistics functions.
     """
+
+    def __repr__(self):
+        methods_str = "\n".join(
+            [
+                method
+                for method in dir(self)
+                if callable(getattr(self, method)) and method.startswith("get_")
+            ]
+        )
+        return f"Available groupers:\n{methods_str}"
 
     get_carrier = staticmethod(get_carrier)
     get_bus_and_carrier = staticmethod(get_bus_and_carrier)
@@ -364,13 +341,85 @@ class StatisticsAccessor:
     def __init__(self, network):
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
+        self.parameters = Parameters()  # Create an instance of the Parameters class
+
+    def set_parameters(self, **kwargs):
+        """
+        Setting the parameters for the statistics accessor.
+
+        To see the list of parameters, one can simply call `network.statistics.parameters`.
+        """
+        self.parameters.set_parameters(**kwargs)
+
+    def _aggregate_components(
+        self,
+        func,
+        agg="sum",
+        comps=None,
+        groupby=None,
+        at_port=None,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Apply a function and group the result for a collection of components.
+        """
+        n = self._parent
+        d = {}
+
+        if is_one_component := isinstance(comps, str):
+            comps = [comps]
+        if comps is None:
+            comps = n.branch_components | n.one_port_components
+        if groupby is None:
+            groupby = get_carrier
+        if nice_names is None:
+            nice_names = self.parameters.nice_names
+        for c in comps:
+            if n.df(c).empty:
+                continue
+
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            if not at_port:
+                ports = [ports[0]]
+
+            df = []
+            for port in ports:
+                vals = func(n, c, port)
+                vals = filter_active_assets(n, c, vals)  # for multiinvest
+                vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
+
+                # unit tracker
+                if groupby is not False:
+                    grouping = get_grouping(
+                        n, c, groupby, port=port, nice_names=nice_names
+                    )
+                    vals = vals.groupby(**grouping).agg(agg)
+                df.append(vals)
+
+            df = pd.concat(df, copy=False) if len(df) > 1 else df[0]
+            if not df.index.is_unique:
+                df = df.groupby(level=df.index.names).agg(agg)
+            d[c] = df
+
+        if d == {}:
+            return pd.Series([])
+        if is_one_component:
+            return d[c]
+        index_names = ["component"] + df.index.names
+        df = pd.concat(d, names=index_names)
+        if self.parameters.round:
+            df = df.round(self.parameters.round)
+        if self.parameters.drop_zero:
+            df = df[df != 0]
+        return df
 
     def __call__(
         self,
         comps=None,
         aggregate_groups="sum",
         groupby=get_carrier,
-        nice_names=True,
+        nice_names=None,
         **kwargs,
     ):
         """
@@ -438,19 +487,6 @@ class StatisticsAccessor:
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
-    # TODO python enum class
-    def set_parameters(self, **kwargs):
-        for key, value in kwargs.items():
-            expected_type = PARAMETER_TYPES.get(key)
-            if expected_type is None:
-                raise ValueError(f"Invalid parameter name: {key}")
-            elif not isinstance(value, expected_type):
-                raise ValueError(
-                    f"Invalid type for parameter {key}: expected {expected_type}, got {type(value)}"
-                )
-            else:
-                PARAMETERS[key] = value
-
     def capex(
         self,
         comps=None,
@@ -476,8 +512,7 @@ class StatisticsAccessor:
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -513,8 +548,7 @@ class StatisticsAccessor:
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -605,8 +639,7 @@ class StatisticsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -659,8 +692,7 @@ class StatisticsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -754,8 +786,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -928,8 +959,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -1012,8 +1042,7 @@ class StatisticsAccessor:
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -1066,8 +1095,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -1121,7 +1149,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = aggregate_components(n, func, agg=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
@@ -1184,8 +1212,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
