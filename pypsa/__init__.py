@@ -15,17 +15,12 @@ from pypsa import (
     examples,
     geo,
     io,
-    linopf,
-    linopt,
     optimization,
     pf,
     plot,
     statistics,
 )
 from pypsa.components import Network, SubNetwork
-
-if sys.version_info < (3, 12):
-    from pypsa import opf, opt
 
 __version__ = "0.28.0"
 

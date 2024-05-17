@@ -2,14 +2,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_unit_commitment(api):
+def test_unit_commitment():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -44,7 +42,7 @@ def test_unit_commitment(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
 
@@ -55,8 +53,7 @@ def test_unit_commitment(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_minimum_up_time(api):
+def test_minimum_up_time():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -93,7 +90,7 @@ def test_minimum_up_time(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
@@ -106,8 +103,7 @@ def test_minimum_up_time(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_minimum_up_time_up_time_before(api):
+def test_minimum_up_time_up_time_before():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -144,7 +140,7 @@ def test_minimum_up_time_up_time_before(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 800, 5000, 3000])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
@@ -157,8 +153,7 @@ def test_minimum_up_time_up_time_before(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_minimum_down_time(api):
+def test_minimum_down_time():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -193,7 +188,7 @@ def test_minimum_down_time(api):
 
     n.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
@@ -204,8 +199,7 @@ def test_minimum_down_time(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_minimum_down_time_up_time_before(api):
+def test_minimum_down_time_up_time_before():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
@@ -241,7 +235,7 @@ def test_minimum_down_time_up_time_before(api):
 
     n.add("Load", "load", bus="bus", p_set=[3000, 800, 3000, 8000])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
@@ -252,8 +246,7 @@ def test_minimum_down_time_up_time_before(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_start_up_costs(api):
+def test_start_up_costs():
     n = pypsa.Network()
 
     n.snapshots = range(4)
@@ -286,13 +279,12 @@ def test_start_up_costs(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    optimize(n, api)
+    n.optimize()
 
     assert n.objective == 359000
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_shut_down_costs(api):
+def test_shut_down_costs():
     n = pypsa.Network()
 
     n.snapshots = range(4)
@@ -323,13 +315,12 @@ def test_shut_down_costs(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    optimize(n, api)
+    n.optimize()
 
     assert n.objective == 358000
 
 
-@pytest.mark.parametrize("api", ["pyomo", "linopy"])
-def test_unit_commitment_rolling_horizon(api):
+def test_unit_commitment_rolling_horizon():
     n = pypsa.Network()
     n.snapshots = range(7)
 
@@ -362,9 +353,9 @@ def test_unit_commitment_rolling_horizon(api):
     )
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 800, 5000, 3000, 950, 800])
 
-    optimize(n, api, snapshots=[0, 1, 2])
-    optimize(n, api, snapshots=[2, 3, 4])
-    optimize(n, api, snapshots=[4, 5, 6])
+    n.optimize(snapshots=[0, 1, 2])
+    n.optimize(snapshots=[2, 3, 4])
+    n.optimize(snapshots=[4, 5, 6])
 
     expected_status = np.array(
         [[1, 1, 0, 0, 0, 0, 0], [0, 0, 1, 1, 1, 1, 1]], dtype=float
@@ -378,8 +369,7 @@ def test_unit_commitment_rolling_horizon(api):
     equal(n.generators_t.p.values, expected_dispatch)
 
 
-@pytest.mark.parametrize("api", ["linopy"])
-def test_linearized_unit_commitment(api):
+def test_linearized_unit_commitment():
     n = pypsa.Network()
     n.snapshots = pd.date_range("2022-01-01", "2022-02-09", freq="d")
 
@@ -420,14 +410,13 @@ def test_linearized_unit_commitment(api):
         )
     n.add("Load", "load", bus="bus", p_set=load)
 
-    optimize(n, api, linearized_unit_commitment=True)
+    n.optimize(linearized_unit_commitment=True)
 
     MILP_objective = 1510000
     assert round(n.objective / MILP_objective, 2) == 1
 
 
-@pytest.mark.parametrize("api", ["linopy"])
-def test_link_unit_commitment(api):
+def test_link_unit_commitment():
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -461,7 +450,7 @@ def test_link_unit_commitment(api):
 
     n.add("Load", "load", bus="electricity", p_set=[4000, 6000, 800, 5000])
 
-    optimize(n, api)
+    n.optimize()
 
     expected_status = [1.0, 1.0, 1.0, 1.0]
 
@@ -474,8 +463,7 @@ def test_link_unit_commitment(api):
     assert round(n.objective, 1) == 267333.0
 
 
-@pytest.mark.parametrize("api", ["linopy"])
-def test_dynamic_ramp_rates(api):
+def test_dynamic_ramp_rates():
     """
     This test checks that dynamic ramp rates are correctly applied when
     considering a unit outage represented by p_max_pu.
@@ -510,7 +498,7 @@ def test_dynamic_ramp_rates(api):
 
     n.add("Generator", "gen2", bus="bus", p_nom=100, marginal_cost=150)
 
-    optimize(n, api)
+    n.optimize()
 
     assert (n.generators_t.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80
     assert (n.generators_t.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100

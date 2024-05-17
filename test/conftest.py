@@ -19,28 +19,6 @@ from shapely.geometry import Polygon
 
 import pypsa
 
-SUPPORTED_APIS = ["pyomo", "linopy", "native"]
-SOLVER_NAME = "glpk"
-
-
-@pytest.fixture(autouse=True)
-def skip_by_api_and_python_version(request):
-    if "api" in request.fixturenames:
-        api = request.getfixturevalue("api")
-        if sys.version_info[:2] == (3, 12) and api == "pyomo":
-            pytest.skip("PyPSA with Pyomo not supported on Python 3.12")
-
-
-def optimize(n, api, *args, **kwargs):
-    if api == "linopy":
-        return n.optimize(solver_name=SOLVER_NAME, *args, **kwargs)
-    elif api == "pyomo":
-        return n.lopf(pyomo=True, solver_name=SOLVER_NAME, *args, **kwargs)
-    elif api == "native":
-        return n.lopf(pyomo=False, solver_name=SOLVER_NAME, *args, **kwargs)
-    else:
-        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
-
 
 @pytest.fixture(scope="function")
 def scipy_network():

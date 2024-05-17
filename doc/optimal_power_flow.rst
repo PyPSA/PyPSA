@@ -3,9 +3,6 @@ Power System Optimization
 #########################
 
 
-.. important:: Since version v0.22.0, PyPSA allows optimization with `linopy <https://github.com/PyPSA/linopy>`_ through the `optimize` module, which should provide both improved flexibility and performance. The core function is available through `Network.optimize` and will replace `lopf` in the long run. The old implementation via the Pyomo package and the in-house implementation in `linopf.py`, will be kept in the core package for upcoming major releases, but will not be extended. New features will only be introduced via the `optimize` functionality.
-
-
 Overview
 --------
 
@@ -34,11 +31,11 @@ Execute:
 
 .. code:: python
 
-    n.optimize(n.snapshots, solver_name="glpk", solver_options={})
+    n.optimize(n.snapshots, solver_name="highs", solver_options={})
 
 
 where ``snapshots`` is an iterable of snapshots, ``solver_name`` is a string,
-e.g. "gurobi" or "glpk", ``solver_io`` is a string, ``solver_options`` is a dictionary of flags to
+e.g. "gurobi" or "highs", ``solver_io`` is a string, ``solver_options`` is a dictionary of flags to
 pass to the solver.
 
 
@@ -173,8 +170,6 @@ installable nominal power may also be introduced, e.g.
 
 Unit commitment constraints for generators and links
 -----------------------------------------------------
-
-.. important:: Unit commitment constraints will only be build fully for ``n.lopf(pyomo=True)`` or ``n.optimize()``. With ``n.lopf(pyomo=False)`` only a simplified version of the unit commitment is calculated by ignoring the parameters ``min_up_time``, ``min_down_time``, ``start_up_cost``, ``shut_down_cost``, ``up_time_before`` and ``down_time_before``.
 
 The implementation is a complete implementation of the unit commitment constraints defined in Chapter 4.3 of `Convex Optimization of Power Systems <http://www.cambridge.org/de/academic/subjects/engineering/control-systems-and-optimization/convex-optimization-power-systems>`_ by Joshua Adam Taylor (CUP, 2015).
 
@@ -547,8 +542,7 @@ system models see `<https://nworbmot.org/energy/multihorizon.pdf>`_.
  Be aware, that the attribute ``capital_cost`` represents the annualised investment costs
  NOT the overnight investment costs for the multi-investment.
 
-Multi-year investment instead of investing a single time is not implemented via the old optimization with `n.lopf(pyomo=True)`.
-It can be passed by setting the argument
+Multi-year investment can be passed by setting the argument
 ``multi_investment_periods`` when calling the
 ``network.optimize(multi_investment_periods=True)``. For the pathway
 optimisation ``snapshots`` have to be a pandas.MultiIndex, with the first level

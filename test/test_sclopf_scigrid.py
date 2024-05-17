@@ -2,24 +2,11 @@
 
 import numpy as np
 import pytest
-from conftest import SOLVER_NAME, SUPPORTED_APIS
 from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
 
 
-def sclopf(n, api, *args, **kwargs):
-    if api == "linopy":
-        return n.optimize.optimize_security_constrained(*args, **kwargs)
-    elif api == "pyomo":
-        return n.sclopf(pyomo=True, *args, **kwargs)
-    elif api == "native":
-        return n.sclopf(pyomo=False, *args, **kwargs)
-    else:
-        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
-
-
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_sclopf(scipy_network, api):
+def test_optimize_security_constrained(scipy_network):
     n = scipy_network
 
     # There are some infeasibilities without line extensions
@@ -29,12 +16,9 @@ def test_sclopf(scipy_network, api):
     # choose the contingencies
     branch_outages = n.lines.index[:2]
 
-    sclopf(
-        n,
-        api,
+    n.optimize.optimize_security_constrained(
         n.snapshots[0],
         branch_outages=branch_outages,
-        solver_name=SOLVER_NAME,
     )
 
     # For the PF, set the P to the optimised P

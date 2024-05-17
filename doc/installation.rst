@@ -36,7 +36,9 @@ and the non-free software, commercial software (for some of which free academic 
 - `COPT <https://www.shanshu.ai/copt>`_
 - `MindOpt <https://solver.damo.alibaba.com/doc/en/html/index.html>`_
 
-For installation instructions of these solvers for your operating system, follow the links above.
+An installation of PyPSA will automatically install the default solver HiGHS.
+For installation instructions of further solvers for your operating system,
+follow the links above.
 
 Depending on your operating system, you can also install some of the open-source solvers in a ``conda`` or ``pip`` environment.
 
