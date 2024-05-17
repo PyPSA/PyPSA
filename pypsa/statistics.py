@@ -655,7 +655,7 @@ class StatisticsAccessor:
         """
         Calculate the expanded capacity of the network components in MW.
         Positive capacity values correspond to production capacities and
-        negative values to consumption capacities or dismantling capacities.
+        negative values to consumption capacities.
 
         If `bus_carrier` is given, the capacity is weighted by the output efficiency of `bus_carrier`.
 
