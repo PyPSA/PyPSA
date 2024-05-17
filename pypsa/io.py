@@ -909,7 +909,12 @@ def import_components_from_dataframe(network, dataframe, cls_name):
             if dataframe[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
                     geometry = dataframe[k].replace({"": None, np.nan: None})
-                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
+                    from shapely.geometry import Polygon
+
+                    if geometry.apply(lambda x: isinstance(x, Polygon)).all():
+                        dataframe[k] = gpd.GeoSeries(geometry)
+                    else:
+                        dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
                 else:
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 

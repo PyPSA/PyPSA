@@ -723,87 +723,105 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
-    def add(self, class_name, name, **kwargs):
+    def add(self, class_name, name, suffix="", **kwargs):
         """
-        Add a single component to the network.
+        #TODO needs update
+        Add one or multiple components to the network, along with their attributes.
 
-        Adds it to component DataFrame.
+        Make sure when adding static attributes as pandas Series that they are indexed
+        by names. Make sure when adding time-varying attributes as pandas DataFrames that
+        their index is a superset of network.snapshots and their columns are a
+        subset of names.
 
         Any attributes which are not specified will be given the default
         value from :doc:`components`.
-
-        This method is slow for many components; instead use ``madd`` or
-        ``import_components_from_dataframe`` (see below).
 
         Parameters
         ----------
         class_name : string
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
             "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        name : string
-            Component name
+        names : string or list-like or pandas.Index
+            Component name(s)
+        suffix : string, default ''
+            All components are named after names with this added suffix. It
+            is assumed that all Series and DataFrames are indexed by the original names.
         kwargs
-            Component attributes, e.g. x=0.1, length=123
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
+            of pandas.DataFrame for time-varying
 
-        Examples
+        Returns
         --------
-        >>> network.add("Bus", "my_bus_0")
-        >>> network.add("Bus", "my_bus_1", v_nom=380)
-        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+        new_names : pandas.index
+            Names of new components (including suffix)
         """
-        assert class_name in self.components, f"Component class {class_name} not found"
+        if class_name not in self.components:
+            msg = f"Component class {class_name} not found"
+            raise ValueError(msg)
 
-        cls_df = self.df(class_name)
-        cls_pnl = self.pnl(class_name)
+        # Process name/ names to list of strings
+        if np.isscalar(name):
+            names = [str(name)]
+        elif isinstance(name, str):
+            names = [name]
+        else:
+            names = name
+        # Add suffix to names
+        names = [str(n) + suffix for n in names]
 
-        name = str(name)
-
-        assert name not in cls_df.index, (
-            f"Failed to add {class_name} component {name} because there is already "
-            f"an object with this name in {self.components[class_name]['list_name']}"
-        )
-
-        if class_name == "Link":
-            update_linkports_component_attrs(self, kwargs.keys())
-
-        attrs = self.components[class_name]["attrs"]
-
-        static_attrs = attrs[attrs.static].drop("name")
-
-        # This guarantees that the correct attribute type is maintained
-        obj_df = pd.DataFrame(
-            data=[static_attrs.default], index=[name], columns=static_attrs.index
-        )
-        new_df = pd.concat([cls_df, obj_df], sort=False)
-
-        new_df.index.name = class_name
-        setattr(self, self.components[class_name]["list_name"], new_df)
-
+        # Read kwargs into static and time-varying attributes
+        series = {}
+        static = {}
         for k, v in kwargs.items():
-            if k not in attrs.index:
-                logger.warning(
-                    f"{class_name} has no attribute {k}, " "ignoring this passed value."
-                )
-                continue
-            typ = attrs.at[k, "typ"]
-            if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v) if typ != "geometry" else v
-            elif attrs.at[k, "static"] and not isinstance(
-                v, (pd.Series, pd.DataFrame, np.ndarray, list)
-            ):
-                new_df.at[name, k] = typ(v)
-            else:
-                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
-        for attr in ["bus", "bus0", "bus1"]:
-            if attr in new_df.columns:
-                bus_name = new_df.at[name, attr]
-                if bus_name not in self.buses.index:
-                    logger.warning(
-                        f"The bus name `{bus_name}` given for {attr} "
-                        f"of {class_name} `{name}` does not appear "
-                        "in network.buses"
+            # Convert list-like to pandas.Series
+            if isinstance(v, (list, tuple)) or (
+                isinstance(v, np.ndarray) and v.ndim == 1
+            ):
+                v = pd.Series(v)
+
+            # Convert nested list-like to pandas.DataFrame
+            if isinstance(v, np.ndarray):
+                # TODO: This could also included nested lists/tuples
+                if v.shape == (len(self.snapshots), len(names)):
+                    v = pd.DataFrame(v, index=self.snapshots, columns=names)
+                else:
+                    msg = (
+                        f"Array {k} has shape {v.shape} but expected "
+                        f"({len(self.snapshots)}, {len(names)})"
                     )
+                    raise ValueError(msg)
+
+            # Read DataFrame data as time-varying attribute (2 dimensions)
+            if isinstance(v, pd.DataFrame):
+                series[k] = v.rename(columns=lambda i: str(i) + suffix)
+            # Read Series data, which can't be static because of different shapes
+            # as time-varying attribute
+            elif isinstance(v, pd.Series) and len(v) != len(names):
+                series[k] = pd.DataFrame(v.values, index=self.snapshots, columns=names)
+            # Read Series data as static attribute
+            elif isinstance(v, pd.Series) and len(v) == len(names):
+                static[k] = v.values
+                # TODO: needs warning because it is not clear if it is a static or
+                #  time-varying attribute. Previously in madd, it was assumed that it
+                #  is a static attribute
+            # Read any not sequential data as static attribute
+            else:
+                static[k] = v
+
+        # TODO also rewirte import components functions
+        # Load static attributes as components
+        if static:
+            static_df = pd.DataFrame(static, index=names)
+        else:
+            static_df = pd.DataFrame(index=names)
+        self.import_components_from_dataframe(static_df, class_name)
+
+        # Load time-varying attributes as components
+        for k, v in series.items():
+            self.import_series_from_dataframe(v, class_name, k)
+
+        return names
 
     def remove(self, class_name, name):
         """
@@ -902,38 +920,7 @@ class Network(Basic):
         ...        capital_cost=1e5,
         ...        p_max_pu=wind)
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
-
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        new_names = names.astype(str) + suffix
-
-        static = {}
-        series = {}
-        for k, v in kwargs.items():
-            if isinstance(v, pd.DataFrame):
-                series[k] = v.rename(columns=lambda i: str(i) + suffix)
-            elif isinstance(v, pd.Series):
-                static[k] = v.rename(lambda i: str(i) + suffix)
-            elif isinstance(v, np.ndarray) and v.shape == (
-                len(self.snapshots),
-                len(names),
-            ):
-                series[k] = pd.DataFrame(v, index=self.snapshots, columns=new_names)
-            else:
-                static[k] = v
-
-        self.import_components_from_dataframe(
-            pd.DataFrame(static, index=new_names), class_name
-        )
-
-        for k, v in series.items():
-            self.import_series_from_dataframe(v, class_name, k)
-
-        return new_names
+        return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
     def mremove(self, class_name, names):
         """

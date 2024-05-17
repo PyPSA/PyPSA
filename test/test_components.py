@@ -118,17 +118,12 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     be logged.
     """
     misspelled_component = "Generatro"
-    empty_network_5_buses.madd(
-        misspelled_component,
-        ["g_1", "g_2"],
-        bus=["bus_1", "bus_2"],
-    )
-
-    assert empty_network_5_buses.generators.empty
-    assert caplog.records[-1].levelname == "ERROR"
-    assert caplog.records[-1].message == (
-        f"Component class {misspelled_component} not found"
-    )
+    with pytest.raises(ValueError):
+        empty_network_5_buses.madd(
+            misspelled_component,
+            ["g_1", "g_2"],
+            bus=["bus_1", "bus_2"],
+        )
 
 
 def test_madd_duplicated_index(empty_network_5_buses, caplog):
