@@ -16,6 +16,7 @@ __copyright__ = (
     "MIT License"
 )
 
+import logging
 import os
 import sys
 from collections import namedtuple
@@ -31,7 +32,7 @@ from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
-from pypsa.contingency import calculate_BODF, network_lpf_contingency, network_sclopf
+from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
     get_active_assets,
@@ -71,26 +72,6 @@ from pypsa.pf import (
 )
 from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
-
-if sys.version_info.major >= 3:
-    from pypsa.linopf import network_lopf as network_lopf_lowmem
-
-if sys.version_info < (3, 12):
-    from pypsa.opf import network_lopf, network_opf
-else:
-
-    def network_lopf(*args, **kwargs):
-        raise NotImplementedError(
-            "Function `network_lopf` not available from Python 3.12."
-        )
-
-    def network_opf(*args, **kwargs):
-        raise NotImplementedError(
-            "Function `network_opf` not available from Python 3.12."
-        )
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -217,10 +198,6 @@ class Network(Basic):
 
     pf = network_pf
 
-    #    lopf = network_lopf
-
-    opf = network_opf
-
     plot = plot
 
     iplot = iplot
@@ -228,8 +205,6 @@ class Network(Basic):
     calculate_dependent_values = calculate_dependent_values
 
     lpf_contingency = network_lpf_contingency
-
-    sclopf = network_sclopf
 
     graph = graph
 
@@ -356,6 +331,7 @@ class Network(Basic):
                         typ
                     )
 
+            self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
         self._build_dataframes()
@@ -748,155 +724,6 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
-    @deprecated(
-        deprecated_in="0.24",
-        removed_in="1.0",
-        details="Use linopy-based function ``n.optimize()`` instead. Migrate extra functionalities: https://pypsa.readthedocs.io/en/latest/examples/optimization-with-linopy-migrate-extra-functionalities.html.",
-    )
-    def lopf(
-        self,
-        snapshots=None,
-        pyomo=False,
-        solver_name="glpk",
-        solver_options={},
-        solver_logfile=None,
-        formulation="kirchhoff",
-        transmission_losses=0,
-        keep_files=False,
-        extra_functionality=None,
-        multi_investment_periods=False,
-        **kwargs,
-    ):
-        """
-        Linear optimal power flow for a group of snapshots.
-
-        Parameters
-        ----------
-        snapshots : list or index slice
-            A list of snapshots to optimise, must be a subset of
-            network.snapshots, defaults to network.snapshots
-        pyomo : bool, default False
-            Whether to use pyomo for building and solving the model, setting
-            this to False saves a lot of memory and time.
-        solver_name : string
-            Must be a solver name that pyomo recognises and that is
-            installed, e.g. "glpk", "gurobi"
-        solver_options : dictionary
-            A dictionary with additional options that get passed to the solver.
-            (e.g. {'threads':2} tells gurobi to use only 2 cpus)
-        solver_logfile : None|string
-            If not None, sets the logfile option of the solver.
-        keep_files : bool, default False
-            Keep the files that pyomo constructs from OPF problem
-            construction, e.g. .lp file - useful for debugging
-        formulation : string
-            Formulation of the linear power flow equations to use; must be
-            one of ["angles", "cycles", "kirchhoff", "ptdf"]
-        transmission_losses : int
-            Whether an approximation of transmission losses should be included
-            in the linearised power flow formulation. A passed number will denote
-            the number of tangents used for the piecewise linear approximation.
-            Defaults to 0, which ignores losses.
-        extra_functionality : callable function
-            This function must take two arguments
-            `extra_functionality(network, snapshots)` and is called after
-            the model building is complete, but before it is sent to the
-            solver. It allows the user to
-            add/change constraints and add/change the objective function.
-        multi_investment_periods : bool, default False
-            Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-
-        Other Parameters
-        ----------------
-        ptdf_tolerance : float
-            Only taking effect when pyomo is True.
-            Value below which PTDF entries are ignored
-        free_memory : set, default {'pyomo'}
-            Only taking effect when pyomo is True.
-            Any subset of {'pypsa', 'pyomo'}. Allows to stash `pypsa` time-series
-            data away while the solver runs (as a pickle to disk) and/or free
-            `pyomo` data after the solution has been extracted.
-        solver_io : string, default None
-            Only taking effect when pyomo is True.
-            Solver Input-Output option, e.g. "python" to use "gurobipy" for
-            solver_name="gurobi"
-        skip_pre : bool, default False
-            Only taking effect when pyomo is True.
-            Skip the preliminary steps of computing topology, calculating
-            dependent values and finding bus controls.
-        extra_postprocessing : callable function
-            Only taking effect when pyomo is True.
-            This function must take three arguments
-            `extra_postprocessing(network, snapshots, duals)` and is called after
-            the model has solved and the results are extracted. It allows the user
-            to extract further information about the solution, such as additional
-            shadow prices.
-        skip_objective : bool, default False
-            Only taking effect when pyomo is False.
-            Skip writing the default objective function. If False, a custom
-            objective has to be defined via extra_functionality.
-        warmstart : bool or string, default False
-            Only taking effect when pyomo is False.
-            Use this to warmstart the optimization. Pass a string which gives
-            the path to the basis file. If set to True, a path to
-            a basis file must be given in network.basis_fn.
-        store_basis : bool, default True
-            Only taking effect when pyomo is False.
-            Whether to store the basis of the optimization results. If True,
-            the path to the basis file is saved in network.basis_fn. Note that
-            a basis can only be stored if simplex, dual-simplex, or barrier
-            *with* crossover is used for solving.
-        keep_references : bool, default False
-            Only taking effect when pyomo is False.
-            Keep the references of variable and constraint names withing the
-            network. These can be looked up in `n.vars` and `n.cons` after solving.
-        keep_shadowprices : bool or list of component names
-            Only taking effect when pyomo is False.
-            Keep shadow prices for all constraints, if set to True. If a list
-            is passed the shadow prices will only be parsed for those constraint
-            names. Defaults to ['Bus', 'Line', 'GlobalConstraint'].
-            After solving, the shadow prices can be retrieved using
-            :func:`pypsa.linopt.get_dual` with corresponding name
-        solver_dir : str, default None
-            Only taking effect when pyomo is False.
-            Path to directory where necessary files are written, default None leads
-            to the default temporary directory used by tempfile.mkstemp().
-
-        Returns
-        -------
-        status : str
-            Status of optimization.
-            Either "ok" if solution is optimal, or "warning" if not.
-        termination_condition : str
-            More information on how the solver terminated.
-            One of "optimal", "suboptimal" (in which case a solution is still
-            provided), "infeasible", "infeasible or unbounded", or "other".
-        """
-        args = {
-            "snapshots": snapshots,
-            "keep_files": keep_files,
-            "solver_options": solver_options,
-            "formulation": formulation,
-            "transmission_losses": transmission_losses,
-            "extra_functionality": extra_functionality,
-            "multi_investment_periods": multi_investment_periods,
-            "solver_name": solver_name,
-            "solver_logfile": solver_logfile,
-        }
-        args.update(kwargs)
-
-        if not self.shunt_impedances.empty:
-            logger.warning(
-                "You have defined one or more shunt impedances. "
-                "Shunt impedances are ignored by the linear optimal "
-                "power flow (LOPF)."
-            )
-
-        if pyomo:
-            return network_lopf(self, **args)
-        return network_lopf_lowmem(self, **args)
-
     def add(self, class_name, name, **kwargs):
         """
         Add a single component to the network.
@@ -969,15 +796,16 @@ class Network(Basic):
             else:
                 cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
 
-        for attr in ["bus", "bus0", "bus1"]:
-            if attr in new_df.columns:
-                bus_name = new_df.at[name, attr]
-                if bus_name not in self.buses.index:
-                    logger.warning(
-                        f"The bus name `{bus_name}` given for {attr} "
-                        f"of {class_name} `{name}` does not appear "
-                        "in network.buses"
-                    )
+        for attr in [attr for attr in new_df if attr.startswith("bus")]:
+            bus_name = new_df.at[name, attr]
+            # allow empty buses for multi-ports
+            port = int(attr[-1]) if attr[-1].isdigit() else 0
+            if bus_name not in self.buses.index and not (bus_name == "" and port > 1):
+                logger.warning(
+                    f"The bus name `{bus_name}` given for {attr} "
+                    f"of {class_name} `{name}` does not appear "
+                    "in network.buses"
+                )
 
     def remove(self, class_name, name):
         """

@@ -165,12 +165,11 @@ It leans heavily on the following Python packages:
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
-The optimisation uses interface libraries like `linopy` which are
-independent of the preferred solver. You can use e.g. one of the free
-solvers [GLPK](https://www.gnu.org/software/glpk/) and
+The optimisation uses interface libraries like `linopy` which are independent of
+the preferred solver. You can use e.g. one of the free solvers
+[HiGHS](https://highs.dev/), [GLPK](https://www.gnu.org/software/glpk/) and
 [CLP/CBC](https://github.com/coin-or/Cbc/) or the commercial solver
-[Gurobi](http://www.gurobi.com/) for which free academic licenses are
-available.
+[Gurobi](http://www.gurobi.com/) for which free academic licenses are available.
 
 ## Documentation
 
