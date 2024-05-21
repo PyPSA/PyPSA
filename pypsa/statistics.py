@@ -3,7 +3,6 @@
 Statistics Accessor.
 """
 
-
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )

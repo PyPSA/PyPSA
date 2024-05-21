@@ -7,6 +7,7 @@ example script to illustrate new features of the multi-decade investment
 
 @author: Lisa
 """
+
 import numpy as np
 import pandas as pd
 

@@ -3,7 +3,6 @@
 Power system components.
 """
 
-
 from weakref import ref
 
 from pypsa.clustering import ClusteringAccessor

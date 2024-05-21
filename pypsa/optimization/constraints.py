@@ -3,6 +3,7 @@
 """
 Define optimisation constraints from PyPSA networks with Linopy.
 """
+
 import logging
 
 import pandas as pd

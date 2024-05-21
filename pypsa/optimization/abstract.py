@@ -4,6 +4,7 @@
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
+
 import gc
 import logging
 from itertools import product

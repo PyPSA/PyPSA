@@ -3,6 +3,7 @@
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
+
 import logging
 import os
 from functools import wraps
@@ -415,9 +416,7 @@ def assign_duals(n, assign_all_duals=False):
             except:
                 unassigned.append(name)
 
-        elif (c == "GlobalConstraint") and (
-            (assign_all_duals or attr in n.df(c).index)
-        ):
+        elif (c == "GlobalConstraint") and (assign_all_duals or attr in n.df(c).index):
             n.df(c).loc[attr, "mu"] = dual
 
     if unassigned:

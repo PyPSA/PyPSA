@@ -1357,13 +1357,13 @@ def import_from_pandapower_net(
         )
     }
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
-    ] = net.gen.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
+        net.gen.vm_pu.values  # fmt: skip
+    )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
-    ] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
+        net.ext_grid.vm_pu.values  # fmt: skip
+    )
 
     d["Load"] = pd.DataFrame(
         {

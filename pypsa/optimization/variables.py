@@ -3,6 +3,7 @@
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """
+
 import logging
 
 from pypsa.descriptors import get_activity_mask
