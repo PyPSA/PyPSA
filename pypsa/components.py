@@ -726,9 +726,10 @@ class Network(Basic):
 
     def add(self, class_name, name, suffix="", **kwargs):
         """
-        #TODO needs update
-        Add one or multiple components to the network, along with their attributes.
+        Add one or multiple components to the network, along with their
+        attributes.
 
+        #TODO needs update
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
         their index is a superset of network.snapshots and their columns are a
@@ -855,9 +856,18 @@ class Network(Basic):
             if name in df:
                 df.drop(name, axis=1, inplace=True)
 
+    @deprecated(
+        deprecated_in="0.29",
+        removed_in="1.0",
+        details="Use `network.add` as a drop-in replacement instead.",
+    )
     def madd(self, class_name, names, suffix="", **kwargs):
         """
         Add multiple components to the network, along with their attributes.
+
+        This function is deprecated and will be removed in version 1.0. Use
+        `network.add` instead. It can handle both single and multiple addition of
+        components.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
