@@ -31,7 +31,7 @@ def test_mga():
     n.add("Load", "load", bus="bus", p_set=100)
 
     # can only run MGA on solved networks
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         n.optimize.optimize_mga()
 
     n.optimize()

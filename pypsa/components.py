@@ -331,6 +331,7 @@ class Network(Basic):
                         typ
                     )
 
+            self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
         self._build_dataframes()
@@ -547,9 +548,9 @@ class Network(Basic):
         None
         """
         if isinstance(snapshots, pd.MultiIndex):
-            assert (
-                snapshots.nlevels == 2
-            ), "Maximally two levels of MultiIndex supported"
+            if snapshots.nlevels != 2:
+                msg = "Maximally two levels of MultiIndex supported"
+                raise ValueError(msg)
             snapshots = snapshots.rename(["period", "timestep"])
             snapshots.name = "snapshot"
             self._snapshots = snapshots

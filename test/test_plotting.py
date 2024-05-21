@@ -54,7 +54,7 @@ def test_plot_on_axis_wo_geomap(ac_dc_network):
 def test_plot_on_axis_w_geomap(ac_dc_network):
     n = ac_dc_network
     fig, ax = plt.subplots()
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         n.plot(ax=ax, geomap=True)
         plt.close()
 

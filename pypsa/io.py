@@ -95,9 +95,9 @@ class ImporterCSV(Importer):
         self.csv_folder_name = csv_folder_name
         self.encoding = encoding
 
-        assert os.path.isdir(
-            csv_folder_name
-        ), f"Directory {csv_folder_name} does not exist."
+        if not os.path.isdir(csv_folder_name):
+            msg = f"Directory {csv_folder_name} does not exist."
+            raise FileNotFoundError(msg)
 
     def get_attributes(self):
         fn = os.path.join(self.csv_folder_name, "network.csv")
@@ -673,7 +673,9 @@ def import_from_netcdf(network, path, skip_time=False):
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
     basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
@@ -726,8 +728,9 @@ def export_to_netcdf(
     --------
     >>> network.export_to_netcdf("my_file.nc")
     """
-
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
     basename = os.path.basename(path) if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
@@ -836,10 +839,10 @@ def _import_from_importer(network, importer, basename, skip_time=False):
                 return
             continue
 
-        import_components_from_dataframe(network, df, component)
-
         if component == "Link":
-            update_linkports_component_attrs(network)
+            update_linkports_component_attrs(network, where=df)
+
+        import_components_from_dataframe(network, df, component)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
@@ -894,6 +897,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
+    if cls_name == "Link":
+        update_linkports_component_attrs(network, where=dataframe)
+
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
@@ -919,15 +925,19 @@ def import_components_from_dataframe(network, dataframe, cls_name):
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
-    for attr in ["bus", "bus0", "bus1"]:
-        if attr in dataframe.columns:
-            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
+    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
+        # allow empty buses for multi-ports
+        port = int(attr[-1]) if attr[-1].isdigit() else 0
+        mask = ~dataframe[attr].isin(network.buses.index)
+        if port > 1:
+            mask &= dataframe[attr].ne("")
+        missing = dataframe.index[mask]
+        if len(missing) > 0:
+            logger.warning(
+                "The following %s have buses which are not defined:\n%s",
+                cls_name,
+                missing,
+            )
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
@@ -1069,19 +1079,19 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
     # ensure buses are merged first
     to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
     for c in other.iterate_components(to_iterate):
-        assert c.df.index.intersection(network.df(c.name).index).empty, (
-            f"Error, component {c.name} has overlapping indices, "
-            "cannot merge networks."
-        )
+        if not c.df.index.intersection(network.df(c.name).index).empty:
+            msg = f"Component {c.name} has overlapping indices, cannot merge networks."
+            raise ValueError(msg)
     if with_time:
         snapshots_aligned = network.snapshots.equals(other.snapshots)
         weightings_aligned = network.snapshot_weightings.equals(
             other.snapshot_weightings
         )
-        assert snapshots_aligned and weightings_aligned, (
-            "Error, snapshots or snapshot weightings do not agree, "
-            "cannot merge networks."
-        )
+        if not (snapshots_aligned and weightings_aligned):
+            msg = (
+                "Snapshots or snapshot weightings do not agree, cannot merge networks."
+            )
+            raise ValueError(msg)
     new = network if inplace else network.copy()
     if other.srid != new.srid:
         logger.warning(
