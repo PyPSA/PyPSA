@@ -376,9 +376,9 @@ def sub_network_pf_singlebus(
     if distribute_slack:
         for bus, group in sub_network.generators().groupby("bus"):
             if slack_weights in ["p_nom", "p_nom_opt"]:
-                assert not all(
-                    network.generators[slack_weights] == 0
-                ), f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
+                if all(network.generators[slack_weights] == 0):
+                    msg = f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
+                    raise ValueError(msg)
                 bus_generator_shares = (
                     network.generators[slack_weights]
                     .loc[group.index]
@@ -389,12 +389,19 @@ def sub_network_pf_singlebus(
                 generators_t_p_choice = get_as_dense(
                     network, "Generator", slack_weights, snapshots
                 )
-                assert (
-                    not generators_t_p_choice.isna().all().all()
-                ), f"Invalid slack weights! Generator attribute {slack_weights} is always NaN."
-                assert (
-                    not (generators_t_p_choice == 0).all().all()
-                ), f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
+                if generators_t_p_choice.isna().all().all():
+                    msg = (
+                        f"Invalid slack weights! Generator attribute {slack_weights}"
+                        f" is always NaN."
+                    )
+                    raise ValueError(msg)
+                if (generators_t_p_choice == 0).all().all():
+                    msg = (
+                        f"Invalid slack weights! Generator attribute {slack_weights}"
+                        f" is always zero."
+                    )
+                    raise ValueError(msg)
+
                 bus_generator_shares = (
                     generators_t_p_choice.loc[snapshots, group.index]
                     .apply(normed, axis=1)
@@ -464,21 +471,23 @@ def sub_network_pf(
     remaining error, and convergence status for each snapshot
     """
 
-    assert isinstance(
-        slack_weights, (str, pd.Series, dict)
-    ), "Type of 'slack_weights' must be string, pd.Series or dict. Is {}.".format(
-        type(slack_weights)
-    )
+    if not isinstance(slack_weights, (str, pd.Series, dict)):
+        msg = (
+            f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
+            f"{type(slack_weights)}."
+        )
+        raise TypeError(msg)
 
     if isinstance(slack_weights, dict):
         slack_weights = pd.Series(slack_weights)
     elif isinstance(slack_weights, str):
         valid_strings = ["p_nom", "p_nom_opt", "p_set"]
-        assert (
-            slack_weights in valid_strings
-        ), "String value for 'slack_weights' must be one of {}. Is {}.".format(
-            valid_strings, slack_weights
-        )
+        if slack_weights not in valid_strings:
+            msg = (
+                f"String value for 'slack_weights' must be one of {valid_strings}. "
+                f"Is {slack_weights}."
+            )
+            raise ValueError(msg)
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info(
@@ -511,7 +520,7 @@ def sub_network_pf(
         elif all(i in sn_buses for i in slack_weights.index):
             bus_slack_weights_b = True
         else:
-            raise AssertionError(
+            raise ValueError(
                 "Custom slack weights pd.Series/dict must only have the",
                 "generators or buses of the subnetwork as index/keys.",
             )
@@ -631,11 +640,13 @@ def sub_network_pf(
             )
 
         elif isinstance(slack_weights, str) and slack_weights in ["p_nom", "p_nom_opt"]:
-            assert not all(
-                network.generators[slack_weights] == 0
-            ), "Invalid slack weights! Generator attribute {} is always zero.".format(
-                slack_weights
-            )
+            if all(network.generators[slack_weights] == 0):
+                msg = (
+                    f"Invalid slack weights! Generator attribute {slack_weights} is "
+                    f"always zero."
+                )
+                raise ValueError(msg)
+
             slack_weights_calc = (
                 network.generators.groupby("bus")[slack_weights]
                 .sum()
@@ -870,9 +881,12 @@ def apply_line_types(network):
     missing_types = pd.Index(
         network.lines.loc[lines_with_types_b, "type"].unique()
     ).difference(network.line_types.index)
-    assert (
-        missing_types.empty
-    ), f'The type(s) {", ".join(missing_types)} do(es) not exist in network.line_types'
+    if not missing_types.empty:
+        msg = (
+            f'The type(s) {", ".join(missing_types)} do(es) not exist in '
+            f"network.line_types"
+        )
+        raise ValueError(msg)
 
     # Get a copy of the lines data
     l = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
@@ -907,9 +921,12 @@ def apply_transformer_types(network):
     missing_types = pd.Index(
         network.transformers.loc[trafos_with_types_b, "type"].unique()
     ).difference(network.transformer_types.index)
-    assert (
-        missing_types.empty
-    ), f'The type(s) {", ".join(missing_types)} do(es) not exist in network.transformer_types'
+    if not missing_types.empty:
+        msg = (
+            f'The type(s) {", ".join(missing_types)} do(es) not exist in '
+            f"network.transformer_types"
+        )
+        raise ValueError(msg)
 
     # Get a copy of the transformers data
     # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
