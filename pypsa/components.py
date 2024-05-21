@@ -5,6 +5,7 @@ Power system components.
 
 
 from weakref import ref
+from typing import Sequence, Union
 
 from pypsa.clustering import ClusteringAccessor
 
@@ -31,7 +32,6 @@ import validators
 from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
-
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
@@ -729,6 +729,14 @@ class Network(Basic):
         Add one or multiple components to the network, along with their
         attributes.
 
+        Make sure when adding static attributes as pandas Series that they are indexed
+        by names. Make sure when adding time-varying attributes as pandas DataFrames that
+        their index is a superset of network.snapshots and their columns are a
+        subset of names.
+
+        Any attributes which are not specified will be given the default
+        value from :doc:`components`.
+
         #TODO needs update
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
@@ -761,15 +769,9 @@ class Network(Basic):
             msg = f"Component class {class_name} not found"
             raise ValueError(msg)
 
-        # Process name/ names to list of strings
-        if np.isscalar(name):
-            names = [str(name)]
-        elif isinstance(name, str):
-            names = [name]
-        else:
-            names = name
-        # Add suffix to names
-        names = [str(n) + suffix for n in names]
+        # Process name/names to pandas.Index of strings and add suffix
+        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        names = names.astype(str) + suffix
 
         # Read kwargs into static and time-varying attributes
         series = {}
@@ -825,36 +827,47 @@ class Network(Basic):
 
         return names
 
-    def remove(self, class_name, name):
+    def remove(
+        self,
+        class_name: str,
+        name: Union[str, int, Sequence[Union[int, str]], pd.Index],
+        suffix: str = "",
+    ):
         """
-        Removes a single component from the network.
+        Removes a single component or a list of components from the network.
 
         Removes it from component DataFrames.
 
         Parameters
         ----------
-        class_name : string
+        class_name : str
             Component class name
-        name : string
-            Component name
+        name : str, int, list-like or pandas.Index
+            Component name(s)
+        suffix : str, default ''
+
 
         Examples
         --------
-        >>> network.remove("Line", "my_line 12345")
+        >>> n.remove("Line", "my_line 12345")
+        >>> n.remove("Line", ["line x", "line y"])
         """
         if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+            msg = f"Component class {class_name} not found"
+            raise ValueError(msg)
 
+        # Process name/names to pandas.Index of strings and add suffix
+        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        names = names.astype(str) + suffix
+
+        # Drop from static components
         cls_df = self.df(class_name)
+        cls_df.drop(names, inplace=True)
 
-        cls_df.drop(name, inplace=True)
-
+        # Drop from time-varying components
         pnl = self.pnl(class_name)
-
         for df in pnl.values():
-            if name in df:
-                df.drop(name, axis=1, inplace=True)
+            df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     @deprecated(
         deprecated_in="0.29",
@@ -865,7 +878,7 @@ class Network(Basic):
         """
         Add multiple components to the network, along with their attributes.
 
-        This function is deprecated and will be removed in version 1.0. Use
+        `network.madd` is deprecated and will be removed in version 1.0. Use
         `network.add` instead. It can handle both single and multiple addition of
         components.
 
@@ -933,9 +946,18 @@ class Network(Basic):
         """
         return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
+    @deprecated(
+        deprecated_in="0.29",
+        removed_in="1.0",
+        details="Use `network.remove` as a drop-in replacement instead.",
+    )
     def mremove(self, class_name, names):
         """
         Removes multiple components from the network.
+
+        `network.mremove` is deprecated and will be removed in version 1.0. Use
+        `network.remove` instead. It can handle both single and multiple removal of
+        components.
 
         Removes them from component DataFrames.
 
@@ -950,21 +972,7 @@ class Network(Basic):
         --------
         >>> network.mremove("Line", ["line x", "line y"])
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
-
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        cls_df = self.df(class_name)
-
-        cls_df.drop(names, inplace=True)
-
-        pnl = self.pnl(class_name)
-
-        for df in pnl.values():
-            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+        self.remove(class_name=class_name, name=names)
 
     def _retrieve_overridden_components(self):
         components_index = list(self.components.keys())

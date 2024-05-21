@@ -47,10 +47,8 @@ def test_mremove_misspelled_component(ac_dc_network, caplog):
 
     len_lines = len(network.lines.index)
 
-    network.mremove("Liness", ["0", "1"])
-
-    assert len_lines == len(network.lines.index)
-    assert caplog.records[-1].levelname == "ERROR"
+    with pytest.raises(ValueError):
+        network.mremove("Liness", ["0", "1"])
 
 
 def test_madd_static(empty_network_5_buses):
