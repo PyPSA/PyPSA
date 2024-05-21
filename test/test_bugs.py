@@ -89,3 +89,33 @@ def test_779():
     xarr = n1.export_to_netcdf()
     n2 = pypsa.Network()
     n2.import_from_netcdf(xarr)
+
+
+def test_multiport_assingment_defaults_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", "link", bus0="bus", bus1="bus2")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    assert n.links.loc["link", "bus2"] == ""
+
+
+def test_multiport_assingment_defaults_madd():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports using madd.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.madd("Link", ["link"], bus0="bus", bus1="bus2")
+    n.madd("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    assert n.links.loc["link", "bus2"] == ""
