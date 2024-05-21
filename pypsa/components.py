@@ -4,11 +4,6 @@ Power system components.
 """
 
 
-from weakref import ref
-from typing import Sequence, Union
-
-from pypsa.clustering import ClusteringAccessor
-
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
@@ -16,13 +11,13 @@ __copyright__ = (
     "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
-
 import logging
 import os
 import sys
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
+from weakref import ref
 
 import geopandas as gpd
 import numpy as np
@@ -32,6 +27,8 @@ import validators
 from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
+
+from pypsa.clustering import ClusteringAccessor
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
@@ -40,10 +37,11 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
-    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
+    _import_components_from_dataframe,
+    _import_series_from_dataframe,
     export_to_csv_folder,
     export_to_hdf5,
     export_to_netcdf,
@@ -188,11 +186,13 @@ class Network(Basic):
 
     import_from_pandapower_net = import_from_pandapower_net
 
-    import_components_from_dataframe = import_components_from_dataframe
-
     merge = merge
 
-    import_series_from_dataframe = import_series_from_dataframe
+    _import_components_from_dataframe = _import_components_from_dataframe
+    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
+
+    _import_series_from_dataframe = _import_series_from_dataframe
+    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     lpf = network_lpf
 
@@ -427,7 +427,7 @@ class Network(Basic):
                 file_name, index_col=0
             )
 
-            self.import_components_from_dataframe(
+            self._import_components_from_dataframe(
                 self.components[std_type]["standard_types"], std_type
             )
 
@@ -819,18 +819,18 @@ class Network(Basic):
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        self.import_components_from_dataframe(static_df, class_name)
+        self._import_components_from_dataframe(static_df, class_name)
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self.import_series_from_dataframe(v, class_name, k)
+            self._import_series_from_dataframe(v, class_name, k)
 
         return names
 
     def remove(
         self,
         class_name: str,
-        name: Union[str, int, Sequence[Union[int, str]], pd.Index],
+        name: Union[str, int, List[Union[int, str]], pd.Index],
         suffix: str = "",
     ):
         """
@@ -1043,7 +1043,7 @@ class Network(Basic):
                     network.components[component.name]["standard_types"].index
                 )
 
-            import_components_from_dataframe(network, df, component.name)
+            _import_components_from_dataframe(network, df, component.name)
 
         if with_time:
             if snapshots is None:
@@ -1105,7 +1105,7 @@ class Network(Basic):
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
-        n.import_components_from_dataframe(
+        n._import_components_from_dataframe(
             pd.DataFrame(self.buses.loc[key]).assign(sub_network=""), "Bus"
         )
         buses_i = n.buses.index
@@ -1117,21 +1117,21 @@ class Network(Basic):
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+            n._import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
 
         for c in self.standard_type_components:
             df = self.df(c).drop(self.components[c]["standard_types"].index)
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in self.one_port_components:
             df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in self.branch_components:
             df = self.df(c).loc[
                 lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
             ]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:

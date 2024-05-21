@@ -13,6 +13,8 @@ __copyright__ = (
 
 import logging
 
+from deprecation import deprecated
+
 logger = logging.getLogger(__name__)
 
 import json
@@ -36,7 +38,6 @@ try:
     has_xarray = True
 except ImportError:
     has_xarray = False
-
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -842,12 +843,12 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         if component == "Link":
             update_linkports_component_attrs(network, where=df)
 
-        import_components_from_dataframe(network, df, component)
+        _import_components_from_dataframe(network, df, component)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
                 df.set_index(network.snapshots, inplace=True)
-                import_series_from_dataframe(network, df, component, attr)
+                _import_series_from_dataframe(network, df, component, attr)
 
         logger.debug(getattr(network, list_name))
 
@@ -859,13 +860,21 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     )
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use `network.add` instead. E.g. `n.add(class_name, df.index, **df)`.",
+)
 def import_components_from_dataframe(network, dataframe, cls_name):
     """
     Import components from a pandas DataFrame.
 
-    If columns are missing then defaults are used.
+    This function is deprecated. Use `network.add` instead. To get the same behavior
+    for importing components from a DataFrame, use
+    `network.add(cls_name, df.index, **df)`.
 
-    If extra columns are added, these are left in the resulting component dataframe.
+    If columns are missing then defaults are used. If extra columns are added, these
+    are left in the resulting component dataframe.
 
     Parameters
     ----------
@@ -880,17 +889,183 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     >>> import pandas as pd
     >>> buses = ['Berlin', 'Frankfurt', 'Munich', 'Hamburg']
     >>> network.import_components_from_dataframe(
-            pd.DataFrame({"v_nom" : 380, "control" : 'PV'},
-                        index=buses),
-                        "Bus")
+    ...     pd.DataFrame({"v_nom" : 380, "control" : 'PV'},
+    ...                 index=buses),
+    ...                 "Bus")
     >>> network.import_components_from_dataframe(
-            pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
-                        index=[b+" PV" for b in buses]),
-                        "Generator")
+    ...     pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
+    ...                 index=[b+" PV" for b in buses]),
+    ...                 "Generator")
 
     See Also
     --------
     pypsa.Network.madd
+    """
+    attrs = network.components[cls_name]["attrs"]
+
+    static_attrs = attrs[attrs.static].drop("name")
+    non_static_attrs = attrs[~attrs.static]
+
+    if cls_name == "Link":
+        update_linkports_component_attrs(network, where=dataframe)
+
+    # Clean dataframe and ensure correct types
+    dataframe = pd.DataFrame(dataframe)
+    dataframe.index = dataframe.index.astype(str)
+
+    for k in static_attrs.index:
+        if k not in dataframe.columns:
+            dataframe[k] = static_attrs.at[k, "default"]
+        else:
+            if static_attrs.at[k, "type"] == "string":
+                dataframe[k] = dataframe[k].replace({np.nan: ""})
+            if static_attrs.at[k, "type"] == "int":
+                dataframe[k] = dataframe[k].fillna(0)
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                if static_attrs.at[k, "type"] == "geometry":
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+
+    # check all the buses are well-defined
+    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
+        # allow empty buses for multi-ports
+        port = int(attr[-1]) if attr[-1].isdigit() else 0
+        mask = ~dataframe[attr].isin(network.buses.index)
+        if port > 1:
+            mask &= dataframe[attr].ne("")
+        missing = dataframe.index[mask]
+        if len(missing) > 0:
+            logger.warning(
+                "The following %s have buses which are not defined:\n%s",
+                cls_name,
+                missing,
+            )
+
+    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
+    old_df = network.df(cls_name)
+    new_df = dataframe.drop(non_static_attrs_in_df, axis=1)
+    if not old_df.empty:
+        new_df = pd.concat((old_df, new_df), sort=False)
+
+    if not new_df.index.is_unique:
+        logger.error(f"Error, new components for {cls_name} are not unique")
+        return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
+
+    new_df.index.name = cls_name
+    setattr(network, network.components[cls_name]["list_name"], new_df)
+
+    # now deal with time-dependent properties
+
+    pnl = network.pnl(cls_name)
+
+    for k in non_static_attrs_in_df:
+        # If reading in outputs, fill the outputs
+        pnl[k] = pnl[k].reindex(
+            columns=new_df.index, fill_value=non_static_attrs.at[k, "default"]
+        )
+        pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
+
+    setattr(network, network.components[cls_name]["list_name"] + "_t", pnl)
+
+
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use `network.add` instead.",  # Todo : Add example
+)
+def import_series_from_dataframe(network, dataframe, cls_name, attr):
+    """
+    Import time series from a pandas DataFrame.
+
+    This function is deprecated. # TODO : Add example
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        A DataFrame whose index is ``network.snapshots`` and
+        whose columns are a subset of the relevant components.
+    cls_name : string
+        Name of class of component
+    attr : string
+        Name of time-varying series attribute
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> network.set_snapshots(range(10))
+    >>> network.import_series_from_dataframe(
+    ...     pd.DataFrame(np.random.rand(10, 4),
+    ...         columns=network.generators.index,
+    ...                     index=range(10)),
+    ...                 "Generator",
+    ...                 "p_max_pu")
+
+    See Also
+    --------
+    """
+    df = network.df(cls_name)
+    pnl = network.pnl(cls_name)
+    list_name = network.components[cls_name]["list_name"]
+
+    dataframe.columns.name = cls_name
+    dataframe.index.name = "snapshot"
+    diff = dataframe.columns.difference(df.index)
+    if len(diff) > 0:
+        logger.warning(
+            f"Components {diff} for attribute {attr} of {cls_name} "
+            f"are not in main components dataframe {list_name}"
+        )
+
+    attrs = network.components[cls_name]["attrs"]
+    expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
+    if attr not in expected_attrs:
+        pnl[attr] = dataframe
+        return
+
+    attr_series = attrs.loc[attr]
+    default = attr_series.default
+    columns = dataframe.columns
+
+    diff = network.snapshots.difference(dataframe.index)
+    if len(diff):
+        logger.warning(
+            f"Snapshots {diff} are missing from {attr} of {cls_name}."
+            f" Filling with default value '{default}'"
+        )
+        dataframe = dataframe.reindex(network.snapshots, fill_value=default)
+
+    if not attr_series.static:
+        pnl[attr] = pnl[attr].reindex(
+            columns=df.index.union(columns), fill_value=default
+        )
+    else:
+        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns.union(columns)))
+
+    pnl[attr].loc[network.snapshots, columns] = dataframe.loc[
+        network.snapshots, columns
+    ]
+
+
+def _import_components_from_dataframe(network, dataframe, cls_name):
+    """
+    Import components from a pandas DataFrame.
+
+    If columns are missing then defaults are used.
+
+    If extra columns are added, these are left in the resulting component dataframe.
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        A DataFrame whose index is the names of the components and
+        whose columns are the non-default attributes.
+    cls_name : string
+        Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
     """
     attrs = network.components[cls_name]["attrs"]
 
@@ -969,7 +1144,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     setattr(network, network.components[cls_name]["list_name"] + "_t", pnl)
 
 
-def import_series_from_dataframe(network, dataframe, cls_name, attr):
+def _import_series_from_dataframe(network, dataframe, cls_name, attr):
     """
     Import time series from a pandas DataFrame.
 
@@ -982,21 +1157,6 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
         Name of class of component
     attr : string
         Name of time-varying series attribute
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> network.set_snapshots(range(10))
-    >>> network.import_series_from_dataframe(
-            pd.DataFrame(np.random.rand(10, 4),
-                columns=network.generators.index,
-                            index=range(10)),
-                        "Generator",
-                        "p_max_pu")
-
-    See Also
-    --------
-    pypsa.Network.madd()
     """
     df = network.df(cls_name)
     pnl = network.pnl(cls_name)
@@ -1099,10 +1259,10 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
             f"{new.srid}, {other.srid}. Assuming {new.srid}."
         )
     for c in other.iterate_components(to_iterate):
-        new.import_components_from_dataframe(c.df, c.name)
+        new._import_components_from_dataframe(c.df, c.name)
         if with_time:
             for k, v in c.pnl.items():
-                new.import_series_from_dataframe(v, c.name, k)
+                new._import_series_from_dataframe(v, c.name, k)
 
     return None if inplace else new
 
@@ -1304,7 +1464,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         "Transformer",
         "ShuntImpedance",
     ]:
-        import_components_from_dataframe(
+        _import_components_from_dataframe(
             network, pdf[network.components[component]["list_name"]], component
         )
 
@@ -1518,7 +1678,7 @@ def import_from_pandapower_net(
         "Transformer",
         "ShuntImpedance",
     ]:
-        network.import_components_from_dataframe(d[c], c)
+        network._import_components_from_dataframe(d[c], c)
 
     # amalgamate buses connected by closed switches
 
