@@ -46,6 +46,8 @@ website/examples/*.py
 
 .vscode
 
+.idea
+
 .coverage
 
 dev-scripts
