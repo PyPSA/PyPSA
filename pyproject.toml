@@ -4,5 +4,11 @@ requires = ["setuptools", "wheel"]
 [tool.wheel]
 universal = 1
 
+
+# Formater and linter settings
+
 [tool.black]
+line-length = 88
+
+[tool.ruff]
 line-length = 88
