@@ -600,7 +600,7 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
+def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     """
     Add a legend for lines and links.
 
@@ -611,6 +611,8 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
         Size of the line reference; for example [3, 2, 1]
     labels : list-like, str
         Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
+    colors: list-like, str
+        Color of the line reference; for example ["red, "green", "blue"]
     patch_kw : defaults to {}
         Keyword arguments passed to plt.Line2D
     legend_kw : defaults to {}
@@ -618,12 +620,19 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
+    colors = np.atleast_1d(colors)
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
         raise ValueError(msg)
+    elif len(colors) > 0 and len(sizes) != len(colors):
+        msg = "Sizes, labels, and colors must have the same length."
+        raise ValueError(msg)
 
-    handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    if len(colors) == 0:
+        handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    else:
+        handles = [plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw) for s, c in zip(sizes, colors)]
 
     legend = ax.legend(handles, labels, **legend_kw)
 
