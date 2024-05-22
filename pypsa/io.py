@@ -11,13 +11,13 @@ __copyright__ = (
     "MIT License"
 )
 
-import logging
 
 from deprecation import deprecated
 
-logger = logging.getLogger(__name__)
 
 import json
+import logging
+
 import math
 import os
 from glob import glob
@@ -38,6 +38,8 @@ try:
     has_xarray = True
 except ImportError:
     has_xarray = False
+
+logger = logging.getLogger(__name__)
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -1526,13 +1528,13 @@ def import_from_pandapower_net(
         )
     }
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
-    ] = net.gen.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
+        net.gen.vm_pu.values  # fmt: skip
+    )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
-    ] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
+        net.ext_grid.vm_pu.values  # fmt: skip
+    )
 
     d["Load"] = pd.DataFrame(
         {

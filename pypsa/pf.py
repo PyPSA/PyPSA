@@ -12,9 +12,6 @@ __copyright__ = (
 )
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import time
 from operator import itemgetter
 
@@ -35,6 +32,7 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import update_linkports_component_attrs, zsum
 
 pd.Series.zsum = zsum
+logger = logging.getLogger(__name__)
 
 
 def normed(s):
@@ -409,19 +407,19 @@ def sub_network_pf_singlebus(
                 )
             else:
                 bus_generator_shares = slack_weights.pipe(normed).fillna(0)
-            network.generators_t.p.loc[
-                snapshots, group.index
-            ] += bus_generator_shares.multiply(
-                -network.buses_t.p.loc[snapshots, bus], axis=0
-            )
+            network.generators_t.p.loc[snapshots, group.index] += (
+                bus_generator_shares.multiply(
+                    -network.buses_t.p.loc[snapshots, bus], axis=0
+                )
+            )  # fmt: skip
     else:
-        network.generators_t.p.loc[
-            snapshots, sub_network.slack_generator
-        ] -= network.buses_t.p.loc[snapshots, sub_network.slack_bus]
+        network.generators_t.p.loc[snapshots, sub_network.slack_generator] -= (
+            network.buses_t.p.loc[snapshots, sub_network.slack_bus]
+        )  # fmt: skip
 
-    network.generators_t.q.loc[
-        snapshots, sub_network.slack_generator
-    ] -= network.buses_t.q.loc[snapshots, sub_network.slack_bus]
+    network.generators_t.q.loc[snapshots, sub_network.slack_generator] -= (
+        network.buses_t.q.loc[snapshots, sub_network.slack_bus]
+    )  # fmt: skip
 
     network.buses_t.p.loc[snapshots, sub_network.slack_bus] = 0.0
     network.buses_t.q.loc[snapshots, sub_network.slack_bus] = 0.0
@@ -717,7 +715,6 @@ def sub_network_pf(
     # now set everything
     if distribute_slack:
         last_pq = -1
-        slack_power = roots[:, -1]
     else:
         last_pq = None
     network.buses_t.v_ang.loc[snapshots, sub_network.pvpqs] = roots[
@@ -807,11 +804,11 @@ def sub_network_pf(
                     .apply(normed, axis=1)
                     .fillna(0)
                 )
-                network.generators_t.p.loc[
-                    snapshots, group.index
-                ] += bus_generator_shares.multiply(
-                    distributed_slack_power.loc[snapshots, bus], axis=0
-                )
+                network.generators_t.p.loc[snapshots, group.index] += (
+                    bus_generator_shares.multiply(
+                        distributed_slack_power.loc[snapshots, bus], axis=0
+                    )
+                )  # fmt: skip
             else:
                 if generator_slack_weights_b:
                     bus_generator_shares = (
@@ -823,11 +820,11 @@ def sub_network_pf(
                     if all(bus_generators_p_nom) == 0:
                         bus_generators_p_nom = 1
                     bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(0)
-                network.generators_t.p.loc[
-                    snapshots, group.index
-                ] += distributed_slack_power.loc[snapshots, bus].apply(
-                    lambda row: row * bus_generator_shares
-                )
+                network.generators_t.p.loc[snapshots, group.index] += (
+                    distributed_slack_power.loc[
+                        snapshots, bus
+                    ].apply(lambda row: row * bus_generator_shares)
+                )  # fmt: skip
     else:
         network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
             network.buses_t.p.loc[snapshots, sub_network.slack_bus]
@@ -1549,9 +1546,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # let slack generator take up the slack
     if sub_network.slack_generator is not None:
-        network.generators_t.p.loc[
-            snapshots, sub_network.slack_generator
-        ] += slack_adjustment
+        network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
+            slack_adjustment
+        )  # fmt: skip
 
 
 def network_batch_lpf(network, snapshots=None):

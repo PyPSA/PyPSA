@@ -22,11 +22,11 @@ import pandas as pd
 from packaging.version import Version, parse
 from pandas import Series
 
-logger = logging.getLogger(__name__)
-
-
 from pypsa import io
 from pypsa.geo import haversine_pts
+
+logger = logging.getLogger(__name__)
+
 
 DEFAULT_ONE_PORT_STRATEGIES = dict(
     p="sum",

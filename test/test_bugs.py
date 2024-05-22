@@ -7,7 +7,6 @@ import pypsa
 
 
 def test_890():
-
     n = pypsa.examples.scigrid_de()
     n.calculate_dependent_values()
 

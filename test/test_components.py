@@ -45,8 +45,6 @@ def test_mremove_misspelled_component(ac_dc_network, caplog):
     """
     network = ac_dc_network
 
-    len_lines = len(network.lines.index)
-
     with pytest.raises(ValueError):
         network.mremove("Liness", ["0", "1"])
 
@@ -167,11 +165,14 @@ def test_madd_defaults(empty_network_5_buses):
         bus=["bus_1", "bus_2"],
     )
 
-    assert empty_network_5_buses.generators.loc[gen_names[0], "control"] == (
-        empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
+    assert (
+        empty_network_5_buses.generators.loc[gen_names[0], "control"]
+        == empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
     )
-    assert empty_network_5_buses.loads.loc[line_names[0], "p_set"] == (
-        empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
+
+    assert (
+        empty_network_5_buses.loads.loc[line_names[0], "p_set"]
+        == empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
     )
 
 

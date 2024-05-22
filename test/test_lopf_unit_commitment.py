@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
-import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa

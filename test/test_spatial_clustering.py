@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import pypsa
 from pypsa.clustering.spatial import (
     aggregateoneport,
     busmap_by_hac,
