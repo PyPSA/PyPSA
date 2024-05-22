@@ -976,13 +976,17 @@ def import_components_from_dataframe(network, dataframe, cls_name):
 @deprecated(
     deprecated_in="0.29",
     removed_in="1.0",
-    details="Use `network.add` instead.",  # Todo : Add example
+    details="Use `network.add` instead.",
 )
 def import_series_from_dataframe(network, dataframe, cls_name, attr):
     """
     Import time series from a pandas DataFrame.
 
-    This function is deprecated. # TODO : Add example
+    This function is deprecated. Use `network.add` instead, but it will not work with
+    the same data structure. To get a similar behavior, use
+    `n.pnl(class_name)[attr] = df` but make sure that the index is aligned. It is better
+    to use `network.add` to import time series data.
+
 
     Parameters
     ----------
