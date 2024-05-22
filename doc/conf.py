@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # PyPSA documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan  5 10:04:42 2016.

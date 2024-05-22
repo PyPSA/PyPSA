@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
@@ -415,6 +414,7 @@ def optimize_mga(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
     Returns
+    -------
     status : str
         The status of the optimization, either "ok" or one of the codes listed
         in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html

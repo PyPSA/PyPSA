@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functions for importing and exporting data.
 """
@@ -57,7 +56,7 @@ def _retrieve_from_url(path):
     return str(local_path)
 
 
-class ImpExper(object):
+class ImpExper:
     ds = None
 
     def __enter__(self):
@@ -305,12 +304,12 @@ if has_xarray:
 
         def __enter__(self):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__init__()
+                super().__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
+                super().__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
             return {
@@ -555,7 +554,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         Skip reading in time dependent attributes
 
     Examples
-    ----------
+    --------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
     basename = Path(csv_folder_name).name

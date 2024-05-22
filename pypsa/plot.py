@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functions for plotting networks.
 """
@@ -499,8 +498,8 @@ def get_projection_from_crs(crs):
         )
     except ValueError:
         logger.warning(
-            "'{crs}' does not define a projected coordinate system. "
-            "Falling back to latlong.".format(crs=crs)
+            f"'{crs}' does not define a projected coordinate system. "
+            "Falling back to latlong."
         )
         return ccrs.PlateCarree()
 
@@ -811,6 +810,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     --------
     >>> autogenerate_coordinates(network)
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+
     """
     G = n.graph()
 

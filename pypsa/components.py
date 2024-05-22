@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Power system components.
 """
@@ -97,7 +96,7 @@ for component in components.index:
 del component
 
 
-class Basic(object):
+class Basic:
     """
     Common to every object.
     """
@@ -368,6 +367,7 @@ class Network(Basic):
             content += " none"
         content += "\n"
         content += f"Snapshots: {len(self.snapshots)}"
+
         return header + content
 
     def __add__(self, other):
@@ -867,13 +867,12 @@ class Network(Basic):
             of pandas.DataFrame for time-varying
 
         Returns
-        --------
+        -------
         new_names : pandas.index
             Names of new components (including suffix)
 
         Examples
         --------
-
         Short Example:
 
         >>> network.madd("Load", ["load 1", "load 2"],
@@ -1001,7 +1000,7 @@ class Network(Basic):
         dependent data.
 
         Returns
-        --------
+        -------
         network : pypsa.Network
 
         Parameters
@@ -1081,7 +1080,7 @@ class Network(Basic):
             one buses.
 
         Returns
-        --------
+        -------
         network : pypsa.Network
 
         Examples
