@@ -13,13 +13,10 @@ __copyright__ = (
 
 import logging
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-
-logger = logging.getLogger(__name__)
-
-import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
@@ -44,6 +41,8 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+
+logger = logging.getLogger(__name__)
 
 
 def plot(
@@ -816,7 +815,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     G = n.graph()
 
     if layouter is None:
-        if is_planar := nx.check_planarity(G)[0]:
+        if nx.check_planarity(G)[0]:
             layouter = nx.planar_layout
         else:
             layouter = nx.kamada_kawai_layout

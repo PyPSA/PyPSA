@@ -7,7 +7,6 @@ Created on Mon Jan 31 18:29:48 2022.
 """
 
 import os
-import sys
 
 import geopandas as gpd
 import numpy as np
