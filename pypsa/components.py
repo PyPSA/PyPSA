@@ -17,7 +17,6 @@ __copyright__ = (
 
 import logging
 import os
-import sys
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Union
@@ -27,7 +26,6 @@ import numpy as np
 import pandas as pd
 import pyproj
 import validators
-from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 

@@ -11,11 +11,8 @@ __copyright__ = (
     "MIT License"
 )
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import json
+import logging
 import math
 import os
 from glob import glob
@@ -37,6 +34,7 @@ try:
 except ImportError:
     has_xarray = False
 
+logger = logging.getLogger(__name__)
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html

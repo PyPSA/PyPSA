@@ -12,10 +12,9 @@ __copyright__ = (
 )
 
 import logging
-from functools import reduce, wraps
+from functools import wraps
 from inspect import signature
 
-import numpy as np
 import pandas as pd
 from deprecation import deprecated
 
@@ -747,7 +746,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        n = self._parent
 
         df = self.energy_balance(
             comps=comps,
@@ -783,7 +781,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        n = self._parent
 
         df = self.energy_balance(
             comps=comps,
@@ -831,8 +828,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
-        n = self._parent
 
         df = self.energy_balance(
             comps=comps,
@@ -951,10 +946,7 @@ class StatisticsAccessor:
             logger.warning(
                 "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
             )
-            switch = True
             groupby = get_bus_and_carrier_and_bus_carrier
-        else:
-            switch = False
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
@@ -965,9 +957,9 @@ class StatisticsAccessor:
                 p = p.clip(lower=0)
             elif kind == "withdrawal":
                 p = -p.clip(upper=0)
-            elif kind != None:
+            elif kind is not None:
                 logger.warning(
-                    f"Argument 'kind' is not recognized. Falling back to energy balance."
+                    "Argument 'kind' is not recognized. Falling back to energy balance."
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -982,8 +974,6 @@ class StatisticsAccessor:
             nice_names=nice_names,
         )
 
-        if switch:
-            res = df.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "carrier dependent"
         return df

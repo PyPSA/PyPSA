@@ -37,12 +37,6 @@ def test_missing_bus(consistent_network, caplog):
 
 
 def test_infeasible_capacity_limits(consistent_network, caplog):
-    consistent_network.generators.loc["gen_one", "p_nom_min"] = 20
-    consistent_network.consistency_check()
-    assert caplog.records[-1].levelname == "WARNING"
-
-
-def test_infeasible_capacity_limits(consistent_network, caplog):
     consistent_network.generators.loc[
         "gen_one", ["p_nom_extendable", "committable"]
     ] = (

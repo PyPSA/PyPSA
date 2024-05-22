@@ -12,9 +12,6 @@ __copyright__ = (
 )
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import time
 from operator import itemgetter
 
@@ -35,6 +32,7 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import update_linkports_component_attrs, zsum
 
 pd.Series.zsum = zsum
+logger = logging.getLogger(__name__)
 
 
 def normed(s):
@@ -717,7 +715,6 @@ def sub_network_pf(
     # now set everything
     if distribute_slack:
         last_pq = -1
-        slack_power = roots[:, -1]
     else:
         last_pq = None
     network.buses_t.v_ang.loc[snapshots, sub_network.pvpqs] = roots[

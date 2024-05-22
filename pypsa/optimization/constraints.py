@@ -8,7 +8,7 @@ import logging
 
 import pandas as pd
 from linopy import LinearExpression, Variable, merge
-from numpy import arange, cumsum, inf, isfinite, nan, roll
+from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
@@ -21,7 +21,6 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
-from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
