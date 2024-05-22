@@ -12,12 +12,8 @@ __copyright__ = (
 )
 
 
-from deprecation import deprecated
-
-
 import json
 import logging
-
 import math
 import os
 from glob import glob
@@ -28,6 +24,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from deprecation import deprecated
 from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
@@ -915,6 +912,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
 
+    # Fill nan values with default values
+    dataframe = dataframe.fillna(attrs["default"].to_dict())
+
     for k in static_attrs.index:
         if k not in dataframe.columns:
             dataframe[k] = static_attrs.at[k, "default"]
@@ -1084,6 +1084,9 @@ def _import_components_from_dataframe(network, dataframe, cls_name):
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
+
+    # Fill nan values with default values
+    dataframe = dataframe.fillna(attrs["default"].to_dict())
 
     for k in static_attrs.index:
         if k not in dataframe.columns:
