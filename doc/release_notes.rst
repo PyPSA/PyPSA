@@ -18,6 +18,7 @@ Release Notes
 
 * When adding bus ports on the fly with `add` methods, the dtype of the freshly created column is now fixed to `string`.
 
+* Add functionality to provide individual colors for lines in legend during plot.
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
