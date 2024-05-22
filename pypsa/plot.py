@@ -632,7 +632,10 @@ def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     if len(colors) == 0:
         handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
     else:
-        handles = [plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw) for s, c in zip(sizes, colors)]
+        handles = [
+            plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw)
+            for s, c in zip(sizes, colors)
+        ]
 
     legend = ax.legend(handles, labels, **legend_kw)
 
