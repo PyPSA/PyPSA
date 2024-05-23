@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """

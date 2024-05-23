@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
@@ -12,9 +11,8 @@ import numpy as np
 import pandas as pd
 from linopy import Model, merge
 
-from pypsa.descriptors import additional_linkports, get_committable_i
+from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
     optimize_mga,
     optimize_security_constrained,

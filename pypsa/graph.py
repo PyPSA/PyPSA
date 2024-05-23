@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Graph helper functions, which are attached to network and sub_network.
 """

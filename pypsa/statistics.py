@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Statistics Accessor.
 """
@@ -202,7 +201,9 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
 
 
 def aggregate_timeseries(df, weights, agg="sum"):
-    "Calculate the weighted sum or average of a DataFrame or Series."
+    """
+    Calculate the weighted sum or average of a DataFrame or Series.
+    """
     if isinstance(df.index, pd.MultiIndex):
         if agg == "mean":
             weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
@@ -1109,6 +1110,7 @@ class StatisticsAccessor:
         kind : str, optional
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
+
         """
         n = self._parent
 
