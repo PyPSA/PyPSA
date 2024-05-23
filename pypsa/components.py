@@ -28,6 +28,7 @@ import validators
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
+import pypsa
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
@@ -1275,7 +1276,54 @@ class Network(Basic):
         # TODO: Check for bidirectional links with efficiency < 1.
         # TODO: Warn if any ramp limits are 0.
 
+        def check_nans_for_component_default_attrs(
+            network: "pypsa.Network", component: Component
+        ):
+            """
+            Check for attributes which is nan, but has a not nan default value.
+
+            Parameters
+            ----------
+            network : pypsa.Network
+                Network object.
+            component : Component
+                Component object.
+            """
+
+            # Get non-NA default attributes for the current component
+            not_na_component_attrs = network.component_attrs[component.name][
+                network.component_attrs[component.name]
+                .replace("", np.nan)["default"]
+                .notna()
+            ].index
+
+            # Remove attributes that are not in the component's static data
+            relevant_static_df = component.df[
+                list(set(component.df.columns).intersection(not_na_component_attrs))
+            ]
+
+            # Remove attributes that are not in the component's time series data (if
+            # there is any)
+            relevant_series_dfs = [
+                value
+                for key, value in component.pnl.items()
+                if key in not_na_component_attrs and not value.empty
+            ]
+
+            # Run the check for nan values on relevant data
+            for values_df in [relevant_static_df] + relevant_series_dfs:
+                if values_df.isna().values.any():
+                    nan_cols = values_df.columns[values_df.isna().any()]
+                    logger.warning(
+                        "Encountered nan's in columns %s of component '%s'.",
+                        nan_cols,
+                        component.name,
+                    )
+
         self.calculate_dependent_values()
+
+        for c in self.iterate_components():
+            check_nans_for_component_default_attrs(network=self, component=c)
 
         def bus_columns(df):
             return df.columns[df.columns.str.startswith("bus")]
