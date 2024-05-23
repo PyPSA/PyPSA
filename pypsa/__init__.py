@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Python for Power Systems Analysis (PyPSA)
 

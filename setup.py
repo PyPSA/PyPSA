@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-
 from codecs import open
 
 from setuptools import find_packages, setup
@@ -37,7 +34,7 @@ setup(
         "highspy",
     ],
     extras_require={
-        "dev": ["pytest", "pypower", "pandapower", "scikit-learn"],
+        "dev": ["pytest", "pypower", "pandapower", "scikit-learn", "ruff"],
         "cartopy": ["cartopy>=0.16"],
         "docs": [
             "numpydoc",
@@ -45,7 +42,6 @@ setup(
             "sphinx-book-theme",
             "nbsphinx",
             "nbsphinx-link",
-            "black",
             "scikit-learn",
         ],
         "gurobipy": ["gurobipy"],

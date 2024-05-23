@@ -27,6 +27,7 @@ dependencies:
 - flake8
 - cartopy
 - scikit-learn
+- ruff
 
 - pip
 - pip:

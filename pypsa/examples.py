@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.

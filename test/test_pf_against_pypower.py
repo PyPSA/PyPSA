@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from packaging.version import Version, parse
 
 try:
