@@ -28,7 +28,6 @@ import validators
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
-import pypsa
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
@@ -1262,7 +1261,7 @@ class Network(Basic):
             if not (skip_empty and self.df(c).empty)
         )
 
-    def consistency_check(self, check_dtypes=False):
+    def consistency_check(self, check_dtypes: bool = False) -> None:
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1273,26 +1272,311 @@ class Network(Basic):
         --------
         >>> network.consistency_check()
         """
-        # TODO: Check for bidirectional links with efficiency < 1.
-        # TODO: Warn if any ramp limits are 0.
 
-        def check_nans_for_component_default_attrs(
-            network: "pypsa.Network", component: Component
-        ):
+        def _bus_columns(df: pd.DataFrame) -> pd.Index:
+            return df.columns[df.columns.str.startswith("bus")]
+
+        def check_for_unknown_buses(component: Component) -> None:
             """
-            Check for attributes which is nan, but has a not nan default value.
-
-            Parameters
-            ----------
-            network : pypsa.Network
-                Network object.
-            component : Component
-                Component object.
+            Check if buses are attached to components but are not defined.
             """
+            for attr in _bus_columns(component.df):
+                missing = ~component.df[attr].isin(self.buses.index)
+                # if bus2, bus3... contain empty strings do not warn
+                if component.name in self.branch_components and int(attr[-1]) > 1:
+                    missing &= component.df[attr] != ""
+                if missing.any():
+                    msg = "The following %s have %s which are not defined:\n%s"
+                    logger.warning(
+                        msg, component.list_name, attr, component.df.index[missing]
+                    )
 
+        def check_for_disconnected_buses() -> None:
+            connected_buses = set()
+            for component in self.iterate_components():
+                for attr in _bus_columns(component.df):
+                    connected_buses.update(component.df[attr])
+
+            disconnected_buses = set(self.buses.index) - connected_buses
+            if disconnected_buses:
+                msg = "The following buses have no attached components, which can break the lopf:\n%s"
+                logger.warning(msg, disconnected_buses)
+
+        def check_for_zero_impedances(component: Component) -> None:
+            if component.name in self.passive_branch_components:
+                for attr in ["x", "r"]:
+                    bad = component.df[attr] == 0
+                    if bad.any():
+                        msg = (
+                            "The following %s have zero %s, which "
+                            "could break the linear load flow:\n%s"
+                        )
+                        logger.warning(
+                            msg, component.list_name, attr, component.df.index[bad]
+                        )
+
+        def check_for_zero_s_nom(component: Component) -> None:
+            if component.name in {"Transformer"}:
+                bad = component.df["s_nom"] == 0
+                if bad.any():
+                    logger.warning(
+                        "The following %s have zero s_nom, which is used "
+                        "to define the impedance and will thus break "
+                        "the load flow:\n%s",
+                        component.list_name,
+                        component.df.index[bad],
+                    )
+
+        def check_time_series(component: Component) -> None:
+            for attr in component.attrs.index[
+                component.attrs.varying & component.attrs.static
+            ]:
+                attr_df = component.pnl[attr]
+
+                diff = attr_df.columns.difference(component.df.index)
+                if len(diff):
+                    logger.warning(
+                        "The following %s have time series defined "
+                        "for attribute %s in network.%s_t, but are "
+                        "not defined in network.%s:\n%s",
+                        component.list_name,
+                        attr,
+                        component.list_name,
+                        component.list_name,
+                        diff,
+                    )
+
+                if not self.snapshots.equals(attr_df.index):
+                    logger.warning(
+                        "The index of the time-dependent Dataframe for attribute "
+                        "%s of network.%s_t is not aligned with network snapshots",
+                        attr,
+                        component.list_name,
+                    )
+
+        def check_static_power_attributes(component: Component) -> None:
+            """
+            Check static attrs p_now, s_nom, e_nom in any component.
+            """
+            static_attrs = ["p_nom", "s_nom", "e_nom"]
+            if component.name in self.all_components - {"TransformerType"}:
+                static_attr = component.attrs.query("static").index.intersection(
+                    static_attrs
+                )
+                if len(static_attr):
+                    attr = static_attr[0]
+                    bad = component.df[attr + "_max"] < component.df[attr + "_min"]
+                    if bad.any():
+                        logger.warning(
+                            "The following %s have smaller maximum than "
+                            "minimum expansion limit which can lead to "
+                            "infeasibilty:\n%s",
+                            component.list_name,
+                            component.df.index[bad],
+                        )
+
+                    attr = static_attr[0]
+                    for col in [attr + "_min", attr + "_max"]:
+                        if (
+                            component.df[col][component.df[attr + "_extendable"]]
+                            .isna()
+                            .any()
+                        ):
+                            logger.warning(
+                                "Encountered nan's in column %s of component '%s'.",
+                                col,
+                                component.name,
+                            )
+
+        def check_time_series_power_attributes(component: Component) -> None:
+            """
+            Check time series attributes `p_max_pu` and `e_max_pu` for any component
+            except TransformerTypes.
+            """
+            varying_attrs = ["p_max_pu", "e_max_pu"]
+            if component.name in self.all_components - {"TransformerType"}:
+                varying_attr = component.attrs.query("varying").index.intersection(
+                    varying_attrs
+                )
+
+                if len(varying_attr):
+                    attr = varying_attr[0][0]
+                    max_pu = self.get_switchable_as_dense(
+                        component.name, attr + "_max_pu"
+                    )
+                    min_pu = self.get_switchable_as_dense(
+                        component.name, attr + "_min_pu"
+                    )
+
+                    # check for NaN values:
+                    if max_pu.isna().to_numpy().any():
+                        for col in max_pu.columns[max_pu.isna().any()]:
+                            logger.warning(
+                                "The attribute %s of element %s of %s has "
+                                "NaN values for the following snapshots:\n%s",
+                                attr + "_max_pu",
+                                col,
+                                component.list_name,
+                                max_pu.index[max_pu[col].isna()],
+                            )
+                    if min_pu.isna().to_numpy().any():
+                        for col in min_pu.columns[min_pu.isna().any()]:
+                            logger.warning(
+                                "The attribute %s of element %s of %s has "
+                                "NaN values for the following snapshots:\n%s",
+                                attr + "_min_pu",
+                                col,
+                                component.list_name,
+                                min_pu.index[min_pu[col].isna()],
+                            )
+
+                    # check for infinite values
+                    if np.isinf(max_pu).to_numpy().any():
+                        for col in max_pu.columns[np.isinf(max_pu).any()]:
+                            logger.warning(
+                                "The attribute %s of element %s of %s has "
+                                "infinite values for the following snapshots:\n%s",
+                                attr + "_max_pu",
+                                col,
+                                component.list_name,
+                                max_pu.index[np.isinf(max_pu[col])],
+                            )
+                    if np.isinf(min_pu).to_numpy().any():
+                        for col in min_pu.columns[np.isinf(min_pu).any()]:
+                            logger.warning(
+                                "The attribute %s of element %s of %s has "
+                                "infinite values for the following snapshots:\n%s",
+                                attr + "_min_pu",
+                                col,
+                                component.list_name,
+                                min_pu.index[np.isinf(min_pu[col])],
+                            )
+
+                    diff = max_pu - min_pu
+                    diff = diff[diff < 0].dropna(axis=1, how="all")
+                    for col in diff.columns:
+                        logger.warning(
+                            "The element %s of %s has a smaller maximum "
+                            "than minimum operational limit which can "
+                            "lead to infeasibility for the following snapshots:\n%s",
+                            col,
+                            component.list_name,
+                            diff[col].dropna().index,
+                        )
+
+        def check_assets(component: Component) -> None:
+            if component.name in {"Generator", "Link"}:
+                committables = self.get_committable_i(component.name)
+                extendables = self.get_extendable_i(component.name)
+                intersection = committables.intersection(extendables)
+                if not intersection.empty:
+                    logger.warning(
+                        "Assets can only be committable or extendable. Found "
+                        f"assets in component {c} which are both:"
+                        f"\n\n\t{', '.join(intersection)}"
+                    )
+
+        def check_generators(component: Component) -> None:
+            """
+            Check static attrs p_now, s_nom, e_nom in generator components.
+            """
+            if component.name in {"Generator"}:
+                bad_uc_gens = component.df.index[
+                    component.df.committable
+                    & (component.df.up_time_before > 0)
+                    & (component.df.down_time_before > 0)
+                ]
+                if not bad_uc_gens.empty:
+                    logger.warning(
+                        "The following committable generators were both up and down"
+                        f" before the simulation: {bad_uc_gens}."
+                        " This could cause an infeasibility."
+                    )
+
+        def check_dtypes_(component: Component) -> None:
+            # first check static attributes
+
+            dtypes_soll = component.attrs.loc[component.attrs["static"], "dtype"].drop(
+                "name"
+            )
+            unmatched = component.df.dtypes[dtypes_soll.index] != dtypes_soll
+
+            if unmatched.any():
+                logger.warning(
+                    "The following attributes of the dataframe %s "
+                    "have the wrong dtype:\n%s\n"
+                    "They are:\n%s\nbut should be:\n%s",
+                    component.list_name,
+                    unmatched.index[unmatched],
+                    component.df.dtypes[dtypes_soll.index[unmatched]],
+                    dtypes_soll[unmatched],
+                )
+
+            # now check varying attributes
+
+            types_soll = component.attrs.loc[
+                component.attrs["varying"], ["typ", "dtype"]
+            ]
+
+            for attr, typ, dtype in types_soll.itertuples():
+                if component.pnl[attr].empty:
+                    continue
+
+                unmatched = component.pnl[attr].dtypes != dtype
+
+                if unmatched.any():
+                    logger.warning(
+                        "The following columns of time-varying attribute "
+                        "%s in %s_t have the wrong dtype:\n%s\n"
+                        "They are:\n%s\nbut should be:\n%s",
+                        attr,
+                        component.list_name,
+                        unmatched.index[unmatched],
+                        component.pnl[attr].dtypes[unmatched],
+                        typ,
+                    )
+
+        def check_investment_periods() -> None:
+            constraint_periods = set(
+                self.global_constraints.investment_period.dropna().unique()
+            )
+            if isinstance(self.snapshots, pd.MultiIndex):
+                if not constraint_periods.issubset(self.snapshots.unique("period")):
+                    msg = (
+                        "The global constraints contain investment periods which "
+                        "are not in the set of optimized snapshots."
+                    )
+                    raise ValueError(msg)
+            else:
+                if constraint_periods:
+                    msg = (
+                        "The global constraints contain investment periods but "
+                        "snapshots are not multi-indexed."
+                    )
+                    raise ValueError(msg)
+
+        def check_shapes() -> None:
+            shape_components = self.shapes.component.unique()
+            for c in set(shape_components) & set(self.all_components):
+                geos = self.shapes.query("component == @c")
+                not_included = geos.index[~geos.idx.isin(self.df(c).index)]
+
+                if not not_included.empty:
+                    logger.warning(
+                        f"The following shapes are related to component {c} and have"
+                        f" idx values that are not included in the component's index:\n"
+                        f"{not_included}"
+                    )
+
+        def check_nans_for_component_default_attrs(component: Component) -> None:
+            """
+            Check for all static and varying attributes if there are nan values but
+            the default value is not nan.
+
+            """
             # Get non-NA default attributes for the current component
-            not_na_component_attrs = network.component_attrs[component.name][
-                network.component_attrs[component.name]
+            not_na_component_attrs = self.component_attrs[component.name][
+                self.component_attrs[component.name]
                 .replace("", np.nan)["default"]
                 .notna()
             ].index
@@ -1312,7 +1596,7 @@ class Network(Basic):
 
             # Run the check for nan values on relevant data
             for values_df in [relevant_static_df] + relevant_series_dfs:
-                if values_df.isna().values.any():
+                if values_df.isna().to_numpy().any():
                     nan_cols = values_df.columns[values_df.isna().any()]
                     logger.warning(
                         "Encountered nan's in columns %s of component '%s'.",
@@ -1322,262 +1606,33 @@ class Network(Basic):
 
         self.calculate_dependent_values()
 
+        # TODO: Check for bidirectional links with efficiency < 1.
+        # TODO: Warn if any ramp limits are 0.
+
+        # Per component checks
         for c in self.iterate_components():
-            check_nans_for_component_default_attrs(network=self, component=c)
+            # Checks all components
+            check_for_unknown_buses(c)
+            check_time_series(c)
+            check_static_power_attributes(c)
+            check_time_series_power_attributes(c)
+            check_nans_for_component_default_attrs(c)
+            # Checks passive_branch_components
+            check_for_zero_impedances(c)
+            # Checks transformers
+            check_for_zero_s_nom(c)
+            # Checks generators and links
+            check_assets(c)
+            # Checks generators
+            check_generators(c)
 
-        def bus_columns(df):
-            return df.columns[df.columns.str.startswith("bus")]
+            if check_dtypes:
+                check_dtypes_(c)
 
-        # check for unknown buses
-        for c in self.iterate_components():
-            for attr in bus_columns(c.df):
-                missing = ~c.df[attr].isin(self.buses.index)
-                # if bus2, bus3... contain empty strings do not warn
-                if c.name in self.branch_components:
-                    if int(attr[-1]) > 1:
-                        missing &= c.df[attr] != ""
-                if missing.any():
-                    msg = "The following %s have %s which are not defined:\n%s"
-                    logger.warning(msg, c.list_name, attr, c.df.index[missing])
-
-        # check for disconnected buses
-        connected_buses = set()
-        for c in self.iterate_components():
-            for attr in bus_columns(c.df):
-                connected_buses.update(c.df[attr])
-
-        disconnected_buses = set(self.buses.index) - connected_buses
-        if disconnected_buses:
-            msg = "The following buses have no attached components, which can break the lopf:\n%s"
-            logger.warning(msg, disconnected_buses)
-
-        for c in self.iterate_components(self.passive_branch_components):
-            for attr in ["x", "r"]:
-                bad = c.df[attr] == 0
-                if bad.any():
-                    msg = (
-                        "The following %s have zero %s, which "
-                        "could break the linear load flow:\n%s"
-                    )
-                    logger.warning(msg, c.list_name, attr, c.df.index[bad])
-
-        for c in self.iterate_components({"Transformer"}):
-            bad = c.df["s_nom"] == 0
-            if bad.any():
-                logger.warning(
-                    "The following %s have zero s_nom, which is used "
-                    "to define the impedance and will thus break "
-                    "the load flow:\n%s",
-                    c.list_name,
-                    c.df.index[bad],
-                )
-
-        for c in self.iterate_components():
-            for attr in c.attrs.index[c.attrs.varying & c.attrs.static]:
-                attr_df = c.pnl[attr]
-
-                diff = attr_df.columns.difference(c.df.index)
-                if len(diff):
-                    logger.warning(
-                        "The following %s have time series defined "
-                        "for attribute %s in network.%s_t, but are "
-                        "not defined in network.%s:\n%s",
-                        c.list_name,
-                        attr,
-                        c.list_name,
-                        c.list_name,
-                        diff,
-                    )
-
-                if not self.snapshots.equals(attr_df.index):
-                    logger.warning(
-                        "The index of the time-dependent Dataframe for attribute "
-                        "%s of network.%s_t is not aligned with network snapshots",
-                        attr,
-                        c.list_name,
-                    )
-
-        static_attrs = ["p_nom", "s_nom", "e_nom"]
-        varying_attrs = ["p_max_pu", "e_max_pu"]
-        for c in self.iterate_components(self.all_components - {"TransformerType"}):
-            varying_attr = c.attrs.query("varying").index.intersection(varying_attrs)
-            static_attr = c.attrs.query("static").index.intersection(static_attrs)
-
-            if len(static_attr):
-                attr = static_attr[0]
-                bad = c.df[attr + "_max"] < c.df[attr + "_min"]
-                if bad.any():
-                    logger.warning(
-                        "The following %s have smaller maximum than "
-                        "minimum expansion limit which can lead to "
-                        "infeasibilty:\n%s",
-                        c.list_name,
-                        c.df.index[bad],
-                    )
-
-                attr = static_attr[0]
-                for col in [attr + "_min", attr + "_max"]:
-                    if c.df[col][c.df[attr + "_extendable"]].isnull().any():
-                        logger.warning(
-                            "Encountered nan's in column %s of component '%s'.",
-                            col,
-                            c.name,
-                        )
-
-            if len(varying_attr):
-                attr = varying_attr[0][0]
-                max_pu = self.get_switchable_as_dense(c.name, attr + "_max_pu")
-                min_pu = self.get_switchable_as_dense(c.name, attr + "_min_pu")
-
-                # check for NaN values:
-                if max_pu.isnull().values.any():
-                    for col in max_pu.columns[max_pu.isnull().any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "NaN values for the following snapshots:\n%s",
-                            attr + "_max_pu",
-                            col,
-                            c.list_name,
-                            max_pu.index[max_pu[col].isnull()],
-                        )
-                if min_pu.isnull().values.any():
-                    for col in min_pu.columns[min_pu.isnull().any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "NaN values for the following snapshots:\n%s",
-                            attr + "_min_pu",
-                            col,
-                            c.list_name,
-                            min_pu.index[min_pu[col].isnull()],
-                        )
-
-                # check for infinite values
-                if np.isinf(max_pu).values.any():
-                    for col in max_pu.columns[np.isinf(max_pu).any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "infinite values for the following snapshots:\n%s",
-                            attr + "_max_pu",
-                            col,
-                            c.list_name,
-                            max_pu.index[np.isinf(max_pu[col])],
-                        )
-                if np.isinf(min_pu).values.any():
-                    for col in min_pu.columns[np.isinf(min_pu).any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "infinite values for the following snapshots:\n%s",
-                            attr + "_min_pu",
-                            col,
-                            c.list_name,
-                            min_pu.index[np.isinf(min_pu[col])],
-                        )
-
-                diff = max_pu - min_pu
-                diff = diff[diff < 0].dropna(axis=1, how="all")
-                for col in diff.columns:
-                    logger.warning(
-                        "The element %s of %s has a smaller maximum "
-                        "than minimum operational limit which can "
-                        "lead to infeasibility for the following snapshots:\n%s",
-                        col,
-                        c.list_name,
-                        diff[col].dropna().index,
-                    )
-
-            if c.name in {"Generator", "Link"}:
-                committables = self.get_committable_i(c.name)
-                extendables = self.get_extendable_i(c.name)
-                intersection = committables.intersection(extendables)
-                if not intersection.empty:
-                    logger.warning(
-                        "Assets can only be committable or extendable. Found "
-                        f"assets in component {c} which are both:"
-                        f"\n\n\t{', '.join(intersection)}"
-                    )
-
-            if c.name in {"Generator"}:
-                bad_uc_gens = c.df.index[
-                    c.df.committable
-                    & (c.df.up_time_before > 0)
-                    & (c.df.down_time_before > 0)
-                ]
-                if not bad_uc_gens.empty:
-                    logger.warning(
-                        "The following committable generators were both up and down"
-                        f" before the simulation: {bad_uc_gens}."
-                        " This could cause an infeasibility."
-                    )
-
-        # check all dtypes of component attributes
-
-        if check_dtypes:
-            for c in self.iterate_components():
-                # first check static attributes
-
-                dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
-                unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
-
-                if unmatched.any():
-                    logger.warning(
-                        "The following attributes of the dataframe %s "
-                        "have the wrong dtype:\n%s\n"
-                        "They are:\n%s\nbut should be:\n%s",
-                        c.list_name,
-                        unmatched.index[unmatched],
-                        c.df.dtypes[dtypes_soll.index[unmatched]],
-                        dtypes_soll[unmatched],
-                    )
-
-                # now check varying attributes
-
-                types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
-
-                for attr, typ, dtype in types_soll.itertuples():
-                    if c.pnl[attr].empty:
-                        continue
-
-                    unmatched = c.pnl[attr].dtypes != dtype
-
-                    if unmatched.any():
-                        logger.warning(
-                            "The following columns of time-varying attribute "
-                            "%s in %s_t have the wrong dtype:\n%s\n"
-                            "They are:\n%s\nbut should be:\n%s",
-                            attr,
-                            c.list_name,
-                            unmatched.index[unmatched],
-                            c.pnl[attr].dtypes[unmatched],
-                            typ,
-                        )
-
-        constraint_periods = set(
-            self.global_constraints.investment_period.dropna().unique()
-        )
-        if isinstance(self.snapshots, pd.MultiIndex):
-            if not constraint_periods.issubset(self.snapshots.unique("period")):
-                raise ValueError(
-                    "The global constraints contain investment periods which are "
-                    "not in the set of optimized snapshots."
-                )
-        else:
-            if constraint_periods:
-                raise ValueError(
-                    "The global constraints contain investment periods but snapshots are "
-                    "not multi-indexed."
-                )
-
-        shape_components = self.shapes.component.unique()
-        for c in set(shape_components) & set(self.all_components):
-            geos = self.shapes.query("component == @c")
-            not_included = geos.index[~geos.idx.isin(self.df(c).index)]
-
-            if not not_included.empty:
-                logger.warning(
-                    f"The following shapes are related to component {c} and have"
-                    f" idx values that are not included in the component's index:\n"
-                    f"{not_included}"
-                )
+        # Combined checks
+        check_for_disconnected_buses()
+        check_investment_periods()
+        check_shapes()
 
 
 class SubNetwork(Common):
