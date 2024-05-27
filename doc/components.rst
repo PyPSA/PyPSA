@@ -458,7 +458,7 @@ for each unit of hydrogen), ``bus2`` connects to methane with
 
 The example `Biomass, synthetic fuels and carbon management <https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html>`_ provides many examples of modelling processes with multiple inputs and outputs using links.
 
-.. _components-shapes
+.. _components-shapes:
 
 Shapes
 ======

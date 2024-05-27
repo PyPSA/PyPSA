@@ -146,7 +146,6 @@ def get_transmission_branches(n, bus_carrier=None):
     Get the list of assets which transport between buses of the carrier
     `bus_carrier`.
     """
-
     index = {}
     for c in n.branch_components:
         bus_map = n.df(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
@@ -324,7 +323,7 @@ def pass_empty_series_if_keyerror(func):
 
 class Groupers:
     """
-    Container for all the 'get_' methods.
+    Container for all the get_ methods.
     """
 
     get_carrier = staticmethod(get_carrier)
@@ -747,7 +746,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -782,7 +780,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -829,7 +826,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -918,7 +914,7 @@ class StatisticsAccessor:
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
         Additional parameter
-        ----------
+        --------------------
         aggregate_bus: bool, optional
             Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
         aggregate_time : str, bool, optional
@@ -926,7 +922,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
         n = self._parent
 
         if (

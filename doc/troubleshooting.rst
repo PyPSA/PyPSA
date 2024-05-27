@@ -21,7 +21,7 @@ If you are experiencing problems with PyPSA or with the importing of
 the libraries on which PyPSA depends, please first check that you are
 working with the latest versions of all packages.
 
-See :ref:`upgrading-packages` and :ref:`upgrading-pypsa`.
+See :ref:`upgrading-pypsa`.
 
 
 Consistency check on network
