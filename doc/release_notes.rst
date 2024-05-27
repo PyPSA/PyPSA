@@ -20,6 +20,8 @@ Release Notes
 
 * Add functionality to provide individual colors for lines in legend during plot.
 
+* Also check for missing values of default attributes in the `n.consistency_check()` function. (https://github.com/PyPSA/PyPSA/pull/903)
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
