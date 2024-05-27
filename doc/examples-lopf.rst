@@ -18,6 +18,7 @@ This section contains examples of network optimization with PyPSA. PyPSA allows 
     examples/scigrid-redispatch.ipynb
     examples/scigrid-sclopf.ipynb
     examples/simple-electricity-market-examples.ipynb
+    examples/capacity-expansion-planning-single-node.ipynb
     examples/transformer_example.ipynb
     examples/unit-commitment.ipynb
     examples/optimization-with-linopy-migrate-extra-functionalities.ipynb
