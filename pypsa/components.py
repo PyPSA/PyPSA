@@ -16,7 +16,7 @@ import logging
 import os
 from collections import namedtuple
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import geopandas as gpd
 import numpy as np
@@ -524,7 +524,7 @@ class Network(Basic):
 
     def set_snapshots(
         self,
-        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        snapshots: Union[list, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
         default_snapshot_weightings: float = 1.0,
         weightings_from_timedelta: bool = False,
     ) -> None:
