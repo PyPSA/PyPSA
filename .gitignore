@@ -9,7 +9,10 @@
 
 old/
 
+# Ignore all jupyter notebooks, except those in the examples folder
 *.ipynb
+!/examples/notebooks/*.ipynb
+
 
 test/.cache/
 
@@ -45,6 +48,8 @@ website/examples/*.py
 *.html
 
 .vscode
+
+.idea
 
 .coverage
 

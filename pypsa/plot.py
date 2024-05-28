@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functions for plotting networks.
 """
@@ -13,13 +12,10 @@ __copyright__ = (
 
 import logging
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-
-logger = logging.getLogger(__name__)
-
-import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
@@ -44,6 +40,8 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+
+logger = logging.getLogger(__name__)
 
 
 def plot(
@@ -217,19 +215,19 @@ def plot(
         if projection is None:
             projection = transform
         else:
-            assert isinstance(
-                projection, cartopy.crs.Projection
-            ), "The passed projection is not a cartopy.crs.Projection"
+            if not isinstance(projection, cartopy.crs.Projection):
+                msg = "The passed projection is not a cartopy.crs.Projection"
+                raise ValueError(msg)
 
         if ax is None:
             ax = plt.axes(projection=projection)
         else:
-            assert isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot), (
-                "The passed axis is not a GeoAxesSubplot. You can "
+            if not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
+                msg = "The passed axis is not a GeoAxesSubplot. You can "
                 "create one with: \nimport cartopy.crs as ccrs \n"
                 "fig, ax = plt.subplots("
                 'subplot_kw={"projection":ccrs.PlateCarree()})'
-            )
+                raise ValueError(msg)
 
         x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
@@ -259,19 +257,19 @@ def plot(
     patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
         # We are drawing pies to show all the different shares
-        assert (
-            len(bus_sizes.index.unique(level=0).difference(n.buses.index)) == 0
-        ), "The first MultiIndex level of bus_sizes must contain buses"
+        if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
+            msg = "The first MultiIndex level of bus_sizes must contain buses"
+            raise ValueError(msg)
         if isinstance(bus_colors, dict):
             bus_colors = pd.Series(bus_colors)
         # case bus_colors isn't a series or dict: look in n.carriers for existent colors
         if not isinstance(bus_colors, pd.Series):
             bus_colors = n.carriers.color.dropna()
-        assert bus_sizes.index.unique(level=1).isin(bus_colors.index).all(), (
-            "Colors not defined for all elements in the second MultiIndex "
+        if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
+            msg = "Colors not defined for all elements in the second MultiIndex "
             "level of bus_sizes, please make sure that all the elements are "
             "included in bus_colors or in n.carriers.color"
-        )
+            raise ValueError(msg)
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
@@ -426,10 +424,10 @@ def plot(
             from shapely.wkt import loads
 
             linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
-            assert all(isinstance(ls, LineString) for ls in linestrings), (
-                "The WKT-encoded geometry in the 'geometry' column must be "
+            if not all(isinstance(ls, LineString) for ls in linestrings):
+                msg = "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings"
-            )
+                raise ValueError(msg)
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
         if b_flow is not None:
@@ -479,10 +477,10 @@ def plot(
 
 def as_branch_series(ser, arg, c, n):
     ser = pd.Series(ser, index=n.df(c).index)
-    assert not ser.isnull().any(), (
-        f"{c}_{arg}s does not specify all "
+    if ser.isnull().any():
+        msg = f"{c}_{arg}s does not specify all "
         f"entries. Missing values for {c}: {list(ser[ser.isnull()].index)}"
-    )
+        raise ValueError(msg)
     return ser
 
 
@@ -500,8 +498,8 @@ def get_projection_from_crs(crs):
         )
     except ValueError:
         logger.warning(
-            "'{crs}' does not define a projected coordinate system. "
-            "Falling back to latlong.".format(crs=crs)
+            f"'{crs}' does not define a projected coordinate system. "
+            "Falling back to latlong."
         )
         return ccrs.PlateCarree()
 
@@ -540,11 +538,9 @@ def projected_area_factor(ax, original_crs=4326):
 
 def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     resolution = "50m" if isinstance(geomap, bool) else geomap
-    assert resolution in [
-        "10m",
-        "50m",
-        "110m",
-    ], "Resolution has to be one of '10m', '50m', '110m'"
+    if resolution not in ["10m", "50m", "110m"]:
+        msg = "Resolution has to be one of '10m', '50m', '110m'"
+        raise ValueError(msg)
 
     if not color_geomap:
         color_geomap = {}
@@ -604,7 +600,7 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
+def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     """
     Add a legend for lines and links.
 
@@ -615,6 +611,8 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
         Size of the line reference; for example [3, 2, 1]
     labels : list-like, str
         Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
+    colors: list-like, str
+        Color of the line reference; for example ["red, "green", "blue"]
     patch_kw : defaults to {}
         Keyword arguments passed to plt.Line2D
     legend_kw : defaults to {}
@@ -622,10 +620,22 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
+    colors = np.atleast_1d(colors)
 
-    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+    if len(sizes) != len(labels):
+        msg = "Sizes and labels must have the same length."
+        raise ValueError(msg)
+    elif len(colors) > 0 and len(sizes) != len(colors):
+        msg = "Sizes, labels, and colors must have the same length."
+        raise ValueError(msg)
 
-    handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    if len(colors) == 0:
+        handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    else:
+        handles = [
+            plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw)
+            for s, c in zip(sizes, colors)
+        ]
 
     legend = ax.legend(handles, labels, **legend_kw)
 
@@ -651,7 +661,9 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
 
-    assert len(colors) == len(labels), "Colors and labels must have the same length."
+    if len(colors) != len(labels):
+        msg = "Colors and labels must have the same length."
+        raise ValueError(msg)
 
     handles = [Patch(facecolor=c, **patch_kw) for c in colors]
 
@@ -679,7 +691,9 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
-    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+    if len(sizes) != len(labels):
+        msg = "Sizes and labels must have the same length."
+        raise ValueError(msg)
 
     if hasattr(ax, "projection"):
         area_correction = projected_area_factor(ax, srid) ** 2
@@ -808,11 +822,12 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     --------
     >>> autogenerate_coordinates(network)
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+
     """
     G = n.graph()
 
     if layouter is None:
-        if is_planar := nx.check_planarity(G)[0]:
+        if nx.check_planarity(G)[0]:
             layouter = nx.planar_layout
         else:
             layouter = nx.kamada_kawai_layout
@@ -1106,7 +1121,9 @@ def iplot(
     fig["layout"].update(dict(title=title, hovermode="closest", showlegend=False))
 
     if size is not None:
-        assert len(size) == 2, "Parameter size must specify a tuple (width, height)."
+        if len(size) != 2:
+            msg = "Parameter size must specify a tuple (width, height)."
+            raise ValueError(msg)
         fig["layout"].update(dict(width=size[0], height=size[1]))
 
     if mapbox:
@@ -1116,11 +1133,13 @@ def iplot(
         mapbox_parameters.setdefault("style", mapbox_style)
 
         if mapbox_parameters["style"] in _token_required_mb_styles:
-            assert "accesstoken" in mapbox_parameters.keys(), (
-                "Using Mapbox "
-                "layout styles requires a valid access token from https://www.mapbox.com/, "
-                f"style which do not require a token are:\n{', '.join(_open__mb_styles)}."
-            )
+            if "accesstoken" not in mapbox_parameters.keys():
+                msg = (
+                    "Using Mapbox layout styles requires a valid access token from "
+                    "https://www.mapbox.com/, style which do not require a token "
+                    "are:\n{', '.join(_open__mb_styles)}."
+                )
+                raise ValueError(msg)
 
         if "center" not in mapbox_parameters.keys():
             lon = (n.buses.x.min() + n.buses.x.max()) / 2

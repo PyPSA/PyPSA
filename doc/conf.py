@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # PyPSA documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan  5 10:04:42 2016.
@@ -330,4 +329,4 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/": None}
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}

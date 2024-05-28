@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_array_almost_equal as almost_equal
@@ -7,7 +6,6 @@ import pypsa
 
 
 def test_890():
-
     n = pypsa.examples.scigrid_de()
     n.calculate_dependent_values()
 

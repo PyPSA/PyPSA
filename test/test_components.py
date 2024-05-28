@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import pytest
 
@@ -174,11 +173,14 @@ def test_madd_defaults(empty_network_5_buses):
         bus=["bus_1", "bus_2"],
     )
 
-    assert empty_network_5_buses.generators.loc[gen_names[0], "control"] == (
-        empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
+    assert (
+        empty_network_5_buses.generators.loc[gen_names[0], "control"]
+        == empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
     )
-    assert empty_network_5_buses.loads.loc[line_names[0], "p_set"] == (
-        empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
+
+    assert (
+        empty_network_5_buses.loads.loc[line_names[0], "p_set"]
+        == empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
     )
 
 
@@ -261,7 +263,7 @@ def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         ac_dc_network.merge(empty_network_5_buses, with_time=True)
 
     empty_network_5_buses.set_snapshots(ac_dc_network.snapshots)

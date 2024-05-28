@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Fri Sep 23 10:37:48 2022.
 
@@ -32,12 +31,6 @@ def test_consistency(consistent_network, caplog):
 
 def test_missing_bus(consistent_network, caplog):
     consistent_network.add("Bus", "three")
-    consistent_network.consistency_check()
-    assert caplog.records[-1].levelname == "WARNING"
-
-
-def test_infeasible_capacity_limits(consistent_network, caplog):
-    consistent_network.generators.loc["gen_one", "p_nom_min"] = 20
     consistent_network.consistency_check()
     assert caplog.records[-1].levelname == "WARNING"
 

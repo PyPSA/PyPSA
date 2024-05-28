@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define global constraints for optimisation problems with Linopy.
 """
@@ -364,7 +363,7 @@ def define_operational_limit(n, sns):
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
-        bus_carrier = n.stores.bus.map(n.buses.carrier)
+        bus_carrier = n.stores.bus.map(n.buses.carrier)  # noqa: F841
         stores = n.stores.query(
             "@bus_carrier == @glc.carrier_attribute and not e_cyclic"
         )
@@ -405,7 +404,10 @@ def define_transmission_volume_expansion_limit(n, sns):
 
     for name, glc in glcs.iterrows():
         lhs = []
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+        # fmt: off
+        car = [substr(c.strip()) for c in  # noqa: F841
+               glc.carrier_attribute.split(",")]
+        # fmt: on
         period = glc.investment_period
 
         for c in ["Line", "Link"]:
@@ -464,7 +466,10 @@ def define_transmission_expansion_cost_limit(n, sns):
 
     for name, glc in glcs.iterrows():
         lhs = []
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+        # fmt: off
+        car = [substr(c.strip()) for c in  # noqa: F841
+               glc.carrier_attribute.split(",")]
+        # fmt: on
         period = glc.investment_period
 
         for c in ["Line", "Link"]:

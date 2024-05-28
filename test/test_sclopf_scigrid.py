@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
 import numpy as np
-import pytest
 from numpy.testing import assert_almost_equal as equal
 from numpy.testing import assert_array_almost_equal as arr_equal
 
@@ -35,6 +32,6 @@ def test_optimize_security_constrained(scipy_network):
         abs(p0_test.divide(n.passive_branches().s_nom, axis=0)).describe().loc["max"]
     )
 
-    arr_equal(max_loading, np.ones((len(max_loading))), decimal=4)
+    arr_equal(max_loading, np.ones(len(max_loading)), decimal=4)
 
     equal(n.objective, 339758.4578, decimal=1)
