@@ -51,6 +51,7 @@ docs = [
             "nbsphinx",
             "nbsphinx-link",
             "scikit-learn",
+            "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
         ]
 gurobipy = ["gurobipy"]
 
