@@ -240,7 +240,7 @@ class Network(Basic):
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import __version__ as pypsa_version
+        from pypsa import release_version as pypsa_version
 
         Basic.__init__(self, name)
 
