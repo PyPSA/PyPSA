@@ -72,6 +72,32 @@ def check_for_disconnected_buses(network: Network) -> None:
         )
 
 
+def check_for_unknown_carriers(network: Network, component: Component) -> None:
+    """
+    Check if carriers are attached to component but are not defined in the network.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        The network to check.
+    component : pypsa.Component
+        The component to check.
+
+    """
+    if "carrier" in component.df.columns:
+        missing = (
+            ~component.df["carrier"].isin(network.carriers.index)
+            & component.df["carrier"].notna()
+            & (component.df["carrier"] != "")
+        )
+        if missing.any():
+            logger.warning(
+                "The following %s have carriers which are not defined:\n%s",
+                component.list_name,
+                component.df.index[missing],
+            )
+
+
 def check_for_zero_impedances(network: Network, component: Component) -> None:
     """
     Check if component has zero impedances. Only checks passive branch components.

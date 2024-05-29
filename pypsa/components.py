@@ -31,6 +31,7 @@ from pypsa.consistency import (
     check_dtypes_,
     check_for_disconnected_buses,
     check_for_unknown_buses,
+    check_for_unknown_carriers,
     check_for_zero_impedances,
     check_for_zero_s_nom,
     check_generators,
@@ -1296,6 +1297,7 @@ class Network(Basic):
         for c in self.iterate_components():
             # Checks all components
             check_for_unknown_buses(self, c)
+            check_for_unknown_carriers(self, c)
             check_time_series(self, c)
             check_static_power_attributes(self, c)
             check_time_series_power_attributes(self, c)
