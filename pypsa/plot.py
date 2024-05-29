@@ -566,13 +566,13 @@ def draw_map_cartopy(ax, geomap=True, color_geomap=None):
     ax.add_feature(
         cartopy.feature.BORDERS.with_scale(resolution),
         linewidth=0.3,
-        color=color_geomap.get("border", "k"),
+        edgecolor=color_geomap.get("border", "black"),
     )
 
     ax.add_feature(
         cartopy.feature.COASTLINE.with_scale(resolution),
         linewidth=0.3,
-        color=color_geomap.get("coastline", "k"),
+        edgecolor=color_geomap.get("coastline", "black"),
     )
 
 
@@ -787,7 +787,7 @@ def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
         data.arrows,
         color=color,
         alpha=alpha,
-        edgecolors="k",
+        edgecolors="black",
         linewidths=0.0,
         zorder=4,
     )
