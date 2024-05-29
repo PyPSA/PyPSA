@@ -1,9 +1,64 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
 
-[tool.wheel]
-universal = 1
 
+[project]
+name="pypsa"
+dynamic = ["version"]
+description="Python for Power Systems Analysis"
+readme="README.md"
+authors=[{name = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html", email = "t.brown@tu-berlin.de"}]
+license = { file = "LICENSE" }
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+]
+
+requires-python = ">=3.9"
+
+dependencies=[
+        "numpy",
+        "scipy",
+        "pandas>=0.24",
+        "xarray",
+        "netcdf4",
+        "tables",
+        "linopy>=0.3.9",
+        "matplotlib",
+        "geopandas>=0.9",
+        "networkx>=2",
+        "deprecation",
+        "validators",
+        "highspy",
+    ]
+
+[project.urls]
+Homepage = "https://github.com/PyPSA/PyPSA"
+Source = "https://github.com/PyPSA/PyPSA"
+
+[project.optional-dependencies]
+dev = ["pytest", "pypower", "pandapower", "scikit-learn", "ruff"]
+cartopy = ["cartopy>=0.16"]
+docs = [
+            "numpydoc",
+            "sphinx",
+            "sphinx-book-theme",
+            "nbsphinx",
+            "nbsphinx-link",
+            "scikit-learn",
+            "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
+        ]
+gurobipy = ["gurobipy"]
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+include = ["pypsa"]
 
 # Formater and linter settings
 

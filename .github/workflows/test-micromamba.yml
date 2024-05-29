@@ -1,4 +1,4 @@
-name: CI with micromamba
+name: Test with micromamba
 
 on:
   push:
@@ -28,7 +28,10 @@ jobs:
 
     steps:
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
+    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
+      run: git fetch --prune --unshallow
 
     - name: Setup micromamba
       uses: mamba-org/setup-micromamba@v1
@@ -62,6 +65,7 @@ jobs:
       run: |
         pytest --cov=./ --cov-report=xml
 
+    # Could be moved to a separate job
     - name: Upload code coverage report
       if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v3

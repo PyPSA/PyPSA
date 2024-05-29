@@ -1,7 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: CI
+name: Test with pypi
 
 on:
   push:
@@ -34,8 +31,11 @@ jobs:
 
     - uses: actions/checkout@v4
 
+    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
+      run: git fetch --prune --unshallow
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -48,7 +48,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
-        pip install -e .[dev]
+        pip install .[dev]
 
     - name: Lint with flake8
       run: |
