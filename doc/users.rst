@@ -39,8 +39,6 @@ Universities and Research Institutes
 
 * `University of Geneva <https://www.unige.ch/>`_ in Switzerland: research paper `doi:10.1038/s41467-020-18812-y <https://doi.org/10.1038/s41467-020-18812-y>`_
 
-* `Fraunhofer Institute for Solar Energy Systems <https://www.ise.fraunhofer.de/>`_ (ISE): uses PyPSA for grid modelling, research paper: `doi:/10.1016/j.epsr.2020.106349 <https://doi.org/10.1016/j.epsr.2020.106349>`_
-
 * `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
 * `University of Oxford <https://www.ox.ac.uk/>`_ and the `University of Sevilla <https://www.us.es/>`_ in a `study <https://doi.org/10.1016/j.apenergy.2023.122331>`_ on the role of regionally resolved heat pump demand in power system design
@@ -49,7 +47,11 @@ Universities and Research Institutes
 
 * `Energiewirtschaftliches Institut zu Köln <https://www.ewi.uni-koeln.de/de/>`_ (EWI): research publication `Working Paper, No 17/09 <https://www.ewi.research-scenarios.de/cms/wp-content/uploads/2017/09/EWI_WP_17-09_Build_Wind_Capacities_at_Windy_Locations.pdf>`_
 
+* `Fraunhofer Institute for Solar Energy Systems <https://www.ise.fraunhofer.de/>`_ (ISE): uses PyPSA for grid modelling, research paper: `doi:/10.1016/j.epsr.2020.106349 <https://doi.org/10.1016/j.epsr.2020.106349>`_
+
 * `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe, e.g. in `this report <https://www.wasserstoff-leitprojekte.de/lw_resource/datapool/systemfiles/elements/files/148FFEF003673B67E0637E695E8625E5/live/document/20240321_European_Hydrogen_Infrastructure_Planning.pdf>`_ on European hydrogen infrastructure planning.
+
+* `Fraunhofer-Institut für Energiewirtschaft und Energiesystemtechnik <https://www.iee.fraunhofer.de/>`_ (IEE): used PyPSA for an investigation of power-to-X in South Africa together with Stellenbosch University in `this report <20240430_PtX-Allocation-Study_Stakeholder-Workshop-Interim-Results.pdf>`_.
 
 * `EIA University <https://www.eia.edu.co/>`_ in Medellin, Columbia: uses PyPSA for modelling the Columbian power system in  a joint research project with South American transmission company `ISA <http://www.isa.co/>`_
 
@@ -96,7 +98,7 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
-* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example this study from 2021: `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_
+* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example a study on `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_ and a a `study on the Philippines <https://climateanalytics.org/publications/a-15c-future-is-possible-getting-fossil-fuels-out-of-the-philippine-power-sector>`_.
 
 * `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 

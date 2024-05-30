@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define optimisation constraints from PyPSA networks with Linopy.
 """
+
 import logging
 
 import pandas as pd
 from linopy import LinearExpression, Variable, merge
-from numpy import arange, cumsum, inf, isfinite, nan, roll
+from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
@@ -16,11 +16,10 @@ from pypsa.descriptors import (
     expand_series,
     get_activity_mask,
     get_bounds_pu,
+    nominal_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
-from pypsa.optimization.compat import define_constraints, get_var, linexpr
 
 logger = logging.getLogger(__name__)
 
@@ -919,9 +918,12 @@ def define_loss_constraints(n, sns, c, transmission_losses):
         n.df(c)["s_nom_extendable"], n.df(c)["s_nom"]
     )
 
-    assert isfinite(
-        s_nom_max
-    ).all(), f"Loss approximation requires finite 's_nom_max' for extendable branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+    if not isfinite(s_nom_max).all():
+        msg = (
+            f"Loss approximation requires finite 's_nom_max' for extendable "
+            f"branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+        )
+        raise ValueError(msg)
 
     r_pu_eff = n.df(c)["r_pu_eff"]
 

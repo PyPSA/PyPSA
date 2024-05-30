@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Clustering functionality for PyPSA networks.
 """
@@ -59,3 +58,6 @@ class ClusteringAccessor:
     @wraps(spatial.get_clustering_from_busmap)
     def get_clustering_from_busmap(self, *args, **kwargs):
         return spatial.get_clustering_from_busmap(self._parent, *args, **kwargs)
+
+
+__all__ = ["ClusteringAccessor", "spatial", "temporal"]

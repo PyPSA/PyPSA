@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """
+
 import logging
 
 from pypsa.descriptors import get_activity_mask

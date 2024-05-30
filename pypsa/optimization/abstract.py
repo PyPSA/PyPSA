@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
+
 import gc
 import logging
 from itertools import product
@@ -156,10 +156,12 @@ def optimize_transmission_expansion_iteratively(
 
         s_nom_prev = n.lines.s_nom_opt.copy() if iteration else n.lines.s_nom.copy()
         status, termination_condition = n.optimize(snapshots, **kwargs)
-        assert status == "ok", (
-            f"Optimization failed with status {status}"
-            f"and termination {termination_condition}"
-        )
+        if status != "ok":
+            msg = (
+                f"Optimization failed with status {status} and termination "
+                f"{termination_condition}"
+            )
+            raise RuntimeError(msg)
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
 
@@ -412,6 +414,7 @@ def optimize_mga(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
     Returns
+    -------
     status : str
         The status of the optimization, either "ok" or one of the codes listed
         in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
@@ -427,9 +430,9 @@ def optimize_mga(
         weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))
 
     # check that network has been solved
-    assert hasattr(
-        n, "objective"
-    ), "Network needs to be solved with `n.optimize()` before running MGA."
+    if not hasattr(n, "objective"):
+        msg = "Network needs to be solved with `n.optimize()` before running MGA."
+        raise ValueError(msg)
 
     # create basic model
     m = n.optimize.create_model(

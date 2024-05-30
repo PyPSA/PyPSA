@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Mon Jan 31 18:11:09 2022.
 
@@ -10,7 +9,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import pypsa
 from pypsa.clustering.spatial import (
     aggregateoneport,
     busmap_by_hac,

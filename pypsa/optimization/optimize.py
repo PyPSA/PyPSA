@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
+
 import logging
 import os
 from functools import wraps
@@ -10,11 +10,9 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
-from linopy.expressions import LinearExpression, QuadraticExpression
 
-from pypsa.descriptors import additional_linkports, get_committable_i
+from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
     optimize_mga,
     optimize_security_constrained,
@@ -181,7 +179,7 @@ def define_objective(n, sns):
         objective.append((caps * cost).sum())
 
     # unit commitment
-    keys = ["start_up", "shut_down"]
+    keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
         com_i = n.get_committable_i(c)
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
@@ -412,12 +410,10 @@ def assign_duals(n, assign_all_duals=False):
                 else:
                     unassigned.append(name)
 
-            except:
+            except:  # noqa: E722 # TODO: specify exception
                 unassigned.append(name)
 
-        elif (c == "GlobalConstraint") and (
-            (assign_all_duals or attr in n.df(c).index)
-        ):
+        elif (c == "GlobalConstraint") and (assign_all_duals or attr in n.df(c).index):
             n.df(c).loc[attr, "mu"] = dual
 
     if unassigned:

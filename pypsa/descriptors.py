@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Descriptors for component attributes.
 """
@@ -41,9 +40,7 @@ class Dict(dict):
         Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
-            raise AttributeError(
-                "'Dict' object attribute " "'{0}' is read-only".format(name)
-            )
+            raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
         self[name] = value
 
     def __getattr__(self, item):

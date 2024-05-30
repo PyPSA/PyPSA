@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for contingency analysis, such as branch outages.
 """
@@ -12,19 +11,16 @@ __copyright__ = (
 )
 
 import logging
-import sys
-
-from numpy import r_
-from scipy.sparse import csr_matrix
-
-logger = logging.getLogger(__name__)
-
 from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
+from numpy import r_
+from scipy.sparse import csr_matrix
 
 from pypsa.pf import calculate_PTDF
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_BODF(sub_network, skip_pre=False):

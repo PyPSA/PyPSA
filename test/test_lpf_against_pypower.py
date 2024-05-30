@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from packaging.version import Version, parse
 
 # NB: this test doesn't work for other cases because transformer tap
@@ -10,7 +9,7 @@ try:
     from pypower.ppver import ppver
 
     pypower_version = parse(ppver()["Version"])
-except:
+except ImportError:
     pypower_version = Version("0.0.0")
 
 import pandas as pd

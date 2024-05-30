@@ -621,7 +621,7 @@ Security-Constrained Power Flow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`Contingency Analysis` for more details.
+To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`contingency_analysis` for more details.
 
 
 

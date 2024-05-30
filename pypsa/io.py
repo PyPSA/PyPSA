@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functions for importing and exporting data.
 """
@@ -11,11 +10,8 @@ __copyright__ = (
     "MIT License"
 )
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import json
+import logging
 import math
 import os
 from glob import glob
@@ -37,6 +33,7 @@ try:
 except ImportError:
     has_xarray = False
 
+logger = logging.getLogger(__name__)
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -59,7 +56,7 @@ def _retrieve_from_url(path):
     return str(local_path)
 
 
-class ImpExper(object):
+class ImpExper:
     ds = None
 
     def __enter__(self):
@@ -95,9 +92,9 @@ class ImporterCSV(Importer):
         self.csv_folder_name = csv_folder_name
         self.encoding = encoding
 
-        assert os.path.isdir(
-            csv_folder_name
-        ), f"Directory {csv_folder_name} does not exist."
+        if not os.path.isdir(csv_folder_name):
+            msg = f"Directory {csv_folder_name} does not exist."
+            raise FileNotFoundError(msg)
 
     def get_attributes(self):
         fn = os.path.join(self.csv_folder_name, "network.csv")
@@ -307,12 +304,12 @@ if has_xarray:
 
         def __enter__(self):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__init__()
+                super().__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
+                super().__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
             return {
@@ -557,7 +554,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         Skip reading in time dependent attributes
 
     Examples
-    ----------
+    --------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
     basename = Path(csv_folder_name).name
@@ -673,7 +670,9 @@ def import_from_netcdf(network, path, skip_time=False):
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
     basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
@@ -726,8 +725,9 @@ def export_to_netcdf(
     --------
     >>> network.export_to_netcdf("my_file.nc")
     """
-
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
     basename = os.path.basename(path) if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
@@ -1071,19 +1071,19 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
     # ensure buses are merged first
     to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
     for c in other.iterate_components(to_iterate):
-        assert c.df.index.intersection(network.df(c.name).index).empty, (
-            f"Error, component {c.name} has overlapping indices, "
-            "cannot merge networks."
-        )
+        if not c.df.index.intersection(network.df(c.name).index).empty:
+            msg = f"Component {c.name} has overlapping indices, cannot merge networks."
+            raise ValueError(msg)
     if with_time:
         snapshots_aligned = network.snapshots.equals(other.snapshots)
         weightings_aligned = network.snapshot_weightings.equals(
             other.snapshot_weightings
         )
-        assert snapshots_aligned and weightings_aligned, (
-            "Error, snapshots or snapshot weightings do not agree, "
-            "cannot merge networks."
-        )
+        if not (snapshots_aligned and weightings_aligned):
+            msg = (
+                "Snapshots or snapshot weightings do not agree, cannot merge networks."
+            )
+            raise ValueError(msg)
     new = network if inplace else network.copy()
     if other.srid != new.srid:
         logger.warning(
@@ -1354,13 +1354,13 @@ def import_from_pandapower_net(
         )
     }
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
-    ] = net.gen.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
+        net.gen.vm_pu.values  # fmt: skip
+    )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
-    ] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
+        net.ext_grid.vm_pu.values  # fmt: skip
+    )
 
     d["Load"] = pd.DataFrame(
         {

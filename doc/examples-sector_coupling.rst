@@ -9,7 +9,7 @@ This section provides examples related to coupling different energy sectors in a
 .. toctree::
     :maxdepth: 1
 
-
+    examples/sector-coupling-single-node.ipynb
     examples/battery-electric-vehicle-charging.ipynb
     examples/biomass-synthetic-fuels-carbon-management.ipynb
     examples/chp-fixed-heat-power-ratio.ipynb
