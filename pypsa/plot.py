@@ -20,19 +20,19 @@ from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
 
+from pypsa.geo import (
+    compute_bbox,
+    get_projected_area_factor,
+    get_projection_from_crs,
+)
+
 cartopy_present = True
 try:
     import cartopy
-    import cartopy.crs as ccrs
     import cartopy.mpl.geoaxes
 except ImportError:
     cartopy_present = False
 
-requests_present = True
-try:
-    import requests
-except ImportError:
-    requests_present = False
 
 pltly_present = True
 try:
@@ -198,16 +198,11 @@ def plot(
             buses = buses.unique(0)
 
     if boundaries is None:
-        boundaries = sum(
-            zip(*compute_bbox_with_margins(margin, x[buses], y[buses])), ()
-        )
+        boundaries = sum(zip(*compute_bbox(x[buses], y[buses], margin)), ())
 
     if geomap:
         if not cartopy_present:
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
-        if not requests_present:
-            logger.warning("Requests needs to be installed to use `geomap=True`.")
             geomap = False
 
     if geomap:
@@ -273,7 +268,7 @@ def plot(
 
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes = bus_sizes * projected_area_factor(ax, n.srid) ** 2
+            bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
 
         for b_i in bus_sizes.index.unique(level=0):
             s_base = bus_sizes.loc[b_i]
@@ -311,7 +306,7 @@ def plot(
         c = pd.Series(bus_colors, index=n.buses.index)
         s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
         if geomap:
-            s = s * projected_area_factor(ax, n.srid) ** 2
+            s = s * get_projected_area_factor(ax, n.srid) ** 2
 
         if bus_cmap is not None and c.dtype is np.dtype("float"):
             if isinstance(bus_cmap, str):
@@ -442,7 +437,7 @@ def plot(
             b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
             # update the line width, allows to set line widths separately from flows
             # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
-            area_factor = projected_area_factor(ax, n.srid)
+            area_factor = get_projected_area_factor(ax, n.srid)
             f_collection = directed_flow(
                 coords, b_flow, b_colors, area_factor, b_cmap, b_alpha
             )
@@ -482,58 +477,6 @@ def as_branch_series(ser, arg, c, n):
         f"entries. Missing values for {c}: {list(ser[ser.isnull()].index)}"
         raise ValueError(msg)
     return ser
-
-
-def get_projection_from_crs(crs):
-    if crs == 4326:
-        # if data is in latlon system, return default map with latlon system
-        return ccrs.PlateCarree()
-    try:
-        return ccrs.epsg(crs)
-    except requests.RequestException:
-        logger.warning(
-            "A connection to http://epsg.io/ is "
-            "required for a projected coordinate reference system. "
-            "Falling back to latlong."
-        )
-    except ValueError:
-        logger.warning(
-            f"'{crs}' does not define a projected coordinate system. "
-            "Falling back to latlong."
-        )
-        return ccrs.PlateCarree()
-
-
-def compute_bbox_with_margins(margin, x, y):
-    """
-    Helper function to compute bounding box for the plot.
-    """
-    # set margins
-    pos = np.asarray((x, y))
-    minxy, maxxy = pos.min(axis=1), pos.max(axis=1)
-    xy1 = minxy - margin * (maxxy - minxy)
-    xy2 = maxxy + margin * (maxxy - minxy)
-    return tuple(xy1), tuple(xy2)
-
-
-def projected_area_factor(ax, original_crs=4326):
-    """
-    Helper function to get the area scale of the current projection in
-    reference to the default projection.
-
-    The default 'original crs' is assumed to be 4326, which translates
-    to the cartopy default cartopy.crs.PlateCarree()
-    """
-    if not hasattr(ax, "projection"):
-        return 1
-    x1, x2, y1, y2 = ax.get_extent()
-    pbounds = get_projection_from_crs(original_crs).transform_points(
-        ax.projection, np.array([x1, x2]), np.array([y1, y2])
-    )
-
-    return np.sqrt(
-        abs((x2 - x1) * (y2 - y1)) / abs((pbounds[0] - pbounds[1])[:2].prod())
-    )
 
 
 def draw_map_cartopy(ax, geomap=True, color_geomap=None):
@@ -696,7 +639,7 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
         raise ValueError(msg)
 
     if hasattr(ax, "projection"):
-        area_correction = projected_area_factor(ax, srid) ** 2
+        area_correction = get_projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
     handles = [Circle((0, 0), radius=s**0.5, **patch_kw) for s in sizes]
@@ -987,7 +930,6 @@ def iplot(
     -------
     fig: dictionary for plotly figure
     """
-
     if fig is None:
         fig = dict(data=[], layout={})
 
