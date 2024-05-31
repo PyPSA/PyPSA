@@ -4,6 +4,14 @@ Python for Power Systems Analysis (PyPSA)
 Energy system modelling library.
 """
 
+__author__ = (
+    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+)
+__copyright__ = (
+    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
+    "MIT License"
+)
+
 import re
 from importlib.metadata import version
 
@@ -30,13 +38,6 @@ release_version = re.match(r"(\d+\.\d+(\.\d+)?)", __version__).group(0)
 # Assert that version is not 0.1 (which is the default version in the setup.py)
 assert release_version != "0.1", "setuptools_scm could not find the version number"
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 __all__ = [
     "clustering",
