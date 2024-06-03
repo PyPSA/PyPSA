@@ -185,6 +185,112 @@ def _add_singleindex_busses(x, y, sizes, colors, alpha):
     return patches
 
 
+def _add_branch(x, y, c, df, geometry, area_factor):
+    b_flow = df.get("flow")
+
+    if not geometry:
+        segments = np.asarray(
+            (
+                (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
+                (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
+            )
+        ).transpose(2, 0, 1)
+    else:
+        from shapely.geometry import LineString
+        from shapely.wkt import loads
+
+        linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
+        if not all(isinstance(ls, LineString) for ls in linestrings):
+            msg = "The WKT-encoded geometry in the 'geometry' column must be "
+            "composed of LineStrings"
+            raise ValueError(msg)
+        segments = np.asarray(list(linestrings.map(np.asarray)))
+
+    if b_flow is not None:
+        coords = pd.DataFrame(
+            {
+                "x1": c.df.bus0.map(x),
+                "y1": c.df.bus0.map(y),
+                "x2": c.df.bus1.map(x),
+                "y2": c.df.bus1.map(y),
+            }
+        )
+        b_flow = b_flow.mul(df.width.abs(), fill_value=0)
+        # update the line width, allows to set line widths separately from flows
+        # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
+        f_collection = directed_flow(coords, b_flow, df.color, area_factor, df.alpha)
+    else:
+        f_collection = None
+
+    b_collection = LineCollection(
+        segments,
+        linewidths=df.width,
+        antialiaseds=(1,),
+        colors=df.color,
+        alpha=df.alpha,
+    )
+
+    return f_collection, b_collection
+
+
+def _add_branches(
+    x,
+    y,
+    branch_colors,
+    branch_alpha,
+    branch_widths,
+    flow,
+    geometry,
+    components,
+    area_factor,
+):
+    collections = []
+
+    for c in components:
+        d = dict(
+            width=branch_widths[c.name],
+            color=branch_colors[c.name],
+            alpha=branch_alpha[c.name],
+        )
+        if flow is not None and flow.get(c.name) is not None:
+            d["flow"] = flow[c.name]
+
+        if any([isinstance(v, pd.Series) for _, v in d.items()]):
+            df = pd.DataFrame(d)
+        else:
+            df = pd.DataFrame(d, index=c.df.index)
+
+        if df.empty:
+            continue
+
+        f_collection, b_collection = _add_branch(x, y, c, df, geometry, area_factor)
+        if f_collection:
+            collections.append(f_collection)
+        if b_collection:
+            collections.append(b_collection)
+
+    return collections
+
+
+def convert_to_series(variable, index):
+    if isinstance(variable, dict):
+        variable = pd.Series(variable)
+    elif not isinstance(variable, pd.Series):
+        variable = pd.Series(variable, index=index)
+    return variable
+
+
+def apply_cmap(colors, cmap, cmap_norm=None):
+    if cmap:
+        if not isinstance(cmap, plt.Colormap):
+            cmap = plt.get_cmap(cmap)
+        if colors.dtype is np.dtype("float"):
+            if not cmap_norm:
+                cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
+        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
+    return colors
+
+
 @deprecated_kwargs(
     bus_norm="bus_cmap_norm",
     line_norm="line_cmap_norm",
@@ -330,7 +436,10 @@ def plot(
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-    # Deprecation warnings / API changes
+
+    # Check for API changes
+
+    # Deprecation warnings
     if geomap:
         warnings.warn(
             "The `geomap` argument is deprecated and will be removed in a "
@@ -356,7 +465,32 @@ def plot(
         )
         margin = 0.05
 
+    # Deprecation errors
+    if isinstance(line_widths, pd.Series) and isinstance(
+        line_widths.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_widths' is a Multiindex, "
+            "this is not support since pypsa v0.17. "
+            "Set differing widths with arguments 'line_widths', "
+            "'link_widths' and 'transformer_widths'."
+        )
+        raise TypeError(msg)
+
+    if isinstance(line_colors, pd.Series) and isinstance(
+        line_colors.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_colors' is a Multiindex, "
+            "this is not support since pypsa v0.17. "
+            "Set differing colors with arguments 'line_colors', "
+            "'link_colors' and 'transformer_colors'."
+        )
+        raise TypeError(msg)
+
     # Check for ValueErrors
+
+    # Missing cartopy
     if not geomap and hasattr(ax, "projection"):
         msg = "The axis has a projection, but `geomap` is set to False"
         raise ValueError(msg)
@@ -373,21 +507,20 @@ def plot(
         else:
             bus_colors = "cadetblue"
 
-    # Read in potentialy different bus argument types and convert them to Series
-    if isinstance(bus_colors, dict):
-        bus_colors = pd.Series(bus_colors)
-    elif not isinstance(bus_colors, pd.Series):
-        bus_colors = pd.Series(bus_colors, index=n.buses.index)
+    # Format different input types
+    bus_colors = convert_to_series(bus_colors, n.buses.index)
+    bus_sizes = convert_to_series(bus_sizes, n.buses.index)
+
+    line_colors = convert_to_series(line_colors, n.lines.index)
+    link_colors = convert_to_series(link_colors, n.links.index)
+    transformer_colors = convert_to_series(transformer_colors, n.transformers.index)
+
     # Add missing colors
     # TODO: This is not consistent, since for multiindex a ValueError is raised
     if not multindex_buses:
         bus_colors = bus_colors.reindex(n.buses.index)
 
-    if isinstance(bus_sizes, dict):
-        bus_sizes = pd.Series(bus_sizes, dtype="float")
-    elif not isinstance(bus_sizes, pd.Series):
-        bus_sizes = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
-
+    # Raise additional ValueErrors after formatting the bus_sizes, bus_colors
     if multindex_buses:
         if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
             msg = "The first MultiIndex level of sizes must contain buses"
@@ -398,16 +531,13 @@ def plot(
             "included in colors or in n.carriers.color"
             raise ValueError(msg)
 
-    # Apply color_cmap, if given and bus_colors are floats
-    if bus_cmap:
-        if not isinstance(bus_cmap, plt.Colormap):
-            bus_cmap = plt.get_cmap(bus_cmap)
-        if bus_colors.dtype is np.dtype("float"):
-            if not bus_cmap_norm:
-                bus_cmap_norm = plt.Normalize(
-                    vmin=bus_colors.min(), vmax=bus_colors.max()
-                )
-        bus_colors = bus_colors.apply(lambda cval: bus_cmap(bus_cmap_norm(cval)))
+    # Apply all cmaps
+    bus_colors = apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+    line_colors = apply_cmap(line_colors, line_cmap, line_cmap_norm)
+    link_colors = apply_cmap(link_colors, link_cmap, link_cmap_norm)
+    transformer_colors = apply_cmap(
+        transformer_colors, transformer_cmap, transformer_cmap_norm
+    )
 
     # Apply geomap
     if geomap:
@@ -464,14 +594,15 @@ def plot(
         if ax is None:
             ax = plt.gca()
         ax.axis(boundaries)
-
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(title)
 
+    # Add jitter if given
     if jitter is not None:
         x, y = _add_jitter(x, y, jitter)
 
+    # Plot buses
     bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
     if geomap:
         bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
@@ -485,27 +616,18 @@ def plot(
     bus_collection = PatchCollection(patches, match_original=True, zorder=5)
     ax.add_collection(bus_collection)
 
-    # Plot branches:
-    if isinstance(line_widths, pd.Series):
-        if isinstance(line_widths.index, pd.MultiIndex):
-            raise TypeError(
-                "Index of argument 'line_widths' is a Multiindex, "
-                "this is not support since pypsa v0.17. "
-                "Set differing widths with arguments 'line_widths', "
-                "'link_widths' and 'transformer_widths'."
-            )
-    if isinstance(line_colors, pd.Series):
-        if isinstance(line_colors.index, pd.MultiIndex):
-            raise TypeError(
-                "Index of argument 'line_colors' is a Multiindex, "
-                "this is not support since pypsa v0.17. "
-                "Set differing colors with arguments 'line_colors', "
-                "'link_colors' and 'transformer_colors'."
-            )
-
+    # Plot branches
     if branch_components is None:
         branch_components = n.branch_components
+    components = n.iterate_components(branch_components)
 
+    if flow is not None:
+        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
+        flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
+
+    area_factor = get_projected_area_factor(ax, n.srid)
+
+    # Plot branches
     branch_colors = {
         "Line": line_colors,
         "Link": link_colors,
@@ -521,114 +643,23 @@ def plot(
         "Link": link_widths,
         "Transformer": transformer_widths,
     }
-    branch_cmap = {
-        "Line": line_cmap,
-        "Link": link_cmap,
-        "Transformer": transformer_cmap,
-    }
-    branch_cmap_norm = {
-        "Line": line_cmap_norm,
-        "Link": link_cmap_norm,
-        "Transformer": transformer_cmap_norm,
-    }
 
-    branch_collections = []
-    arrow_collections = []
+    branch_collections = _add_branches(
+        x,
+        y,
+        branch_colors,
+        branch_alpha,
+        branch_widths,
+        flow,
+        geometry,
+        components,
+        area_factor,
+    )
 
-    if flow is not None:
-        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
-        flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
+    for collection in branch_collections:
+        ax.add_collection(collection)
 
-    for c in n.iterate_components(branch_components):
-        d = dict(
-            width=branch_widths[c.name],
-            color=branch_colors[c.name],
-            alpha=branch_alpha[c.name],
-        )
-        if flow is not None and flow.get(c.name) is not None:
-            d["flow"] = flow[c.name]
-
-        if any([isinstance(v, pd.Series) for _, v in d.items()]):
-            df = pd.DataFrame(d)
-        else:
-            df = pd.DataFrame(d, index=c.df.index)
-
-        if df.empty:
-            continue
-
-        b_widths = df.width
-        b_colors = df.color
-        b_alpha = df.alpha
-        b_nums = None
-        b_cmap = branch_cmap[c.name]
-        b_cmap_norm = branch_cmap_norm[c.name]
-        b_flow = df.get("flow")
-
-        if issubclass(b_colors.dtype.type, np.number):
-            b_nums = b_colors
-            b_colors = None
-
-        if not geometry:
-            segments = np.asarray(
-                (
-                    (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
-                    (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
-                )
-            ).transpose(2, 0, 1)
-        else:
-            from shapely.geometry import LineString
-            from shapely.wkt import loads
-
-            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
-            if not all(isinstance(ls, LineString) for ls in linestrings):
-                msg = "The WKT-encoded geometry in the 'geometry' column must be "
-                "composed of LineStrings"
-                raise ValueError(msg)
-            segments = np.asarray(list(linestrings.map(np.asarray)))
-
-        if b_flow is not None:
-            coords = pd.DataFrame(
-                {
-                    "x1": c.df.bus0.map(x),
-                    "y1": c.df.bus0.map(y),
-                    "x2": c.df.bus1.map(x),
-                    "y2": c.df.bus1.map(y),
-                }
-            )
-            b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
-            # update the line width, allows to set line widths separately from flows
-            # b_widths.update((5 * b_flow.abs()).pipe(np.sqrt))
-            area_factor = get_projected_area_factor(ax, n.srid)
-            f_collection = directed_flow(
-                coords, b_flow, b_colors, area_factor, b_cmap, b_alpha
-            )
-            if b_nums is not None:
-                f_collection.set_array(np.asarray(b_nums))
-                f_collection.set_cmap(b_cmap)
-                f_collection.autoscale()
-                f_collection.set(norm=b_cmap_norm)
-            arrow_collections.append(f_collection)
-            ax.add_collection(f_collection)
-
-        b_collection = LineCollection(
-            segments,
-            linewidths=b_widths,
-            antialiaseds=(1,),
-            colors=b_colors,
-            alpha=b_alpha,
-        )
-
-        if b_nums is not None:
-            b_collection.set_array(np.asarray(b_nums))
-            b_collection.set_cmap(b_cmap)
-            b_collection.autoscale()
-            b_collection.set(norm=b_cmap_norm)
-
-        ax.add_collection(b_collection)
-        b_collection.set_zorder(3)
-        branch_collections.append(b_collection)
-
-    return (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
+    return  # (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
 
 
 def as_branch_series(ser, arg, c, n):
@@ -839,7 +870,7 @@ def _flow_ds_from_arg(flow, n, branch_components):
         ).agg(flow, axis=0)
 
 
-def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
+def directed_flow(coords, flow, color, area_factor=1, alpha=1):
     """
     Helper function to generate arrows from flow data.
     """
