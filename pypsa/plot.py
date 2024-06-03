@@ -230,49 +230,10 @@ def _add_branch(x, y, c, df, geometry, area_factor):
         alpha=df.alpha,
     )
 
-    return f_collection, b_collection
+    return f_collection + [b_collection]
 
 
-def _add_branches(
-    x,
-    y,
-    branch_colors,
-    branch_alpha,
-    branch_widths,
-    flow,
-    geometry,
-    components,
-    area_factor,
-):
-    collections = []
-
-    for c in components:
-        d = dict(
-            width=branch_widths[c.name],
-            color=branch_colors[c.name],
-            alpha=branch_alpha[c.name],
-        )
-        if flow is not None and flow.get(c.name) is not None:
-            d["flow"] = flow[c.name]
-
-        if any([isinstance(v, pd.Series) for _, v in d.items()]):
-            df = pd.DataFrame(d)
-        else:
-            df = pd.DataFrame(d, index=c.df.index)
-
-        if df.empty:
-            continue
-
-        f_collection, b_collection = _add_branch(x, y, c, df, geometry, area_factor)
-        if f_collection:
-            collections.append(f_collection)
-        if b_collection:
-            collections.append(b_collection)
-
-    return collections
-
-
-def convert_to_series(variable, index):
+def _convert_to_series(variable, index):
     if isinstance(variable, dict):
         variable = pd.Series(variable)
     elif not isinstance(variable, pd.Series):
@@ -280,7 +241,7 @@ def convert_to_series(variable, index):
     return variable
 
 
-def apply_cmap(colors, cmap, cmap_norm=None):
+def _apply_cmap(colors, cmap, cmap_norm=None):
     if cmap:
         if not isinstance(cmap, plt.Colormap):
             cmap = plt.get_cmap(cmap)
@@ -289,6 +250,42 @@ def apply_cmap(colors, cmap, cmap_norm=None):
                 cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
         colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
     return colors
+
+
+def _get_axis(x, y, ax, geomap, color_geomap, projection, transform, boundaries, title):
+    if geomap:
+        if projection is None:
+            projection = transform
+        elif not isinstance(projection, cartopy.crs.Projection):
+            msg = "The passed projection is not a cartopy.crs.Projection"
+            raise ValueError(msg)
+
+        if ax is None:
+            ax = plt.axes(projection=projection)
+        elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
+            msg = "The passed axis is not a GeoAxesSubplot. You can "
+            "create one with: \nimport cartopy.crs as ccrs \n"
+            "fig, ax = plt.subplots("
+            'subplot_kw={"projection":ccrs.PlateCarree()})'
+            raise ValueError(msg)
+
+        x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
+        x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
+
+        if color_geomap is not False:
+            draw_map_cartopy(ax, geomap, color_geomap)
+
+        if boundaries is not None:
+            ax.set_extent(boundaries, crs=transform)
+    else:
+        if ax is None:
+            ax = plt.gca()
+        ax.axis(boundaries)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(title)
+
+    return x, y, ax
 
 
 @deprecated_kwargs(
@@ -490,10 +487,13 @@ def plot(
 
     # Check for ValueErrors
 
-    # Missing cartopy
     if not geomap and hasattr(ax, "projection"):
         msg = "The axis has a projection, but `geomap` is set to False"
         raise ValueError(msg)
+
+    if geomap and not cartopy_present:
+        logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+        geomap = False
 
     # Check if bus_sizes is a MultiIndex
     multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
@@ -508,19 +508,18 @@ def plot(
             bus_colors = "cadetblue"
 
     # Format different input types
-    bus_colors = convert_to_series(bus_colors, n.buses.index)
-    bus_sizes = convert_to_series(bus_sizes, n.buses.index)
-
-    line_colors = convert_to_series(line_colors, n.lines.index)
-    link_colors = convert_to_series(link_colors, n.links.index)
-    transformer_colors = convert_to_series(transformer_colors, n.transformers.index)
+    bus_colors = _convert_to_series(bus_colors, n.buses.index)
+    bus_sizes = _convert_to_series(bus_sizes, n.buses.index)
+    line_colors = _convert_to_series(line_colors, n.lines.index)
+    link_colors = _convert_to_series(link_colors, n.links.index)
+    transformer_colors = _convert_to_series(transformer_colors, n.transformers.index)
 
     # Add missing colors
     # TODO: This is not consistent, since for multiindex a ValueError is raised
     if not multindex_buses:
         bus_colors = bus_colors.reindex(n.buses.index)
 
-    # Raise additional ValueErrors after formatting the bus_sizes, bus_colors
+    # Raise additional ValueErrors after formatting
     if multindex_buses:
         if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
             msg = "The first MultiIndex level of sizes must contain buses"
@@ -532,10 +531,10 @@ def plot(
             raise ValueError(msg)
 
     # Apply all cmaps
-    bus_colors = apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
-    line_colors = apply_cmap(line_colors, line_cmap, line_cmap_norm)
-    link_colors = apply_cmap(link_colors, link_cmap, link_cmap_norm)
-    transformer_colors = apply_cmap(
+    bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+    line_colors = _apply_cmap(line_colors, line_cmap, line_cmap_norm)
+    link_colors = _apply_cmap(link_colors, link_cmap, link_cmap_norm)
+    transformer_colors = _apply_cmap(
         transformer_colors, transformer_cmap, transformer_cmap_norm
     )
 
@@ -552,51 +551,16 @@ def plot(
     else:
         x, y = n.buses["x"], n.buses["y"]
 
-    # Get bus indices
-    if isinstance(bus_sizes, pd.Series):
-        buses = bus_sizes.index
-        if isinstance(buses, pd.MultiIndex):
-            buses = buses.unique(0)
-    else:
-        buses = n.buses.index
-
     # Set boundaries, if not given
+    buses = bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
     if boundaries is None:
         boundaries = sum(zip(*compute_bbox(x[buses], y[buses], margin)), ())
 
     # Set up plot (either cartopy or matplotlib)
-    if geomap:
-        transform = get_projection_from_crs(n.srid)
-        if projection is None:
-            projection = transform
-        elif not isinstance(projection, cartopy.crs.Projection):
-            msg = "The passed projection is not a cartopy.crs.Projection"
-            raise ValueError(msg)
-
-        if ax is None:
-            ax = plt.axes(projection=projection)
-        elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
-            msg = "The passed axis is not a GeoAxesSubplot. You can "
-            "create one with: \nimport cartopy.crs as ccrs \n"
-            "fig, ax = plt.subplots("
-            'subplot_kw={"projection":ccrs.PlateCarree()})'
-            raise ValueError(msg)
-
-        x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
-        x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
-
-        if color_geomap is not False:
-            draw_map_cartopy(ax, geomap, color_geomap)
-
-        if boundaries is not None:
-            ax.set_extent(boundaries, crs=transform)
-    else:
-        if ax is None:
-            ax = plt.gca()
-        ax.axis(boundaries)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title(title)
+    transform = get_projection_from_crs(n.srid)
+    x, y, ax = _get_axis(
+        x, y, ax, geomap, color_geomap, projection, transform, boundaries, title
+    )
 
     # Add jitter if given
     if jitter is not None:
@@ -628,38 +592,40 @@ def plot(
     area_factor = get_projected_area_factor(ax, n.srid)
 
     # Plot branches
-    branch_colors = {
-        "Line": line_colors,
-        "Link": link_colors,
-        "Transformer": transformer_colors,
-    }
-    branch_alpha = {
-        "Line": line_alpha,
-        "Link": link_alpha,
-        "Transformer": transformer_alpha,
-    }
-    branch_widths = {
-        "Line": line_widths,
-        "Link": link_widths,
-        "Transformer": transformer_widths,
+    branch_data = {
+        "Line": {
+            "width": line_widths,
+            "color": line_colors,
+            "alpha": line_alpha,
+        },
+        "Link": {
+            "width": link_widths,
+            "color": link_colors,
+            "alpha": link_alpha,
+        },
+        "Transformer": {
+            "width": transformer_widths,
+            "color": transformer_colors,
+            "alpha": transformer_alpha,
+        },
     }
 
-    branch_collections = _add_branches(
-        x,
-        y,
-        branch_colors,
-        branch_alpha,
-        branch_widths,
-        flow,
-        geometry,
-        components,
-        area_factor,
-    )
+    for c in components:
+        d = branch_data[c.name]
+        if flow is not None and flow.get(c.name) is not None:
+            d["flow"] = flow[c.name]
 
-    for collection in branch_collections:
-        ax.add_collection(collection)
+        if any([isinstance(v, pd.Series) for _, v in d.items()]):
+            df = pd.DataFrame(d)
+        else:
+            df = pd.DataFrame(d, index=c.df.index)
 
-    return  # (bus_collection,) + tuple(branch_collections) + tuple(arrow_collections)
+        if df.empty:
+            continue
+
+        collections = _add_branch(x, y, c, df, geometry, area_factor)
+        for collection in collections:
+            ax.add_collection(collection)
 
 
 def as_branch_series(ser, arg, c, n):
