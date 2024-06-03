@@ -29,6 +29,7 @@ from pypsa.geo import (
     get_projected_area_factor,
     get_projection_from_crs,
 )
+from pypsa.utils import deprecated_kwargs
 
 cartopy_present = True
 try:
@@ -45,6 +46,7 @@ try:
 except ImportError:
     pltly_present = False
 if TYPE_CHECKING:
+    import matplotlib as mlp
     import networkx
 
     from pypsa.components import Network
@@ -183,6 +185,12 @@ def _add_singleindex_busses(x, y, sizes, colors, alpha):
     return patches
 
 
+@deprecated_kwargs(
+    bus_norm="bus_cmap_norm",
+    line_norm="line_cmap_norm",
+    link_norm="link_cmap_norm",
+    transformer_norm="transformer_cmap_norm",
+)
 def plot(
     n,
     margin=0.05,
@@ -193,7 +201,7 @@ def plot(
     bus_alpha=1,
     bus_sizes=2e-2,
     bus_cmap: str | plt.cm.ColorMap = None,
-    bus_norm=None,
+    bus_cmap_norm: plt.Normalize | mlp.colors.Normalize = None,
     bus_split_circles=False,
     line_colors="rosybrown",
     link_colors="darkseagreen",
@@ -207,9 +215,9 @@ def plot(
     line_cmap=None,
     link_cmap=None,
     transformer_cmap=None,
-    line_norm=None,
-    link_norm=None,
-    transformer_norm=None,
+    line_cmap_norm=None,
+    link_cmap_norm=None,
+    transformer_cmap_norm=None,
     flow=None,
     branch_components=None,
     layouter=None,
@@ -250,7 +258,7 @@ def plot(
         tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
     bus_cmap : plt.cm.ColorMap/str
         If bus_colors are floats, this color map will assign the colors
-    bus_norm : plt.Normalize|matplotlib.colors.*Norm
+    bus_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
         The norm applied to the bus_cmap.
     bus_split_circles : bool, default False
         Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
@@ -280,11 +288,11 @@ def plot(
         If link_colors are floats, this color map will assign the colors.
     transformer_cmap : plt.cm.ColorMap/str|dict
         If transformer_colors are floats, this color map will assign the colors.
-    line_norm : plt.Normalize|matplotlib.colors.*Norm
+    line_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
         The norm applied to the line_cmap.
-    link_norm : plt.Normalize|matplotlib.colors.*Norm
+    link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
         The norm applied to the link_cmap.
-    transformer_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+    transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
         The norm applied to the transformer_cmap.
     flow : snapshot/pandas.Series/function/string
         Flow to be displayed in the plot, defaults to None. If an element of
@@ -395,9 +403,11 @@ def plot(
         if not isinstance(bus_cmap, plt.Colormap):
             bus_cmap = plt.get_cmap(bus_cmap)
         if bus_colors.dtype is np.dtype("float"):
-            if not bus_norm:
-                bus_norm = plt.Normalize(vmin=bus_colors.min(), vmax=bus_colors.max())
-        bus_colors = bus_colors.apply(lambda cval: bus_cmap(bus_norm(cval)))
+            if not bus_cmap_norm:
+                bus_cmap_norm = plt.Normalize(
+                    vmin=bus_colors.min(), vmax=bus_colors.max()
+                )
+        bus_colors = bus_colors.apply(lambda cval: bus_cmap(bus_cmap_norm(cval)))
 
     # Apply geomap
     if geomap:
@@ -516,10 +526,10 @@ def plot(
         "Link": link_cmap,
         "Transformer": transformer_cmap,
     }
-    branch_norm = {
-        "Line": line_norm,
-        "Link": link_norm,
-        "Transformer": transformer_norm,
+    branch_cmap_norm = {
+        "Line": line_cmap_norm,
+        "Link": link_cmap_norm,
+        "Transformer": transformer_cmap_norm,
     }
 
     branch_collections = []
@@ -551,7 +561,7 @@ def plot(
         b_alpha = df.alpha
         b_nums = None
         b_cmap = branch_cmap[c.name]
-        b_norm = branch_norm[c.name]
+        b_cmap_norm = branch_cmap_norm[c.name]
         b_flow = df.get("flow")
 
         if issubclass(b_colors.dtype.type, np.number):
@@ -596,7 +606,7 @@ def plot(
                 f_collection.set_array(np.asarray(b_nums))
                 f_collection.set_cmap(b_cmap)
                 f_collection.autoscale()
-                f_collection.set(norm=b_norm)
+                f_collection.set(norm=b_cmap_norm)
             arrow_collections.append(f_collection)
             ax.add_collection(f_collection)
 
@@ -612,7 +622,7 @@ def plot(
             b_collection.set_array(np.asarray(b_nums))
             b_collection.set_cmap(b_cmap)
             b_collection.autoscale()
-            b_collection.set(norm=b_norm)
+            b_collection.set(norm=b_cmap_norm)
 
         ax.add_collection(b_collection)
         b_collection.set_zorder(3)
