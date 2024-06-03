@@ -11,6 +11,7 @@ __copyright__ = (
 )
 
 import logging
+import warnings
 from functools import wraps
 from inspect import signature
 
@@ -939,8 +940,12 @@ class StatisticsAccessor:
                 logger.warning(
                     "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
                 )
-            logger.warning(
-                "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
+            warnings.warn(
+                "Argument 'aggregate_bus' is deprecated in 0.28 and will be "
+                "removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` "
+                "instead.",
+                DeprecationWarning,
+                stacklevel=2,
             )
             groupby = get_bus_and_carrier_and_bus_carrier
 
