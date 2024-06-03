@@ -2,6 +2,8 @@
 Functions for plotting networks.
 """
 
+from __future__ import annotations
+
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
 )
@@ -11,6 +13,8 @@ __copyright__ = (
 )
 
 import logging
+import warnings
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -40,8 +44,143 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+if TYPE_CHECKING:
+    import networkx
+
+    from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
+
+
+def apply_layouter(
+    n: Network, layouter: networkx.drawing.layout = None, inplace: bool = False
+):
+    """
+    Automatically generate bus coordinates for the network graph according to a
+    layouting function from `networkx <https://networkx.github.io/>`_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network to generate coordinates for.
+    layouter : networkx.drawing.layout function, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options. By default, coordinates are determined for a
+        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
+        if the network graph is planar, otherwise for a
+        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
+    inplace : bool, default False
+        Assign generated coordinates to the network bus coordinates
+        at ``n.buses[['x', 'y']]`` if True, otherwise return them.
+
+    Returns
+    -------
+    coordinates : pd.DataFrame or None
+        DataFrame with x and y coordinates for each bus. Only returned if
+        inplace is False.
+
+    Examples
+    --------
+    >>> coords = apply_layouter(n)
+    >>> apply_layouter(n, assign=True, layouter=nx.layout.spring_layout)
+
+    """
+    G = n.graph()
+
+    if layouter is None:
+        if nx.check_planarity(G)[0]:
+            layouter = nx.planar_layout
+        else:
+            layouter = nx.kamada_kawai_layout
+
+    coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
+
+    if inplace:
+        n.buses[["x", "y"]] = coordinates
+        return None
+    else:
+        return coordinates.x, coordinates.y
+
+
+def _add_jitter(x, y, jitter):
+    """
+    Add random jitter to data.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        X data to add jitter to.
+    y : numpy.ndarray
+        Y data to add jitter to.
+    jitter : float
+        The amount of jitter to add. Function adds a random number between -jitter and
+        jitter to each element in the data arrays.
+
+    Returns
+    -------
+    x_jittered : numpy.ndarray
+        X data with added jitter.
+    y_jittered : numpy.ndarray
+        Y data with added jitter.
+    """
+    if jitter is not None:
+        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+
+    return x, y
+
+
+def _add_multiindex_busses(
+    x, y, sizes: pd.Series, colors: pd.Series, alpha, split_circles
+):
+    # We are drawing pies to show all the different shares
+    patches = []
+    for b_i in sizes.index.unique(level=0):
+        s_base = sizes.loc[b_i]
+
+        if split_circles:
+            # As only half of the circle is drawn, increase area by factor 2
+            s_base = s_base * 2
+            s_base = (
+                s_base[s_base > 0],
+                s_base[s_base < 0],
+            )
+            starts = 0, 1
+            scope = 180
+        else:
+            s_base = (s_base[s_base > 0],)
+            starts = (0.25,)
+            scope = 360
+
+        for s, start in zip(s_base, starts):
+            radius = abs(s.sum()) ** 0.5
+            ratios = abs(s) if radius == 0.0 else s / s.sum()
+            for i, ratio in ratios.items():
+                patches.append(
+                    Wedge(
+                        (x.at[b_i], y.at[b_i]),
+                        radius,
+                        scope * start,
+                        scope * (start + ratio),
+                        facecolor=colors[i],
+                        alpha=alpha,
+                    )
+                )
+                start = start + ratio
+    return patches
+
+
+def _add_singleindex_busses(x, y, sizes, colors, alpha):
+    patches = []
+    for b_i in sizes.index[(sizes != 0) & ~sizes.isna()]:
+        radius = sizes.at[b_i] ** 0.5
+        patches.append(
+            Circle(
+                (x.at[b_i], y.at[b_i]), radius, facecolor=colors.at[b_i], alpha=alpha
+            )
+        )
+    return patches
 
 
 def plot(
@@ -50,10 +189,10 @@ def plot(
     ax=None,
     geomap=True,
     projection=None,
-    bus_colors="cadetblue",
+    bus_colors: str | dict | pd.Series = None,
     bus_alpha=1,
     bus_sizes=2e-2,
-    bus_cmap=None,
+    bus_cmap: str | plt.cm.ColorMap = None,
     bus_norm=None,
     bus_split_circles=False,
     line_colors="rosybrown",
@@ -121,13 +260,13 @@ def plot(
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
-    transfomer_colors : str/pandas.Series
+    transformer_colors : str/pandas.Series
         Colors for the transfomer, defaults to 'orange'.
     line_alpha : str/pandas.Series
         Alpha for the lines, defaults to 1.
     link_alpha : str/pandas.Series
         Alpha for the links, defaults to 1.
-    transfomer_alpha : str/pandas.Series
+    transformer_alpha : str/pandas.Series
         Alpha for the transfomer, defaults to 1.
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 1.5
@@ -156,6 +295,8 @@ def plot(
         Series with MultiIndex including all necessary branch components.
         Use the line_widths argument to additionally adjust the size of the
         flow arrows.
+    branch_components : list of str
+        Branch components to be plotted, defaults to Line and Link.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
         overrules coordinates given in ``n.buses[['x', 'y']]``. See
@@ -165,8 +306,8 @@ def plot(
         Graph title
     boundaries : list of four floats
         Boundaries of the plot in format [x1, x2, y1, y2]
-    branch_components : list of str
-        Branch components to be plotted, defaults to Line and Link.
+    geometry :
+        # TODO
     jitter : None|float
         Amount of random noise to add to bus positions to distinguish
         overlapping buses
@@ -181,6 +322,23 @@ def plot(
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
+    # Deprecation warnings / API changes
+    if geomap:
+        warnings.warn(
+            "The `geomap` argument is deprecated and will be removed in a "
+            "future version. To disable the geomap projection, set `projection=False`. "
+            "To pass a specific scale, use the `geomap_scale` argument.",
+            DeprecationWarning,
+            2,
+        )
+
+    if color_geomap is not None:
+        warnings.warn(
+            "The `color_geomap` is deprecated and will be removed in the future. "
+            "Use `geomap_colors` instead.",
+            DeprecationWarning,
+            2,
+        )
 
     if margin is None:
         logger.warning(
@@ -190,39 +348,99 @@ def plot(
         )
         margin = 0.05
 
-    x, y = _get_coordinates(n, layouter=layouter)
-    buses = n.buses.index
-    if isinstance(bus_sizes, pd.Series):
-        buses = bus_sizes.index
-        if isinstance(buses, pd.MultiIndex):
-            buses = buses.unique(0)
+    # Check for ValueErrors
+    if not geomap and hasattr(ax, "projection"):
+        msg = "The axis has a projection, but `geomap` is set to False"
+        raise ValueError(msg)
 
-    if boundaries is None:
-        boundaries = sum(zip(*compute_bbox(x[buses], y[buses], margin)), ())
+    # Check if bus_sizes is a MultiIndex
+    multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
+        bus_sizes.index, pd.MultiIndex
+    )
 
+    # Apply default values
+    if bus_colors is None:
+        if multindex_buses:
+            bus_colors = n.carriers.color
+        else:
+            bus_colors = "cadetblue"
+
+    # Read in potentialy different bus argument types and convert them to Series
+    if isinstance(bus_colors, dict):
+        bus_colors = pd.Series(bus_colors)
+    elif not isinstance(bus_colors, pd.Series):
+        bus_colors = pd.Series(bus_colors, index=n.buses.index)
+    # Add missing colors
+    # TODO: This is not consistent, since for multiindex a ValueError is raised
+    if not multindex_buses:
+        bus_colors = bus_colors.reindex(n.buses.index)
+
+    if isinstance(bus_sizes, dict):
+        bus_sizes = pd.Series(bus_sizes, dtype="float")
+    elif not isinstance(bus_sizes, pd.Series):
+        bus_sizes = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
+
+    if multindex_buses:
+        if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
+            msg = "The first MultiIndex level of sizes must contain buses"
+            raise ValueError(msg)
+        if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
+            msg = "Colors not defined for all elements in the second MultiIndex "
+            "level of sizes, please make sure that all the elements are "
+            "included in colors or in n.carriers.color"
+            raise ValueError(msg)
+
+    # Apply color_cmap, if given and bus_colors are floats
+    if bus_cmap:
+        if not isinstance(bus_cmap, plt.Colormap):
+            bus_cmap = plt.get_cmap(bus_cmap)
+        if bus_colors.dtype is np.dtype("float"):
+            if not bus_norm:
+                bus_norm = plt.Normalize(vmin=bus_colors.min(), vmax=bus_colors.max())
+        bus_colors = bus_colors.apply(lambda cval: bus_cmap(bus_norm(cval)))
+
+    # Apply geomap
     if geomap:
         if not cartopy_present:
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
+    # Check if networkx layouter is given or needed to get bus positions
+    is_empty = (n.buses[["x", "y"]].isnull() | (n.buses[["x", "y"]] == 0)).all().all()
+    if layouter or is_empty:
+        x, y = apply_layouter(n, layouter)
+    else:
+        x, y = n.buses["x"], n.buses["y"]
+
+    # Get bus indices
+    if isinstance(bus_sizes, pd.Series):
+        buses = bus_sizes.index
+        if isinstance(buses, pd.MultiIndex):
+            buses = buses.unique(0)
+    else:
+        buses = n.buses.index
+
+    # Set boundaries, if not given
+    if boundaries is None:
+        boundaries = sum(zip(*compute_bbox(x[buses], y[buses], margin)), ())
+
+    # Set up plot (either cartopy or matplotlib)
     if geomap:
         transform = get_projection_from_crs(n.srid)
         if projection is None:
             projection = transform
-        else:
-            if not isinstance(projection, cartopy.crs.Projection):
-                msg = "The passed projection is not a cartopy.crs.Projection"
-                raise ValueError(msg)
+        elif not isinstance(projection, cartopy.crs.Projection):
+            msg = "The passed projection is not a cartopy.crs.Projection"
+            raise ValueError(msg)
 
         if ax is None:
             ax = plt.axes(projection=projection)
-        else:
-            if not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
-                msg = "The passed axis is not a GeoAxesSubplot. You can "
-                "create one with: \nimport cartopy.crs as ccrs \n"
-                "fig, ax = plt.subplots("
-                'subplot_kw={"projection":ccrs.PlateCarree()})'
-                raise ValueError(msg)
+        elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
+            msg = "The passed axis is not a GeoAxesSubplot. You can "
+            "create one with: \nimport cartopy.crs as ccrs \n"
+            "fig, ax = plt.subplots("
+            'subplot_kw={"projection":ccrs.PlateCarree()})'
+            raise ValueError(msg)
 
         x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
         x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
@@ -232,98 +450,31 @@ def plot(
 
         if boundaries is not None:
             ax.set_extent(boundaries, crs=transform)
-    elif ax is None:
-        ax = plt.gca()
-    elif hasattr(ax, "projection"):
-        raise ValueError("Axis is a geo axis, but `geomap` is set to False")
-    if not geomap and boundaries:
+    else:
+        if ax is None:
+            ax = plt.gca()
         ax.axis(boundaries)
 
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(title)
 
-    # Plot buses:
-
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x, y = _add_jitter(x, y, jitter)
 
-    patches = []
-    if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
-        # We are drawing pies to show all the different shares
-        if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
-            msg = "The first MultiIndex level of bus_sizes must contain buses"
-            raise ValueError(msg)
-        if isinstance(bus_colors, dict):
-            bus_colors = pd.Series(bus_colors)
-        # case bus_colors isn't a series or dict: look in n.carriers for existent colors
-        if not isinstance(bus_colors, pd.Series):
-            bus_colors = n.carriers.color.dropna()
-        if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
-            msg = "Colors not defined for all elements in the second MultiIndex "
-            "level of bus_sizes, please make sure that all the elements are "
-            "included in bus_colors or in n.carriers.color"
-            raise ValueError(msg)
+    bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+    if geomap:
+        bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
 
-        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
-        if geomap:
-            bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
-
-        for b_i in bus_sizes.index.unique(level=0):
-            s_base = bus_sizes.loc[b_i]
-
-            if bus_split_circles:
-                # As only half of the circle is drawn, increase area by factor 2
-                s_base = s_base * 2
-                s_base = (
-                    s_base[s_base > 0],
-                    s_base[s_base < 0],
-                )
-                starts = 0, 1
-                scope = 180
-            else:
-                s_base = (s_base[s_base > 0],)
-                starts = (0.25,)
-                scope = 360
-
-            for s, start in zip(s_base, starts):
-                radius = abs(s.sum()) ** 0.5
-                ratios = abs(s) if radius == 0.0 else s / s.sum()
-                for i, ratio in ratios.items():
-                    patches.append(
-                        Wedge(
-                            (x.at[b_i], y.at[b_i]),
-                            radius,
-                            scope * start,
-                            scope * (start + ratio),
-                            facecolor=bus_colors[i],
-                            alpha=bus_alpha,
-                        )
-                    )
-                    start = start + ratio
+    if isinstance(bus_sizes.index, pd.MultiIndex):
+        patches = _add_multiindex_busses(
+            x, y, bus_sizes, bus_colors, bus_alpha, bus_split_circles
+        )
     else:
-        c = pd.Series(bus_colors, index=n.buses.index)
-        s = pd.Series(bus_sizes, index=n.buses.index, dtype="float")
-        if geomap:
-            s = s * get_projected_area_factor(ax, n.srid) ** 2
-
-        if bus_cmap is not None and c.dtype is np.dtype("float"):
-            if isinstance(bus_cmap, str):
-                bus_cmap = plt.get_cmap(bus_cmap)
-            if not bus_norm:
-                bus_norm = plt.Normalize(vmin=c.min(), vmax=c.max())
-            c = c.apply(lambda cval: bus_cmap(bus_norm(cval)))
-
-        for b_i in s.index[(s != 0) & ~s.isna()]:
-            radius = s.at[b_i] ** 0.5
-            patches.append(
-                Circle(
-                    (x.at[b_i], y.at[b_i]), radius, facecolor=c.at[b_i], alpha=bus_alpha
-                )
-            )
+        patches = _add_singleindex_busses(x, y, bus_sizes, bus_colors, bus_alpha)
     bus_collection = PatchCollection(patches, match_original=True, zorder=5)
     ax.add_collection(bus_collection)
+
     # Plot branches:
     if isinstance(line_widths, pd.Series):
         if isinstance(line_widths.index, pd.MultiIndex):
@@ -736,60 +887,6 @@ def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
     )
 
 
-def autogenerate_coordinates(n, assign=False, layouter=None):
-    """
-    Automatically generate bus coordinates for the network graph according to a
-    layouting function from `networkx <https://networkx.github.io/>`_.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    assign : bool, default False
-        Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x', 'y']]``.
-    layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-        of available options. By default coordinates are determined for a
-        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
-        if the network graph is planar, otherwise for a
-        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
-
-    Returns
-    -------
-    coordinates : pd.DataFrame
-        DataFrame containing the generated coordinates with
-        buses as index and ['x', 'y'] as columns.
-
-    Examples
-    --------
-    >>> autogenerate_coordinates(network)
-    >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
-
-    """
-    G = n.graph()
-
-    if layouter is None:
-        if nx.check_planarity(G)[0]:
-            layouter = nx.planar_layout
-        else:
-            layouter = nx.kamada_kawai_layout
-
-    coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
-
-    if assign:
-        n.buses[["x", "y"]] = coordinates
-
-    return coordinates
-
-
-def _get_coordinates(n, layouter=None):
-    if layouter is not None or n.buses[["x", "y"]].isin([np.nan, 0]).all().all():
-        coordinates = autogenerate_coordinates(n, layouter=layouter)
-        return coordinates["x"], coordinates["y"]
-    return n.buses["x"], n.buses["y"]
-
-
 _token_required_mb_styles = [
     "basic",
     "streets",
@@ -939,8 +1036,7 @@ def iplot(
     x, y = _get_coordinates(n, layouter=layouter)
 
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x, y = _add_jitter(x, y, jitter)
 
     bus_trace = dict(
         x=x,
