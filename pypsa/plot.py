@@ -47,8 +47,6 @@ except ImportError:
     pltly_present = False
 
 if TYPE_CHECKING:
-    import matplotlib as mpl
-
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
@@ -492,51 +490,63 @@ class NetworkPlotter:
 )
 def plot(
     n,
-    margin=0.05,
-    ax=None,
-    geomap=True,
-    projection=None,
+    layouter: nx.drawing.layout = None,
+    boundaries: list | tuple = None,
+    margin: float = 0.05,
+    ax: plt.Axes = None,
+    geomap: bool | str = True,
+    projection: cartopy.crs.Projection = None,
+    geomap_colors: dict | bool = None,
+    title: str = "",
+    jitter: float = None,
+    branch_components: list = None,
+    bus_sizes: float | dict | pd.Series = 2e-2,
+    bus_split_circles: bool = False,
     bus_colors: str | dict | pd.Series = None,
-    bus_alpha=1,
-    bus_sizes=2e-2,
     bus_cmap: str | plt.cm.ColorMap = None,
-    bus_cmap_norm: plt.Normalize | mlp.colors.Normalize = None,
-    bus_split_circles=False,
-    line_colors="rosybrown",
-    link_colors="darkseagreen",
-    transformer_colors="orange",
-    line_alpha=1,
-    link_alpha=1,
-    transformer_alpha=1,
-    line_widths=1.5,
-    link_widths=1.5,
-    transformer_widths=1.5,
-    line_cmap=None,
-    link_cmap=None,
-    transformer_cmap=None,
-    line_cmap_norm=None,
-    link_cmap_norm=None,
-    transformer_cmap_norm=None,
-    flow=None,
-    branch_components=None,
-    layouter=None,
-    title="",
-    boundaries=None,
-    geometry=False,
-    jitter=None,
-    geomap_colors=None,
-    flow=None,
+    bus_cmap_norm: plt.Normalize = None,
+    bus_alpha: float | dict | pd.Series = 1,
+    geometry=False,  # TODO
+    line_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+    line_colors: str | dict | pd.Series = "rosybrown",
+    line_cmap: str | plt.cm.ColorMap = "viridis",
+    line_cmap_norm: plt.Normalize = None,
+    line_alpha: float | dict | pd.Series = 1,
+    line_widths: float | dict | pd.Series = 1.5,
+    link_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+    link_colors: str | dict | pd.Series = "darkseagreen",
+    link_cmap: str | plt.cm.ColorMap = "viridis",
+    link_cmap_norm: plt.Normalize = None,
+    link_alpha: float | dict | pd.Series = 1,
+    link_widths: float | dict | pd.Series = 1.5,
+    transformer_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+    transformer_colors: str | dict | pd.Series = "orange",
+    transformer_cmap: str | plt.cm.ColorMap = "viridis",
+    transformer_cmap_norm: plt.Normalize = None,
+    transformer_alpha: float | dict | pd.Series = 1,
+    transformer_widths: float | dict | pd.Series = 1.5,
+    flow=None,  # Deprecated
 ):
     """
     Plot the network buses and lines using matplotlib and cartopy.
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to plot
+    layouter : networkx.drawing.layout, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_ which
+        overrules coordinates given in ``n.buses[['x', 'y']]``. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options.
+    boundaries : list/tuple, default None
+        Boundaries of the plot in format [x1, x2, y1, y2]
     margin : float, defaults to 0.05
         Margin at the sides as proportion of distance between max/min x, y
         Will be ignored if boundaries are given.
-    ax : matplotlib ax, defaults to plt.gca()
-        Axis to which to plot the network
+    ax : matplotlib.pyplot.Axes, defaults to None
+        Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
+        to plt.axes(projection=projection).
     geomap: bool/str, default True
         Switch to use Cartopy and draw geographical features.
         If string is passed, it will be used as a resolution argument,
@@ -545,90 +555,107 @@ def plot(
         Define the projection of your geomap, only valid if cartopy is
         installed. If None (default) is passed the projection for cartopy
         is set to cartopy.crs.PlateCarree
-    bus_colors : dict/pandas.Series
-        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-        pandas.Series with a Multiindex, bus_colors defaults to the
-        n.carriers['color'] column.
-    bus_alpha : float
-        Adds alpha channel to buses, defaults to 1.
-    bus_sizes : dict/pandas.Series
-        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
-        the function will draw pies for each bus (first index level) with
-        segments of different color (second index level). Such a Series is ob-
-        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
-    bus_cmap : plt.cm.ColorMap/str
-        If bus_colors are floats, this color map will assign the colors
-    bus_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
-        The norm applied to the bus_cmap.
-    bus_split_circles : bool, default False
-        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
-        If set to true, the upper half circle per bus then includes all positive values
-        of the series, the lower half circle all negative values. Defaults to False.
-    line_colors : str/pandas.Series
-        Colors for the lines, defaults to 'rosybrown'.
-    link_colors : str/pandas.Series
-        Colors for the links, defaults to 'darkseagreen'.
-    transformer_colors : str/pandas.Series
-        Colors for the transfomer, defaults to 'orange'.
-    line_alpha : str/pandas.Series
-        Alpha for the lines, defaults to 1.
-    link_alpha : str/pandas.Series
-        Alpha for the links, defaults to 1.
-    transformer_alpha : str/pandas.Series
-        Alpha for the transfomer, defaults to 1.
-    line_widths : dict/pandas.Series
-        Widths of lines, defaults to 1.5
-    link_widths : dict/pandas.Series
-        Widths of links, defaults to 1.5
-    transformer_widths : dict/pandas.Series
-        Widths of transformer, defaults to 1.5
-    line_cmap : plt.cm.ColorMap/str|dict
-        If line_colors are floats, this color map will assign the colors.
-    link_cmap : plt.cm.ColorMap/str|dict
-        If link_colors are floats, this color map will assign the colors.
-    transformer_cmap : plt.cm.ColorMap/str|dict
-        If transformer_colors are floats, this color map will assign the colors.
-    line_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
-        The norm applied to the line_cmap.
-    link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
-        The norm applied to the link_cmap.
-    transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
-        The norm applied to the transformer_cmap.
-    flow : snapshot/pandas.Series/function/string
-        Flow to be displayed in the plot, defaults to None. If an element of
-        n.snapshots is given, the flow at this timestamp will be
-        displayed. If an aggregation function is given, is will be applied
-        to the total network flow via pandas.DataFrame.agg (accepts also
-        function names). Otherwise flows can be specified by passing a pandas
-        Series with MultiIndex including all necessary branch components.
-        Use the line_widths argument to additionally adjust the size of the
-        flow arrows.
-    branch_components : list of str
-        Branch components to be plotted, defaults to Line and Link.
-    layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``n.buses[['x', 'y']]``. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-        of available options.
-    title : string
-        Graph title
-    boundaries : list of four floats
-        Boundaries of the plot in format [x1, x2, y1, y2]
-    geometry :
-        # TODO
-    jitter : None|float
-        Amount of random noise to add to bus positions to distinguish
-        overlapping buses
-    color_geomap : dict or bool
+    geomap_colors : dict/bool, default None
         Specify colors to paint land and sea areas in.
         If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
         If no dictionary is provided, colors are white.
         If False, no geographical features are plotted.
+    title : string, default ""
+        Graph title
+    jitter : float, default None
+        Amount of random noise to add to bus positions to distinguish
+        overlapping buses
+    branch_components : list, default n.branch_components
+        Branch components to be plotted
+    bus_sizes : float/dict/pandas.Series
+        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+        the function will draw pies for each bus (first index level) with
+        segments of different color (second index level). Such a Series is ob-
+        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
+    bus_split_circles : bool, default False
+        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+        If set to true, the upper half circle per bus then includes all positive values
+        of the series, the lower half circle all negative values. Defaults to False.
+    bus_colors : str/dict/pandas.Series
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
+    bus_cmap : plt.cm.ColorMap/str
+        If bus_colors are floats, this color map will assign the colors
+    bus_cmap_norm : plt.Normalize
+        The norm applied to the bus_cmap
+    bus_alpha : float/dict/pandas.Series
+        Adds alpha channel to buses, defaults to 1
+    geometry :
+        # TODO
+
+    Additional Parameters
+    ---------------------
+    line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+        Flow to be for each line branch. If an element of
+        n.snapshots is given, the flow at this timestamp will be
+        displayed. If an aggregation function is given, is will be applied
+        to the total network flow via pandas.DataFrame.agg (accepts also
+        function names). Otherwise flows can be specified by passing a pandas
+        Series. Use the corresponding width argument to adjust size of the
+        flow arrows.
+    line_colors : str/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    line_cmap : plt.cm.ColorMap/str|dict
+        If line_colors are floats, this color map will assign the colors.
+    line_cmap_norm : plt.Normalize
+        The norm applied to the line_cmap.
+    line_alpha : str/pandas.Series
+        Alpha for the lines, defaults to 1.
+    line_widths : dict/pandas.Series
+        Widths of lines, defaults to 1.5
+    link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+        Flow to be for each link branch. See line_flow for more information.
+    link_colors : str/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    link_cmap : plt.cm.ColorMap/str|dict
+        If link_colors are floats, this color map will assign the colors.
+    link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
+        The norm applied to the link_cmap.
+    link_alpha : str/pandas.Series
+        Alpha for the links, defaults to 1.
+    link_widths : dict/pandas.Series
+        Widths of links, defaults to 1.5
+    transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+        Flow to be for each transformer branch. See line_flow for more information.
+    transformer_colors : str/pandas.Series
+        Colors for the transfomer, defaults to 'orange'.
+    transformer_cmap : plt.cm.ColorMap/str|dict
+        If transformer_colors are floats, this color map will assign the colors.
+    transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+        The norm applied to the transformer_cmap.
+    transformer_alpha : str/pandas.Series
+        Alpha for the transfomer, defaults to 1.
+    transformer_widths : dict/pandas.Series
+        Widths of transformer, defaults to 1.5
+
+    .. deprecated:: 0.28.0
+        `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
+            instead. The argument will be passed to all branches.
+        `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
+            use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
+            `transformer_cmap_norm` instead.
+        `color_geomap` is deprecated, use `geomap_colors` instead.
 
     Returns
     -------
-    bus_collection, branch_collection1, ... : tuple of Collections
-        Collections for buses and branches.
+    dict: collections of matplotlib objects
+        2D dictinary with the following keys:
+        - 'nodes'
+            - 'Bus': Collection of bus points
+        - 'branches' (for each branch component)
+            - 'lines': Collection of line branches
+            - 'links': Collection of link branches
+            - 'transformers': Collection of transformer branches
+        - 'flows' (for each branch component)
+            - 'lines': Collection of line flows
+            - 'links': Collection of link flows
+            - 'transformers': Collection of transformer flows
     """
 
     # Check for API changes
