@@ -47,8 +47,6 @@ except ImportError:
     pltly_present = False
 
 if TYPE_CHECKING:
-    import matplotlib as mpl
-
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
@@ -127,10 +125,11 @@ def apply_layouter(
 class NetworkPlotter:
     def __init__(self, network: Network):
         self.n = network
-        self.x = None  # Initialized in get_layout
-        self.y = None  # Initialized in get_layout
-        self.boundaries = None  # Initialized in set_boundaries
-        self.ax = None  # Initialized in set_axis
+        self.x = None  # Initialized in init_layout
+        self.y = None  # Initialized in init_layout
+        self.boundaries = None  # Initialized in init_boundaries
+        self.ax = None  # Initialized in init_axis
+        self.area_factor = 1  # Initialized in init_axis
 
     def init_layout(self, layouter: nx.drawing.layout = None):
         # Check if networkx layouter is given or needed to get bus positions
@@ -226,6 +225,8 @@ class NetworkPlotter:
 
             if self.boundaries is not None:
                 self.ax.set_extent(self.boundaries, crs=transform)
+
+            self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
         else:
             if ax is None:
                 self.ax = plt.gca()
@@ -315,35 +316,66 @@ class NetworkPlotter:
             )
         return patches
 
-    @staticmethod
-    def _flow_ds_from_arg(flow, n, branch_components):
+    def _flow_ds_from_arg(self, flow, component_name):
         if isinstance(flow, pd.Series):
-            if not isinstance(flow.index, pd.MultiIndex):
-                raise ValueError(
-                    "Argument 'flow' is a pandas.Series without "
-                    "a MultiIndex. Please provide a multiindexed series, with "
-                    "the first level being a subset of 'branch_components'."
-                )
             return flow
-        if flow in n.snapshots:
-            return pd.concat(
-                {
-                    c: n.pnl(c).p0.loc[flow]
-                    for c in branch_components
-                    if not n.pnl(c).p0.empty
-                },
-                sort=True,
-            )
+
+        if flow in self.n.snapshots:
+            return self.n.pnl(component_name).p0.loc[flow]
+
         if isinstance(flow, str) or callable(flow):
-            return pd.concat(
-                [n.pnl(c).p0 for c in branch_components],
-                axis=1,
-                keys=branch_components,
-                sort=True,
-            ).agg(flow, axis=0)
+            return self.n.pnl(component_name).p0.agg(flow, axis=0)
+
+    def _get_branch(self, c, df, geometry):
+        if not geometry:
+            segments = np.asarray(
+                (
+                    (c.df.bus0[df.index].map(self.x), c.df.bus0[df.index].map(self.y)),
+                    (c.df.bus1[df.index].map(self.x), c.df.bus1[df.index].map(self.y)),
+                )
+            ).transpose(2, 0, 1)
+        else:
+            from shapely.geometry import LineString
+            from shapely.wkt import loads
+
+            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
+            if not all(isinstance(ls, LineString) for ls in linestrings):
+                msg = "The WKT-encoded geometry in the 'geometry' column must be "
+                "composed of LineStrings"
+                raise ValueError(msg)
+            segments = np.asarray(list(linestrings.map(np.asarray)))
+
+        branch_coll = LineCollection(
+            segments,
+            linewidths=df.width,
+            antialiaseds=(1,),
+            colors=df.color,
+            alpha=df.alpha,
+        )
+
+        return branch_coll
+
+    def get_branches(self, branch_components, geometry, branch_data):
+        components = self.n.iterate_components(branch_components)
+
+        branch_colls = []
+        for c in components:
+            d = branch_data[c.name]
+            if any([isinstance(v, pd.Series) for _, v in d.items()]):
+                df = pd.DataFrame(d)
+            else:
+                df = pd.DataFrame(d, index=c.df.index)
+
+            if df.empty:  # TODO: Can be removed since there are default values?
+                continue
+
+            branch_coll = self._get_branch(c, df, geometry)
+            branch_colls.append(branch_coll)
+
+        return branch_colls
 
     @staticmethod
-    def _directed_flow(coords, flow, color, area_factor=1, alpha=1):
+    def _directed_flow(coords, flow, color, area_factor, alpha=1):
         """
         Helper function to generate arrows from flow data.
         """
@@ -360,8 +392,7 @@ class NetworkPlotter:
             }
         )
         data = data.join(coords)
-        if area_factor:
-            data["arrowsize"] = data["arrowsize"].mul(area_factor)
+        data["arrowsize"] = data["arrowsize"].mul(area_factor)
         data["arrowtolarge"] = 1.5 * data.arrowsize > data.linelength
         # swap coords for negativ directions
         data.loc[data.direction == -1.0, ["x1", "x2", "y1", "y2"]] = data.loc[
@@ -402,117 +433,52 @@ class NetworkPlotter:
             zorder=4,
         )
 
-    def _get_branch(self, c, df, geometry, area_factor):
-        b_flow = df.get("flow")
-
-        if not geometry:
-            segments = np.asarray(
-                (
-                    (c.df.bus0[df.index].map(self.x), c.df.bus0[df.index].map(self.y)),
-                    (c.df.bus1[df.index].map(self.x), c.df.bus1[df.index].map(self.y)),
-                )
-            ).transpose(2, 0, 1)
-        else:
-            from shapely.geometry import LineString
-            from shapely.wkt import loads
-
-            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
-            if not all(isinstance(ls, LineString) for ls in linestrings):
-                msg = "The WKT-encoded geometry in the 'geometry' column must be "
-                "composed of LineStrings"
-                raise ValueError(msg)
-            segments = np.asarray(list(linestrings.map(np.asarray)))
-
-        b_collection = LineCollection(
-            segments,
-            linewidths=df.width,
-            antialiaseds=(1,),
-            colors=df.color,
-            alpha=df.alpha,
+    def _get_flow(self, c, df):
+        # b_flow = .df.get("flow")
+        # if b_flow is not None:
+        coords = pd.DataFrame(
+            {
+                "x1": c.df.bus0.map(self.x),
+                "y1": c.df.bus0.map(self.y),
+                "x2": c.df.bus1.map(self.x),
+                "y2": c.df.bus1.map(self.y),
+            }
         )
+        b_flow = df["flow"].mul(df.width.abs(), fill_value=0)
+        # update the line width, allows to set line widths separately from flows
+        # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
+        flow_coll = self._directed_flow(
+            coords, b_flow, df.color, self.area_factor, df.alpha
+        )
+        return flow_coll
 
-        if b_flow is not None:
-            coords = pd.DataFrame(
-                {
-                    "x1": c.df.bus0.map(self.x),
-                    "y1": c.df.bus0.map(self.y),
-                    "x2": c.df.bus1.map(self.x),
-                    "y2": c.df.bus1.map(self.y),
-                }
-            )
-            b_flow = b_flow.mul(df.width.abs(), fill_value=0)
-            # update the line width, allows to set line widths separately from flows
-            # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
-            f_collection = self._directed_flow(
-                coords, b_flow, df.color, area_factor, df.alpha
-            )
-        else:
-            f_collection = None
-
-        return b_collection, f_collection
-
-    def get_branches(
-        self,
-        branch_components,
-        flow,
-        geometry,
-        line_widths,
-        line_colors,
-        line_alpha,
-        link_widths,
-        link_colors,
-        link_alpha,
-        transformer_widths,
-        transformer_colors,
-        transformer_alpha,
-    ):
+    def get_flows(self, branch_components, flow_data, branch_data):
         components = self.n.iterate_components(branch_components)
 
-        if flow is not None:
-            rough_scale = sum(len(self.n.df(c)) for c in branch_components) + 100
-            flow = self._flow_ds_from_arg(flow, self.n, branch_components) / rough_scale
-
-        area_factor = get_projected_area_factor(self.ax, self.n.srid)
-
-        # Plot branches
-        branch_data = {
-            "Line": {
-                "width": line_widths,
-                "color": line_colors,
-                "alpha": line_alpha,
-            },
-            "Link": {
-                "width": link_widths,
-                "color": link_colors,
-                "alpha": link_alpha,
-            },
-            "Transformer": {
-                "width": transformer_widths,
-                "color": transformer_colors,
-                "alpha": transformer_alpha,
-            },
-        }
-
-        collections = []
+        flow_colls = []
         for c in components:
-            d = branch_data[c.name]
-            if flow is not None and flow.get(c.name) is not None:
-                d["flow"] = flow[c.name]
+            if flow_data[c.name] is None:
+                continue
+            else:
+                flow_arg = flow_data[c.name]
 
+            # Get general component data
+            d = branch_data[c.name]
             if any([isinstance(v, pd.Series) for _, v in d.items()]):
                 df = pd.DataFrame(d)
             else:
                 df = pd.DataFrame(d, index=c.df.index)
 
-            if df.empty:
-                continue
+            # Get flow data
+            rough_scale = sum(len(self.n.df(c)) for c in branch_components) + 100
+            df["flow"] = (
+                self._flow_ds_from_arg(flow_arg, c.name) / rough_scale
+            )  # TODO move this out
 
-            b_collection, f_collection = self._get_branch(c, df, geometry, area_factor)
-            if f_collection is not None:
-                collections.append(f_collection)
-            collections.append(b_collection)
+            flow_coll = self._get_flow(c, df)
+            flow_colls.append(flow_coll)
 
-        return collections
+        return flow_colls
 
 
 @deprecated_kwargs(
@@ -664,22 +630,39 @@ def plot(
     # Check for API changes
 
     # Deprecation warnings
-    if geomap:
+    if flow is not None:
+        if (
+            line_flow is not None
+            or link_flow is not None
+            or transformer_flow is not None
+        ):
+            msg = "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
+            "`transformer_flow` instead. You can't use both arguments at the same time."
+            raise ValueError(msg)
+        if isinstance(flow, pd.Series) and isinstance(flow.index, pd.MultiIndex):
+            msg = (
+                "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
+                "`transformer_flow` instead. Multiindex Series are not supported anymore."
+            )
+            raise ValueError(msg)
         warnings.warn(
-            "The `geomap` argument is deprecated and will be removed in a "
-            "future version. To disable the geomap projection, set `projection=False`. "
-            "To pass a specific scale, use the `geomap_scale` argument.",
+            "The `flow` argument is deprecated and will be removed in a future "
+            "version. Use `line_flow`, `link_flow` and `transformer_flow` instead. The "
+            "argument will be passed to all branches. Multiindex Series are not supported anymore.",
             DeprecationWarning,
             2,
         )
-
-    if color_geomap is not None:
-        warnings.warn(
-            "The `color_geomap` is deprecated and will be removed in the future. "
-            "Use `geomap_colors` instead.",
-            DeprecationWarning,
-            2,
-        )
+        line_flow = flow
+        link_flow = flow
+        transformer_flow = flow
+    # if geomap:
+    #     warnings.warn(
+    #         "The `geomap` argument is deprecated and will be removed in a "
+    #         "future version. To disable the geomap projection, set `projection=False`. "
+    #         "To pass a specific scale, use the `geomap_scale` argument.",
+    #         DeprecationWarning,
+    #         2,
+    #     )
 
     if margin is None:
         logger.warning(
@@ -713,6 +696,11 @@ def plot(
         raise TypeError(msg)
 
     # Check for ValueErrors
+
+    if geomap:
+        if not cartopy_present:
+            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+            geomap = False
 
     if not geomap and hasattr(ax, "projection"):
         msg = "The axis has a projection, but `geomap` is set to False"
@@ -765,12 +753,6 @@ def plot(
         transformer_colors, transformer_cmap, transformer_cmap_norm
     )
 
-    # Apply geomap
-    if geomap:
-        if not cartopy_present:
-            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
-
     # Initiate NetworkPlotter
     plotter = NetworkPlotter(n)
     plotter.init_layout(layouter)
@@ -785,8 +767,7 @@ def plot(
     # Plot buses
     bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
     if geomap:
-        bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
-
+        bus_sizes = bus_sizes * plotter.area_factor**2
     if isinstance(bus_sizes.index, pd.MultiIndex):
         patches = plotter.get_multiindex_busses(
             bus_sizes, bus_colors, bus_alpha, bus_split_circles
@@ -796,25 +777,49 @@ def plot(
     bus_collection = PatchCollection(patches, match_original=True, zorder=5)
     plotter.ax.add_collection(bus_collection)
 
-    # Plot branches
+    # Collect data for branches and flows
+    branch_data = {
+        "Line": {
+            "width": line_widths,
+            "color": line_colors,
+            "alpha": line_alpha,
+        },
+        "Link": {
+            "width": link_widths,
+            "color": link_colors,
+            "alpha": link_alpha,
+        },
+        "Transformer": {
+            "width": transformer_widths,
+            "color": transformer_colors,
+            "alpha": transformer_alpha,
+        },
+    }
     if branch_components is None:
         branch_components = plotter.n.branch_components
+
+    # Plot branches
     branches = plotter.get_branches(
         branch_components,
-        flow,
         geometry,
-        line_widths,
-        line_colors,
-        line_alpha,
-        link_widths,
-        link_colors,
-        link_alpha,
-        transformer_widths,
-        transformer_colors,
-        transformer_alpha,
+        branch_data,
     )
     for branch in branches:
         plotter.ax.add_collection(branch)
+
+    # Plot flows
+    flow_data = {
+        "Line": line_flow,
+        "Link": link_flow,
+        "Transformer": transformer_flow,
+    }
+    flows = plotter.get_flows(
+        branch_components,
+        flow_data,
+        branch_data,
+    )
+    for flow in flows:
+        plotter.ax.add_collection(flow)
 
 
 class HandlerCircle(HandlerPatch):
