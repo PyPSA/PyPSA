@@ -21,6 +21,7 @@ from deprecation import deprecated
 from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_carrier(n, c, nice_names=True):

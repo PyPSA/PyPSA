@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def _convert_to_series(variable, index):

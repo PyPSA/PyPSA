@@ -2,6 +2,8 @@ import functools
 import warnings
 from typing import Any, Callable
 
+warnings.simplefilter("always", DeprecationWarning)
+
 
 def deprecated_kwargs(**aliases: str) -> Callable:
     """
