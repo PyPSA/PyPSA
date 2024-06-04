@@ -155,47 +155,47 @@ class NetworkPlotter:
         else:
             self.boundaries = boundaries
 
-    def _add_geomap_features(self, geomap=True, color_geomap=None):
+    def _add_geomap_features(self, geomap=True, geomap_colors=None):
         resolution = "50m" if isinstance(geomap, bool) else geomap
         if resolution not in ["10m", "50m", "110m"]:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
             raise ValueError(msg)
 
-        if not color_geomap:
-            color_geomap = {}
-        elif not isinstance(color_geomap, dict):
-            color_geomap = {
+        if not geomap_colors:
+            geomap_colors = {}
+        elif not isinstance(geomap_colors, dict):
+            geomap_colors = {
                 "ocean": "lightblue",
                 "land": "whitesmoke",
                 "border": "darkgray",
                 "coastline": "black",
             }
 
-        if "land" in color_geomap:
+        if "land" in geomap_colors:
             self.ax.add_feature(
                 cartopy.feature.LAND.with_scale(resolution),
-                facecolor=color_geomap["land"],
+                facecolor=geomap_colors["land"],
             )
 
-        if "ocean" in color_geomap:
+        if "ocean" in geomap_colors:
             self.ax.add_feature(
                 cartopy.feature.OCEAN.with_scale(resolution),
-                facecolor=color_geomap["ocean"],
+                facecolor=geomap_colors["ocean"],
             )
 
         self.ax.add_feature(
             cartopy.feature.BORDERS.with_scale(resolution),
             linewidth=0.3,
-            edgecolor=color_geomap.get("border", "black"),
+            edgecolor=geomap_colors.get("border", "black"),
         )
 
         self.ax.add_feature(
             cartopy.feature.COASTLINE.with_scale(resolution),
             linewidth=0.3,
-            edgecolor=color_geomap.get("coastline", "black"),
+            edgecolor=geomap_colors.get("coastline", "black"),
         )
 
-    def init_axis(self, ax, projection, geomap, color_geomap, title):
+    def init_axis(self, ax, projection, geomap, geomap_colors, title):
         # Set up plot (either cartopy or matplotlib)
 
         transform = get_projection_from_crs(self.n.srid)
@@ -222,8 +222,8 @@ class NetworkPlotter:
             ).T
             self.x, self.y = pd.Series(x_, self.x.index), pd.Series(y_, self.y.index)
 
-            if color_geomap is not False:
-                self._add_geomap_features(geomap, color_geomap)
+            if geomap_colors is not False:
+                self._add_geomap_features(geomap, geomap_colors)
 
             if self.boundaries is not None:
                 self.ax.set_extent(self.boundaries, crs=transform)
@@ -488,6 +488,7 @@ class NetworkPlotter:
     line_norm="line_cmap_norm",
     link_norm="link_cmap_norm",
     transformer_norm="transformer_cmap_norm",
+    color_geomap="geomap_colors",
 )
 def plot(
     n,
@@ -753,7 +754,7 @@ def plot(
     plotter.init_layout(layouter)
     buses = bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
     plotter.init_boundaries(buses, boundaries, margin)
-    plotter.init_axis(ax, projection, geomap, color_geomap, title)
+    plotter.init_axis(ax, projection, geomap, geomap_colors, title)
 
     # Add jitter if given
     if jitter is not None:
