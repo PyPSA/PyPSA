@@ -45,17 +45,36 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+
 if TYPE_CHECKING:
-    import matplotlib as mlp
-    import networkx
+    import matplotlib as mpl
 
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
 
 
+def _convert_to_series(variable, index):
+    if isinstance(variable, dict):
+        variable = pd.Series(variable)
+    elif not isinstance(variable, pd.Series):
+        variable = pd.Series(variable, index=index)
+    return variable
+
+
+def _apply_cmap(colors, cmap, cmap_norm=None):
+    if cmap:
+        if not isinstance(cmap, plt.Colormap):
+            cmap = plt.get_cmap(cmap)
+        if colors.dtype is np.dtype("float"):
+            if not cmap_norm:
+                cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
+        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
+    return colors
+
+
 def apply_layouter(
-    n: Network, layouter: networkx.drawing.layout = None, inplace: bool = False
+    n: Network, layouter: nx.drawing.layout = None, inplace: bool = False
 ):
     """
     Automatically generate bus coordinates for the network graph according to a
@@ -105,187 +124,395 @@ def apply_layouter(
         return coordinates.x, coordinates.y
 
 
-def _add_jitter(x, y, jitter):
-    """
-    Add random jitter to data.
+class NetworkPlotter:
+    def __init__(self, network: Network):
+        self.n = network
+        self.x = None  # Initialized in get_layout
+        self.y = None  # Initialized in get_layout
+        self.boundaries = None  # Initialized in set_boundaries
+        self.ax = None  # Initialized in set_axis
 
-    Parameters
-    ----------
-    x : numpy.ndarray
-        X data to add jitter to.
-    y : numpy.ndarray
-        Y data to add jitter to.
-    jitter : float
-        The amount of jitter to add. Function adds a random number between -jitter and
-        jitter to each element in the data arrays.
-
-    Returns
-    -------
-    x_jittered : numpy.ndarray
-        X data with added jitter.
-    y_jittered : numpy.ndarray
-        Y data with added jitter.
-    """
-    if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
-
-    return x, y
-
-
-def _add_multiindex_busses(
-    x, y, sizes: pd.Series, colors: pd.Series, alpha, split_circles
-):
-    # We are drawing pies to show all the different shares
-    patches = []
-    for b_i in sizes.index.unique(level=0):
-        s_base = sizes.loc[b_i]
-
-        if split_circles:
-            # As only half of the circle is drawn, increase area by factor 2
-            s_base = s_base * 2
-            s_base = (
-                s_base[s_base > 0],
-                s_base[s_base < 0],
-            )
-            starts = 0, 1
-            scope = 180
-        else:
-            s_base = (s_base[s_base > 0],)
-            starts = (0.25,)
-            scope = 360
-
-        for s, start in zip(s_base, starts):
-            radius = abs(s.sum()) ** 0.5
-            ratios = abs(s) if radius == 0.0 else s / s.sum()
-            for i, ratio in ratios.items():
-                patches.append(
-                    Wedge(
-                        (x.at[b_i], y.at[b_i]),
-                        radius,
-                        scope * start,
-                        scope * (start + ratio),
-                        facecolor=colors[i],
-                        alpha=alpha,
-                    )
-                )
-                start = start + ratio
-    return patches
-
-
-def _add_singleindex_busses(x, y, sizes, colors, alpha):
-    patches = []
-    for b_i in sizes.index[(sizes != 0) & ~sizes.isna()]:
-        radius = sizes.at[b_i] ** 0.5
-        patches.append(
-            Circle(
-                (x.at[b_i], y.at[b_i]), radius, facecolor=colors.at[b_i], alpha=alpha
-            )
+    def init_layout(self, layouter: nx.drawing.layout = None):
+        # Check if networkx layouter is given or needed to get bus positions
+        is_empty = (
+            (self.n.buses[["x", "y"]].isnull() | (self.n.buses[["x", "y"]] == 0))
+            .all()
+            .all()
         )
-    return patches
+        if layouter or is_empty:
+            self.x, self.y = apply_layouter(self.n, layouter)
+        else:
+            self.x, self.y = self.n.buses["x"], self.n.buses["y"]
 
+    def init_boundaries(self, buses, boundaries, margin):
+        # Set boundaries, if not given
 
-def _add_branch(x, y, c, df, geometry, area_factor):
-    b_flow = df.get("flow")
-
-    if not geometry:
-        segments = np.asarray(
-            (
-                (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
-                (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
+        if boundaries is None:
+            self.boundaries = sum(
+                zip(*compute_bbox(self.x[buses], self.y[buses], margin)), ()
             )
-        ).transpose(2, 0, 1)
-    else:
-        from shapely.geometry import LineString
-        from shapely.wkt import loads
+        else:
+            self.boundaries = boundaries
 
-        linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
-        if not all(isinstance(ls, LineString) for ls in linestrings):
-            msg = "The WKT-encoded geometry in the 'geometry' column must be "
-            "composed of LineStrings"
+    def _add_geomap_features(self, geomap=True, color_geomap=None):
+        resolution = "50m" if isinstance(geomap, bool) else geomap
+        if resolution not in ["10m", "50m", "110m"]:
+            msg = "Resolution has to be one of '10m', '50m', '110m'"
             raise ValueError(msg)
-        segments = np.asarray(list(linestrings.map(np.asarray)))
 
-    if b_flow is not None:
-        coords = pd.DataFrame(
+        if not color_geomap:
+            color_geomap = {}
+        elif not isinstance(color_geomap, dict):
+            color_geomap = {
+                "ocean": "lightblue",
+                "land": "whitesmoke",
+                "border": "darkgray",
+                "coastline": "black",
+            }
+
+        if "land" in color_geomap:
+            self.ax.add_feature(
+                cartopy.feature.LAND.with_scale(resolution),
+                facecolor=color_geomap["land"],
+            )
+
+        if "ocean" in color_geomap:
+            self.ax.add_feature(
+                cartopy.feature.OCEAN.with_scale(resolution),
+                facecolor=color_geomap["ocean"],
+            )
+
+        self.ax.add_feature(
+            cartopy.feature.BORDERS.with_scale(resolution),
+            linewidth=0.3,
+            edgecolor=color_geomap.get("border", "black"),
+        )
+
+        self.ax.add_feature(
+            cartopy.feature.COASTLINE.with_scale(resolution),
+            linewidth=0.3,
+            edgecolor=color_geomap.get("coastline", "black"),
+        )
+
+    def init_axis(self, ax, projection, geomap, color_geomap, title):
+        # Set up plot (either cartopy or matplotlib)
+
+        transform = get_projection_from_crs(self.n.srid)
+        if geomap:
+            if projection is None:
+                projection = transform
+            elif not isinstance(projection, cartopy.crs.Projection):
+                msg = "The passed projection is not a cartopy.crs.Projection"
+                raise ValueError(msg)
+
+            if ax is None:
+                self.ax = plt.axes(projection=projection)
+            elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
+                msg = "The passed axis is not a GeoAxesSubplot. You can "
+                "create one with: \nimport cartopy.crs as ccrs \n"
+                "fig, ax = plt.subplots("
+                'subplot_kw={"projection":ccrs.PlateCarree()})'
+                raise ValueError(msg)
+            else:
+                self.ax = ax
+
+            x_, y_, _ = self.ax.projection.transform_points(
+                transform, self.x.values, self.y.values
+            ).T
+            self.x, self.y = pd.Series(x_, self.x.index), pd.Series(y_, self.y.index)
+
+            if color_geomap is not False:
+                self._add_geomap_features(geomap, color_geomap)
+
+            if self.boundaries is not None:
+                self.ax.set_extent(self.boundaries, crs=transform)
+        else:
+            if ax is None:
+                self.ax = plt.gca()
+            else:
+                self.ax = ax
+            self.ax.axis(self.boundaries)
+        self.ax.set_aspect("equal")
+        self.ax.axis("off")
+        self.ax.set_title(title)
+
+    def add_jitter(self, jitter):
+        """
+        Add random jitter to data.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            X data to add jitter to.
+        y : numpy.ndarray
+            Y data to add jitter to.
+        jitter : float
+            The amount of jitter to add. Function adds a random number between -jitter and
+            jitter to each element in the data arrays.
+
+        Returns
+        -------
+        x_jittered : numpy.ndarray
+            X data with added jitter.
+        y_jittered : numpy.ndarray
+            Y data with added jitter.
+        """
+        self.x = self.x + np.random.uniform(low=-jitter, high=jitter, size=len(self.x))
+        self.y = self.y + np.random.uniform(low=-jitter, high=jitter, size=len(self.y))
+
+        return self.x, self.y
+
+    def get_multiindex_busses(
+        self, sizes: pd.Series, colors: pd.Series, alpha, split_circles
+    ):
+        # We are drawing pies to show all the different shares
+        patches = []
+        for b_i in sizes.index.unique(level=0):
+            s_base = sizes.loc[b_i]
+
+            if split_circles:
+                # As only half of the circle is drawn, increase area by factor 2
+                s_base = s_base * 2
+                s_base = (
+                    s_base[s_base > 0],
+                    s_base[s_base < 0],
+                )
+                starts = 0, 1
+                scope = 180
+            else:
+                s_base = (s_base[s_base > 0],)
+                starts = (0.25,)
+                scope = 360
+
+            for s, start in zip(s_base, starts):
+                radius = abs(s.sum()) ** 0.5
+                ratios = abs(s) if radius == 0.0 else s / s.sum()
+                for i, ratio in ratios.items():
+                    patches.append(
+                        Wedge(
+                            (self.x.at[b_i], self.y.at[b_i]),
+                            radius,
+                            scope * start,
+                            scope * (start + ratio),
+                            facecolor=colors[i],
+                            alpha=alpha,
+                        )
+                    )
+                    start = start + ratio
+        return patches
+
+    def get_singleindex_busses(self, sizes, colors, alpha):
+        patches = []
+        for b_i in sizes.index[(sizes != 0) & ~sizes.isna()]:
+            radius = sizes.at[b_i] ** 0.5
+            patches.append(
+                Circle(
+                    (self.x.at[b_i], self.y.at[b_i]),
+                    radius,
+                    facecolor=colors.at[b_i],
+                    alpha=alpha,
+                )
+            )
+        return patches
+
+    @staticmethod
+    def _flow_ds_from_arg(flow, n, branch_components):
+        if isinstance(flow, pd.Series):
+            if not isinstance(flow.index, pd.MultiIndex):
+                raise ValueError(
+                    "Argument 'flow' is a pandas.Series without "
+                    "a MultiIndex. Please provide a multiindexed series, with "
+                    "the first level being a subset of 'branch_components'."
+                )
+            return flow
+        if flow in n.snapshots:
+            return pd.concat(
+                {
+                    c: n.pnl(c).p0.loc[flow]
+                    for c in branch_components
+                    if not n.pnl(c).p0.empty
+                },
+                sort=True,
+            )
+        if isinstance(flow, str) or callable(flow):
+            return pd.concat(
+                [n.pnl(c).p0 for c in branch_components],
+                axis=1,
+                keys=branch_components,
+                sort=True,
+            ).agg(flow, axis=0)
+
+    @staticmethod
+    def _directed_flow(coords, flow, color, area_factor=1, alpha=1):
+        """
+        Helper function to generate arrows from flow data.
+        """
+        # this funtion is used for diplaying arrows representing the network flow
+        data = pd.DataFrame(
             {
-                "x1": c.df.bus0.map(x),
-                "y1": c.df.bus0.map(y),
-                "x2": c.df.bus1.map(x),
-                "y2": c.df.bus1.map(y),
+                "arrowsize": flow.abs().pipe(np.sqrt).clip(lower=1e-8),
+                "direction": np.sign(flow),
+                "linelength": (
+                    np.sqrt(
+                        (coords.x1 - coords.x2) ** 2.0 + (coords.y1 - coords.y2) ** 2
+                    )
+                ),
             }
         )
-        b_flow = b_flow.mul(df.width.abs(), fill_value=0)
-        # update the line width, allows to set line widths separately from flows
-        # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
-        f_collection = directed_flow(coords, b_flow, df.color, area_factor, df.alpha)
-    else:
-        f_collection = None
+        data = data.join(coords)
+        if area_factor:
+            data["arrowsize"] = data["arrowsize"].mul(area_factor)
+        data["arrowtolarge"] = 1.5 * data.arrowsize > data.linelength
+        # swap coords for negativ directions
+        data.loc[data.direction == -1.0, ["x1", "x2", "y1", "y2"]] = data.loc[
+            data.direction == -1.0, ["x2", "x1", "y2", "y1"]
+        ].values
+        if ((data.linelength > 0.0) & (~data.arrowtolarge)).any():
+            data["arrows"] = data[(data.linelength > 0.0) & (~data.arrowtolarge)].apply(
+                lambda ds: FancyArrow(
+                    ds.x1,
+                    ds.y1,
+                    0.6 * (ds.x2 - ds.x1)
+                    - ds.arrowsize * 0.75 * (ds.x2 - ds.x1) / ds.linelength,
+                    0.6 * (ds.y2 - ds.y1)
+                    - ds.arrowsize * 0.75 * (ds.y2 - ds.y1) / ds.linelength,
+                    head_width=ds.arrowsize,
+                ),
+                axis=1,
+            )
+        data.loc[(data.linelength > 0.0) & (data.arrowtolarge), "arrows"] = data[
+            (data.linelength > 0.0) & (data.arrowtolarge)
+        ].apply(
+            lambda ds: FancyArrow(
+                ds.x1,
+                ds.y1,
+                0.001 * (ds.x2 - ds.x1),
+                0.001 * (ds.y2 - ds.y1),
+                head_width=ds.arrowsize,
+            ),
+            axis=1,
+        )
+        data = data.dropna(subset=["arrows"])
+        return PatchCollection(
+            data.arrows,
+            color=color,
+            alpha=alpha,
+            edgecolors="black",
+            linewidths=0.0,
+            zorder=4,
+        )
 
-    b_collection = LineCollection(
-        segments,
-        linewidths=df.width,
-        antialiaseds=(1,),
-        colors=df.color,
-        alpha=df.alpha,
-    )
+    def _get_branch(self, c, df, geometry, area_factor):
+        b_flow = df.get("flow")
 
-    return f_collection + [b_collection]
+        if not geometry:
+            segments = np.asarray(
+                (
+                    (c.df.bus0[df.index].map(self.x), c.df.bus0[df.index].map(self.y)),
+                    (c.df.bus1[df.index].map(self.x), c.df.bus1[df.index].map(self.y)),
+                )
+            ).transpose(2, 0, 1)
+        else:
+            from shapely.geometry import LineString
+            from shapely.wkt import loads
 
+            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
+            if not all(isinstance(ls, LineString) for ls in linestrings):
+                msg = "The WKT-encoded geometry in the 'geometry' column must be "
+                "composed of LineStrings"
+                raise ValueError(msg)
+            segments = np.asarray(list(linestrings.map(np.asarray)))
 
-def _convert_to_series(variable, index):
-    if isinstance(variable, dict):
-        variable = pd.Series(variable)
-    elif not isinstance(variable, pd.Series):
-        variable = pd.Series(variable, index=index)
-    return variable
+        b_collection = LineCollection(
+            segments,
+            linewidths=df.width,
+            antialiaseds=(1,),
+            colors=df.color,
+            alpha=df.alpha,
+        )
 
+        if b_flow is not None:
+            coords = pd.DataFrame(
+                {
+                    "x1": c.df.bus0.map(self.x),
+                    "y1": c.df.bus0.map(self.y),
+                    "x2": c.df.bus1.map(self.x),
+                    "y2": c.df.bus1.map(self.y),
+                }
+            )
+            b_flow = b_flow.mul(df.width.abs(), fill_value=0)
+            # update the line width, allows to set line widths separately from flows
+            # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
+            f_collection = self._directed_flow(
+                coords, b_flow, df.color, area_factor, df.alpha
+            )
+        else:
+            f_collection = None
 
-def _apply_cmap(colors, cmap, cmap_norm=None):
-    if cmap:
-        if not isinstance(cmap, plt.Colormap):
-            cmap = plt.get_cmap(cmap)
-        if colors.dtype is np.dtype("float"):
-            if not cmap_norm:
-                cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
-        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
-    return colors
+        return b_collection, f_collection
 
+    def get_branches(
+        self,
+        branch_components,
+        flow,
+        geometry,
+        line_widths,
+        line_colors,
+        line_alpha,
+        link_widths,
+        link_colors,
+        link_alpha,
+        transformer_widths,
+        transformer_colors,
+        transformer_alpha,
+    ):
+        components = self.n.iterate_components(branch_components)
 
-def _get_axis(x, y, ax, geomap, color_geomap, projection, transform, boundaries, title):
-    if geomap:
-        if projection is None:
-            projection = transform
-        elif not isinstance(projection, cartopy.crs.Projection):
-            msg = "The passed projection is not a cartopy.crs.Projection"
-            raise ValueError(msg)
+        if flow is not None:
+            rough_scale = sum(len(self.n.df(c)) for c in branch_components) + 100
+            flow = self._flow_ds_from_arg(flow, self.n, branch_components) / rough_scale
 
-        if ax is None:
-            ax = plt.axes(projection=projection)
-        elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
-            msg = "The passed axis is not a GeoAxesSubplot. You can "
-            "create one with: \nimport cartopy.crs as ccrs \n"
-            "fig, ax = plt.subplots("
-            'subplot_kw={"projection":ccrs.PlateCarree()})'
-            raise ValueError(msg)
+        area_factor = get_projected_area_factor(self.ax, self.n.srid)
 
-        x_, y_, _ = ax.projection.transform_points(transform, x.values, y.values).T
-        x, y = pd.Series(x_, x.index), pd.Series(y_, y.index)
+        # Plot branches
+        branch_data = {
+            "Line": {
+                "width": line_widths,
+                "color": line_colors,
+                "alpha": line_alpha,
+            },
+            "Link": {
+                "width": link_widths,
+                "color": link_colors,
+                "alpha": link_alpha,
+            },
+            "Transformer": {
+                "width": transformer_widths,
+                "color": transformer_colors,
+                "alpha": transformer_alpha,
+            },
+        }
 
-        if color_geomap is not False:
-            draw_map_cartopy(ax, geomap, color_geomap)
+        collections = []
+        for c in components:
+            d = branch_data[c.name]
+            if flow is not None and flow.get(c.name) is not None:
+                d["flow"] = flow[c.name]
 
-        if boundaries is not None:
-            ax.set_extent(boundaries, crs=transform)
-    else:
-        if ax is None:
-            ax = plt.gca()
-        ax.axis(boundaries)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title(title)
+            if any([isinstance(v, pd.Series) for _, v in d.items()]):
+                df = pd.DataFrame(d)
+            else:
+                df = pd.DataFrame(d, index=c.df.index)
 
-    return x, y, ax
+            if df.empty:
+                continue
+
+            b_collection, f_collection = self._get_branch(c, df, geometry, area_factor)
+            if f_collection is not None:
+                collections.append(f_collection)
+            collections.append(b_collection)
+
+        return collections
 
 
 @deprecated_kwargs(
@@ -544,27 +771,16 @@ def plot(
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
-    # Check if networkx layouter is given or needed to get bus positions
-    is_empty = (n.buses[["x", "y"]].isnull() | (n.buses[["x", "y"]] == 0)).all().all()
-    if layouter or is_empty:
-        x, y = apply_layouter(n, layouter)
-    else:
-        x, y = n.buses["x"], n.buses["y"]
-
-    # Set boundaries, if not given
+    # Initiate NetworkPlotter
+    plotter = NetworkPlotter(n)
+    plotter.init_layout(layouter)
     buses = bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
-    if boundaries is None:
-        boundaries = sum(zip(*compute_bbox(x[buses], y[buses], margin)), ())
-
-    # Set up plot (either cartopy or matplotlib)
-    transform = get_projection_from_crs(n.srid)
-    x, y, ax = _get_axis(
-        x, y, ax, geomap, color_geomap, projection, transform, boundaries, title
-    )
+    plotter.init_boundaries(buses, boundaries, margin)
+    plotter.init_axis(ax, projection, geomap, color_geomap, title)
 
     # Add jitter if given
     if jitter is not None:
-        x, y = _add_jitter(x, y, jitter)
+        plotter.add_jitter(jitter)
 
     # Plot buses
     bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
@@ -572,109 +788,33 @@ def plot(
         bus_sizes = bus_sizes * get_projected_area_factor(ax, n.srid) ** 2
 
     if isinstance(bus_sizes.index, pd.MultiIndex):
-        patches = _add_multiindex_busses(
-            x, y, bus_sizes, bus_colors, bus_alpha, bus_split_circles
+        patches = plotter.get_multiindex_busses(
+            bus_sizes, bus_colors, bus_alpha, bus_split_circles
         )
     else:
-        patches = _add_singleindex_busses(x, y, bus_sizes, bus_colors, bus_alpha)
+        patches = plotter.get_singleindex_busses(bus_sizes, bus_colors, bus_alpha)
     bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-    ax.add_collection(bus_collection)
+    plotter.ax.add_collection(bus_collection)
 
     # Plot branches
     if branch_components is None:
-        branch_components = n.branch_components
-    components = n.iterate_components(branch_components)
-
-    if flow is not None:
-        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
-        flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
-
-    area_factor = get_projected_area_factor(ax, n.srid)
-
-    # Plot branches
-    branch_data = {
-        "Line": {
-            "width": line_widths,
-            "color": line_colors,
-            "alpha": line_alpha,
-        },
-        "Link": {
-            "width": link_widths,
-            "color": link_colors,
-            "alpha": link_alpha,
-        },
-        "Transformer": {
-            "width": transformer_widths,
-            "color": transformer_colors,
-            "alpha": transformer_alpha,
-        },
-    }
-
-    for c in components:
-        d = branch_data[c.name]
-        if flow is not None and flow.get(c.name) is not None:
-            d["flow"] = flow[c.name]
-
-        if any([isinstance(v, pd.Series) for _, v in d.items()]):
-            df = pd.DataFrame(d)
-        else:
-            df = pd.DataFrame(d, index=c.df.index)
-
-        if df.empty:
-            continue
-
-        collections = _add_branch(x, y, c, df, geometry, area_factor)
-        for collection in collections:
-            ax.add_collection(collection)
-
-
-def as_branch_series(ser, arg, c, n):
-    ser = pd.Series(ser, index=n.df(c).index)
-    if ser.isnull().any():
-        msg = f"{c}_{arg}s does not specify all "
-        f"entries. Missing values for {c}: {list(ser[ser.isnull()].index)}"
-        raise ValueError(msg)
-    return ser
-
-
-def draw_map_cartopy(ax, geomap=True, color_geomap=None):
-    resolution = "50m" if isinstance(geomap, bool) else geomap
-    if resolution not in ["10m", "50m", "110m"]:
-        msg = "Resolution has to be one of '10m', '50m', '110m'"
-        raise ValueError(msg)
-
-    if not color_geomap:
-        color_geomap = {}
-    elif not isinstance(color_geomap, dict):
-        color_geomap = {
-            "ocean": "lightblue",
-            "land": "whitesmoke",
-            "border": "darkgray",
-            "coastline": "black",
-        }
-
-    if "land" in color_geomap:
-        ax.add_feature(
-            cartopy.feature.LAND.with_scale(resolution), facecolor=color_geomap["land"]
-        )
-
-    if "ocean" in color_geomap:
-        ax.add_feature(
-            cartopy.feature.OCEAN.with_scale(resolution),
-            facecolor=color_geomap["ocean"],
-        )
-
-    ax.add_feature(
-        cartopy.feature.BORDERS.with_scale(resolution),
-        linewidth=0.3,
-        edgecolor=color_geomap.get("border", "black"),
+        branch_components = plotter.n.branch_components
+    branches = plotter.get_branches(
+        branch_components,
+        flow,
+        geometry,
+        line_widths,
+        line_colors,
+        line_alpha,
+        link_widths,
+        link_colors,
+        link_alpha,
+        transformer_widths,
+        transformer_colors,
+        transformer_alpha,
     )
-
-    ax.add_feature(
-        cartopy.feature.COASTLINE.with_scale(resolution),
-        linewidth=0.3,
-        edgecolor=color_geomap.get("coastline", "black"),
-    )
+    for branch in branches:
+        plotter.ax.add_collection(branch)
 
 
 class HandlerCircle(HandlerPatch):
@@ -809,91 +949,6 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     ax.get_figure().add_artist(legend)
 
 
-def _flow_ds_from_arg(flow, n, branch_components):
-    if isinstance(flow, pd.Series):
-        if not isinstance(flow.index, pd.MultiIndex):
-            raise ValueError(
-                "Argument 'flow' is a pandas.Series without "
-                "a MultiIndex. Please provide a multiindexed series, with "
-                "the first level being a subset of 'branch_components'."
-            )
-        return flow
-    if flow in n.snapshots:
-        return pd.concat(
-            {
-                c: n.pnl(c).p0.loc[flow]
-                for c in branch_components
-                if not n.pnl(c).p0.empty
-            },
-            sort=True,
-        )
-    if isinstance(flow, str) or callable(flow):
-        return pd.concat(
-            [n.pnl(c).p0 for c in branch_components],
-            axis=1,
-            keys=branch_components,
-            sort=True,
-        ).agg(flow, axis=0)
-
-
-def directed_flow(coords, flow, color, area_factor=1, alpha=1):
-    """
-    Helper function to generate arrows from flow data.
-    """
-    # this funtion is used for diplaying arrows representing the network flow
-    data = pd.DataFrame(
-        {
-            "arrowsize": flow.abs().pipe(np.sqrt).clip(lower=1e-8),
-            "direction": np.sign(flow),
-            "linelength": (
-                np.sqrt((coords.x1 - coords.x2) ** 2.0 + (coords.y1 - coords.y2) ** 2)
-            ),
-        }
-    )
-    data = data.join(coords)
-    if area_factor:
-        data["arrowsize"] = data["arrowsize"].mul(area_factor)
-    data["arrowtolarge"] = 1.5 * data.arrowsize > data.linelength
-    # swap coords for negativ directions
-    data.loc[data.direction == -1.0, ["x1", "x2", "y1", "y2"]] = data.loc[
-        data.direction == -1.0, ["x2", "x1", "y2", "y1"]
-    ].values
-    if ((data.linelength > 0.0) & (~data.arrowtolarge)).any():
-        data["arrows"] = data[(data.linelength > 0.0) & (~data.arrowtolarge)].apply(
-            lambda ds: FancyArrow(
-                ds.x1,
-                ds.y1,
-                0.6 * (ds.x2 - ds.x1)
-                - ds.arrowsize * 0.75 * (ds.x2 - ds.x1) / ds.linelength,
-                0.6 * (ds.y2 - ds.y1)
-                - ds.arrowsize * 0.75 * (ds.y2 - ds.y1) / ds.linelength,
-                head_width=ds.arrowsize,
-            ),
-            axis=1,
-        )
-    data.loc[(data.linelength > 0.0) & (data.arrowtolarge), "arrows"] = data[
-        (data.linelength > 0.0) & (data.arrowtolarge)
-    ].apply(
-        lambda ds: FancyArrow(
-            ds.x1,
-            ds.y1,
-            0.001 * (ds.x2 - ds.x1),
-            0.001 * (ds.y2 - ds.y1),
-            head_width=ds.arrowsize,
-        ),
-        axis=1,
-    )
-    data = data.dropna(subset=["arrows"])
-    return PatchCollection(
-        data.arrows,
-        color=color,
-        alpha=alpha,
-        edgecolors="black",
-        linewidths=0.0,
-        zorder=4,
-    )
-
-
 _token_required_mb_styles = [
     "basic",
     "streets",
@@ -922,6 +977,15 @@ _open__mb_styles = [
 # We thank Bryn Pickering for holding the tutorial on plotly which
 # inspired the breakout group and for contributing ideas to the iplot
 # function below.
+
+
+def as_branch_series(ser, arg, c, n):
+    ser = pd.Series(ser, index=n.df(c).index)
+    if ser.isnull().any():
+        msg = f"{c}_{arg}s does not specify all "
+        f"entries. Missing values for {c}: {list(ser[ser.isnull()].index)}"
+        raise ValueError(msg)
+    return ser
 
 
 def iplot(
