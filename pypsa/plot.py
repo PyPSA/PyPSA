@@ -47,6 +47,8 @@ except ImportError:
     pltly_present = False
 
 if TYPE_CHECKING:
+    import matplotlib as mpl
+
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
@@ -61,12 +63,11 @@ def _convert_to_series(variable, index):
 
 
 def _apply_cmap(colors, cmap, cmap_norm=None):
-    if cmap:
+    if np.issubdtype(colors.dtype, np.number):
         if not isinstance(cmap, plt.Colormap):
             cmap = plt.get_cmap(cmap)
-        if colors.dtype is np.dtype("float"):
-            if not cmap_norm:
-                cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
+        if not cmap_norm:
+            cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
         colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
     return colors
 
@@ -326,7 +327,7 @@ class NetworkPlotter:
         if isinstance(flow, str) or callable(flow):
             return self.n.pnl(component_name).p0.agg(flow, axis=0)
 
-    def _get_branch(self, c, df, geometry):
+    def _get_branch_collection(self, c, df, geometry):
         if not geometry:
             segments = np.asarray(
                 (
@@ -355,10 +356,10 @@ class NetworkPlotter:
 
         return branch_coll
 
-    def get_branches(self, branch_components, geometry, branch_data):
+    def get_branch_collections(self, branch_components, geometry, branch_data):
         components = self.n.iterate_components(branch_components)
 
-        branch_colls = []
+        branch_colls = {}
         for c in components:
             d = branch_data[c.name]
             if any([isinstance(v, pd.Series) for _, v in d.items()]):
@@ -369,8 +370,8 @@ class NetworkPlotter:
             if df.empty:  # TODO: Can be removed since there are default values?
                 continue
 
-            branch_coll = self._get_branch(c, df, geometry)
-            branch_colls.append(branch_coll)
+            branch_coll = self._get_branch_collection(c, df, geometry)
+            branch_colls[c.name] = branch_coll
 
         return branch_colls
 
@@ -433,7 +434,7 @@ class NetworkPlotter:
             zorder=4,
         )
 
-    def _get_flow(self, c, df):
+    def _get_flow_collection(self, c, df):
         # b_flow = .df.get("flow")
         # if b_flow is not None:
         coords = pd.DataFrame(
@@ -452,10 +453,10 @@ class NetworkPlotter:
         )
         return flow_coll
 
-    def get_flows(self, branch_components, flow_data, branch_data):
+    def get_flow_collections(self, branch_components, flow_data, branch_data):
         components = self.n.iterate_components(branch_components)
 
-        flow_colls = []
+        flow_colls = {}
         for c in components:
             if flow_data[c.name] is None:
                 continue
@@ -475,8 +476,8 @@ class NetworkPlotter:
                 self._flow_ds_from_arg(flow_arg, c.name) / rough_scale
             )  # TODO move this out
 
-            flow_coll = self._get_flow(c, df)
-            flow_colls.append(flow_coll)
+            flow_coll = self._get_flow_collection(c, df)
+            flow_colls[c.name] = flow_coll
 
         return flow_colls
 
@@ -521,7 +522,8 @@ def plot(
     boundaries=None,
     geometry=False,
     jitter=None,
-    color_geomap=None,
+    geomap_colors=None,
+    flow=None,
 ):
     """
     Plot the network buses and lines using matplotlib and cartopy.
@@ -655,14 +657,6 @@ def plot(
         line_flow = flow
         link_flow = flow
         transformer_flow = flow
-    # if geomap:
-    #     warnings.warn(
-    #         "The `geomap` argument is deprecated and will be removed in a "
-    #         "future version. To disable the geomap projection, set `projection=False`. "
-    #         "To pass a specific scale, use the `geomap_scale` argument.",
-    #         DeprecationWarning,
-    #         2,
-    #     )
 
     if margin is None:
         logger.warning(
@@ -799,12 +793,12 @@ def plot(
         branch_components = plotter.n.branch_components
 
     # Plot branches
-    branches = plotter.get_branches(
+    branches = plotter.get_branch_collections(
         branch_components,
         geometry,
         branch_data,
     )
-    for branch in branches:
+    for branch in branches.values():
         plotter.ax.add_collection(branch)
 
     # Plot flows
@@ -813,13 +807,15 @@ def plot(
         "Link": link_flow,
         "Transformer": transformer_flow,
     }
-    flows = plotter.get_flows(
+    flows = plotter.get_flow_collections(
         branch_components,
         flow_data,
         branch_data,
     )
-    for flow in flows:
+    for flow in flows.values():
         plotter.ax.add_collection(flow)
+
+    return {"nodes": {"Bus": bus_collection}, "branches": branches, "flows": flows}
 
 
 class HandlerCircle(HandlerPatch):
