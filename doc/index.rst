@@ -14,11 +14,8 @@ PyPSA: Python for Power System Analysis
     :target: https://anaconda.org/conda-forge/pypsa
     :alt: Conda version
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
-
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml
+.. image:: https://github.com/pypsa/pypsa/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/pypsa/pypsa/actions/workflows/test.yml
 
 .. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
