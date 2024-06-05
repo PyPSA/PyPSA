@@ -1,22 +1,11 @@
 """Power system components."""
 
-from weakref import ref
-
-from pypsa.clustering import ClusteringAccessor
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 import os
 from collections import namedtuple
 from pathlib import Path
 from typing import Union
+from weakref import ref
 
 import geopandas as gpd
 import numpy as np
@@ -26,6 +15,7 @@ import validators
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
+from pypsa.clustering import ClusteringAccessor
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
