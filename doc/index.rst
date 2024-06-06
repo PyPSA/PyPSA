@@ -142,34 +142,40 @@ Documentation
 
 
 
-
-**Help & References**
-
-* :doc:`release_notes`
-* :doc:`api_reference`
-* :doc:`troubleshooting`
-* :doc:`comparable_software`
+**Contributing & Support**
 * :doc:`contributing`
 * :doc:`support`
-* :doc:`citing`
-* :doc:`unit_testing`
+* :doc:`troubleshooting`
 * :doc:`mailing_list`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: Contributing & Support
+
+   contributing
+   support
+   troubleshooting
+   mailing_list
+
+
+**References**
+
+* :doc:`api_reference`
+* :doc:`release_notes`
+* :doc:`comparable_software`
+* :doc:`citing`
 * :doc:`users`
 * :doc:`developers`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Help & References
+   :caption: References
 
-   release_notes
    api_reference
-   troubleshooting
+   release_notes
    comparable_software
-   contributing
-   support
    citing
-   unit_testing
-   mailing_list
    users
    developers
