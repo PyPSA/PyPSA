@@ -459,14 +459,15 @@ def check_nans_for_component_default_attrs(
         The component to check.
 
     """
-    # Get non-NA default attributes for the current component
-    not_na_component_attrs = network.component_attrs[component.name][
-        network.component_attrs[component.name].replace("", np.nan)["default"].notna()
+    # Get non-NA and not-empty default attributes for the current component
+    default = network.component_attrs[component.name]["default"]
+    not_null_component_attrs = network.component_attrs[component.name][
+        default.notna() & default.ne("")
     ].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.df[
-        list(set(component.df.columns).intersection(not_na_component_attrs))
+        list(set(component.df.columns).intersection(not_null_component_attrs))
     ]
 
     # Remove attributes that are not in the component's time series data (if
@@ -474,7 +475,7 @@ def check_nans_for_component_default_attrs(
     relevant_series_dfs = [
         value
         for key, value in component.pnl.items()
-        if key in not_na_component_attrs and not value.empty
+        if key in not_null_component_attrs and not value.empty
     ]
 
     # Run the check for nan values on relevant data
