@@ -184,6 +184,8 @@ We strongly welcome anyone interested in contributing to this project. If you ha
 -   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
 -   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
+Detailed guidelines can be found in the [Contributing](https://pypsa.readthedocs.io/en/latest/contributing.html) section of our documentation.
+
 ## Code of Conduct
 
 Please respect our [code of conduct](CODE_OF_CONDUCT.md).
