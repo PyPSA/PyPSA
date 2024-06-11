@@ -21,38 +21,45 @@ classifiers=[
 
 requires-python = ">=3.9"
 
-dependencies=[
-        "numpy",
-        "scipy",
-        "pandas>=0.24",
-        "xarray",
-        "netcdf4",
-        "tables",
-        "linopy>=0.3.9",
-        "matplotlib",
-        "geopandas>=0.9",
-        "networkx>=2",
-        "deprecation",
-        "validators",
-        "highspy",
-    ]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas>=0.24",
+    "xarray",
+    "netcdf4",
+    "tables",
+    "linopy>=0.3.9",
+    "matplotlib",
+    "geopandas>=0.9",
+    "networkx>=2",
+    "deprecation",
+    "validators",
+    "highspy",
+]
 
 [project.urls]
 Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
-dev = ["pytest", "pypower", "pandapower", "scikit-learn", "ruff"]
+dev = [
+    "pytest", 
+    "pypower",
+    "pandapower",
+    "scikit-learn",
+    "pre-commit", 
+    "ruff"
+]
 cartopy = ["cartopy>=0.16"]
 docs = [
-            "numpydoc",
-            "sphinx",
-            "sphinx-book-theme",
-            "nbsphinx",
-            "nbsphinx-link",
-            "scikit-learn",
-            "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
-        ]
+    "numpydoc",
+    "sphinx",
+    "sphinx-book-theme",
+    "nbsphinx",
+    "nbsphinx-link",
+    "scikit-learn",
+    "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
+]
 gurobipy = ["gurobipy"]
 
 [tool.setuptools_scm]
