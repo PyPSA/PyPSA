@@ -27,16 +27,19 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 Code
 =====
 
-**Basic workflow**
+.. _code-contribution-workflow:
 
-#. Clone the repository: ``git clone https://github.com/PyPSA/PyPSA.git``
+**Contribution workflow in a nutshell**
+
+#. Fork the repository on GitHub
+#. Clone your fork: ``git clone https://github.com/<your-username>/PyPSA.git``
 #. Install with dependencies in editable mode: ``pip install -e .[dev]``
-#. Setup linter and formatter (see :ref:`linting-and-formatting`)
-#. Write your code
-#. Run the tests: ``pytest`` (see :ref:`testing`)
-#. Push your changes and create a pull request
+#. Setup linter and formatter, e.g ``pre-commit install`` (see :ref:`linting-and-formatting`)
+#. Write your code (preferably on a new branch)
+#. Run tests: ``pytest`` (see :ref:`testing`)
+#. Push your changes to your fork and create a pull request on GitHub
 
-.. What to work on, TODO, which issues, labeling etc. 
+.. TODO: What to work on, TODO, which issues, labeling etc. 
 
 .. _linting-and-formatting:
 
@@ -149,16 +152,16 @@ Documentation
 
 We strive to keep documentation useful and up to date for all PyPSA users. If you 
 encounter an area where documentation is not available or insufficient, we very much 
-welcome your contribution. Here is how to:
+welcome your contribution.
 
-#. Install the conda environment for documentation from the `PyPSA repository <https://github.com/PyPSA/PyPSA/blob/master/environment_docs.yml>`_.
-   (Here is `how to install a conda environment <https://pypsa-eur.readthedocs.io/en/latest/installation.html#install-python-dependencies>`_.)
+For bigger changes, we recommend to make them locally. Just follow the steps in 
+:ref:`code-contribution-workflow` to set up your local environment. In addition you can:
+
+#. Also install the documentation dependencies via ``pip install -e .[docs]``.
 #. Make your changes in the corresponding .rst file under the :file:`doc` folder.
 #. Compile your changes by running the following command in your terminal in the :file:`doc` folder: ``make html``
    
    * You may encounter some warnings, but end up with a message such as ``build succeeded, XX warnings.``. html files to review your changes can then be found under :file:`doc/_build/html`.
-
-#. Commit your changes to a new branch and create a pull request.
 
 For simple changes, you can also edit the documentation directly on GitHub:
 
