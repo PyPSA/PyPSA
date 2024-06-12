@@ -67,6 +67,15 @@ gurobipy = ["gurobipy"]
 [tool.setuptools.packages.find]
 include = ["pypsa"]
 
+# Pytest settings
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
+    # Ignore https://github.com/pydata/xarray/issues/6505 (occurs via linopy)
+    "ignore:Deleting a single level of a MultiIndex is deprecated:DeprecationWarning",
+]
+
 # Formater and linter settings
 
 [tool.black]
