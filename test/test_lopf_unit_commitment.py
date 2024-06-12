@@ -480,7 +480,7 @@ def test_dynamic_ramp_rates():
 
     static_ramp_up = 0.8
     static_ramp_down = 1
-    p_max_pu = pd.Series(1, index=n.snapshots)
+    p_max_pu = pd.Series(1, index=n.snapshots).astype(float)
     p_max_pu.loc[n.snapshots[0:6]] = 0.5  # 50% capacity outage for 6 periods
 
     n.add(
