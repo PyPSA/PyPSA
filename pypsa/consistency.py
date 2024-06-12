@@ -470,20 +470,30 @@ def check_nans_for_component_default_attrs(
         list(set(component.df.columns).intersection(not_null_component_attrs))
     ]
 
+    # Run the check for nan values on relevant static data
+    if (isna := relevant_static_df.isna().any()).any():
+        nan_cols = relevant_static_df.columns[isna]
+        logger.warning(
+            "Encountered nan's in static data for columns %s of component '%s'.",
+            nan_cols.to_list(),
+            component.name,
+        )
+
     # Remove attributes that are not in the component's time series data (if
     # there is any)
-    relevant_series_dfs = [
-        value
+    relevant_series_dfs = {
+        key: value
         for key, value in component.pnl.items()
         if key in not_null_component_attrs and not value.empty
-    ]
+    }
 
     # Run the check for nan values on relevant data
-    for values_df in [relevant_static_df] + relevant_series_dfs:
-        if values_df.isna().to_numpy().any():
-            nan_cols = values_df.columns[values_df.isna().any()]
+    for key, values_df in relevant_series_dfs.items():
+        if (isna := values_df.isna().any()).any():
+            nan_cols = values_df.columns[isna]
             logger.warning(
-                "Encountered nan's in columns %s of component '%s'.",
-                nan_cols,
+                "Encountered nan's in varying data '%s' for columns %s of component '%s'.",
+                key,
+                nan_cols.to_list(),
                 component.name,
             )
