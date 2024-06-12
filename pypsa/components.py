@@ -777,6 +777,9 @@ class Network(Basic):
         obj_df = pd.DataFrame(
             data=[static_attrs.default], index=[name], columns=static_attrs.index
         )
+
+        # Remove all NaN columns before concatenating
+        obj_df = obj_df.dropna(axis=1, how="all")
         new_df = pd.concat([cls_df, obj_df], sort=False)
 
         new_df.index.name = class_name

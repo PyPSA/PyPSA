@@ -387,7 +387,7 @@ class StatisticsAccessor:
             self.installed_capacity,
             self.supply,
             self.withdrawal,
-            self.dispatch,
+            self.energy_balance,
             self.transmission,
             self.capacity_factor,
             self.curtailment,
