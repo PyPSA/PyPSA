@@ -277,11 +277,15 @@ def optimize_security_constrained(
             **kwargs,
         )
 
-    m = n.optimize.create_model(
-        snapshots=snapshots,
-        multi_investment_periods=multi_investment_periods,
-        **model_kwargs,
-    )
+    # Allow existing constraints to carry through
+    if "model" in dir(n):
+        m = n.model
+    else:
+        m = n.optimize.create_model(
+            snapshots=snapshots,
+            multi_investment_periods=multi_investment_periods,
+            **model_kwargs,
+        )
 
     for sn in n.sub_networks.obj:
         branches_i = sn.branches_i()
@@ -302,7 +306,7 @@ def optimize_security_constrained(
             bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
             additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                constraint = c_affected + "-" + kind + "-s-" + bound
+                constraint = c_affected + "-" + kind + "-s-" + bound + "-" + str(sn)
                 if constraint not in m.constraints:
                     continue
                 lhs = m.constraints[constraint].lhs
