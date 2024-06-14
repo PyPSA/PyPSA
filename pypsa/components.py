@@ -1126,7 +1126,6 @@ class Network(Basic):
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):
-            logger.info("Creating a deep copy of the network.")
             return copy.deepcopy(self)
 
         # Setup new network
