@@ -113,6 +113,23 @@ def storage_hvdc_network():
 
 
 @pytest.fixture(scope="module")
+def all_networks(
+    ac_dc_network,
+    ac_dc_network_r,
+    ac_dc_network_multiindexed,
+    ac_dc_network_shapes,
+    storage_hvdc_network,
+):
+    return [
+        ac_dc_network,
+        # ac_dc_network_r,
+        # ac_dc_network_multiindexed,
+        # ac_dc_network_shapes,
+        # storage_hvdc_network,
+    ]
+
+
+@pytest.fixture(scope="module")
 def pandapower_custom_network():
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
