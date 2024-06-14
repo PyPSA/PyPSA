@@ -1141,8 +1141,7 @@ class Network(Basic):
         )
 
         # Copy components
-        other_comps = sorted(self.all_components - {"Bus", "Carrier"})
-        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
+        for component in self.iterate_components(self.all_components):
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
