@@ -12,15 +12,21 @@ Upcoming Release
 
 * HiGHS becomes the new default solver for ``n.optimize()``.
 
+* Add functionality to compare two networks for equality via equality operator (``==``). 
+  (https://github.com/PyPSA/PyPSA/pull/923))
+
 * Bugfix: Retain investment periods and weightings when clustering networks.
 
-* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if the bus exists and prints a warning if it does not.
+* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if 
+  the bus exists and prints a warning if it does not.
 
-* When adding bus ports on the fly with `add` methods, the dtype of the freshly created column is now fixed to `string`.
+* When adding bus ports on the fly with `add` methods, the dtype of the freshly created 
+  column is now fixed to `string`.
 
 * Add functionality to provide individual colors for lines in legend during plot.
 
-* Also check for missing values of default attributes in the `n.consistency_check()` function. (https://github.com/PyPSA/PyPSA/pull/903)
+* Also check for missing values of default attributes in the `n.consistency_check()` 
+  function. (https://github.com/PyPSA/PyPSA/pull/903)
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
