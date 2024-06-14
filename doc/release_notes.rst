@@ -13,7 +13,7 @@ Upcoming Release
 * HiGHS becomes the new default solver for ``n.optimize()``.
 
 * Add functionality to compare two networks for equality via equality operator (``==``). 
-  (https://github.com/PyPSA/PyPSA/pull/923))
+  (https://github.com/PyPSA/PyPSA/pull/924)
 
 * Bugfix: Retain investment periods and weightings when clustering networks.
 
