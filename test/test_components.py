@@ -1,4 +1,5 @@
 import copy
+import sys
 
 import numpy as np
 import pytest
@@ -186,6 +187,10 @@ def test_madd_defaults(empty_network_5_buses):
     )
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
 def test_equality_behavior(all_networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
@@ -204,6 +209,10 @@ def test_equality_behavior(all_networks):
         assert n != deep_copy
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
 def test_copy_default_behavior(all_networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
@@ -219,6 +228,10 @@ def test_copy_default_behavior(all_networks):
         assert network is not network_copy
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
 def test_copy_snapshots(all_networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
