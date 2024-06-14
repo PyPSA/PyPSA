@@ -48,11 +48,13 @@ website/examples/*.py
 *.html
 
 .vscode
+.devcontainer
 
 .idea
 
 .coverage
 
 dev-scripts
+dev
 
 .venv
