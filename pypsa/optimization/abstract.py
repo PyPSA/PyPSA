@@ -205,6 +205,15 @@ def optimize_transmission_expansion_iteratively(
 
     n.calculate_dependent_values()
     status, condition = n.optimize(snapshots, **kwargs)
+    if status != "ok":
+        msg = (
+            f"Optimization failed with status {status} and termination "
+            f"{termination_condition}"
+        )
+        labels = n.model.compute_infeasibilities()
+        logger.info(f"Labels:\n{labels}")
+        n.model.print_infeasibilities()
+        raise RuntimeError(msg)
 
     n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
     n.lines.loc[ext_i, "s_nom_extendable"] = True
