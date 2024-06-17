@@ -161,6 +161,9 @@ def optimize_transmission_expansion_iteratively(
                 f"Optimization failed with status {status} and termination "
                 f"{termination_condition}"
             )
+            labels = n.model.compute_infeasibilities()
+            logger.info(f"Labels:\n{labels}")
+            n.model.print_infeasibilities()
             raise RuntimeError(msg)
         if track_iterations:
             save_optimal_capacities(n, iteration, status)
