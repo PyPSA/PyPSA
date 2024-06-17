@@ -10,7 +10,6 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
-import linopy
 
 from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -583,12 +582,11 @@ def optimize(
     # print("------------dumped-------------")
 
     # m.to_netcdf('/home/akshat/Downloads/latest.nc')
-    
+
     status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
     print("---------------loaded------------")
-  
-    
+
     # r = linopy.read_netcdf("/home/akshat/demo-linopy/result/results.nc")
     # n.model= r
     # print(r.objective)
@@ -601,7 +599,7 @@ def optimize(
         assign_duals(n, assign_all_duals)
         post_processing(n)
 
-    return status, 'optimal'
+    return status, "optimal"
 
 
 class OptimizationAccessor:
