@@ -99,11 +99,12 @@ def test_madd_t(empty_network_5_buses):
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
+    rng = np.random.default_rng()  # Create a random number generator
     empty_network_5_buses.madd(
         "Load",
         load_names,
         bus=buses,
-        p_set=np.random.rand(len(snapshots), len(buses)),
+        p_set=rng.random(size=(len(snapshots), len(buses))),
     )
 
     assert load_names.equals(empty_network_5_buses.loads_t.p_set.columns)

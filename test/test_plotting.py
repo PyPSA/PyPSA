@@ -99,7 +99,8 @@ def test_plot_with_bus_cmap(ac_dc_network):
     n = ac_dc_network
 
     buses = n.buses.index
-    colors = pd.Series(np.random.rand(len(buses)), buses)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(buses)), buses)
     n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -108,7 +109,8 @@ def test_plot_with_line_cmap(ac_dc_network):
     n = ac_dc_network
 
     lines = n.lines.index
-    colors = pd.Series(np.random.rand(len(lines)), lines)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(lines)), lines)
     n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -139,7 +141,8 @@ def test_plot_line_subset(ac_dc_network):
     n = ac_dc_network
 
     lines = n.lines.index[:2]
-    colors = pd.Series(np.random.rand(len(lines)), lines)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(lines)), lines)
     n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -148,7 +151,8 @@ def test_plot_bus_subset(ac_dc_network):
     n = ac_dc_network
 
     buses = n.buses.index[:2]
-    colors = pd.Series(np.random.rand(len(buses)), buses)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(buses)), buses)
     n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
