@@ -285,7 +285,7 @@ def newton_raphson_sparse(
     converged = False
     n_iter = 0
     F = f(guess, **slack_args)
-    diff = norm(F, np.Inf)
+    diff = norm(F, np.inf)
 
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -295,7 +295,7 @@ def newton_raphson_sparse(
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
 
         F = f(guess, **slack_args)
-        diff = norm(F, np.Inf)
+        diff = norm(F, np.inf)
 
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
