@@ -224,10 +224,12 @@ print(n.buses.sub_network)
 
 n.lines.loc["line 2->0", "build_year"] = 2020
 
+# Create a random number generator
+rng = np.random.default_rng()
 
 # add some generators
 p_nom_max = pd.Series(
-    (np.random.uniform() for _ in range(len(n.snapshots))),
+    (rng.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="generator ext 2020",
 )
@@ -389,7 +391,7 @@ n.add(
 
 # add a Load
 load_var = pd.Series(
-    (100 * np.random.uniform() for _ in range(len(n.snapshots))),
+    (100 * rng.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="load",
 )

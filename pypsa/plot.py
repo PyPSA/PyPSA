@@ -242,9 +242,10 @@ def plot(
 
     # Plot buses:
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
@@ -988,9 +989,10 @@ def iplot(
 
     x, y = _get_coordinates(n, layouter=layouter)
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     bus_trace = dict(
         x=x,

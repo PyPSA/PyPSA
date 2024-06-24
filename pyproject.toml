@@ -22,7 +22,7 @@ classifiers=[
 requires-python = ">=3.9"
 
 dependencies = [
-    "numpy<2.0",
+    "numpy",
     "scipy",
     "pandas>=0.24",
     "xarray",
@@ -96,6 +96,7 @@ select = [
     'D',   # pydocstyle
     'UP',  # pyupgrade
     'TID', # flake8-tidy-imports
+    'NPY', # numpy
 ]
 
 ignore = [
