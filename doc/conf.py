@@ -226,10 +226,16 @@ htmlhelp_basename = "PyPSAdoc"
 # nbsphinx_kernel_name = 'pypsa'
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None).replace("nblink", "ipynb").replace("examples/", "examples/notebooks/") %}
+{% if env.config.release != 'master' %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/v' + env.config.release + '?labpath=' + docname %}
+{% else %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/' + env.config.release + '?labpath=' + docname %}
+{% endif %}
+
 .. note::
 
-    You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
-    or start it `in interactive mode <https://mybinder.org/v2/gh/PyPSA/pypsa/v{{ env.config.release|e }}?labpath={{ docname|e }}>`_.
+    You can `download <https://github.com/pypsa/pypsa/tree/{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
+    or start it `in interactive mode <{{ binder_url }}>`_.
 
 """
 
