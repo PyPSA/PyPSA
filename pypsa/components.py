@@ -1,14 +1,4 @@
-"""
-Power system components.
-"""
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
+"""Power system components."""
 
 import copy
 import logging
@@ -796,22 +786,18 @@ class Network(Basic):
 
     def add(self, class_name, name, suffix="", **kwargs):
         """
-        Add one or multiple components to the network, along with their
-        attributes.
+        Add components to the network.
+
+        Handles addition of single and multiple components along with their attributes.
+        Pass a list of names to add multiple components at once or pass a single name
+        to add a single component.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
         their index is a superset of network.snapshots and their columns are a
-        subset of names.
-
-        Any attributes which are not specified will be given the default
-        value from :doc:`components`.
-
-        #TODO needs update
-        Make sure when adding static attributes as pandas Series that they are indexed
-        by names. Make sure when adding time-varying attributes as pandas DataFrames that
-        their index is a superset of network.snapshots and their columns are a
-        subset of names.
+        subset of names. When adding multiple components, you can pass a 2D array/ DataFrame
+        for time-varying attributes, where the first dimension is snapshots and the
+        second dimension is names.
 
         Any attributes which are not specified will be given the default
         value from :doc:`components`.
@@ -821,12 +807,12 @@ class Network(Basic):
         class_name : string
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
             "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        names : string or list-like or pandas.Index
+        names : string or 1D array-like
             Component name(s)
         suffix : string, default ''
             All components are named after names with this added suffix. It
             is assumed that all Series and DataFrames are indexed by the original names.
-        kwargs
+        kwargs : Any or 1D array-like or 2D array-like
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
@@ -852,6 +838,7 @@ class Network(Basic):
         # Read kwargs into static and time-varying attributes
         series = {}
         static = {}
+
         for k, v in kwargs.items():
             # Convert list-like to pandas.Series
             if isinstance(v, (list, tuple)) or (
