@@ -538,7 +538,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        at_port=False,
+        at_port=None,
         bus_carrier=None,
         storage=False,
         nice_names=True,
@@ -560,7 +560,7 @@ class StatisticsAccessor:
 
         if storage:
             comps = ("Store", "StorageUnit")
-        if bus_carrier:
+        if bus_carrier and at_port is None:
             at_port = True
 
         @pass_empty_series_if_keyerror
@@ -592,7 +592,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        at_port=False,
+        at_port=None,
         bus_carrier=None,
         storage=False,
         nice_names=True,
@@ -614,7 +614,7 @@ class StatisticsAccessor:
 
         if storage:
             comps = ("Store", "StorageUnit")
-        if bus_carrier:
+        if bus_carrier and at_port is None:
             at_port = True
 
         @pass_empty_series_if_keyerror
@@ -646,7 +646,7 @@ class StatisticsAccessor:
         comps=None,
         aggregate_groups="sum",
         groupby=None,
-        at_port=False,
+        at_port=None,
         bus_carrier=None,
         nice_names=True,
     ):
@@ -676,6 +676,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
+        installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
         df.attrs["name"] = "Expanded Capacity"
         df.attrs["unit"] = "MW"
