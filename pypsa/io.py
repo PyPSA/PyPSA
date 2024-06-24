@@ -890,79 +890,7 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     --------
     pypsa.Network.madd
     """
-    attrs = network.components[cls_name]["attrs"]
-
-    static_attrs = attrs[attrs.static].drop("name")
-    non_static_attrs = attrs[~attrs.static]
-
-    if cls_name == "Link":
-        update_linkports_component_attrs(network, where=dataframe)
-
-    # Clean dataframe and ensure correct types
-    dataframe = pd.DataFrame(dataframe)
-    dataframe.index = dataframe.index.astype(str)
-
-    # Fill nan values with default values
-    dataframe = dataframe.fillna(attrs["default"].to_dict())
-
-    for k in static_attrs.index:
-        if k not in dataframe.columns:
-            dataframe[k] = static_attrs.at[k, "default"]
-        else:
-            if static_attrs.at[k, "type"] == "string":
-                dataframe[k] = dataframe[k].replace({np.nan: ""})
-            if static_attrs.at[k, "type"] == "int":
-                dataframe[k] = dataframe[k].fillna(0)
-            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
-                if static_attrs.at[k, "type"] == "geometry":
-                    geometry = dataframe[k].replace({"": None, np.nan: None})
-                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
-                else:
-                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
-
-    # check all the buses are well-defined
-    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
-        # allow empty buses for multi-ports
-        port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~dataframe[attr].isin(network.buses.index)
-        if port > 1:
-            mask &= dataframe[attr].ne("")
-        missing = dataframe.index[mask]
-        if len(missing) > 0:
-            logger.warning(
-                "The following %s have buses which are not defined:\n%s",
-                cls_name,
-                missing,
-            )
-
-    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
-    old_df = network.df(cls_name)
-    new_df = dataframe.drop(non_static_attrs_in_df, axis=1)
-    if not old_df.empty:
-        new_df = pd.concat((old_df, new_df), sort=False)
-
-    if not new_df.index.is_unique:
-        logger.error(f"Error, new components for {cls_name} are not unique")
-        return
-
-    if cls_name == "Shape":
-        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
-
-    new_df.index.name = cls_name
-    setattr(network, network.components[cls_name]["list_name"], new_df)
-
-    # now deal with time-dependent properties
-
-    pnl = network.pnl(cls_name)
-
-    for k in non_static_attrs_in_df:
-        # If reading in outputs, fill the outputs
-        pnl[k] = pnl[k].reindex(
-            columns=new_df.index, fill_value=non_static_attrs.at[k, "default"]
-        )
-        pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
-
-    setattr(network, network.components[cls_name]["list_name"] + "_t", pnl)
+    _import_components_from_dataframe(network, dataframe, cls_name)
 
 
 @deprecated(
@@ -1003,47 +931,7 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
 
     --------
     """
-    df = network.df(cls_name)
-    pnl = network.pnl(cls_name)
-    list_name = network.components[cls_name]["list_name"]
-
-    dataframe.columns.name = cls_name
-    dataframe.index.name = "snapshot"
-    diff = dataframe.columns.difference(df.index)
-    if len(diff) > 0:
-        logger.warning(
-            f"Components {diff} for attribute {attr} of {cls_name} "
-            f"are not in main components dataframe {list_name}"
-        )
-
-    attrs = network.components[cls_name]["attrs"]
-    expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
-    if attr not in expected_attrs:
-        pnl[attr] = dataframe
-        return
-
-    attr_series = attrs.loc[attr]
-    default = attr_series.default
-    columns = dataframe.columns
-
-    diff = network.snapshots.difference(dataframe.index)
-    if len(diff):
-        logger.warning(
-            f"Snapshots {diff} are missing from {attr} of {cls_name}."
-            f" Filling with default value '{default}'"
-        )
-        dataframe = dataframe.reindex(network.snapshots, fill_value=default)
-
-    if not attr_series.static:
-        pnl[attr] = pnl[attr].reindex(
-            columns=df.index.union(columns), fill_value=default
-        )
-    else:
-        pnl[attr] = pnl[attr].reindex(columns=(pnl[attr].columns.union(columns)))
-
-    pnl[attr].loc[network.snapshots, columns] = dataframe.loc[
-        network.snapshots, columns
-    ]
+    _import_series_from_dataframe(network, dataframe, cls_name, attr)
 
 
 def _import_components_from_dataframe(network, dataframe, cls_name):
