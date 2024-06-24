@@ -17,7 +17,7 @@ def empty_network_5_buses():
     return network
 
 
-def test_mremove(ac_dc_network):
+def test_remove(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -30,7 +30,7 @@ def test_mremove(ac_dc_network):
 
     generators = {"Manchester Wind", "Frankfurt Wind"}
 
-    network.mremove("Generator", generators)
+    network.remove("Generator", generators)
 
     assert not generators.issubset(network.generators.index)
     assert not generators.issubset(network.generators_t.p_max_pu.columns)
@@ -48,15 +48,15 @@ def test_mremove_misspelled_component(ac_dc_network, caplog):
     network = ac_dc_network
 
     with pytest.raises(ValueError):
-        network.mremove("Liness", ["0", "1"])
+        network.remove("Liness", ["0", "1"])
 
 
-def test_madd_static(empty_network_5_buses):
+def test_multiple_add_static(empty_network_5_buses):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
     WHEN    multiple components of Load are added to the network with
-    madd and attribute p_set
+    add and attribute p_set
 
     THEN    the corresponding load components should be in the index of
     the static load dataframe. Also the column p_set should contain any
@@ -66,7 +66,7 @@ def test_madd_static(empty_network_5_buses):
 
     # Add load components at every bus with attribute p_set.
     load_names = "load_" + buses
-    empty_network_5_buses.madd(
+    empty_network_5_buses.add(
         "Load",
         load_names,
         bus=buses,
@@ -77,12 +77,12 @@ def test_madd_static(empty_network_5_buses):
     assert (empty_network_5_buses.loads.p_set == 3).all()
 
 
-def test_madd_t(empty_network_5_buses):
+def test_multiple_add_t(empty_network_5_buses):
     """
     GIVEN   an empty PyPSA network with 5 buses and 7 snapshots.
 
     WHEN    multiple components of Load are added to the network with
-    madd and attribute p_set
+    add and attribute p_set
 
     THEN    the corresponding load components should be in the columns
     of the time-dependent load_t dataframe. Also, the shape of the
@@ -96,7 +96,7 @@ def test_madd_t(empty_network_5_buses):
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
     rng = np.random.default_rng()  # Create a random number generator
-    empty_network_5_buses.madd(
+    empty_network_5_buses.add(
         "Load",
         load_names,
         bus=buses,
@@ -107,7 +107,7 @@ def test_madd_t(empty_network_5_buses):
     assert empty_network_5_buses.loads_t.p_set.shape == (len(snapshots), len(buses))
 
 
-def test_madd_misspelled_component(empty_network_5_buses, caplog):
+def test_multiple_add_misspelled_component(empty_network_5_buses, caplog):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
@@ -118,14 +118,14 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     """
     misspelled_component = "Generatro"
     with pytest.raises(ValueError):
-        empty_network_5_buses.madd(
+        empty_network_5_buses.add(
             misspelled_component,
             ["g_1", "g_2"],
             bus=["bus_1", "bus_2"],
         )
 
 
-def test_madd_duplicated_index(empty_network_5_buses, caplog):
+def test_multiple_add_duplicated_index(empty_network_5_buses, caplog):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
@@ -133,7 +133,7 @@ def test_madd_duplicated_index(empty_network_5_buses, caplog):
 
     THEN    the function should fail and an error should be logged.
     """
-    empty_network_5_buses.madd(
+    empty_network_5_buses.add(
         "Generator",
         ["g_1", "g_1"],
         bus=["bus_1", "bus_2"],
@@ -145,24 +145,24 @@ def test_madd_duplicated_index(empty_network_5_buses, caplog):
     )
 
 
-def test_madd_defaults(empty_network_5_buses):
+def test_multiple_add_defaults(empty_network_5_buses):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
-    WHEN    adding multiple components of Generator and Load with madd
+    WHEN    adding multiple components of Generator and Load with add
 
     THEN    the defaults should be set correctly according to
     n.component_attrs.
     """
     gen_names = ["g_1", "g_2"]
-    empty_network_5_buses.madd(
+    empty_network_5_buses.add(
         "Generator",
         gen_names,
         bus=["bus_1", "bus_2"],
     )
 
     line_names = ["l_1", "l_2"]
-    empty_network_5_buses.madd(
+    empty_network_5_buses.add(
         "Load",
         line_names,
         bus=["bus_1", "bus_2"],
@@ -241,7 +241,7 @@ def test_copy_snapshots(all_networks):
         assert copied_network == network
 
 
-def test_add_network_static(ac_dc_network, empty_network_5_buses):
+def test_single_add_network_static(ac_dc_network, empty_network_5_buses):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
     buses.
@@ -257,7 +257,7 @@ def test_add_network_static(ac_dc_network, empty_network_5_buses):
     assert new_buses.issuperset(empty_network_5_buses.buses.index)
 
 
-def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
+def test_single_add_network_with_time(ac_dc_network, empty_network_5_buses):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
     buses and the same snapshots.

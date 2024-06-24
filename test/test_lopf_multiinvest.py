@@ -21,11 +21,11 @@ def n():
     n = pypsa.Network(snapshots=range(10))
     n.investment_periods = [2020, 2030, 2040, 2050]
     n.add("Carrier", "gencarrier")
-    n.madd("Bus", [1, 2])
+    n.add("Bus", [1, 2])
 
     for i, period in enumerate(n.investment_periods):
         factor = (10 + i) / 10
-        n.madd(
+        n.add(
             "Generator",
             [f"gen1-{period}", f"gen2-{period}"],
             bus=[1, 2],
@@ -53,7 +53,7 @@ def n():
 
     load = range(100, 100 + len(n.snapshots))
     load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
-    n.madd(
+    n.add(
         "Load",
         ["load1", "load2"],
         bus=[1, 2],
@@ -67,7 +67,7 @@ def n():
 def n_sus(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.mremove("Generator", n.generators.query('bus == "1"').index)
+    n.remove("Generator", n.generators.query('bus == "1"').index)
     n.generators.capital_cost *= 5
 
     for i, period in enumerate(n.investment_periods):
@@ -89,7 +89,7 @@ def n_sus(n):
 def n_sts(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.mremove("Generator", n.generators.query('bus == "1"').index)
+    n.remove("Generator", n.generators.query('bus == "1"').index)
     n.generators.capital_cost *= 5
 
     n.add("Bus", "1 battery")

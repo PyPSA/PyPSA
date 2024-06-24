@@ -421,7 +421,7 @@ def test_link_unit_commitment():
 
     n.set_snapshots(snapshots)
 
-    n.madd("Bus", ["gas", "electricity"])
+    n.add("Bus", ["gas", "electricity"])
 
     n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
 

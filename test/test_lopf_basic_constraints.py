@@ -233,7 +233,7 @@ def test_optimization_with_strongly_meshed_bus():
     n.add("Load", "load", bus="bus", p_set=1)
 
     n.add("Bus", "bus2")
-    n.madd("Generator", pd.RangeIndex(50), bus="bus2", p_nom=1, marginal_cost=10)
+    n.add("Generator", pd.RangeIndex(50), bus="bus2", p_nom=1, marginal_cost=10)
     n.add("Load", "load2", bus="bus2", p_set=1)
 
     n.add("Line", "line", bus0="bus", bus1="bus2", s_nom=1)

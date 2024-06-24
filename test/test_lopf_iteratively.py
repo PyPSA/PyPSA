@@ -4,7 +4,7 @@ import pypsa
 def test_optimize_post_discretization():
     n = pypsa.Network()
 
-    n.madd("Bus", ["a", "b", "c"], v_nom=380.0)
+    n.add("Bus", ["a", "b", "c"], v_nom=380.0)
     n.add("Generator", "generator", bus="a", p_nom=900.0, marginal_cost=10.0)
     n.add("Load", "load", bus="c", p_set=900.0)
     n.add(
