@@ -5,9 +5,9 @@ import logging
 import os
 import warnings
 from collections import namedtuple
-from collections.abc import Collection
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 from weakref import ref
 
 import geopandas as gpd
@@ -784,7 +784,13 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
-    def add(self, class_name, name, suffix="", **kwargs):
+    def add(
+        self,
+        class_name: str,
+        name: Union[str, int, Sequence[Union[int, str]]],
+        suffix: str = "",
+        **kwargs,
+    ):
         """
         Add components to the network.
 
@@ -840,21 +846,19 @@ class Network(Basic):
         static = {}
 
         for k, v in kwargs.items():
-            # Convert list-like to pandas.Series
+            # Convert list-like and 1D array to pandas.Series
             if isinstance(v, (list, tuple)) or (
                 isinstance(v, np.ndarray) and v.ndim == 1
             ):
                 v = pd.Series(v)
-
-            # Convert nested list-like to pandas.DataFrame
+            # Convert 2D array to pandas.DataFrame
             if isinstance(v, np.ndarray):
-                # TODO: This could also included nested lists/tuples
                 if v.shape == (len(self.snapshots), len(names)):
                     v = pd.DataFrame(v, index=self.snapshots, columns=names)
                 else:
                     msg = (
                         f"Array {k} has shape {v.shape} but expected "
-                        f"({len(self.snapshots)}, {len(names)})"
+                        f"({len(self.snapshots)}, {len(names)})."
                     )
                     raise ValueError(msg)
 
@@ -868,14 +872,15 @@ class Network(Basic):
             # Read Series data as static attribute
             elif isinstance(v, pd.Series) and len(v) == len(names):
                 static[k] = v.values
-                # TODO: needs warning because it is not clear if it is a static or
-                #  time-varying attribute. Previously in madd, it was assumed that it
-                #  is a static attribute
+                logger.warning(
+                    'Series data for attribute "%s" is assumed to be static. '
+                    "If it is time-varying, pass it as a DataFrame.",
+                    k,
+                )
             # Read any not sequential data as static attribute
             else:
                 static[k] = v
 
-        # TODO also rewirte import components functions
         # Load static attributes as components
         if static:
             static_df = pd.DataFrame(static, index=names)
@@ -892,7 +897,7 @@ class Network(Basic):
     def remove(
         self,
         class_name: str,
-        name: Union[str, int, Collection[Union[int, str]], pd.Index],
+        name: Union[str, int, Sequence[Union[int, str]]],
         suffix: str = "",
     ):
         """
@@ -1056,10 +1061,10 @@ class Network(Basic):
 
     def copy(
         self,
-        snapshots: Collection = None,
-        investment_periods: Collection = None,
+        snapshots: Optional[Sequence] = None,
+        investment_periods: Optional[Sequence] = None,
         ignore_standard_types: bool = False,
-        with_time: bool = None,
+        with_time: Optional[bool] = None,
     ):
         """
         Returns a deep copy of Network object.
@@ -1115,7 +1120,7 @@ class Network(Basic):
             )
             snapshots = []
 
-        if not isinstance(snapshots, (Collection)):
+        if not isinstance(snapshots, (Sequence)):
             warnings.warn(
                 f"Argument 'snapshots' should be a collection, got {type(snapshots)}"
                 f"instead. This will raise an error in a future version.",
