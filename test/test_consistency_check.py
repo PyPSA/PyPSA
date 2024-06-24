@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Fri Sep 23 10:37:48 2022.
 
@@ -21,6 +20,7 @@ def consistent_network():
     n.add("Bus", "two")
     n.add("Generator", "gen_one", bus="one", p_nom_max=10)
     n.add("Line", "line_one", bus0="one", bus1="two", x=0.01, r=0.01)
+    n.add("Carrier", "AC")
     return n
 
 
@@ -66,3 +66,9 @@ def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog):
     n.consistency_check()
     assert caplog.records[-1].levelname == "WARNING"
     assert caplog.records[-1].message.startswith("The following shapes")
+
+
+def test_unknown_carriers(consistent_network, caplog):
+    consistent_network.add("Generator", "wind", bus="hub", carrier="wind")
+    consistent_network.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"

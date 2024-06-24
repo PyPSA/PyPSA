@@ -1,0 +1,125 @@
+name: Tests
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+  schedule:
+  - cron: "0 5 * * TUE"
+
+jobs:
+
+  test-with-pypi:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - 3.9
+        - "3.10"
+        - "3.11"
+        - "3.12"
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+    env:
+      MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
+
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
+      run: git fetch --prune --unshallow
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install macos dependencies
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install hdf5
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install flake8 pytest
+        pip install .[dev]
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Test with pytest
+      run: |
+        pytest
+
+
+  test-with-micromamba:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 3
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+    env:
+      MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
+      run: git fetch --prune --unshallow
+
+    - name: Setup micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        micromamba-version: latest
+        environment-file: environment_dev.yaml
+        log-level: debug
+        init-shell: bash
+          # ensure up-to-date environment with clean PyPSA dev installation
+        cache-environment: false
+        cache-downloads: true
+
+    - name: Print installed dependencies
+      run: |
+        micromamba list
+
+    - name: Install remaining packages
+      run: |
+        pip install pypower "pandapower>=2.0"
+
+    - name: Install PyPSA commit
+      run: |
+        pip install --no-cache-dir --no-deps -e .
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Test with pytest
+      run: |
+        pytest --cov=./ --cov-report=xml
+
+      # Could be moved to a separate job
+    - name: Upload code coverage report
+      if: matrix.os == 'ubuntu-latest'
+      uses: codecov/codecov-action@v3

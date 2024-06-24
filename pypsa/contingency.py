@@ -1,15 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for contingency analysis, such as branch outages.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 import logging
 from collections.abc import Iterable

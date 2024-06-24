@@ -1,16 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Functions for importing and exporting data.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 
 import json
 import logging
@@ -59,7 +49,7 @@ def _retrieve_from_url(path):
     return str(local_path)
 
 
-class ImpExper(object):
+class ImpExper:
     ds = None
 
     def __enter__(self):
@@ -307,12 +297,12 @@ if has_xarray:
 
         def __enter__(self):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__init__()
+                super().__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
+                super().__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
             return {
@@ -557,7 +547,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         Skip reading in time dependent attributes
 
     Examples
-    ----------
+    --------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
     basename = Path(csv_folder_name).name
@@ -1011,7 +1001,6 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     ...                 "Generator",
     ...                 "p_max_pu")
 
-    See Also
     --------
     """
     df = network.df(cls_name)
@@ -1702,8 +1691,8 @@ def import_from_pandapower_net(
         network.remove("Bus", i)
 
     for c in network.iterate_components({"Load", "Generator", "ShuntImpedance"}):
-        c.df.bus.replace(to_replace, inplace=True)
+        c.df.replace({"bus": to_replace}, inplace=True)
 
     for c in network.iterate_components({"Line", "Transformer"}):
-        c.df.bus0.replace(to_replace, inplace=True)
-        c.df.bus1.replace(to_replace, inplace=True)
+        c.df.replace({"bus0": to_replace}, inplace=True)
+        c.df.replace({"bus1": to_replace}, inplace=True)

@@ -1,15 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Descriptors for component attributes.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 import logging
 import re
@@ -41,9 +32,7 @@ class Dict(dict):
         Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
-            raise AttributeError(
-                "'Dict' object attribute " "'{0}' is read-only".format(name)
-            )
+            raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
         self[name] = value
 
     def __getattr__(self, item):

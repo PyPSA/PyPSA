@@ -41,8 +41,9 @@ Non-free software
 - Neplan
 - PowerWorld
 - INTEGRAL
-- `PLEXOS <http://energyexemplar.com/software/plexos-desktop-edition/>`_
-
+- `PLEXOS <https://www.energyexemplar.com/plexos>`_
+- `BID3 <https://afry.com/en/service/bid3-power-market-modelling>`_
+- `EMPS <https://www.sintef.no/en/software/emps-multi-area-power-market-simulator/>`_
 
 Comparison with selected packages
 ===================================

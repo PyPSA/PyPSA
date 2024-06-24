@@ -1,15 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Functions for plotting networks.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 import logging
 
@@ -251,9 +242,10 @@ def plot(
 
     # Plot buses:
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
@@ -499,8 +491,8 @@ def get_projection_from_crs(crs):
         )
     except ValueError:
         logger.warning(
-            "'{crs}' does not define a projected coordinate system. "
-            "Falling back to latlong.".format(crs=crs)
+            f"'{crs}' does not define a projected coordinate system. "
+            "Falling back to latlong."
         )
         return ccrs.PlateCarree()
 
@@ -601,7 +593,7 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
+def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     """
     Add a legend for lines and links.
 
@@ -612,6 +604,8 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
         Size of the line reference; for example [3, 2, 1]
     labels : list-like, str
         Label of the line reference; for example ["30 GW", "20 GW", "10 GW"]
+    colors: list-like, str
+        Color of the line reference; for example ["red, "green", "blue"]
     patch_kw : defaults to {}
         Keyword arguments passed to plt.Line2D
     legend_kw : defaults to {}
@@ -619,12 +613,22 @@ def add_legend_lines(ax, sizes, labels, patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
+    colors = np.atleast_1d(colors)
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
         raise ValueError(msg)
+    elif len(colors) > 0 and len(sizes) != len(colors):
+        msg = "Sizes, labels, and colors must have the same length."
+        raise ValueError(msg)
 
-    handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    if len(colors) == 0:
+        handles = [plt.Line2D([0], [0], linewidth=s, **patch_kw) for s in sizes]
+    else:
+        handles = [
+            plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw)
+            for s, c in zip(sizes, colors)
+        ]
 
     legend = ax.legend(handles, labels, **legend_kw)
 
@@ -811,6 +815,7 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
     --------
     >>> autogenerate_coordinates(network)
     >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+
     """
     G = n.graph()
 
@@ -984,9 +989,10 @@ def iplot(
 
     x, y = _get_coordinates(n, layouter=layouter)
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     bus_trace = dict(
         x=x,

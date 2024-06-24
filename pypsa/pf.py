@@ -1,15 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Power flow functionality.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 import logging
 import time
@@ -21,15 +12,19 @@ import pandas as pd
 from numpy import ones, r_
 from numpy.linalg import norm
 from pandas.api.types import is_list_like
-from scipy.sparse import csc_matrix, csr_matrix, dok_matrix
+from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
-from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import Dict, additional_linkports, allocate_series_dataframes
+from pypsa.descriptors import (
+    Dict,
+    additional_linkports,
+    allocate_series_dataframes,
+    update_linkports_component_attrs,
+    zsum,
+)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import update_linkports_component_attrs, zsum
 
 pd.Series.zsum = zsum
 logger = logging.getLogger(__name__)
@@ -290,7 +285,7 @@ def newton_raphson_sparse(
     converged = False
     n_iter = 0
     F = f(guess, **slack_args)
-    diff = norm(F, np.Inf)
+    diff = norm(F, np.inf)
 
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -300,7 +295,7 @@ def newton_raphson_sparse(
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
 
         F = f(guess, **slack_args)
-        diff = norm(F, np.Inf)
+        diff = norm(F, np.inf)
 
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -1486,28 +1481,24 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # set the power injection at each node
     network.buses_t.p.loc[snapshots, buses_o] = sum(
-        (
-            [
-                (
-                    (c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                    .T.groupby(c.df.loc[c.ind, "bus"])
-                    .sum()
-                    .T.reindex(columns=buses_o, fill_value=0.0)
-                )
-                for c in sub_network.iterate_components(network.one_port_components)
-            ]
-            + [
-                -c.pnl[f"p{str(i)}"]
-                .loc[snapshots]
-                .T.groupby(c.df[f"bus{str(i)}"])
+        [
+            (
+                (c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
+                .T.groupby(c.df.loc[c.ind, "bus"])
                 .sum()
-                .T.reindex(columns=buses_o, fill_value=0)
-                for c in network.iterate_components(
-                    network.controllable_branch_components
-                )
-                for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
-            ]
-        )
+                .T.reindex(columns=buses_o, fill_value=0.0)
+            )
+            for c in sub_network.iterate_components(network.one_port_components)
+        ]
+        + [
+            -c.pnl[f"p{str(i)}"]
+            .loc[snapshots]
+            .T.groupby(c.df[f"bus{str(i)}"])
+            .sum()
+            .T.reindex(columns=buses_o, fill_value=0)
+            for c in network.iterate_components(network.controllable_branch_components)
+            for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
+        ]
     )
 
     if not skip_pre and len(branches_i) > 0:

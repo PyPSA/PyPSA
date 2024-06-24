@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Power system components.
 """
@@ -10,23 +9,43 @@ __copyright__ = (
     "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
-import logging
-from weakref import ref
-from pypsa.clustering import ClusteringAccessor
-import os
-from collections import namedtuple
-from pathlib import Path
-from typing import List, Union
 
-from deprecation import deprecated
+import copy
+import logging
+import os
+import warnings
+from collections import namedtuple
+from collections.abc import Collection
+from pathlib import Path
+from typing import Union
+from weakref import ref
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
+from pypsa.clustering import ClusteringAccessor
+from pypsa.consistency import (
+    check_assets,
+    check_dtypes_,
+    check_for_disconnected_buses,
+    check_for_unknown_buses,
+    check_for_unknown_carriers,
+    check_for_zero_impedances,
+    check_for_zero_s_nom,
+    check_generators,
+    check_investment_periods,
+    check_nans_for_component_default_attrs,
+    check_shapes,
+    check_static_power_attributes,
+    check_time_series,
+    check_time_series_power_attributes,
+)
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
@@ -70,6 +89,7 @@ from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -96,10 +116,8 @@ for component in components.index:
 del component
 
 
-class Basic(object):
-    """
-    Common to every object.
-    """
+class Basic:
+    """Common to every object."""
 
     name = ""
 
@@ -111,9 +129,7 @@ class Basic(object):
 
 
 class Common(Basic):
-    """
-    Common to all objects inside Network object.
-    """
+    """Common to all objects inside Network object."""
 
     network = None
 
@@ -163,6 +179,7 @@ class Network(Basic):
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
+
     """
 
     _crs = CRS.from_epsg(4326)
@@ -232,7 +249,7 @@ class Network(Basic):
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import __version__ as pypsa_version
+        from pypsa import release_version as pypsa_version
 
         Basic.__init__(self, name)
 
@@ -369,13 +386,60 @@ class Network(Basic):
             content += " none"
         content += "\n"
         content += f"Snapshots: {len(self.snapshots)}"
+
         return header + content
 
     def __add__(self, other):
-        """
-        Merge all components of two networks.
-        """
+        """Merge all components of two networks."""
         self.merge(other)
+
+    def __eq__(self, other):
+        """Check for equality of two networks."""
+
+        def equals(a, b):
+            assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+            # Classes with equality methods
+            if isinstance(a, np.ndarray):
+                if not np.array_equal(a, b):
+                    return False
+            elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+                if not a.equals(b):
+                    return False
+            # Iterators
+            elif isinstance(a, (dict, Dict)):
+                for k, v in a.items():
+                    if not equals(v, b[k]):
+                        return False
+            elif isinstance(a, (list, tuple)):
+                for i, v in enumerate(a):
+                    if not equals(v, b[i]):
+                        return False
+            # Ignore for now
+            elif isinstance(
+                value, (OptimizationAccessor, ClusteringAccessor, StatisticsAccessor)
+            ):
+                pass
+            # Nans
+            elif pd.isna(a) and pd.isna(b):
+                pass
+            else:
+                if a != b:
+                    return False
+
+            return True
+
+        if isinstance(other, self.__class__):
+            for key, value in self.__dict__.items():
+                if not equals(value, other.__dict__[key]):
+                    return False
+        else:
+            logger.warning(
+                "Can only compare two pypsa.Network objects with each other. Got %s.",
+                type(other),
+            )
+
+            return False
+        return True
 
     def _build_dataframes(self):
         """
@@ -441,6 +505,7 @@ class Network(Basic):
         Returns
         -------
         pandas.DataFrame
+
         """
         return getattr(self, self.components[component_name]["list_name"])
 
@@ -456,14 +521,13 @@ class Network(Basic):
         Returns
         -------
         dict of pandas.DataFrame
+
         """
         return getattr(self, self.components[component_name]["list_name"] + "_t")
 
     @property
     def meta(self):
-        """
-        Dictionary of the network meta data.
-        """
+        """Dictionary of the network meta data."""
         return self._meta
 
     @meta.setter
@@ -474,9 +538,7 @@ class Network(Basic):
 
     @property
     def crs(self):
-        """
-        Coordinate reference system of the network's geometries (n.shapes).
-        """
+        """Coordinate reference system of the network's geometries (n.shapes)."""
         return self._crs
 
     @crs.setter
@@ -519,18 +581,20 @@ class Network(Basic):
 
     def set_snapshots(
         self,
-        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        snapshots: Union[list, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
         default_snapshot_weightings: float = 1.0,
         weightings_from_timedelta: bool = False,
     ) -> None:
         """
         Set the snapshots/time steps and reindex all time-dependent data.
 
-        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
-        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+        Snapshot weightings, typically representing the hourly length of each snapshot,
+        is filled with the `default_snapshot_weighintgs` value, or uses the timedelta
+        of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are
+        of type `pd.DatetimeIndex`.
 
-        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
-        with the default value for that quantity.
+        This will reindex all components time-dependent DataFrames
+        (:role:`Network.pnl`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------
@@ -544,6 +608,7 @@ class Network(Basic):
         Returns
         -------
         None
+
         """
         if isinstance(snapshots, pd.MultiIndex):
             if snapshots.nlevels != 2:
@@ -554,6 +619,9 @@ class Network(Basic):
             self._snapshots = snapshots
         else:
             self._snapshots = pd.Index(snapshots, name="snapshot")
+
+        if len(self._snapshots) == 0:
+            raise ValueError("Snapshots must not be empty.")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=default_snapshot_weightings
@@ -579,11 +647,15 @@ class Network(Basic):
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
 
-            for k, default in attrs.default[attrs.varying].items():
+            for k in pnl.keys():
                 if pnl[k].empty:  # avoid expensive reindex operation
                     pnl[k].index = self._snapshots
+                elif k in attrs.default[attrs.varying]:
+                    pnl[k] = pnl[k].reindex(
+                        self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                    )
                 else:
-                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
+                    pnl[k] = pnl[k].reindex(self._snapshots)
 
         # NB: No need to rebind pnl to self, since haven't changed it
 
@@ -637,6 +709,7 @@ class Network(Basic):
         Returns
         -------
         None.
+
         """
         periods = pd.Index(periods)
         if not (
@@ -667,9 +740,8 @@ class Network(Basic):
             names = ["period", "timestep"]
             for component in self.all_components:
                 pnl = self.pnl(component)
-                attrs = self.components[component]["attrs"]
 
-                for k, default in attrs.default[attrs.varying].items():
+                for k in pnl.keys():
                     pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
                     pnl[k].index.name = "snapshot"
 
@@ -759,9 +831,15 @@ class Network(Basic):
             of pandas.DataFrame for time-varying
 
         Returns
-        --------
+        -------
         new_names : pandas.index
             Names of new components (including suffix)
+
+        Examples
+        --------
+        >>> network.add("Bus", "my_bus_0")
+        >>> network.add("Bus", "my_bus_1", v_nom=380)
+        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
         """
         if class_name not in self.components:
             msg = f"Component class {class_name} not found"
@@ -827,7 +905,7 @@ class Network(Basic):
     def remove(
         self,
         class_name: str,
-        name: Union[str, int, List[Union[int, str]], pd.Index],
+        name: Union[str, int, Collection[Union[int, str]], pd.Index],
         suffix: str = "",
     ):
         """
@@ -902,13 +980,12 @@ class Network(Basic):
             of pandas.DataFrame for time-varying
 
         Returns
-        --------
+        -------
         new_names : pandas.index
             Names of new components (including suffix)
 
         Examples
         --------
-
         Short Example:
 
         >>> network.madd("Load", ["load 1", "load 2"],
@@ -940,6 +1017,7 @@ class Network(Basic):
         ...        p_nom_extendable=True,
         ...        capital_cost=1e5,
         ...        p_max_pu=wind)
+
         """
         return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
@@ -968,6 +1046,7 @@ class Network(Basic):
         Examples
         --------
         >>> network.mremove("Line", ["line x", "line y"])
+
         """
         self.remove(class_name=class_name, name=names)
 
@@ -990,33 +1069,79 @@ class Network(Basic):
 
     def copy(
         self,
-        with_time=True,
-        snapshots=None,
-        investment_periods=None,
-        ignore_standard_types=False,
+        snapshots: Collection = None,
+        investment_periods: Collection = None,
+        ignore_standard_types: bool = False,
+        with_time: bool = None,
     ):
         """
-        Returns a deep copy of the Network object with all components and time-
-        dependent data.
+        Returns a deep copy of Network object.
 
-        Returns
-        --------
-        network : pypsa.Network
+        If only default arguments are passed, the copy will be created via
+        :func:`copy.deepcopy` and will contain all components and time-varying data.
+        For most networks this is the fastest way. However, if the network is very
+        large, it might be better to filter snapshots and investment periods to reduce
+        the size of the copy. In this case :func:`copy.deepcopy` is not used and only
+        the selected snapshots and investment periods are copied to a new object.
+
 
         Parameters
         ----------
-        with_time : boolean, default True
-            Copy snapshots and time-varying network.component_names_t data too.
-        snapshots : list or index slice
-            A list of snapshots to copy, must be a subset of
-            network.snapshots, defaults to network.snapshots
+        snapshots : list or index slice , default self.snapshots
+            A list of snapshots to copy, must be a subset of network.snapshots. Pass
+            an empty list ignore all snapshots.
+        investment_periods : list or index slice, default self.investment_period_weightings.index
+            A list of investment periods to copy, must be a subset of network.investment_periods. Pass
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
+        with_time : boolean, default True
+            Copy snapshots and time-varying network.component_names_t data too.
+
+            .. deprecated:: 0.29.0
+              Will be removed in a future version. Pass an empty list to 'snapshots'
+              instead.
+
+        Returns
+        -------
+        network : pypsa.Network
+            The copied network object.
 
         Examples
         --------
         >>> network_copy = network.copy()
+
         """
+
+        # Set default arguments
+        if snapshots is None:
+            snapshots = self.snapshots
+        if investment_periods is None:
+            investment_periods = self.investment_period_weightings.index
+
+        # Deprecation warnings
+        if with_time is not None:
+            warnings.warn(
+                "Argument 'with_time' is deprecated in 0.29 and will be "
+                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            snapshots = []
+
+        if not isinstance(snapshots, (Collection)):
+            warnings.warn(
+                f"Argument 'snapshots' should be a collection, got {type(snapshots)}"
+                f"instead. This will raise an error in a future version.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        # Use copy.deepcopy if no arguments are passed
+        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        if all(arg is None or arg is False for arg in args):
+            return copy.deepcopy(self)
+
+        # Setup new network
         (
             override_components,
             override_component_attrs,
@@ -1028,10 +1153,9 @@ class Network(Basic):
             override_component_attrs=override_component_attrs,
         )
 
-        other_comps = sorted(self.all_components - {"Bus", "Carrier"})
-        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
-            df = component.df
-            # drop the standard types to avoid them being read in twice
+        # Copy components
+        for component in self.iterate_components(self.all_components):
+            # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
                 and component.name in self.standard_type_components
@@ -1039,29 +1163,49 @@ class Network(Basic):
                 df = component.df.drop(
                     network.components[component.name]["standard_types"].index
                 )
+            else:
+                df = component.df
 
             _import_components_from_dataframe(network, df, component.name)
 
-        if with_time:
-            if snapshots is None:
-                snapshots = self.snapshots
-            if investment_periods is None:
-                investment_periods = self.investment_period_weightings.index
+        # Copy time-varying data, if given
+
+        if len(snapshots) > 0:
             network.set_snapshots(snapshots)
-            if not investment_periods.empty:
-                network.set_investment_periods(investment_periods)
+            # Apply time-varying data
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name + "_t")
                 for k in component.pnl.keys():
-                    pnl[k] = component.pnl[k].loc[snapshots].copy()
+                    try:
+                        pnl[k] = component.pnl[k].loc[snapshots].copy()
+                    except KeyError:
+                        pnl[k] = component.pnl[k].reindex(snapshots).copy()
+
+            # Apply investment periods
+            if not investment_periods.empty:
+                network.set_investment_periods(investment_periods)
+
+            # Add weightings
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
             network.investment_period_weightings = (
                 self.investment_period_weightings.loc[investment_periods].copy()
             )
 
-        # catch all remaining attributes of network
-        for attr in ["name", "srid"]:
-            setattr(network, attr, getattr(self, attr))
+        # Catch all remaining attributes of network
+        for attr in [
+            "name",
+            "srid",
+            "_meta",
+            "_linearized_uc",
+            "_multi_invest",
+            "objective",
+            "objective_constant",
+            "now",
+        ]:
+            try:
+                setattr(network, attr, getattr(self, attr))
+            except AttributeError:
+                pass
 
         return network
 
@@ -1080,7 +1224,7 @@ class Network(Basic):
             one buses.
 
         Returns
-        --------
+        -------
         network : pypsa.Network
 
         Examples
@@ -1088,6 +1232,7 @@ class Network(Basic):
         >>> sub_network_0 = network[network.buses.sub_network = "0"]
 
         >>> sub_network_0_with_only_10_snapshots = network[:10, network.buses.sub_network = "0"]
+
         """
         if isinstance(key, tuple):
             time_i, key = key
@@ -1261,7 +1406,7 @@ class Network(Basic):
             if not (skip_empty and self.df(c).empty)
         )
 
-    def consistency_check(self, check_dtypes=False):
+    def consistency_check(self, check_dtypes: bool = False) -> None:
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1271,265 +1416,38 @@ class Network(Basic):
         Examples
         --------
         >>> network.consistency_check()
+
         """
+        self.calculate_dependent_values()
+
         # TODO: Check for bidirectional links with efficiency < 1.
         # TODO: Warn if any ramp limits are 0.
 
-        self.calculate_dependent_values()
-
-        def bus_columns(df):
-            return df.columns[df.columns.str.startswith("bus")]
-
-        # check for unknown buses
+        # Per component checks
         for c in self.iterate_components():
-            for attr in bus_columns(c.df):
-                missing = ~c.df[attr].isin(self.buses.index)
-                # if bus2, bus3... contain empty strings do not warn
-                if c.name in self.branch_components:
-                    if int(attr[-1]) > 1:
-                        missing &= c.df[attr] != ""
-                if missing.any():
-                    msg = "The following %s have %s which are not defined:\n%s"
-                    logger.warning(msg, c.list_name, attr, c.df.index[missing])
+            # Checks all components
+            check_for_unknown_buses(self, c)
+            check_for_unknown_carriers(self, c)
+            check_time_series(self, c)
+            check_static_power_attributes(self, c)
+            check_time_series_power_attributes(self, c)
+            check_nans_for_component_default_attrs(self, c)
+            # Checks passive_branch_components
+            check_for_zero_impedances(self, c)
+            # Checks transformers
+            check_for_zero_s_nom(c)
+            # Checks generators and links
+            check_assets(self, c)
+            # Checks generators
+            check_generators(c)
 
-        # check for disconnected buses
-        connected_buses = set()
-        for c in self.iterate_components():
-            for attr in bus_columns(c.df):
-                connected_buses.update(c.df[attr])
+            if check_dtypes:
+                check_dtypes_(c)
 
-        disconnected_buses = set(self.buses.index) - connected_buses
-        if disconnected_buses:
-            msg = "The following buses have no attached components, which can break the lopf:\n%s"
-            logger.warning(msg, disconnected_buses)
-
-        for c in self.iterate_components(self.passive_branch_components):
-            for attr in ["x", "r"]:
-                bad = c.df[attr] == 0
-                if bad.any():
-                    msg = (
-                        "The following %s have zero %s, which "
-                        "could break the linear load flow:\n%s"
-                    )
-                    logger.warning(msg, c.list_name, attr, c.df.index[bad])
-
-        for c in self.iterate_components({"Transformer"}):
-            bad = c.df["s_nom"] == 0
-            if bad.any():
-                logger.warning(
-                    "The following %s have zero s_nom, which is used "
-                    "to define the impedance and will thus break "
-                    "the load flow:\n%s",
-                    c.list_name,
-                    c.df.index[bad],
-                )
-
-        for c in self.iterate_components():
-            for attr in c.attrs.index[c.attrs.varying & c.attrs.static]:
-                attr_df = c.pnl[attr]
-
-                diff = attr_df.columns.difference(c.df.index)
-                if len(diff):
-                    logger.warning(
-                        "The following %s have time series defined "
-                        "for attribute %s in network.%s_t, but are "
-                        "not defined in network.%s:\n%s",
-                        c.list_name,
-                        attr,
-                        c.list_name,
-                        c.list_name,
-                        diff,
-                    )
-
-                if not self.snapshots.equals(attr_df.index):
-                    logger.warning(
-                        "The index of the time-dependent Dataframe for attribute "
-                        "%s of network.%s_t is not aligned with network snapshots",
-                        attr,
-                        c.list_name,
-                    )
-
-        static_attrs = ["p_nom", "s_nom", "e_nom"]
-        varying_attrs = ["p_max_pu", "e_max_pu"]
-        for c in self.iterate_components(self.all_components - {"TransformerType"}):
-            varying_attr = c.attrs.query("varying").index.intersection(varying_attrs)
-            static_attr = c.attrs.query("static").index.intersection(static_attrs)
-
-            if len(static_attr):
-                attr = static_attr[0]
-                bad = c.df[attr + "_max"] < c.df[attr + "_min"]
-                if bad.any():
-                    logger.warning(
-                        "The following %s have smaller maximum than "
-                        "minimum expansion limit which can lead to "
-                        "infeasibilty:\n%s",
-                        c.list_name,
-                        c.df.index[bad],
-                    )
-
-                attr = static_attr[0]
-                for col in [attr + "_min", attr + "_max"]:
-                    if c.df[col][c.df[attr + "_extendable"]].isnull().any():
-                        logger.warning(
-                            "Encountered nan's in column %s of component '%s'.",
-                            col,
-                            c.name,
-                        )
-
-            if len(varying_attr):
-                attr = varying_attr[0][0]
-                max_pu = self.get_switchable_as_dense(c.name, attr + "_max_pu")
-                min_pu = self.get_switchable_as_dense(c.name, attr + "_min_pu")
-
-                # check for NaN values:
-                if max_pu.isnull().values.any():
-                    for col in max_pu.columns[max_pu.isnull().any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "NaN values for the following snapshots:\n%s",
-                            attr + "_max_pu",
-                            col,
-                            c.list_name,
-                            max_pu.index[max_pu[col].isnull()],
-                        )
-                if min_pu.isnull().values.any():
-                    for col in min_pu.columns[min_pu.isnull().any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "NaN values for the following snapshots:\n%s",
-                            attr + "_min_pu",
-                            col,
-                            c.list_name,
-                            min_pu.index[min_pu[col].isnull()],
-                        )
-
-                # check for infinite values
-                if np.isinf(max_pu).values.any():
-                    for col in max_pu.columns[np.isinf(max_pu).any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "infinite values for the following snapshots:\n%s",
-                            attr + "_max_pu",
-                            col,
-                            c.list_name,
-                            max_pu.index[np.isinf(max_pu[col])],
-                        )
-                if np.isinf(min_pu).values.any():
-                    for col in min_pu.columns[np.isinf(min_pu).any()]:
-                        logger.warning(
-                            "The attribute %s of element %s of %s has "
-                            "infinite values for the following snapshots:\n%s",
-                            attr + "_min_pu",
-                            col,
-                            c.list_name,
-                            min_pu.index[np.isinf(min_pu[col])],
-                        )
-
-                diff = max_pu - min_pu
-                diff = diff[diff < 0].dropna(axis=1, how="all")
-                for col in diff.columns:
-                    logger.warning(
-                        "The element %s of %s has a smaller maximum "
-                        "than minimum operational limit which can "
-                        "lead to infeasibility for the following snapshots:\n%s",
-                        col,
-                        c.list_name,
-                        diff[col].dropna().index,
-                    )
-
-            if c.name in {"Generator", "Link"}:
-                committables = self.get_committable_i(c.name)
-                extendables = self.get_extendable_i(c.name)
-                intersection = committables.intersection(extendables)
-                if not intersection.empty:
-                    logger.warning(
-                        "Assets can only be committable or extendable. Found "
-                        f"assets in component {c} which are both:"
-                        f"\n\n\t{', '.join(intersection)}"
-                    )
-
-            if c.name in {"Generator"}:
-                bad_uc_gens = c.df.index[
-                    c.df.committable
-                    & (c.df.up_time_before > 0)
-                    & (c.df.down_time_before > 0)
-                ]
-                if not bad_uc_gens.empty:
-                    logger.warning(
-                        "The following committable generators were both up and down"
-                        f" before the simulation: {bad_uc_gens}."
-                        " This could cause an infeasibility."
-                    )
-
-        # check all dtypes of component attributes
-
-        if check_dtypes:
-            for c in self.iterate_components():
-                # first check static attributes
-
-                dtypes_soll = c.attrs.loc[c.attrs["static"], "dtype"].drop("name")
-                unmatched = c.df.dtypes[dtypes_soll.index] != dtypes_soll
-
-                if unmatched.any():
-                    logger.warning(
-                        "The following attributes of the dataframe %s "
-                        "have the wrong dtype:\n%s\n"
-                        "They are:\n%s\nbut should be:\n%s",
-                        c.list_name,
-                        unmatched.index[unmatched],
-                        c.df.dtypes[dtypes_soll.index[unmatched]],
-                        dtypes_soll[unmatched],
-                    )
-
-                # now check varying attributes
-
-                types_soll = c.attrs.loc[c.attrs["varying"], ["typ", "dtype"]]
-
-                for attr, typ, dtype in types_soll.itertuples():
-                    if c.pnl[attr].empty:
-                        continue
-
-                    unmatched = c.pnl[attr].dtypes != dtype
-
-                    if unmatched.any():
-                        logger.warning(
-                            "The following columns of time-varying attribute "
-                            "%s in %s_t have the wrong dtype:\n%s\n"
-                            "They are:\n%s\nbut should be:\n%s",
-                            attr,
-                            c.list_name,
-                            unmatched.index[unmatched],
-                            c.pnl[attr].dtypes[unmatched],
-                            typ,
-                        )
-
-        constraint_periods = set(
-            self.global_constraints.investment_period.dropna().unique()
-        )
-        if isinstance(self.snapshots, pd.MultiIndex):
-            if not constraint_periods.issubset(self.snapshots.unique("period")):
-                raise ValueError(
-                    "The global constraints contain investment periods which are "
-                    "not in the set of optimized snapshots."
-                )
-        else:
-            if constraint_periods:
-                raise ValueError(
-                    "The global constraints contain investment periods but snapshots are "
-                    "not multi-indexed."
-                )
-
-        shape_components = self.shapes.component.unique()
-        for c in set(shape_components) & set(self.all_components):
-            geos = self.shapes.query("component == @c")
-            not_included = geos.index[~geos.idx.isin(self.df(c).index)]
-
-            if not not_included.empty:
-                logger.warning(
-                    f"The following shapes are related to component {c} and have"
-                    f" idx values that are not included in the component's index:\n"
-                    f"{not_included}"
-                )
+        # Combined checks
+        check_for_disconnected_buses(self)
+        check_investment_periods(self)
+        check_shapes(self)
 
 
 class SubNetwork(Common):
@@ -1644,6 +1562,7 @@ class SubNetwork(Common):
         ------
         Component
             Container for component data. See Component class for details.
+
         """
         for c in self.network.iterate_components(
             components=components, skip_empty=False

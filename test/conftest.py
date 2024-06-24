@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Mon Jan 31 18:29:48 2022.
 
@@ -66,7 +65,8 @@ def ac_dc_network_multiindexed(ac_dc_network):
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
     gens_i = n.generators.index
-    n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
+    rng = np.random.default_rng()  # Create a random number generator
+    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
     return n
 
 
@@ -111,6 +111,23 @@ def storage_hvdc_network():
         "opf-storage-data",
     )
     return pypsa.Network(csv_folder)
+
+
+@pytest.fixture(scope="module")
+def all_networks(
+    ac_dc_network,
+    ac_dc_network_r,
+    ac_dc_network_multiindexed,
+    ac_dc_network_shapes,
+    storage_hvdc_network,
+):
+    return [
+        ac_dc_network,
+        # ac_dc_network_r,
+        # ac_dc_network_multiindexed,
+        # ac_dc_network_shapes,
+        # storage_hvdc_network,
+    ]
 
 
 @pytest.fixture(scope="module")
