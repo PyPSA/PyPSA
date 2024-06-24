@@ -22,7 +22,7 @@ classifiers=[
 requires-python = ">=3.9"
 
 dependencies = [
-    "numpy",
+    "numpy<2.0",
     "scipy",
     "pandas>=0.24",
     "xarray",
