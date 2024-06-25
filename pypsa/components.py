@@ -533,7 +533,7 @@ class Network(Basic):
         Set the coordinate reference system of the network's geometries
         (n.shapes).
         """
-        self.shapes.crs = new
+        self.shapes.set_crs(new)
         self._crs = self.shapes.crs
 
     def to_crs(self, new):
