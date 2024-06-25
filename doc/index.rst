@@ -84,38 +84,17 @@ Documentation
 * :doc:`introduction`
 * :doc:`installation`
 * :doc:`quick_start`
+* :doc:`examples-basic`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: Getting Started
 
+   examples-basic
    introduction
    installation
    quick_start
-
-
-**Examples**
-
-* :doc:`examples-basic`
-* :doc:`examples-lopf`
-* :doc:`examples-sector_coupling`
-* :doc:`examples-models`
-* :doc:`examples-other`
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-   :caption: Examples
-
-
-   examples-basic
-   examples-lopf
-   examples-sector_coupling
-   examples-models
-   examples-other
-
-
 
 **User Guide**
 
@@ -140,7 +119,22 @@ Documentation
    contingency_analysis
    plotting
 
+**Examples**
 
+* :doc:`examples-lopf`
+* :doc:`examples-sector_coupling`
+* :doc:`examples-other`
+* :doc:`examples-models`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Examples
+
+   examples-lopf
+   examples-sector_coupling
+   examples-other
+   examples-models
 
 **Contributing & Support**
 * :doc:`contributing`
