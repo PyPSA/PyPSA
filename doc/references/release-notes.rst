@@ -839,8 +839,8 @@ documentation's examples section as well as compatibility and bug fixes.
   with multi-indexed snapshots.
 
 * Many example notebooks are now also integrated in the
-  documentation. See :doc:`examples-basic`, :doc:`examples-lopf`,
-  :doc:`examples-sector_coupling` and :doc:`examples-other`.
+  documentation. See :doc:`/getting-started/examples-basic`, :doc:`/examples-index/lopf`,
+  :doc:`/examples-index/sector-coupling` and :doc:`/examples-index/other`.
 
 
 * A new module ``examples`` was added which contains frontend functions for
@@ -1022,7 +1022,7 @@ nomopyomo in the previous release, as well as a few minor features.
   is now consistent between the ``nomopyomo`` and ``pyomo``
   formulations. The possible return values are documented in the LOPF
   docstring, see also the `LOPF documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pypsa.Network.lopf>`_.
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#pypsa.Network.lopf>`_.
   Furthermore in the ``nomopyomo`` formulation, the solution is still
   returned when gurobi finds a suboptimal solution, since this
   solution is usually close to optimal. In this case the LOPF returns
@@ -1065,7 +1065,7 @@ package in conda is updated.
   for unit commitment. If you use the ``extra_functionality`` argument
   for ``network.lopf`` you will need to update your code for the new
   syntax. There is `documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pyomo-is-set-to-false>`_
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#pyomo-is-set-to-false>`_
   for the new syntax as well as a `Jupyter notebook of examples
   <https://github.com/PyPSA/PyPSA/blob/master/examples/lopf_with_pyomo_False.ipynb>`_.
 
@@ -1076,7 +1076,7 @@ package in conda is updated.
   according to the distribution scheme provided in the argument
   ``slack_weights``. If ``distribute_slack=False`` only the slack
   generator takes up the slack. There is further `documentation
-  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`__.
+  <https://pypsa.readthedocs.io/en/latest/user-guide/power-flow.html#full-non-linear-power-flow>`__.
 
 * Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
 
@@ -1103,7 +1103,7 @@ This release contains new improvements and bug fixes.
   up-times and down-times are also enforced. Ramping constraints also
   look before the simulation at previous results, if there are
   any. See the `unit commitment documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#generator-unit-commitment-constraints>`_
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#generator-unit-commitment-constraints>`_
   for full details. The `UC example
   <https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html>`_ has been updated
   with a rolling horizon example at the end.
@@ -1340,7 +1340,7 @@ This release contains new features but no changes to existing APIs.
   <https://plot.ly/python/>`_ library. This reveals bus and branch
   properties when the mouse hovers over them and allows users to
   easily zoom in and out on the network. See the (sparse) documentation
-  :doc:`plotting`.
+  :doc:`/user-guide/plotting`.
 * There is a new function ``network.madd()`` for adding multiple new
   components to the network. This is significantly faster than
   repeatedly calling ``network.add()`` and uses the functions
@@ -1504,7 +1504,7 @@ changes to the internal API.
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
   descriptions.  These CSVs are also sourced for the documentation in
-  :doc:`components`, so the documentation will always be up-to-date.
+  :doc:`/user-guide/components`, so the documentation will always be up-to-date.
 * All examples have been updated appropriately.
 
 
@@ -1571,7 +1571,7 @@ particularly regarding time-varying component attributes.
   switches and print statements have been removed.
 * There are now more warnings.
 * You can call ``network.consistency_check()`` to make sure all your
-  components are well defined; see :doc:`troubleshooting`.
+  components are well defined; see :doc:`/contributing/troubleshooting`.
 
 
 All `examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_ have been updated to
@@ -1614,7 +1614,7 @@ your old code. Models for Combined Heat and Power (CHP) units, heat
 pumps, resistive Power-to-Heat (P2H), Power-to-Gas (P2G), battery
 electric vehicles (BEVs) and chained hydro reservoirs can now be built
 (see the `sector coupling examples
-<https://pypsa.readthedocs.io/en/latest/examples-sector_coupling.html>`_). The
+<https://pypsa.readthedocs.io/en/latest/examples-index/sector-coupling.html>`_). The
 refactoring of time-dependent variable handling has been postponed
 until the 0.7.0 release. In 0.7.0 the object interface to attributes
 may also be removed; see below.
@@ -1861,7 +1861,7 @@ main component pandas.DataFrame.
 Release process
 ===============
 
-* Update ``doc/release_notes.rst``
+* Update ``doc/references/release-notes.rst``
 * You don't need to update the version number anywhere, this is done automatically.
 * ``git commit`` and put release notes in commit message
 * ``git tag vx.x.x``

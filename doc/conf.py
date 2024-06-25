@@ -60,8 +60,8 @@ master_doc = "index"
 
 # General information about the project.
 project = "PyPSA"
-copyright = "2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-author = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
+copyright = "2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
+author = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -337,3 +337,31 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+
+redirects = {
+    # Getting Started
+    "introduction.html": "getting-started/introduction.html",
+    "installation.html": "getting-started/installation.html",
+    "quick_start.html": "getting-started/quick-start.html",
+    "examples-basic.html": "getting-started/examples-basic.html",
+    # User Guide
+    "design.html": "user-guide/design.html",
+    "components.html": "user-guide/components.html",
+    "import_export.html": "user-guide/import-export.html",
+    "power_flow.html": "user-guide/power-flow.html",
+    "optimal_power_flow.html": "user-guide/optimal-power-flow.html",
+    "contingency_analysis.html": "user-guide/contingency-analysis.html",
+    "plotting.html": "user-guide/plotting.html",
+    # Contributing
+    "contributing.html": "contributing/contributing.html",
+    "support.html": "contributing/support.html",
+    "troubleshooting.html": "contributing/troubleshooting.html",
+    "mailing_list.html": "contributing/mailing-list.html",
+    # References
+    "api_reference.html": "references/api-reference.html",
+    "release_notes.html": "references/release-notes.html",
+    "comparable_software.html": "references/comparable-software.html",
+    "citing.html": "references/citing.html",
+    "users.html": "references/users.html",
+    "developers.html": "references/developers.html",
+}

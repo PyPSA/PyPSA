@@ -42,7 +42,7 @@ The inputs can be either "required", if the user *must* give the
 input, or "optional", if PyPSA will use a sensible default if the user
 gives no input.
 
-For functions such as :doc:`power_flow` and :doc:`optimal_power_flow` the inputs used and outputs given are listed in their documentation.
+For functions such as :doc:`/user-guide/power-flow` and :doc:`/user-guide/optimal-power-flow` the inputs used and outputs given are listed in their documentation.
 
 
 Network
@@ -95,7 +95,7 @@ energy conservation for all elements feeding in and out of it
 (i.e. like Kirchhoff's Current Law).
 
 
-.. image:: img/buses.png
+.. image:: ../img/buses.png
 
 
 

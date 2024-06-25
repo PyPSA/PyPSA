@@ -110,7 +110,7 @@ licenses are available.
 Other comparable software
 =========================
 
-For a full list see :doc:`comparable_software`.
+For a full list see :doc:`/references/comparable-software`.
 
 PyPSA is not as fully featured as other power system simulation tools
 such as the Matlab-based free software `PSAT
@@ -136,6 +136,6 @@ and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 Licence
 =======
 
-Copyright 2015-2024 :doc:`developers`
+Copyright 2015-2024 :doc:`/references/developers`
 
 PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.
