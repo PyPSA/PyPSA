@@ -55,7 +55,7 @@ has the major functions as methods, such as ``network.optimize()`` and
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/networks.csv
+   :file: ../../pypsa/component_attrs/networks.csv
 
 
 Sub-Network
@@ -83,7 +83,7 @@ Sub-Network are determined by calling
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/sub_networks.csv
+   :file: ../../pypsa/component_attrs/sub_networks.csv
 
 
 Bus
@@ -103,7 +103,7 @@ energy conservation for all elements feeding in and out of it
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/buses.csv
+   :file: ../../pypsa/component_attrs/buses.csv
 
 
 
@@ -124,7 +124,7 @@ relevant for limits on CO2 emissions.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/carriers.csv
+   :file: ../../pypsa/component_attrs/carriers.csv
 
 
 
@@ -150,7 +150,7 @@ on the total expansion of lines and links).
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/global_constraints.csv
+   :file: ../../pypsa/component_attrs/global_constraints.csv
 
 
 Generator
@@ -196,7 +196,7 @@ to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/generators.csv
+   :file: ../../pypsa/component_attrs/generators.csv
 
 
 
@@ -224,7 +224,7 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/storage_units.csv
+   :file: ../../pypsa/component_attrs/storage_units.csv
 
 
 Store
@@ -250,7 +250,7 @@ generators and storage units with fundamental links and stores
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/stores.csv
+   :file: ../../pypsa/component_attrs/stores.csv
 
 
 Load
@@ -266,7 +266,7 @@ like an inductor).
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/loads.csv
+   :file: ../../pypsa/component_attrs/loads.csv
 
 
 Shunt Impedance
@@ -287,7 +287,7 @@ an capacitor).
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/shunt_impedances.csv
+   :file: ../../pypsa/component_attrs/shunt_impedances.csv
 
 
 Line
@@ -304,7 +304,7 @@ imbalances. To see how the impedances are used in the power flow, see
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/lines.csv
+   :file: ../../pypsa/component_attrs/lines.csv
 
 
 .. _line-types:
@@ -329,7 +329,7 @@ PowerFactory
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/line_types.csv
+   :file: ../../pypsa/component_attrs/line_types.csv
 
 
 If you do not import your own line types, then PyPSA will provide
@@ -356,7 +356,7 @@ the power flow, see :ref:`transformer-model`.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/transformers.csv
+   :file: ../../pypsa/component_attrs/transformers.csv
 
 
 .. _transformer-types:
@@ -381,7 +381,7 @@ PowerFactory
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/transformer_types.csv
+   :file: ../../pypsa/component_attrs/transformer_types.csv
 
 
 
@@ -420,7 +420,7 @@ pump or resistive heater from an AC/DC bus to a heat bus, etc.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/links.csv
+   :file: ../../pypsa/component_attrs/links.csv
 
 
 .. _components-links-multiple-outputs:
@@ -472,7 +472,7 @@ additional information about the shapes.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/component_attrs/shapes.csv
+   :file: ../../pypsa/component_attrs/shapes.csv
 
 
 Groups of Components
