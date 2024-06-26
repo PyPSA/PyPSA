@@ -798,12 +798,12 @@ class Network(Basic):
         Pass a list of names to add multiple components at once or pass a single name
         to add a single component.
 
-        Make sure when adding static attributes as pandas Series that they are indexed
-        by names. Make sure when adding time-varying attributes as pandas DataFrames that
-        their index is a superset of network.snapshots and their columns are a
-        subset of names. When adding multiple components, you can pass a 2D array/ DataFrame
-        for time-varying attributes, where the first dimension is snapshots and the
-        second dimension is names.
+        When a single component is added, all non-scalar attributes are assumed to be
+        time-varying and indexed by snapshots. When multiple components are added, all
+        non-scalar attributes are assumed to be static and indexed by names. If you want
+        to add time-varying attributes to multiple components, you can pass a 2D array/
+        DataFrame where the first dimension is snapshots and the second dimension is
+        names.
 
         Any attributes which are not specified will be given the default
         value from :doc:`components`.
@@ -838,7 +838,8 @@ class Network(Basic):
             raise ValueError(msg)
 
         # Process name/names to pandas.Index of strings and add suffix
-        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        single_component = np.isscalar(name)
+        names = pd.Index([name]) if single_component else pd.Index(name)
         names = names.astype(str) + suffix
 
         # Read kwargs into static and time-varying attributes
@@ -846,12 +847,50 @@ class Network(Basic):
         static = {}
 
         for k, v in kwargs.items():
-            # Convert list-like and 1D array to pandas.Series
+            # Sanity check if passed index/ columns align (if any)
+            if isinstance(v, pd.Series):
+                if single_component and not v.index.equals(self.snapshots):
+                    msg = (
+                        f"Series {k} has an index which does not align with the "
+                        "network snapshots. "
+                    )
+                    raise ValueError(msg)
+                if not single_component and not v.index.equals(names):
+                    msg = (
+                        f"Series {k} has an index which does not align with the "
+                        "passed names. "
+                    )
+                    raise ValueError(msg)
+            if isinstance(v, pd.DataFrame):
+                if not v.index.equals(self.snapshots):
+                    msg = (
+                        f"DataFrame {k} has an index which does not align with the "
+                        "network snapshots. "
+                    )
+                    raise ValueError(msg)
+                if not v.columns.equals(names):
+                    msg = (
+                        f"DataFrame {k} has columns which do not align with the "
+                        "passed names. "
+                    )
+                    raise ValueError(msg)
+
+            # Convert list-like and 1-dim array to pandas.Series
             if isinstance(v, (list, tuple)) or (
                 isinstance(v, np.ndarray) and v.ndim == 1
             ):
-                v = pd.Series(v)
-            # Convert 2D array to pandas.DataFrame
+                try:
+                    if single_component:
+                        v = pd.Series(v, index=self.snapshots)
+                    else:
+                        v = pd.Series(v, index=names)
+                except ValueError:
+                    msg = (
+                        f"Data {k} has length {len(v)} but expected "
+                        f"{len(self.snapshots)} for each snapshot or "
+                        f"{len(names)} for each component name."
+                    )
+            # Convert 2-dim array to pandas.DataFrame
             if isinstance(v, np.ndarray):
                 if v.shape == (len(self.snapshots), len(names)):
                     v = pd.DataFrame(v, index=self.snapshots, columns=names)
@@ -862,24 +901,28 @@ class Network(Basic):
                     )
                     raise ValueError(msg)
 
-            # Read DataFrame data as time-varying attribute (2 dimensions)
-            if isinstance(v, pd.DataFrame):
-                series[k] = v.rename(columns=lambda i: str(i) + suffix)
-            # Read Series data, which can't be static because of different shapes
-            # as time-varying attribute
-            elif isinstance(v, pd.Series) and len(v) != len(names):
-                series[k] = pd.DataFrame(v.values, index=self.snapshots, columns=names)
-            # Read Series data as static attribute
-            elif isinstance(v, pd.Series) and len(v) == len(names):
-                static[k] = v.values
-                logger.warning(
-                    'Series data for attribute "%s" is assumed to be static. '
-                    "If it is time-varying, pass it as a DataFrame.",
-                    k,
-                )
-            # Read any not sequential data as static attribute
-            else:
-                static[k] = v
+            # Handle addition of single component
+            if single_component:
+                # Read 1-dim data as time-varying attribute
+                if isinstance(v, pd.Series):
+                    series[k] = pd.DataFrame(
+                        v.values, index=self.snapshots, columns=names
+                    )
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
+
+            # Handle addition of multiple components
+            elif not single_component:
+                # Read 2-dim data as time-varying attribute
+                if isinstance(v, pd.DataFrame):
+                    series[k] = v.rename(columns=lambda i: str(i) + suffix)
+                # Read 1-dim data as static attribute
+                elif isinstance(v, pd.Series):
+                    static[k] = v.values
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
 
         # Load static attributes as components
         if static:
