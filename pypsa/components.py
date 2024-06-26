@@ -5,9 +5,9 @@ import logging
 import os
 import warnings
 from collections import namedtuple
-from collections.abc import Collection
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 from weakref import ref
 
 import geopandas as gpd
@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
@@ -43,10 +44,11 @@ from pypsa.descriptors import (
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
-    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
+    _import_components_from_dataframe,
+    _import_series_from_dataframe,
     export_to_csv_folder,
     export_to_hdf5,
     export_to_netcdf,
@@ -189,11 +191,13 @@ class Network(Basic):
 
     import_from_pandapower_net = import_from_pandapower_net
 
-    import_components_from_dataframe = import_components_from_dataframe
-
     merge = merge
 
-    import_series_from_dataframe = import_series_from_dataframe
+    _import_components_from_dataframe = _import_components_from_dataframe
+    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
+
+    _import_series_from_dataframe = _import_series_from_dataframe
+    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     lpf = network_lpf
 
@@ -475,7 +479,7 @@ class Network(Basic):
                 file_name, index_col=0
             )
 
-            self.import_components_from_dataframe(
+            self._import_components_from_dataframe(
                 self.components[std_type]["standard_types"], std_type
             )
 
@@ -780,133 +784,213 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
-    def add(self, class_name, name, **kwargs):
+    def add(
+        self,
+        class_name: str,
+        name: Union[str, int, Sequence[Union[int, str]]],
+        suffix: str = "",
+        **kwargs,
+    ):
         """
-        Add a single component to the network.
+        Add components to the network.
 
-        Adds it to component DataFrame.
+        Handles addition of single and multiple components along with their attributes.
+        Pass a list of names to add multiple components at once or pass a single name
+        to add a single component.
+
+        When a single component is added, all non-scalar attributes are assumed to be
+        time-varying and indexed by snapshots. When multiple components are added, all
+        non-scalar attributes are assumed to be static and indexed by names. If you want
+        to add time-varying attributes to multiple components, you can pass a 2D array/
+        DataFrame where the first dimension is snapshots and the second dimension is
+        names.
 
         Any attributes which are not specified will be given the default
         value from :doc:`components`.
-
-        This method is slow for many components; instead use ``madd`` or
-        ``import_components_from_dataframe`` (see below).
 
         Parameters
         ----------
         class_name : string
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
             "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        name : string
-            Component name
-        kwargs
-            Component attributes, e.g. x=0.1, length=123
+        names : string or 1D array-like
+            Component name(s)
+        suffix : string, default ''
+            All components are named after names with this added suffix. It
+            is assumed that all Series and DataFrames are indexed by the original names.
+        kwargs : Any or 1D array-like or 2D array-like
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
+            of pandas.DataFrame for time-varying
+
+        Returns
+        -------
+        new_names : pandas.index
+            Names of new components (including suffix)
 
         Examples
         --------
         >>> network.add("Bus", "my_bus_0")
         >>> network.add("Bus", "my_bus_1", v_nom=380)
         >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
-
         """
         if class_name not in self.components:
             msg = f"Component class {class_name} not found"
             raise ValueError(msg)
 
-        cls_df = self.df(class_name)
-        cls_pnl = self.pnl(class_name)
+        # Process name/names to pandas.Index of strings and add suffix
+        single_component = np.isscalar(name)
+        names = pd.Index([name]) if single_component else pd.Index(name)
+        names = names.astype(str) + suffix
 
-        name = str(name)
-
-        if name in cls_df.index:
-            msg = (
-                f"Failed to add {class_name} component {name} because there is "
-                f"already an object with this name in "
-                f"{self.components[class_name]['list_name']}"
-            )
-            raise ValueError(msg)
-
-        if class_name == "Link":
-            update_linkports_component_attrs(self, kwargs.keys())
-
-        attrs = self.components[class_name]["attrs"]
-
-        static_attrs = attrs[attrs.static].drop("name")
-
-        # This guarantees that the correct attribute type is maintained
-        obj_df = pd.DataFrame(
-            data=[static_attrs.default], index=[name], columns=static_attrs.index
-        )
-
-        # Remove all NaN columns before concatenating
-        obj_df = obj_df.dropna(axis=1, how="all")
-        new_df = pd.concat([cls_df, obj_df], sort=False)
-
-        new_df.index.name = class_name
-        setattr(self, self.components[class_name]["list_name"], new_df)
+        # Read kwargs into static and time-varying attributes
+        series = {}
+        static = {}
 
         for k, v in kwargs.items():
-            if k not in attrs.index:
-                logger.warning(
-                    f"{class_name} has no attribute {k}, " "ignoring this passed value."
-                )
-                continue
-            typ = attrs.at[k, "typ"]
-            if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v) if typ != "geometry" else v
-            elif attrs.at[k, "static"] and not isinstance(
-                v, (pd.Series, pd.DataFrame, np.ndarray, list)
+            # Sanity check if passed index/ columns align (if any)
+            if isinstance(v, pd.Series):
+                if single_component and not v.index.equals(self.snapshots):
+                    msg = (
+                        f"Series {k} has an index which does not align with the "
+                        "network snapshots. "
+                    )
+                    raise ValueError(msg)
+                if not single_component and not v.index.equals(names):
+                    msg = (
+                        f"Series {k} has an index which does not align with the "
+                        "passed names. "
+                    )
+                    raise ValueError(msg)
+            if isinstance(v, pd.DataFrame):
+                if not v.index.equals(self.snapshots):
+                    msg = (
+                        f"DataFrame {k} has an index which does not align with the "
+                        "network snapshots. "
+                    )
+                    raise ValueError(msg)
+                if not v.columns.equals(names):
+                    msg = (
+                        f"DataFrame {k} has columns which do not align with the "
+                        "passed names. "
+                    )
+                    raise ValueError(msg)
+
+            # Convert list-like and 1-dim array to pandas.Series
+            if isinstance(v, (list, tuple)) or (
+                isinstance(v, np.ndarray) and v.ndim == 1
             ):
-                new_df.at[name, k] = typ(v)
-            else:
-                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
+                try:
+                    if single_component:
+                        v = pd.Series(v, index=self.snapshots)
+                    else:
+                        v = pd.Series(v, index=names)
+                except ValueError:
+                    msg = (
+                        f"Data {k} has length {len(v)} but expected "
+                        f"{len(self.snapshots)} for each snapshot or "
+                        f"{len(names)} for each component name."
+                    )
+            # Convert 2-dim array to pandas.DataFrame
+            if isinstance(v, np.ndarray):
+                if v.shape == (len(self.snapshots), len(names)):
+                    v = pd.DataFrame(v, index=self.snapshots, columns=names)
+                else:
+                    msg = (
+                        f"Array {k} has shape {v.shape} but expected "
+                        f"({len(self.snapshots)}, {len(names)})."
+                    )
+                    raise ValueError(msg)
 
-        for attr in [attr for attr in new_df if attr.startswith("bus")]:
-            bus_name = new_df.at[name, attr]
-            # allow empty buses for multi-ports
-            port = int(attr[-1]) if attr[-1].isdigit() else 0
-            if bus_name not in self.buses.index and not (bus_name == "" and port > 1):
-                logger.warning(
-                    f"The bus name `{bus_name}` given for {attr} "
-                    f"of {class_name} `{name}` does not appear "
-                    "in network.buses"
-                )
+            # Handle addition of single component
+            if single_component:
+                # Read 1-dim data as time-varying attribute
+                if isinstance(v, pd.Series):
+                    series[k] = pd.DataFrame(
+                        v.values, index=self.snapshots, columns=names
+                    )
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
 
-    def remove(self, class_name, name):
+            # Handle addition of multiple components
+            elif not single_component:
+                # Read 2-dim data as time-varying attribute
+                if isinstance(v, pd.DataFrame):
+                    series[k] = v.rename(columns=lambda i: str(i) + suffix)
+                # Read 1-dim data as static attribute
+                elif isinstance(v, pd.Series):
+                    static[k] = v.values
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
+
+        # Load static attributes as components
+        if static:
+            static_df = pd.DataFrame(static, index=names)
+        else:
+            static_df = pd.DataFrame(index=names)
+        self._import_components_from_dataframe(static_df, class_name)
+
+        # Load time-varying attributes as components
+        for k, v in series.items():
+            self._import_series_from_dataframe(v, class_name, k)
+
+        return names
+
+    def remove(
+        self,
+        class_name: str,
+        name: Union[str, int, Sequence[Union[int, str]]],
+        suffix: str = "",
+    ):
         """
-        Removes a single component from the network.
+        Removes a single component or a list of components from the network.
 
         Removes it from component DataFrames.
 
         Parameters
         ----------
-        class_name : string
+        class_name : str
             Component class name
-        name : string
-            Component name
+        name : str, int, list-like or pandas.Index
+            Component name(s)
+        suffix : str, default ''
+
 
         Examples
         --------
-        >>> network.remove("Line", "my_line 12345")
-
+        >>> n.remove("Line", "my_line 12345")
+        >>> n.remove("Line", ["line x", "line y"])
         """
         if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+            msg = f"Component class {class_name} not found"
+            raise ValueError(msg)
 
+        # Process name/names to pandas.Index of strings and add suffix
+        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        names = names.astype(str) + suffix
+
+        # Drop from static components
         cls_df = self.df(class_name)
+        cls_df.drop(names, inplace=True)
 
-        cls_df.drop(name, inplace=True)
-
+        # Drop from time-varying components
         pnl = self.pnl(class_name)
-
         for df in pnl.values():
-            if name in df:
-                df.drop(name, axis=1, inplace=True)
+            df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
+    @deprecated(
+        deprecated_in="0.29",
+        removed_in="1.0",
+        details="Use `network.add` as a drop-in replacement instead.",
+    )
     def madd(self, class_name, names, suffix="", **kwargs):
         """
         Add multiple components to the network, along with their attributes.
+
+        `network.madd` is deprecated and will be removed in version 1.0. Use
+        `network.add` instead. It can handle both single and multiple addition of
+        components.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
@@ -970,42 +1054,20 @@ class Network(Basic):
         ...        p_max_pu=wind)
 
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+        return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        new_names = names.astype(str) + suffix
-
-        static = {}
-        series = {}
-        for k, v in kwargs.items():
-            if isinstance(v, pd.DataFrame):
-                series[k] = v.rename(columns=lambda i: str(i) + suffix)
-            elif isinstance(v, pd.Series):
-                static[k] = v.rename(lambda i: str(i) + suffix)
-            elif isinstance(v, np.ndarray) and v.shape == (
-                len(self.snapshots),
-                len(names),
-            ):
-                series[k] = pd.DataFrame(v, index=self.snapshots, columns=new_names)
-            else:
-                static[k] = v
-
-        self.import_components_from_dataframe(
-            pd.DataFrame(static, index=new_names), class_name
-        )
-
-        for k, v in series.items():
-            self.import_series_from_dataframe(v, class_name, k)
-
-        return new_names
-
+    @deprecated(
+        deprecated_in="0.29",
+        removed_in="1.0",
+        details="Use `network.remove` as a drop-in replacement instead.",
+    )
     def mremove(self, class_name, names):
         """
         Removes multiple components from the network.
+
+        `network.mremove` is deprecated and will be removed in version 1.0. Use
+        `network.remove` instead. It can handle both single and multiple removal of
+        components.
 
         Removes them from component DataFrames.
 
@@ -1021,21 +1083,7 @@ class Network(Basic):
         >>> network.mremove("Line", ["line x", "line y"])
 
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
-
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        cls_df = self.df(class_name)
-
-        cls_df.drop(names, inplace=True)
-
-        pnl = self.pnl(class_name)
-
-        for df in pnl.values():
-            df.drop(df.columns.intersection(names), axis=1, inplace=True)
+        self.remove(class_name=class_name, name=names)
 
     def _retrieve_overridden_components(self):
         components_index = list(self.components.keys())
@@ -1056,10 +1104,10 @@ class Network(Basic):
 
     def copy(
         self,
-        snapshots: Collection = None,
-        investment_periods: Collection = None,
+        snapshots: Optional[Sequence] = None,
+        investment_periods: Optional[Sequence] = None,
         ignore_standard_types: bool = False,
-        with_time: bool = None,
+        with_time: Optional[bool] = None,
     ):
         """
         Returns a deep copy of Network object.
@@ -1115,7 +1163,7 @@ class Network(Basic):
             )
             snapshots = []
 
-        if not isinstance(snapshots, (Collection)):
+        if not isinstance(snapshots, (Sequence)):
             warnings.warn(
                 f"Argument 'snapshots' should be a collection, got {type(snapshots)}"
                 f"instead. This will raise an error in a future version.",
@@ -1153,7 +1201,7 @@ class Network(Basic):
             else:
                 df = component.df
 
-            import_components_from_dataframe(network, df, component.name)
+            _import_components_from_dataframe(network, df, component.name)
 
         # Copy time-varying data, if given
 
@@ -1234,7 +1282,7 @@ class Network(Basic):
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
-        n.import_components_from_dataframe(
+        n._import_components_from_dataframe(
             pd.DataFrame(self.buses.loc[key]).assign(sub_network=""), "Bus"
         )
         buses_i = n.buses.index
@@ -1246,21 +1294,21 @@ class Network(Basic):
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+            n._import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
 
         for c in self.standard_type_components:
             df = self.df(c).drop(self.components[c]["standard_types"].index)
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in self.one_port_components:
             df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         for c in self.branch_components:
             df = self.df(c).loc[
                 lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
             ]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(df), c)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
