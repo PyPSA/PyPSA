@@ -881,12 +881,14 @@ def apply_line_types(network):
         raise ValueError(msg)
 
     # Get a copy of the lines data
-    lines = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        network.line_types, on="type"
-    )
+    lines = network.lines.loc[
+        lines_with_types_b, ["type", "length", "num_parallel"]
+    ].join(network.line_types, on="type")
 
     for attr in ["r", "x"]:
-        lines[attr] = lines[attr + "_per_length"] * lines["length"] / lines["num_parallel"]
+        lines[attr] = (
+            lines[attr + "_per_length"] * lines["length"] / lines["num_parallel"]
+        )
     lines["b"] = (
         2
         * np.pi
