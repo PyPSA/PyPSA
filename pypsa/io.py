@@ -131,7 +131,7 @@ class ImporterCSV(Importer):
     def get_series(self, list_name):
         for fn in os.listdir(self.csv_folder_name):
             if fn.startswith(list_name + "-") and fn.endswith(".csv"):
-                attr = fn[len(list_name) + 1 : -4]
+                attr = fn[len(list_name) + 1: -4]
                 df = pd.read_csv(
                     os.path.join(self.csv_folder_name, fn),
                     index_col=0,
@@ -234,7 +234,7 @@ class ImporterHDF5(Importer):
     def get_series(self, list_name):
         for tab in self.ds:
             if tab.startswith("/" + list_name + "_t/"):
-                attr = tab[len("/" + list_name + "_t/") :]
+                attr = tab[len("/" + list_name + "_t/"):]
                 df = self.ds[tab]
                 df.columns = self.index[list_name][df.columns]
                 yield attr, df
@@ -305,7 +305,7 @@ if has_xarray:
 
         def get_attributes(self):
             return {
-                attr[len("network_") :]: val
+                attr[len("network_"):]: val
                 for attr, val in self.ds.attrs.items()
                 if attr.startswith("network_")
             }
@@ -332,7 +332,7 @@ if has_xarray:
             index = self.ds.coords[index_name].to_index().rename("name")
             df = pd.DataFrame(index=index)
             for attr in self.ds.data_vars.keys():
-                if attr.startswith(t) and attr[i : i + 2] != "t_":
+                if attr.startswith(t) and attr[i: i + 2] != "t_":
                     df[attr[i:]] = self.ds[attr].to_pandas()
             return df
 
@@ -343,7 +343,7 @@ if has_xarray:
                     df = self.ds[attr].to_pandas()
                     df.index.name = "name"
                     df.columns.name = "name"
-                    yield attr[len(t) :], df
+                    yield attr[len(t):], df
 
     class ExporterNetCDF(Exporter):
         def __init__(
@@ -763,7 +763,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         for attr, val in attrs.items():
             setattr(network, attr, val)
 
-    ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
         pypsa_version_str = (
             ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
@@ -1146,7 +1146,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         "buses": pd.DataFrame(
             index=index,
             columns=columns,
-            data=ppc["bus"][:, 1 : len(columns) + 1],
+            data=ppc["bus"][:, 1: len(columns) + 1],
         )
     }
     if (pdf["buses"]["v_nom"] == 0.0).any():

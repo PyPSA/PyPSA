@@ -121,7 +121,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         else:
             logger.warning(msg)
             continue
-        remainder = col[len("nom_max_") :]
+        remainder = col[len("nom_max_"):]
         if remainder in n.carriers.index:
             carrier = remainder
             period = None
