@@ -881,25 +881,25 @@ def apply_line_types(network):
         raise ValueError(msg)
 
     # Get a copy of the lines data
-    l = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
+    lines = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
         network.line_types, on="type"
     )
 
     for attr in ["r", "x"]:
-        l[attr] = l[attr + "_per_length"] * l["length"] / l["num_parallel"]
-    l["b"] = (
+        lines[attr] = lines[attr + "_per_length"] * lines["length"] / lines["num_parallel"]
+    lines["b"] = (
         2
         * np.pi
         * 1e-9
-        * l["f_nom"]
-        * l["c_per_length"]
-        * l["length"]
-        * l["num_parallel"]
+        * lines["f_nom"]
+        * lines["c_per_length"]
+        * lines["length"]
+        * lines["num_parallel"]
     )
 
     # now set calculated values on live lines
     for attr in ["r", "x", "b"]:
-        network.lines.loc[lines_with_types_b, attr] = l[attr]
+        network.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
 def apply_transformer_types(network):
