@@ -531,7 +531,7 @@ def sub_network_pf(
             : len(sub_network.pvpqs)
         ]
         network.buses_t.v_mag_pu.loc[now, sub_network.pqs] = guess[
-            len(sub_network.pvpqs): last_pq
+            len(sub_network.pvpqs) : last_pq
         ]
 
         v_mag_pu = network.buses_t.v_mag_pu.loc[now, buses_o]
@@ -545,9 +545,9 @@ def sub_network_pf(
             mismatch = V * np.conj(sub_network.Y * V) - s
 
         if distribute_slack:
-            F = r_[real(mismatch)[:], imag(mismatch)[1 + len(sub_network.pvs):]]
+            F = r_[real(mismatch)[:], imag(mismatch)[1 + len(sub_network.pvs) :]]
         else:
-            F = r_[real(mismatch)[1:], imag(mismatch)[1 + len(sub_network.pvs):]]
+            F = r_[real(mismatch)[1:], imag(mismatch)[1 + len(sub_network.pvs) :]]
 
         return F
 
@@ -557,7 +557,7 @@ def sub_network_pf(
             : len(sub_network.pvpqs)
         ]
         network.buses_t.v_mag_pu.loc[now, sub_network.pqs] = guess[
-            len(sub_network.pvpqs): last_pq
+            len(sub_network.pvpqs) : last_pq
         ]
 
         v_mag_pu = network.buses_t.v_mag_pu.loc[now, buses_o]
@@ -578,19 +578,19 @@ def sub_network_pf(
             sub_network.Y * V_norm_diag
         )
 
-        J10 = dS_dVa[1 + len(sub_network.pvs):, 1:].imag
-        J11 = dS_dVm[1 + len(sub_network.pvs):, 1 + len(sub_network.pvs):].imag
+        J10 = dS_dVa[1 + len(sub_network.pvs) :, 1:].imag
+        J11 = dS_dVm[1 + len(sub_network.pvs) :, 1 + len(sub_network.pvs) :].imag
 
         if distribute_slack:
             J00 = dS_dVa[:, 1:].real
-            J01 = dS_dVm[:, 1 + len(sub_network.pvs):].real
+            J01 = dS_dVm[:, 1 + len(sub_network.pvs) :].real
             J02 = csr_matrix(slack_weights, (1, 1 + len(sub_network.pvpqs))).T
             J12 = csr_matrix((1, len(sub_network.pqs))).T
             J_P_blocks = [J00, J01, J02]
             J_Q_blocks = [J10, J11, J12]
         else:
             J00 = dS_dVa[1:, 1:].real
-            J01 = dS_dVm[1:, 1 + len(sub_network.pvs):].real
+            J01 = dS_dVm[1:, 1 + len(sub_network.pvs) :].real
             J_P_blocks = [J00, J01]
             J_Q_blocks = [J10, J11]
 
@@ -716,7 +716,7 @@ def sub_network_pf(
         :, : len(sub_network.pvpqs)
     ]
     network.buses_t.v_mag_pu.loc[snapshots, sub_network.pqs] = roots[
-        :, len(sub_network.pvpqs): last_pq
+        :, len(sub_network.pvpqs) : last_pq
     ]
 
     v_mag_pu = network.buses_t.v_mag_pu.loc[snapshots, buses_o].values
