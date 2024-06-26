@@ -302,15 +302,19 @@ def optimize_security_constrained(
             bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
             additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                constraint = c_affected + "-" + kind + "-s-" + bound
+                coord = c_affected + "-" + kind
+                constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                lhs = m.constraints[constraint].lhs
-                sign = m.constraints[constraint].sign
-                rhs = m.constraints[constraint].rhs
+                con = m.constraints[constraint]
+                idx = flow.indexes[c_outage].intersection(con.indexes[coord])
+                lhs = con.lhs.loc[:, idx]
+                sign = con.sign.loc[:, idx]
+                rhs = con.rhs.loc[:, idx]
                 rename = {c_affected + "-affected": c_affected + "-" + kind}
-                lhs = lhs + additional_flow.rename(rename)
-                m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
+                lhs = lhs + additional_flow.loc[idx].rename(rename)
+                name = constraint + f"-security-for-{c_outage}-in-{sn}"
+                m.add_constraints(lhs, sign, rhs, name=name)
 
     return n.optimize.solve_model(**kwargs)
 
