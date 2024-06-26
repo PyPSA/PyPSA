@@ -307,14 +307,10 @@ def optimize_security_constrained(
                 if constraint not in m.constraints:
                     continue
                 con = m.constraints[constraint]
-                idx = flow.indexes[c_outage].intersection(con.indexes[coord])
-                lhs = con.lhs.loc[:, idx]
-                sign = con.sign.loc[:, idx]
-                rhs = con.rhs.loc[:, idx]
                 rename = {c_affected + "-affected": c_affected + "-" + kind}
-                lhs = lhs + additional_flow.loc[idx].rename(rename)
-                name = constraint + f"-security-for-{c_outage}-in-{sn}"
-                m.add_constraints(lhs, sign, rhs, name=name)
+                lhs = con.lhs + additional_flow.rename(rename)
+                name = constraint + f"-security-for-{c_outage}-outages-in-{sn}"
+                m.add_constraints(lhs, con.sign, con.rhs, name=name)
 
     return n.optimize.solve_model(**kwargs)
 
