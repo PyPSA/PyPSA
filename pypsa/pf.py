@@ -1319,7 +1319,7 @@ def aggregate_multi_graph(sub_network):
             continue
         line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
-            lines = network.lines.loc[[l[1] for l in line_objs]]
+            lines = network.lines.loc[[line[1] for line in line_objs]]
             attr_inv = ["x", "r"]
             attr_sum = ["s_nom", "b", "g", "s_nom_max", "s_nom_min"]
             attr_mean = ["capital_cost", "length", "terrain_factor"]
