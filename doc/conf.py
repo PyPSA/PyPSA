@@ -33,6 +33,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx_reredirects",
     "nbsphinx",
     "nbsphinx_link",
     #    'sphinx.ext.pngmath',
@@ -339,10 +340,13 @@ texinfo_documents = [
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 redirects = {
+    # Redirects from old/ similar urls to new ones
     # Getting Started
     "introduction.html": "getting-started/introduction.html",
     "installation.html": "getting-started/installation.html",
+    "setup.html": "getting-started/installation.html",
     "quick_start.html": "getting-started/quick-start.html",
+    "quick-start.html": "getting-started/quick-start.html",
     "examples-basic.html": "getting-started/examples-basic.html",
     # User Guide
     "design.html": "user-guide/design.html",
@@ -359,7 +363,10 @@ redirects = {
     "mailing_list.html": "contributing/mailing-list.html",
     # References
     "api_reference.html": "references/api-reference.html",
+    "api-reference.html": "references/api-reference.html",
+    "api.html": "references/api-reference.html",
     "release_notes.html": "references/release-notes.html",
+    "release-notes.html": "references/release-notes.html",
     "comparable_software.html": "references/comparable-software.html",
     "citing.html": "references/citing.html",
     "users.html": "references/users.html",

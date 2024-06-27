@@ -27,6 +27,7 @@ dependencies:
   - .
   - sphinx<6
   - sphinx-book-theme
+  - sphinx-reredirects
   - nbsphinx
   - nbsphinx_link
   - highspy
