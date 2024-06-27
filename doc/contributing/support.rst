@@ -11,4 +11,4 @@ Support
 
 > **Note**
 > All questions benefit from being accompanied by a minimal working example (MWE) that illustrates the problem or question,
-> and by sharing which approaches you have already tried. See `troubleshooting <https://pypsa.org/doc/troubleshooting.html>`_ for more information on MWEs.
+> and by sharing which approaches you have already tried. See `troubleshooting <https://pypsa.org/doc/contributing/troubleshooting.html>`_ for more information on MWEs.

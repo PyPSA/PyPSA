@@ -110,7 +110,7 @@ and the shunt admittance is given by
 then the currents and voltages at buses 0 and 1 for a line:
 
 
-.. image:: img/line-equivalent.png
+.. image:: ../img/line-equivalent.png
 
 are related by
 
@@ -159,14 +159,14 @@ For a transformer with tap ratio :math:`\tau` on the primary side
 equivalent T model is given by:
 
 
-.. image:: img/transformer-t-equivalent-tap-hv.png
+.. image:: ../img/transformer-t-equivalent-tap-hv.png
 
 For a transformer with tap ratio :math:`\tau` on the secondary side
 ``tap_side = 1`` and phase shift :math:`\theta_{\textrm{shift}}`, the
 equivalent T model is given by:
 
 
-.. image:: img/transformer-t-equivalent-tap-lv.png
+.. image:: ../img/transformer-t-equivalent-tap-lv.png
 
 
 
@@ -178,7 +178,7 @@ For a transformer with tap ratio :math:`\tau` on the primary side
 equivalent PI model is given by:
 
 
-.. image:: img/transformer-pi-equivalent-tap-hv.png
+.. image:: ../img/transformer-pi-equivalent-tap-hv.png
 
 for which the currents and voltages are related by:
 
@@ -202,7 +202,7 @@ For a transformer with tap ratio :math:`\tau` on the secondary side
 equivalent PI model is given by:
 
 
-.. image:: img/transformer-pi-equivalent-tap-lv.png
+.. image:: ../img/transformer-pi-equivalent-tap-lv.png
 
 for which the currents and voltages are related by:
 
@@ -248,7 +248,7 @@ Inputs
 
 For the non-linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
-explicitly set. For the defaults and units, see :doc:`components`.
+explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 
 - buses.{v_nom, v_mag_pu_set (if PV generators are attached)}
 - loads.{p_set, q_set}
@@ -337,7 +337,7 @@ Inputs
 
 For the linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
-explicitly set. For the defaults and units, see :doc:`components`.
+explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 
 - buses.{v_nom}
 - loads.{p_set}

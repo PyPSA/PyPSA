@@ -81,101 +81,95 @@ Documentation
 
 **Getting Started**
 
-* :doc:`introduction`
-* :doc:`installation`
-* :doc:`quick_start`
+* :doc:`/getting-started/introduction`
+* :doc:`/getting-started/installation`
+* :doc:`/getting-started/quick-start`
+* :doc:`/getting-started/examples-basic`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: Getting Started
 
-   introduction
-   installation
-   quick_start
-
-
-**Examples**
-
-* :doc:`examples-basic`
-* :doc:`examples-lopf`
-* :doc:`examples-sector_coupling`
-* :doc:`examples-models`
-* :doc:`examples-other`
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-   :caption: Examples
-
-
-   examples-basic
-   examples-lopf
-   examples-sector_coupling
-   examples-models
-   examples-other
-
-
+   getting-started/introduction
+   getting-started/installation
+   getting-started/quick-start
+   getting-started/examples-basic
 
 **User Guide**
 
-* :doc:`design`
-* :doc:`components`
-* :doc:`import_export`
-* :doc:`power_flow`
-* :doc:`optimal_power_flow`
-* :doc:`contingency_analysis`
-* :doc:`plotting`
+* :doc:`/user-guide/design`
+* :doc:`/user-guide/components`
+* :doc:`/user-guide/import-export`
+* :doc:`/user-guide/power-flow`
+* :doc:`/user-guide/optimal-power-flow`
+* :doc:`/user-guide/contingency-analysis`
+* :doc:`/user-guide/plotting`
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: User Guide
 
-   design
-   components
-   import_export
-   power_flow
-   optimal_power_flow
-   contingency_analysis
-   plotting
+   user-guide/design
+   user-guide/components
+   user-guide/import-export
+   user-guide/power-flow
+   user-guide/optimal-power-flow
+   user-guide/contingency-analysis
+   user-guide/plotting
 
+**Examples**
 
+* :doc:`/examples-index/lopf`
+* :doc:`/examples-index/sector-coupling`
+* :doc:`/examples-index/other`
+* :doc:`/examples-index/models`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Examples
+
+   examples-index/lopf
+   examples-index/sector-coupling
+   examples-index/other
+   examples-index/models
 
 **Contributing & Support**
-* :doc:`contributing`
-* :doc:`support`
-* :doc:`troubleshooting`
-* :doc:`mailing_list`
+* :doc:`/contributing/contributing`
+* :doc:`/contributing/support`
+* :doc:`/contributing/troubleshooting`
+* :doc:`/contributing/mailing-list`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: Contributing & Support
 
-   contributing
-   support
-   troubleshooting
-   mailing_list
+   contributing/contributing
+   contributing/support
+   contributing/troubleshooting
+   contributing/mailing-list
 
 
 **References**
 
-* :doc:`api_reference`
-* :doc:`release_notes`
-* :doc:`comparable_software`
-* :doc:`citing`
-* :doc:`users`
-* :doc:`developers`
+* :doc:`/references/api-reference`
+* :doc:`/references/release-notes`
+* :doc:`/references/comparable-software`
+* :doc:`/references/citing`
+* :doc:`/references/users`
+* :doc:`/references/developers`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: References
 
-   api_reference
-   release_notes
-   comparable_software
-   citing
-   users
-   developers
+   references/api-reference
+   references/release-notes
+   references/comparable-software
+   references/citing
+   references/users
+   references/developers

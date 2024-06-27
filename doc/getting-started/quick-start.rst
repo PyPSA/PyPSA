@@ -2,9 +2,9 @@
 Quick Start
 ###########################
 
-For installation instructions see :doc:`installation`.
+For installation instructions see :doc:`/getting-started/installation`.
 
-See also the :doc:`examples-basic` examples with executable Jupyter notebooks.
+See also the :doc:`/getting-started/examples-basic` examples with executable Jupyter notebooks.
 
 In principle, PyPSA networks can be assigned with
 
@@ -25,7 +25,7 @@ Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth
     for i in range(n_buses):
         network.add("Bus", "My bus {}".format(i),  v_nom=20.)
 
-The same counts for lines, generators and loads, see the list of all components :doc:`components`.
+The same counts for lines, generators and loads, see the list of all components :doc:`/user-guide/components`.
 
 .. code:: python
 
