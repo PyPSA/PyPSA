@@ -55,6 +55,7 @@ docs = [
     "numpydoc",
     "sphinx",
     "sphinx-book-theme",
+    "sphinx-reredirects",
     "nbsphinx",
     "nbsphinx-link",
     "scikit-learn",
