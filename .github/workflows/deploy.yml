@@ -10,8 +10,8 @@ jobs:
     name: Build and publish Python distributions to PyPI
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: 3.9
     - name: Build distribution
@@ -45,7 +45,7 @@ jobs:
     name: Update version in CITATION.cff
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         ref: master
 
@@ -53,7 +53,7 @@ jobs:
       run: git fetch --prune --unshallow
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: 3.9
     - run: pip install toml setuptools_scm

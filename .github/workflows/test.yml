@@ -122,7 +122,7 @@ jobs:
       # Could be moved to a separate job
     - name: Upload code coverage report
       if: matrix.os == 'ubuntu-latest'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
 
   test-example-notebooks:
 
