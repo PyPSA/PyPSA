@@ -79,6 +79,13 @@ filterwarnings = [
     "ignore:Deleting a single level of a MultiIndex is deprecated:DeprecationWarning",
 ]
 
+# Coverage settings
+
+[tool.coverage.run]
+branch = true
+source = ["pypsa"]
+omit = ["test/*"]
+
 # Formater and linter settings
 
 [tool.black]
