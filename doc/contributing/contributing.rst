@@ -209,6 +209,6 @@ Then for every notebook:
 
 #. Commit your changes and create a pull request.
 
-The support for the the ``.ipynb`` notebook format in our documentation
+The support for the ``.ipynb`` notebook format in our documentation
 is realised via the extensions `nbsphinx <https://nbsphinx.readthedocs.io/en/0.4.2/installation.html>`_ 
 and `nbsphinx_link <https://nbsphinx.readthedocs.io/en/latest/>`_.
