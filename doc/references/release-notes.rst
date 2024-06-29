@@ -1713,7 +1713,7 @@ found in the GitHub repository at
 
 * graph: A new sub-module ``pypsa.graph`` has been introduced to
   replace most of the networkx functionality with scipy.sparse
-  methods, which are more performant the the pure python methods of
+  methods, which are more performant the pure python methods of
   networkx. The discovery of network connected components is now
   significantly faster.
 
