@@ -119,8 +119,6 @@ class Basic:
 class Common(Basic):
     """Common to all objects inside Network object."""
 
-    network = None
-
     def __init__(self, network, name=""):
         Basic.__init__(self, name)
         self._network = ref(network)
@@ -324,7 +322,7 @@ class Network(Basic):
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                str_b = attrs.typ == str
+                str_b = attrs.typ.apply(lambda x: x is str)
                 attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
                     typ_b = attrs.typ == typ
@@ -787,7 +785,7 @@ class Network(Basic):
         Adds it to component DataFrame.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         This method is slow for many components; instead use ``madd`` or
         ``import_components_from_dataframe`` (see below).
@@ -914,7 +912,7 @@ class Network(Basic):
         subset of names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------

@@ -76,11 +76,11 @@ Security-Constrained Linear Optimal Power Flow (SCLOPF)
 
 The Security-Constrained Linear Optimal Power Flow (SCLOPF) builds on
 the Linear Optimal Power Flow (LOPF) described in
-:doc:`optimal_power_flow` by including additional constraints that
+:doc:`/user-guide/optimal-power-flow` by including additional constraints that
 branches may not become overloaded after the outage of a selection of
 branches.
 
-The SCLOPF is called with the method :py:meth:`pypsa.Network.optimize.optimize_security_constrained`.
+The SCLOPF is called with the method :meth:`Network.optimize.optimize_security_constrained`.
 
 
 Note that

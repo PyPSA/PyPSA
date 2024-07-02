@@ -55,6 +55,7 @@ docs = [
     "numpydoc",
     "sphinx",
     "sphinx-book-theme",
+    "sphinx-reredirects",
     "nbsphinx",
     "nbsphinx-link",
     "scikit-learn",
@@ -77,6 +78,13 @@ filterwarnings = [
     # When https://github.com/PyPSA/linopy/issues/303 is fixed, this can be removed
     "ignore:Deleting a single level of a MultiIndex is deprecated:DeprecationWarning",
 ]
+
+# Coverage settings
+
+[tool.coverage.run]
+branch = true
+source = ["pypsa"]
+omit = ["test/*"]
 
 # Formater and linter settings
 
