@@ -33,14 +33,14 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
-
-    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
-      run: git fetch --prune --unshallow
+      with:
+        fetch-depth: 0 # Fetch all history for all tags and branches (necessary for setuptools_scm)
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: pip
 
     - name: Install macos dependencies
       if: matrix.os == 'macos-latest'
@@ -50,7 +50,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
+        python -m pip install flake8
         pip install .[dev]
 
     - name: Lint with flake8
@@ -83,9 +83,8 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
-
-    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
-      run: git fetch --prune --unshallow
+      with:
+        fetch-depth: 0 # Fetch all history for all tags and branches (necessary for setuptools_scm)
 
     - name: Setup micromamba
       uses: mamba-org/setup-micromamba@v1
@@ -130,19 +129,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Fetch all history for all tags and branches (necessary for setuptools_scm)
-      run: git fetch --prune --unshallow
+      with:
+        fetch-depth: 0 # Fetch all history for all tags and branches (necessary for setuptools_scm)
 
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
         python-version: 3.12
+        cache: pip
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest nbmake requests
+        python -m pip install flake8 nbmake requests
         pip install .[dev,cartopy]
 
     - name: Test with pytest
