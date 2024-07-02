@@ -28,6 +28,9 @@ Upcoming Release
 * Also check for missing values of default attributes in the `n.consistency_check()` 
   function. (https://github.com/PyPSA/PyPSA/pull/903)
 
+* The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
+
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
