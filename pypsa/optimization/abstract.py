@@ -295,22 +295,28 @@ def optimize_security_constrained(
         BODF = (BODF - np.diagflat(np.diag(BODF)))[outages]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
+            c_outage_ = c_outage + "-outage"
             c_outages = outages.get_loc_level(c_outage)[1]
-            flow = m.variables[c_outage + "-s"].loc[:, c_outages]
+            flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
+            flow_outage = flow_outage.rename({c_outage: c_outage_})
 
             bodf = BODF.loc[c_affected, c_outage]
-            bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
-            additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
+            bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
+            additional_flow = flow_outage * bodf
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
                 coord = c_affected + "-" + kind
                 constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                con = m.constraints[constraint]
-                rename = {c_affected + "-affected": c_affected + "-" + kind}
-                lhs = con.lhs + additional_flow.rename(rename)
-                name = constraint + f"-security-for-{c_outage}-outages-in-{sn}"
-                m.add_constraints(lhs, con.sign, con.rhs, name=name)
+                con = m.constraints[constraint]  # use this as a template
+                idx = con.lhs.indexes[coord]
+                rename = {c_affected: coord}
+                lhs = con.lhs + additional_flow.rename(rename).loc[idx]
+                mask = (lhs.data[coord] != lhs.data[c_outage_]).broadcast_like(
+                    con.labels
+                )
+                name = constraint + f"-security-for-{c_outage_}-in-{sn}"
+                m.add_constraints(lhs, con.sign, con.rhs, name=name, mask=mask)
 
     return n.optimize.solve_model(**kwargs)
 
