@@ -291,8 +291,7 @@ def optimize_security_constrained(
             continue
 
         sn.calculate_BODF()
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
-        BODF = (BODF - np.diagflat(np.diag(BODF)))[outages]
+        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)[outages]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
             c_outage_ = c_outage + "-outage"
@@ -308,15 +307,15 @@ def optimize_security_constrained(
                 constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                con = m.constraints[constraint]  # use this as a template
-                idx = con.lhs.indexes[coord]
                 rename = {c_affected: coord}
-                lhs = con.lhs + additional_flow.rename(rename).loc[idx]
-                mask = (lhs.data[coord] != lhs.data[c_outage_]).broadcast_like(
-                    con.labels
-                )
+                added_flow = additional_flow.rename(rename)
+                con = m.constraints[constraint]  # use this as a template
+                # idx now contains fixed/extendable for the subnetwork
+                idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
+                sel = {coord: idx}
+                lhs = con.lhs.sel(sel) + added_flow.sel(sel)
                 name = constraint + f"-security-for-{c_outage_}-in-{sn}"
-                m.add_constraints(lhs, con.sign, con.rhs, name=name, mask=mask)
+                m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
     return n.optimize.solve_model(**kwargs)
 
